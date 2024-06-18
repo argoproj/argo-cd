@@ -166,6 +166,43 @@ The argocd-server Service needs to be annotated with `projectcontour.io/upstream
 The API server should then be run with TLS disabled. Edit the `argocd-server` deployment to add the
 `--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md).
 
+Contour httpproxy CRD:
+
+Using a contour httpproxy CRD allows you to use the same hostname for the GRPC and REST api.
+
+```yaml
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: argocd-server
+  namespace: argocd
+spec:
+  ingressClassName: contour
+  virtualhost:
+    fqdn: path.to.argocd.io
+    tls:
+      secretName: wildcard-tls
+  routes:
+    - conditions:
+        - prefix: /
+        - header:
+            name: Content-Type
+            contains: application/grpc
+      services:
+        - name: argocd-server
+          port: 80
+          protocol: h2c # allows for unencrypted http2 connections
+      timeoutPolicy:
+        response: 1h
+        idle: 600s
+        idleConnection: 600s
+    - conditions:
+        - prefix: /
+      services:
+        - name: argocd-server
+          port: 80
+```
+
 ## [kubernetes/ingress-nginx](https://github.com/kubernetes/ingress-nginx)
 
 ### Option 1: SSL-Passthrough

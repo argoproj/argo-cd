@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/app/path"
 	"reflect"
 	"strings"
 	goSync "sync"
@@ -34,6 +33,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/app/path"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v2/util/argo/diff"
 	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
@@ -937,7 +937,16 @@ func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sou
 	return true
 }
 
-func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revision string, source v1alpha1.ApplicationSource, revisions []string, sources []v1alpha1.ApplicationSource, hasMultipleSources bool, startedAt metav1.Time) error {
+func (m *appStateManager) persistRevisionHistory(
+	app *v1alpha1.Application,
+	revision string,
+	source v1alpha1.ApplicationSource,
+	revisions []string,
+	sources []v1alpha1.ApplicationSource,
+	hasMultipleSources bool,
+	startedAt metav1.Time,
+	initiatedBy v1alpha1.OperationInitiator,
+) error {
 	var nextID int64
 	if len(app.Status.History) > 0 {
 		nextID = app.Status.History.LastRevisionHistory().ID + 1
@@ -950,6 +959,7 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 			ID:              nextID,
 			Sources:         sources,
 			Revisions:       revisions,
+			InitiatedBy:     initiatedBy,
 		})
 	} else {
 		app.Status.History = append(app.Status.History, v1alpha1.RevisionHistory{
@@ -958,6 +968,7 @@ func (m *appStateManager) persistRevisionHistory(app *v1alpha1.Application, revi
 			DeployStartedAt: &startedAt,
 			ID:              nextID,
 			Source:          source,
+			InitiatedBy:     initiatedBy,
 		})
 	}
 

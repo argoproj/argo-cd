@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
+
 	"math"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -89,6 +91,8 @@ func NewCommand() *cobra.Command {
 		repoServerStrictTLS      bool
 		applicationNamespaces    []string
 		argocdToken              string
+		codefreshTlsInsecure     bool
+		codefreshTlsCertPath     string
 		codefreshUrl             string
 		codefreshToken           string
 		shardingAlgorithm        string
@@ -175,8 +179,10 @@ func NewCommand() *cobra.Command {
 				ApplicationNamespaces:    applicationNamespaces,
 				ApplicationServiceClient: getApplicationClient(useGrpc, applicationServerAddress, argocdToken, rootpath),
 				CodefreshConfig: &codefresh.CodefreshConfig{
-					BaseURL:   codefreshUrl,
-					AuthToken: codefreshToken,
+					BaseURL:     codefreshUrl,
+					AuthToken:   codefreshToken,
+					TlsInsecure: codefreshTlsInsecure,
+					CaCertPath:  codefreshTlsCertPath,
 				},
 				RateLimiterOpts: &reporter.RateLimiterOpts{
 					Enabled:      rateLimiterEnabled,
@@ -225,6 +231,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&contentSecurityPolicy, "content-security-policy", env.StringFromEnv("EVENT_REPORTER_CONTENT_SECURITY_POLICY", "frame-ancestors 'self';"), "Set Content-Security-Policy header in HTTP responses to `value`. To disable, set to \"\".")
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("EVENT_REPORTER_REPO_SERVER_PLAINTEXT", false), "Use a plaintext client (non-TLS) to connect to repository server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("EVENT_REPORTER_REPO_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to repo server")
+	command.Flags().StringVar(&codefreshTlsCertPath, "codefresh-tls-cert-path", env.StringFromEnv("CODEFRESH_SSL_CERT_PATH", ""), "Codefresh TLS CA cert file path")
+	command.Flags().BoolVar(&codefreshTlsInsecure, "codefresh-tls-insecure", env.ParseBoolFromEnv("CODEFRESH_TLS_INSECURE", false), "Codefresh TLS insecure")
 	command.Flags().StringVar(&codefreshUrl, "codefresh-url", env.StringFromEnv("CODEFRESH_URL", "https://g.codefresh.io"), "Codefresh API url")
 	command.Flags().StringVar(&codefreshToken, "codefresh-token", env.StringFromEnv("CODEFRESH_TOKEN", ""), "Codefresh token")
 	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", env.StringFromEnv(common.EnvEventReporterShardingAlgorithm, common.DefaultEventReporterShardingAlgorithm), "Enables choice of sharding method. Supported sharding methods are : [legacy] ")
@@ -234,8 +242,10 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&rateLimiterBucketSize, "rate-limiter-bucket-size", env.ParseNumFromEnv("RATE_LIMITER_BUCKET_SIZE", math.MaxInt, 0, math.MaxInt), "The maximum amount of requests allowed per window.")
 	command.Flags().DurationVar(&rateLimiterDuration, "rate-limiter-period", env.ParseDurationFromEnv("RATE_LIMITER_DURATION", 24*time.Hour, 0, math.MaxInt64), "The rate limit window size.")
 	command.Flags().BoolVar(&rateLimiterLearningMode, "rate-limiter-learning-mode", env.ParseBoolFromEnv("RATE_LIMITER_LEARNING_MODE_ENABLED", false), "The rate limit enabled in learning mode ( not blocking sending to queue but logging it )")
-	cacheSrc = servercache.AddCacheFlagsToCmd(command, func(client *redis.Client) {
-		redisClient = client
+	cacheSrc = servercache.AddCacheFlagsToCmd(command, cacheutil.Options{
+		OnClientCreated: func(client *redis.Client) {
+			redisClient = client
+		},
 	})
 	return command
 }

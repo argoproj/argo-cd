@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"k8s.io/apimachinery/pkg/types"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
+
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/go-playground/webhooks/v6/bitbucket"
 	bitbucketserver "github.com/go-playground/webhooks/v6/bitbucket-server"
@@ -70,6 +71,7 @@ func NewMockHandler(reactor *reactorDef, applicationNamespaces []string, objects
 		cacheClient,
 		1*time.Minute,
 		1*time.Minute,
+		10*time.Second,
 		1*time.Minute,
 	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute, time.Minute), &mocks.ArgoDB{})
 }
@@ -584,11 +586,12 @@ func Test_getWebUrlRegex(t *testing.T) {
 		{true, "https://example.com/org/repo", "git@example.com:org/repo", "git without protocol should match"},
 		{true, "https://example.com/org/repo", "user@example.com:org/repo", "git with non-git username shout match"},
 		{true, "https://example.com/org/repo", "ssh://git@example.com/org/repo", "git with protocol should match"},
-		{true, "https://example.com/org/repo", "ssh://git@example.com:22/org/repo", "git with port number should should match"},
+		{true, "https://example.com/org/repo", "ssh://git@example.com:22/org/repo", "git with port number should match"},
 		{true, "https://example.com:443/org/repo", "ssh://git@example.com:22/org/repo", "https and ssh w/ different port numbers should match"},
 		{true, "https://example.com/org/repo", "ssh://user-name@example.com/org/repo", "valid usernames with hyphens in repo should match"},
 		{false, "https://example.com/org/repo", "ssh://-user-name@example.com/org/repo", "invalid usernames with hyphens in repo should not match"},
 		{true, "https://example.com:443/org/repo", "GIT@EXAMPLE.COM:22:ORG/REPO", "matches aren't case-sensitive"},
+		{true, "https://example.com/org/repo%20", "https://example.com/org/repo%20", "escape codes in path are preserved"},
 	}
 	for _, testCase := range tests {
 		testCopy := testCase

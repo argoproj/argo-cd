@@ -7,6 +7,7 @@ The following configuration options are available for Kustomize:
 * `images` is a list of Kustomize image overrides
 * `replicas` is a list of Kustomize replica overrides
 * `commonLabels` is a string map of additional labels
+* `labelWithoutSelector` is a boolean value which defines if the common label(s) should be applied to resource selectors and templates.
 * `forceCommonLabels` is a boolean value which defines if it's allowed to override existing labels
 * `commonAnnotations` is a string map of additional annotations
 * `namespace` is a Kubernetes resources namespace
@@ -31,7 +32,7 @@ metadata:
   name: kustomize-inline-example
 namespace: test1
 resources:
-  - https://raw.githubusercontent.com/argoproj/argocd-example-apps/master/kustomize-guestbook/
+  - https://github.com/argoproj/argocd-example-apps//kustomize-guestbook/
 patches:
   - target:
       kind: Deployment
@@ -162,6 +163,9 @@ data:
     kustomize.buildOptions: --load-restrictor LoadRestrictionsNone
     kustomize.buildOptions.v4.4.0: --output /tmp
 ```
+
+After modifying `kustomize.buildOptions`, you may need to restart ArgoCD for the changes to take effect.
+
 ## Custom Kustomize versions
 
 Argo CD supports using multiple Kustomize versions simultaneously and specifies required version per application.

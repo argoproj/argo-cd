@@ -235,14 +235,6 @@ data:
   # can be either empty, "normal" or "strict". By default, it is empty i.e. disabled.
   resource.respectRBAC: "normal"
 
-  # Configuration to add a config management plugin.
-  configManagementPlugins: |
-    - name: kasane
-      init:
-        command: [kasane, update]
-      generate:
-        command: [kasane, show]
-
   # A set of settings that allow enabling or disabling the config management tool.
   # If unset, each defaults to "true".
   kustomize.enabled: true
@@ -308,8 +300,10 @@ data:
   # have either a permanent banner or a regular closeable banner, and NOT both. eg. A user can't dismiss a
   # notification message (closeable) banner, to then immediately see a permanent banner.
   # ui.bannerpermanent: "true"
-  # An option to specify the position of the banner, either the top or bottom of the page. The default is at the top.
-  # Uncomment to make the banner appear at the bottom of the page. Any value other than "bottom" will make the banner appear at the top.
+  # An option to specify the position of the banner, either the top or bottom of the page, or both. The valid values
+  # are: "top", "bottom" and "both".  The default (if the option is not provided), is "top". If "both" is specified, then
+  # the content appears both at the top and the bottom of the page. Uncomment the following line to make the banner appear
+  # at the bottom of the page. Change the value as needed.
   # ui.bannerposition: "bottom"
 
   # Application reconciliation timeout is the max amount of time required to discover if a new manifests version got
@@ -325,6 +319,10 @@ data:
 
   # cluster.inClusterEnabled indicates whether to allow in-cluster server address. This is enabled by default.
   cluster.inClusterEnabled: "true"
+
+  # The maximum number of pod logs to render in UI. If the application has more than this number of pods, the logs will not be rendered.
+  # This is to prevent the UI from becoming unresponsive when rendering a large number of logs. Default is 10.
+  server.maxPodLogsToRender: 10
 
   # Application pod logs RBAC enforcement enables control over who can and who can't view application pod logs.
   # When you enable the switch, pod logs will be visible only to admin role by default. Other roles/users will not be able to view them via cli and UI.

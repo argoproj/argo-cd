@@ -322,7 +322,7 @@ spec:
                             type: object
                           components:
                             description: Components specifies a list of kustomize
-                              components to add to the kustmization before building
+                              components to add to the kustomization before building
                             items:
                               type: string
                             type: array
@@ -347,6 +347,10 @@ spec:
                                 definition in the format [old_image_name=]<image_name>:<image_tag>
                               type: string
                             type: array
+                          labelWithoutSelector:
+                            description: LabelWithoutSelector specifies whether to
+                              apply common labels to resource selectors or not
+                            type: boolean
                           namePrefix:
                             description: NamePrefix is a prefix appended to resources
                               for Kustomize apps
@@ -660,7 +664,7 @@ spec:
                               type: object
                             components:
                               description: Components specifies a list of kustomize
-                                components to add to the kustmization before building
+                                components to add to the kustomization before building
                               items:
                                 type: string
                               type: array
@@ -686,6 +690,10 @@ spec:
                                   image definition in the format [old_image_name=]<image_name>:<image_tag>
                                 type: string
                               type: array
+                            labelWithoutSelector:
+                              description: LabelWithoutSelector specifies whether
+                                to apply common labels to resource selectors or not
+                              type: boolean
                             namePrefix:
                               description: NamePrefix is a prefix appended to resources
                                 for Kustomize apps
@@ -1115,7 +1123,7 @@ spec:
                         type: object
                       components:
                         description: Components specifies a list of kustomize components
-                          to add to the kustmization before building
+                          to add to the kustomization before building
                         items:
                           type: string
                         type: array
@@ -1139,6 +1147,10 @@ spec:
                             definition in the format [old_image_name=]<image_name>:<image_tag>
                           type: string
                         type: array
+                      labelWithoutSelector:
+                        description: LabelWithoutSelector specifies whether to apply
+                          common labels to resource selectors or not
+                        type: boolean
                       namePrefix:
                         description: NamePrefix is a prefix appended to resources
                           for Kustomize apps
@@ -1443,7 +1455,7 @@ spec:
                           type: object
                         components:
                           description: Components specifies a list of kustomize components
-                            to add to the kustmization before building
+                            to add to the kustomization before building
                           items:
                             type: string
                           type: array
@@ -1468,6 +1480,10 @@ spec:
                               definition in the format [old_image_name=]<image_name>:<image_tag>
                             type: string
                           type: array
+                        labelWithoutSelector:
+                          description: LabelWithoutSelector specifies whether to apply
+                            common labels to resource selectors or not
+                          type: boolean
                         namePrefix:
                           description: NamePrefix is a prefix appended to resources
                             for Kustomize apps
@@ -1742,6 +1758,19 @@ spec:
                       description: ID is an auto incrementing identifier of the RevisionHistory
                       format: int64
                       type: integer
+                    initiatedBy:
+                      description: InitiatedBy contains information about who initiated
+                        the operations
+                      properties:
+                        automated:
+                          description: Automated is set to true if operation was initiated
+                            automatically by the application controller.
+                          type: boolean
+                        username:
+                          description: Username contains the name of a user who started
+                            operation
+                          type: string
+                      type: object
                     revision:
                       description: Revision holds the revision the sync was performed
                         against
@@ -1924,7 +1953,7 @@ spec:
                               type: object
                             components:
                               description: Components specifies a list of kustomize
-                                components to add to the kustmization before building
+                                components to add to the kustomization before building
                               items:
                                 type: string
                               type: array
@@ -1950,6 +1979,10 @@ spec:
                                   image definition in the format [old_image_name=]<image_name>:<image_tag>
                                 type: string
                               type: array
+                            labelWithoutSelector:
+                              description: LabelWithoutSelector specifies whether
+                                to apply common labels to resource selectors or not
+                              type: boolean
                             namePrefix:
                               description: NamePrefix is a prefix appended to resources
                                 for Kustomize apps
@@ -2266,7 +2299,7 @@ spec:
                                 type: object
                               components:
                                 description: Components specifies a list of kustomize
-                                  components to add to the kustmization before building
+                                  components to add to the kustomization before building
                                 items:
                                   type: string
                                 type: array
@@ -2293,6 +2326,11 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
+                              labelWithoutSelector:
+                                description: LabelWithoutSelector specifies whether
+                                  to apply common labels to resource selectors or
+                                  not
+                                type: boolean
                               namePrefix:
                                 description: NamePrefix is a prefix appended to resources
                                   for Kustomize apps
@@ -2753,7 +2791,7 @@ spec:
                                     type: object
                                   components:
                                     description: Components specifies a list of kustomize
-                                      components to add to the kustmization before
+                                      components to add to the kustomization before
                                       building
                                     items:
                                       type: string
@@ -2781,6 +2819,11 @@ spec:
                                         image definition in the format [old_image_name=]<image_name>:<image_tag>
                                       type: string
                                     type: array
+                                  labelWithoutSelector:
+                                    description: LabelWithoutSelector specifies whether
+                                      to apply common labels to resource selectors
+                                      or not
+                                    type: boolean
                                   namePrefix:
                                     description: NamePrefix is a prefix appended to
                                       resources for Kustomize apps
@@ -3114,7 +3157,7 @@ spec:
                                       type: object
                                     components:
                                       description: Components specifies a list of
-                                        kustomize components to add to the kustmization
+                                        kustomize components to add to the kustomization
                                         before building
                                       items:
                                         type: string
@@ -3142,6 +3185,11 @@ spec:
                                           image definition in the format [old_image_name=]<image_name>:<image_tag>
                                         type: string
                                       type: array
+                                    labelWithoutSelector:
+                                      description: LabelWithoutSelector specifies
+                                        whether to apply common labels to resource
+                                        selectors or not
+                                      type: boolean
                                     namePrefix:
                                       description: NamePrefix is a prefix appended
                                         to resources for Kustomize apps
@@ -3590,7 +3638,7 @@ spec:
                                 type: object
                               components:
                                 description: Components specifies a list of kustomize
-                                  components to add to the kustmization before building
+                                  components to add to the kustomization before building
                                 items:
                                   type: string
                                 type: array
@@ -3617,6 +3665,11 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
+                              labelWithoutSelector:
+                                description: LabelWithoutSelector specifies whether
+                                  to apply common labels to resource selectors or
+                                  not
+                                type: boolean
                               namePrefix:
                                 description: NamePrefix is a prefix appended to resources
                                   for Kustomize apps
@@ -3943,7 +3996,8 @@ spec:
                                   type: object
                                 components:
                                   description: Components specifies a list of kustomize
-                                    components to add to the kustmization before building
+                                    components to add to the kustomization before
+                                    building
                                   items:
                                     type: string
                                   type: array
@@ -3970,6 +4024,11 @@ spec:
                                       image definition in the format [old_image_name=]<image_name>:<image_tag>
                                     type: string
                                   type: array
+                                labelWithoutSelector:
+                                  description: LabelWithoutSelector specifies whether
+                                    to apply common labels to resource selectors or
+                                    not
+                                  type: boolean
                                 namePrefix:
                                   description: NamePrefix is a prefix appended to
                                     resources for Kustomize apps
@@ -4440,7 +4499,7 @@ spec:
                                 type: object
                               components:
                                 description: Components specifies a list of kustomize
-                                  components to add to the kustmization before building
+                                  components to add to the kustomization before building
                                 items:
                                   type: string
                                 type: array
@@ -4467,6 +4526,11 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
+                              labelWithoutSelector:
+                                description: LabelWithoutSelector specifies whether
+                                  to apply common labels to resource selectors or
+                                  not
+                                type: boolean
                               namePrefix:
                                 description: NamePrefix is a prefix appended to resources
                                   for Kustomize apps
@@ -4793,7 +4857,8 @@ spec:
                                   type: object
                                 components:
                                   description: Components specifies a list of kustomize
-                                    components to add to the kustmization before building
+                                    components to add to the kustomization before
+                                    building
                                   items:
                                     type: string
                                   type: array
@@ -4820,6 +4885,11 @@ spec:
                                       image definition in the format [old_image_name=]<image_name>:<image_tag>
                                     type: string
                                   type: array
+                                labelWithoutSelector:
+                                  description: LabelWithoutSelector specifies whether
+                                    to apply common labels to resource selectors or
+                                    not
+                                  type: boolean
                                 namePrefix:
                                   description: NamePrefix is a prefix appended to
                                     resources for Kustomize apps
@@ -5251,6 +5321,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -5467,6 +5539,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -5842,6 +5916,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -6058,6 +6134,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -6437,6 +6515,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -6653,6 +6733,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -7012,6 +7094,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -7228,6 +7312,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -7609,6 +7695,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -7825,6 +7913,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -8200,6 +8290,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -8416,6 +8508,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -8795,6 +8889,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -9011,6 +9107,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -9370,6 +9468,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -9586,6 +9686,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -9953,6 +10055,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -10169,6 +10273,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -10718,6 +10824,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -10934,6 +11042,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -11478,6 +11588,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -11694,6 +11806,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -12067,6 +12181,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -12283,6 +12399,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -12666,6 +12784,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -12882,6 +13002,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -13257,6 +13379,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -13473,6 +13597,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -13852,6 +13978,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -14068,6 +14196,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -14427,6 +14557,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -14643,6 +14775,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -15010,6 +15144,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -15226,6 +15362,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -15775,6 +15913,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -15991,6 +16131,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -16535,6 +16677,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  labelWithoutSelector:
+                                                    type: boolean
                                                   namePrefix:
                                                     type: string
                                                   nameSuffix:
@@ -16751,6 +16895,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    labelWithoutSelector:
+                                                      type: boolean
                                                     namePrefix:
                                                       type: string
                                                     nameSuffix:
@@ -17128,6 +17274,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -17344,6 +17492,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -17710,6 +17860,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -17926,6 +18078,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -18475,6 +18629,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -18691,6 +18847,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -19235,6 +19393,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        labelWithoutSelector:
+                                          type: boolean
                                         namePrefix:
                                           type: string
                                         nameSuffix:
@@ -19451,6 +19611,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          labelWithoutSelector:
+                                            type: boolean
                                           namePrefix:
                                             type: string
                                           nameSuffix:
@@ -19899,6 +20061,8 @@ spec:
                                 items:
                                   type: string
                                 type: array
+                              labelWithoutSelector:
+                                type: boolean
                               namePrefix:
                                 type: string
                               nameSuffix:
@@ -20115,6 +20279,8 @@ spec:
                                   items:
                                     type: string
                                   type: array
+                                labelWithoutSelector:
+                                  type: boolean
                                 namePrefix:
                                   type: string
                                 nameSuffix:
@@ -21754,7 +21920,7 @@ spec:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.37.0
+        image: ghcr.io/dexidp/dex:v2.38.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -21856,6 +22022,13 @@ spec:
         - ""
         - --appendonly
         - "no"
+        - --requirepass $(REDIS_PASSWORD)
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
         image: public.ecr.aws/docker/library/redis:7.0.14-alpine
         imagePullPolicy: Always
         name: redis
@@ -21867,6 +22040,23 @@ spec:
             drop:
             - ALL
           readOnlyRootFilesystem: true
+      initContainers:
+      - command:
+        - argocd
+        - admin
+        - redis-initial-password
+        image: quay.io/codefresh/argocd:latest
+        imagePullPolicy: IfNotPresent
+        name: secret-init
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
       securityContext:
         runAsNonRoot: true
         runAsUser: 999
@@ -22064,6 +22254,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.disable.helm.manifest.max.extracted.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REVISION_CACHE_LOCK_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.revision.cache.lock.timeout
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_GIT_MODULES_ENABLED
@@ -23045,12 +23241,6 @@ kind: NetworkPolicy
 metadata:
   name: argocd-redis-network-policy
 spec:
-  egress:
-  - ports:
-    - port: 53
-      protocol: UDP
-    - port: 53
-      protocol: TCP
   ingress:
   - from:
     - podSelector:
@@ -23070,7 +23260,6 @@ spec:
       app.kubernetes.io/name: argocd-redis
   policyTypes:
   - Ingress
-  - Egress
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

@@ -107,8 +107,8 @@ func (_m *RepoServerService_GenerateManifestWithFilesClient) RecvMsg(m interface
 	return r0
 }
 
-// SendEvent provides a mock function with given fields: _a0
-func (_m *RepoServerService_GenerateManifestWithFilesClient) SendEvent(_a0 *apiclient.ManifestRequestWithFiles) error {
+// Send provides a mock function with given fields: _a0
+func (_m *RepoServerService_GenerateManifestWithFilesClient) Send(_a0 *apiclient.ManifestRequestWithFiles) error {
 	ret := _m.Called(_a0)
 
 	var r0 error

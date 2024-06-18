@@ -1281,6 +1281,71 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 					},
 				},
 			},
+		}, {
+			name: "Ensure that argocd post-delete finalizers are preserved from an existing app",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Template: v1alpha1.ApplicationSetTemplate{
+						Spec: v1alpha1.ApplicationSpec{
+							Project: "project",
+						},
+					},
+				},
+			},
+			existingApps: []v1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       application.ApplicationKind,
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "app1",
+						Namespace:       "namespace",
+						ResourceVersion: "2",
+						Finalizers: []string{
+							v1alpha1.PostDeleteFinalizerName,
+							v1alpha1.PostDeleteFinalizerName + "/mystage",
+						},
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+					},
+				},
+			},
+			desiredApps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+					},
+				},
+			},
+			expected: []v1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       application.ApplicationKind,
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "app1",
+						Namespace:       "namespace",
+						ResourceVersion: "2",
+						Finalizers: []string{
+							v1alpha1.PostDeleteFinalizerName,
+							v1alpha1.PostDeleteFinalizerName + "/mystage",
+						},
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+					},
+				},
+			},
 		},
 	} {
 
@@ -2421,6 +2486,91 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	// make sure bad app was not created
 	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "bad-project"}, &app)
 	assert.Error(t, err)
+}
+
+func TestReconcilerCreateAppsRecoveringRenderError(t *testing.T) {
+
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+	err = v1alpha1.AddToScheme(scheme)
+	assert.Nil(t, err)
+
+	project := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
+	}
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "name",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate: true,
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					List: &v1alpha1.ListGenerator{
+						Elements: []apiextensionsv1.JSON{{
+							Raw: []byte(`{"name": "very-good-app"}`),
+						}, {
+							Raw: []byte(`{"name": "bad-app"}`),
+						}},
+					},
+				},
+			},
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:      "{{ index (splitList \"-\" .name ) 2 }}",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Source:      &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
+					Project:     "default",
+					Destination: v1alpha1.ApplicationDestination{Server: "https://kubernetes.default.svc"},
+				},
+			},
+		},
+	}
+
+	kubeclientset := kubefake.NewSimpleClientset()
+	argoDBMock := dbmocks.ArgoDB{}
+	argoObjs := []runtime.Object{&project}
+
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+
+	r := ApplicationSetReconciler{
+		Client:   client,
+		Scheme:   scheme,
+		Renderer: &utils.Render{},
+		Recorder: record.NewFakeRecorder(1),
+		Cache:    &fakeCache{},
+		Generators: map[string]generators.Generator{
+			"List": generators.NewListGenerator(),
+		},
+		ArgoDB:           &argoDBMock,
+		ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+		KubeClientset:    kubeclientset,
+		Policy:           v1alpha1.ApplicationsSyncPolicySync,
+		ArgoCDNamespace:  "argocd",
+	}
+
+	req := ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Namespace: "argocd",
+			Name:      "name",
+		},
+	}
+
+	// Verify that on generatorsError, no error is returned, but the object is requeued
+	res, err := r.Reconcile(context.Background(), req)
+	assert.Nil(t, err)
+	assert.True(t, res.RequeueAfter == ReconcileRequeueOnValidationError)
+
+	var app v1alpha1.Application
+
+	// make sure good app got created
+	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "app"}, &app)
+	assert.NoError(t, err)
+	assert.Equal(t, app.Name, "app")
 }
 
 func TestSetApplicationSetStatusCondition(t *testing.T) {
@@ -6087,14 +6237,70 @@ func TestOwnsHandler(t *testing.T) {
 			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"foo": "bar"}}},
 			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"bar": "foo"}}},
 		}}, want: true},
+		{name: "DifferentApplicationLabelsNil", args: args{e: event.UpdateEvent{
+			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{}}},
+			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: nil}},
+		}}, want: false},
 		{name: "DifferentApplicationAnnotations", args: args{e: event.UpdateEvent{
 			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"foo": "bar"}}},
 			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"bar": "foo"}}},
 		}}, want: true},
+		{name: "DifferentApplicationAnnotationsNil", args: args{e: event.UpdateEvent{
+			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{}}},
+			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: nil}},
+		}}, want: false},
 		{name: "DifferentApplicationFinalizers", args: args{e: event.UpdateEvent{
 			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{"argo"}}},
 			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{"none"}}},
 		}}, want: true},
+		{name: "DifferentApplicationFinalizersNil", args: args{e: event.UpdateEvent{
+			ObjectOld: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
+			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Finalizers: nil}},
+		}}, want: false},
+		{name: "ApplicationDestinationSame", args: args{e: event.UpdateEvent{
+			ObjectOld: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "server",
+						Namespace: "ns",
+						Name:      "name",
+					},
+				},
+			},
+			ObjectNew: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "server",
+						Namespace: "ns",
+						Name:      "name",
+					},
+				},
+			},
+		},
+			enableProgressiveSyncs: true,
+		}, want: false},
+		{name: "ApplicationDestinationDiff", args: args{e: event.UpdateEvent{
+			ObjectOld: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "server",
+						Namespace: "ns",
+						Name:      "name",
+					},
+				},
+			},
+			ObjectNew: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "notSameServer",
+						Namespace: "ns",
+						Name:      "name",
+					},
+				},
+			},
+		},
+			enableProgressiveSyncs: true,
+		}, want: true},
 		{name: "NotAnAppOld", args: args{e: event.UpdateEvent{
 			ObjectOld: &v1alpha1.AppProject{},
 			ObjectNew: &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"bar": "foo"}}},

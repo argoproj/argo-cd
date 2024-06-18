@@ -11,6 +11,8 @@ metadata:
     release: argocd
     chart: redis-ha-4.26.6
     app: argocd-redis-ha
+secrets:
+- name: argocd-redis
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-haproxy-serviceaccount.yaml
 apiVersion: v1
@@ -50,6 +52,8 @@ data:
     rdbcompression yes
     repl-diskless-sync yes
     save ""
+    requirepass replace-default-auth
+    masterauth replace-default-auth
 
   sentinel.conf: |
     dir "/data"
@@ -59,6 +63,7 @@ data:
         sentinel failover-timeout argocd 180000
         maxclients 10000
         sentinel parallel-syncs argocd 5
+    sentinel auth-pass argocd replace-default-auth
 
   init.sh: |
     echo "$(date) Start..."
@@ -191,9 +196,9 @@ data:
     redis_ping() {
     set +e
         if [ "$REDIS_PORT" -eq 0 ]; then
-            redis-cli -h "${MASTER}" -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key ping
+            redis-cli -h "${MASTER}" -a "${AUTH}" --no-auth-warning -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key ping
         else
-            redis-cli -h "${MASTER}" -p "${REDIS_PORT}" ping
+            redis-cli -h "${MASTER}" -a "${AUTH}" --no-auth-warning -p "${REDIS_PORT}" ping
         fi
     set -e
     }
@@ -454,9 +459,9 @@ data:
     redis_ping() {
     set +e
         if [ "$REDIS_PORT" -eq 0 ]; then
-            redis-cli -h "${MASTER}" -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key ping
+            redis-cli -h "${MASTER}" -a "${AUTH}" --no-auth-warning -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key ping
         else
-            redis-cli -h "${MASTER}" -p "${REDIS_PORT}" ping
+            redis-cli -h "${MASTER}" -a "${AUTH}" --no-auth-warning -p "${REDIS_PORT}" ping
         fi
     set -e
     }
@@ -554,9 +559,9 @@ data:
     redis_role() {
     set +e
         if [ "$REDIS_PORT" -eq 0 ]; then
-            ROLE=$(redis-cli  -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key info | grep role | sed 's/role://' | sed 's/\r//')
+            ROLE=$(redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key info | grep role | sed 's/role://' | sed 's/\r//')
         else
-            ROLE=$(redis-cli  -p "${REDIS_PORT}" info | grep role | sed 's/role://' | sed 's/\r//')
+            ROLE=$(redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_PORT}" info | grep role | sed 's/role://' | sed 's/\r//')
         fi
     set -e
     }
@@ -564,9 +569,9 @@ data:
     identify_redis_master() {
     set +e
         if [ "$REDIS_PORT" -eq 0 ]; then
-            REDIS_MASTER=$(redis-cli  -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key info | grep master_host | sed 's/master_host://' | sed 's/\r//')
+            REDIS_MASTER=$(redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key info | grep master_host | sed 's/master_host://' | sed 's/\r//')
         else
-            REDIS_MASTER=$(redis-cli  -p "${REDIS_PORT}" info | grep master_host | sed 's/master_host://' | sed 's/\r//')
+            REDIS_MASTER=$(redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_PORT}" info | grep master_host | sed 's/master_host://' | sed 's/\r//')
         fi
     set -e
     }
@@ -576,9 +581,9 @@ data:
         sh /readonly-config/init.sh
 
         if [ "$REDIS_PORT" -eq 0 ]; then
-            echo "shutdown" | redis-cli  -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key
+            echo "shutdown" | redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key
         else
-            echo "shutdown" | redis-cli  -p "${REDIS_PORT}"
+            echo "shutdown" | redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_PORT}"
         fi
     set -e
     }
@@ -675,6 +680,8 @@ data:
       mode tcp
       option tcp-check
       tcp-check connect
+      tcp-check send "AUTH ${AUTH}"\r\n
+      tcp-check expect string +OK
       tcp-check send PING\r\n
       tcp-check expect string +PONG
       tcp-check send info\ replication\r\n
@@ -731,6 +738,7 @@ data:
     get_redis_role() {
       is_master=$(
         redis-cli \
+          -a "${AUTH}" --no-auth-warning \
           -h localhost \
           -p 6379 \
           info | grep -c 'role:master' || true
@@ -773,6 +781,7 @@ data:
   redis_liveness.sh: |
     response=$(
       redis-cli \
+        -a "${AUTH}" --no-auth-warning \
         -h localhost \
         -p 6379 \
         ping
@@ -785,6 +794,7 @@ data:
   redis_readiness.sh: |
     response=$(
       redis-cli \
+        -a "${AUTH}" --no-auth-warning \
         -h localhost \
         -p 6379 \
         ping
@@ -1058,7 +1068,7 @@ spec:
         prometheus.io/port: "9101"
         prometheus.io/scrape: "true"
         prometheus.io/path: "/metrics"
-        checksum/config: 492a6adabb741e0cee39be9aa5155c41a4456629f862d0006a2d892dbecfbcae
+        checksum/config: e34e8124c38bcfd2f16e75620bbde30158686692b13bc449eecc44c51b207d54
     spec:
       # Needed when using unmodified rbac-setup.yml
       
@@ -1115,6 +1125,12 @@ spec:
           runAsNonRoot: true
           seccompProfile:
             type: RuntimeDefault
+        env:
+        - name: AUTH
+          valueFrom:
+            secretKeyRef:
+              name: argocd-redis
+              key: auth
         livenessProbe:
           httpGet:
             path: /healthz
@@ -1179,7 +1195,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: d45ee12c1b90232fdd3419128942ba79c8989bd30046f8cff6e47e75d9736836
+        checksum/init-config: 9d3c019a5ea1fd98ab5cde397d8eecd351da884f15e6ba346c607cb2446c2198
       labels:
         release: argocd
         app: redis-ha
@@ -1227,6 +1243,11 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
+        - name: AUTH
+          valueFrom:
+            secretKeyRef:
+              name: argocd-redis
+              key: auth
         volumeMounts:
         - name: config
           mountPath: /readonly-config
@@ -1252,6 +1273,12 @@ spec:
           runAsUser: 1000
           seccompProfile:
             type: RuntimeDefault
+        env:
+        - name: AUTH
+          valueFrom:
+            secretKeyRef:
+              name: argocd-redis
+              key: auth
         livenessProbe:
           initialDelaySeconds: 30
           periodSeconds: 15
@@ -1309,6 +1336,12 @@ spec:
           runAsUser: 1000
           seccompProfile:
             type: RuntimeDefault
+        env:
+        - name: AUTH
+          valueFrom:
+            secretKeyRef:
+              name: argocd-redis
+              key: auth
         livenessProbe:
           initialDelaySeconds: 30
           periodSeconds: 15
@@ -1367,6 +1400,11 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
+        - name: AUTH
+          valueFrom:
+            secretKeyRef:
+              name: argocd-redis
+              key: auth
         resources:
           {}
         volumeMounts:

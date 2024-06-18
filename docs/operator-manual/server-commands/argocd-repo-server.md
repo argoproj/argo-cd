@@ -17,6 +17,11 @@ argocd-repo-server [flags]
 ```
       --address string                                 Listen on given address for incoming connections (default "0.0.0.0")
       --allow-oob-symlinks                             Allow out-of-bounds symlinks in repositories (not recommended)
+      --cf-app-config-cache-expiration duration        Cache expiration for Codefresh application configs (default 3m0s)
+      --codefresh-application-version-enabled          Allow Codefresh application versioning (default true)
+      --codefresh-application-version-use-appconfig    Allow getting application configuration from the Codefresh API (default true)
+      --codefresh-token string                         Codefresh token
+      --codefresh-url string                           Codefresh API URL (default "https://g.codefresh.io")
       --default-cache-expiration duration              Cache expiration default (default 24h0m0s)
       --disable-helm-manifest-max-extracted-size       Disable maximum size of helm manifest archives when extracted
       --disable-tls                                    Disable TLS on the gRPC endpoint
@@ -45,6 +50,7 @@ argocd-repo-server [flags]
       --redisdb int                                    Redis database.
       --repo-cache-expiration duration                 Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data (default 24h0m0s)
       --revision-cache-expiration duration             Cache expiration for cached revision (default 3m0s)
+      --revision-cache-lock-timeout duration           Cache TTL for locks to prevent duplicate requests on revisions, set to 0 to disable (default 10s)
       --sentinel stringArray                           Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
       --sentinelmaster string                          Redis sentinel master group name. (default "master")
       --streamed-manifest-max-extracted-size string    Maximum size of streamed manifest archives when extracted (default "1G")

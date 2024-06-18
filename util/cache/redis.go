@@ -61,15 +61,6 @@ func (r *redisCache) getKey(key string) string {
 	}
 }
 
-func (r *redisCache) Rename(oldKey string, newKey string, _ time.Duration) error {
-	err := r.client.Rename(context.TODO(), r.getKey(oldKey), r.getKey(newKey)).Err()
-	if err != nil && err.Error() == "ERR no such key" {
-		err = ErrCacheMiss
-	}
-
-	return err
-}
-
 func (r *redisCache) marshal(obj interface{}) ([]byte, error) {
 	buf := bytes.NewBuffer([]byte{})
 	var w io.Writer = buf
@@ -105,8 +96,17 @@ func (r *redisCache) unmarshal(data []byte, obj interface{}) error {
 	return nil
 }
 
+func (r *redisCache) Rename(oldKey string, newKey string, _ time.Duration) error {
+	err := r.client.Rename(context.TODO(), r.getKey(oldKey), r.getKey(newKey)).Err()
+	if err != nil && err.Error() == "ERR no such key" {
+		err = ErrCacheMiss
+	}
+
+	return err
+}
+
 func (r *redisCache) Set(item *Item) error {
-	expiration := item.Expiration
+	expiration := item.CacheActionOpts.Expiration
 	if expiration == 0 {
 		expiration = r.expiration
 	}
@@ -120,6 +120,7 @@ func (r *redisCache) Set(item *Item) error {
 		Key:   r.getKey(item.Key),
 		Value: val,
 		TTL:   expiration,
+		SetNX: item.CacheActionOpts.DisableOverwrite,
 	})
 }
 

@@ -33,7 +33,22 @@ func (i *InMemoryCache) Set(item *Item) error {
 	if err != nil {
 		return err
 	}
-	i.memCache.Set(item.Key, buf, item.Expiration)
+	if item.CacheActionOpts.DisableOverwrite {
+		// go-redis doesn't throw an error on Set with NX, so absorbing here to keep the interface consistent
+		_ = i.memCache.Add(item.Key, buf, item.CacheActionOpts.Expiration)
+	} else {
+		i.memCache.Set(item.Key, buf, item.CacheActionOpts.Expiration)
+	}
+	return nil
+}
+
+func (i *InMemoryCache) Rename(oldKey string, newKey string, expiration time.Duration) error {
+	bufIf, found := i.memCache.Get(oldKey)
+	if !found {
+		return ErrCacheMiss
+	}
+	i.memCache.Set(newKey, bufIf, expiration)
+	i.memCache.Delete(oldKey)
 	return nil
 }
 
@@ -54,16 +69,6 @@ func (i *InMemoryCache) HasSame(key string, obj interface{}) (bool, error) {
 		panic(fmt.Errorf("InMemoryCache has unexpected entry: %v", existingBuf))
 	}
 	return bytes.Equal(buf.Bytes(), existingBuf.Bytes()), nil
-}
-
-func (i *InMemoryCache) Rename(oldKey string, newKey string, expiration time.Duration) error {
-	bufIf, found := i.memCache.Get(oldKey)
-	if !found {
-		return ErrCacheMiss
-	}
-	i.memCache.Set(newKey, bufIf, expiration)
-	i.memCache.Delete(oldKey)
-	return nil
 }
 
 func (i *InMemoryCache) Get(key string, obj interface{}) error {

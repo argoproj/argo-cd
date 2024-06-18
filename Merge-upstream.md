@@ -34,9 +34,11 @@ This docs include info about places where codefresh made it's customizations:
 
 #### Post actions:
 1. run `go mod tidy`
-2. run `make lint-local`
-3. run `make codegen`
-4. run `make test-local`
+2. run `go mod download`
+3. run `go mod vendor`
+4. run `make lint-local`
+5. run `make codegen`
+6. run `make test-local`
 
 ### Thoughts
 

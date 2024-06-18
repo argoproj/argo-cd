@@ -16,23 +16,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
-
-	apppathutil "github.com/argoproj/argo-cd/v2/util/app/path"
-	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
-
-	"k8s.io/apimachinery/pkg/api/resource"
-
 	"github.com/Masterminds/semver/v3"
 	"github.com/TomOnTime/utfutil"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/sync"
 	jsonpatch "github.com/evanphx/json-patch"
-	"github.com/ghodss/yaml"
 	gogit "github.com/go-git/go-git/v5"
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-jsonnet"
 	"github.com/google/uuid"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -40,11 +31,15 @@ import (
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	kubeyaml "k8s.io/apimachinery/pkg/util/yaml"
+	"sigs.k8s.io/yaml"
 
 	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/pkg/codefresh"
 	"github.com/argoproj/argo-cd/v2/pkg/version_config_manager"
@@ -52,17 +47,21 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/reposerver/metrics"
 	"github.com/argoproj/argo-cd/v2/util/app/discovery"
+	apppathutil "github.com/argoproj/argo-cd/v2/util/app/path"
 	argopath "github.com/argoproj/argo-cd/v2/util/app/path"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/cmp"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/glob"
 	"github.com/argoproj/argo-cd/v2/util/gpg"
 	"github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/helm"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
 	"github.com/argoproj/argo-cd/v2/util/kustomize"
+	"github.com/argoproj/argo-cd/v2/util/manifeststream"
 	"github.com/argoproj/argo-cd/v2/util/text"
 )
 
@@ -75,7 +74,12 @@ const (
 	ociPrefix                      = "oci://"
 )
 
-var ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined manifest file size")
+var (
+	ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined manifest file size")
+	// helmConcurrencyDefault if true then helm concurrent manifest generation is enabled
+	// TODO: remove env variable and usage of .argocd-allow-concurrency once we are sure that it is safe to enable it by default
+	helmConcurrencyDefault = env.ParseBoolFromEnv("ARGOCD_HELM_ALLOW_CONCURRENCY", false)
+)
 
 // Service implements ManifestService interface
 type Service struct {
@@ -234,7 +238,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	}
 
 	defer io.Close(closer)
-	apps, err := discovery.Discover(ctx, gitClient.Root(), gitClient.Root(), q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs)
+	apps, err := discovery.Discover(ctx, gitClient.Root(), gitClient.Root(), q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs, []string{})
 	if err != nil {
 		return nil, fmt.Errorf("error discovering applications: %w", err)
 	}
@@ -669,6 +673,87 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	return res, err
 }
 
+func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_GenerateManifestWithFilesServer) error {
+	workDir, err := files.CreateTempDir("")
+	if err != nil {
+		return fmt.Errorf("error creating temp dir: %w", err)
+	}
+	defer func() {
+		if err := os.RemoveAll(workDir); err != nil {
+			// we panic here as the workDir may contain sensitive information
+			log.WithField(common.SecurityField, common.SecurityCritical).Errorf("error removing generate manifest workdir: %v", err)
+			panic(fmt.Sprintf("error removing generate manifest workdir: %s", err))
+		}
+	}()
+
+	req, metadata, err := manifeststream.ReceiveManifestFileStream(stream.Context(), stream, workDir, s.initConstants.StreamedManifestMaxTarSize, s.initConstants.StreamedManifestMaxExtractedSize)
+
+	if err != nil {
+		return fmt.Errorf("error receiving manifest file stream: %w", err)
+	}
+
+	if !s.initConstants.AllowOutOfBoundsSymlinks {
+		err := argopath.CheckOutOfBoundsSymlinks(workDir)
+		if err != nil {
+			oobError := &argopath.OutOfBoundsSymlinkError{}
+			if errors.As(err, &oobError) {
+				log.WithFields(log.Fields{
+					common.SecurityField: common.SecurityHigh,
+					"file":               oobError.File,
+				}).Warn("streamed files contains out-of-bounds symlink")
+				return fmt.Errorf("streamed files contains out-of-bounds symlinks. file: %s", oobError.File)
+			} else {
+				return err
+			}
+		}
+	}
+
+	var versionConfig *version_config_manager.VersionConfig
+	if s.initConstants.CodefreshApplicationVersioningEnabled && s.initConstants.CodefreshUseApplicationConfiguration {
+		log.Infof("cfAppConfig. Get version config for namespace: %s, name: %s", req.ApplicationMetadata.Namespace, req.ApplicationMetadata.Name)
+		versionConfig = s.GetVersionConfig(req.ApplicationMetadata)
+		if versionConfig != nil {
+			log.Infof("cfAppConfig. Config file: %s, jsonPath: %s", versionConfig.ResourceName, versionConfig.JsonPath)
+		} else {
+			log.Infof("cfAppConfig. versionConfig is nil. Unable to retrieve version configuration.")
+		}
+	} else {
+		log.Infof("cfAppConfig. Flags for application versioning (CODEFRESH_APPLICATION_VERSIONING_ENABLED and CODEFRESH_USE_APPLICATION_CONFIGURATION) disabled. Skip getting application version config.")
+	}
+
+	promise := s.runManifestGen(stream.Context(), workDir, "streamed", metadata.Checksum, func() (*operationContext, error) {
+		appPath, err := argopath.Path(workDir, req.ApplicationSource.Path)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get app path: %w", err)
+		}
+		return &operationContext{appPath, ""}, nil
+	}, req, versionConfig)
+
+	var res *apiclient.ManifestResponse
+	tarConcluded := false
+
+	select {
+	case err := <-promise.errCh:
+		return err
+	case tarDone := <-promise.tarDoneCh:
+		tarConcluded = tarDone
+	case resp := <-promise.responseCh:
+		res = resp
+	}
+
+	if tarConcluded && res == nil {
+		select {
+		case resp := <-promise.responseCh:
+			res = resp
+		case err := <-promise.errCh:
+			return err
+		}
+	}
+
+	err = stream.SendAndClose(res)
+	return err
+}
+
 type ManifestResponsePromise struct {
 	responseCh <-chan *apiclient.ManifestResponse
 	tarDoneCh  <-chan bool
@@ -867,6 +952,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			innerRes.NumberOfConsecutiveFailures++
 			innerRes.MostRecentError = err.Error()
 			cacheErr = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs)
+
 			if cacheErr != nil {
 				logCtx.Warnf("manifest cache set error %s: %v", appSourceCopy.String(), cacheErr)
 				ch.errCh <- cacheErr
@@ -1129,7 +1215,7 @@ func isSourcePermitted(url string, repos []string) bool {
 }
 
 func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]manifest, error) {
-	concurrencyAllowed := isConcurrencyAllowed(appPath)
+	concurrencyAllowed := helmConcurrencyDefault || isConcurrencyAllowed(appPath)
 	if !concurrencyAllowed {
 		manifestGenerateLock.Lock(appPath)
 		defer manifestGenerateLock.Unlock(appPath)
@@ -1429,7 +1515,7 @@ func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
 	}
 }
 
-// GenerateManifests generates manifests from a path
+// GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
 func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, codefreshApplicationVersioningEnabled bool, versionConfig *version_config_manager.VersionConfig, isLocal bool, gitCredsStore git.CredsStore, gitClient git.Client, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths io.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
 	opt := newGenerateManifestOpt(opts...)
 
@@ -1440,7 +1526,9 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	resourceTracking := argo.NewResourceTracking()
 
-	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, repoRoot, q.AppName, q.EnabledSourceTypes, opt.cmpTarExcludedGlobs)
+	env := newEnv(q, revision)
+
+	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, repoRoot, q.AppName, q.EnabledSourceTypes, opt.cmpTarExcludedGlobs, env.Environ())
 	if err != nil {
 		return nil, fmt.Errorf("error getting app source type: %w", err)
 	}
@@ -1448,7 +1536,6 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	if q.Repo != nil {
 		repoURL = q.Repo.Repo
 	}
-	env := newEnv(q, revision)
 
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeHelm:
@@ -1461,7 +1548,6 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary)
 		manifests, err = kustomizeBuild(k, repoRoot, appPath, q.ApplicationSource.Kustomize, q.KustomizeOptions, env, q.Namespace)
 	case v1alpha1.ApplicationSourceTypePlugin:
-		// if the named plugin was not found in argocd-cm try sidecar plugin
 		pluginName := ""
 		if q.ApplicationSource.Plugin != nil {
 			pluginName = q.ApplicationSource.Plugin.Name
@@ -1567,6 +1653,16 @@ func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 	}
 }
 
+func newEnvRepoQuery(q *apiclient.RepoServerAppDetailsQuery, revision string) *v1alpha1.Env {
+	return &v1alpha1.Env{
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppName},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: revision},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: q.Repo.Repo},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: q.Source.Path},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: q.Source.TargetRevision},
+	}
+}
+
 // mergeSourceParameters merges parameter overrides from one or more files in
 // the Git repo into the given ApplicationSource objects.
 //
@@ -1626,7 +1722,7 @@ func mergeSourceParameters(source *v1alpha1.ApplicationSource, path, appName str
 }
 
 // GetAppSourceType returns explicit application source type or examines a directory and determines its application source type
-func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, appPath, repoPath, appName string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string) (v1alpha1.ApplicationSourceType, error) {
+func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, appPath, repoPath, appName string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string, env []string) (v1alpha1.ApplicationSourceType, error) {
 	err := mergeSourceParameters(source, appPath, appName)
 	if err != nil {
 		return "", fmt.Errorf("error while parsing source parameters: %v", err)
@@ -1643,7 +1739,7 @@ func GetAppSourceType(ctx context.Context, source *v1alpha1.ApplicationSource, a
 		}
 		return *appSourceType, nil
 	}
-	appType, err := discovery.AppType(ctx, appPath, repoPath, enableGenerateManifests, tarExcludedGlobs)
+	appType, err := discovery.AppType(ctx, appPath, repoPath, enableGenerateManifests, tarExcludedGlobs, env)
 	if err != nil {
 		return "", fmt.Errorf("error getting app source type: %v", err)
 	}
@@ -1711,7 +1807,7 @@ func kustomizeBuild(
 
 var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
-// / findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
+// findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
 func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory, enabledManifestGeneration map[string]bool, maxCombinedManifestQuantity resource.Quantity) ([]manifest, error) {
 	absRepoRoot, err := filepath.Abs(repoRoot)
 	if err != nil {
@@ -2172,7 +2268,9 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 			return err
 		}
 
-		appSourceType, err := GetAppSourceType(ctx, q.Source, opContext.appPath, repoRoot, q.AppName, q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs)
+		env := newEnvRepoQuery(q, revision)
+
+		appSourceType, err := GetAppSourceType(ctx, q.Source, opContext.appPath, repoRoot, q.AppName, q.EnabledSourceTypes, s.initConstants.CMPTarExcludedGlobs, env.Environ())
 		if err != nil {
 			return err
 		}
@@ -2606,7 +2704,11 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 // nolint:unparam
 func (s *Service) checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) (goio.Closer, error) {
 	closer := s.gitRepoInitializer(gitClient.Root())
-	return closer, checkoutRevision(gitClient, revision, submoduleEnabled)
+	err := checkoutRevision(gitClient, revision, submoduleEnabled)
+	if err != nil {
+		s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
+	}
+	return closer, err
 }
 
 func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) error {
@@ -2699,7 +2801,7 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 	app := q.App
 	ambiguousRevision := q.AmbiguousRevision
 	var revision string
-	var source = app.Spec.GetSource()
+	var source = app.Spec.GetSourcePtrByIndex(int(q.SourceIndex))
 	if source.IsHelm() {
 		_, revision, err := s.newHelmClientResolveRevision(repo, ambiguousRevision, source.Chart, true)
 
@@ -2934,7 +3036,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	}
 
 	logCtx.Debugf("changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, syncedRevision, revision)
-	return &apiclient.UpdateRevisionForPathsResponse{}, nil
+	return &apiclient.UpdateRevisionForPathsResponse{Changes: true}, nil
 }
 
 func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, gitClientOpts git.ClientOpts) error {
@@ -2945,8 +3047,10 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 		if err != nil {
 			return fmt.Errorf("failed to get repo refs for application %s in repo %s from revision %s: %w", request.AppName, request.GetRepo().Repo, request.Revision, err)
 		}
+	}
 
-		// Update revision in refSource
+	// Update revision in refSource
+	if request.HasMultipleSources && request.ApplicationSource.Helm != nil {
 		for normalizedURL := range repoRefs {
 			repoRefs[normalizedURL] = newRev
 		}
@@ -2962,9 +3066,5 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 	}
 
 	logCtx.Debugf("manifest cache updated for application %s in repo %s from revision %s to revision %s", request.AppName, request.GetRepo().Repo, oldRev, newRev)
-	return nil
-}
-
-func (s *Service) GenerateManifestWithFiles(server apiclient.RepoServerService_GenerateManifestWithFilesServer) error {
 	return nil
 }

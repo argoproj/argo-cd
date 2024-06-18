@@ -12,6 +12,9 @@ var (
 	//go:embed target-deployment-new-entries.yaml
 	TargetDeploymentNewEntries string
 
+	//go:embed diff-cache.yaml
+	DiffCacheYaml string
+
 	//go:embed live-httpproxy.yaml
 	LiveHTTPProxy string
 

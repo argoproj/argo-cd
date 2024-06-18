@@ -1241,9 +1241,9 @@ func TestDownloadArgoCDBinaryUrls(t *testing.T) {
 func TestSecretKeyRef(t *testing.T) {
 	data := map[string]string{
 		"oidc.config": `name: Okta
-issuer: $acme:issuerSecret
+issuer: $ext:issuerSecret
 clientID: aaaabbbbccccddddeee
-clientSecret: $acme:clientSecret
+clientSecret: $ext:clientSecret
 # Optional set of OIDC scopes to request. If omitted, defaults to: ["openid", "profile", "email", "groups"]
 requestedScopes: ["openid", "profile", "email"]
 # Optional set of OIDC claims to request on the ID token.
@@ -1265,21 +1265,23 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 			Namespace: "default",
 		},
 		Data: map[string][]byte{
-			"admin.password":   nil,
-			"server.secretkey": nil,
+			"admin.password":        nil,
+			"server.secretkey":      nil,
+			"webhook.github.secret": []byte("$ext:webhook.github.secret"),
 		},
 	}
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "acme",
+			Name:      "ext",
 			Namespace: "default",
 			Labels: map[string]string{
 				"app.kubernetes.io/part-of": "argocd",
 			},
 		},
 		Data: map[string][]byte{
-			"issuerSecret": []byte("https://dev-123456.oktapreview.com"),
-			"clientSecret": []byte("deadbeef"),
+			"issuerSecret":          []byte("https://dev-123456.oktapreview.com"),
+			"clientSecret":          []byte("deadbeef"),
+			"webhook.github.secret": []byte("mywebhooksecret"),
 		},
 	}
 	kubeClient := fake.NewSimpleClientset(cm, secret, argocdSecret)
@@ -1287,6 +1289,7 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 
 	settings, err := settingsManager.GetSettings()
 	assert.NoError(t, err)
+	assert.Equal(t, settings.WebhookGitHubSecret, "mywebhooksecret")
 
 	oidcConfig := settings.OIDCConfig()
 	assert.Equal(t, oidcConfig.Issuer, "https://dev-123456.oktapreview.com")

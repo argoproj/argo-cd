@@ -4,8 +4,9 @@ import (
 	"context"
 	"time"
 
-	cache "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/argoproj/argo-cd/v2/util/cache"
 )
 
 type MockCacheClient struct {
@@ -13,6 +14,14 @@ type MockCacheClient struct {
 	BaseCache  cache.CacheClient
 	ReadDelay  time.Duration
 	WriteDelay time.Duration
+}
+
+func (c *MockCacheClient) Rename(oldKey string, newKey string, expiration time.Duration) error {
+	args := c.Called(oldKey, newKey, expiration)
+	if len(args) > 0 && args.Get(0) != nil {
+		return args.Get(0).(error)
+	}
+	return c.BaseCache.Rename(oldKey, newKey, expiration)
 }
 
 func (c *MockCacheClient) Set(item *cache.Item) error {
@@ -46,14 +55,6 @@ func (c *MockCacheClient) Delete(key string) error {
 		time.Sleep(c.WriteDelay)
 	}
 	return c.BaseCache.Delete(key)
-}
-
-func (c *MockCacheClient) Rename(oldKey string, newKey string, expiration time.Duration) error {
-	args := c.Called(oldKey, newKey, expiration)
-	if len(args) > 0 && args.Get(0) != nil {
-		return args.Get(0).(error)
-	}
-	return c.BaseCache.Rename(oldKey, newKey, expiration)
 }
 
 func (c *MockCacheClient) OnUpdated(ctx context.Context, key string, callback func() error) error {

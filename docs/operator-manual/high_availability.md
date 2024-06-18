@@ -170,25 +170,27 @@ Argo CD repo server maintains one repository clone locally and uses it for appli
 Argo CD determines if manifest generation might change local files in the local repository clone based on the config management tool and application settings.
 If the manifest generation has no side effects then requests are processed in parallel without a performance penalty. The following are known cases that might cause slowness and their workarounds:
 
-  * **Multiple Helm based applications pointing to the same directory in one Git repository:** ensure that your Helm chart doesn't have conditional
-[dependencies](https://helm.sh/docs/chart_best_practices/dependencies/#conditions-and-tags) and create `.argocd-allow-concurrency` file in the chart directory.
+  * **Multiple Helm based applications pointing to the same directory in one Git repository:** for historical reasons Argo CD generates Helm manifests sequentially.  To enable parallel generation set `ARGOCD_HELM_ALLOW_CONCURRENCY=true` to `argocd-repo-server` deployment or create `.argocd-allow-concurrency` file.
+    Future versions of Argo CD will enable this by default.
 
   * **Multiple Custom plugin based applications:** avoid creating temporal files during manifest generation and create `.argocd-allow-concurrency` file in the app directory, or use the sidecar plugin option, which processes each application using a temporary copy of the repository.
 
   * **Multiple Kustomize applications in same repository with [parameter overrides](../user-guide/parameters.md):** sorry, no workaround for now.
 
 
-### Webhook and Manifest Paths Annotation
+### Manifest Paths Annotation
 
 Argo CD aggressively caches generated manifests and uses the repository commit SHA as a cache key. A new commit to the Git repository invalidates the cache for all applications configured in the repository.
 This can negatively affect repositories with multiple applications. You can use [webhooks](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/webhook.md) and the `argocd.argoproj.io/manifest-generate-paths` Application CRD annotation to solve this problem and improve performance.
 
-The `argocd.argoproj.io/manifest-generate-paths` annotation contains a semicolon-separated list of paths within the Git repository that are used during manifest generation. The webhook compares paths specified in the annotation with the changed files specified in the webhook payload. If no modified files match the paths specified in `argocd.argoproj.io/manifest-generate-paths`, then the webhook will not trigger application reconciliation and the existing cache will be considered valid for the new commit.
+The `argocd.argoproj.io/manifest-generate-paths` annotation contains a semicolon-separated list of paths within the Git repository that are used during manifest generation. It will use the paths specified in the annotation to compare the last cached revision to the latest commit. If no modified files match the paths specified in `argocd.argoproj.io/manifest-generate-paths`, then it will not trigger application reconciliation and the existing cache will be considered valid for the new commit.
 
 Installations that use a different repository for each application are **not** subject to this behavior and will likely get no benefit from using these annotations.
 
+For webhooks, the comparison is done using the files specified in the webhook event payload instead.
+
 !!! note
-    Application manifest paths annotation support depends on the git provider used for the Application. It is currently only supported for GitHub, GitLab, and Gogs based repos.
+    Application manifest paths annotation support for webhooks depends on the git provider used for the Application. It is currently only supported for GitHub, GitLab, and Gogs based repos.
 
 * **Relative path** The annotation might contain a relative path. In this case the path is considered relative to the path specified in the application source:
 

@@ -56,6 +56,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/git"
 	ioutil "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/lua"
+	"github.com/argoproj/argo-cd/v2/util/manifeststream"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/session"
@@ -67,7 +68,6 @@ import (
 type AppResourceTreeFn func(ctx context.Context, app *appv1.Application) (*appv1.ApplicationTree, error)
 
 const (
-	maxPodLogsToRender                 = 15
 	backgroundPropagationPolicy string = "background"
 	foregroundPropagationPolicy string = "foreground"
 )
@@ -153,10 +153,6 @@ func NewServer(
 	s.applicationEventReporter = NewApplicationEventReporter(s)
 
 	return s, s.getAppResources
-}
-
-func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_GetManifestsWithFilesServer) error {
-	return nil
 }
 
 // getAppEnforceRBAC gets the Application with the given name in the given namespace. If no namespace is
@@ -407,13 +403,11 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	return updated, nil
 }
 
-func (s *Server) queryRepoServer(ctx context.Context, a *appv1.Application, proj *appv1.AppProject, action func(
+func (s *Server) queryRepoServer(ctx context.Context, proj *appv1.AppProject, action func(
 	client apiclient.RepoServerServiceClient,
-	repo *appv1.Repository,
 	helmRepos []*appv1.Repository,
 	helmCreds []*appv1.RepoCreds,
 	helmOptions *appv1.HelmOptions,
-	kustomizeOptions *appv1.KustomizeOptions,
 	enabledSourceTypes map[string]bool,
 ) error) error {
 
@@ -422,18 +416,6 @@ func (s *Server) queryRepoServer(ctx context.Context, a *appv1.Application, proj
 		return fmt.Errorf("error creating repo server client: %w", err)
 	}
 	defer ioutil.Close(closer)
-	repo, err := s.db.GetRepository(ctx, a.Spec.GetSource().RepoURL)
-	if err != nil {
-		return fmt.Errorf("error getting repository: %w", err)
-	}
-	kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
-	if err != nil {
-		return fmt.Errorf("error getting kustomize settings: %w", err)
-	}
-	kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource(), s.settingsMgr.GetKustomizeSetNamespaceEnabled())
-	if err != nil {
-		return fmt.Errorf("error getting kustomize settings options: %w", err)
-	}
 
 	helmRepos, err := s.db.ListHelmRepositories(ctx)
 	if err != nil {
@@ -460,7 +442,7 @@ func (s *Server) queryRepoServer(ctx context.Context, a *appv1.Application, proj
 	if err != nil {
 		return fmt.Errorf("error getting settings enabled source types: %w", err)
 	}
-	return action(client, repo, permittedHelmRepos, permittedHelmCredentials, helmOptions, kustomizeOptions, enabledSourceTypes)
+	return action(client, permittedHelmRepos, permittedHelmCredentials, helmOptions, enabledSourceTypes)
 }
 
 // GetManifests returns application manifests
@@ -473,19 +455,15 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, err
 	}
 
-	source := a.Spec.GetSource()
-
 	if !s.isNamespaceEnabled(a.Namespace) {
 		return nil, security.NamespaceNotPermittedError(a.Namespace)
 	}
 
-	var manifestInfo *apiclient.ManifestResponse
-	err = s.queryRepoServer(ctx, a, proj, func(
-		client apiclient.RepoServerServiceClient, repo *appv1.Repository, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, kustomizeOptions *appv1.KustomizeOptions, enableGenerateManifests map[string]bool) error {
-		revision := source.TargetRevision
-		if q.GetRevision() != "" {
-			revision = q.GetRevision()
-		}
+	manifestInfos := make([]*apiclient.ManifestResponse, 0)
+	manifestInfosAppVersionsIdx := -1 // defines index of spec source to take app appVersion
+	err = s.queryRepoServer(ctx, proj, func(
+		client apiclient.RepoServerServiceClient, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, enableGenerateManifests map[string]bool) error {
+
 		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
 		if err != nil {
 			return fmt.Errorf("error getting app instance label key from settings: %w", err)
@@ -506,27 +484,75 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			return fmt.Errorf("error getting API resources: %w", err)
 		}
 
-		manifestInfo, err = client.GenerateManifest(ctx, &apiclient.ManifestRequest{
-			Repo:                repo,
-			Revision:            revision,
-			AppLabelKey:         appInstanceLabelKey,
-			AppName:             a.InstanceName(s.ns),
-			Namespace:           a.Spec.Destination.Namespace,
-			ApplicationSource:   &source,
-			Repos:               helmRepos,
-			KustomizeOptions:    kustomizeOptions,
-			KubeVersion:         serverVersion,
-			ApiVersions:         argo.APIResourcesToStrings(apiResources, true),
-			HelmRepoCreds:       helmCreds,
-			HelmOptions:         helmOptions,
-			TrackingMethod:      string(argoutil.GetTrackingMethod(s.settingsMgr)),
-			EnabledSourceTypes:  enableGenerateManifests,
-			ProjectName:         proj.Name,
-			ProjectSourceRepos:  proj.Spec.SourceRepos,
-			ApplicationMetadata: &a.ObjectMeta,
-		})
+		sources := make([]appv1.ApplicationSource, 0)
+		appSpec := a.Spec.DeepCopy()
+		if a.Spec.HasMultipleSources() {
+			numOfSources := int64(len(a.Spec.GetSources()))
+			for i, pos := range q.SourcePositions {
+				if pos <= 0 || pos > numOfSources {
+					return fmt.Errorf("source position is out of range")
+				}
+				appSpec.Sources[pos-1].TargetRevision = q.Revisions[i]
+			}
+			sources = appSpec.GetSources()
+		} else {
+			source := a.Spec.GetSource()
+			if q.GetRevision() != "" {
+				source.TargetRevision = q.GetRevision()
+			}
+			sources = append(sources, source)
+		}
+
+		// Store the map of all sources having ref field into a map for applications with sources field
+		refSources, err := argo.GetRefSources(context.Background(), *appSpec, s.db)
 		if err != nil {
-			return fmt.Errorf("error generating manifests: %w", err)
+			return fmt.Errorf("failed to get ref sources: %v", err)
+		}
+
+		for sIdx, source := range sources {
+			repo, err := s.db.GetRepository(ctx, source.RepoURL)
+			if err != nil {
+				return fmt.Errorf("error getting repository: %w", err)
+			}
+
+			kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+			if err != nil {
+				return fmt.Errorf("error getting kustomize settings: %w", err)
+			}
+
+			kustomizeOptions, err := kustomizeSettings.GetOptions(source, s.settingsMgr.GetKustomizeSetNamespaceEnabled())
+			if err != nil {
+				return fmt.Errorf("error getting kustomize settings options: %w", err)
+			}
+
+			manifestInfo, err := client.GenerateManifest(ctx, &apiclient.ManifestRequest{
+				Repo:                repo,
+				Revision:            source.TargetRevision,
+				AppLabelKey:         appInstanceLabelKey,
+				AppName:             a.InstanceName(s.ns),
+				Namespace:           a.Spec.Destination.Namespace,
+				ApplicationSource:   &source,
+				Repos:               helmRepos,
+				KustomizeOptions:    kustomizeOptions,
+				KubeVersion:         serverVersion,
+				ApiVersions:         argo.APIResourcesToStrings(apiResources, true),
+				HelmRepoCreds:       helmCreds,
+				HelmOptions:         helmOptions,
+				TrackingMethod:      string(argoutil.GetTrackingMethod(s.settingsMgr)),
+				EnabledSourceTypes:  enableGenerateManifests,
+				ProjectName:         proj.Name,
+				ProjectSourceRepos:  proj.Spec.SourceRepos,
+				HasMultipleSources:  a.Spec.HasMultipleSources(),
+				RefSources:          refSources,
+				ApplicationMetadata: &a.ObjectMeta,
+			})
+			if err != nil {
+				return fmt.Errorf("error generating manifests: %w", err)
+			}
+			manifestInfos = append(manifestInfos, manifestInfo)
+			if source.Ref == "" && manifestInfosAppVersionsIdx < 0 {
+				manifestInfosAppVersionsIdx = sIdx
+			}
 		}
 		return nil
 	})
@@ -535,26 +561,160 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, err
 	}
 
+	manifests := &apiclient.ManifestResponse{}
+	for _, manifestInfo := range manifestInfos {
+		for i, manifest := range manifestInfo.Manifests {
+			obj := &unstructured.Unstructured{}
+			err = json.Unmarshal([]byte(manifest.CompiledManifest), obj)
+			if err != nil {
+				return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+			}
+			if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
+				obj, _, err = diff.HideSecretData(obj, nil)
+				if err != nil {
+					return nil, fmt.Errorf("error hiding secret data: %w", err)
+				}
+				data, err := json.Marshal(obj)
+				if err != nil {
+					return nil, fmt.Errorf("error marshaling manifest: %w", err)
+				}
+				manifestInfo.Manifests[i].CompiledManifest = string(data)
+			}
+		}
+		manifests.Manifests = append(manifests.Manifests, manifestInfo.Manifests...)
+	}
+	if manifestInfosAppVersionsIdx >= 0 && manifestInfos[manifestInfosAppVersionsIdx] != nil {
+		manifests.ApplicationVersions = manifestInfos[manifestInfosAppVersionsIdx].ApplicationVersions
+	}
+
+	return manifests, nil
+}
+
+func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_GetManifestsWithFilesServer) error {
+	ctx := stream.Context()
+	query, err := manifeststream.ReceiveApplicationManifestQueryWithFiles(stream)
+
+	if err != nil {
+		return fmt.Errorf("error getting query: %w", err)
+	}
+
+	if query.Name == nil || *query.Name == "" {
+		return fmt.Errorf("invalid request: application name is missing")
+	}
+
+	a, proj, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, query.GetProject(), query.GetAppNamespace(), query.GetName())
+	if err != nil {
+		return err
+	}
+
+	var manifestInfo *apiclient.ManifestResponse
+	err = s.queryRepoServer(ctx, proj, func(
+		client apiclient.RepoServerServiceClient, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, enableGenerateManifests map[string]bool) error {
+
+		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
+		if err != nil {
+			return fmt.Errorf("error getting app instance label key from settings: %w", err)
+		}
+
+		config, err := s.getApplicationClusterConfig(ctx, a)
+		if err != nil {
+			return fmt.Errorf("error getting application cluster config: %w", err)
+		}
+
+		serverVersion, err := s.kubectl.GetServerVersion(config)
+		if err != nil {
+			return fmt.Errorf("error getting server version: %w", err)
+		}
+
+		apiResources, err := s.kubectl.GetAPIResources(config, false, kubecache.NewNoopSettings())
+		if err != nil {
+			return fmt.Errorf("error getting API resources: %w", err)
+		}
+
+		source := a.Spec.GetSource()
+
+		proj, err := argo.GetAppProject(a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
+		if err != nil {
+			return fmt.Errorf("error getting app project: %w", err)
+		}
+
+		repo, err := s.db.GetRepository(ctx, a.Spec.GetSource().RepoURL)
+		if err != nil {
+			return fmt.Errorf("error getting repository: %w", err)
+		}
+
+		kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+		if err != nil {
+			return fmt.Errorf("error getting kustomize settings: %w", err)
+		}
+		kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource(), s.settingsMgr.GetKustomizeSetNamespaceEnabled())
+		if err != nil {
+			return fmt.Errorf("error getting kustomize settings options: %w", err)
+		}
+
+		req := &apiclient.ManifestRequest{
+			Repo:               repo,
+			Revision:           source.TargetRevision,
+			AppLabelKey:        appInstanceLabelKey,
+			AppName:            a.Name,
+			Namespace:          a.Spec.Destination.Namespace,
+			ApplicationSource:  &source,
+			Repos:              helmRepos,
+			KustomizeOptions:   kustomizeOptions,
+			KubeVersion:        serverVersion,
+			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+			HelmRepoCreds:      helmCreds,
+			HelmOptions:        helmOptions,
+			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
+			EnabledSourceTypes: enableGenerateManifests,
+			ProjectName:        proj.Name,
+			ProjectSourceRepos: proj.Spec.SourceRepos,
+		}
+
+		repoStreamClient, err := client.GenerateManifestWithFiles(stream.Context())
+		if err != nil {
+			return fmt.Errorf("error opening stream: %w", err)
+		}
+
+		err = manifeststream.SendRepoStream(repoStreamClient, stream, req, *query.Checksum)
+		if err != nil {
+			return fmt.Errorf("error sending repo stream: %w", err)
+		}
+
+		resp, err := repoStreamClient.CloseAndRecv()
+		if err != nil {
+			return fmt.Errorf("error generating manifests: %w", err)
+		}
+
+		manifestInfo = resp
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
 	for i, manifest := range manifestInfo.Manifests {
 		obj := &unstructured.Unstructured{}
 		err = json.Unmarshal([]byte(manifest.CompiledManifest), obj)
 		if err != nil {
-			return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+			return fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
 		}
 		if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
 			obj, _, err = diff.HideSecretData(obj, nil)
 			if err != nil {
-				return nil, fmt.Errorf("error hiding secret data: %w", err)
+				return fmt.Errorf("error hiding secret data: %w", err)
 			}
 			data, err := json.Marshal(obj)
 			if err != nil {
-				return nil, fmt.Errorf("error marshaling manifest: %w", err)
+				return fmt.Errorf("error marshaling manifest: %w", err)
 			}
 			manifestInfo.Manifests[i].CompiledManifest = string(data)
 		}
 	}
 
-	return manifestInfo, nil
+	stream.SendAndClose(manifestInfo)
+	return nil
 }
 
 // Get returns an application by name
@@ -604,17 +764,27 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 
 	if refreshType == appv1.RefreshTypeHard {
 		// force refresh cached application details
-		if err := s.queryRepoServer(ctx, a, proj, func(
+		if err := s.queryRepoServer(ctx, proj, func(
 			client apiclient.RepoServerServiceClient,
-			repo *appv1.Repository,
 			helmRepos []*appv1.Repository,
 			_ []*appv1.RepoCreds,
 			helmOptions *appv1.HelmOptions,
-			kustomizeOptions *appv1.KustomizeOptions,
 			enabledSourceTypes map[string]bool,
 		) error {
 			source := app.Spec.GetSource()
-			_, err := client.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
+			repo, err := s.db.GetRepository(ctx, a.Spec.GetSource().RepoURL)
+			if err != nil {
+				return fmt.Errorf("error getting repository: %w", err)
+			}
+			kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+			if err != nil {
+				return fmt.Errorf("error getting kustomize settings: %w", err)
+			}
+			kustomizeOptions, err := kustomizeSettings.GetOptions(a.Spec.GetSource(), s.settingsMgr.GetKustomizeSetNamespaceEnabled())
+			if err != nil {
+				return fmt.Errorf("error getting kustomize settings options: %w", err)
+			}
+			_, err = client.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 				Repo:               repo,
 				Source:             &source,
 				AppName:            appName,
@@ -1402,6 +1572,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Applica
 	}
 
 	var conditions []appv1.ApplicationCondition
+
 	if validate {
 		conditions := make([]appv1.ApplicationCondition, 0)
 		condition, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, s.kubectl, proj, s.settingsMgr)
@@ -1790,8 +1961,13 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		return nil
 	}
 
-	if len(pods) > maxPodLogsToRender {
-		return errors.New("Max pods to view logs are reached. Please provide more granular query.")
+	maxPodLogsToRender, err := s.settingsMgr.GetMaxPodLogsToRender()
+	if err != nil {
+		return fmt.Errorf("error getting MaxPodLogsToRender config: %w", err)
+	}
+
+	if int64(len(pods)) > maxPodLogsToRender {
+		return status.Error(codes.InvalidArgument, "max pods to view logs are reached. Please provide more granular query")
 	}
 
 	var streams []chan logEntry
@@ -1956,8 +2132,6 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, err
 	}
 
-	source := a.Spec.GetSource()
-
 	if syncReq.Manifests != nil {
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionOverride, a.RBACName(s.ns)); err != nil {
 			return nil, err
@@ -1969,14 +2143,10 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if a.DeletionTimestamp != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "application is deleting")
 	}
-	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil && !syncReq.GetDryRun() {
-		if syncReq.GetRevision() != "" && syncReq.GetRevision() != text.FirstNonEmpty(source.TargetRevision, "HEAD") {
-			return nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), source.TargetRevision)
-		}
-	}
-	revision, displayRevision, err := s.resolveRevision(ctx, a, syncReq)
+
+	revision, displayRevision, sourceRevisions, displayRevisions, err := s.resolveSourceRevisions(ctx, a, syncReq)
 	if err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, err.Error())
+		return nil, err
 	}
 
 	var retry *appv1.RetryStrategy
@@ -2014,6 +2184,8 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 			SyncStrategy: syncReq.Strategy,
 			Resources:    resources,
 			Manifests:    syncReq.Manifests,
+			Sources:      a.Spec.Sources,
+			Revisions:    sourceRevisions,
 		},
 		InitiatedBy: appv1.OperationInitiator{Username: session.Username(ctx)},
 		Info:        syncReq.Infos,
@@ -2033,12 +2205,59 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 	if len(syncReq.Resources) > 0 {
 		partial = "partial "
 	}
-	reason := fmt.Sprintf("initiated %ssync to %s", partial, displayRevision)
+	var reason string
+	if a.Spec.HasMultipleSources() {
+		reason = fmt.Sprintf("initiated %ssync to %s", partial, strings.Join(displayRevisions, ","))
+	} else {
+		reason = fmt.Sprintf("initiated %ssync to %s", partial, displayRevision)
+	}
 	if syncReq.Manifests != nil {
 		reason = fmt.Sprintf("initiated %ssync locally", partial)
 	}
 	s.logAppEvent(a, ctx, argo.EventReasonOperationStarted, reason)
 	return a, nil
+}
+
+func (s *Server) resolveSourceRevisions(ctx context.Context, a *appv1.Application, syncReq *application.ApplicationSyncRequest) (string, string, []string, []string, error) {
+	if a.Spec.HasMultipleSources() {
+		numOfSources := int64(len(a.Spec.GetSources()))
+		sourceRevisions := make([]string, numOfSources)
+		displayRevisions := make([]string, numOfSources)
+
+		sources := a.Spec.GetSources()
+		for i, pos := range syncReq.SourcePositions {
+			if pos <= 0 || pos > numOfSources {
+				return "", "", nil, nil, fmt.Errorf("source position is out of range")
+			}
+			sources[pos-1].TargetRevision = syncReq.Revisions[i]
+		}
+		for index, source := range sources {
+			if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil && !syncReq.GetDryRun() {
+				if text.FirstNonEmpty(a.Spec.GetSources()[index].TargetRevision, "HEAD") != text.FirstNonEmpty(source.TargetRevision, "HEAD") {
+					return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, "Cannot sync source %s to %s: auto-sync currently set to %s", source.RepoURL, source.TargetRevision, a.Spec.Sources[index].TargetRevision)
+				}
+			}
+			revision, displayRevision, err := s.resolveRevision(ctx, a, syncReq, index)
+			if err != nil {
+				return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, err.Error())
+			}
+			sourceRevisions[index] = revision
+			displayRevisions[index] = displayRevision
+		}
+		return "", "", sourceRevisions, displayRevisions, nil
+	} else {
+		source := a.Spec.GetSource()
+		if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.Automated != nil && !syncReq.GetDryRun() {
+			if syncReq.GetRevision() != "" && syncReq.GetRevision() != text.FirstNonEmpty(source.TargetRevision, "HEAD") {
+				return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), source.TargetRevision)
+			}
+		}
+		revision, displayRevision, err := s.resolveRevision(ctx, a, syncReq, -1)
+		if err != nil {
+			return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, err.Error())
+		}
+		return revision, displayRevision, nil, nil, nil
+	}
 }
 
 func (s *Server) Rollback(ctx context.Context, rollbackReq *application.ApplicationRollbackRequest) (*appv1.Application, error) {
@@ -2213,17 +2432,41 @@ func (s *Server) ListResourceLinks(ctx context.Context, req *application.Applica
 	return finalList, nil
 }
 
+func getAmbiguousRevision(app *appv1.Application, syncReq *application.ApplicationSyncRequest, sourceIndex int) string {
+	ambiguousRevision := ""
+	if app.Spec.HasMultipleSources() {
+		for i, pos := range syncReq.SourcePositions {
+			if pos == int64(sourceIndex) {
+				ambiguousRevision = syncReq.Revisions[i]
+			}
+		}
+		if ambiguousRevision == "" {
+			ambiguousRevision = app.Spec.Sources[sourceIndex].TargetRevision
+		}
+	} else {
+		ambiguousRevision = syncReq.GetRevision()
+		if ambiguousRevision == "" {
+			ambiguousRevision = app.Spec.GetSource().TargetRevision
+		}
+	}
+	return ambiguousRevision
+}
+
 // resolveRevision resolves the revision specified either in the sync request, or the
 // application source, into a concrete revision that will be used for a sync operation.
-func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, syncReq *application.ApplicationSyncRequest) (string, string, error) {
+func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, syncReq *application.ApplicationSyncRequest, sourceIndex int) (string, string, error) {
 	if syncReq.Manifests != nil {
 		return "", "", nil
 	}
-	ambiguousRevision := syncReq.GetRevision()
-	if ambiguousRevision == "" {
-		ambiguousRevision = app.Spec.GetSource().TargetRevision
+
+	ambiguousRevision := getAmbiguousRevision(app, syncReq, sourceIndex)
+
+	repoUrl := app.Spec.GetSource().RepoURL
+	if app.Spec.HasMultipleSources() {
+		repoUrl = app.Spec.Sources[sourceIndex].RepoURL
 	}
-	repo, err := s.db.GetRepository(ctx, app.Spec.GetSource().RepoURL)
+
+	repo, err := s.db.GetRepository(ctx, repoUrl)
 	if err != nil {
 		return "", "", fmt.Errorf("error getting repository by URL: %w", err)
 	}
@@ -2233,7 +2476,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 	}
 	defer ioutil.Close(conn)
 
-	source := app.Spec.GetSource()
+	source := app.Spec.GetSourcePtrByIndex(sourceIndex)
 	if !source.IsHelm() {
 		if git.IsCommitSHA(ambiguousRevision) {
 			// If it's already a commit SHA, then no need to look it up
@@ -2245,6 +2488,7 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		Repo:              repo,
 		App:               app,
 		AmbiguousRevision: ambiguousRevision,
+		SourceIndex:       int64(sourceIndex),
 	})
 	if err != nil {
 		return "", "", fmt.Errorf("error resolving repo revision: %w", err)

@@ -3,10 +3,13 @@ package codefresh
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
@@ -15,8 +18,10 @@ import (
 )
 
 type CodefreshConfig struct {
-	BaseURL   string
-	AuthToken string
+	BaseURL     string
+	AuthToken   string
+	TlsInsecure bool
+	CaCertPath  string
 }
 
 type CodefreshClient struct {
@@ -89,8 +94,7 @@ func (c *CodefreshClient) SendGraphQL(query GraphQLQuery) (*json.RawMessage, err
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", c.cfConfig.AuthToken)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -111,9 +115,44 @@ func (c *CodefreshClient) SendGraphQL(query GraphQLQuery) (*json.RawMessage, err
 
 func NewCodefreshClient(cfConfig *CodefreshConfig) CodefreshClientInterface {
 	return &CodefreshClient{
-		cfConfig: cfConfig,
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
+		cfConfig:   cfConfig,
+		httpClient: cfConfig.getHttpClient(),
 	}
+}
+
+func (cfConfig *CodefreshConfig) getHttpClient() *http.Client {
+	httpClient := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	httpClient.Transport = &http.Transport{
+		TLSClientConfig: cfConfig.getTlsConfig(),
+	}
+
+	return httpClient
+}
+
+func (cfConfig *CodefreshConfig) getTlsConfig() *tls.Config {
+	c := &tls.Config{}
+
+	if cfConfig.TlsInsecure {
+		return &tls.Config{
+			InsecureSkipVerify: true,
+			ClientAuth:         0,
+		}
+	}
+
+	if cfConfig.CaCertPath != "" {
+		cert, err := os.ReadFile(cfConfig.CaCertPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pool := x509.NewCertPool()
+		if ok := pool.AppendCertsFromPEM(cert); !ok {
+			log.Fatalf("unable to parse codefresh cert from path %s", cfConfig.CaCertPath)
+		}
+		c.RootCAs = pool
+	}
+
+	return c
 }
