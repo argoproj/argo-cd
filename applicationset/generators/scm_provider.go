@@ -29,29 +29,36 @@ type SCMProviderGenerator struct {
 	client client.Client
 	// Testing hooks.
 	overrideProvider scm_provider.SCMProviderService
-	SCMAuthProviders
+	SCMConfig
+}
+type SCMConfig struct {
 	scmRootCAPath       string
 	allowedSCMProviders []string
 	enableSCMProviders  bool
+	GitHubApps          github_app_auth.Credentials
 }
 
-type SCMAuthProviders struct {
-	GitHubApps github_app_auth.Credentials
-}
-
-func NewSCMProviderGenerator(client client.Client, providers SCMAuthProviders, scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool) Generator {
-	return &SCMProviderGenerator{
-		client:              client,
-		SCMAuthProviders:    providers,
+func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool, gitHubApps github_app_auth.Credentials) SCMConfig {
+	return SCMConfig{
 		scmRootCAPath:       scmRootCAPath,
 		allowedSCMProviders: allowedSCMProviders,
 		enableSCMProviders:  enableSCMProviders,
+		GitHubApps:          gitHubApps,
+	}
+}
+
+func NewSCMProviderGenerator(client client.Client, scmConfig SCMConfig) Generator {
+	return &SCMProviderGenerator{
+		client:    client,
+		SCMConfig: scmConfig,
 	}
 }
 
 // Testing generator
 func NewTestSCMProviderGenerator(overrideProvider scm_provider.SCMProviderService) Generator {
-	return &SCMProviderGenerator{overrideProvider: overrideProvider, enableSCMProviders: true}
+	return &SCMProviderGenerator{overrideProvider: overrideProvider, SCMConfig: SCMConfig{
+		enableSCMProviders: true,
+	}}
 }
 
 func (g *SCMProviderGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) time.Duration {
