@@ -283,7 +283,6 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 	cases := []struct {
 		name           string
 		providerConfig *argoprojiov1alpha1.PullRequestGenerator
-		expectedError  error
 	}{
 		{
 			name: "Error Github",
@@ -292,7 +291,6 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: &ErrDisallowedSCMProvider{},
 		},
 		{
 			name: "Error Gitlab",
@@ -301,7 +299,6 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: &ErrDisallowedSCMProvider{},
 		},
 		{
 			name: "Error Gitea",
@@ -310,7 +307,6 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: &ErrDisallowedSCMProvider{},
 		},
 		{
 			name: "Error Bitbucket",
@@ -319,7 +315,6 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: &ErrDisallowedSCMProvider{},
 		},
 	}
 
@@ -351,7 +346,8 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 			_, err := pullRequestGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
 
 			require.Error(t, err, "Must return an error")
-			assert.ErrorAs(t, err, testCaseCopy.expectedError)
+			var expectedError ErrDisallowedSCMProvider
+			assert.ErrorAs(t, err, &expectedError)
 		})
 	}
 }
