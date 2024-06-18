@@ -592,7 +592,8 @@ func TestSkipResourceUpdate(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1_x,
 			Health: &health.HealthStatus{
-				Status: health.HealthStatusHealthy},
+				Status: health.HealthStatusHealthy,
+			},
 		}, &ResourceInfo{
 			manifestHash: hash3_x,
 			Health:       nil,
@@ -730,5 +731,4 @@ func TestShouldHashManifest(t *testing.T) {
 			}
 		})
 	}
-
 }
