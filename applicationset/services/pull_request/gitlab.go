@@ -81,6 +81,7 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 		for _, mr := range mrs {
 			pullRequests = append(pullRequests, &PullRequest{
 				Number:       mr.IID,
+				Title:        mr.Title,
 				Branch:       mr.SourceBranch,
 				TargetBranch: mr.TargetBranch,
 				HeadSHA:      mr.SHA,

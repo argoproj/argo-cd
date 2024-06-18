@@ -56,12 +56,14 @@ func TestListPullRequest(t *testing.T) {
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
 	pr_id := 123
+	pr_title := "feat(123)"
 	pr_head_sha := "cd4973d9d14a08ffe6b641a89a68891d6aac8056"
 	ctx := context.Background()
 
 	pullRequestMock := []git.GitPullRequest{
 		{
 			PullRequestId: createIntPtr(pr_id),
+			Title:         createStringPtr(pr_title),
 			SourceRefName: createStringPtr("refs/heads/feature-branch"),
 			LastMergeSourceCommit: &git.GitCommitRef{
 				CommitId: createStringPtr(pr_head_sha),
@@ -95,6 +97,7 @@ func TestListPullRequest(t *testing.T) {
 	assert.Len(t, list, 1)
 	assert.Equal(t, "feature-branch", list[0].Branch)
 	assert.Equal(t, pr_head_sha, list[0].HeadSHA)
+	assert.Equal(t, "feat(123)", list[0].Title)
 	assert.Equal(t, pr_id, list[0].Number)
 }
 

@@ -17,6 +17,7 @@ type BitbucketCloudService struct {
 
 type BitbucketCloudPullRequest struct {
 	ID     int                             `json:"id"`
+	Title  string                          `json:"title"`
 	Source BitbucketCloudPullRequestSource `json:"source"`
 }
 
@@ -129,6 +130,7 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 	for _, pull := range pulls {
 		pullRequests = append(pullRequests, &PullRequest{
 			Number:  pull.ID,
+			Title:   pull.Title,
 			Branch:  pull.Source.Branch.Name,
 			HeadSHA: pull.Source.Commit.Hash,
 		})
