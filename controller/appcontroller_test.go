@@ -1645,7 +1645,7 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
 	assert.Contains(t, message, "Retrying attempt #1")
 	retryCount, _, _ := unstructured.NestedFloat64(receivedPatch, "status", "operationState", "retryCount")
-	assert.Equal(t, float64(1), retryCount)
+	assert.InEpsilon(t, float64(1), retryCount, 0.0001)
 }
 
 func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
