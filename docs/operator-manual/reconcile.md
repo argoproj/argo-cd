@@ -135,12 +135,12 @@ spec:
   jobTemplate:
     metadata:
       annotations:
-        argocd.argoproj.io/ignore-resources-update: "true"
+        argocd.argoproj.io/ignore-resource-updates: "true"
     spec:
       template:
         metadata:
           annotations:
-            argocd.argoproj.io/ignore-resources-update: "true"
+            argocd.argoproj.io/ignore-resource-updates: "true"
         spec:
           containers:
           - name: hello
