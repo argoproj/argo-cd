@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -31,7 +32,7 @@ func TestLabelsOnAppK8sEvents(t *testing.T) {
 			events, err := KubeClientset.CoreV1().Events(app.Namespace).List(context.Background(), metav1.ListOptions{
 				FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Application", app.Name),
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			for _, event := range events.Items {
 				for k, v := range event.Labels {
 					ev, found := expectedLabels[k]
@@ -56,7 +57,7 @@ func TestNoLabelsOnAppK8sEvents(t *testing.T) {
 			events, err := KubeClientset.CoreV1().Events(app.Namespace).List(context.Background(), metav1.ListOptions{
 				FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Application", app.Name),
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			for _, event := range events.Items {
 				assert.Nil(t, event.Labels)
 			}
