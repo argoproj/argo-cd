@@ -29,6 +29,11 @@ not possible using Helm repositories.
     trust models, and it is not necessary (nor possible) to sign the public keys
     you are going to import into ArgoCD.
 
+
+!!!note Limitations
+  ApplicationSet do not support templating of project field while using signature
+  verification.
+
 ## Signature verification targets
 
 If signature verification is enforced, ArgoCD will verify the signature using
