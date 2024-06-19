@@ -10,6 +10,7 @@ import (
 
 	"code.gitea.io/sdk/gitea"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
@@ -250,14 +251,14 @@ func TestGiteaList(t *testing.T) {
 		giteaMockHandler(t)(w, r)
 	}))
 	host, err := NewGiteaService(context.Background(), "", ts.URL, "test-argocd", "pr-test", false)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	prs, err := host.List(context.Background())
-	assert.Nil(t, err)
-	assert.Equal(t, len(prs), 1)
-	assert.Equal(t, prs[0].Number, 1)
-	assert.Equal(t, prs[0].Branch, "test")
-	assert.Equal(t, prs[0].TargetBranch, "main")
-	assert.Equal(t, prs[0].HeadSHA, "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f")
+	require.NoError(t, err)
+	assert.Len(t, prs, 1)
+	assert.Equal(t, 1, prs[0].Number)
+	assert.Equal(t, "test", prs[0].Branch)
+	assert.Equal(t, "main", prs[0].TargetBranch)
+	assert.Equal(t, "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f", prs[0].HeadSHA)
 }
 
 func TestGetGiteaPRLabelNames(t *testing.T) {

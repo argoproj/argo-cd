@@ -10,13 +10,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/argoproj/argo-cd/v2/util/manifeststream"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 type applicationStreamMock struct {
@@ -112,7 +113,7 @@ func TestManifestStream(t *testing.T) {
 
 	files, err := os.ReadDir(workdir)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(files))
+	require.Len(t, files, 1)
 	names := []string{}
 	for _, f := range files {
 		names = append(names, f.Name())

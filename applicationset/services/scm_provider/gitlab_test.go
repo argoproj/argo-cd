@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
@@ -1046,6 +1047,7 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 		}
 	}
 }
+
 func TestGitlabListRepos(t *testing.T) {
 	cases := []struct {
 		name, proto, url, topic                                                  string
@@ -1122,9 +1124,9 @@ func TestGitlabListRepos(t *testing.T) {
 			provider, _ := NewGitlabProvider(context.Background(), "test-argocd-proton", "", ts.URL, c.allBranches, c.includeSubgroups, c.includeSharedProjects, c.insecure, "", c.topic)
 			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
 			if c.hasError {
-				assert.NotNil(t, err)
+				require.Error(t, err)
 			} else {
-				assert.Nil(t, err)
+				require.NoError(t, err)
 				// Just check that this one project shows up. Not a great test but better than nothing?
 				repos := []*Repository{}
 				uniqueRepos := map[string]int{}
@@ -1143,11 +1145,11 @@ func TestGitlabListRepos(t *testing.T) {
 				}
 				// In case of listing subgroups, validate the number of returned projects
 				if c.includeSubgroups || c.includeSharedProjects {
-					assert.Equal(t, 2, len(uniqueRepos))
+					assert.Len(t, uniqueRepos, 2)
 				}
 				// In case we filter on the topic, ensure we got only one repo returned
 				if c.topic != "" {
-					assert.Equal(t, 1, len(uniqueRepos))
+					assert.Len(t, uniqueRepos, 1)
 				}
 			}
 		})
@@ -1194,7 +1196,7 @@ func TestGitlabHasPath(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			ok, err := host.RepoHasPath(context.Background(), repo, c.path)
-			assert.Nil(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, c.exists, ok)
 		})
 	}
@@ -1212,8 +1214,8 @@ func TestGitlabGetBranches(t *testing.T) {
 	}
 	t.Run("branch exists", func(t *testing.T) {
 		repos, err := host.GetBranches(context.Background(), repo)
-		assert.Nil(t, err)
-		assert.Equal(t, repos[0].Branch, "master")
+		require.NoError(t, err)
+		assert.Equal(t, "master", repos[0].Branch)
 	})
 
 	repo2 := &Repository{
@@ -1222,6 +1224,6 @@ func TestGitlabGetBranches(t *testing.T) {
 	}
 	t.Run("unknown branch", func(t *testing.T) {
 		_, err := host.GetBranches(context.Background(), repo2)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 }

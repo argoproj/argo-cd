@@ -104,7 +104,7 @@ jobs:
             echo 'EOF' >> $GITHUB_ENV
 
       - name: Login to Quay.io
-        uses: docker/login-action@e92390c5fb421da1463c202d546fed0ec5c39f20 # v3.1.0
+        uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3.2.0
         with:
           registry: quay.io
           username: ${{ secrets.quay_username }}
@@ -112,7 +112,7 @@ jobs:
         if: ${{ inputs.quay_image_name && inputs.push }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@e92390c5fb421da1463c202d546fed0ec5c39f20 # v3.1.0
+        uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3.2.0
         with:
           registry: ghcr.io
           username: ${{ secrets.ghcr_username }}
@@ -120,7 +120,7 @@ jobs:
         if: ${{ inputs.ghcr_image_name && inputs.push }}
 
       - name: Login to dockerhub Container Registry
-        uses: docker/login-action@e92390c5fb421da1463c202d546fed0ec5c39f20 # v3.1.0
+        uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3.2.0
         with:
           username: ${{ secrets.docker_username }}
           password: ${{ secrets.docker_password }}
@@ -143,7 +143,7 @@ jobs:
 
       - name: Build and push container image
         id: image
-        uses: docker/build-push-action@2cdde995de11925a030ce8070c3d77a52ffcf1c0 #v5.3.0
+        uses: docker/build-push-action@c382f710d39a5bb4e430307530a720f50c2d3318 #v6.0.0
         with:
           context: .
           platforms: ${{ inputs.platforms }}

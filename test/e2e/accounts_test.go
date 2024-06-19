@@ -8,6 +8,7 @@ import (
 	"github.com/argoproj/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -28,13 +29,13 @@ func TestCreateAndUseAccount(t *testing.T) {
 		Then().
 		And(func(account *account.Account, err error) {
 			assert.Equal(t, account.Name, ctx.GetName())
-			assert.Equal(t, account.Capabilities, []string{"login"})
+			assert.Equal(t, []string{"login"}, account.Capabilities)
 		}).
 		When().
 		Login().
 		Then().
 		CurrentUser(func(user *session.GetUserInfoResponse, err error) {
-			assert.Equal(t, user.LoggedIn, true)
+			assert.True(t, user.LoggedIn)
 			assert.Equal(t, user.Username, ctx.GetName())
 		})
 }
@@ -142,9 +143,9 @@ test   true     login, apiKey`, output)
 	defer io.Close(closer)
 
 	info, err := client.GetUserInfo(context.Background(), &session.GetUserInfoRequest{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	assert.Equal(t, info.Username, "test")
+	assert.Equal(t, "test", info.Username)
 }
 
 func TestLoginBadCredentials(t *testing.T) {
@@ -161,9 +162,7 @@ func TestLoginBadCredentials(t *testing.T) {
 
 	for _, r := range requests {
 		_, err := sessionClient.Create(context.Background(), &r)
-		if !assert.Error(t, err) {
-			return
-		}
+		require.Error(t, err)
 		errStatus, ok := status.FromError(err)
 		if !assert.True(t, ok) {
 			return

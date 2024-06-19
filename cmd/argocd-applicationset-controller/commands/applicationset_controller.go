@@ -73,7 +73,7 @@ func NewCommand() *cobra.Command {
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
 	_ = appv1alpha1.AddToScheme(scheme)
-	var command = cobra.Command{
+	command := cobra.Command{
 		Use:   "controller",
 		Short: "Starts Argo CD ApplicationSet controller",
 		RunE: func(c *cobra.Command, args []string) error {
@@ -105,7 +105,7 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			// By default watch all namespace
+			// By default, watch all namespaces
 			var watchedNamespace string = ""
 
 			// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
@@ -139,7 +139,6 @@ func NewCommand() *cobra.Command {
 					DryRun: &dryRun,
 				},
 			})
-
 			if err != nil {
 				log.Error(err, "unable to start manager")
 				os.Exit(1)
@@ -153,9 +152,7 @@ func NewCommand() *cobra.Command {
 			appSetConfig := appclientset.NewForConfigOrDie(mgr.GetConfig())
 			argoCDDB := db.NewDB(namespace, argoSettingsMgr, k8sClient)
 
-			scmAuth := generators.SCMAuthProviders{
-				GitHubApps: github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)),
-			}
+			scmConfig := generators.NewSCMConfig(scmRootCAPath, allowedScmProviders, enableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)))
 
 			tlsConfig := apiclient.TLSConfiguration{
 				DisableTLS:       repoServerPlaintext,
@@ -172,42 +169,10 @@ func NewCommand() *cobra.Command {
 			}
 
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, repoServerTimeoutSeconds, tlsConfig)
-			argoCDService, err := services.NewArgoCDService(argoCDDB, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
+			argoCDService, err := services.NewArgoCDService(argoCDDB.GetRepository, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
 			errors.CheckError(err)
 
-			terminalGenerators := map[string]generators.Generator{
-				"List":                    generators.NewListGenerator(),
-				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
-				"Git":                     generators.NewGitGenerator(argoCDService),
-				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient(), scmAuth, scmRootCAPath, allowedScmProviders, enableScmProviders),
-				"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
-				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient(), scmAuth, scmRootCAPath, allowedScmProviders, enableScmProviders),
-				"Plugin":                  generators.NewPluginGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
-			}
-
-			nestedGenerators := map[string]generators.Generator{
-				"List":                    terminalGenerators["List"],
-				"Clusters":                terminalGenerators["Clusters"],
-				"Git":                     terminalGenerators["Git"],
-				"SCMProvider":             terminalGenerators["SCMProvider"],
-				"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
-				"PullRequest":             terminalGenerators["PullRequest"],
-				"Plugin":                  terminalGenerators["Plugin"],
-				"Matrix":                  generators.NewMatrixGenerator(terminalGenerators),
-				"Merge":                   generators.NewMergeGenerator(terminalGenerators),
-			}
-
-			topLevelGenerators := map[string]generators.Generator{
-				"List":                    terminalGenerators["List"],
-				"Clusters":                terminalGenerators["Clusters"],
-				"Git":                     terminalGenerators["Git"],
-				"SCMProvider":             terminalGenerators["SCMProvider"],
-				"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
-				"PullRequest":             terminalGenerators["PullRequest"],
-				"Plugin":                  terminalGenerators["Plugin"],
-				"Matrix":                  generators.NewMatrixGenerator(nestedGenerators),
-				"Merge":                   generators.NewMergeGenerator(nestedGenerators),
-			}
+			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig)
 
 			// start a webhook server that listens to incoming webhook payloads
 			webhookHandler, err := webhook.NewWebhookHandler(namespace, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)

@@ -179,7 +179,6 @@ func printDetailedTreeViewAppResourcesNotOrphaned(nodeMapping map[string]v1alpha
 	for uid := range parentNodes {
 		detailedTreeViewAppResourcesNotOrphaned("", nodeMapping, parentChildMapping, nodeMapping[uid], w)
 	}
-
 }
 
 func printDetailedTreeViewAppResourcesOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, orphaned bool, listAll bool, w *tabwriter.Writer) {
@@ -192,7 +191,6 @@ func printTreeViewAppResourcesNotOrphaned(nodeMapping map[string]v1alpha1.Resour
 	for uid := range parentNodes {
 		treeViewAppResourcesNotOrphaned("", nodeMapping, parentChildMapping, nodeMapping[uid], w)
 	}
-
 }
 
 func printTreeViewAppResourcesOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, orphaned bool, listAll bool, w *tabwriter.Writer) {
@@ -215,7 +213,6 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 			mapUidToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.OrphanedNodes)
 			printDetailedTreeViewAppResourcesOrphaned(mapUidToNode, mapParentToChild, parentNode, orphaned, listAll, w)
 		}
-
 	} else if output == "tree" {
 		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\n")
 
@@ -228,9 +225,7 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 			mapUidToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.OrphanedNodes)
 			printTreeViewAppResourcesOrphaned(mapUidToNode, mapParentToChild, parentNode, orphaned, listAll, w)
 		}
-
 	} else {
-
 		headers := []interface{}{"GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED"}
 		fmtStr := "%s\t%s\t%s\t%s\t%s\n"
 		_, _ = fmt.Fprintf(w, fmtStr, headers...)
@@ -246,17 +241,15 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 				_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name, "Yes")
 			}
 		}
-
 	}
 	_ = w.Flush()
-
 }
 
 func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var orphaned bool
 	var output string
 	var project string
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "resources APPNAME",
 		Short: "List resource of application",
 		Run: func(c *cobra.Command, args []string) {

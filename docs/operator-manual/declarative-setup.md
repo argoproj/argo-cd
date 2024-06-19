@@ -1132,6 +1132,22 @@ data:
 
 Custom Labels configured with `resource.customLabels` (comma separated string) will be displayed in the UI (for any resource that defines them).
 
+## Labels on Application Events
+
+An optional comma-separated list of `metadata.labels` keys can be configured with `resource.includeEventLabelKeys` to add to Kubernetes events generated for Argo CD Applications. When events are generated for Applications containing the specified labels, the controller adds the matching labels to the event. This establishes an easy link between the event and the application, allowing for filtering using labels. In case of conflict between labels on the Application and AppProject, the Application label values are prioritized and added to the event.
+
+```yaml
+  resource.includeEventLabelKeys: team,env*
+```
+
+To exclude certain labels from events, use the `resource.excludeEventLabelKeys` key, which takes a comma-separated list of `metadata.labels` keys.
+
+```yaml
+  resource.excludeEventLabelKeys: environment,bu
+```
+
+Both `resource.includeEventLabelKeys` and `resource.excludeEventLabelKeys` support wildcards.
+
 ## SSO & RBAC
 
 * SSO configuration details: [SSO](./user-management/index.md)

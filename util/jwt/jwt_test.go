@@ -7,6 +7,7 @@ import (
 
 	jwt "github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetSingleStringScope(t *testing.T) {
@@ -43,7 +44,7 @@ func TestIssuedAtTime_Int64(t *testing.T) {
 	// Tuesday, 1 December 2020 14:00:00
 	claims := jwt.MapClaims{"iat": int64(1606831200)}
 	issuedAt, err := IssuedAtTime(claims)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	str := fmt.Sprint(issuedAt.UTC().Format("Mon Jan _2 15:04:05 2006"))
 	assert.Equal(t, "Tue Dec  1 14:00:00 2020", str)
 }
@@ -51,20 +52,20 @@ func TestIssuedAtTime_Int64(t *testing.T) {
 func TestIssuedAtTime_Error_NoInt(t *testing.T) {
 	claims := jwt.MapClaims{"iat": 1606831200}
 	_, err := IssuedAtTime(claims)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 }
 
 func TestIssuedAtTime_Error_Missing(t *testing.T) {
 	claims := jwt.MapClaims{}
 	iat, err := IssuedAtTime(claims)
-	assert.NotNil(t, err)
+	require.Error(t, err)
 	assert.Equal(t, time.Unix(0, 0), iat)
 }
 
 func TestIsValid(t *testing.T) {
-	assert.Equal(t, true, IsValid("foo.bar.foo"))
-	assert.Equal(t, true, IsValid("foo.bar.foo.bar"))
-	assert.Equal(t, false, IsValid("foo.bar"))
-	assert.Equal(t, false, IsValid("foo"))
-	assert.Equal(t, false, IsValid(""))
+	assert.True(t, IsValid("foo.bar.foo"))
+	assert.True(t, IsValid("foo.bar.foo.bar"))
+	assert.False(t, IsValid("foo.bar"))
+	assert.False(t, IsValid("foo"))
+	assert.False(t, IsValid(""))
 }

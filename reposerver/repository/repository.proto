@@ -238,6 +238,7 @@ message GitFilesRequest {
     string path = 4;
     bool NewGitFileGlobbingEnabled = 5;
     bool noRevisionCache = 6;
+    bool verifyCommit = 7;
 }
 
 message GitFilesResponse {
@@ -250,6 +251,7 @@ message GitDirectoriesRequest {
     bool submoduleEnabled = 2;
     string revision = 3;
     bool noRevisionCache = 4;
+    bool verifyCommit = 5;
 }
 
 message GitDirectoriesResponse {
