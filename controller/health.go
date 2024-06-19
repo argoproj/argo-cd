@@ -17,27 +17,17 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/lua"
 )
 
-func getLastTransitionTime(statuses []appv1.ResourceStatus, i int) metav1.Time {
-	if len(statuses) == 0 {
-		return metav1.Now()
-	}
-
-	lastTransitionTime := statuses[i].Health.LastTransitionTime
-
-	if lastTransitionTime.IsZero() {
-		lastTransitionTime = metav1.Now()
-	}
-
-	return lastTransitionTime
-}
-
 // setApplicationHealth updates the health statuses of all resources performed in the comparison
 func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (*appv1.HealthStatus, error) {
 	var savedErr error
 	var errCount uint
 
-	// All statuses have the same timestamp, so we can safely get the first one
-	lastTransitionTime := getLastTransitionTime(statuses, 0)
+	lastTransitionTime := app.Status.Health.LastTransitionTime
+	if lastTransitionTime.IsZero() {
+		lastTransitionTime = metav1.Now()
+		log.WithField("application", app.QualifiedName()).Warn("no last transition time for health state set, setting it now")
+	}
+
 	appHealth := appv1.HealthStatus{Status: health.HealthStatusHealthy}
 	for i, res := range resources {
 		now := metav1.Now()
@@ -79,7 +69,7 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 		if persistResourceHealth {
 			// If the status didn't change, we don't want to update the timestamp
 			if healthStatus.Status == statuses[i].Health.Status {
-				now = getLastTransitionTime(statuses, i)
+				now = lastTransitionTime
 			}
 
 			resHealth := appv1.HealthStatus{Status: healthStatus.Status, Message: healthStatus.Message, LastTransitionTime: now}

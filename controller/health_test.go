@@ -63,6 +63,7 @@ func TestSetApplicationHealth(t *testing.T) {
 	resourceStatuses := initStatuses(resources)
 	// Populate health status
 	resourceStatuses[0].Health.Status = health.HealthStatusHealthy
+	app.Status.Health.LastTransitionTime = testTimestamp
 
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	firstHealthStatusTransitionTime := healthStatus.LastTransitionTime
