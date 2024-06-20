@@ -857,7 +857,7 @@ export class ReposList extends React.Component<
         const confirmed = await this.appContext.apis.popup.confirm('Disconnect repository', `Are you sure you want to disconnect '${repo}'?`);
         if (confirmed) {
             try {
-                await services.repos.delete(repo, project);
+                await services.repos.delete(repo, project || '');
                 this.repoLoader.reload();
             } catch (e) {
                 this.appContext.apis.notifications.show({
