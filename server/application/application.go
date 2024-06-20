@@ -38,7 +38,6 @@ import (
 
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -1495,71 +1494,9 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, err
 	}
 
-	var versionId int64 = 0
-	if q.VersionId != nil {
-		versionId = int64(*q.VersionId)
-	}
-
-	var source *v1alpha1.ApplicationSource
-
-	// To support changes between single source and multi source revisions
-	// we have to calculate if the operation has to be done as multisource or not.
-	// There are 2 different scenarios, checking current revision and historic revision
-	// - Current revision (VersionId is nil or 0):
-	// 		- The application is multi source and required version too -> multi source
-	// 		- The application is single source and the required version too -> single source
-	// 		- The application is multi source and the required version is single source -> single source
-	// 		- The application is single source and the required version is multi source -> multi source
-	// - Historic revision:
-	// 		- The application is multi source and the previous one too -> multi source
-	// 		- The application is single source and the previous one too -> single source
-	// 		- The application is multi source and the previous one is single source -> multi source
-	// 		- The application is single source and the previous one is multi source -> single source
-	isRevisionMultiSource := a.Spec.HasMultipleSources()
-	emptyHistory := len(a.Status.History) == 0
-	if !emptyHistory {
-		for _, h := range a.Status.History {
-			if h.ID == versionId {
-				isRevisionMultiSource = len(h.Revisions) > 0
-				break
-			}
-		}
-	}
-
-	// If the historical data is empty (because the app hasn't been synced yet)
-	// we can use the source, if not (the app has been synced at least once)
-	// we have to use the history because sources can be added/removed
-	if emptyHistory {
-		if isRevisionMultiSource {
-			source = &a.Spec.Sources[*q.SourceIndex]
-		} else {
-			s := a.Spec.GetSource()
-			source = &s
-		}
-	} else {
-		// the source count can change during the time, we cannot just trust in .status.sync
-		// because if a source has been added/removed, the revisions there won't match
-		// as this is only used for the UI and not internally, we can use the historical data
-		// using the specific revisionId
-		for _, h := range a.Status.History {
-			if h.ID == versionId {
-				// The iteration values are assigned to the respective iteration variables as in an assignment statement.
-				// The iteration variables may be declared by the “range” clause using a form of short variable declaration (:=).
-				// In this case their types are set to the types of the respective iteration values and their scope is the block of the "for" statement;
-				// they are re-used in each iteration. If the iteration variables are declared outside the "for" statement,
-				// after execution their values will be those of the last iteration.
-				// https://golang.org/ref/spec#For_statements
-				h := h
-				if isRevisionMultiSource {
-					source = &h.Sources[*q.SourceIndex]
-				} else {
-					source = &h.Source
-				}
-			}
-		}
-	}
-	if source == nil {
-		return nil, fmt.Errorf("revision not found: %w", err)
+	source, err := findRevisionMetadataSource(a, q)
+	if err != nil {
+		return nil, fmt.Errorf("could not find source: %w", err)
 	}
 
 	repo, err := s.db.GetRepository(ctx, source.RepoURL, proj.Name)
@@ -1585,26 +1522,13 @@ func (s *Server) RevisionChartDetails(ctx context.Context, q *application.Revisi
 		return nil, err
 	}
 
-	var source *v1alpha1.ApplicationSource
-	if a.Spec.HasMultipleSources() {
-		// the source count can change during the time, we cannot just trust in .status.sync
-		// because if a source has been added/removed, the revisions there won't match
-		// as this is only used for the UI and not internally, we can use the historical data
-		// using the specific revisionId
-		for _, h := range a.Status.History {
-			if h.ID == int64(*q.VersionId) {
-				source = &h.Sources[*q.SourceIndex]
-			}
-		}
-		if source == nil {
-			return nil, fmt.Errorf("revision not found: %w", err)
-		}
-	} else {
-		source = a.Spec.Source
+	source, err := findRevisionMetadataSource(a, q)
+	if err != nil {
+		return nil, fmt.Errorf("could not find source: %w", err)
 	}
 
 	if source.Chart == "" {
-		return nil, fmt.Errorf("no chart found for application: %v", q.GetName())
+		return nil, fmt.Errorf("no chart found for application: %s", q.GetName())
 	}
 	repo, err := s.db.GetRepository(ctx, source.RepoURL, a.Spec.Project)
 	if err != nil {
@@ -1620,6 +1544,43 @@ func (s *Server) RevisionChartDetails(ctx context.Context, q *application.Revisi
 		Name:     source.Chart,
 		Revision: q.GetRevision(),
 	})
+}
+
+func findRevisionMetadataSource(a *appv1.Application, q *application.RevisionMetadataQuery) (*appv1.ApplicationSource, error) {
+	historicalVersionRequested := q.VersionId != nil
+
+	// There are 2 different scenarios, checking current revision and historic revision
+	if !historicalVersionRequested || len(a.Status.History) == 0 {
+		// - Current revision (VersionId is nil or no history): use the current source
+		if a.Spec.HasMultipleSources() {
+			if q.SourceIndex == nil {
+				return nil, fmt.Errorf("source index must be specified for multi-source")
+			}
+			if int(*q.SourceIndex) >= len(a.Spec.Sources) {
+				return nil, fmt.Errorf("source index '%d' is out of range %d", *q.SourceIndex, len(a.Spec.Sources))
+			}
+			return &a.Spec.Sources[*q.SourceIndex], nil
+		}
+		return a.Spec.Source, nil
+	}
+
+	// Historic revision: use the source at the specified versionId
+	versionId := int64(*q.VersionId)
+	for _, h := range a.Status.History {
+		if h.ID == versionId {
+			if len(h.Revisions) > 0 {
+				if q.SourceIndex == nil {
+					return nil, fmt.Errorf("source index must be specified for multi-source")
+				}
+				if int(*q.SourceIndex) >= len(h.Revisions) {
+					return nil, fmt.Errorf("source index '%d' is out of range %d", *q.SourceIndex, len(h.Revisions))
+				}
+				return &h.Sources[*q.SourceIndex], nil
+			}
+			return &h.Source, nil
+		}
+	}
+	return nil, fmt.Errorf("source not found for history id : %d", versionId)
 }
 
 func isMatchingResource(q *application.ResourcesQuery, key kube.ResourceKey) bool {
