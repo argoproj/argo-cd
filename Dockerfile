@@ -63,6 +63,11 @@ COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 # keep uid_entrypoint.sh for backward compatibility
 RUN ln -s /usr/local/bin/entrypoint.sh /usr/local/bin/uid_entrypoint.sh
 
+RUN chmod o+rx \
+	/usr/local/bin/gpg-wrapper.sh \
+	/usr/local/bin/git-verify-wrapper.sh \
+	/usr/local/bin/entrypoint.sh
+
 # support for mounting configuration from a configmap
 WORKDIR /app/config/ssh
 RUN touch ssh_known_hosts && \
