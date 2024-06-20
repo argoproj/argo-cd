@@ -1,0 +1,21 @@
+name: Bunnyshell - Stop Preview Environment
+
+concurrency: bns-start-stop-${{ github.event.issue.number }}
+
+on:
+  issue_comment:
+    types: [created, edited]
+
+jobs:
+  start:
+    permissions:
+      pull-requests: write
+    name: Stop Environment
+    uses: bunnyshell/workflows/.github/workflows/stop-env.yaml@39a6b57d1582432a9db85b909ce84f3ea03ec605 # v1.0.4
+    with:
+      project-id: ${{ vars.BUNNYSHELL_PROJECT_ID }}
+      env-name: 'ArgoCD PR #${{ github.event.issue.number }}'
+      allowed-users: ${{ vars.BUNNYSHELL_ALLOWED_USERS }}
+      comment-on-pr: true
+    secrets:
+      bunnyshell-access-token: ${{ secrets.BUNNYSHELL_ACCESS_TOKEN }}
