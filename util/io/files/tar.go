@@ -137,6 +137,11 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 			}
 			f.Close()
 		}
+
+		err = os.Chtimes(target, header.AccessTime, header.ModTime)
+		if err != nil {
+			return fmt.Errorf("error changing access and mod time: %w", err)
+		}
 	}
 	return nil
 }
@@ -201,6 +206,9 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	}
 
 	header, err := tar.FileInfoHeader(fi, link)
+	// Write in PAX format to support sub-second time resolution.
+	// https://pkg.go.dev/archive/tar#Format
+	header.Format = tar.FormatPAX
 	if err != nil {
 		return fmt.Errorf("error creating a tar file header: %w", err)
 	}

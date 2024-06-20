@@ -135,9 +135,13 @@ func TestUntgz(t *testing.T) {
 		}
 		return f
 	}
-	readFiles := func(t *testing.T, basedir string) map[string]string {
+	type fileInfo struct {
+		Path     string
+		FileInfo os.FileInfo
+	}
+	readFiles := func(t *testing.T, basedir string) map[string]fileInfo {
 		t.Helper()
-		names := make(map[string]string)
+		names := make(map[string]fileInfo)
 		err := filepath.Walk(basedir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
@@ -151,7 +155,10 @@ func TestUntgz(t *testing.T) {
 			}
 			relativePath, err := files.RelativePath(path, basedir)
 			require.NoError(t, err)
-			names[relativePath] = link
+			names[relativePath] = fileInfo{
+				Path:     link,
+				FileInfo: info,
+			}
 			return nil
 		})
 		if err != nil {
@@ -179,7 +186,11 @@ func TestUntgz(t *testing.T) {
 		assert.Contains(t, names, "applicationset/latest/kustomization.yaml")
 		assert.Contains(t, names, "applicationset/stable/kustomization.yaml")
 		assert.Contains(t, names, "applicationset/readme-symlink")
-		assert.Equal(t, filepath.Join(destDir, "README.md"), names["applicationset/readme-symlink"])
+		readme := filepath.Join(destDir, "README.md")
+		assert.Equal(t, readme, names["applicationset/readme-symlink"].Path)
+		stat, err := os.Stat(readme)
+		require.NoError(t, err)
+		assert.Equal(t, stat.ModTime(), names["README.md"].FileInfo.ModTime())
 	})
 	t.Run("will protect against symlink exploit", func(t *testing.T) {
 		// given
