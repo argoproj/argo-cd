@@ -1874,6 +1874,72 @@ func TestRollbackApp(t *testing.T) {
 	assert.Equal(t, "abc", updatedApp.Operation.Sync.Revision)
 }
 
+func TestRevisionMetadata(t *testing.T) {
+	testApp := newTestApp()
+	ctx := context.Background()
+	// nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
+	appServer := newTestAppServer(t, testApp)
+	appServer.enf.SetDefaultRole("")
+	_ = appServer.enf.SetBuiltinPolicy(`p, admin, applications, get, default/test-app, allow`)
+
+	// Setup repo server mock
+	repoServerMock := fakeRepoServerClient(false)
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: repoServerMock}
+	appServer.repoClientset = mockRepoClient
+
+	t.Run("cannot get revision without permissions", func(t *testing.T) {
+		_ = appServer.enf.SetBuiltinPolicy(`p, admin, applications, get, default/test-app, deny`)
+		q := &application.RevisionMetadataQuery{
+			Name:         &testApp.Name,
+			AppNamespace: &testApp.Namespace,
+		}
+		_, err := appServer.RevisionMetadata(ctx, q)
+		assert.Equal(t, codes.PermissionDenied, status.Code(err))
+	})
+
+	t.Run("get current revision for single source", func(t *testing.T) {
+		t.FailNow()
+	})
+	t.Run("get current revision for multi-source", func(t *testing.T) {
+		t.FailNow()
+	})
+	t.Run("get current revision for multi-source without index", func(t *testing.T) {
+		t.FailNow()
+	})
+	t.Run("get current revision for multi-source with invalid index", func(t *testing.T) {
+		t.FailNow()
+	})
+	t.Run("get history revision for single source without history", func(t *testing.T) {
+		t.FailNow()
+	})
+	t.Run("get history revision for multi-source without history", func(t *testing.T) {
+		t.FailNow()
+	})
+	t.Run("get history revision for multi-source without history and without index", func(t *testing.T) {
+		t.FailNow()
+	})
+	t.Run("get history revision for multi-source without history and invalid index", func(t *testing.T) {
+		t.FailNow()
+	})
+	t.Run("get history revision for single source", func(t *testing.T) {
+		t.FailNow()
+	})
+	t.Run("get history revision for multi-source", func(t *testing.T) {
+		t.FailNow()
+	})
+	t.Run("get history revision for multi-source without index", func(t *testing.T) {
+		t.FailNow()
+	})
+	t.Run("get history revision for multi-source with invalid index", func(t *testing.T) {
+		t.FailNow()
+	})
+	t.Run("get history revision with invalid history id", func(t *testing.T) {
+		t.FailNow()
+	})
+
+}
+
 func TestUpdateAppProject(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
