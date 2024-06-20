@@ -1568,12 +1568,12 @@ func findRevisionMetadataSource(a *appv1.Application, q *application.RevisionMet
 	versionId := int64(*q.VersionId)
 	for _, h := range a.Status.History {
 		if h.ID == versionId {
-			if len(h.Revisions) > 0 {
+			if len(h.Sources) > 0 {
 				if q.SourceIndex == nil {
 					return nil, fmt.Errorf("source index must be specified for multi-source")
 				}
-				if int(*q.SourceIndex) >= len(h.Revisions) {
-					return nil, fmt.Errorf("source index '%d' is out of range %d", *q.SourceIndex, len(h.Revisions))
+				if int(*q.SourceIndex) >= len(h.Sources) {
+					return nil, fmt.Errorf("source index '%d' is out of range %d", *q.SourceIndex, len(h.Sources))
 				}
 				return &h.Sources[*q.SourceIndex], nil
 			}

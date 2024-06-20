@@ -1874,72 +1874,6 @@ func TestRollbackApp(t *testing.T) {
 	assert.Equal(t, "abc", updatedApp.Operation.Sync.Revision)
 }
 
-func TestRevisionMetadata(t *testing.T) {
-	testApp := newTestApp()
-	ctx := context.Background()
-	// nolint:staticcheck
-	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
-	appServer := newTestAppServer(t, testApp)
-	appServer.enf.SetDefaultRole("")
-	_ = appServer.enf.SetBuiltinPolicy(`p, admin, applications, get, default/test-app, allow`)
-
-	// Setup repo server mock
-	repoServerMock := fakeRepoServerClient(false)
-	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: repoServerMock}
-	appServer.repoClientset = mockRepoClient
-
-	t.Run("cannot get revision without permissions", func(t *testing.T) {
-		_ = appServer.enf.SetBuiltinPolicy(`p, admin, applications, get, default/test-app, deny`)
-		q := &application.RevisionMetadataQuery{
-			Name:         &testApp.Name,
-			AppNamespace: &testApp.Namespace,
-		}
-		_, err := appServer.RevisionMetadata(ctx, q)
-		assert.Equal(t, codes.PermissionDenied, status.Code(err))
-	})
-
-	t.Run("get current revision for single source", func(t *testing.T) {
-		t.FailNow()
-	})
-	t.Run("get current revision for multi-source", func(t *testing.T) {
-		t.FailNow()
-	})
-	t.Run("get current revision for multi-source without index", func(t *testing.T) {
-		t.FailNow()
-	})
-	t.Run("get current revision for multi-source with invalid index", func(t *testing.T) {
-		t.FailNow()
-	})
-	t.Run("get history revision for single source without history", func(t *testing.T) {
-		t.FailNow()
-	})
-	t.Run("get history revision for multi-source without history", func(t *testing.T) {
-		t.FailNow()
-	})
-	t.Run("get history revision for multi-source without history and without index", func(t *testing.T) {
-		t.FailNow()
-	})
-	t.Run("get history revision for multi-source without history and invalid index", func(t *testing.T) {
-		t.FailNow()
-	})
-	t.Run("get history revision for single source", func(t *testing.T) {
-		t.FailNow()
-	})
-	t.Run("get history revision for multi-source", func(t *testing.T) {
-		t.FailNow()
-	})
-	t.Run("get history revision for multi-source without index", func(t *testing.T) {
-		t.FailNow()
-	})
-	t.Run("get history revision for multi-source with invalid index", func(t *testing.T) {
-		t.FailNow()
-	})
-	t.Run("get history revision with invalid history id", func(t *testing.T) {
-		t.FailNow()
-	})
-
-}
-
 func TestUpdateAppProject(t *testing.T) {
 	testApp := newTestApp()
 	ctx := context.Background()
@@ -3090,4 +3024,238 @@ func TestServer_ResolveSourceRevisions_SingleSource(t *testing.T) {
 	assert.Equal(t, fakeResolveRevisionResponse().AmbiguousRevision, displayRevision)
 	assert.Equal(t, ([]string)(nil), sourceRevisions)
 	assert.Equal(t, ([]string)(nil), displayRevisions)
+}
+
+func Test_findRevisionMetadataSource(t *testing.T) {
+	Int32Ptr := func(i int32) *int32 {
+		return &i
+	}
+
+	otherSource := &appv1.ApplicationSource{
+		Path: "other-source",
+	}
+	testApp := func() *appsv1.Application {
+		testApp := newTestApp()
+		testApp.Status.History = appv1.RevisionHistories{
+			appv1.RevisionHistory{
+				ID:     3,
+				Source: *otherSource,
+			},
+			appv1.RevisionHistory{
+				ID:     4,
+				Source: *otherSource,
+			},
+		}
+		return testApp
+	}
+
+	expected := &appv1.ApplicationSource{
+		Path: "expected-value",
+	}
+	expectedHistory := &appv1.ApplicationSource{
+		Path: "expected-history-value",
+	}
+	expectedHistoryId := Int32Ptr(5)
+
+	t.Run("get current revision for single source", func(t *testing.T) {
+		testApp := testApp()
+		testApp.Spec.Source = expected
+		q := &application.RevisionMetadataQuery{
+			Name:         &testApp.Name,
+			AppNamespace: &testApp.Namespace,
+		}
+		source, err := findRevisionMetadataSource(testApp, q)
+		require.NoError(t, err)
+		assert.Equal(t, expected, source)
+		testApp = nil
+	})
+	t.Run("get current revision for multi-source", func(t *testing.T) {
+		testApp := testApp()
+		var sourceIndex *int32 = Int32Ptr(1)
+		testApp.Spec.Sources = appv1.ApplicationSources{
+			*otherSource,
+			*expected,
+		}
+		q := &application.RevisionMetadataQuery{
+			Name:         &testApp.Name,
+			AppNamespace: &testApp.Namespace,
+			SourceIndex:  sourceIndex,
+		}
+		source, err := findRevisionMetadataSource(testApp, q)
+		require.NoError(t, err)
+		assert.Equal(t, expected, source)
+		testApp = nil
+	})
+	t.Run("get current revision for multi-source without index", func(t *testing.T) {
+		testApp := testApp()
+		var sourceIndex *int32 = nil
+		testApp.Spec.Sources = appv1.ApplicationSources{
+			*otherSource,
+			*expected,
+		}
+		q := &application.RevisionMetadataQuery{
+			Name:         &testApp.Name,
+			AppNamespace: &testApp.Namespace,
+			SourceIndex:  sourceIndex,
+		}
+		_, err := findRevisionMetadataSource(testApp, q)
+		assert.ErrorContains(t, err, "source index must be specified for multi-source")
+	})
+	t.Run("get current revision for multi-source with invalid index", func(t *testing.T) {
+		testApp := testApp()
+		var sourceIndex *int32 = Int32Ptr(999)
+		testApp.Spec.Sources = appv1.ApplicationSources{
+			*otherSource,
+			*expected,
+		}
+		q := &application.RevisionMetadataQuery{
+			Name:         &testApp.Name,
+			AppNamespace: &testApp.Namespace,
+			SourceIndex:  sourceIndex,
+		}
+		_, err := findRevisionMetadataSource(testApp, q)
+		assert.ErrorContains(t, err, "source index '999' is out of range 2")
+	})
+	t.Run("get history revision for single source without history", func(t *testing.T) {
+		testApp := testApp()
+		testApp.Spec.Source = expected
+		testApp.Status.History = nil
+		q := &application.RevisionMetadataQuery{
+			Name:         &testApp.Name,
+			AppNamespace: &testApp.Namespace,
+			VersionId:    expectedHistoryId,
+		}
+		source, err := findRevisionMetadataSource(testApp, q)
+		require.NoError(t, err)
+		assert.Equal(t, expected, source)
+	})
+	t.Run("get history revision for multi-source without history", func(t *testing.T) {
+		testApp := testApp()
+		var sourceIndex *int32 = Int32Ptr(1)
+		testApp.Spec.Sources = appv1.ApplicationSources{
+			*otherSource,
+			*expected,
+		}
+		testApp.Status.History = nil
+		q := &application.RevisionMetadataQuery{
+			Name:         &testApp.Name,
+			AppNamespace: &testApp.Namespace,
+			VersionId:    expectedHistoryId,
+			SourceIndex:  sourceIndex,
+		}
+		source, err := findRevisionMetadataSource(testApp, q)
+		require.NoError(t, err)
+		assert.Equal(t, expected, source)
+	})
+	t.Run("get history revision for multi-source without history and without index", func(t *testing.T) {
+		testApp := testApp()
+		var sourceIndex *int32 = nil
+		testApp.Spec.Sources = appv1.ApplicationSources{
+			*otherSource,
+			*expected,
+		}
+		testApp.Status.History = nil
+		q := &application.RevisionMetadataQuery{
+			Name:         &testApp.Name,
+			AppNamespace: &testApp.Namespace,
+			VersionId:    expectedHistoryId,
+			SourceIndex:  sourceIndex,
+		}
+		_, err := findRevisionMetadataSource(testApp, q)
+		assert.ErrorContains(t, err, "source index must be specified for multi-source")
+	})
+	t.Run("get history revision for multi-source without history and invalid index", func(t *testing.T) {
+		testApp := testApp()
+		var sourceIndex *int32 = Int32Ptr(999)
+		testApp.Spec.Sources = appv1.ApplicationSources{
+			*otherSource,
+			*expected,
+		}
+		testApp.Status.History = nil
+		q := &application.RevisionMetadataQuery{
+			Name:         &testApp.Name,
+			AppNamespace: &testApp.Namespace,
+			VersionId:    expectedHistoryId,
+			SourceIndex:  sourceIndex,
+		}
+		_, err := findRevisionMetadataSource(testApp, q)
+		assert.ErrorContains(t, err, "source index '999' is out of range 2")
+	})
+	t.Run("get history revision for single source", func(t *testing.T) {
+		testApp := testApp()
+		testApp.Spec.Source = otherSource
+		testApp.Status.History = append(testApp.Status.History, appv1.RevisionHistory{ID: int64(*expectedHistoryId), Source: *expectedHistory})
+		q := &application.RevisionMetadataQuery{
+			Name:         &testApp.Name,
+			AppNamespace: &testApp.Namespace,
+			VersionId:    expectedHistoryId,
+		}
+		source, err := findRevisionMetadataSource(testApp, q)
+		require.NoError(t, err)
+		assert.Equal(t, expectedHistory, source)
+	})
+	t.Run("get history revision for multi-source", func(t *testing.T) {
+		testApp := testApp()
+		var sourceIndex *int32 = Int32Ptr(1)
+		testApp.Spec.Sources = appv1.ApplicationSources{
+			*otherSource,
+			*otherSource,
+		}
+		testApp.Status.History = append(testApp.Status.History, appv1.RevisionHistory{ID: int64(*expectedHistoryId), Sources: appv1.ApplicationSources{*otherSource, *expectedHistory}})
+		q := &application.RevisionMetadataQuery{
+			Name:         &testApp.Name,
+			AppNamespace: &testApp.Namespace,
+			VersionId:    expectedHistoryId,
+			SourceIndex:  sourceIndex,
+		}
+		source, err := findRevisionMetadataSource(testApp, q)
+		require.NoError(t, err)
+		assert.Equal(t, expectedHistory, source)
+	})
+	t.Run("get history revision for multi-source without index", func(t *testing.T) {
+		testApp := testApp()
+		var sourceIndex *int32 = nil
+		testApp.Spec.Sources = appv1.ApplicationSources{
+			*otherSource,
+			*otherSource,
+		}
+		testApp.Status.History = append(testApp.Status.History, appv1.RevisionHistory{ID: int64(*expectedHistoryId), Sources: appv1.ApplicationSources{*otherSource, *expectedHistory}})
+		q := &application.RevisionMetadataQuery{
+			Name:         &testApp.Name,
+			AppNamespace: &testApp.Namespace,
+			VersionId:    expectedHistoryId,
+			SourceIndex:  sourceIndex,
+		}
+		_, err := findRevisionMetadataSource(testApp, q)
+		assert.ErrorContains(t, err, "source index must be specified for multi-source")
+	})
+	t.Run("get history revision for multi-source with invalid index", func(t *testing.T) {
+		testApp := testApp()
+		var sourceIndex *int32 = Int32Ptr(999)
+		testApp.Spec.Sources = appv1.ApplicationSources{
+			*otherSource,
+			*otherSource,
+		}
+		testApp.Status.History = append(testApp.Status.History, appv1.RevisionHistory{ID: int64(*expectedHistoryId), Sources: appv1.ApplicationSources{*otherSource, *expectedHistory}})
+		q := &application.RevisionMetadataQuery{
+			Name:         &testApp.Name,
+			AppNamespace: &testApp.Namespace,
+			VersionId:    expectedHistoryId,
+			SourceIndex:  sourceIndex,
+		}
+		_, err := findRevisionMetadataSource(testApp, q)
+		assert.ErrorContains(t, err, "source index '999' is out of range 2")
+	})
+	t.Run("get history revision with invalid history id", func(t *testing.T) {
+		testApp := testApp()
+		testApp.Spec.Source = otherSource
+		testApp.Status.History = append(testApp.Status.History, appv1.RevisionHistory{ID: int64(*expectedHistoryId), Source: *expectedHistory})
+		q := &application.RevisionMetadataQuery{
+			Name:         &testApp.Name,
+			AppNamespace: &testApp.Namespace,
+			VersionId:    Int32Ptr(999),
+		}
+		_, err := findRevisionMetadataSource(testApp, q)
+		assert.ErrorContains(t, err, "source not found for history id : 999")
+	})
 }
