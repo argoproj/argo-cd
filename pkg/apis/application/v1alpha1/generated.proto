@@ -1069,7 +1069,7 @@ message GnuPGPublicKey {
   // Trust holds the level of trust assigned to this key
   optional string trust = 4;
 
-  // SubType holds the key's sub type (e.g. rsa4096)
+  // SubType holds the key's subtype (e.g. rsa4096)
   optional string subType = 5;
 
   // KeyData holds the raw key data, in base64 encoded format

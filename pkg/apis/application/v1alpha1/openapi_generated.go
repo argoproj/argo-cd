@@ -3770,7 +3770,7 @@ func schema_pkg_apis_application_v1alpha1_GnuPGPublicKey(ref common.ReferenceCal
 					},
 					"subType": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SubType holds the key's sub type (e.g. rsa4096)",
+							Description: "SubType holds the key's subtype (e.g. rsa4096)",
 							Type:        []string{"string"},
 							Format:      "",
 						},
