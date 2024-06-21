@@ -1131,7 +1131,7 @@ export function getAppDefaultOperationSyncRevision(app?: appModels.Application) 
 
 // getAppCurrentVersion gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
 // field.
-export function getAppCurrentVersion(app?: appModels.Application): number|null {
+export function getAppCurrentVersion(app?: appModels.Application): number | null {
     if (!app || !app.status || !app.status.history || app.status.history.length === 0) {
         return null;
     }

@@ -53,28 +53,24 @@ export class ApplicationsService {
             .then(res => res.body as models.ApplicationSyncWindowState);
     }
 
-    public revisionMetadata(name: string, appNamespace: string, revision: string, sourceIndex: number|null, versionId: number|null): Promise<models.RevisionMetadata> {
-        let r = requests
-            .get(`/applications/${name}/revisions/${revision || 'HEAD'}/metadata`)
-            .query({appNamespace})
+    public revisionMetadata(name: string, appNamespace: string, revision: string, sourceIndex: number | null, versionId: number | null): Promise<models.RevisionMetadata> {
+        let r = requests.get(`/applications/${name}/revisions/${revision || 'HEAD'}/metadata`).query({appNamespace});
         if (sourceIndex !== null) {
-            r = r.query({sourceIndex})
+            r = r.query({sourceIndex});
         }
         if (versionId !== null) {
-            r = r.query({versionId})
+            r = r.query({versionId});
         }
         return r.then(res => res.body as models.RevisionMetadata);
     }
 
     public revisionChartDetails(name: string, appNamespace: string, revision: string, sourceIndex: number, versionId: number): Promise<models.ChartDetails> {
-        let r = requests
-            .get(`/applications/${name}/revisions/${revision || 'HEAD'}/chartdetails`)
-            .query({appNamespace})
+        let r = requests.get(`/applications/${name}/revisions/${revision || 'HEAD'}/chartdetails`).query({appNamespace});
         if (sourceIndex !== null) {
-            r = r.query({sourceIndex})
+            r = r.query({sourceIndex});
         }
         if (versionId !== null) {
-            r = r.query({versionId})
+            r = r.query({versionId});
         }
         return r.then(res => res.body as models.ChartDetails);
     }

@@ -5,11 +5,14 @@ import (
 	coreerrors "errors"
 	"fmt"
 	"io"
-	"k8s.io/utils/pointer"
 	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"k8s.io/utils/pointer"
+
+	"k8s.io/utils/pointer"
 
 	"k8s.io/apimachinery/pkg/labels"
 

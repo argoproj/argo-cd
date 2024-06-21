@@ -192,7 +192,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 )
             );
 
-        const getContentForChart = (aRevision: string, aSourceIndex: number|null, aVersionId: number|null, indx: number, aSource: models.ApplicationSource, sourceHeader?: JSX.Element) => {
+        const getContentForChart = (
+            aRevision: string,
+            aSourceIndex: number | null,
+            aVersionId: number | null,
+            indx: number,
+            aSource: models.ApplicationSource,
+            sourceHeader?: JSX.Element
+        ) => {
             const showChartNonMetadataInfo = (aRevision: string, aRepoUrl: string) => {
                 return (
                     <>
