@@ -632,8 +632,8 @@ func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSou
 		// multi source revision
 		if len(h.Sources) > 0 {
 			if h.ID == int64(versionId) {
-				if h.Revisions == nil {
-					continue
+				if len(h.Revisions) != len(h.Sources) || int(index) >= len(h.Sources) {
+					return false
 				}
 				h.Sources[index].TargetRevision = h.Revisions[index]
 				if source.Equals(&h.Sources[index]) {
