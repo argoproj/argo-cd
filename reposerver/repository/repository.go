@@ -2407,6 +2407,11 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	return metadata, nil
 }
 
+func (s *Service) GetOciMetadata(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.ChartDetails, error) {
+	// TODO: Create a real implementation of OCI metadata!!!
+	return s.GetRevisionChartDetails(ctx, q)
+}
+
 // GetRevisionChartDetails returns the helm chart details of a given version
 func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.ChartDetails, error) {
 	details, err := s.cache.GetRevisionChartDetails(q.Repo.Repo, q.Name, q.Revision)
