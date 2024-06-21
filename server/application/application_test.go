@@ -3169,7 +3169,7 @@ func Test_RevisionMetadata(t *testing.T) {
 			name:                "multi-source app without history, no source index, missing version ID",
 			multiSource:         true,
 			versionId:           pointer.Int32(999),
-			expectErrorContains: pointer.String("history not found for version ID 999"),
+			expectErrorContains: pointer.String("the app has no history"),
 		},
 		{
 			name:        "multi-source app without history, present source index, no version ID",
