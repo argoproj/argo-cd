@@ -1495,33 +1495,10 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, err
 	}
 
-	// Start with all the app's configured sources.
-	sources := a.Spec.GetSources()
-
-	// If the user specified a version, get the sources for that version. If the version is not found, return an error.
-	if q.VersionId != nil {
-		versionId := int64(*q.VersionId)
-		sources, err = getSourcesByVersionId(a, versionId)
-		if err != nil {
-			return nil, fmt.Errorf("error getting source by version ID: %w", err)
-		}
+	source, err := getAppSourceBySourceIndexAndVersionId(a, q.SourceIndex, q.VersionId)
+	if err != nil {
+		return nil, fmt.Errorf("error getting app source by source index and version ID: %w", err)
 	}
-
-	// Start by assuming we want the first source.
-	sourceIndex := 0
-
-	// If the user specified a source index, use that instead.
-	if q.SourceIndex != nil {
-		sourceIndex = int(*q.SourceIndex)
-		if sourceIndex >= len(sources) {
-			if len(sources) == 1 {
-				return nil, fmt.Errorf("source index %d not found because there is only 1 source", sourceIndex)
-			}
-			return nil, fmt.Errorf("source index %d not found because there are only %d sources", sourceIndex, len(sources))
-		}
-	}
-
-	source := sources[sourceIndex]
 
 	repo, err := s.db.GetRepository(ctx, source.RepoURL, proj.Name)
 	if err != nil {
@@ -1537,6 +1514,75 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		Revision:       q.GetRevision(),
 		CheckSignature: len(proj.Spec.SignatureKeys) > 0,
 	})
+}
+
+// RevisionChartDetails returns the helm chart metadata, as fetched from the reposerver
+func (s *Server) RevisionChartDetails(ctx context.Context, q *application.RevisionMetadataQuery) (*appv1.ChartDetails, error) {
+	a, _, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
+	if err != nil {
+		return nil, err
+	}
+
+	source, err := getAppSourceBySourceIndexAndVersionId(a, q.SourceIndex, q.VersionId)
+	if err != nil {
+		return nil, fmt.Errorf("error getting app source by source index and version ID: %w", err)
+	}
+
+	if source.Chart == "" {
+		return nil, fmt.Errorf("no chart found for application: %v", q.GetName())
+	}
+	repo, err := s.db.GetRepository(ctx, source.RepoURL, a.Spec.Project)
+	if err != nil {
+		return nil, fmt.Errorf("error getting repository by URL: %w", err)
+	}
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return nil, fmt.Errorf("error creating repo server client: %w", err)
+	}
+	defer ioutil.Close(conn)
+	return repoClient.GetRevisionChartDetails(ctx, &apiclient.RepoServerRevisionChartDetailsRequest{
+		Repo:     repo,
+		Name:     source.Chart,
+		Revision: q.GetRevision(),
+	})
+}
+
+// getAppSourceBySourceIndexAndVersionId returns the source for a specific source index and version ID. Source index and
+// version ID are optional. If the source index is not specified, it defaults to 0. If the version ID is not specified,
+// we use the source(s) currently configured for the app. If the version ID is specified, we find the source for that
+// version ID. If the version ID is not found, we return an error. If the source index is out of bounds for whichever
+// source we choose (configured sources or sources for a specific version), we return an error.
+func getAppSourceBySourceIndexAndVersionId(a *appv1.Application, sourceIndexMaybe *int32, versionIdMaybe *int32) (appv1.ApplicationSource, error) {
+	// Start with all the app's configured sources.
+	sources := a.Spec.GetSources()
+
+	// If the user specified a version, get the sources for that version. If the version is not found, return an error.
+	if versionIdMaybe != nil {
+		versionId := int64(*versionIdMaybe)
+		var err error
+		sources, err = getSourcesByVersionId(a, versionId)
+		if err != nil {
+			return appv1.ApplicationSource{}, fmt.Errorf("error getting source by version ID: %w", err)
+		}
+	}
+
+	// Start by assuming we want the first source.
+	sourceIndex := 0
+
+	// If the user specified a source index, use that instead.
+	if sourceIndexMaybe != nil {
+		sourceIndex = int(*sourceIndexMaybe)
+		if sourceIndex >= len(sources) {
+			if len(sources) == 1 {
+				return appv1.ApplicationSource{}, fmt.Errorf("source index %d not found because there is only 1 source", sourceIndex)
+			}
+			return appv1.ApplicationSource{}, fmt.Errorf("source index %d not found because there are only %d sources", sourceIndex, len(sources))
+		}
+	}
+
+	source := sources[sourceIndex]
+
+	return source, nil
 }
 
 // getRevisionHistoryByVersionId returns the revision history for a specific version ID.
@@ -1569,50 +1615,6 @@ func getSourcesByVersionId(a *appv1.Application, versionId int64) ([]appv1.Appli
 	}
 
 	return []v1alpha1.ApplicationSource{h.Source}, nil
-}
-
-// RevisionChartDetails returns the helm chart metadata, as fetched from the reposerver
-func (s *Server) RevisionChartDetails(ctx context.Context, q *application.RevisionMetadataQuery) (*appv1.ChartDetails, error) {
-	a, _, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
-	if err != nil {
-		return nil, err
-	}
-
-	var source *v1alpha1.ApplicationSource
-	if a.Spec.HasMultipleSources() {
-		// the source count can change during the time, we cannot just trust in .status.sync
-		// because if a source has been added/removed, the revisions there won't match
-		// as this is only used for the UI and not internally, we can use the historical data
-		// using the specific revisionId
-		for _, h := range a.Status.History {
-			if h.ID == int64(*q.VersionId) {
-				source = &h.Sources[*q.SourceIndex]
-			}
-		}
-		if source == nil {
-			return nil, fmt.Errorf("revision not found: %w", err)
-		}
-	} else {
-		source = a.Spec.Source
-	}
-
-	if source.Chart == "" {
-		return nil, fmt.Errorf("no chart found for application: %v", q.GetName())
-	}
-	repo, err := s.db.GetRepository(ctx, source.RepoURL, a.Spec.Project)
-	if err != nil {
-		return nil, fmt.Errorf("error getting repository by URL: %w", err)
-	}
-	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
-	if err != nil {
-		return nil, fmt.Errorf("error creating repo server client: %w", err)
-	}
-	defer ioutil.Close(conn)
-	return repoClient.GetRevisionChartDetails(ctx, &apiclient.RepoServerRevisionChartDetailsRequest{
-		Repo:     repo,
-		Name:     source.Chart,
-		Revision: q.GetRevision(),
-	})
 }
 
 func isMatchingResource(q *application.ResourcesQuery, key kube.ResourceKey) bool {
