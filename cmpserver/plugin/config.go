@@ -11,10 +11,6 @@ import (
 	configUtil "github.com/argoproj/argo-cd/v2/util/config"
 )
 
-const (
-	ConfigManagementPluginKind string = "ConfigManagementPlugin"
-)
-
 type PluginConfig struct {
 	metav1.TypeMeta `json:",inline"`
 	Metadata        metav1.ObjectMeta `json:"metadata"`
@@ -82,9 +78,6 @@ func ReadPluginConfig(filePath string) (*PluginConfig, error) {
 func ValidatePluginConfig(config PluginConfig) error {
 	if config.Metadata.Name == "" {
 		return fmt.Errorf("invalid plugin configuration file. metadata.name should be non-empty.")
-	}
-	if config.TypeMeta.Kind != ConfigManagementPluginKind {
-		return fmt.Errorf("invalid plugin configuration file. kind should be %s, found %s", ConfigManagementPluginKind, config.TypeMeta.Kind)
 	}
 	if len(config.Spec.Generate.Command) == 0 {
 		return fmt.Errorf("invalid plugin configuration file. spec.generate command should be non-empty")
