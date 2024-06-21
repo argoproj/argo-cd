@@ -8042,7 +8042,7 @@
         },
         "subType": {
           "type": "string",
-          "title": "SubType holds the key's sub type (e.g. rsa4096)"
+          "title": "SubType holds the key's subtype (e.g. rsa4096)"
         },
         "trust": {
           "type": "string",
