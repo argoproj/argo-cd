@@ -660,14 +660,14 @@ func schema_pkg_apis_application_v1alpha1_ApplicationDestinationServiceAccount(r
 				Properties: map[string]spec.Schema{
 					"server": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.",
+							Description: "Server specifies the URL of the target cluster's Kubernetes control plane API.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
 					"namespace": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Namespace specifies the target namespace for the application's resources. The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace",
+							Description: "Namespace specifies the target namespace for the application's resources.",
 							Type:        []string{"string"},
 							Format:      "",
 						},

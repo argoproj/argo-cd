@@ -6087,11 +6087,11 @@
           "title": "ServiceAccountName to be used for impersonation during the sync operation"
         },
         "namespace": {
-          "type": "string",
-          "title": "Namespace specifies the target namespace for the application's resources.\nThe namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace"
+          "description": "Namespace specifies the target namespace for the application's resources.",
+          "type": "string"
         },
         "server": {
-          "description": "Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.",
+          "description": "Server specifies the URL of the target cluster's Kubernetes control plane API.",
           "type": "string"
         }
       }
