@@ -90,7 +90,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	var syncOp v1alpha1.SyncOperation
 	var syncRes *v1alpha1.SyncOperationResult
 	var source v1alpha1.ApplicationSource
-	var sources []v1alpha1.ApplicationSource
+	sources := make([]v1alpha1.ApplicationSource, 0)
 	revisions := make([]string, 0)
 
 	if state.Operation.Sync == nil {
@@ -109,17 +109,13 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	isMultiSourceRevision := app.Spec.HasMultipleSources()
 	rollback := len(syncOp.Sources) > 0 || syncOp.Source != nil
 	if rollback {
 		// rollback case
-		if len(state.Operation.Sync.Sources) > 0 {
-			sources = state.Operation.Sync.Sources
-			isMultiSourceRevision = true
+		if len(syncOp.Sources) > 0 {
+			sources = syncOp.Sources
 		} else {
-			source = *state.Operation.Sync.Source
-			sources = make([]v1alpha1.ApplicationSource, 0)
-			isMultiSourceRevision = false
+			source = *syncOp.Source
 		}
 	} else {
 		// normal sync case (where source is taken from app.spec.sources)
@@ -128,9 +124,9 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		} else {
 			// normal sync case (where source is taken from app.spec.source)
 			source = app.Spec.GetSource()
-			sources = make([]v1alpha1.ApplicationSource, 0)
 		}
 	}
+	isMultiSourceRevision := len(sources) > 0
 
 	if state.SyncResult != nil {
 		syncRes = state.SyncResult
