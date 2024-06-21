@@ -2428,10 +2428,19 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
 	}
 
-	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-	err = gitClient.Fetch("")
-	if err != nil {
-		return status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
+	revisionPresent := gitClient.IsRevisionPresent(revision)
+
+	log.WithFields(map[string]interface{}{
+		"skipFetch": revisionPresent,
+	}).Debugf("Checking out revision %v", revision)
+
+	// Fetching can be skipped if the revision is already present locally.
+	if !revisionPresent {
+		// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
+		err = gitClient.Fetch("")
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
+		}
 	}
 
 	err = gitClient.Checkout(revision, submoduleEnabled)

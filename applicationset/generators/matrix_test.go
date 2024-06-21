@@ -183,9 +183,9 @@ func TestMatrixGenerate(t *testing.T) {
 			}, appSet, nil)
 
 			if testCaseCopy.expectedErr != nil {
-				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
+				require.ErrorIs(t, err, testCaseCopy.expectedErr)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
 		})
@@ -396,9 +396,9 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 			}, appSet, nil)
 
 			if testCaseCopy.expectedErr != nil {
-				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
+				require.ErrorIs(t, err, testCaseCopy.expectedErr)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
 		})
@@ -682,9 +682,9 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 			}, appSet, nil)
 
 			if testCaseCopy.expectedErr != nil {
-				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
+				require.ErrorIs(t, err, testCaseCopy.expectedErr)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
 		})
@@ -867,9 +867,9 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 			}, appSet, nil)
 
 			if testCaseCopy.expectedErr != nil {
-				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
+				require.ErrorIs(t, err, testCaseCopy.expectedErr)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
 		})
@@ -1028,9 +1028,9 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 			}, appSet, nil)
 
 			if testCaseCopy.expectedErr != nil {
-				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
+				require.ErrorIs(t, err, testCaseCopy.expectedErr)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
 		})
@@ -1073,7 +1073,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 	// of that bug.
 
 	listGeneratorMock := &generatorMock{}
-	listGeneratorMock.On("GenerateParams", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), mock.AnythingOfType("*v1alpha1.ApplicationSet")).Return([]map[string]interface{}{
+	listGeneratorMock.On("GenerateParams", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator"), mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).Return([]map[string]interface{}{
 		{"some": "value"},
 	}, nil)
 	listGeneratorMock.On("GetTemplate", mock.AnythingOfType("*v1alpha1.ApplicationSetGenerator")).Return(&argoprojiov1alpha1.ApplicationSetTemplate{})
@@ -1115,7 +1115,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	appProject := argoprojiov1alpha1.AppProject{}
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()

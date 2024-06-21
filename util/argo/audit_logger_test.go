@@ -90,7 +90,7 @@ func TestLogAppEvent(t *testing.T) {
 	}
 
 	output := captureLogEntries(func() {
-		logger.LogAppEvent(&app, ei, "This is a test message", "")
+		logger.LogAppEvent(&app, ei, "This is a test message", "", nil)
 	})
 
 	assert.Contains(t, output, "level=info")

@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -410,16 +411,16 @@ func TestInferShard(t *testing.T) {
 	osHostnameError := errors.New("cannot resolve hostname")
 	osHostnameFunction = func() (string, error) { return "exampleshard", osHostnameError }
 	_, err := InferShard()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, err, osHostnameError)
 
 	osHostnameFunction = func() (string, error) { return "exampleshard", nil }
 	_, err = InferShard()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	osHostnameFunction = func() (string, error) { return "example-shard", nil }
 	_, err = InferShard()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func createTestClusters() (clusterAccessor, *dbmocks.ArgoDB, v1alpha1.Cluster, v1alpha1.Cluster, v1alpha1.Cluster, v1alpha1.Cluster, v1alpha1.Cluster) {
@@ -494,7 +495,7 @@ func Test_generateDefaultShardMappingCM_NoPredefinedShard(t *testing.T) {
 	}
 
 	expectedMappingCM, err := json.Marshal(expectedMapping)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	expectedShadingCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -508,7 +509,7 @@ func Test_generateDefaultShardMappingCM_NoPredefinedShard(t *testing.T) {
 	heartbeatCurrentTime = func() metav1.Time { return expectedTime }
 	osHostnameFunction = func() (string, error) { return "test-example", nil }
 	shardingCM, err := generateDefaultShardMappingCM("test", "test-example", replicas, -1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, expectedShadingCM, shardingCM)
 }
 
@@ -529,7 +530,7 @@ func Test_generateDefaultShardMappingCM_PredefinedShard(t *testing.T) {
 	}
 
 	expectedMappingCM, err := json.Marshal(expectedMapping)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	expectedShadingCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -543,7 +544,7 @@ func Test_generateDefaultShardMappingCM_PredefinedShard(t *testing.T) {
 	heartbeatCurrentTime = func() metav1.Time { return expectedTime }
 	osHostnameFunction = func() (string, error) { return "test-example", nil }
 	shardingCM, err := generateDefaultShardMappingCM("test", "test-example", replicas, 1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, expectedShadingCM, shardingCM)
 }
 
@@ -970,7 +971,7 @@ func TestGetClusterSharding(t *testing.T) {
 					t.Errorf("Expected error %v but got nil", tc.expectedErr)
 				}
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}

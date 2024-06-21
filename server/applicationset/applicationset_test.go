@@ -2,12 +2,15 @@ package applicationset
 
 import (
 	"context"
+	"sort"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/pkg/sync"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
@@ -142,7 +145,10 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 	server := NewServer(
 		db,
 		kubeclientset,
+		nil,
+		nil,
 		enforcer,
+		nil,
 		fakeAppsClientset,
 		appInformer,
 		factory.Argoproj().V1alpha1().ApplicationSets().Lister(),
@@ -151,6 +157,11 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 		testNamespace,
 		sync.NewKeyLock(),
 		[]string{testNamespace, "external-namespace"},
+		true,
+		true,
+		"",
+		[]string{},
+		true,
 	)
 	return server.(*Server)
 }
@@ -221,7 +232,7 @@ func testListAppsetsWithLabels(t *testing.T, appsetQuery applicationset.Applicat
 		t.Run(validTest.testName, func(t *testing.T) {
 			appsetQuery.Selector = validTest.label
 			res, err := appServer.List(context.Background(), &appsetQuery)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			apps := []string{}
 			for i := range res.Items {
 				apps = append(apps, res.Items[i].Name)
@@ -315,7 +326,7 @@ func TestListAppSetsWithoutNamespace(t *testing.T) {
 	appsetQuery := applicationset.ApplicationSetListQuery{}
 
 	res, err := appSetServer.List(context.Background(), &appsetQuery)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, res.Items)
 }
 
@@ -331,7 +342,7 @@ func TestCreateAppSet(t *testing.T) {
 		Applicationset: testAppSet,
 	}
 	_, err := appServer.Create(context.Background(), &createReq)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestCreateAppSetTemplatedProject(t *testing.T) {
@@ -357,6 +368,60 @@ func TestCreateAppSetWrongNamespace(t *testing.T) {
 	assert.Equal(t, "namespace 'NOT-ALLOWED' is not permitted", err.Error())
 }
 
+func TestCreateAppSetDryRun(t *testing.T) {
+	testAppSet := newTestAppSet()
+	appServer := newTestAppSetServer()
+	testAppSet.Spec.Template.Name = "{{name}}"
+	testAppSet.Spec.Generators = []appsv1.ApplicationSetGenerator{
+		{
+			List: &appsv1.ListGenerator{
+				Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"name": "a"}`)}, {Raw: []byte(`{"name": "b"}`)}},
+			},
+		},
+	}
+	createReq := applicationset.ApplicationSetCreateRequest{
+		Applicationset: testAppSet,
+		DryRun:         true,
+	}
+	result, err := appServer.Create(context.Background(), &createReq)
+
+	require.NoError(t, err)
+	assert.Len(t, result.Status.Resources, 2)
+
+	// Sort resulting application by name
+	sort.Slice(result.Status.Resources, func(i, j int) bool {
+		return result.Status.Resources[i].Name < result.Status.Resources[j].Name
+	})
+
+	assert.Equal(t, "a", result.Status.Resources[0].Name)
+	assert.Equal(t, testAppSet.Namespace, result.Status.Resources[0].Namespace)
+	assert.Equal(t, "b", result.Status.Resources[1].Name)
+	assert.Equal(t, testAppSet.Namespace, result.Status.Resources[1].Namespace)
+}
+
+func TestCreateAppSetDryRunWithDuplicate(t *testing.T) {
+	testAppSet := newTestAppSet()
+	appServer := newTestAppSetServer()
+	testAppSet.Spec.Template.Name = "{{name}}"
+	testAppSet.Spec.Generators = []appsv1.ApplicationSetGenerator{
+		{
+			List: &appsv1.ListGenerator{
+				Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"name": "a"}`)}, {Raw: []byte(`{"name": "a"}`)}},
+			},
+		},
+	}
+	createReq := applicationset.ApplicationSetCreateRequest{
+		Applicationset: testAppSet,
+		DryRun:         true,
+	}
+	result, err := appServer.Create(context.Background(), &createReq)
+
+	require.NoError(t, err)
+	assert.Len(t, result.Status.Resources, 1)
+	assert.Equal(t, "a", result.Status.Resources[0].Name)
+	assert.Equal(t, testAppSet.Namespace, result.Status.Resources[0].Namespace)
+}
+
 func TestGetAppSet(t *testing.T) {
 	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet1"
@@ -376,7 +441,7 @@ func TestGetAppSet(t *testing.T) {
 		appsetQuery := applicationset.ApplicationSetGetQuery{Name: "AppSet1"}
 
 		res, err := appSetServer.Get(context.Background(), &appsetQuery)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "AppSet1", res.Name)
 	})
 
@@ -386,7 +451,7 @@ func TestGetAppSet(t *testing.T) {
 		appsetQuery := applicationset.ApplicationSetGetQuery{Name: "AppSet1", AppsetNamespace: testNamespace}
 
 		res, err := appSetServer.Get(context.Background(), &appsetQuery)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "AppSet1", res.Name)
 	})
 
@@ -419,7 +484,7 @@ func TestDeleteAppSet(t *testing.T) {
 		appsetQuery := applicationset.ApplicationSetDeleteRequest{Name: "AppSet1"}
 
 		res, err := appSetServer.Delete(context.Background(), &appsetQuery)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, &applicationset.ApplicationSetResponse{}, res)
 	})
 
@@ -429,7 +494,7 @@ func TestDeleteAppSet(t *testing.T) {
 		appsetQuery := applicationset.ApplicationSetDeleteRequest{Name: "AppSet1", AppsetNamespace: testNamespace}
 
 		res, err := appSetServer.Delete(context.Background(), &appsetQuery)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, &applicationset.ApplicationSetResponse{}, res)
 	})
 }
@@ -460,7 +525,7 @@ func TestUpdateAppSet(t *testing.T) {
 
 		updated, err := appServer.updateAppSet(appSet, newAppSet, context.Background(), true)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, map[string]string{
 			"annotation-key1": "annotation-value1-updated",
 			"annotation-key2": "annotation-value2",
@@ -476,7 +541,7 @@ func TestUpdateAppSet(t *testing.T) {
 
 		updated, err := appServer.updateAppSet(appSet, newAppSet, context.Background(), false)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, map[string]string{
 			"annotation-key1": "annotation-value1-updated",
 		}, updated.Annotations)
@@ -546,7 +611,7 @@ func TestResourceTree(t *testing.T) {
 		appsetQuery := applicationset.ApplicationSetTreeQuery{Name: "AppSet1"}
 
 		res, err := appSetServer.ResourceTree(context.Background(), &appsetQuery)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expectedTree, res)
 	})
 
@@ -556,7 +621,7 @@ func TestResourceTree(t *testing.T) {
 		appsetQuery := applicationset.ApplicationSetTreeQuery{Name: "AppSet1", AppsetNamespace: testNamespace}
 
 		res, err := appSetServer.ResourceTree(context.Background(), &appsetQuery)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expectedTree, res)
 	})
 
