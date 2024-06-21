@@ -53,22 +53,30 @@ export class ApplicationsService {
             .then(res => res.body as models.ApplicationSyncWindowState);
     }
 
-    public revisionMetadata(name: string, appNamespace: string, revision: string, sourceIndex: number, versionId: number): Promise<models.RevisionMetadata> {
-        return requests
+    public revisionMetadata(name: string, appNamespace: string, revision: string, sourceIndex: number|null, versionId: number|null): Promise<models.RevisionMetadata> {
+        let r = requests
             .get(`/applications/${name}/revisions/${revision || 'HEAD'}/metadata`)
             .query({appNamespace})
-            .query({sourceIndex})
-            .query({versionId})
-            .then(res => res.body as models.RevisionMetadata);
+        if (sourceIndex !== null) {
+            r = r.query({sourceIndex})
+        }
+        if (versionId !== null) {
+            r = r.query({versionId})
+        }
+        return r.then(res => res.body as models.RevisionMetadata);
     }
 
     public revisionChartDetails(name: string, appNamespace: string, revision: string, sourceIndex: number, versionId: number): Promise<models.ChartDetails> {
-        return requests
+        let r = requests
             .get(`/applications/${name}/revisions/${revision || 'HEAD'}/chartdetails`)
             .query({appNamespace})
-            .query({sourceIndex})
-            .query({versionId})
-            .then(res => res.body as models.ChartDetails);
+        if (sourceIndex !== null) {
+            r = r.query({sourceIndex})
+        }
+        if (versionId !== null) {
+            r = r.query({versionId})
+        }
+        return r.then(res => res.body as models.ChartDetails);
     }
 
     public resourceTree(name: string, appNamespace: string): Promise<models.ApplicationTree> {
