@@ -178,6 +178,7 @@ func TestWebhookHandler(t *testing.T) {
 	}
 
 	namespace := "test"
+	webhookParallelism := 10
 	fakeClient := newFakeClient(namespace)
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
@@ -206,7 +207,7 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithMergeAndNestedGitGenerator("merge-nested-git-github", namespace, "https://github.com/org/repo"),
 			).Build()
 			set := argosettings.NewSettingsManager(context.TODO(), fakeClient, namespace)
-			h, err := NewWebhookHandler(namespace, set, fc, mockGenerators())
+			h, err := NewWebhookHandler(namespace, webhookParallelism, set, fc, mockGenerators())
 			require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
@@ -217,6 +218,8 @@ func TestWebhookHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			h.Handler(w, req)
+			close(h.queue)
+			h.Wait()
 			assert.Equal(t, test.expectedStatusCode, w.Code)
 
 			list := &v1alpha1.ApplicationSetList{}

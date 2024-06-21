@@ -110,6 +110,7 @@ argocd-server [flags]
       --token string                                    Bearer token for authentication to the API server
       --user string                                     The name of the kubeconfig user to use
       --username string                                 Username for basic authentication to the API server
+      --webhook-parallelism-limit int                   Number of webhook requests processed concurrently (default 50)
       --x-frame-options value                           Set X-Frame-Options header in HTTP responses to value. To disable, set to "". (default "sameorigin")
 ```
 
