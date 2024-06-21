@@ -53,6 +53,15 @@ export class ApplicationsService {
             .then(res => res.body as models.ApplicationSyncWindowState);
     }
 
+    public ociMetadata(name: string, appNamespace: string, revision: string, sourceIndex: number, versionId: number): Promise<models.RevisionMetadata> {
+        return requests
+            .get(`/applications/${name}/revisions/${revision || 'HEAD'}/ocimetadata`)
+            .query({appNamespace})
+            .query({sourceIndex})
+            .query({versionId})
+            .then(res => res.body as models.RevisionMetadata);
+    }
+
     public revisionMetadata(name: string, appNamespace: string, revision: string, sourceIndex: number, versionId: number): Promise<models.RevisionMetadata> {
         return requests
             .get(`/applications/${name}/revisions/${revision || 'HEAD'}/metadata`)
