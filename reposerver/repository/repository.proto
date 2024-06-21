@@ -331,6 +331,10 @@ service RepoServerService {
     // Get the meta-data (author, date, tags, message) for a specific revision of the repo
     rpc GetRevisionMetadata(RepoServerRevisionMetadataRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RevisionMetadata) {
     }
+
+    // Get the meta-data (author, date, tags, message) for a specific revision of the OCI image // TODO: Actually use real OCI metadata for this!!!
+    rpc GetOciMetadata(RepoServerRevisionChartDetailsRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ChartDetails) {
+    }
     
     // Get the chart details (author, date, tags, message) for a specific revision of the repo
     rpc GetRevisionChartDetails(RepoServerRevisionChartDetailsRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ChartDetails) {
