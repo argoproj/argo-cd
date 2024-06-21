@@ -12,8 +12,6 @@ import (
 
 	"k8s.io/utils/pointer"
 
-	"k8s.io/utils/pointer"
-
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
