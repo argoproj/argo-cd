@@ -230,6 +230,7 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		noPrompt bool
+		cascade  bool
 	)
 	var command = &cobra.Command{
 		Use:   "delete",
@@ -293,6 +294,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 		},
 	}
 	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm cascaded deletion of Application resources")
+	command.Flags().BoolVar(&cascade, "cascade", false, "Allow the deletion of appsets without deleting the argocd applications")
 	return command
 }
 
