@@ -20,7 +20,6 @@ export const ApplicationDeploymentHistory = ({
     rollbackApp: (info: models.RevisionHistory) => any;
     selectDeployment: (index: number) => any;
 }) => {
-    console.log('selectedRollbackDeploymentIndex: ', selectedRollbackDeploymentIndex);
     const deployments = (app.status.history || []).slice().reverse();
     const recentDeployments = deployments.map((info, i) => {
         const nextDeployedAt = i === 0 ? null : deployments[i - 1].deployedAt;
