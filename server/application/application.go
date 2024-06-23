@@ -1610,7 +1610,7 @@ func getSourcesByVersionId(a *appv1.Application, versionId int64) ([]appv1.Appli
 		return nil, fmt.Errorf("revision history not found for version ID %d", versionId)
 	}
 
-	if len(h.Revisions) > 0 {
+	if len(h.Sources) > 0 {
 		return h.Sources, nil
 	}
 
