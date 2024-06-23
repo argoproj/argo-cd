@@ -36,7 +36,6 @@ linters-settings:
   testifylint:
     enable-all: true
     disable:
-      - float-compare
       - go-require
 run:
   timeout: 50m

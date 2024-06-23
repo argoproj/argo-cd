@@ -145,7 +145,7 @@ func TestRedisMetrics(t *testing.T) {
 	require.NoError(t, err)
 	err = c.Write(metric)
 	require.NoError(t, err)
-	assert.Equal(t, float64(2), metric.Counter.GetValue())
+	assert.InEpsilon(t, float64(2), metric.Counter.GetValue(), 0.0001)
 
 	// faulty client failed request
 	err = faultyClient.Get("foo", &res)
@@ -154,7 +154,7 @@ func TestRedisMetrics(t *testing.T) {
 	require.NoError(t, err)
 	err = c.Write(metric)
 	require.NoError(t, err)
-	assert.Equal(t, float64(1), metric.Counter.GetValue())
+	assert.InEpsilon(t, float64(1), metric.Counter.GetValue(), 0.0001)
 
 	// both clients histogram count
 	o, err := ms.redisRequestHistogram.GetMetricWithLabelValues("mock")
