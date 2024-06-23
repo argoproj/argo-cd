@@ -34,6 +34,10 @@ RUN  apt-get update && apt-get install --fix-missing -y \
     sudo \
     tini \
     zip && \
+    # Add mantic repositories in order to upgrade git-lfs. See issue #18723
+    echo "deb http://archive.ubuntu.com/ubuntu/ mantic multiverse universe" >> /etc/apt/sources.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends -t mantic git-lfs && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
