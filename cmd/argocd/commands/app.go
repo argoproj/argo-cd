@@ -2361,6 +2361,10 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	// time when the sync status lags behind when an operation completes
 	refresh := false
 
+	// printSummary controls whether we print the app summary table, OperationState, and ResourceState
+	// We don't want to print these when output type is json or yaml, as the output would become unparsable.
+	printSummary := output != "json" && output != "yaml"
+
 	appRealName, appNs := argo.ParseFromQualifiedName(appName, "")
 
 	printFinalStatus := func(app *argoappv1.Application) *argoappv1.Application {
@@ -2377,11 +2381,13 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			_ = conn.Close()
 		}
 
-		fmt.Println()
-		printAppSummaryTable(app, appURL(ctx, acdClient, appName), nil)
-		fmt.Println()
-		if watch.operation {
-			printOperationResult(app.Status.OperationState)
+		if printSummary {
+			fmt.Println()
+			printAppSummaryTable(app, appURL(ctx, acdClient, appName), nil)
+			fmt.Println()
+			if watch.operation {
+				printOperationResult(app.Status.OperationState)
+			}
 		}
 
 		switch output {
@@ -2431,7 +2437,9 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, waitFormatString, "TIMESTAMP", "GROUP", "KIND", "NAMESPACE", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
+	if printSummary {
+		_, _ = fmt.Fprintf(w, waitFormatString, "TIMESTAMP", "GROUP", "KIND", "NAMESPACE", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
+	}
 
 	prevStates := make(map[string]*resourceState)
 	conn, appClient := acdClient.NewApplicationClientOrDie()
@@ -2515,7 +2523,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 				prevStates[stateKey] = newState
 				doPrint = true
 			}
-			if doPrint {
+			if doPrint && printSummary {
 				_, _ = fmt.Fprintf(w, waitFormatString, prevStates[stateKey].FormatItems()...)
 			}
 		}
