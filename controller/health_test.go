@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -127,29 +128,39 @@ func TestSetApplicationHealth_MissingResource(t *testing.T) {
 }
 
 func TestSetApplicationHealth_HealthImproves(t *testing.T) {
-	overrides := lua.ResourceHealthOverrides{
-		lua.GetConfigMapKey(appv1.ApplicationSchemaGroupVersionKind): appv1.ResourceOverride{
-			HealthLua: `
-hs = {}
-hs.status = "Progressing"
-hs.message = ""
-return hs`,
-		},
+	testCases := []struct {
+		oldStatus health.HealthStatusCode
+		newStatus health.HealthStatusCode
+	}{
+		{health.HealthStatusUnknown, health.HealthStatusDegraded},
+		{health.HealthStatusDegraded, health.HealthStatusProgressing},
+		{health.HealthStatusMissing, health.HealthStatusProgressing},
+		{health.HealthStatusProgressing, health.HealthStatusSuspended},
+		{health.HealthStatusSuspended, health.HealthStatusHealthy},
 	}
 
-	degradedApp := newAppLiveObj(health.HealthStatusDegraded)
-	timestamp := metav1.Now()
-	resources := []managedResource{{
-		Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: degradedApp,
-	}, {}}
-	resourceStatuses := initStatuses(resources)
-	resourceStatuses[0].Health.Status = health.HealthStatusDegraded
-	resourceStatuses[0].Health.LastTransitionTime = timestamp
+	for _, tc := range testCases {
+		overrides := lua.ResourceHealthOverrides{
+			lua.GetConfigMapKey(appv1.ApplicationSchemaGroupVersionKind): appv1.ResourceOverride{
+				HealthLua: fmt.Sprintf("hs = {}\nhs.status = \"%s\"\nhs.message = \"\"return hs", tc.newStatus),
+			},
+		}
 
-	healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
-	assert.NoError(t, err)
-	assert.Equal(t, health.HealthStatusProgressing, healthStatus.Status)
-	assert.NotEqual(t, healthStatus.LastTransitionTime, timestamp)
+		degradedApp := newAppLiveObj(tc.oldStatus)
+		timestamp := metav1.Now()
+		resources := []managedResource{{
+			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: degradedApp,
+		}, {}}
+		resourceStatuses := initStatuses(resources)
+		resourceStatuses[0].Health.Status = tc.oldStatus
+
+		t.Run(string(fmt.Sprintf("%s to %s", tc.oldStatus, tc.newStatus)), func(t *testing.T) {
+			healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.newStatus, healthStatus.Status)
+			assert.NotEqual(t, healthStatus.LastTransitionTime, timestamp)
+		})
+	}
 }
 
 func TestSetApplicationHealth_MissingResourceNoBuiltHealthCheck(t *testing.T) {
