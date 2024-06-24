@@ -18,7 +18,7 @@
     "selenium-webdriver": "^4.21.0"
   },
   "devDependencies": {
-    "@types/mocha": "^10.0.6",
+    "@types/mocha": "^10.0.7",
     "@types/node": "^20.14.7",
     "dotenv": "^16.4.5",
     "mocha": "^10.4.0",
