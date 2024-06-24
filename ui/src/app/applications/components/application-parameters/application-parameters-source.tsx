@@ -26,6 +26,7 @@ export interface ApplicationParametersPanelProps<T> {
     editBottom?: (formApi: FormApi) => React.ReactNode;
     noReadonlyMode?: boolean;
     collapsible?: boolean;
+    deleteSource: () => void;
 }
 
 interface ApplicationParametersPanelState {
@@ -67,6 +68,7 @@ export class ApplicationParametersSource<T = {}> extends React.Component<Applica
                                 updateButtons={editClicked => {
                                     this.setState({editBottom: editClicked});
                                 }}
+                                deleteSource={this.props.deleteSource}
                             />
                         </React.Fragment>
                         {this.props.itemsTop && (
