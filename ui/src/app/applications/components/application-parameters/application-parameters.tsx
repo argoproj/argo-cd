@@ -247,7 +247,7 @@ export const ApplicationParameters = (props: {
                             </div>
                         </React.Fragment>
                     )}
-                    <DataLoader input={app} load={application => getSourceFromSources(application, index)}>
+                    <DataLoader input={app.spec.sources[index]} load={src => getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)}>
                         {(details: models.RepoAppDetails) => getEditablePanelForOneSource(details, index, source)}
                     </DataLoader>
                 </div>
@@ -986,17 +986,12 @@ function gatherDetails(
 }
 
 // For Sources field. Get one source with index i from the list
-async function getSourceFromSources(app: models.Application, i: number) {
-    const sources: models.ApplicationSource[] = app.spec.sources;
-    if (sources && i < sources.length) {
-        const aSource = sources[i];
-        const repoDetail = await services.repos.appDetails(aSource, app.metadata.name, app.spec.project, i, 0).catch(() => ({
-            type: 'Directory' as models.AppSourceType,
-            path: aSource.path
-        }));
-        return repoDetail;
-    }
-    return null;
+async function getSourceFromAppSources(aSource: models.ApplicationSource, name: string, project: string, index: number, version: number) {
+    const repoDetail = await services.repos.appDetails(aSource, name, project, index, version).catch(() => ({
+        type: 'Directory' as models.AppSourceType,
+        path: aSource.path
+    }));
+    return repoDetail;
 }
 
 // Delete when source field is removed
