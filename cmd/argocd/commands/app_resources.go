@@ -8,17 +8,15 @@ import (
 	"github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/ptr"
-
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -59,8 +57,8 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer argoio.Close(conn)
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
-			ApplicationName: &appName,
-			AppNamespace:    &appNs,
+			ApplicationName: appName,
+			AppNamespace:    appNs,
 		})
 		errors.CheckError(err)
 		objectsToPatch, err := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
@@ -69,16 +67,16 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 			obj := objectsToPatch[i]
 			gvk := obj.GroupVersionKind()
 			_, err = appIf.PatchResource(ctx, &applicationpkg.ApplicationResourcePatchRequest{
-				Name:         &appName,
-				AppNamespace: &appNs,
-				Namespace:    ptr.To(obj.GetNamespace()),
-				ResourceName: ptr.To(obj.GetName()),
-				Version:      ptr.To(gvk.Version),
-				Group:        ptr.To(gvk.Group),
-				Kind:         ptr.To(gvk.Kind),
-				Patch:        ptr.To(patch),
-				PatchType:    ptr.To(patchType),
-				Project:      ptr.To(project),
+				Name:         appName,
+				AppNamespace: appNs,
+				Namespace:    obj.GetNamespace(),
+				ResourceName: obj.GetName(),
+				Version:      gvk.Version,
+				Group:        gvk.Group,
+				Kind:         gvk.Kind,
+				Patch:        patch,
+				PatchType:    patchType,
+				Project:      project,
 			})
 			errors.CheckError(err)
 			log.Infof("Resource '%s' patched", obj.GetName())
@@ -124,8 +122,8 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer argoio.Close(conn)
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
-			ApplicationName: &appName,
-			AppNamespace:    &appNs,
+			ApplicationName: appName,
+			AppNamespace:    appNs,
 		})
 		errors.CheckError(err)
 		objectsToDelete, err := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
@@ -134,16 +132,16 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 			obj := objectsToDelete[i]
 			gvk := obj.GroupVersionKind()
 			_, err = appIf.DeleteResource(ctx, &applicationpkg.ApplicationResourceDeleteRequest{
-				Name:         &appName,
-				AppNamespace: &appNs,
-				Namespace:    ptr.To(obj.GetNamespace()),
-				ResourceName: ptr.To(obj.GetName()),
-				Version:      ptr.To(gvk.Version),
-				Group:        ptr.To(gvk.Group),
-				Kind:         ptr.To(gvk.Kind),
-				Force:        &force,
-				Orphan:       &orphan,
-				Project:      ptr.To(project),
+				Name:         appName,
+				AppNamespace: appNs,
+				Namespace:    obj.GetNamespace(),
+				ResourceName: obj.GetName(),
+				Version:      gvk.Version,
+				Group:        gvk.Group,
+				Kind:         gvk.Kind,
+				Force:        force,
+				Orphan:       orphan,
+				Project:      project,
 			})
 			errors.CheckError(err)
 			log.Infof("Resource '%s' deleted", obj.GetName())
@@ -263,9 +261,9 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			appResourceTree, err := appIf.ResourceTree(ctx, &applicationpkg.ResourcesQuery{
-				ApplicationName: &appName,
-				AppNamespace:    &appNs,
-				Project:         &project,
+				ApplicationName: appName,
+				AppNamespace:    appNs,
+				Project:         project,
 			})
 			errors.CheckError(err)
 			printResources(listAll, orphaned, appResourceTree, output)
