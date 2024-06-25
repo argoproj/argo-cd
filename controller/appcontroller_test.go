@@ -93,6 +93,9 @@ func (m *MockKubectl) DeleteResource(ctx context.Context, config *rest.Config, g
 }
 
 func newFakeController(data *fakeData, repoErr error) *ApplicationController {
+	return newFakeControllerWithResync(data, time.Minute, repoErr)
+}
+func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, repoErr error) *ApplicationController {
 	var clust corev1.Secret
 	err := yaml.Unmarshal([]byte(fakeCluster), &clust)
 	if err != nil {
@@ -158,7 +161,7 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 			1*time.Minute,
 		),
 		kubectl,
-		time.Minute,
+		appResyncPeriod,
 		time.Hour,
 		time.Second,
 		time.Minute,
@@ -1703,8 +1706,36 @@ func TestUpdateHealthStatusTransitionTime(t *testing.T) {
 		expectedStatus health.HealthStatusCode
 	}{
 		{
-			name: "Degraded to Healthy",
+			name: "Degraded to Missing",
 			app:  newFakeAppWithHealthAndTime(health.HealthStatusDegraded, testTimestamp),
+			configMapData: map[string]string{
+				"resource.customizations": `
+apps/Deployment:
+  health.lua: |
+    hs = {}
+    hs.status = "Missing"
+    hs.message = ""
+    return hs`,
+			},
+			expectedStatus: health.HealthStatusMissing,
+		},
+		{
+			name: "Missing to Progressing",
+			app:  newFakeAppWithHealthAndTime(health.HealthStatusMissing, testTimestamp),
+			configMapData: map[string]string{
+				"resource.customizations": `
+apps/Deployment:
+  health.lua: |
+    hs = {}
+    hs.status = "Progressing"
+    hs.message = ""
+    return hs`,
+			},
+			expectedStatus: health.HealthStatusProgressing,
+		},
+		{
+			name: "Progressing to Healthy",
+			app:  newFakeAppWithHealthAndTime(health.HealthStatusProgressing, testTimestamp),
 			configMapData: map[string]string{
 				"resource.customizations": `
 apps/Deployment:
@@ -1754,6 +1785,104 @@ apps/Deployment:
 			assert.NotEmpty(t, apps)
 			assert.Equal(t, tc.expectedStatus, apps[0].Status.Health.Status)
 			assert.NotEqual(t, testTimestamp, apps[0].Status.Health.LastTransitionTime)
+		})
+	}
+}
+func TestUpdateHealthStatusProgression(t *testing.T) {
+	app := newFakeAppWithHealthAndTime(health.HealthStatusDegraded, testTimestamp)
+	deployment := kube.MustToUnstructured(&v1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo",
+			Namespace: "default",
+			Labels:    map[string]string{"status": "Degraded"},
+		},
+		Status: v1.DeploymentStatus{
+			ObservedGeneration: 0,
+		},
+	})
+	configMapData := map[string]string{
+		"resource.customizations": `
+apps/Deployment:
+  health.lua: |
+    hs = {}
+    hs.status = ""
+    hs.message = ""
+    
+    if obj.metadata ~= nil then
+      if obj.metadata.labels ~= nil then
+        current_status = obj.metadata.labels["status"]
+        if current_status == "Degraded" then
+          hs.status = "Missing"
+        elseif current_status == "Missing" then
+          hs.status = "Progressing"
+        elseif current_status == "Progressing" then
+          hs.status = "Healthy"
+        elseif current_status == "Healthy" then
+          hs.status = "Degraded"
+        end
+      end
+    end
+
+    return hs`,
+	}
+	ctrl := newFakeControllerWithResync(&fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			kube.GetResourceKey(deployment): deployment,
+		},
+		configMapData: configMapData,
+		manifestResponses: []*apiclient.ManifestResponse{
+			{},
+			{},
+			{},
+			{},
+		},
+	}, time.Millisecond*10, nil)
+
+	testCases := []struct {
+		name           string
+		expectedStatus health.HealthStatusCode
+	}{
+		{
+			name:           "Degraded to Missing",
+			expectedStatus: health.HealthStatusMissing,
+		},
+		{
+			name:           "Missing to Progressing",
+			expectedStatus: health.HealthStatusProgressing,
+		},
+		{
+			name:           "Progressing to Healthy",
+			expectedStatus: health.HealthStatusHealthy,
+		},
+		{
+			name:           "Healthy  to Degraded",
+			expectedStatus: health.HealthStatusDegraded,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl.processAppRefreshQueueItem()
+			apps, err := ctrl.appLister.List(labels.Everything())
+			require.NoError(t, err)
+			if assert.NotEmpty(t, apps) {
+				assert.Equal(t, tc.expectedStatus, apps[0].Status.Health.Status)
+				assert.NotEqual(t, testTimestamp, apps[0].Status.Health.LastTransitionTime)
+			}
+
+			ctrl.requestAppRefresh(app.Name, nil, nil)
+			time.Sleep(time.Millisecond * 15)
 		})
 	}
 }
