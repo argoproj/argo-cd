@@ -155,6 +155,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Karrot](https://www.daangn.com/)
 1. [KarrotPay](https://www.daangnpay.com/)
 1. [Kasa](https://kasa.co.kr/)
+1. [Kave Home](https://kavehome.com)
 1. [Keeeb](https://www.keeeb.com/)
 1. [KelkooGroup](https://www.kelkoogroup.com)
 1. [Keptn](https://keptn.sh)
