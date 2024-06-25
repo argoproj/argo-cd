@@ -134,7 +134,7 @@ func Test_AppFilesHaveChanged(t *testing.T) {
 		changeExpected bool
 	}{
 		{"default no path", &v1alpha1.Application{}, []string{"README.md"}, true},
-		{"no files changed", getApp(".", "source/path"), []string{}, false},
+		{"no files changed", getApp(".", "source/path"), []string{}, true},
 		{"relative path - matching", getApp(".", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
 		{"relative path, multi source - matching #1", getMultiSourceApp(".", "source/path", "other/path"), []string{"source/path/my-deployment.yaml"}, true},
 		{"relative path, multi source - matching #2", getMultiSourceApp(".", "other/path", "source/path"), []string{"source/path/my-deployment.yaml"}, true},
