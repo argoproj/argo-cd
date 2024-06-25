@@ -153,7 +153,9 @@ export const ApplicationDeploymentHistory = ({
                                     </React.Fragment>
                                 ))
                             )
-                        ) : null}
+                        ) : (
+                            <p>Click to see source details.</p>
+                        )}
                     </div>
                 </div>
             ))}
