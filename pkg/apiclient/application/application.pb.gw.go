@@ -89,7 +89,7 @@ func request_ApplicationService_ListResourceEvents_0(ctx context.Context, marsha
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -123,7 +123,7 @@ func local_request_ApplicationService_ListResourceEvents_0(ctx context.Context, 
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -241,7 +241,7 @@ func request_ApplicationService_Get_0(ctx context.Context, marshaler runtime.Mar
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -275,7 +275,7 @@ func local_request_ApplicationService_Get_0(ctx context.Context, marshaler runti
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -313,7 +313,7 @@ func request_ApplicationService_GetApplicationSyncWindows_0(ctx context.Context,
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -347,7 +347,7 @@ func local_request_ApplicationService_GetApplicationSyncWindows_0(ctx context.Co
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -385,7 +385,7 @@ func request_ApplicationService_RevisionMetadata_0(ctx context.Context, marshale
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -396,7 +396,7 @@ func request_ApplicationService_RevisionMetadata_0(ctx context.Context, marshale
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "revision")
 	}
 
-	protoReq.Revision, err = runtime.StringP(val)
+	protoReq.Revision, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "revision", err)
@@ -430,7 +430,7 @@ func local_request_ApplicationService_RevisionMetadata_0(ctx context.Context, ma
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -441,7 +441,7 @@ func local_request_ApplicationService_RevisionMetadata_0(ctx context.Context, ma
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "revision")
 	}
 
-	protoReq.Revision, err = runtime.StringP(val)
+	protoReq.Revision, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "revision", err)
@@ -479,7 +479,7 @@ func request_ApplicationService_RevisionChartDetails_0(ctx context.Context, mars
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -490,7 +490,7 @@ func request_ApplicationService_RevisionChartDetails_0(ctx context.Context, mars
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "revision")
 	}
 
-	protoReq.Revision, err = runtime.StringP(val)
+	protoReq.Revision, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "revision", err)
@@ -524,7 +524,7 @@ func local_request_ApplicationService_RevisionChartDetails_0(ctx context.Context
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -535,7 +535,7 @@ func local_request_ApplicationService_RevisionChartDetails_0(ctx context.Context
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "revision")
 	}
 
-	protoReq.Revision, err = runtime.StringP(val)
+	protoReq.Revision, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "revision", err)
@@ -573,7 +573,7 @@ func request_ApplicationService_GetManifests_0(ctx context.Context, marshaler ru
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -607,7 +607,7 @@ func local_request_ApplicationService_GetManifests_0(ctx context.Context, marsha
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -697,7 +697,7 @@ func request_ApplicationService_Update_0(ctx context.Context, marshaler runtime.
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "application.metadata.name")
 	}
 
-	protoReq.GetApplication().GetMetadata().Name, err = runtime.StringP(val)
+	err = runtime.PopulateFieldFromPath(&protoReq, "application.metadata.name", val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "application.metadata.name", err)
@@ -739,7 +739,7 @@ func local_request_ApplicationService_Update_0(ctx context.Context, marshaler ru
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "application.metadata.name")
 	}
 
-	protoReq.GetApplication().GetMetadata().Name, err = runtime.StringP(val)
+	err = runtime.PopulateFieldFromPath(&protoReq, "application.metadata.name", val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "application.metadata.name", err)
@@ -785,7 +785,7 @@ func request_ApplicationService_UpdateSpec_0(ctx context.Context, marshaler runt
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -827,7 +827,7 @@ func local_request_ApplicationService_UpdateSpec_0(ctx context.Context, marshale
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -869,7 +869,7 @@ func request_ApplicationService_Patch_0(ctx context.Context, marshaler runtime.M
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -904,7 +904,7 @@ func local_request_ApplicationService_Patch_0(ctx context.Context, marshaler run
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -935,7 +935,7 @@ func request_ApplicationService_Delete_0(ctx context.Context, marshaler runtime.
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -969,7 +969,7 @@ func local_request_ApplicationService_Delete_0(ctx context.Context, marshaler ru
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1011,7 +1011,7 @@ func request_ApplicationService_Sync_0(ctx context.Context, marshaler runtime.Ma
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1046,7 +1046,7 @@ func local_request_ApplicationService_Sync_0(ctx context.Context, marshaler runt
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1077,7 +1077,7 @@ func request_ApplicationService_ManagedResources_0(ctx context.Context, marshale
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "applicationName")
 	}
 
-	protoReq.ApplicationName, err = runtime.StringP(val)
+	protoReq.ApplicationName, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "applicationName", err)
@@ -1111,7 +1111,7 @@ func local_request_ApplicationService_ManagedResources_0(ctx context.Context, ma
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "applicationName")
 	}
 
-	protoReq.ApplicationName, err = runtime.StringP(val)
+	protoReq.ApplicationName, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "applicationName", err)
@@ -1149,7 +1149,7 @@ func request_ApplicationService_ResourceTree_0(ctx context.Context, marshaler ru
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "applicationName")
 	}
 
-	protoReq.ApplicationName, err = runtime.StringP(val)
+	protoReq.ApplicationName, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "applicationName", err)
@@ -1183,7 +1183,7 @@ func local_request_ApplicationService_ResourceTree_0(ctx context.Context, marsha
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "applicationName")
 	}
 
-	protoReq.ApplicationName, err = runtime.StringP(val)
+	protoReq.ApplicationName, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "applicationName", err)
@@ -1221,7 +1221,7 @@ func request_ApplicationService_WatchResourceTree_0(ctx context.Context, marshal
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "applicationName")
 	}
 
-	protoReq.ApplicationName, err = runtime.StringP(val)
+	protoReq.ApplicationName, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "applicationName", err)
@@ -1271,7 +1271,7 @@ func request_ApplicationService_Rollback_0(ctx context.Context, marshaler runtim
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1306,7 +1306,7 @@ func local_request_ApplicationService_Rollback_0(ctx context.Context, marshaler 
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1337,7 +1337,7 @@ func request_ApplicationService_TerminateOperation_0(ctx context.Context, marsha
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1371,7 +1371,7 @@ func local_request_ApplicationService_TerminateOperation_0(ctx context.Context, 
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1409,7 +1409,7 @@ func request_ApplicationService_GetResource_0(ctx context.Context, marshaler run
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1443,7 +1443,7 @@ func local_request_ApplicationService_GetResource_0(ctx context.Context, marshal
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1489,7 +1489,7 @@ func request_ApplicationService_PatchResource_0(ctx context.Context, marshaler r
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1531,7 +1531,7 @@ func local_request_ApplicationService_PatchResource_0(ctx context.Context, marsh
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1569,7 +1569,7 @@ func request_ApplicationService_ListResourceActions_0(ctx context.Context, marsh
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1603,7 +1603,7 @@ func local_request_ApplicationService_ListResourceActions_0(ctx context.Context,
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1649,7 +1649,7 @@ func request_ApplicationService_RunResourceAction_0(ctx context.Context, marshal
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1691,7 +1691,7 @@ func local_request_ApplicationService_RunResourceAction_0(ctx context.Context, m
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1729,7 +1729,7 @@ func request_ApplicationService_DeleteResource_0(ctx context.Context, marshaler 
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1763,7 +1763,7 @@ func local_request_ApplicationService_DeleteResource_0(ctx context.Context, mars
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1801,7 +1801,7 @@ func request_ApplicationService_PodLogs_0(ctx context.Context, marshaler runtime
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1812,7 +1812,7 @@ func request_ApplicationService_PodLogs_0(ctx context.Context, marshaler runtime
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "podName")
 	}
 
-	protoReq.PodName, err = runtime.StringP(val)
+	protoReq.PodName, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "podName", err)
@@ -1858,7 +1858,7 @@ func request_ApplicationService_PodLogs_1(ctx context.Context, marshaler runtime
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1904,7 +1904,7 @@ func request_ApplicationService_ListLinks_0(ctx context.Context, marshaler runti
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1938,7 +1938,7 @@ func local_request_ApplicationService_ListLinks_0(ctx context.Context, marshaler
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -1976,7 +1976,7 @@ func request_ApplicationService_ListResourceLinks_0(ctx context.Context, marshal
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
@@ -2010,7 +2010,7 @@ func local_request_ApplicationService_ListResourceLinks_0(ctx context.Context, m
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "name")
 	}
 
-	protoReq.Name, err = runtime.StringP(val)
+	protoReq.Name, err = runtime.String(val)
 
 	if err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)

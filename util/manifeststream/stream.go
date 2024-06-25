@@ -51,9 +51,9 @@ func SendApplicationManifestQueryWithFiles(ctx context.Context, stream Applicati
 	err = stream.Send(&applicationpkg.ApplicationManifestQueryWithFilesWrapper{
 		Part: &applicationpkg.ApplicationManifestQueryWithFilesWrapper_Query{
 			Query: &applicationpkg.ApplicationManifestQueryWithFiles{
-				Name:         &appName,
-				Checksum:     &checksum,
-				AppNamespace: &appNs,
+				Name:         appName,
+				Checksum:     checksum,
+				AppNamespace: appNs,
 			},
 		},
 	})

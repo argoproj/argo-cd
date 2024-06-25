@@ -819,9 +819,9 @@ func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, 
 			if err == nil {
 				var wc applicationpkg.ApplicationService_WatchClient
 				wc, err = appIf.Watch(ctx, &applicationpkg.ApplicationQuery{
-					Name:            &appName,
-					AppNamespace:    &appNs,
-					ResourceVersion: &revision,
+					Name:            appName,
+					AppNamespace:    appNs,
+					ResourceVersion: revision,
 				})
 				if err == nil {
 					for {

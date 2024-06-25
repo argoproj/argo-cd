@@ -12,7 +12,6 @@ import (
 	fmt "fmt"
 	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	apiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
 	proto "github.com/gogo/protobuf/proto"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
@@ -43,21 +42,21 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 // Otherwise you will receive a 404.
 type ApplicationQuery struct {
 	// the application's name
-	Name *string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// forces application reconciliation if set to 'hard'
-	Refresh *string `protobuf:"bytes,2,opt,name=refresh" json:"refresh,omitempty"`
+	Refresh string `protobuf:"bytes,2,opt,name=refresh,proto3" json:"refresh,omitempty"`
 	// the project names to restrict returned list applications
-	Projects []string `protobuf:"bytes,3,rep,name=projects" json:"projects,omitempty"`
+	Projects []string `protobuf:"bytes,3,rep,name=projects,proto3" json:"projects,omitempty"`
 	// when specified with a watch call, shows changes that occur after that particular version of a resource.
-	ResourceVersion *string `protobuf:"bytes,4,opt,name=resourceVersion" json:"resourceVersion,omitempty"`
+	ResourceVersion string `protobuf:"bytes,4,opt,name=resourceVersion,proto3" json:"resourceVersion,omitempty"`
 	// the selector to restrict returned list to applications only with matched labels
-	Selector *string `protobuf:"bytes,5,opt,name=selector" json:"selector,omitempty"`
+	Selector string `protobuf:"bytes,5,opt,name=selector,proto3" json:"selector,omitempty"`
 	// the repoURL to restrict returned list applications
-	Repo *string `protobuf:"bytes,6,opt,name=repo" json:"repo,omitempty"`
+	Repo string `protobuf:"bytes,6,opt,name=repo,proto3" json:"repo,omitempty"`
 	// the application's namespace
-	AppNamespace *string `protobuf:"bytes,7,opt,name=appNamespace" json:"appNamespace,omitempty"`
+	AppNamespace string `protobuf:"bytes,7,opt,name=appNamespace,proto3" json:"appNamespace,omitempty"`
 	// the project names to restrict returned list applications (legacy name for backwards-compatibility)
-	Project              []string `protobuf:"bytes,8,rep,name=project" json:"project,omitempty"`
+	Project              []string `protobuf:"bytes,8,rep,name=project,proto3" json:"project,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -97,15 +96,15 @@ func (m *ApplicationQuery) XXX_DiscardUnknown() {
 var xxx_messageInfo_ApplicationQuery proto.InternalMessageInfo
 
 func (m *ApplicationQuery) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
 
 func (m *ApplicationQuery) GetRefresh() string {
-	if m != nil && m.Refresh != nil {
-		return *m.Refresh
+	if m != nil {
+		return m.Refresh
 	}
 	return ""
 }
@@ -118,29 +117,29 @@ func (m *ApplicationQuery) GetProjects() []string {
 }
 
 func (m *ApplicationQuery) GetResourceVersion() string {
-	if m != nil && m.ResourceVersion != nil {
-		return *m.ResourceVersion
+	if m != nil {
+		return m.ResourceVersion
 	}
 	return ""
 }
 
 func (m *ApplicationQuery) GetSelector() string {
-	if m != nil && m.Selector != nil {
-		return *m.Selector
+	if m != nil {
+		return m.Selector
 	}
 	return ""
 }
 
 func (m *ApplicationQuery) GetRepo() string {
-	if m != nil && m.Repo != nil {
-		return *m.Repo
+	if m != nil {
+		return m.Repo
 	}
 	return ""
 }
 
 func (m *ApplicationQuery) GetAppNamespace() string {
-	if m != nil && m.AppNamespace != nil {
-		return *m.AppNamespace
+	if m != nil {
+		return m.AppNamespace
 	}
 	return ""
 }
@@ -154,8 +153,8 @@ func (m *ApplicationQuery) GetProject() []string {
 
 type NodeQuery struct {
 	// the application's name
-	Name                 *string  `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
-	AppNamespace         *string  `protobuf:"bytes,2,opt,name=appNamespace" json:"appNamespace,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	AppNamespace         string   `protobuf:"bytes,2,opt,name=appNamespace,proto3" json:"appNamespace,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -195,31 +194,31 @@ func (m *NodeQuery) XXX_DiscardUnknown() {
 var xxx_messageInfo_NodeQuery proto.InternalMessageInfo
 
 func (m *NodeQuery) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
 
 func (m *NodeQuery) GetAppNamespace() string {
-	if m != nil && m.AppNamespace != nil {
-		return *m.AppNamespace
+	if m != nil {
+		return m.AppNamespace
 	}
 	return ""
 }
 
 type RevisionMetadataQuery struct {
 	// the application's name
-	Name *string `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// the revision of the app
-	Revision *string `protobuf:"bytes,2,req,name=revision" json:"revision,omitempty"`
+	Revision string `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
 	// the application's namespace
-	AppNamespace *string `protobuf:"bytes,3,opt,name=appNamespace" json:"appNamespace,omitempty"`
-	Project      *string `protobuf:"bytes,4,opt,name=project" json:"project,omitempty"`
+	AppNamespace string `protobuf:"bytes,3,opt,name=appNamespace,proto3" json:"appNamespace,omitempty"`
+	Project      string `protobuf:"bytes,4,opt,name=project,proto3" json:"project,omitempty"`
 	// source index (for multi source apps)
-	SourceIndex *int32 `protobuf:"varint,5,opt,name=sourceIndex" json:"sourceIndex,omitempty"`
+	SourceIndex int32 `protobuf:"varint,5,opt,name=sourceIndex,proto3" json:"sourceIndex,omitempty"`
 	// versionId from historical data (for multi source apps)
-	VersionId            *int32   `protobuf:"varint,6,opt,name=versionId" json:"versionId,omitempty"`
+	VersionId            int32    `protobuf:"varint,6,opt,name=versionId,proto3" json:"versionId,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -259,55 +258,55 @@ func (m *RevisionMetadataQuery) XXX_DiscardUnknown() {
 var xxx_messageInfo_RevisionMetadataQuery proto.InternalMessageInfo
 
 func (m *RevisionMetadataQuery) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
 
 func (m *RevisionMetadataQuery) GetRevision() string {
-	if m != nil && m.Revision != nil {
-		return *m.Revision
+	if m != nil {
+		return m.Revision
 	}
 	return ""
 }
 
 func (m *RevisionMetadataQuery) GetAppNamespace() string {
-	if m != nil && m.AppNamespace != nil {
-		return *m.AppNamespace
+	if m != nil {
+		return m.AppNamespace
 	}
 	return ""
 }
 
 func (m *RevisionMetadataQuery) GetProject() string {
-	if m != nil && m.Project != nil {
-		return *m.Project
+	if m != nil {
+		return m.Project
 	}
 	return ""
 }
 
 func (m *RevisionMetadataQuery) GetSourceIndex() int32 {
-	if m != nil && m.SourceIndex != nil {
-		return *m.SourceIndex
+	if m != nil {
+		return m.SourceIndex
 	}
 	return 0
 }
 
 func (m *RevisionMetadataQuery) GetVersionId() int32 {
-	if m != nil && m.VersionId != nil {
-		return *m.VersionId
+	if m != nil {
+		return m.VersionId
 	}
 	return 0
 }
 
 // ApplicationEventsQuery is a query for application resource events
 type ApplicationResourceEventsQuery struct {
-	Name                 *string  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	ResourceNamespace    *string  `protobuf:"bytes,2,opt,name=resourceNamespace" json:"resourceNamespace,omitempty"`
-	ResourceName         *string  `protobuf:"bytes,3,opt,name=resourceName" json:"resourceName,omitempty"`
-	ResourceUID          *string  `protobuf:"bytes,4,opt,name=resourceUID" json:"resourceUID,omitempty"`
-	AppNamespace         *string  `protobuf:"bytes,5,opt,name=appNamespace" json:"appNamespace,omitempty"`
-	Project              *string  `protobuf:"bytes,6,opt,name=project" json:"project,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	ResourceNamespace    string   `protobuf:"bytes,2,opt,name=resourceNamespace,proto3" json:"resourceNamespace,omitempty"`
+	ResourceName         string   `protobuf:"bytes,3,opt,name=resourceName,proto3" json:"resourceName,omitempty"`
+	ResourceUID          string   `protobuf:"bytes,4,opt,name=resourceUID,proto3" json:"resourceUID,omitempty"`
+	AppNamespace         string   `protobuf:"bytes,5,opt,name=appNamespace,proto3" json:"appNamespace,omitempty"`
+	Project              string   `protobuf:"bytes,6,opt,name=project,proto3" json:"project,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -347,55 +346,55 @@ func (m *ApplicationResourceEventsQuery) XXX_DiscardUnknown() {
 var xxx_messageInfo_ApplicationResourceEventsQuery proto.InternalMessageInfo
 
 func (m *ApplicationResourceEventsQuery) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
 
 func (m *ApplicationResourceEventsQuery) GetResourceNamespace() string {
-	if m != nil && m.ResourceNamespace != nil {
-		return *m.ResourceNamespace
+	if m != nil {
+		return m.ResourceNamespace
 	}
 	return ""
 }
 
 func (m *ApplicationResourceEventsQuery) GetResourceName() string {
-	if m != nil && m.ResourceName != nil {
-		return *m.ResourceName
+	if m != nil {
+		return m.ResourceName
 	}
 	return ""
 }
 
 func (m *ApplicationResourceEventsQuery) GetResourceUID() string {
-	if m != nil && m.ResourceUID != nil {
-		return *m.ResourceUID
+	if m != nil {
+		return m.ResourceUID
 	}
 	return ""
 }
 
 func (m *ApplicationResourceEventsQuery) GetAppNamespace() string {
-	if m != nil && m.AppNamespace != nil {
-		return *m.AppNamespace
+	if m != nil {
+		return m.AppNamespace
 	}
 	return ""
 }
 
 func (m *ApplicationResourceEventsQuery) GetProject() string {
-	if m != nil && m.Project != nil {
-		return *m.Project
+	if m != nil {
+		return m.Project
 	}
 	return ""
 }
 
 // ManifestQuery is a query for manifest resources
 type ApplicationManifestQuery struct {
-	Name                 *string  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	Revision             *string  `protobuf:"bytes,2,opt,name=revision" json:"revision,omitempty"`
-	AppNamespace         *string  `protobuf:"bytes,3,opt,name=appNamespace" json:"appNamespace,omitempty"`
-	Project              *string  `protobuf:"bytes,4,opt,name=project" json:"project,omitempty"`
-	SourcePositions      []int64  `protobuf:"varint,5,rep,name=sourcePositions" json:"sourcePositions,omitempty"`
-	Revisions            []string `protobuf:"bytes,6,rep,name=revisions" json:"revisions,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Revision             string   `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	AppNamespace         string   `protobuf:"bytes,3,opt,name=appNamespace,proto3" json:"appNamespace,omitempty"`
+	Project              string   `protobuf:"bytes,4,opt,name=project,proto3" json:"project,omitempty"`
+	SourcePositions      []int64  `protobuf:"varint,5,rep,packed,name=sourcePositions,proto3" json:"sourcePositions,omitempty"`
+	Revisions            []string `protobuf:"bytes,6,rep,name=revisions,proto3" json:"revisions,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -435,29 +434,29 @@ func (m *ApplicationManifestQuery) XXX_DiscardUnknown() {
 var xxx_messageInfo_ApplicationManifestQuery proto.InternalMessageInfo
 
 func (m *ApplicationManifestQuery) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
 
 func (m *ApplicationManifestQuery) GetRevision() string {
-	if m != nil && m.Revision != nil {
-		return *m.Revision
+	if m != nil {
+		return m.Revision
 	}
 	return ""
 }
 
 func (m *ApplicationManifestQuery) GetAppNamespace() string {
-	if m != nil && m.AppNamespace != nil {
-		return *m.AppNamespace
+	if m != nil {
+		return m.AppNamespace
 	}
 	return ""
 }
 
 func (m *ApplicationManifestQuery) GetProject() string {
-	if m != nil && m.Project != nil {
-		return *m.Project
+	if m != nil {
+		return m.Project
 	}
 	return ""
 }
@@ -477,7 +476,7 @@ func (m *ApplicationManifestQuery) GetRevisions() []string {
 }
 
 type FileChunk struct {
-	Chunk                []byte   `protobuf:"bytes,1,req,name=chunk" json:"chunk,omitempty"`
+	Chunk                []byte   `protobuf:"bytes,1,opt,name=chunk,proto3" json:"chunk,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -524,10 +523,10 @@ func (m *FileChunk) GetChunk() []byte {
 }
 
 type ApplicationManifestQueryWithFiles struct {
-	Name                 *string  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	Checksum             *string  `protobuf:"bytes,2,req,name=checksum" json:"checksum,omitempty"`
-	AppNamespace         *string  `protobuf:"bytes,3,opt,name=appNamespace" json:"appNamespace,omitempty"`
-	Project              *string  `protobuf:"bytes,4,opt,name=project" json:"project,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Checksum             string   `protobuf:"bytes,2,opt,name=checksum,proto3" json:"checksum,omitempty"`
+	AppNamespace         string   `protobuf:"bytes,3,opt,name=appNamespace,proto3" json:"appNamespace,omitempty"`
+	Project              string   `protobuf:"bytes,4,opt,name=project,proto3" json:"project,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -567,29 +566,29 @@ func (m *ApplicationManifestQueryWithFiles) XXX_DiscardUnknown() {
 var xxx_messageInfo_ApplicationManifestQueryWithFiles proto.InternalMessageInfo
 
 func (m *ApplicationManifestQueryWithFiles) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
 
 func (m *ApplicationManifestQueryWithFiles) GetChecksum() string {
-	if m != nil && m.Checksum != nil {
-		return *m.Checksum
+	if m != nil {
+		return m.Checksum
 	}
 	return ""
 }
 
 func (m *ApplicationManifestQueryWithFiles) GetAppNamespace() string {
-	if m != nil && m.AppNamespace != nil {
-		return *m.AppNamespace
+	if m != nil {
+		return m.AppNamespace
 	}
 	return ""
 }
 
 func (m *ApplicationManifestQueryWithFiles) GetProject() string {
-	if m != nil && m.Project != nil {
-		return *m.Project
+	if m != nil {
+		return m.Project
 	}
 	return ""
 }
@@ -646,10 +645,10 @@ type isApplicationManifestQueryWithFilesWrapper_Part interface {
 }
 
 type ApplicationManifestQueryWithFilesWrapper_Query struct {
-	Query *ApplicationManifestQueryWithFiles `protobuf:"bytes,1,opt,name=query,oneof" json:"query,omitempty"`
+	Query *ApplicationManifestQueryWithFiles `protobuf:"bytes,1,opt,name=query,proto3,oneof" json:"query,omitempty"`
 }
 type ApplicationManifestQueryWithFilesWrapper_Chunk struct {
-	Chunk *FileChunk `protobuf:"bytes,2,opt,name=chunk,oneof" json:"chunk,omitempty"`
+	Chunk *FileChunk `protobuf:"bytes,2,opt,name=chunk,proto3,oneof" json:"chunk,omitempty"`
 }
 
 func (*ApplicationManifestQueryWithFilesWrapper_Query) isApplicationManifestQueryWithFilesWrapper_Part() {
@@ -726,9 +725,9 @@ func (m *ApplicationResponse) XXX_DiscardUnknown() {
 var xxx_messageInfo_ApplicationResponse proto.InternalMessageInfo
 
 type ApplicationCreateRequest struct {
-	Application          *v1alpha1.Application `protobuf:"bytes,1,req,name=application" json:"application,omitempty"`
-	Upsert               *bool                 `protobuf:"varint,2,opt,name=upsert" json:"upsert,omitempty"`
-	Validate             *bool                 `protobuf:"varint,3,opt,name=validate" json:"validate,omitempty"`
+	Application          *v1alpha1.Application `protobuf:"bytes,1,opt,name=application,proto3" json:"application,omitempty"`
+	Upsert               bool                  `protobuf:"varint,2,opt,name=upsert,proto3" json:"upsert,omitempty"`
+	Validate             bool                  `protobuf:"varint,3,opt,name=validate,proto3" json:"validate,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
 	XXX_unrecognized     []byte                `json:"-"`
 	XXX_sizecache        int32                 `json:"-"`
@@ -775,23 +774,23 @@ func (m *ApplicationCreateRequest) GetApplication() *v1alpha1.Application {
 }
 
 func (m *ApplicationCreateRequest) GetUpsert() bool {
-	if m != nil && m.Upsert != nil {
-		return *m.Upsert
+	if m != nil {
+		return m.Upsert
 	}
 	return false
 }
 
 func (m *ApplicationCreateRequest) GetValidate() bool {
-	if m != nil && m.Validate != nil {
-		return *m.Validate
+	if m != nil {
+		return m.Validate
 	}
 	return false
 }
 
 type ApplicationUpdateRequest struct {
-	Application          *v1alpha1.Application `protobuf:"bytes,1,req,name=application" json:"application,omitempty"`
-	Validate             *bool                 `protobuf:"varint,2,opt,name=validate" json:"validate,omitempty"`
-	Project              *string               `protobuf:"bytes,3,opt,name=project" json:"project,omitempty"`
+	Application          *v1alpha1.Application `protobuf:"bytes,1,opt,name=application,proto3" json:"application,omitempty"`
+	Validate             bool                  `protobuf:"varint,2,opt,name=validate,proto3" json:"validate,omitempty"`
+	Project              string                `protobuf:"bytes,3,opt,name=project,proto3" json:"project,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
 	XXX_unrecognized     []byte                `json:"-"`
 	XXX_sizecache        int32                 `json:"-"`
@@ -838,25 +837,25 @@ func (m *ApplicationUpdateRequest) GetApplication() *v1alpha1.Application {
 }
 
 func (m *ApplicationUpdateRequest) GetValidate() bool {
-	if m != nil && m.Validate != nil {
-		return *m.Validate
+	if m != nil {
+		return m.Validate
 	}
 	return false
 }
 
 func (m *ApplicationUpdateRequest) GetProject() string {
-	if m != nil && m.Project != nil {
-		return *m.Project
+	if m != nil {
+		return m.Project
 	}
 	return ""
 }
 
 type ApplicationDeleteRequest struct {
-	Name                 *string  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	Cascade              *bool    `protobuf:"varint,2,opt,name=cascade" json:"cascade,omitempty"`
-	PropagationPolicy    *string  `protobuf:"bytes,3,opt,name=propagationPolicy" json:"propagationPolicy,omitempty"`
-	AppNamespace         *string  `protobuf:"bytes,4,opt,name=appNamespace" json:"appNamespace,omitempty"`
-	Project              *string  `protobuf:"bytes,5,opt,name=project" json:"project,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Cascade              bool     `protobuf:"varint,2,opt,name=cascade,proto3" json:"cascade,omitempty"`
+	PropagationPolicy    string   `protobuf:"bytes,3,opt,name=propagationPolicy,proto3" json:"propagationPolicy,omitempty"`
+	AppNamespace         string   `protobuf:"bytes,4,opt,name=appNamespace,proto3" json:"appNamespace,omitempty"`
+	Project              string   `protobuf:"bytes,5,opt,name=project,proto3" json:"project,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -896,42 +895,42 @@ func (m *ApplicationDeleteRequest) XXX_DiscardUnknown() {
 var xxx_messageInfo_ApplicationDeleteRequest proto.InternalMessageInfo
 
 func (m *ApplicationDeleteRequest) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
 
 func (m *ApplicationDeleteRequest) GetCascade() bool {
-	if m != nil && m.Cascade != nil {
-		return *m.Cascade
+	if m != nil {
+		return m.Cascade
 	}
 	return false
 }
 
 func (m *ApplicationDeleteRequest) GetPropagationPolicy() string {
-	if m != nil && m.PropagationPolicy != nil {
-		return *m.PropagationPolicy
+	if m != nil {
+		return m.PropagationPolicy
 	}
 	return ""
 }
 
 func (m *ApplicationDeleteRequest) GetAppNamespace() string {
-	if m != nil && m.AppNamespace != nil {
-		return *m.AppNamespace
+	if m != nil {
+		return m.AppNamespace
 	}
 	return ""
 }
 
 func (m *ApplicationDeleteRequest) GetProject() string {
-	if m != nil && m.Project != nil {
-		return *m.Project
+	if m != nil {
+		return m.Project
 	}
 	return ""
 }
 
 type SyncOptions struct {
-	Items                []string `protobuf:"bytes,1,rep,name=items" json:"items,omitempty"`
+	Items                []string `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -979,20 +978,20 @@ func (m *SyncOptions) GetItems() []string {
 
 // ApplicationSyncRequest is a request to apply the config state to live state
 type ApplicationSyncRequest struct {
-	Name                 *string                           `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	Revision             *string                           `protobuf:"bytes,2,opt,name=revision" json:"revision,omitempty"`
-	DryRun               *bool                             `protobuf:"varint,3,opt,name=dryRun" json:"dryRun,omitempty"`
-	Prune                *bool                             `protobuf:"varint,4,opt,name=prune" json:"prune,omitempty"`
-	Strategy             *v1alpha1.SyncStrategy            `protobuf:"bytes,5,opt,name=strategy" json:"strategy,omitempty"`
-	Resources            []*v1alpha1.SyncOperationResource `protobuf:"bytes,7,rep,name=resources" json:"resources,omitempty"`
-	Manifests            []string                          `protobuf:"bytes,8,rep,name=manifests" json:"manifests,omitempty"`
-	Infos                []*v1alpha1.Info                  `protobuf:"bytes,9,rep,name=infos" json:"infos,omitempty"`
-	RetryStrategy        *v1alpha1.RetryStrategy           `protobuf:"bytes,10,opt,name=retryStrategy" json:"retryStrategy,omitempty"`
-	SyncOptions          *SyncOptions                      `protobuf:"bytes,11,opt,name=syncOptions" json:"syncOptions,omitempty"`
-	AppNamespace         *string                           `protobuf:"bytes,12,opt,name=appNamespace" json:"appNamespace,omitempty"`
-	Project              *string                           `protobuf:"bytes,13,opt,name=project" json:"project,omitempty"`
-	SourcePositions      []int64                           `protobuf:"varint,14,rep,name=sourcePositions" json:"sourcePositions,omitempty"`
-	Revisions            []string                          `protobuf:"bytes,15,rep,name=revisions" json:"revisions,omitempty"`
+	Name                 string                            `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Revision             string                            `protobuf:"bytes,2,opt,name=revision,proto3" json:"revision,omitempty"`
+	DryRun               bool                              `protobuf:"varint,3,opt,name=dryRun,proto3" json:"dryRun,omitempty"`
+	Prune                bool                              `protobuf:"varint,4,opt,name=prune,proto3" json:"prune,omitempty"`
+	Strategy             *v1alpha1.SyncStrategy            `protobuf:"bytes,5,opt,name=strategy,proto3" json:"strategy,omitempty"`
+	Resources            []*v1alpha1.SyncOperationResource `protobuf:"bytes,7,rep,name=resources,proto3" json:"resources,omitempty"`
+	Manifests            []string                          `protobuf:"bytes,8,rep,name=manifests,proto3" json:"manifests,omitempty"`
+	Infos                []*v1alpha1.Info                  `protobuf:"bytes,9,rep,name=infos,proto3" json:"infos,omitempty"`
+	RetryStrategy        *v1alpha1.RetryStrategy           `protobuf:"bytes,10,opt,name=retryStrategy,proto3" json:"retryStrategy,omitempty"`
+	SyncOptions          *SyncOptions                      `protobuf:"bytes,11,opt,name=syncOptions,proto3" json:"syncOptions,omitempty"`
+	AppNamespace         string                            `protobuf:"bytes,12,opt,name=appNamespace,proto3" json:"appNamespace,omitempty"`
+	Project              string                            `protobuf:"bytes,13,opt,name=project,proto3" json:"project,omitempty"`
+	SourcePositions      []int64                           `protobuf:"varint,14,rep,packed,name=sourcePositions,proto3" json:"sourcePositions,omitempty"`
+	Revisions            []string                          `protobuf:"bytes,15,rep,name=revisions,proto3" json:"revisions,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                          `json:"-"`
 	XXX_unrecognized     []byte                            `json:"-"`
 	XXX_sizecache        int32                             `json:"-"`
@@ -1032,29 +1031,29 @@ func (m *ApplicationSyncRequest) XXX_DiscardUnknown() {
 var xxx_messageInfo_ApplicationSyncRequest proto.InternalMessageInfo
 
 func (m *ApplicationSyncRequest) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
 
 func (m *ApplicationSyncRequest) GetRevision() string {
-	if m != nil && m.Revision != nil {
-		return *m.Revision
+	if m != nil {
+		return m.Revision
 	}
 	return ""
 }
 
 func (m *ApplicationSyncRequest) GetDryRun() bool {
-	if m != nil && m.DryRun != nil {
-		return *m.DryRun
+	if m != nil {
+		return m.DryRun
 	}
 	return false
 }
 
 func (m *ApplicationSyncRequest) GetPrune() bool {
-	if m != nil && m.Prune != nil {
-		return *m.Prune
+	if m != nil {
+		return m.Prune
 	}
 	return false
 }
@@ -1102,15 +1101,15 @@ func (m *ApplicationSyncRequest) GetSyncOptions() *SyncOptions {
 }
 
 func (m *ApplicationSyncRequest) GetAppNamespace() string {
-	if m != nil && m.AppNamespace != nil {
-		return *m.AppNamespace
+	if m != nil {
+		return m.AppNamespace
 	}
 	return ""
 }
 
 func (m *ApplicationSyncRequest) GetProject() string {
-	if m != nil && m.Project != nil {
-		return *m.Project
+	if m != nil {
+		return m.Project
 	}
 	return ""
 }
@@ -1131,11 +1130,11 @@ func (m *ApplicationSyncRequest) GetRevisions() []string {
 
 // ApplicationUpdateSpecRequest is a request to update application spec
 type ApplicationUpdateSpecRequest struct {
-	Name                 *string                   `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	Spec                 *v1alpha1.ApplicationSpec `protobuf:"bytes,2,req,name=spec" json:"spec,omitempty"`
-	Validate             *bool                     `protobuf:"varint,3,opt,name=validate" json:"validate,omitempty"`
-	AppNamespace         *string                   `protobuf:"bytes,4,opt,name=appNamespace" json:"appNamespace,omitempty"`
-	Project              *string                   `protobuf:"bytes,5,opt,name=project" json:"project,omitempty"`
+	Name                 string                    `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Spec                 *v1alpha1.ApplicationSpec `protobuf:"bytes,2,opt,name=spec,proto3" json:"spec,omitempty"`
+	Validate             bool                      `protobuf:"varint,3,opt,name=validate,proto3" json:"validate,omitempty"`
+	AppNamespace         string                    `protobuf:"bytes,4,opt,name=appNamespace,proto3" json:"appNamespace,omitempty"`
+	Project              string                    `protobuf:"bytes,5,opt,name=project,proto3" json:"project,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                  `json:"-"`
 	XXX_unrecognized     []byte                    `json:"-"`
 	XXX_sizecache        int32                     `json:"-"`
@@ -1175,8 +1174,8 @@ func (m *ApplicationUpdateSpecRequest) XXX_DiscardUnknown() {
 var xxx_messageInfo_ApplicationUpdateSpecRequest proto.InternalMessageInfo
 
 func (m *ApplicationUpdateSpecRequest) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
@@ -1189,33 +1188,33 @@ func (m *ApplicationUpdateSpecRequest) GetSpec() *v1alpha1.ApplicationSpec {
 }
 
 func (m *ApplicationUpdateSpecRequest) GetValidate() bool {
-	if m != nil && m.Validate != nil {
-		return *m.Validate
+	if m != nil {
+		return m.Validate
 	}
 	return false
 }
 
 func (m *ApplicationUpdateSpecRequest) GetAppNamespace() string {
-	if m != nil && m.AppNamespace != nil {
-		return *m.AppNamespace
+	if m != nil {
+		return m.AppNamespace
 	}
 	return ""
 }
 
 func (m *ApplicationUpdateSpecRequest) GetProject() string {
-	if m != nil && m.Project != nil {
-		return *m.Project
+	if m != nil {
+		return m.Project
 	}
 	return ""
 }
 
 // ApplicationPatchRequest is a request to patch an application
 type ApplicationPatchRequest struct {
-	Name                 *string  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	Patch                *string  `protobuf:"bytes,2,req,name=patch" json:"patch,omitempty"`
-	PatchType            *string  `protobuf:"bytes,3,req,name=patchType" json:"patchType,omitempty"`
-	AppNamespace         *string  `protobuf:"bytes,5,opt,name=appNamespace" json:"appNamespace,omitempty"`
-	Project              *string  `protobuf:"bytes,6,opt,name=project" json:"project,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Patch                string   `protobuf:"bytes,2,opt,name=patch,proto3" json:"patch,omitempty"`
+	PatchType            string   `protobuf:"bytes,3,opt,name=patchType,proto3" json:"patchType,omitempty"`
+	AppNamespace         string   `protobuf:"bytes,5,opt,name=appNamespace,proto3" json:"appNamespace,omitempty"`
+	Project              string   `protobuf:"bytes,6,opt,name=project,proto3" json:"project,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1255,47 +1254,47 @@ func (m *ApplicationPatchRequest) XXX_DiscardUnknown() {
 var xxx_messageInfo_ApplicationPatchRequest proto.InternalMessageInfo
 
 func (m *ApplicationPatchRequest) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
 
 func (m *ApplicationPatchRequest) GetPatch() string {
-	if m != nil && m.Patch != nil {
-		return *m.Patch
+	if m != nil {
+		return m.Patch
 	}
 	return ""
 }
 
 func (m *ApplicationPatchRequest) GetPatchType() string {
-	if m != nil && m.PatchType != nil {
-		return *m.PatchType
+	if m != nil {
+		return m.PatchType
 	}
 	return ""
 }
 
 func (m *ApplicationPatchRequest) GetAppNamespace() string {
-	if m != nil && m.AppNamespace != nil {
-		return *m.AppNamespace
+	if m != nil {
+		return m.AppNamespace
 	}
 	return ""
 }
 
 func (m *ApplicationPatchRequest) GetProject() string {
-	if m != nil && m.Project != nil {
-		return *m.Project
+	if m != nil {
+		return m.Project
 	}
 	return ""
 }
 
 type ApplicationRollbackRequest struct {
-	Name                 *string  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	Id                   *int64   `protobuf:"varint,2,req,name=id" json:"id,omitempty"`
-	DryRun               *bool    `protobuf:"varint,3,opt,name=dryRun" json:"dryRun,omitempty"`
-	Prune                *bool    `protobuf:"varint,4,opt,name=prune" json:"prune,omitempty"`
-	AppNamespace         *string  `protobuf:"bytes,6,opt,name=appNamespace" json:"appNamespace,omitempty"`
-	Project              *string  `protobuf:"bytes,7,opt,name=project" json:"project,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Id                   int64    `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
+	DryRun               bool     `protobuf:"varint,3,opt,name=dryRun,proto3" json:"dryRun,omitempty"`
+	Prune                bool     `protobuf:"varint,4,opt,name=prune,proto3" json:"prune,omitempty"`
+	AppNamespace         string   `protobuf:"bytes,6,opt,name=appNamespace,proto3" json:"appNamespace,omitempty"`
+	Project              string   `protobuf:"bytes,7,opt,name=project,proto3" json:"project,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1335,56 +1334,56 @@ func (m *ApplicationRollbackRequest) XXX_DiscardUnknown() {
 var xxx_messageInfo_ApplicationRollbackRequest proto.InternalMessageInfo
 
 func (m *ApplicationRollbackRequest) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
 
 func (m *ApplicationRollbackRequest) GetId() int64 {
-	if m != nil && m.Id != nil {
-		return *m.Id
+	if m != nil {
+		return m.Id
 	}
 	return 0
 }
 
 func (m *ApplicationRollbackRequest) GetDryRun() bool {
-	if m != nil && m.DryRun != nil {
-		return *m.DryRun
+	if m != nil {
+		return m.DryRun
 	}
 	return false
 }
 
 func (m *ApplicationRollbackRequest) GetPrune() bool {
-	if m != nil && m.Prune != nil {
-		return *m.Prune
+	if m != nil {
+		return m.Prune
 	}
 	return false
 }
 
 func (m *ApplicationRollbackRequest) GetAppNamespace() string {
-	if m != nil && m.AppNamespace != nil {
-		return *m.AppNamespace
+	if m != nil {
+		return m.AppNamespace
 	}
 	return ""
 }
 
 func (m *ApplicationRollbackRequest) GetProject() string {
-	if m != nil && m.Project != nil {
-		return *m.Project
+	if m != nil {
+		return m.Project
 	}
 	return ""
 }
 
 type ApplicationResourceRequest struct {
-	Name                 *string  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	Namespace            *string  `protobuf:"bytes,2,opt,name=namespace" json:"namespace,omitempty"`
-	ResourceName         *string  `protobuf:"bytes,3,req,name=resourceName" json:"resourceName,omitempty"`
-	Version              *string  `protobuf:"bytes,4,req,name=version" json:"version,omitempty"`
-	Group                *string  `protobuf:"bytes,5,opt,name=group" json:"group,omitempty"`
-	Kind                 *string  `protobuf:"bytes,6,req,name=kind" json:"kind,omitempty"`
-	AppNamespace         *string  `protobuf:"bytes,7,opt,name=appNamespace" json:"appNamespace,omitempty"`
-	Project              *string  `protobuf:"bytes,8,opt,name=project" json:"project,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Namespace            string   `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	ResourceName         string   `protobuf:"bytes,3,opt,name=resourceName,proto3" json:"resourceName,omitempty"`
+	Version              string   `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	Group                string   `protobuf:"bytes,5,opt,name=group,proto3" json:"group,omitempty"`
+	Kind                 string   `protobuf:"bytes,6,opt,name=kind,proto3" json:"kind,omitempty"`
+	AppNamespace         string   `protobuf:"bytes,7,opt,name=appNamespace,proto3" json:"appNamespace,omitempty"`
+	Project              string   `protobuf:"bytes,8,opt,name=project,proto3" json:"project,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1424,72 +1423,72 @@ func (m *ApplicationResourceRequest) XXX_DiscardUnknown() {
 var xxx_messageInfo_ApplicationResourceRequest proto.InternalMessageInfo
 
 func (m *ApplicationResourceRequest) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
 
 func (m *ApplicationResourceRequest) GetNamespace() string {
-	if m != nil && m.Namespace != nil {
-		return *m.Namespace
+	if m != nil {
+		return m.Namespace
 	}
 	return ""
 }
 
 func (m *ApplicationResourceRequest) GetResourceName() string {
-	if m != nil && m.ResourceName != nil {
-		return *m.ResourceName
+	if m != nil {
+		return m.ResourceName
 	}
 	return ""
 }
 
 func (m *ApplicationResourceRequest) GetVersion() string {
-	if m != nil && m.Version != nil {
-		return *m.Version
+	if m != nil {
+		return m.Version
 	}
 	return ""
 }
 
 func (m *ApplicationResourceRequest) GetGroup() string {
-	if m != nil && m.Group != nil {
-		return *m.Group
+	if m != nil {
+		return m.Group
 	}
 	return ""
 }
 
 func (m *ApplicationResourceRequest) GetKind() string {
-	if m != nil && m.Kind != nil {
-		return *m.Kind
+	if m != nil {
+		return m.Kind
 	}
 	return ""
 }
 
 func (m *ApplicationResourceRequest) GetAppNamespace() string {
-	if m != nil && m.AppNamespace != nil {
-		return *m.AppNamespace
+	if m != nil {
+		return m.AppNamespace
 	}
 	return ""
 }
 
 func (m *ApplicationResourceRequest) GetProject() string {
-	if m != nil && m.Project != nil {
-		return *m.Project
+	if m != nil {
+		return m.Project
 	}
 	return ""
 }
 
 type ApplicationResourcePatchRequest struct {
-	Name                 *string  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	Namespace            *string  `protobuf:"bytes,2,opt,name=namespace" json:"namespace,omitempty"`
-	ResourceName         *string  `protobuf:"bytes,3,req,name=resourceName" json:"resourceName,omitempty"`
-	Version              *string  `protobuf:"bytes,4,req,name=version" json:"version,omitempty"`
-	Group                *string  `protobuf:"bytes,5,opt,name=group" json:"group,omitempty"`
-	Kind                 *string  `protobuf:"bytes,6,req,name=kind" json:"kind,omitempty"`
-	Patch                *string  `protobuf:"bytes,7,req,name=patch" json:"patch,omitempty"`
-	PatchType            *string  `protobuf:"bytes,8,req,name=patchType" json:"patchType,omitempty"`
-	AppNamespace         *string  `protobuf:"bytes,9,opt,name=appNamespace" json:"appNamespace,omitempty"`
-	Project              *string  `protobuf:"bytes,10,opt,name=project" json:"project,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Namespace            string   `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	ResourceName         string   `protobuf:"bytes,3,opt,name=resourceName,proto3" json:"resourceName,omitempty"`
+	Version              string   `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	Group                string   `protobuf:"bytes,5,opt,name=group,proto3" json:"group,omitempty"`
+	Kind                 string   `protobuf:"bytes,6,opt,name=kind,proto3" json:"kind,omitempty"`
+	Patch                string   `protobuf:"bytes,7,opt,name=patch,proto3" json:"patch,omitempty"`
+	PatchType            string   `protobuf:"bytes,8,opt,name=patchType,proto3" json:"patchType,omitempty"`
+	AppNamespace         string   `protobuf:"bytes,9,opt,name=appNamespace,proto3" json:"appNamespace,omitempty"`
+	Project              string   `protobuf:"bytes,10,opt,name=project,proto3" json:"project,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1529,86 +1528,86 @@ func (m *ApplicationResourcePatchRequest) XXX_DiscardUnknown() {
 var xxx_messageInfo_ApplicationResourcePatchRequest proto.InternalMessageInfo
 
 func (m *ApplicationResourcePatchRequest) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
 
 func (m *ApplicationResourcePatchRequest) GetNamespace() string {
-	if m != nil && m.Namespace != nil {
-		return *m.Namespace
+	if m != nil {
+		return m.Namespace
 	}
 	return ""
 }
 
 func (m *ApplicationResourcePatchRequest) GetResourceName() string {
-	if m != nil && m.ResourceName != nil {
-		return *m.ResourceName
+	if m != nil {
+		return m.ResourceName
 	}
 	return ""
 }
 
 func (m *ApplicationResourcePatchRequest) GetVersion() string {
-	if m != nil && m.Version != nil {
-		return *m.Version
+	if m != nil {
+		return m.Version
 	}
 	return ""
 }
 
 func (m *ApplicationResourcePatchRequest) GetGroup() string {
-	if m != nil && m.Group != nil {
-		return *m.Group
+	if m != nil {
+		return m.Group
 	}
 	return ""
 }
 
 func (m *ApplicationResourcePatchRequest) GetKind() string {
-	if m != nil && m.Kind != nil {
-		return *m.Kind
+	if m != nil {
+		return m.Kind
 	}
 	return ""
 }
 
 func (m *ApplicationResourcePatchRequest) GetPatch() string {
-	if m != nil && m.Patch != nil {
-		return *m.Patch
+	if m != nil {
+		return m.Patch
 	}
 	return ""
 }
 
 func (m *ApplicationResourcePatchRequest) GetPatchType() string {
-	if m != nil && m.PatchType != nil {
-		return *m.PatchType
+	if m != nil {
+		return m.PatchType
 	}
 	return ""
 }
 
 func (m *ApplicationResourcePatchRequest) GetAppNamespace() string {
-	if m != nil && m.AppNamespace != nil {
-		return *m.AppNamespace
+	if m != nil {
+		return m.AppNamespace
 	}
 	return ""
 }
 
 func (m *ApplicationResourcePatchRequest) GetProject() string {
-	if m != nil && m.Project != nil {
-		return *m.Project
+	if m != nil {
+		return m.Project
 	}
 	return ""
 }
 
 type ApplicationResourceDeleteRequest struct {
-	Name                 *string  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	Namespace            *string  `protobuf:"bytes,2,opt,name=namespace" json:"namespace,omitempty"`
-	ResourceName         *string  `protobuf:"bytes,3,req,name=resourceName" json:"resourceName,omitempty"`
-	Version              *string  `protobuf:"bytes,4,req,name=version" json:"version,omitempty"`
-	Group                *string  `protobuf:"bytes,5,opt,name=group" json:"group,omitempty"`
-	Kind                 *string  `protobuf:"bytes,6,req,name=kind" json:"kind,omitempty"`
-	Force                *bool    `protobuf:"varint,7,opt,name=force" json:"force,omitempty"`
-	Orphan               *bool    `protobuf:"varint,8,opt,name=orphan" json:"orphan,omitempty"`
-	AppNamespace         *string  `protobuf:"bytes,9,opt,name=appNamespace" json:"appNamespace,omitempty"`
-	Project              *string  `protobuf:"bytes,10,opt,name=project" json:"project,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Namespace            string   `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	ResourceName         string   `protobuf:"bytes,3,opt,name=resourceName,proto3" json:"resourceName,omitempty"`
+	Version              string   `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	Group                string   `protobuf:"bytes,5,opt,name=group,proto3" json:"group,omitempty"`
+	Kind                 string   `protobuf:"bytes,6,opt,name=kind,proto3" json:"kind,omitempty"`
+	Force                bool     `protobuf:"varint,7,opt,name=force,proto3" json:"force,omitempty"`
+	Orphan               bool     `protobuf:"varint,8,opt,name=orphan,proto3" json:"orphan,omitempty"`
+	AppNamespace         string   `protobuf:"bytes,9,opt,name=appNamespace,proto3" json:"appNamespace,omitempty"`
+	Project              string   `protobuf:"bytes,10,opt,name=project,proto3" json:"project,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1648,85 +1647,85 @@ func (m *ApplicationResourceDeleteRequest) XXX_DiscardUnknown() {
 var xxx_messageInfo_ApplicationResourceDeleteRequest proto.InternalMessageInfo
 
 func (m *ApplicationResourceDeleteRequest) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
 
 func (m *ApplicationResourceDeleteRequest) GetNamespace() string {
-	if m != nil && m.Namespace != nil {
-		return *m.Namespace
+	if m != nil {
+		return m.Namespace
 	}
 	return ""
 }
 
 func (m *ApplicationResourceDeleteRequest) GetResourceName() string {
-	if m != nil && m.ResourceName != nil {
-		return *m.ResourceName
+	if m != nil {
+		return m.ResourceName
 	}
 	return ""
 }
 
 func (m *ApplicationResourceDeleteRequest) GetVersion() string {
-	if m != nil && m.Version != nil {
-		return *m.Version
+	if m != nil {
+		return m.Version
 	}
 	return ""
 }
 
 func (m *ApplicationResourceDeleteRequest) GetGroup() string {
-	if m != nil && m.Group != nil {
-		return *m.Group
+	if m != nil {
+		return m.Group
 	}
 	return ""
 }
 
 func (m *ApplicationResourceDeleteRequest) GetKind() string {
-	if m != nil && m.Kind != nil {
-		return *m.Kind
+	if m != nil {
+		return m.Kind
 	}
 	return ""
 }
 
 func (m *ApplicationResourceDeleteRequest) GetForce() bool {
-	if m != nil && m.Force != nil {
-		return *m.Force
+	if m != nil {
+		return m.Force
 	}
 	return false
 }
 
 func (m *ApplicationResourceDeleteRequest) GetOrphan() bool {
-	if m != nil && m.Orphan != nil {
-		return *m.Orphan
+	if m != nil {
+		return m.Orphan
 	}
 	return false
 }
 
 func (m *ApplicationResourceDeleteRequest) GetAppNamespace() string {
-	if m != nil && m.AppNamespace != nil {
-		return *m.AppNamespace
+	if m != nil {
+		return m.AppNamespace
 	}
 	return ""
 }
 
 func (m *ApplicationResourceDeleteRequest) GetProject() string {
-	if m != nil && m.Project != nil {
-		return *m.Project
+	if m != nil {
+		return m.Project
 	}
 	return ""
 }
 
 type ResourceActionRunRequest struct {
-	Name                 *string  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	Namespace            *string  `protobuf:"bytes,2,opt,name=namespace" json:"namespace,omitempty"`
-	ResourceName         *string  `protobuf:"bytes,3,req,name=resourceName" json:"resourceName,omitempty"`
-	Version              *string  `protobuf:"bytes,4,req,name=version" json:"version,omitempty"`
-	Group                *string  `protobuf:"bytes,5,opt,name=group" json:"group,omitempty"`
-	Kind                 *string  `protobuf:"bytes,6,req,name=kind" json:"kind,omitempty"`
-	Action               *string  `protobuf:"bytes,7,req,name=action" json:"action,omitempty"`
-	AppNamespace         *string  `protobuf:"bytes,8,opt,name=appNamespace" json:"appNamespace,omitempty"`
-	Project              *string  `protobuf:"bytes,9,opt,name=project" json:"project,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Namespace            string   `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	ResourceName         string   `protobuf:"bytes,3,opt,name=resourceName,proto3" json:"resourceName,omitempty"`
+	Version              string   `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	Group                string   `protobuf:"bytes,5,opt,name=group,proto3" json:"group,omitempty"`
+	Kind                 string   `protobuf:"bytes,6,opt,name=kind,proto3" json:"kind,omitempty"`
+	Action               string   `protobuf:"bytes,7,opt,name=action,proto3" json:"action,omitempty"`
+	AppNamespace         string   `protobuf:"bytes,8,opt,name=appNamespace,proto3" json:"appNamespace,omitempty"`
+	Project              string   `protobuf:"bytes,9,opt,name=project,proto3" json:"project,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1766,70 +1765,70 @@ func (m *ResourceActionRunRequest) XXX_DiscardUnknown() {
 var xxx_messageInfo_ResourceActionRunRequest proto.InternalMessageInfo
 
 func (m *ResourceActionRunRequest) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
 
 func (m *ResourceActionRunRequest) GetNamespace() string {
-	if m != nil && m.Namespace != nil {
-		return *m.Namespace
+	if m != nil {
+		return m.Namespace
 	}
 	return ""
 }
 
 func (m *ResourceActionRunRequest) GetResourceName() string {
-	if m != nil && m.ResourceName != nil {
-		return *m.ResourceName
+	if m != nil {
+		return m.ResourceName
 	}
 	return ""
 }
 
 func (m *ResourceActionRunRequest) GetVersion() string {
-	if m != nil && m.Version != nil {
-		return *m.Version
+	if m != nil {
+		return m.Version
 	}
 	return ""
 }
 
 func (m *ResourceActionRunRequest) GetGroup() string {
-	if m != nil && m.Group != nil {
-		return *m.Group
+	if m != nil {
+		return m.Group
 	}
 	return ""
 }
 
 func (m *ResourceActionRunRequest) GetKind() string {
-	if m != nil && m.Kind != nil {
-		return *m.Kind
+	if m != nil {
+		return m.Kind
 	}
 	return ""
 }
 
 func (m *ResourceActionRunRequest) GetAction() string {
-	if m != nil && m.Action != nil {
-		return *m.Action
+	if m != nil {
+		return m.Action
 	}
 	return ""
 }
 
 func (m *ResourceActionRunRequest) GetAppNamespace() string {
-	if m != nil && m.AppNamespace != nil {
-		return *m.AppNamespace
+	if m != nil {
+		return m.AppNamespace
 	}
 	return ""
 }
 
 func (m *ResourceActionRunRequest) GetProject() string {
-	if m != nil && m.Project != nil {
-		return *m.Project
+	if m != nil {
+		return m.Project
 	}
 	return ""
 }
 
 type ResourceActionsListResponse struct {
-	Actions              []*v1alpha1.ResourceAction `protobuf:"bytes,1,rep,name=actions" json:"actions,omitempty"`
+	Actions              []*v1alpha1.ResourceAction `protobuf:"bytes,1,rep,name=actions,proto3" json:"actions,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                   `json:"-"`
 	XXX_unrecognized     []byte                     `json:"-"`
 	XXX_sizecache        int32                      `json:"-"`
@@ -1876,7 +1875,7 @@ func (m *ResourceActionsListResponse) GetActions() []*v1alpha1.ResourceAction {
 }
 
 type ApplicationResourceResponse struct {
-	Manifest             *string  `protobuf:"bytes,1,req,name=manifest" json:"manifest,omitempty"`
+	Manifest             string   `protobuf:"bytes,1,opt,name=manifest,proto3" json:"manifest,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1916,29 +1915,29 @@ func (m *ApplicationResourceResponse) XXX_DiscardUnknown() {
 var xxx_messageInfo_ApplicationResourceResponse proto.InternalMessageInfo
 
 func (m *ApplicationResourceResponse) GetManifest() string {
-	if m != nil && m.Manifest != nil {
-		return *m.Manifest
+	if m != nil {
+		return m.Manifest
 	}
 	return ""
 }
 
 type ApplicationPodLogsQuery struct {
-	Name                 *string  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	Namespace            *string  `protobuf:"bytes,2,opt,name=namespace" json:"namespace,omitempty"`
-	PodName              *string  `protobuf:"bytes,3,opt,name=podName" json:"podName,omitempty"`
-	Container            *string  `protobuf:"bytes,4,opt,name=container" json:"container,omitempty"`
-	SinceSeconds         *int64   `protobuf:"varint,5,opt,name=sinceSeconds" json:"sinceSeconds,omitempty"`
-	SinceTime            *v1.Time `protobuf:"bytes,6,opt,name=sinceTime" json:"sinceTime,omitempty"`
-	TailLines            *int64   `protobuf:"varint,7,opt,name=tailLines" json:"tailLines,omitempty"`
-	Follow               *bool    `protobuf:"varint,8,opt,name=follow" json:"follow,omitempty"`
-	UntilTime            *string  `protobuf:"bytes,9,opt,name=untilTime" json:"untilTime,omitempty"`
-	Filter               *string  `protobuf:"bytes,10,opt,name=filter" json:"filter,omitempty"`
-	Kind                 *string  `protobuf:"bytes,11,opt,name=kind" json:"kind,omitempty"`
-	Group                *string  `protobuf:"bytes,12,opt,name=group" json:"group,omitempty"`
-	ResourceName         *string  `protobuf:"bytes,13,opt,name=resourceName" json:"resourceName,omitempty"`
-	Previous             *bool    `protobuf:"varint,14,opt,name=previous" json:"previous,omitempty"`
-	AppNamespace         *string  `protobuf:"bytes,15,opt,name=appNamespace" json:"appNamespace,omitempty"`
-	Project              *string  `protobuf:"bytes,16,opt,name=project" json:"project,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Namespace            string   `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	PodName              string   `protobuf:"bytes,3,opt,name=podName,proto3" json:"podName,omitempty"`
+	Container            string   `protobuf:"bytes,4,opt,name=container,proto3" json:"container,omitempty"`
+	SinceSeconds         int64    `protobuf:"varint,5,opt,name=sinceSeconds,proto3" json:"sinceSeconds,omitempty"`
+	SinceTime            *v1.Time `protobuf:"bytes,6,opt,name=sinceTime,proto3" json:"sinceTime,omitempty"`
+	TailLines            int64    `protobuf:"varint,7,opt,name=tailLines,proto3" json:"tailLines,omitempty"`
+	Follow               bool     `protobuf:"varint,8,opt,name=follow,proto3" json:"follow,omitempty"`
+	UntilTime            string   `protobuf:"bytes,9,opt,name=untilTime,proto3" json:"untilTime,omitempty"`
+	Filter               string   `protobuf:"bytes,10,opt,name=filter,proto3" json:"filter,omitempty"`
+	Kind                 string   `protobuf:"bytes,11,opt,name=kind,proto3" json:"kind,omitempty"`
+	Group                string   `protobuf:"bytes,12,opt,name=group,proto3" json:"group,omitempty"`
+	ResourceName         string   `protobuf:"bytes,13,opt,name=resourceName,proto3" json:"resourceName,omitempty"`
+	Previous             bool     `protobuf:"varint,14,opt,name=previous,proto3" json:"previous,omitempty"`
+	AppNamespace         string   `protobuf:"bytes,15,opt,name=appNamespace,proto3" json:"appNamespace,omitempty"`
+	Project              string   `protobuf:"bytes,16,opt,name=project,proto3" json:"project,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -1978,36 +1977,36 @@ func (m *ApplicationPodLogsQuery) XXX_DiscardUnknown() {
 var xxx_messageInfo_ApplicationPodLogsQuery proto.InternalMessageInfo
 
 func (m *ApplicationPodLogsQuery) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
 
 func (m *ApplicationPodLogsQuery) GetNamespace() string {
-	if m != nil && m.Namespace != nil {
-		return *m.Namespace
+	if m != nil {
+		return m.Namespace
 	}
 	return ""
 }
 
 func (m *ApplicationPodLogsQuery) GetPodName() string {
-	if m != nil && m.PodName != nil {
-		return *m.PodName
+	if m != nil {
+		return m.PodName
 	}
 	return ""
 }
 
 func (m *ApplicationPodLogsQuery) GetContainer() string {
-	if m != nil && m.Container != nil {
-		return *m.Container
+	if m != nil {
+		return m.Container
 	}
 	return ""
 }
 
 func (m *ApplicationPodLogsQuery) GetSinceSeconds() int64 {
-	if m != nil && m.SinceSeconds != nil {
-		return *m.SinceSeconds
+	if m != nil {
+		return m.SinceSeconds
 	}
 	return 0
 }
@@ -2020,82 +2019,82 @@ func (m *ApplicationPodLogsQuery) GetSinceTime() *v1.Time {
 }
 
 func (m *ApplicationPodLogsQuery) GetTailLines() int64 {
-	if m != nil && m.TailLines != nil {
-		return *m.TailLines
+	if m != nil {
+		return m.TailLines
 	}
 	return 0
 }
 
 func (m *ApplicationPodLogsQuery) GetFollow() bool {
-	if m != nil && m.Follow != nil {
-		return *m.Follow
+	if m != nil {
+		return m.Follow
 	}
 	return false
 }
 
 func (m *ApplicationPodLogsQuery) GetUntilTime() string {
-	if m != nil && m.UntilTime != nil {
-		return *m.UntilTime
+	if m != nil {
+		return m.UntilTime
 	}
 	return ""
 }
 
 func (m *ApplicationPodLogsQuery) GetFilter() string {
-	if m != nil && m.Filter != nil {
-		return *m.Filter
+	if m != nil {
+		return m.Filter
 	}
 	return ""
 }
 
 func (m *ApplicationPodLogsQuery) GetKind() string {
-	if m != nil && m.Kind != nil {
-		return *m.Kind
+	if m != nil {
+		return m.Kind
 	}
 	return ""
 }
 
 func (m *ApplicationPodLogsQuery) GetGroup() string {
-	if m != nil && m.Group != nil {
-		return *m.Group
+	if m != nil {
+		return m.Group
 	}
 	return ""
 }
 
 func (m *ApplicationPodLogsQuery) GetResourceName() string {
-	if m != nil && m.ResourceName != nil {
-		return *m.ResourceName
+	if m != nil {
+		return m.ResourceName
 	}
 	return ""
 }
 
 func (m *ApplicationPodLogsQuery) GetPrevious() bool {
-	if m != nil && m.Previous != nil {
-		return *m.Previous
+	if m != nil {
+		return m.Previous
 	}
 	return false
 }
 
 func (m *ApplicationPodLogsQuery) GetAppNamespace() string {
-	if m != nil && m.AppNamespace != nil {
-		return *m.AppNamespace
+	if m != nil {
+		return m.AppNamespace
 	}
 	return ""
 }
 
 func (m *ApplicationPodLogsQuery) GetProject() string {
-	if m != nil && m.Project != nil {
-		return *m.Project
+	if m != nil {
+		return m.Project
 	}
 	return ""
 }
 
 type LogEntry struct {
-	Content *string `protobuf:"bytes,1,req,name=content" json:"content,omitempty"`
+	Content string `protobuf:"bytes,1,opt,name=content,proto3" json:"content,omitempty"`
 	// deprecated in favor of timeStampStr since meta.v1.Time don't support nano time
-	TimeStamp            *v1.Time `protobuf:"bytes,2,req,name=timeStamp" json:"timeStamp,omitempty"`
-	Last                 *bool    `protobuf:"varint,3,req,name=last" json:"last,omitempty"`
-	TimeStampStr         *string  `protobuf:"bytes,4,req,name=timeStampStr" json:"timeStampStr,omitempty"`
-	PodName              *string  `protobuf:"bytes,5,req,name=podName" json:"podName,omitempty"`
+	TimeStamp            *v1.Time `protobuf:"bytes,2,opt,name=timeStamp,proto3" json:"timeStamp,omitempty"`
+	Last                 bool     `protobuf:"varint,3,opt,name=last,proto3" json:"last,omitempty"`
+	TimeStampStr         string   `protobuf:"bytes,4,opt,name=timeStampStr,proto3" json:"timeStampStr,omitempty"`
+	PodName              string   `protobuf:"bytes,5,opt,name=podName,proto3" json:"podName,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -2135,8 +2134,8 @@ func (m *LogEntry) XXX_DiscardUnknown() {
 var xxx_messageInfo_LogEntry proto.InternalMessageInfo
 
 func (m *LogEntry) GetContent() string {
-	if m != nil && m.Content != nil {
-		return *m.Content
+	if m != nil {
+		return m.Content
 	}
 	return ""
 }
@@ -2149,30 +2148,30 @@ func (m *LogEntry) GetTimeStamp() *v1.Time {
 }
 
 func (m *LogEntry) GetLast() bool {
-	if m != nil && m.Last != nil {
-		return *m.Last
+	if m != nil {
+		return m.Last
 	}
 	return false
 }
 
 func (m *LogEntry) GetTimeStampStr() string {
-	if m != nil && m.TimeStampStr != nil {
-		return *m.TimeStampStr
+	if m != nil {
+		return m.TimeStampStr
 	}
 	return ""
 }
 
 func (m *LogEntry) GetPodName() string {
-	if m != nil && m.PodName != nil {
-		return *m.PodName
+	if m != nil {
+		return m.PodName
 	}
 	return ""
 }
 
 type OperationTerminateRequest struct {
-	Name                 *string  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	AppNamespace         *string  `protobuf:"bytes,2,opt,name=appNamespace" json:"appNamespace,omitempty"`
-	Project              *string  `protobuf:"bytes,3,opt,name=project" json:"project,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	AppNamespace         string   `protobuf:"bytes,2,opt,name=appNamespace,proto3" json:"appNamespace,omitempty"`
+	Project              string   `protobuf:"bytes,3,opt,name=project,proto3" json:"project,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -2212,30 +2211,30 @@ func (m *OperationTerminateRequest) XXX_DiscardUnknown() {
 var xxx_messageInfo_OperationTerminateRequest proto.InternalMessageInfo
 
 func (m *OperationTerminateRequest) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
 
 func (m *OperationTerminateRequest) GetAppNamespace() string {
-	if m != nil && m.AppNamespace != nil {
-		return *m.AppNamespace
+	if m != nil {
+		return m.AppNamespace
 	}
 	return ""
 }
 
 func (m *OperationTerminateRequest) GetProject() string {
-	if m != nil && m.Project != nil {
-		return *m.Project
+	if m != nil {
+		return m.Project
 	}
 	return ""
 }
 
 type ApplicationSyncWindowsQuery struct {
-	Name                 *string  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	AppNamespace         *string  `protobuf:"bytes,2,opt,name=appNamespace" json:"appNamespace,omitempty"`
-	Project              *string  `protobuf:"bytes,3,opt,name=project" json:"project,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	AppNamespace         string   `protobuf:"bytes,2,opt,name=appNamespace,proto3" json:"appNamespace,omitempty"`
+	Project              string   `protobuf:"bytes,3,opt,name=project,proto3" json:"project,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -2275,30 +2274,30 @@ func (m *ApplicationSyncWindowsQuery) XXX_DiscardUnknown() {
 var xxx_messageInfo_ApplicationSyncWindowsQuery proto.InternalMessageInfo
 
 func (m *ApplicationSyncWindowsQuery) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
 
 func (m *ApplicationSyncWindowsQuery) GetAppNamespace() string {
-	if m != nil && m.AppNamespace != nil {
-		return *m.AppNamespace
+	if m != nil {
+		return m.AppNamespace
 	}
 	return ""
 }
 
 func (m *ApplicationSyncWindowsQuery) GetProject() string {
-	if m != nil && m.Project != nil {
-		return *m.Project
+	if m != nil {
+		return m.Project
 	}
 	return ""
 }
 
 type ApplicationSyncWindowsResponse struct {
-	ActiveWindows        []*ApplicationSyncWindow `protobuf:"bytes,1,rep,name=activeWindows" json:"activeWindows,omitempty"`
-	AssignedWindows      []*ApplicationSyncWindow `protobuf:"bytes,2,rep,name=assignedWindows" json:"assignedWindows,omitempty"`
-	CanSync              *bool                    `protobuf:"varint,3,req,name=canSync" json:"canSync,omitempty"`
+	ActiveWindows        []*ApplicationSyncWindow `protobuf:"bytes,1,rep,name=activeWindows,proto3" json:"activeWindows,omitempty"`
+	AssignedWindows      []*ApplicationSyncWindow `protobuf:"bytes,2,rep,name=assignedWindows,proto3" json:"assignedWindows,omitempty"`
+	CanSync              bool                     `protobuf:"varint,3,opt,name=canSync,proto3" json:"canSync,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                 `json:"-"`
 	XXX_unrecognized     []byte                   `json:"-"`
 	XXX_sizecache        int32                    `json:"-"`
@@ -2352,17 +2351,17 @@ func (m *ApplicationSyncWindowsResponse) GetAssignedWindows() []*ApplicationSync
 }
 
 func (m *ApplicationSyncWindowsResponse) GetCanSync() bool {
-	if m != nil && m.CanSync != nil {
-		return *m.CanSync
+	if m != nil {
+		return m.CanSync
 	}
 	return false
 }
 
 type ApplicationSyncWindow struct {
-	Kind                 *string  `protobuf:"bytes,1,req,name=kind" json:"kind,omitempty"`
-	Schedule             *string  `protobuf:"bytes,2,req,name=schedule" json:"schedule,omitempty"`
-	Duration             *string  `protobuf:"bytes,3,req,name=duration" json:"duration,omitempty"`
-	ManualSync           *bool    `protobuf:"varint,4,req,name=manualSync" json:"manualSync,omitempty"`
+	Kind                 string   `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Schedule             string   `protobuf:"bytes,2,opt,name=schedule,proto3" json:"schedule,omitempty"`
+	Duration             string   `protobuf:"bytes,3,opt,name=duration,proto3" json:"duration,omitempty"`
+	ManualSync           bool     `protobuf:"varint,4,opt,name=manualSync,proto3" json:"manualSync,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -2402,29 +2401,29 @@ func (m *ApplicationSyncWindow) XXX_DiscardUnknown() {
 var xxx_messageInfo_ApplicationSyncWindow proto.InternalMessageInfo
 
 func (m *ApplicationSyncWindow) GetKind() string {
-	if m != nil && m.Kind != nil {
-		return *m.Kind
+	if m != nil {
+		return m.Kind
 	}
 	return ""
 }
 
 func (m *ApplicationSyncWindow) GetSchedule() string {
-	if m != nil && m.Schedule != nil {
-		return *m.Schedule
+	if m != nil {
+		return m.Schedule
 	}
 	return ""
 }
 
 func (m *ApplicationSyncWindow) GetDuration() string {
-	if m != nil && m.Duration != nil {
-		return *m.Duration
+	if m != nil {
+		return m.Duration
 	}
 	return ""
 }
 
 func (m *ApplicationSyncWindow) GetManualSync() bool {
-	if m != nil && m.ManualSync != nil {
-		return *m.ManualSync
+	if m != nil {
+		return m.ManualSync
 	}
 	return false
 }
@@ -2469,14 +2468,14 @@ func (m *OperationTerminateResponse) XXX_DiscardUnknown() {
 var xxx_messageInfo_OperationTerminateResponse proto.InternalMessageInfo
 
 type ResourcesQuery struct {
-	ApplicationName      *string  `protobuf:"bytes,1,req,name=applicationName" json:"applicationName,omitempty"`
-	Namespace            *string  `protobuf:"bytes,2,opt,name=namespace" json:"namespace,omitempty"`
-	Name                 *string  `protobuf:"bytes,3,opt,name=name" json:"name,omitempty"`
-	Version              *string  `protobuf:"bytes,4,opt,name=version" json:"version,omitempty"`
-	Group                *string  `protobuf:"bytes,5,opt,name=group" json:"group,omitempty"`
-	Kind                 *string  `protobuf:"bytes,6,opt,name=kind" json:"kind,omitempty"`
-	AppNamespace         *string  `protobuf:"bytes,7,opt,name=appNamespace" json:"appNamespace,omitempty"`
-	Project              *string  `protobuf:"bytes,8,opt,name=project" json:"project,omitempty"`
+	ApplicationName      string   `protobuf:"bytes,1,opt,name=applicationName,proto3" json:"applicationName,omitempty"`
+	Namespace            string   `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	Name                 string   `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	Version              string   `protobuf:"bytes,4,opt,name=version,proto3" json:"version,omitempty"`
+	Group                string   `protobuf:"bytes,5,opt,name=group,proto3" json:"group,omitempty"`
+	Kind                 string   `protobuf:"bytes,6,opt,name=kind,proto3" json:"kind,omitempty"`
+	AppNamespace         string   `protobuf:"bytes,7,opt,name=appNamespace,proto3" json:"appNamespace,omitempty"`
+	Project              string   `protobuf:"bytes,8,opt,name=project,proto3" json:"project,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -2516,63 +2515,63 @@ func (m *ResourcesQuery) XXX_DiscardUnknown() {
 var xxx_messageInfo_ResourcesQuery proto.InternalMessageInfo
 
 func (m *ResourcesQuery) GetApplicationName() string {
-	if m != nil && m.ApplicationName != nil {
-		return *m.ApplicationName
+	if m != nil {
+		return m.ApplicationName
 	}
 	return ""
 }
 
 func (m *ResourcesQuery) GetNamespace() string {
-	if m != nil && m.Namespace != nil {
-		return *m.Namespace
+	if m != nil {
+		return m.Namespace
 	}
 	return ""
 }
 
 func (m *ResourcesQuery) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
 
 func (m *ResourcesQuery) GetVersion() string {
-	if m != nil && m.Version != nil {
-		return *m.Version
+	if m != nil {
+		return m.Version
 	}
 	return ""
 }
 
 func (m *ResourcesQuery) GetGroup() string {
-	if m != nil && m.Group != nil {
-		return *m.Group
+	if m != nil {
+		return m.Group
 	}
 	return ""
 }
 
 func (m *ResourcesQuery) GetKind() string {
-	if m != nil && m.Kind != nil {
-		return *m.Kind
+	if m != nil {
+		return m.Kind
 	}
 	return ""
 }
 
 func (m *ResourcesQuery) GetAppNamespace() string {
-	if m != nil && m.AppNamespace != nil {
-		return *m.AppNamespace
+	if m != nil {
+		return m.AppNamespace
 	}
 	return ""
 }
 
 func (m *ResourcesQuery) GetProject() string {
-	if m != nil && m.Project != nil {
-		return *m.Project
+	if m != nil {
+		return m.Project
 	}
 	return ""
 }
 
 type ManagedResourcesResponse struct {
-	Items                []*v1alpha1.ResourceDiff `protobuf:"bytes,1,rep,name=items" json:"items,omitempty"`
+	Items                []*v1alpha1.ResourceDiff `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}                 `json:"-"`
 	XXX_unrecognized     []byte                   `json:"-"`
 	XXX_sizecache        int32                    `json:"-"`
@@ -2619,10 +2618,10 @@ func (m *ManagedResourcesResponse) GetItems() []*v1alpha1.ResourceDiff {
 }
 
 type LinkInfo struct {
-	Title                *string  `protobuf:"bytes,1,req,name=title" json:"title,omitempty"`
-	Url                  *string  `protobuf:"bytes,2,req,name=url" json:"url,omitempty"`
-	Description          *string  `protobuf:"bytes,3,opt,name=description" json:"description,omitempty"`
-	IconClass            *string  `protobuf:"bytes,4,opt,name=iconClass" json:"iconClass,omitempty"`
+	Title                string   `protobuf:"bytes,1,opt,name=title,proto3" json:"title,omitempty"`
+	Url                  string   `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
+	Description          string   `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	IconClass            string   `protobuf:"bytes,4,opt,name=iconClass,proto3" json:"iconClass,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -2662,35 +2661,35 @@ func (m *LinkInfo) XXX_DiscardUnknown() {
 var xxx_messageInfo_LinkInfo proto.InternalMessageInfo
 
 func (m *LinkInfo) GetTitle() string {
-	if m != nil && m.Title != nil {
-		return *m.Title
+	if m != nil {
+		return m.Title
 	}
 	return ""
 }
 
 func (m *LinkInfo) GetUrl() string {
-	if m != nil && m.Url != nil {
-		return *m.Url
+	if m != nil {
+		return m.Url
 	}
 	return ""
 }
 
 func (m *LinkInfo) GetDescription() string {
-	if m != nil && m.Description != nil {
-		return *m.Description
+	if m != nil {
+		return m.Description
 	}
 	return ""
 }
 
 func (m *LinkInfo) GetIconClass() string {
-	if m != nil && m.IconClass != nil {
-		return *m.IconClass
+	if m != nil {
+		return m.IconClass
 	}
 	return ""
 }
 
 type LinksResponse struct {
-	Items                []*LinkInfo `protobuf:"bytes,1,rep,name=items" json:"items,omitempty"`
+	Items                []*LinkInfo `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
 	XXX_unrecognized     []byte      `json:"-"`
 	XXX_sizecache        int32       `json:"-"`
@@ -2737,9 +2736,9 @@ func (m *LinksResponse) GetItems() []*LinkInfo {
 }
 
 type ListAppLinksRequest struct {
-	Name                 *string  `protobuf:"bytes,1,req,name=name" json:"name,omitempty"`
-	Namespace            *string  `protobuf:"bytes,3,opt,name=namespace" json:"namespace,omitempty"`
-	Project              *string  `protobuf:"bytes,4,opt,name=project" json:"project,omitempty"`
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Namespace            string   `protobuf:"bytes,3,opt,name=namespace,proto3" json:"namespace,omitempty"`
+	Project              string   `protobuf:"bytes,4,opt,name=project,proto3" json:"project,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -2779,22 +2778,22 @@ func (m *ListAppLinksRequest) XXX_DiscardUnknown() {
 var xxx_messageInfo_ListAppLinksRequest proto.InternalMessageInfo
 
 func (m *ListAppLinksRequest) GetName() string {
-	if m != nil && m.Name != nil {
-		return *m.Name
+	if m != nil {
+		return m.Name
 	}
 	return ""
 }
 
 func (m *ListAppLinksRequest) GetNamespace() string {
-	if m != nil && m.Namespace != nil {
-		return *m.Namespace
+	if m != nil {
+		return m.Namespace
 	}
 	return ""
 }
 
 func (m *ListAppLinksRequest) GetProject() string {
-	if m != nil && m.Project != nil {
-		return *m.Project
+	if m != nil {
+		return m.Project
 	}
 	return ""
 }
@@ -2842,179 +2841,177 @@ func init() {
 }
 
 var fileDescriptor_df6e82b174b5eaec = []byte{
-	// 2742 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x5a, 0x4d, 0x8c, 0x1b, 0x49,
-	0x15, 0xa6, 0xec, 0xf1, 0x8c, 0xe7, 0x79, 0x26, 0x93, 0xd4, 0x26, 0x83, 0xd7, 0x99, 0x0d, 0xde,
-	0x4e, 0xb2, 0x71, 0x26, 0x19, 0x3b, 0x31, 0x01, 0x65, 0x67, 0x77, 0x05, 0xc9, 0xe4, 0x17, 0x26,
-	0xd9, 0xd0, 0x93, 0x10, 0xb4, 0x1c, 0xa0, 0xb6, 0xbb, 0xc6, 0xd3, 0x4c, 0xbb, 0xbb, 0xd3, 0xdd,
-	0x76, 0x18, 0x85, 0x5c, 0x16, 0xed, 0x05, 0xad, 0x40, 0xc0, 0x1e, 0x10, 0x42, 0x80, 0x16, 0xad,
-	0x84, 0x10, 0x88, 0x0b, 0x42, 0x48, 0x08, 0x09, 0x0e, 0x20, 0x38, 0x20, 0xad, 0xe0, 0xc8, 0x05,
-	0x45, 0x88, 0x23, 0x5c, 0xf6, 0x8c, 0x50, 0x55, 0x57, 0x75, 0x57, 0xfb, 0xa7, 0xed, 0xc1, 0x46,
-	0x9b, 0x5b, 0xbf, 0x72, 0xd5, 0x7b, 0xdf, 0x7b, 0xf5, 0xea, 0xbd, 0x57, 0xaf, 0x0c, 0x27, 0x02,
-	0xea, 0x77, 0xa9, 0xdf, 0x20, 0x9e, 0x67, 0x5b, 0x06, 0x09, 0x2d, 0xd7, 0x51, 0xbf, 0xeb, 0x9e,
-	0xef, 0x86, 0x2e, 0x2e, 0x29, 0x43, 0x95, 0x95, 0x96, 0xeb, 0xb6, 0x6c, 0xda, 0x20, 0x9e, 0xd5,
-	0x20, 0x8e, 0xe3, 0x86, 0x7c, 0x38, 0x88, 0xa6, 0x56, 0xb4, 0xdd, 0x8b, 0x41, 0xdd, 0x72, 0xf9,
-	0xaf, 0x86, 0xeb, 0xd3, 0x46, 0xf7, 0x7c, 0xa3, 0x45, 0x1d, 0xea, 0x93, 0x90, 0x9a, 0x62, 0xce,
-	0x85, 0x64, 0x4e, 0x9b, 0x18, 0x3b, 0x96, 0x43, 0xfd, 0xbd, 0x86, 0xb7, 0xdb, 0x62, 0x03, 0x41,
-	0xa3, 0x4d, 0x43, 0x32, 0x68, 0xd5, 0x66, 0xcb, 0x0a, 0x77, 0x3a, 0xaf, 0xd7, 0x0d, 0xb7, 0xdd,
-	0x20, 0x7e, 0xcb, 0xf5, 0x7c, 0xf7, 0x4b, 0xfc, 0x63, 0xcd, 0x30, 0x1b, 0xdd, 0x66, 0xc2, 0x40,
-	0xd5, 0xa5, 0x7b, 0x9e, 0xd8, 0xde, 0x0e, 0xe9, 0xe7, 0x76, 0x75, 0x04, 0x37, 0x9f, 0x7a, 0xae,
-	0xb0, 0x0d, 0xff, 0xb4, 0x42, 0xd7, 0xdf, 0x53, 0x3e, 0x23, 0x36, 0xda, 0xfb, 0x08, 0x0e, 0x5e,
-	0x4a, 0xe4, 0x7d, 0xa6, 0x43, 0xfd, 0x3d, 0x8c, 0x61, 0xc6, 0x21, 0x6d, 0x5a, 0x46, 0x55, 0x54,
-	0x9b, 0xd7, 0xf9, 0x37, 0x2e, 0xc3, 0x9c, 0x4f, 0xb7, 0x7d, 0x1a, 0xec, 0x94, 0x73, 0x7c, 0x58,
-	0x92, 0xb8, 0x02, 0x45, 0x26, 0x9c, 0x1a, 0x61, 0x50, 0xce, 0x57, 0xf3, 0xb5, 0x79, 0x3d, 0xa6,
-	0x71, 0x0d, 0x96, 0x7c, 0x1a, 0xb8, 0x1d, 0xdf, 0xa0, 0x9f, 0xa5, 0x7e, 0x60, 0xb9, 0x4e, 0x79,
-	0x86, 0xaf, 0xee, 0x1d, 0x66, 0x5c, 0x02, 0x6a, 0x53, 0x23, 0x74, 0xfd, 0x72, 0x81, 0x4f, 0x89,
-	0x69, 0x86, 0x87, 0x01, 0x2f, 0xcf, 0x46, 0x78, 0xd8, 0x37, 0xd6, 0x60, 0x81, 0x78, 0xde, 0x6d,
-	0xd2, 0xa6, 0x81, 0x47, 0x0c, 0x5a, 0x9e, 0xe3, 0xbf, 0xa5, 0xc6, 0x18, 0x66, 0x81, 0xa4, 0x5c,
-	0xe4, 0xc0, 0x24, 0xa9, 0x6d, 0xc0, 0xfc, 0x6d, 0xd7, 0xa4, 0xc3, 0xd5, 0xed, 0x65, 0x9f, 0xeb,
-	0x67, 0xaf, 0xfd, 0x1e, 0xc1, 0x11, 0x9d, 0x76, 0x2d, 0x86, 0xff, 0x16, 0x0d, 0x89, 0x49, 0x42,
-	0xd2, 0xcb, 0x31, 0x17, 0x73, 0xac, 0x40, 0xd1, 0x17, 0x93, 0xcb, 0x39, 0x3e, 0x1e, 0xd3, 0x7d,
-	0xd2, 0xf2, 0xd9, 0xca, 0x44, 0x26, 0x94, 0x24, 0xae, 0x42, 0x29, 0xb2, 0xe5, 0x4d, 0xc7, 0xa4,
-	0x5f, 0xe6, 0xd6, 0x2b, 0xe8, 0xea, 0x10, 0x5e, 0x81, 0xf9, 0x6e, 0x64, 0xe7, 0x9b, 0x26, 0xb7,
-	0x62, 0x41, 0x4f, 0x06, 0xb4, 0x7f, 0x22, 0x38, 0xa6, 0xf8, 0x80, 0x2e, 0x76, 0xe6, 0x6a, 0x97,
-	0x3a, 0x61, 0x30, 0x5c, 0xa1, 0xb3, 0x70, 0x48, 0x6e, 0x62, 0xaf, 0x9d, 0xfa, 0x7f, 0x60, 0x2a,
-	0xaa, 0x83, 0x52, 0x45, 0x75, 0x8c, 0x29, 0x22, 0xe9, 0x7b, 0x37, 0xaf, 0x08, 0x35, 0xd5, 0xa1,
-	0x3e, 0x43, 0x15, 0xb2, 0x0d, 0x35, 0x9b, 0x32, 0x94, 0xf6, 0x1e, 0x82, 0xb2, 0xa2, 0xe8, 0x2d,
-	0xe2, 0x58, 0xdb, 0x34, 0x08, 0xc7, 0xdd, 0x33, 0x34, 0xc5, 0x3d, 0xab, 0xc1, 0x52, 0xa4, 0xd5,
-	0x1d, 0x76, 0x1e, 0x59, 0xfc, 0x29, 0x17, 0xaa, 0xf9, 0x5a, 0x5e, 0xef, 0x1d, 0x66, 0x7b, 0x27,
-	0x65, 0x06, 0xe5, 0x59, 0xee, 0xc6, 0xc9, 0x80, 0xf6, 0x3c, 0xcc, 0x5f, 0xb3, 0x6c, 0xba, 0xb1,
-	0xd3, 0x71, 0x76, 0xf1, 0x61, 0x28, 0x18, 0xec, 0x83, 0xeb, 0xb0, 0xa0, 0x47, 0x84, 0xf6, 0x4d,
-	0x04, 0xcf, 0x0f, 0xd3, 0xfa, 0xbe, 0x15, 0xee, 0xb0, 0xf5, 0xc1, 0x30, 0xf5, 0x8d, 0x1d, 0x6a,
-	0xec, 0x06, 0x9d, 0xb6, 0x74, 0x59, 0x49, 0x4f, 0xa6, 0xbe, 0xf6, 0x13, 0x04, 0xb5, 0x91, 0x98,
-	0xee, 0xfb, 0xc4, 0xf3, 0xa8, 0x8f, 0xaf, 0x41, 0xe1, 0x01, 0xfb, 0x81, 0x1f, 0xd0, 0x52, 0xb3,
-	0x5e, 0x57, 0x03, 0xfc, 0x48, 0x2e, 0x37, 0x3e, 0xa4, 0x47, 0xcb, 0x71, 0x5d, 0x9a, 0x27, 0xc7,
-	0xf9, 0x2c, 0xa7, 0xf8, 0xc4, 0x56, 0x64, 0xf3, 0xf9, 0xb4, 0xcb, 0xb3, 0x30, 0xe3, 0x11, 0x3f,
-	0xd4, 0x8e, 0xc0, 0x33, 0xe9, 0xe3, 0xe1, 0xb9, 0x4e, 0x40, 0xb5, 0x5f, 0xa7, 0xbd, 0x69, 0xc3,
-	0xa7, 0x24, 0xa4, 0x3a, 0x7d, 0xd0, 0xa1, 0x41, 0x88, 0x77, 0x41, 0xcd, 0x39, 0xdc, 0xaa, 0xa5,
-	0xe6, 0xcd, 0x7a, 0x12, 0xb4, 0xeb, 0x32, 0x68, 0xf3, 0x8f, 0x2f, 0x18, 0x66, 0xbd, 0xdb, 0xac,
-	0x7b, 0xbb, 0xad, 0x3a, 0x4b, 0x01, 0x29, 0x64, 0x32, 0x05, 0xa8, 0xaa, 0xea, 0x2a, 0x77, 0xbc,
-	0x0c, 0xb3, 0x1d, 0x2f, 0xa0, 0x7e, 0xc8, 0x35, 0x2b, 0xea, 0x82, 0x62, 0xfb, 0xd7, 0x25, 0xb6,
-	0x65, 0x92, 0x30, 0xda, 0x9f, 0xa2, 0x1e, 0xd3, 0xda, 0x6f, 0xd2, 0xe8, 0xef, 0x79, 0xe6, 0x07,
-	0x85, 0x5e, 0x45, 0x99, 0x4b, 0xa3, 0x54, 0x3d, 0x28, 0x9f, 0xf6, 0xa0, 0x5f, 0xa4, 0xf1, 0x5f,
-	0xa1, 0x36, 0x4d, 0xf0, 0x0f, 0x72, 0xe6, 0x32, 0xcc, 0x19, 0x24, 0x30, 0x88, 0x29, 0xa5, 0x48,
-	0x92, 0x05, 0x32, 0xcf, 0x77, 0x3d, 0xd2, 0xe2, 0x9c, 0xee, 0xb8, 0xb6, 0x65, 0xec, 0x09, 0x71,
-	0xfd, 0x3f, 0xf4, 0x39, 0xfe, 0x4c, 0xb6, 0xe3, 0x17, 0xd2, 0xb0, 0x8f, 0x43, 0x69, 0x6b, 0xcf,
-	0x31, 0x5e, 0xf5, 0xa2, 0xc3, 0x7d, 0x18, 0x0a, 0x56, 0x48, 0xdb, 0x41, 0x19, 0xf1, 0x83, 0x1d,
-	0x11, 0xda, 0x7f, 0x0a, 0xb0, 0xac, 0xe8, 0xc6, 0x16, 0x64, 0x69, 0x96, 0x15, 0xa5, 0x96, 0x61,
-	0xd6, 0xf4, 0xf7, 0xf4, 0x8e, 0x23, 0x1c, 0x40, 0x50, 0x4c, 0xb0, 0xe7, 0x77, 0x9c, 0x08, 0x7e,
-	0x51, 0x8f, 0x08, 0xbc, 0x0d, 0xc5, 0x20, 0x64, 0x55, 0x46, 0x6b, 0x8f, 0x03, 0x2f, 0x35, 0x3f,
-	0x35, 0xd9, 0xa6, 0x33, 0xe8, 0x5b, 0x82, 0xa3, 0x1e, 0xf3, 0xc6, 0x0f, 0x58, 0x4c, 0x8b, 0x02,
-	0x5d, 0x50, 0x9e, 0xab, 0xe6, 0x6b, 0xa5, 0xe6, 0xd6, 0xe4, 0x82, 0x5e, 0xf5, 0x58, 0x85, 0xa4,
-	0x64, 0x30, 0x3d, 0x91, 0xc2, 0xc2, 0x68, 0x5b, 0xc4, 0x87, 0x40, 0x54, 0x03, 0xc9, 0x00, 0xfe,
-	0x1c, 0x14, 0x2c, 0x67, 0xdb, 0x0d, 0xca, 0xf3, 0x1c, 0xcc, 0xe5, 0xc9, 0xc0, 0xdc, 0x74, 0xb6,
-	0x5d, 0x3d, 0x62, 0x88, 0x1f, 0xc0, 0xa2, 0x4f, 0x43, 0x7f, 0x4f, 0x5a, 0xa1, 0x0c, 0xdc, 0xae,
-	0x9f, 0x9e, 0x4c, 0x82, 0xae, 0xb2, 0xd4, 0xd3, 0x12, 0xf0, 0x3a, 0x94, 0x82, 0xc4, 0xc7, 0xca,
-	0x25, 0x2e, 0xb0, 0x9c, 0x62, 0xa4, 0xf8, 0xa0, 0xae, 0x4e, 0xee, 0xf3, 0xee, 0x85, 0x6c, 0xef,
-	0x5e, 0x1c, 0x99, 0xd5, 0x0e, 0x8c, 0x91, 0xd5, 0x96, 0x7a, 0xb3, 0xda, 0xbf, 0x11, 0xac, 0xf4,
-	0x05, 0xa7, 0x2d, 0x8f, 0x66, 0x1e, 0x03, 0x02, 0x33, 0x81, 0x47, 0x0d, 0x9e, 0xa9, 0x4a, 0xcd,
-	0x5b, 0x53, 0x8b, 0x56, 0x5c, 0x2e, 0x67, 0x9d, 0x15, 0x50, 0x27, 0x8c, 0x0b, 0x3f, 0x40, 0xf0,
-	0x61, 0x45, 0xe6, 0x1d, 0x12, 0x1a, 0x3b, 0x59, 0xca, 0xb2, 0xf3, 0xcb, 0xe6, 0x88, 0xbc, 0x1c,
-	0x11, 0xcc, 0xaa, 0xfc, 0xe3, 0xee, 0x9e, 0xc7, 0x00, 0xb2, 0x5f, 0x92, 0x81, 0x09, 0x8b, 0xa7,
-	0x9f, 0x22, 0xa8, 0xa8, 0x31, 0xdc, 0xb5, 0xed, 0xd7, 0x89, 0xb1, 0x9b, 0x05, 0xf2, 0x00, 0xe4,
-	0x2c, 0x93, 0x23, 0xcc, 0xeb, 0x39, 0xcb, 0xdc, 0x67, 0x30, 0xea, 0x85, 0x3b, 0x9b, 0x0d, 0x77,
-	0x2e, 0x0d, 0xf7, 0xfd, 0x1e, 0xb8, 0x32, 0x24, 0x64, 0xc0, 0x5d, 0x81, 0x79, 0xa7, 0xa7, 0x90,
-	0x4d, 0x06, 0x06, 0x14, 0xb0, 0xb9, 0xbe, 0x02, 0xb6, 0x0c, 0x73, 0xdd, 0xf8, 0x9a, 0xc3, 0x7e,
-	0x96, 0x24, 0x53, 0xb1, 0xe5, 0xbb, 0x1d, 0x4f, 0x18, 0x3d, 0x22, 0x18, 0x8a, 0x5d, 0xcb, 0x61,
-	0x25, 0x39, 0x47, 0xc1, 0xbe, 0xf7, 0x7f, 0xb1, 0x49, 0xa9, 0xfd, 0xb3, 0x1c, 0x7c, 0x64, 0x80,
-	0xda, 0x23, 0xfd, 0xe9, 0xe9, 0xd0, 0x3d, 0xf6, 0xea, 0xb9, 0xa1, 0x5e, 0x5d, 0x1c, 0xe5, 0xd5,
-	0xf3, 0xd9, 0xf6, 0x82, 0xb4, 0xbd, 0x7e, 0x9c, 0x83, 0xea, 0x00, 0x7b, 0x8d, 0x2e, 0x27, 0x9e,
-	0x1a, 0x83, 0x6d, 0xbb, 0xbe, 0xf0, 0x92, 0xa2, 0x1e, 0x11, 0xec, 0x9c, 0xb9, 0xbe, 0xb7, 0x43,
-	0x1c, 0xee, 0x1d, 0x45, 0x5d, 0x50, 0x13, 0x9a, 0xea, 0x6b, 0x39, 0x28, 0x4b, 0xfb, 0x5c, 0x32,
-	0xb8, 0xb5, 0x3a, 0xce, 0xd3, 0x6f, 0xa2, 0x65, 0x98, 0x25, 0x1c, 0xad, 0x70, 0x2a, 0x41, 0xf5,
-	0x19, 0xa3, 0x98, 0x6d, 0x8c, 0xf9, 0xb4, 0x31, 0xde, 0x44, 0x70, 0x34, 0x6d, 0x8c, 0x60, 0xd3,
-	0x0a, 0x42, 0x79, 0x39, 0xc0, 0xdb, 0x30, 0x17, 0xc9, 0x89, 0x4a, 0xbb, 0x52, 0x73, 0x73, 0xd2,
-	0x84, 0x9f, 0x32, 0xbc, 0x64, 0xae, 0xbd, 0x08, 0x47, 0x07, 0x46, 0x39, 0x01, 0xa3, 0x02, 0x45,
-	0x59, 0xe4, 0x88, 0xad, 0x89, 0x69, 0xed, 0xcd, 0x99, 0x74, 0xca, 0x71, 0xcd, 0x4d, 0xb7, 0x95,
-	0x71, 0xdf, 0xcf, 0xde, 0x4e, 0x66, 0x2a, 0xd7, 0x54, 0xae, 0xf6, 0x92, 0x64, 0xeb, 0x0c, 0xd7,
-	0x09, 0x89, 0xe5, 0x50, 0x5f, 0x64, 0xc5, 0x64, 0x80, 0x6d, 0x43, 0x60, 0x39, 0x06, 0xdd, 0xa2,
-	0x86, 0xeb, 0x98, 0x01, 0xdf, 0xcf, 0xbc, 0x9e, 0x1a, 0xc3, 0x37, 0x60, 0x9e, 0xd3, 0x77, 0xad,
-	0x76, 0x94, 0x06, 0x4a, 0xcd, 0xd5, 0x7a, 0xd4, 0x83, 0xab, 0xab, 0x3d, 0xb8, 0xc4, 0x86, 0x6d,
-	0x1a, 0x92, 0x7a, 0xf7, 0x7c, 0x9d, 0xad, 0xd0, 0x93, 0xc5, 0x0c, 0x4b, 0x48, 0x2c, 0x7b, 0xd3,
-	0x72, 0x78, 0xe1, 0xc9, 0x44, 0x25, 0x03, 0xcc, 0x55, 0xb6, 0x5d, 0xdb, 0x76, 0x1f, 0xca, 0x73,
-	0x13, 0x51, 0x6c, 0x55, 0xc7, 0x09, 0x2d, 0x9b, 0xcb, 0x8f, 0x1c, 0x21, 0x19, 0xe0, 0xab, 0x2c,
-	0x3b, 0xa4, 0xbe, 0x38, 0x30, 0x82, 0x8a, 0x9d, 0xb1, 0x14, 0xb5, 0x95, 0xe4, 0x79, 0x8d, 0xdc,
-	0x76, 0x41, 0x75, 0xdb, 0xde, 0xa3, 0xb0, 0x38, 0xa0, 0x37, 0xc2, 0xbb, 0x6c, 0xb4, 0x6b, 0xb9,
-	0x1d, 0x56, 0x53, 0xf1, 0xd2, 0x43, 0xd2, 0x7d, 0xae, 0xbc, 0x94, 0xed, 0xca, 0x07, 0xd3, 0xae,
-	0xfc, 0x5b, 0x04, 0xc5, 0x4d, 0xb7, 0x75, 0xd5, 0x09, 0xfd, 0x3d, 0x7e, 0x4b, 0x72, 0x9d, 0x90,
-	0x3a, 0xd2, 0x5f, 0x24, 0xc9, 0x36, 0x21, 0xb4, 0xda, 0x74, 0x2b, 0x24, 0x6d, 0x4f, 0xd4, 0x58,
-	0xfb, 0xda, 0x84, 0x78, 0x31, 0x33, 0x8c, 0x4d, 0x82, 0x90, 0x9f, 0xf8, 0xa2, 0xce, 0xbf, 0x99,
-	0x0a, 0xf1, 0x84, 0xad, 0xd0, 0x17, 0xc7, 0x3d, 0x35, 0xa6, 0xba, 0x58, 0x21, 0xc2, 0x26, 0x48,
-	0xad, 0x0d, 0xcf, 0xc6, 0xc5, 0xff, 0x5d, 0xea, 0xb7, 0x2d, 0x87, 0x64, 0x47, 0xef, 0x31, 0xda,
-	0x7b, 0x19, 0x77, 0x4f, 0x37, 0x75, 0xe8, 0x58, 0x2d, 0x7d, 0xdf, 0x72, 0x4c, 0xf7, 0x61, 0xc6,
-	0xe1, 0x99, 0x4c, 0xe0, 0x5f, 0xd2, 0x1d, 0x3a, 0x45, 0x62, 0x7c, 0xd2, 0x6f, 0xc0, 0x22, 0x8b,
-	0x09, 0x5d, 0x2a, 0x7e, 0x10, 0x61, 0x47, 0x1b, 0xd6, 0x2c, 0x49, 0x78, 0xe8, 0xe9, 0x85, 0x78,
-	0x13, 0x96, 0x48, 0x10, 0x58, 0x2d, 0x87, 0x9a, 0x92, 0x57, 0x6e, 0x6c, 0x5e, 0xbd, 0x4b, 0xa3,
-	0x6b, 0x37, 0x9f, 0x21, 0xf6, 0x5b, 0x92, 0xda, 0x57, 0x11, 0x1c, 0x19, 0xc8, 0x24, 0x3e, 0x39,
-	0x48, 0x09, 0xe3, 0x15, 0x28, 0x06, 0xc6, 0x0e, 0x35, 0x3b, 0x36, 0x95, 0xbd, 0x28, 0x49, 0xb3,
-	0xdf, 0xcc, 0x4e, 0xb4, 0xfb, 0x22, 0x8d, 0xc4, 0x34, 0x3e, 0x06, 0xd0, 0x26, 0x4e, 0x87, 0xd8,
-	0x1c, 0xc2, 0x0c, 0x87, 0xa0, 0x8c, 0x68, 0x2b, 0x50, 0x19, 0xe4, 0x3a, 0xa2, 0xc7, 0xf3, 0x2f,
-	0x04, 0x07, 0x64, 0x50, 0x15, 0xbb, 0x5b, 0x83, 0x25, 0xc5, 0x0c, 0xb7, 0x93, 0x8d, 0xee, 0x1d,
-	0x1e, 0x11, 0x30, 0xa5, 0x97, 0xe4, 0xd3, 0x4d, 0xf6, 0x6e, 0xaa, 0x4d, 0x3e, 0x76, 0xbe, 0x43,
-	0x53, 0xaa, 0x1f, 0xbf, 0x02, 0xe5, 0x5b, 0xc4, 0x21, 0x2d, 0x6a, 0xc6, 0x6a, 0xc7, 0x2e, 0xf6,
-	0x45, 0xb5, 0x59, 0x31, 0x71, 0x6b, 0x20, 0x2e, 0xb5, 0xac, 0xed, 0x6d, 0xd9, 0xf8, 0xf0, 0xa1,
-	0xb8, 0x69, 0x39, 0xbb, 0xec, 0xfe, 0xcc, 0x34, 0x0e, 0xad, 0xd0, 0x96, 0xd6, 0x8d, 0x08, 0x7c,
-	0x10, 0xf2, 0x1d, 0xdf, 0x16, 0x1e, 0xc0, 0x3e, 0x71, 0x15, 0x4a, 0x26, 0x0d, 0x0c, 0xdf, 0xf2,
-	0xc4, 0xfe, 0xf3, 0xa6, 0xb1, 0x32, 0xc4, 0xf6, 0xc1, 0x32, 0x5c, 0x67, 0xc3, 0x26, 0x41, 0x20,
-	0x13, 0x50, 0x3c, 0xa0, 0xbd, 0x0c, 0x8b, 0x4c, 0x66, 0xa2, 0xe6, 0x99, 0xb4, 0x9a, 0x47, 0x52,
-	0xf0, 0x25, 0x3c, 0x89, 0x98, 0xc0, 0x33, 0x2c, 0xef, 0x5f, 0xf2, 0x3c, 0xc1, 0x64, 0xcc, 0x72,
-	0x28, 0x3f, 0x28, 0x7f, 0x0e, 0xec, 0x95, 0x36, 0xff, 0x76, 0x1c, 0xb0, 0x7a, 0x4e, 0xa8, 0xdf,
-	0xb5, 0x0c, 0x8a, 0xbf, 0x85, 0x60, 0x86, 0x89, 0xc6, 0xcf, 0x0d, 0x3b, 0x96, 0xdc, 0x5f, 0x2b,
-	0xd3, 0xbb, 0x08, 0x33, 0x69, 0xda, 0xca, 0x1b, 0x7f, 0xfd, 0xc7, 0xb7, 0x73, 0xcb, 0xf8, 0x30,
-	0x7f, 0x21, 0xeb, 0x9e, 0x57, 0x5f, 0xab, 0x02, 0xfc, 0x16, 0x02, 0x2c, 0xea, 0x20, 0xe5, 0x0d,
-	0x01, 0x9f, 0x19, 0x06, 0x71, 0xc0, 0x5b, 0x43, 0xe5, 0x39, 0x25, 0xab, 0xd4, 0x0d, 0xd7, 0xa7,
-	0x2c, 0x87, 0xf0, 0x09, 0x1c, 0xc0, 0x2a, 0x07, 0x70, 0x02, 0x6b, 0x83, 0x00, 0x34, 0x1e, 0x31,
-	0x8b, 0x3e, 0x6e, 0xd0, 0x48, 0xee, 0x3b, 0x08, 0x0a, 0xf7, 0xf9, 0x1d, 0x62, 0x84, 0x91, 0xb6,
-	0xa6, 0x66, 0x24, 0x2e, 0x8e, 0xa3, 0xd5, 0x8e, 0x73, 0xa4, 0xcf, 0xe1, 0xa3, 0x12, 0x69, 0x10,
-	0xfa, 0x94, 0xb4, 0x53, 0x80, 0xcf, 0x21, 0xfc, 0x2e, 0x82, 0xd9, 0xa8, 0x79, 0x8c, 0x4f, 0x0e,
-	0x43, 0x99, 0x6a, 0x2e, 0x57, 0xa6, 0xd7, 0x89, 0xd5, 0x4e, 0x73, 0x8c, 0xc7, 0xb5, 0x81, 0xdb,
-	0xb9, 0x9e, 0xea, 0xd3, 0xbe, 0x8d, 0x20, 0x7f, 0x9d, 0x8e, 0xf4, 0xb7, 0x29, 0x82, 0xeb, 0x33,
-	0xe0, 0x80, 0xad, 0xc6, 0x3f, 0x42, 0xf0, 0xec, 0x75, 0x1a, 0x0e, 0x4e, 0x8f, 0xb8, 0x36, 0x3a,
-	0x67, 0x09, 0xb7, 0x3b, 0x33, 0xc6, 0xcc, 0x38, 0x2f, 0x34, 0x38, 0xb2, 0xd3, 0xf8, 0x54, 0x96,
-	0x13, 0x06, 0x7b, 0x8e, 0xf1, 0x50, 0xe0, 0xf8, 0x13, 0x82, 0x83, 0xbd, 0x6f, 0x85, 0x38, 0x9d,
-	0x50, 0x07, 0x3e, 0x25, 0x56, 0x6e, 0x4f, 0x1a, 0x65, 0xd3, 0x4c, 0xb5, 0x4b, 0x1c, 0xf9, 0x4b,
-	0xf8, 0xc5, 0x2c, 0xe4, 0x71, 0x27, 0xae, 0xf1, 0x48, 0x7e, 0x3e, 0xe6, 0xef, 0xda, 0x1c, 0xf6,
-	0x9f, 0x11, 0x1c, 0x96, 0x7c, 0x37, 0x76, 0x88, 0x1f, 0x5e, 0xa1, 0xac, 0x86, 0x0e, 0xc6, 0xd2,
-	0x67, 0xc2, 0xac, 0xa1, 0xca, 0xd3, 0xae, 0x72, 0x5d, 0x3e, 0x81, 0x5f, 0xd9, 0xb7, 0x2e, 0x06,
-	0x63, 0x63, 0x0a, 0xd8, 0x6f, 0x20, 0x58, 0xb8, 0x4e, 0xc3, 0x5b, 0x71, 0x37, 0xf8, 0xe4, 0x58,
-	0x2f, 0x4c, 0x95, 0x95, 0xba, 0xf2, 0x9c, 0x2e, 0x7f, 0x8a, 0x5d, 0x64, 0x8d, 0x83, 0x3b, 0x85,
-	0x4f, 0x66, 0x81, 0x4b, 0x3a, 0xd0, 0xef, 0x20, 0x38, 0xa2, 0x82, 0x48, 0x5e, 0xe6, 0x3e, 0xb6,
-	0xbf, 0xf7, 0x2e, 0xf1, 0x6a, 0x36, 0x02, 0x5d, 0x93, 0xa3, 0x3b, 0xab, 0x0d, 0x76, 0xe0, 0x76,
-	0x1f, 0x8a, 0x75, 0xb4, 0x5a, 0x43, 0xf8, 0x77, 0x08, 0x66, 0xa3, 0x66, 0xec, 0x70, 0x1b, 0xa5,
-	0x5e, 0x92, 0xa6, 0x19, 0x0d, 0xc4, 0x6e, 0x57, 0xce, 0x0d, 0x36, 0xa8, 0xba, 0x5e, 0xba, 0x6a,
-	0x9d, 0x5b, 0x39, 0x1d, 0xc6, 0x7e, 0x89, 0x00, 0x92, 0x86, 0x32, 0x3e, 0x9d, 0xad, 0x87, 0xd2,
-	0x74, 0xae, 0x4c, 0xb7, 0xa5, 0xac, 0xd5, 0xb9, 0x3e, 0xb5, 0x4a, 0x35, 0x33, 0x86, 0x78, 0xd4,
-	0x58, 0x8f, 0x9a, 0xcf, 0x3f, 0x44, 0x50, 0xe0, 0x7d, 0x3c, 0x7c, 0x62, 0x18, 0x66, 0xb5, 0xcd,
-	0x37, 0x4d, 0xd3, 0xbf, 0xc0, 0xa1, 0x56, 0x9b, 0x59, 0x81, 0x78, 0x1d, 0xad, 0xe2, 0x2e, 0xcc,
-	0x46, 0x9d, 0xb3, 0xe1, 0xee, 0x91, 0xea, 0xac, 0x55, 0xaa, 0x19, 0x85, 0x41, 0xe4, 0xa8, 0x22,
-	0x07, 0xac, 0x8e, 0xca, 0x01, 0x33, 0x2c, 0x4c, 0xe3, 0xe3, 0x59, 0x41, 0xfc, 0xff, 0x60, 0x98,
-	0x33, 0x1c, 0xdd, 0x49, 0xad, 0x3a, 0x2a, 0x0f, 0x30, 0xeb, 0x7c, 0x07, 0xc1, 0xc1, 0xde, 0xe2,
-	0x1a, 0x1f, 0xed, 0x89, 0x99, 0xea, 0x5d, 0xa3, 0x92, 0xb6, 0xe2, 0xb0, 0xc2, 0x5c, 0xfb, 0x24,
-	0x47, 0xb1, 0x8e, 0x2f, 0x8e, 0x3c, 0x19, 0xb7, 0x65, 0xd4, 0x61, 0x8c, 0xd6, 0x92, 0xd7, 0xb1,
-	0x5f, 0x21, 0x58, 0x90, 0x7c, 0xef, 0xfa, 0x94, 0x66, 0xc3, 0x9a, 0xde, 0x41, 0x60, 0xb2, 0xb4,
-	0x97, 0x39, 0xfc, 0x8f, 0xe3, 0x0b, 0x63, 0xc2, 0x97, 0xb0, 0xd7, 0x42, 0x86, 0xf4, 0x0f, 0x08,
-	0x0e, 0xdd, 0x8f, 0xfc, 0xfe, 0x03, 0xc2, 0xbf, 0xc1, 0xf1, 0xbf, 0x82, 0x5f, 0xca, 0xa8, 0xf3,
-	0x46, 0xa9, 0x71, 0x0e, 0xe1, 0x9f, 0x23, 0x28, 0xca, 0x57, 0x15, 0x7c, 0x6a, 0xe8, 0xc1, 0x48,
-	0xbf, 0xbb, 0x4c, 0xd3, 0x99, 0x45, 0x51, 0xa3, 0x9d, 0xc8, 0x4c, 0xa7, 0x42, 0x3e, 0x73, 0xe8,
-	0xb7, 0x11, 0xe0, 0xf8, 0xce, 0x1c, 0xdf, 0xa2, 0xf1, 0x0b, 0x29, 0x51, 0x43, 0x1b, 0x33, 0x95,
-	0x53, 0x23, 0xe7, 0xa5, 0x53, 0xe9, 0x6a, 0x66, 0x2a, 0x75, 0x63, 0xf9, 0x5f, 0x47, 0x50, 0xba,
-	0x4e, 0xe3, 0x3b, 0x48, 0x86, 0x2d, 0xd3, 0x8f, 0x42, 0x95, 0xda, 0xe8, 0x89, 0x02, 0xd1, 0x59,
-	0x8e, 0xe8, 0x05, 0x9c, 0x6d, 0x2a, 0x09, 0xe0, 0x7b, 0x08, 0x16, 0xef, 0xa8, 0x2e, 0x8a, 0xcf,
-	0x8e, 0x92, 0x94, 0x8a, 0xe4, 0xe3, 0xe3, 0xfa, 0x28, 0xc7, 0xb5, 0xa6, 0x8d, 0x85, 0x6b, 0x5d,
-	0xbc, 0xaf, 0x7c, 0x1f, 0x45, 0x97, 0xd8, 0x9e, 0x7e, 0xf6, 0xff, 0x6a, 0xb7, 0x8c, 0xb6, 0xb8,
-	0x76, 0x81, 0xe3, 0xab, 0xe3, 0xb3, 0xe3, 0xe0, 0x6b, 0x88, 0x26, 0x37, 0xfe, 0x2e, 0x82, 0x43,
-	0xfc, 0xad, 0x41, 0x65, 0xdc, 0x93, 0x62, 0x86, 0xbd, 0x4c, 0x8c, 0x91, 0x62, 0x44, 0xfc, 0xd1,
-	0xf6, 0x05, 0x6a, 0x5d, 0xbe, 0x23, 0x7c, 0x03, 0xc1, 0x01, 0x99, 0xd4, 0xc4, 0xee, 0xae, 0x8d,
-	0x32, 0xdc, 0x7e, 0x93, 0xa0, 0x70, 0xb7, 0xd5, 0xf1, 0xdc, 0xed, 0x5d, 0x04, 0x73, 0xa2, 0x9b,
-	0x9f, 0x51, 0x2a, 0x28, 0xed, 0xfe, 0x4a, 0x4f, 0x8f, 0x43, 0x34, 0x83, 0xb5, 0xcf, 0x73, 0xb1,
-	0xf7, 0x70, 0x23, 0x4b, 0xac, 0xe7, 0x9a, 0x41, 0xe3, 0x91, 0xe8, 0xc4, 0x3e, 0x6e, 0xd8, 0x6e,
-	0x2b, 0x78, 0x4d, 0xc3, 0x99, 0x09, 0x91, 0xcd, 0x39, 0x87, 0x70, 0x08, 0xf3, 0xcc, 0x39, 0x78,
-	0xe3, 0x04, 0x57, 0x7b, 0xda, 0x2c, 0x7d, 0x3d, 0x95, 0x4a, 0xa5, 0xaf, 0x11, 0x93, 0x64, 0x40,
-	0x71, 0x8d, 0xc5, 0xcf, 0x67, 0x8a, 0xe5, 0x82, 0xde, 0x42, 0x70, 0x48, 0xf5, 0xf6, 0x48, 0xfc,
-	0xd8, 0xbe, 0x9e, 0x85, 0x42, 0x14, 0xd5, 0x78, 0x75, 0x2c, 0x47, 0xe2, 0x70, 0x2e, 0x5f, 0xfb,
-	0xe3, 0x93, 0x63, 0xe8, 0xbd, 0x27, 0xc7, 0xd0, 0xdf, 0x9f, 0x1c, 0x43, 0xaf, 0x5d, 0x1c, 0xef,
-	0x3f, 0xc2, 0x86, 0x6d, 0x51, 0x27, 0x54, 0xd9, 0xff, 0x37, 0x00, 0x00, 0xff, 0xff, 0x45, 0x63,
-	0x3b, 0x00, 0x09, 0x2d, 0x00, 0x00,
+	// 2712 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x5a, 0x4d, 0x8c, 0x1c, 0x47,
+	0xf5, 0xff, 0xd7, 0xce, 0xce, 0xec, 0xec, 0x9b, 0x5d, 0xaf, 0x5d, 0xb1, 0xf7, 0x3f, 0x19, 0x6f,
+	0xcc, 0xa4, 0x6d, 0xc7, 0x93, 0xb5, 0x77, 0xc6, 0xde, 0x04, 0xe4, 0x6c, 0x12, 0x81, 0xbd, 0xfe,
+	0x84, 0xb5, 0x63, 0x7a, 0x6d, 0x8c, 0xc2, 0x01, 0xca, 0xdd, 0xb5, 0xb3, 0xcd, 0xce, 0x74, 0xb7,
+	0xbb, 0x7b, 0xc6, 0xac, 0x8c, 0x2f, 0x41, 0xb9, 0xa0, 0x08, 0x04, 0xe4, 0x80, 0x10, 0x02, 0x14,
+	0x14, 0x09, 0x21, 0x10, 0x17, 0x84, 0x90, 0x10, 0x12, 0x1c, 0x40, 0x70, 0x40, 0x8a, 0xe0, 0xc8,
+	0x05, 0x59, 0x88, 0x23, 0x5c, 0x72, 0x46, 0xa8, 0xaa, 0xab, 0xba, 0xab, 0xe6, 0xa3, 0x67, 0x96,
+	0x59, 0x64, 0xdf, 0xfa, 0xd5, 0x54, 0xbd, 0xf7, 0x7b, 0xaf, 0x5e, 0xbd, 0xf7, 0xea, 0xd5, 0xc0,
+	0x89, 0x90, 0x06, 0x5d, 0x1a, 0x34, 0x88, 0xef, 0xb7, 0x1c, 0x8b, 0x44, 0x8e, 0xe7, 0xaa, 0xdf,
+	0x75, 0x3f, 0xf0, 0x22, 0x0f, 0x97, 0x94, 0xa1, 0xca, 0x52, 0xd3, 0xf3, 0x9a, 0x2d, 0xda, 0x20,
+	0xbe, 0xd3, 0x20, 0xae, 0xeb, 0x45, 0x7c, 0x38, 0x8c, 0xa7, 0x56, 0x8c, 0x9d, 0xf3, 0x61, 0xdd,
+	0xf1, 0xf8, 0xaf, 0x96, 0x17, 0xd0, 0x46, 0xf7, 0x5c, 0xa3, 0x49, 0x5d, 0x1a, 0x90, 0x88, 0xda,
+	0x62, 0xce, 0xcb, 0xe9, 0x9c, 0x36, 0xb1, 0xb6, 0x1d, 0x97, 0x06, 0xbb, 0x0d, 0x7f, 0xa7, 0xc9,
+	0x06, 0xc2, 0x46, 0x9b, 0x46, 0x64, 0xd0, 0xaa, 0x8d, 0xa6, 0x13, 0x6d, 0x77, 0xee, 0xd5, 0x2d,
+	0xaf, 0xdd, 0x20, 0x41, 0xd3, 0xf3, 0x03, 0xef, 0x8b, 0xfc, 0x63, 0xc5, 0xb2, 0x1b, 0xdd, 0xd5,
+	0x94, 0x81, 0xaa, 0x4b, 0xf7, 0x1c, 0x69, 0xf9, 0xdb, 0xa4, 0x9f, 0xdb, 0xe5, 0x11, 0xdc, 0x02,
+	0xea, 0x7b, 0xc2, 0x36, 0xfc, 0xd3, 0x89, 0xbc, 0x60, 0x57, 0xf9, 0x8c, 0xd9, 0x18, 0x1f, 0x22,
+	0x38, 0x78, 0x21, 0x95, 0xf7, 0xe9, 0x0e, 0x0d, 0x76, 0x31, 0x86, 0x69, 0x97, 0xb4, 0x69, 0x19,
+	0x55, 0x51, 0x6d, 0xd6, 0xe4, 0xdf, 0xb8, 0x0c, 0x33, 0x01, 0xdd, 0x0a, 0x68, 0xb8, 0x5d, 0x9e,
+	0xe2, 0xc3, 0x92, 0xc4, 0x15, 0x28, 0x32, 0xe1, 0xd4, 0x8a, 0xc2, 0x72, 0xae, 0x9a, 0xab, 0xcd,
+	0x9a, 0x09, 0x8d, 0x6b, 0xb0, 0x10, 0xd0, 0xd0, 0xeb, 0x04, 0x16, 0xfd, 0x0c, 0x0d, 0x42, 0xc7,
+	0x73, 0xcb, 0xd3, 0x7c, 0x75, 0xef, 0x30, 0xe3, 0x12, 0xd2, 0x16, 0xb5, 0x22, 0x2f, 0x28, 0xe7,
+	0xf9, 0x94, 0x84, 0x66, 0x78, 0x18, 0xf0, 0x72, 0x21, 0xc6, 0xc3, 0xbe, 0xb1, 0x01, 0x73, 0xc4,
+	0xf7, 0x6f, 0x92, 0x36, 0x0d, 0x7d, 0x62, 0xd1, 0xf2, 0x0c, 0xff, 0x4d, 0x1b, 0x63, 0x98, 0x05,
+	0x92, 0x72, 0x91, 0x03, 0x93, 0xa4, 0xb1, 0x0e, 0xb3, 0x37, 0x3d, 0x9b, 0x0e, 0x57, 0xb7, 0x97,
+	0xfd, 0x54, 0x3f, 0x7b, 0xe3, 0x77, 0x08, 0x8e, 0x98, 0xb4, 0xeb, 0x30, 0xfc, 0x37, 0x68, 0x44,
+	0x6c, 0x12, 0x91, 0xe1, 0x1c, 0x2b, 0x50, 0x0c, 0xc4, 0x64, 0xc1, 0x2d, 0xa1, 0xfb, 0xa4, 0xe5,
+	0xb2, 0x95, 0x89, 0x4d, 0x28, 0x49, 0x5c, 0x85, 0x52, 0x6c, 0xcb, 0xeb, 0xae, 0x4d, 0xbf, 0xc4,
+	0xad, 0x97, 0x37, 0xd5, 0x21, 0xbc, 0x04, 0xb3, 0xdd, 0xd8, 0xce, 0xd7, 0x6d, 0x6e, 0xc5, 0xbc,
+	0x99, 0x0e, 0x18, 0xff, 0x40, 0x70, 0x4c, 0xf1, 0x01, 0x53, 0xec, 0xcc, 0xe5, 0x2e, 0x75, 0xa3,
+	0x70, 0xb8, 0x42, 0x67, 0xe0, 0x90, 0xdc, 0xc4, 0x5e, 0x3b, 0xf5, 0xff, 0xc0, 0x54, 0x54, 0x07,
+	0xa5, 0x8a, 0xea, 0x18, 0x53, 0x44, 0xd2, 0x77, 0xae, 0x5f, 0x12, 0x6a, 0xaa, 0x43, 0x7d, 0x86,
+	0xca, 0x67, 0x1b, 0xaa, 0xa0, 0x19, 0xca, 0xf8, 0x00, 0x41, 0x59, 0x51, 0xf4, 0x06, 0x71, 0x9d,
+	0x2d, 0x1a, 0x46, 0x4f, 0x62, 0xcf, 0x6a, 0xb0, 0x10, 0x6b, 0x75, 0x8b, 0x9d, 0x47, 0x16, 0x7f,
+	0xca, 0xf9, 0x6a, 0xae, 0x96, 0x33, 0x7b, 0x87, 0xd9, 0xde, 0x49, 0x99, 0x61, 0xb9, 0xc0, 0xdd,
+	0x38, 0x1d, 0x30, 0x9e, 0x87, 0xd9, 0x2b, 0x4e, 0x8b, 0xae, 0x6f, 0x77, 0xdc, 0x1d, 0x7c, 0x18,
+	0xf2, 0x16, 0xfb, 0xe0, 0x3a, 0xcc, 0x99, 0x31, 0x61, 0x7c, 0x03, 0xc1, 0xf3, 0xc3, 0xb4, 0xbe,
+	0xeb, 0x44, 0xdb, 0x6c, 0x7d, 0x38, 0x4c, 0x7d, 0x6b, 0x9b, 0x5a, 0x3b, 0x61, 0xa7, 0x2d, 0xd5,
+	0x97, 0xf4, 0x64, 0xea, 0x1b, 0x3f, 0x46, 0x50, 0x1b, 0x89, 0xe9, 0x6e, 0x40, 0x7c, 0x9f, 0x06,
+	0xf8, 0x0a, 0xe4, 0xef, 0xb3, 0x1f, 0x38, 0xb6, 0xd2, 0x6a, 0xbd, 0xae, 0x06, 0xf8, 0x91, 0x5c,
+	0xae, 0xfd, 0x9f, 0x19, 0x2f, 0xc7, 0x75, 0x69, 0x9e, 0x29, 0xce, 0x67, 0x51, 0xe3, 0x93, 0x58,
+	0x91, 0xcd, 0xe7, 0xd3, 0x2e, 0x16, 0x60, 0xda, 0x27, 0x41, 0x64, 0x1c, 0x81, 0x67, 0xf4, 0xe3,
+	0xe1, 0x7b, 0x6e, 0x48, 0x8d, 0x5f, 0xe9, 0xde, 0xb4, 0x1e, 0x50, 0x12, 0x51, 0x93, 0xde, 0xef,
+	0xd0, 0x30, 0xc2, 0x3b, 0xa0, 0xe6, 0x1c, 0x81, 0xfc, 0x7a, 0x3d, 0x0d, 0xda, 0x75, 0x19, 0xb4,
+	0xf9, 0xc7, 0xe7, 0x2d, 0xbb, 0xde, 0x5d, 0xad, 0xfb, 0x3b, 0xcd, 0x3a, 0x4b, 0x01, 0x1a, 0x32,
+	0x99, 0x02, 0x54, 0x55, 0x4d, 0x95, 0x3b, 0x5e, 0x84, 0x42, 0xc7, 0x0f, 0x69, 0x10, 0x71, 0xcd,
+	0x8a, 0xa6, 0xa0, 0xd8, 0xfe, 0x75, 0x49, 0xcb, 0xb1, 0x49, 0x14, 0xef, 0x4f, 0xd1, 0x4c, 0x68,
+	0xe3, 0xd7, 0x3a, 0xfa, 0x3b, 0xbe, 0xfd, 0xa4, 0xd0, 0xab, 0x28, 0xa7, 0x74, 0x94, 0xaa, 0x07,
+	0xe5, 0x74, 0x0f, 0xfa, 0xb9, 0x8e, 0xff, 0x12, 0x6d, 0xd1, 0x14, 0xff, 0x90, 0x04, 0x66, 0x91,
+	0xd0, 0x22, 0xb6, 0x94, 0x22, 0x49, 0x16, 0xc8, 0xfc, 0xc0, 0xf3, 0x49, 0x93, 0x73, 0xba, 0xe5,
+	0xb5, 0x1c, 0x6b, 0x57, 0x88, 0xeb, 0xff, 0xa1, 0xcf, 0xf1, 0xa7, 0xb3, 0x1d, 0x3f, 0xaf, 0xc3,
+	0x3e, 0x0e, 0xa5, 0xcd, 0x5d, 0xd7, 0x7a, 0xc3, 0x8f, 0x0f, 0xf7, 0x61, 0xc8, 0x3b, 0x11, 0x6d,
+	0x87, 0x65, 0xc4, 0x0f, 0x76, 0x4c, 0x18, 0xff, 0xce, 0xc3, 0xa2, 0xa2, 0x1b, 0x5b, 0x90, 0xa5,
+	0x59, 0x56, 0x94, 0x5a, 0x84, 0x82, 0x1d, 0xec, 0x9a, 0x1d, 0x57, 0x38, 0x80, 0xa0, 0x98, 0x60,
+	0x3f, 0xe8, 0xb8, 0x31, 0xfc, 0xa2, 0x19, 0x13, 0x78, 0x0b, 0x8a, 0x61, 0xc4, 0xaa, 0x8c, 0xe6,
+	0x2e, 0x07, 0x5e, 0x5a, 0xfd, 0xe4, 0x64, 0x9b, 0xce, 0xa0, 0x6f, 0x0a, 0x8e, 0x66, 0xc2, 0x1b,
+	0xdf, 0x67, 0x31, 0x2d, 0x0e, 0x74, 0x61, 0x79, 0xa6, 0x9a, 0xab, 0x95, 0x56, 0x37, 0x27, 0x17,
+	0xf4, 0x86, 0xcf, 0x2a, 0x24, 0x25, 0x83, 0x99, 0xa9, 0x14, 0x16, 0x46, 0xdb, 0x22, 0x3e, 0x84,
+	0xa2, 0x1a, 0x48, 0x07, 0xf0, 0x67, 0x21, 0xef, 0xb8, 0x5b, 0x5e, 0x58, 0x9e, 0xe5, 0x60, 0x2e,
+	0x4e, 0x06, 0xe6, 0xba, 0xbb, 0xe5, 0x99, 0x31, 0x43, 0x7c, 0x1f, 0xe6, 0x03, 0x1a, 0x05, 0xbb,
+	0xd2, 0x0a, 0x65, 0xe0, 0x76, 0xfd, 0xd4, 0x64, 0x12, 0x4c, 0x95, 0xa5, 0xa9, 0x4b, 0xc0, 0x6b,
+	0x50, 0x0a, 0x53, 0x1f, 0x2b, 0x97, 0xb8, 0xc0, 0xb2, 0xc6, 0x48, 0xf1, 0x41, 0x53, 0x9d, 0xdc,
+	0xe7, 0xdd, 0x73, 0xd9, 0xde, 0x3d, 0x3f, 0x32, 0xab, 0x1d, 0x18, 0x23, 0xab, 0x2d, 0xf4, 0x66,
+	0xb5, 0x7f, 0x21, 0x58, 0xea, 0x0b, 0x4e, 0x9b, 0x3e, 0xcd, 0x3c, 0x06, 0x04, 0xa6, 0x43, 0x9f,
+	0x5a, 0x22, 0xba, 0xdf, 0xd8, 0xb7, 0x68, 0xc5, 0xe5, 0x72, 0xd6, 0x59, 0x01, 0x75, 0xc2, 0xb8,
+	0xf0, 0x7d, 0x04, 0xff, 0xaf, 0xc8, 0xbc, 0x45, 0x22, 0x6b, 0x3b, 0x4b, 0x59, 0x76, 0x7e, 0xd9,
+	0x1c, 0x71, 0xe0, 0x63, 0x82, 0x59, 0x95, 0x7f, 0xdc, 0xde, 0xf5, 0x65, 0x46, 0x4e, 0x07, 0x26,
+	0x2c, 0x9e, 0x7e, 0x82, 0xa0, 0xa2, 0xc6, 0x70, 0xaf, 0xd5, 0xba, 0x47, 0xac, 0x9d, 0x2c, 0x90,
+	0x07, 0x60, 0xca, 0xb1, 0x39, 0xc2, 0x9c, 0x39, 0xe5, 0xd8, 0x7b, 0x0c, 0x46, 0xbd, 0x70, 0x0b,
+	0xd9, 0x70, 0x67, 0x74, 0xb8, 0x1f, 0xf6, 0xc0, 0x95, 0x21, 0x21, 0x03, 0xee, 0x12, 0xcc, 0xba,
+	0x3d, 0x85, 0x6c, 0x3a, 0x30, 0x56, 0x01, 0x5b, 0x86, 0x99, 0xae, 0x76, 0xcd, 0x91, 0x24, 0x53,
+	0xb1, 0x19, 0x78, 0x1d, 0x5f, 0x18, 0x3d, 0x26, 0x18, 0x8a, 0x1d, 0xc7, 0xb5, 0xe5, 0xc5, 0x86,
+	0x7d, 0xef, 0xfd, 0x62, 0xa3, 0xa9, 0xfd, 0xd3, 0x29, 0xf8, 0xc8, 0x00, 0xb5, 0x47, 0xfa, 0xd3,
+	0xd3, 0xa1, 0x7b, 0xe2, 0xd5, 0x33, 0x43, 0xbd, 0xba, 0x38, 0xca, 0xab, 0x67, 0xb3, 0xed, 0x05,
+	0xba, 0xbd, 0x7e, 0x34, 0x05, 0xd5, 0x01, 0xf6, 0x1a, 0x5d, 0x4e, 0x3c, 0x35, 0x06, 0xdb, 0xf2,
+	0x02, 0xe1, 0x25, 0x45, 0x33, 0x26, 0xd8, 0x39, 0xf3, 0x02, 0x7f, 0x9b, 0xb8, 0xdc, 0x5a, 0x45,
+	0x53, 0x50, 0x13, 0x9a, 0xea, 0xab, 0x53, 0x50, 0x96, 0xf6, 0xb9, 0x60, 0x71, 0x6b, 0x75, 0xdc,
+	0xa7, 0xdf, 0x44, 0x8b, 0x50, 0x20, 0x1c, 0xad, 0x70, 0x2a, 0x41, 0xf5, 0x19, 0xa3, 0x98, 0x6d,
+	0x8c, 0x59, 0xdd, 0x18, 0x6f, 0x23, 0x38, 0xaa, 0x1b, 0x23, 0xdc, 0x70, 0xc2, 0x48, 0x5e, 0x0e,
+	0xf0, 0x16, 0xcc, 0xc4, 0x72, 0xe2, 0xd2, 0xae, 0xb4, 0xba, 0x31, 0x69, 0xc2, 0xd7, 0x0c, 0x2f,
+	0x99, 0x1b, 0xaf, 0xc0, 0xd1, 0x81, 0x51, 0x4e, 0xc0, 0xa8, 0x40, 0x51, 0x16, 0x39, 0x62, 0x6b,
+	0x12, 0xda, 0x78, 0x7b, 0x5a, 0x4f, 0x39, 0x9e, 0xbd, 0xe1, 0x35, 0x33, 0xee, 0xfb, 0xd9, 0xdb,
+	0xc9, 0x4c, 0xe5, 0xd9, 0xca, 0x4e, 0x4a, 0x92, 0xad, 0xb3, 0x3c, 0x37, 0x22, 0x8e, 0x4b, 0x03,
+	0xb1, 0x8d, 0xe9, 0x00, 0xdb, 0x86, 0xd0, 0x71, 0x2d, 0xba, 0x49, 0x2d, 0xcf, 0xb5, 0x43, 0xbe,
+	0x9f, 0x39, 0x53, 0x1b, 0xc3, 0xd7, 0x60, 0x96, 0xd3, 0xb7, 0x9d, 0x76, 0x9c, 0x06, 0x4a, 0xab,
+	0xcb, 0xf5, 0xb8, 0x07, 0x57, 0x57, 0x7b, 0x70, 0xa9, 0x0d, 0xdb, 0x34, 0x22, 0xf5, 0xee, 0xb9,
+	0x3a, 0x5b, 0x61, 0xa6, 0x8b, 0x19, 0x96, 0x88, 0x38, 0xad, 0x0d, 0xc7, 0xe5, 0x85, 0x27, 0x13,
+	0x95, 0x0e, 0x30, 0x57, 0xd9, 0xf2, 0x5a, 0x2d, 0xef, 0x81, 0x3c, 0x37, 0x31, 0xc5, 0x56, 0x75,
+	0xdc, 0xc8, 0x69, 0x71, 0xf9, 0xb1, 0x23, 0xa4, 0x03, 0x7c, 0x95, 0xd3, 0x8a, 0x68, 0x20, 0x0e,
+	0x8c, 0xa0, 0x12, 0x67, 0x2c, 0xe9, 0xe7, 0x35, 0x76, 0xdb, 0x39, 0xd5, 0x6d, 0x7b, 0x8f, 0xc2,
+	0xfc, 0x80, 0xa3, 0xc0, 0xbb, 0x6c, 0xb4, 0xeb, 0x78, 0x1d, 0x56, 0x53, 0xf1, 0xd2, 0x43, 0xd2,
+	0x7d, 0xae, 0xbc, 0x90, 0xed, 0xca, 0x07, 0x75, 0x57, 0xfe, 0x0d, 0x82, 0xe2, 0x86, 0xd7, 0xbc,
+	0xec, 0x46, 0xc1, 0x2e, 0xbf, 0x25, 0x79, 0x6e, 0x44, 0x5d, 0xe9, 0x2f, 0x92, 0x64, 0x9b, 0x10,
+	0x39, 0x6d, 0xba, 0x19, 0x91, 0xb6, 0x2f, 0x6a, 0xac, 0x3d, 0x6d, 0x42, 0xb2, 0x98, 0x19, 0xa6,
+	0x45, 0xc2, 0x48, 0x14, 0x01, 0xfc, 0x9b, 0xa9, 0x90, 0x4c, 0xd8, 0x8c, 0xa4, 0x9f, 0x68, 0x63,
+	0xaa, 0x8b, 0xe5, 0x35, 0x17, 0x33, 0xda, 0xf0, 0x6c, 0x52, 0xfc, 0xdf, 0xa6, 0x41, 0xdb, 0x71,
+	0x49, 0x76, 0xf4, 0x1e, 0xa3, 0xbd, 0x97, 0x71, 0xf7, 0xf4, 0xb4, 0x43, 0xc7, 0x6a, 0xe9, 0xbb,
+	0x8e, 0x6b, 0x7b, 0x0f, 0xc2, 0x89, 0xfa, 0x89, 0x19, 0x02, 0xff, 0xac, 0x77, 0xe8, 0x14, 0x89,
+	0xc9, 0x49, 0xbf, 0x06, 0xf3, 0x2c, 0x26, 0x74, 0xa9, 0xf8, 0x41, 0x84, 0x1d, 0x63, 0x58, 0xb3,
+	0x24, 0xe5, 0x61, 0xea, 0x0b, 0xf1, 0x06, 0x2c, 0x90, 0x30, 0x74, 0x9a, 0x2e, 0xb5, 0x25, 0xaf,
+	0xa9, 0xb1, 0x79, 0xf5, 0x2e, 0x8d, 0xaf, 0xdd, 0x7c, 0x86, 0xd8, 0x6f, 0x49, 0x1a, 0x5f, 0x41,
+	0x70, 0x64, 0x20, 0x93, 0xe4, 0xe4, 0x20, 0xe5, 0xe4, 0x54, 0xa0, 0x18, 0x5a, 0xdb, 0xd4, 0xee,
+	0xb4, 0xa4, 0xf1, 0x12, 0x9a, 0xfd, 0x66, 0x77, 0xe2, 0xdd, 0x17, 0x96, 0x4b, 0x68, 0x7c, 0x0c,
+	0xa0, 0x4d, 0xdc, 0x0e, 0x69, 0x71, 0x08, 0x71, 0x81, 0xa9, 0x8c, 0x18, 0x4b, 0x50, 0x19, 0xe4,
+	0x3a, 0xa2, 0xc7, 0xf3, 0x4f, 0x04, 0x07, 0x64, 0x50, 0x15, 0xbb, 0x5b, 0x83, 0x05, 0xc5, 0x0c,
+	0x37, 0xd3, 0x8d, 0xee, 0x1d, 0x1e, 0x11, 0x30, 0xa5, 0x97, 0xe4, 0xf4, 0x1e, 0xc5, 0x13, 0xae,
+	0x1f, 0xbf, 0x0c, 0xe5, 0x1b, 0xc4, 0x25, 0x4d, 0x6a, 0x27, 0x6a, 0x27, 0x2e, 0xf6, 0x05, 0xb5,
+	0x59, 0x31, 0x71, 0x6b, 0x20, 0x29, 0xb5, 0x9c, 0xad, 0x2d, 0xd9, 0xf8, 0x08, 0xa0, 0xb8, 0xe1,
+	0xb8, 0x3b, 0xec, 0xfe, 0xcc, 0x34, 0x8e, 0x9c, 0xa8, 0x25, 0xad, 0x1b, 0x13, 0xf8, 0x20, 0xe4,
+	0x3a, 0x41, 0x4b, 0x58, 0x93, 0x7d, 0xe2, 0x2a, 0x94, 0x6c, 0x1a, 0x5a, 0x81, 0xe3, 0x2b, 0xfb,
+	0xaf, 0x0e, 0xb1, 0x7d, 0x70, 0x2c, 0xcf, 0x5d, 0x6f, 0x91, 0x30, 0x94, 0x09, 0x28, 0x19, 0x30,
+	0x5e, 0x83, 0x79, 0x26, 0x33, 0x55, 0xf3, 0xb4, 0xae, 0xe6, 0x11, 0x0d, 0xbe, 0x84, 0x27, 0x11,
+	0x13, 0x78, 0x86, 0xe5, 0xfd, 0x0b, 0xbe, 0x2f, 0x98, 0x8c, 0x59, 0x0e, 0xe5, 0x06, 0xe5, 0xcf,
+	0x81, 0xbd, 0xd2, 0xd5, 0xbf, 0x1e, 0x07, 0xac, 0x9e, 0x13, 0x1a, 0x74, 0x1d, 0x8b, 0xe2, 0x6f,
+	0x22, 0x98, 0x66, 0xa2, 0xf1, 0x73, 0xc3, 0x8e, 0x25, 0xf7, 0xd7, 0xca, 0xfe, 0x5d, 0x84, 0x99,
+	0x34, 0x63, 0xe9, 0xad, 0xbf, 0xfc, 0xfd, 0x5b, 0x53, 0x8b, 0xf8, 0x30, 0x7f, 0x21, 0xeb, 0x9e,
+	0x53, 0x5f, 0xab, 0x42, 0xfc, 0x0e, 0x02, 0x2c, 0xea, 0x20, 0xe5, 0x0d, 0x01, 0x9f, 0x1e, 0x06,
+	0x71, 0xc0, 0x5b, 0x43, 0xe5, 0x39, 0x25, 0xab, 0xd4, 0x2d, 0x2f, 0xa0, 0x2c, 0x87, 0xf0, 0x09,
+	0x1c, 0xc0, 0x32, 0x07, 0x70, 0x02, 0x1b, 0x83, 0x00, 0x34, 0x1e, 0x32, 0x8b, 0x3e, 0x6a, 0xd0,
+	0x58, 0xee, 0x7b, 0x08, 0xf2, 0x77, 0xf9, 0x1d, 0x62, 0x84, 0x91, 0x36, 0xf7, 0xcd, 0x48, 0x5c,
+	0x1c, 0x47, 0x6b, 0x1c, 0xe7, 0x48, 0x9f, 0xc3, 0x47, 0x25, 0xd2, 0x30, 0x0a, 0x28, 0x69, 0x6b,
+	0x80, 0xcf, 0x22, 0xfc, 0x3e, 0x82, 0x42, 0xdc, 0x3c, 0xc6, 0x27, 0x87, 0xa1, 0xd4, 0x9a, 0xcb,
+	0x95, 0xfd, 0xeb, 0xc4, 0x1a, 0x2f, 0x72, 0x8c, 0xc7, 0x8d, 0x81, 0xdb, 0xb9, 0xa6, 0xf5, 0x69,
+	0xdf, 0x45, 0x90, 0xbb, 0x4a, 0x47, 0xfa, 0xdb, 0x3e, 0x82, 0xeb, 0x33, 0xe0, 0x80, 0xad, 0xc6,
+	0x3f, 0x44, 0xf0, 0xec, 0x55, 0x1a, 0x0d, 0x4e, 0x8f, 0xb8, 0x36, 0x3a, 0x67, 0x09, 0xb7, 0x3b,
+	0x3d, 0xc6, 0xcc, 0x24, 0x2f, 0x34, 0x38, 0xb2, 0x17, 0xf1, 0xa9, 0x2c, 0x27, 0x0c, 0x77, 0x5d,
+	0xeb, 0x81, 0xc0, 0xf1, 0x47, 0x04, 0x07, 0x7b, 0xdf, 0x0a, 0xb1, 0x9e, 0x50, 0x07, 0x3e, 0x25,
+	0x56, 0x6e, 0x4e, 0x1a, 0x65, 0x75, 0xa6, 0xc6, 0x05, 0x8e, 0xfc, 0x55, 0xfc, 0x4a, 0x16, 0xf2,
+	0xa4, 0x13, 0xd7, 0x78, 0x28, 0x3f, 0x1f, 0xf1, 0x77, 0x6d, 0x0e, 0xfb, 0x4f, 0x08, 0x0e, 0x4b,
+	0xbe, 0xeb, 0xdb, 0x24, 0x88, 0x2e, 0x51, 0x56, 0x43, 0x87, 0x63, 0xe9, 0x33, 0x61, 0xd6, 0x50,
+	0xe5, 0x19, 0x97, 0xb9, 0x2e, 0x1f, 0xc7, 0xaf, 0xef, 0x59, 0x17, 0x8b, 0xb1, 0xb1, 0x05, 0xec,
+	0xb7, 0x10, 0xcc, 0x5d, 0xa5, 0xd1, 0x8d, 0xa4, 0x1b, 0x7c, 0x72, 0xac, 0x17, 0xa6, 0xca, 0x52,
+	0x5d, 0x79, 0x4e, 0x97, 0x3f, 0x25, 0x2e, 0xb2, 0xc2, 0xc1, 0x9d, 0xc2, 0x27, 0xb3, 0xc0, 0xa5,
+	0x1d, 0xe8, 0xf7, 0x10, 0x1c, 0x51, 0x41, 0xa4, 0x2f, 0x73, 0x1f, 0xdd, 0xdb, 0x7b, 0x97, 0x78,
+	0x35, 0x1b, 0x81, 0x6e, 0x95, 0xa3, 0x3b, 0x63, 0x0c, 0x76, 0xe0, 0x76, 0x1f, 0x8a, 0x35, 0xb4,
+	0x5c, 0x43, 0xf8, 0xb7, 0x08, 0x0a, 0x71, 0x33, 0x76, 0xb8, 0x8d, 0xb4, 0x97, 0xa4, 0xfd, 0x8c,
+	0x06, 0x62, 0xb7, 0x2b, 0x67, 0x07, 0x1b, 0x54, 0x5d, 0x2f, 0x5d, 0xb5, 0xce, 0xad, 0xac, 0x87,
+	0xb1, 0x5f, 0x20, 0x80, 0xb4, 0xa1, 0x8c, 0x5f, 0xcc, 0xd6, 0x43, 0x69, 0x3a, 0x57, 0xf6, 0xb7,
+	0xa5, 0x6c, 0xd4, 0xb9, 0x3e, 0xb5, 0x4a, 0x35, 0x33, 0x86, 0xf8, 0xd4, 0x5a, 0x8b, 0x9b, 0xcf,
+	0x3f, 0x40, 0x90, 0xe7, 0x7d, 0x3c, 0x7c, 0x62, 0x18, 0x66, 0xb5, 0xcd, 0xb7, 0x9f, 0xa6, 0x7f,
+	0x81, 0x43, 0xad, 0xae, 0x66, 0x05, 0xe2, 0x35, 0xb4, 0x8c, 0xbb, 0x50, 0x88, 0x3b, 0x67, 0xc3,
+	0xdd, 0x43, 0xeb, 0xac, 0x55, 0xaa, 0x19, 0x85, 0x41, 0xec, 0xa8, 0x22, 0x07, 0x2c, 0x8f, 0xca,
+	0x01, 0xd3, 0x2c, 0x4c, 0xe3, 0xe3, 0x59, 0x41, 0xfc, 0x7f, 0x60, 0x98, 0xd3, 0x1c, 0xdd, 0x49,
+	0xa3, 0x3a, 0x2a, 0x0f, 0x30, 0xeb, 0x7c, 0x1b, 0xc1, 0xc1, 0xde, 0xe2, 0x1a, 0x1f, 0xed, 0x89,
+	0x99, 0xea, 0x5d, 0xa3, 0xa2, 0x5b, 0x71, 0x58, 0x61, 0x6e, 0x7c, 0x82, 0xa3, 0x58, 0xc3, 0xe7,
+	0x47, 0x9e, 0x8c, 0x9b, 0x32, 0xea, 0x30, 0x46, 0x2b, 0xe9, 0xeb, 0xd8, 0x2f, 0x11, 0xcc, 0x49,
+	0xbe, 0xb7, 0x03, 0x4a, 0xb3, 0x61, 0xed, 0xdf, 0x41, 0x60, 0xb2, 0x8c, 0xd7, 0x38, 0xfc, 0x8f,
+	0xe1, 0x97, 0xc7, 0x84, 0x2f, 0x61, 0xaf, 0x44, 0x0c, 0xe9, 0xef, 0x11, 0x1c, 0xba, 0x1b, 0xfb,
+	0xfd, 0x13, 0xc2, 0xbf, 0xce, 0xf1, 0xbf, 0x8e, 0x5f, 0xcd, 0xa8, 0xf3, 0x46, 0xa9, 0x71, 0x16,
+	0xe1, 0x9f, 0x21, 0x28, 0xca, 0x57, 0x15, 0x7c, 0x6a, 0xe8, 0xc1, 0xd0, 0xdf, 0x5d, 0xf6, 0xd3,
+	0x99, 0x45, 0x51, 0x63, 0x9c, 0xc8, 0x4c, 0xa7, 0x42, 0x3e, 0x73, 0xe8, 0x77, 0x11, 0xe0, 0xe4,
+	0xce, 0x9c, 0xdc, 0xa2, 0xf1, 0x0b, 0x9a, 0xa8, 0xa1, 0x8d, 0x99, 0xca, 0xa9, 0x91, 0xf3, 0xf4,
+	0x54, 0xba, 0x9c, 0x99, 0x4a, 0xbd, 0x44, 0xfe, 0xd7, 0x10, 0x94, 0xae, 0xd2, 0xe4, 0x0e, 0x92,
+	0x61, 0x4b, 0xfd, 0x51, 0xa8, 0x52, 0x1b, 0x3d, 0x51, 0x20, 0x3a, 0xc3, 0x11, 0xbd, 0x80, 0xb3,
+	0x4d, 0x25, 0x01, 0x7c, 0x17, 0xc1, 0xfc, 0x2d, 0xd5, 0x45, 0xf1, 0x99, 0x51, 0x92, 0xb4, 0x48,
+	0x3e, 0x3e, 0xae, 0x97, 0x38, 0xae, 0x15, 0x63, 0x2c, 0x5c, 0x6b, 0xe2, 0x7d, 0xe5, 0x7b, 0x28,
+	0xbe, 0xc4, 0xf6, 0xf4, 0xb3, 0xff, 0x5b, 0xbb, 0x65, 0xb4, 0xc5, 0x8d, 0x97, 0x39, 0xbe, 0x3a,
+	0x3e, 0x33, 0x0e, 0xbe, 0x86, 0x68, 0x72, 0xe3, 0xef, 0x20, 0x38, 0xc4, 0xdf, 0x1a, 0x54, 0xc6,
+	0x3d, 0x29, 0x66, 0xd8, 0xcb, 0xc4, 0x18, 0x29, 0x46, 0xc4, 0x1f, 0x63, 0x4f, 0xa0, 0xd6, 0xe4,
+	0x3b, 0xc2, 0xd7, 0x11, 0x1c, 0x90, 0x49, 0x4d, 0xec, 0xee, 0xca, 0x28, 0xc3, 0xed, 0x35, 0x09,
+	0x0a, 0x77, 0x5b, 0x1e, 0xcf, 0xdd, 0xde, 0x47, 0x30, 0x23, 0xba, 0xf9, 0x19, 0xa5, 0x82, 0xd2,
+	0xee, 0xaf, 0xf4, 0xf4, 0x38, 0x44, 0x33, 0xd8, 0xf8, 0x1c, 0x17, 0x7b, 0x07, 0x37, 0xb2, 0xc4,
+	0xfa, 0x9e, 0x1d, 0x36, 0x1e, 0x8a, 0x4e, 0xec, 0xa3, 0x46, 0xcb, 0x6b, 0x86, 0x6f, 0x1a, 0x38,
+	0x33, 0x21, 0xb2, 0x39, 0x67, 0x11, 0x8e, 0x60, 0x96, 0x39, 0x07, 0x6f, 0x9c, 0xe0, 0x6a, 0x4f,
+	0x9b, 0xa5, 0xaf, 0xa7, 0x52, 0xa9, 0xf4, 0x35, 0x62, 0xd2, 0x0c, 0x28, 0xae, 0xb1, 0xf8, 0xf9,
+	0x4c, 0xb1, 0x5c, 0xd0, 0x3b, 0x08, 0x0e, 0xa9, 0xde, 0x1e, 0x8b, 0x1f, 0xdb, 0xd7, 0xb3, 0x50,
+	0x88, 0xa2, 0x1a, 0x2f, 0x8f, 0xe5, 0x48, 0x1c, 0xce, 0xc5, 0x2b, 0x7f, 0x78, 0x7c, 0x0c, 0x7d,
+	0xf0, 0xf8, 0x18, 0xfa, 0xdb, 0xe3, 0x63, 0xe8, 0xcd, 0xf3, 0xe3, 0xfd, 0x47, 0xd8, 0x6a, 0x39,
+	0xd4, 0x8d, 0x54, 0xf6, 0xf7, 0x0a, 0xfc, 0xff, 0xbc, 0x2f, 0xfd, 0x27, 0x00, 0x00, 0xff, 0xff,
+	0xb5, 0x7f, 0x00, 0xf5, 0x11, 0x2d, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -4274,31 +4271,31 @@ func (m *ApplicationQuery) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			dAtA[i] = 0x42
 		}
 	}
-	if m.AppNamespace != nil {
-		i -= len(*m.AppNamespace)
-		copy(dAtA[i:], *m.AppNamespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.AppNamespace)))
+	if len(m.AppNamespace) > 0 {
+		i -= len(m.AppNamespace)
+		copy(dAtA[i:], m.AppNamespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.AppNamespace)))
 		i--
 		dAtA[i] = 0x3a
 	}
-	if m.Repo != nil {
-		i -= len(*m.Repo)
-		copy(dAtA[i:], *m.Repo)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Repo)))
+	if len(m.Repo) > 0 {
+		i -= len(m.Repo)
+		copy(dAtA[i:], m.Repo)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Repo)))
 		i--
 		dAtA[i] = 0x32
 	}
-	if m.Selector != nil {
-		i -= len(*m.Selector)
-		copy(dAtA[i:], *m.Selector)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Selector)))
+	if len(m.Selector) > 0 {
+		i -= len(m.Selector)
+		copy(dAtA[i:], m.Selector)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Selector)))
 		i--
 		dAtA[i] = 0x2a
 	}
-	if m.ResourceVersion != nil {
-		i -= len(*m.ResourceVersion)
-		copy(dAtA[i:], *m.ResourceVersion)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.ResourceVersion)))
+	if len(m.ResourceVersion) > 0 {
+		i -= len(m.ResourceVersion)
+		copy(dAtA[i:], m.ResourceVersion)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.ResourceVersion)))
 		i--
 		dAtA[i] = 0x22
 	}
@@ -4311,17 +4308,17 @@ func (m *ApplicationQuery) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 			dAtA[i] = 0x1a
 		}
 	}
-	if m.Refresh != nil {
-		i -= len(*m.Refresh)
-		copy(dAtA[i:], *m.Refresh)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Refresh)))
+	if len(m.Refresh) > 0 {
+		i -= len(m.Refresh)
+		copy(dAtA[i:], m.Refresh)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Refresh)))
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Name != nil {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -4352,17 +4349,17 @@ func (m *NodeQuery) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.AppNamespace != nil {
-		i -= len(*m.AppNamespace)
-		copy(dAtA[i:], *m.AppNamespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.AppNamespace)))
+	if len(m.AppNamespace) > 0 {
+		i -= len(m.AppNamespace)
+		copy(dAtA[i:], m.AppNamespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.AppNamespace)))
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Name != nil {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -4393,45 +4390,41 @@ func (m *RevisionMetadataQuery) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.VersionId != nil {
-		i = encodeVarintApplication(dAtA, i, uint64(*m.VersionId))
+	if m.VersionId != 0 {
+		i = encodeVarintApplication(dAtA, i, uint64(m.VersionId))
 		i--
 		dAtA[i] = 0x30
 	}
-	if m.SourceIndex != nil {
-		i = encodeVarintApplication(dAtA, i, uint64(*m.SourceIndex))
+	if m.SourceIndex != 0 {
+		i = encodeVarintApplication(dAtA, i, uint64(m.SourceIndex))
 		i--
 		dAtA[i] = 0x28
 	}
-	if m.Project != nil {
-		i -= len(*m.Project)
-		copy(dAtA[i:], *m.Project)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Project)))
+	if len(m.Project) > 0 {
+		i -= len(m.Project)
+		copy(dAtA[i:], m.Project)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Project)))
 		i--
 		dAtA[i] = 0x22
 	}
-	if m.AppNamespace != nil {
-		i -= len(*m.AppNamespace)
-		copy(dAtA[i:], *m.AppNamespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.AppNamespace)))
+	if len(m.AppNamespace) > 0 {
+		i -= len(m.AppNamespace)
+		copy(dAtA[i:], m.AppNamespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.AppNamespace)))
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.Revision == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("revision")
-	} else {
-		i -= len(*m.Revision)
-		copy(dAtA[i:], *m.Revision)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Revision)))
+	if len(m.Revision) > 0 {
+		i -= len(m.Revision)
+		copy(dAtA[i:], m.Revision)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Revision)))
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Name == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	} else {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -4462,47 +4455,45 @@ func (m *ApplicationResourceEventsQuery) MarshalToSizedBuffer(dAtA []byte) (int,
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Project != nil {
-		i -= len(*m.Project)
-		copy(dAtA[i:], *m.Project)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Project)))
+	if len(m.Project) > 0 {
+		i -= len(m.Project)
+		copy(dAtA[i:], m.Project)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Project)))
 		i--
 		dAtA[i] = 0x32
 	}
-	if m.AppNamespace != nil {
-		i -= len(*m.AppNamespace)
-		copy(dAtA[i:], *m.AppNamespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.AppNamespace)))
+	if len(m.AppNamespace) > 0 {
+		i -= len(m.AppNamespace)
+		copy(dAtA[i:], m.AppNamespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.AppNamespace)))
 		i--
 		dAtA[i] = 0x2a
 	}
-	if m.ResourceUID != nil {
-		i -= len(*m.ResourceUID)
-		copy(dAtA[i:], *m.ResourceUID)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.ResourceUID)))
+	if len(m.ResourceUID) > 0 {
+		i -= len(m.ResourceUID)
+		copy(dAtA[i:], m.ResourceUID)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.ResourceUID)))
 		i--
 		dAtA[i] = 0x22
 	}
-	if m.ResourceName != nil {
-		i -= len(*m.ResourceName)
-		copy(dAtA[i:], *m.ResourceName)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.ResourceName)))
+	if len(m.ResourceName) > 0 {
+		i -= len(m.ResourceName)
+		copy(dAtA[i:], m.ResourceName)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.ResourceName)))
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.ResourceNamespace != nil {
-		i -= len(*m.ResourceNamespace)
-		copy(dAtA[i:], *m.ResourceNamespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.ResourceNamespace)))
+	if len(m.ResourceNamespace) > 0 {
+		i -= len(m.ResourceNamespace)
+		copy(dAtA[i:], m.ResourceNamespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.ResourceNamespace)))
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Name == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	} else {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -4543,39 +4534,49 @@ func (m *ApplicationManifestQuery) MarshalToSizedBuffer(dAtA []byte) (int, error
 		}
 	}
 	if len(m.SourcePositions) > 0 {
-		for iNdEx := len(m.SourcePositions) - 1; iNdEx >= 0; iNdEx-- {
-			i = encodeVarintApplication(dAtA, i, uint64(m.SourcePositions[iNdEx]))
-			i--
-			dAtA[i] = 0x28
+		dAtA2 := make([]byte, len(m.SourcePositions)*10)
+		var j1 int
+		for _, num1 := range m.SourcePositions {
+			num := uint64(num1)
+			for num >= 1<<7 {
+				dAtA2[j1] = uint8(uint64(num)&0x7f | 0x80)
+				num >>= 7
+				j1++
+			}
+			dAtA2[j1] = uint8(num)
+			j1++
 		}
+		i -= j1
+		copy(dAtA[i:], dAtA2[:j1])
+		i = encodeVarintApplication(dAtA, i, uint64(j1))
+		i--
+		dAtA[i] = 0x2a
 	}
-	if m.Project != nil {
-		i -= len(*m.Project)
-		copy(dAtA[i:], *m.Project)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Project)))
+	if len(m.Project) > 0 {
+		i -= len(m.Project)
+		copy(dAtA[i:], m.Project)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Project)))
 		i--
 		dAtA[i] = 0x22
 	}
-	if m.AppNamespace != nil {
-		i -= len(*m.AppNamespace)
-		copy(dAtA[i:], *m.AppNamespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.AppNamespace)))
+	if len(m.AppNamespace) > 0 {
+		i -= len(m.AppNamespace)
+		copy(dAtA[i:], m.AppNamespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.AppNamespace)))
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.Revision != nil {
-		i -= len(*m.Revision)
-		copy(dAtA[i:], *m.Revision)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Revision)))
+	if len(m.Revision) > 0 {
+		i -= len(m.Revision)
+		copy(dAtA[i:], m.Revision)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Revision)))
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Name == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	} else {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -4606,9 +4607,7 @@ func (m *FileChunk) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Chunk == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("chunk")
-	} else {
+	if len(m.Chunk) > 0 {
 		i -= len(m.Chunk)
 		copy(dAtA[i:], m.Chunk)
 		i = encodeVarintApplication(dAtA, i, uint64(len(m.Chunk)))
@@ -4642,35 +4641,31 @@ func (m *ApplicationManifestQueryWithFiles) MarshalToSizedBuffer(dAtA []byte) (i
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Project != nil {
-		i -= len(*m.Project)
-		copy(dAtA[i:], *m.Project)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Project)))
+	if len(m.Project) > 0 {
+		i -= len(m.Project)
+		copy(dAtA[i:], m.Project)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Project)))
 		i--
 		dAtA[i] = 0x22
 	}
-	if m.AppNamespace != nil {
-		i -= len(*m.AppNamespace)
-		copy(dAtA[i:], *m.AppNamespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.AppNamespace)))
+	if len(m.AppNamespace) > 0 {
+		i -= len(m.AppNamespace)
+		copy(dAtA[i:], m.AppNamespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.AppNamespace)))
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.Checksum == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("checksum")
-	} else {
-		i -= len(*m.Checksum)
-		copy(dAtA[i:], *m.Checksum)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Checksum)))
+	if len(m.Checksum) > 0 {
+		i -= len(m.Checksum)
+		copy(dAtA[i:], m.Checksum)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Checksum)))
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Name == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	} else {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -4806,9 +4801,9 @@ func (m *ApplicationCreateRequest) MarshalToSizedBuffer(dAtA []byte) (int, error
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Validate != nil {
+	if m.Validate {
 		i--
-		if *m.Validate {
+		if m.Validate {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
@@ -4816,9 +4811,9 @@ func (m *ApplicationCreateRequest) MarshalToSizedBuffer(dAtA []byte) (int, error
 		i--
 		dAtA[i] = 0x18
 	}
-	if m.Upsert != nil {
+	if m.Upsert {
 		i--
-		if *m.Upsert {
+		if m.Upsert {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
@@ -4826,9 +4821,7 @@ func (m *ApplicationCreateRequest) MarshalToSizedBuffer(dAtA []byte) (int, error
 		i--
 		dAtA[i] = 0x10
 	}
-	if m.Application == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("application")
-	} else {
+	if m.Application != nil {
 		{
 			size, err := m.Application.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
@@ -4867,16 +4860,16 @@ func (m *ApplicationUpdateRequest) MarshalToSizedBuffer(dAtA []byte) (int, error
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Project != nil {
-		i -= len(*m.Project)
-		copy(dAtA[i:], *m.Project)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Project)))
+	if len(m.Project) > 0 {
+		i -= len(m.Project)
+		copy(dAtA[i:], m.Project)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Project)))
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.Validate != nil {
+	if m.Validate {
 		i--
-		if *m.Validate {
+		if m.Validate {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
@@ -4884,9 +4877,7 @@ func (m *ApplicationUpdateRequest) MarshalToSizedBuffer(dAtA []byte) (int, error
 		i--
 		dAtA[i] = 0x10
 	}
-	if m.Application == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("application")
-	} else {
+	if m.Application != nil {
 		{
 			size, err := m.Application.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
@@ -4925,30 +4916,30 @@ func (m *ApplicationDeleteRequest) MarshalToSizedBuffer(dAtA []byte) (int, error
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Project != nil {
-		i -= len(*m.Project)
-		copy(dAtA[i:], *m.Project)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Project)))
+	if len(m.Project) > 0 {
+		i -= len(m.Project)
+		copy(dAtA[i:], m.Project)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Project)))
 		i--
 		dAtA[i] = 0x2a
 	}
-	if m.AppNamespace != nil {
-		i -= len(*m.AppNamespace)
-		copy(dAtA[i:], *m.AppNamespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.AppNamespace)))
+	if len(m.AppNamespace) > 0 {
+		i -= len(m.AppNamespace)
+		copy(dAtA[i:], m.AppNamespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.AppNamespace)))
 		i--
 		dAtA[i] = 0x22
 	}
-	if m.PropagationPolicy != nil {
-		i -= len(*m.PropagationPolicy)
-		copy(dAtA[i:], *m.PropagationPolicy)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.PropagationPolicy)))
+	if len(m.PropagationPolicy) > 0 {
+		i -= len(m.PropagationPolicy)
+		copy(dAtA[i:], m.PropagationPolicy)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.PropagationPolicy)))
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.Cascade != nil {
+	if m.Cascade {
 		i--
-		if *m.Cascade {
+		if m.Cascade {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
@@ -4956,12 +4947,10 @@ func (m *ApplicationDeleteRequest) MarshalToSizedBuffer(dAtA []byte) (int, error
 		i--
 		dAtA[i] = 0x10
 	}
-	if m.Name == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	} else {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -5038,23 +5027,35 @@ func (m *ApplicationSyncRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) 
 		}
 	}
 	if len(m.SourcePositions) > 0 {
-		for iNdEx := len(m.SourcePositions) - 1; iNdEx >= 0; iNdEx-- {
-			i = encodeVarintApplication(dAtA, i, uint64(m.SourcePositions[iNdEx]))
-			i--
-			dAtA[i] = 0x70
+		dAtA8 := make([]byte, len(m.SourcePositions)*10)
+		var j7 int
+		for _, num1 := range m.SourcePositions {
+			num := uint64(num1)
+			for num >= 1<<7 {
+				dAtA8[j7] = uint8(uint64(num)&0x7f | 0x80)
+				num >>= 7
+				j7++
+			}
+			dAtA8[j7] = uint8(num)
+			j7++
 		}
+		i -= j7
+		copy(dAtA[i:], dAtA8[:j7])
+		i = encodeVarintApplication(dAtA, i, uint64(j7))
+		i--
+		dAtA[i] = 0x72
 	}
-	if m.Project != nil {
-		i -= len(*m.Project)
-		copy(dAtA[i:], *m.Project)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Project)))
+	if len(m.Project) > 0 {
+		i -= len(m.Project)
+		copy(dAtA[i:], m.Project)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Project)))
 		i--
 		dAtA[i] = 0x6a
 	}
-	if m.AppNamespace != nil {
-		i -= len(*m.AppNamespace)
-		copy(dAtA[i:], *m.AppNamespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.AppNamespace)))
+	if len(m.AppNamespace) > 0 {
+		i -= len(m.AppNamespace)
+		copy(dAtA[i:], m.AppNamespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.AppNamespace)))
 		i--
 		dAtA[i] = 0x62
 	}
@@ -5131,9 +5132,9 @@ func (m *ApplicationSyncRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) 
 		i--
 		dAtA[i] = 0x2a
 	}
-	if m.Prune != nil {
+	if m.Prune {
 		i--
-		if *m.Prune {
+		if m.Prune {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
@@ -5141,9 +5142,9 @@ func (m *ApplicationSyncRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) 
 		i--
 		dAtA[i] = 0x20
 	}
-	if m.DryRun != nil {
+	if m.DryRun {
 		i--
-		if *m.DryRun {
+		if m.DryRun {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
@@ -5151,19 +5152,17 @@ func (m *ApplicationSyncRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) 
 		i--
 		dAtA[i] = 0x18
 	}
-	if m.Revision != nil {
-		i -= len(*m.Revision)
-		copy(dAtA[i:], *m.Revision)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Revision)))
+	if len(m.Revision) > 0 {
+		i -= len(m.Revision)
+		copy(dAtA[i:], m.Revision)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Revision)))
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Name == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	} else {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -5194,23 +5193,23 @@ func (m *ApplicationUpdateSpecRequest) MarshalToSizedBuffer(dAtA []byte) (int, e
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Project != nil {
-		i -= len(*m.Project)
-		copy(dAtA[i:], *m.Project)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Project)))
+	if len(m.Project) > 0 {
+		i -= len(m.Project)
+		copy(dAtA[i:], m.Project)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Project)))
 		i--
 		dAtA[i] = 0x2a
 	}
-	if m.AppNamespace != nil {
-		i -= len(*m.AppNamespace)
-		copy(dAtA[i:], *m.AppNamespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.AppNamespace)))
+	if len(m.AppNamespace) > 0 {
+		i -= len(m.AppNamespace)
+		copy(dAtA[i:], m.AppNamespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.AppNamespace)))
 		i--
 		dAtA[i] = 0x22
 	}
-	if m.Validate != nil {
+	if m.Validate {
 		i--
-		if *m.Validate {
+		if m.Validate {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
@@ -5218,9 +5217,7 @@ func (m *ApplicationUpdateSpecRequest) MarshalToSizedBuffer(dAtA []byte) (int, e
 		i--
 		dAtA[i] = 0x18
 	}
-	if m.Spec == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("spec")
-	} else {
+	if m.Spec != nil {
 		{
 			size, err := m.Spec.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
@@ -5232,12 +5229,10 @@ func (m *ApplicationUpdateSpecRequest) MarshalToSizedBuffer(dAtA []byte) (int, e
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Name == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	} else {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -5268,44 +5263,38 @@ func (m *ApplicationPatchRequest) MarshalToSizedBuffer(dAtA []byte) (int, error)
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Project != nil {
-		i -= len(*m.Project)
-		copy(dAtA[i:], *m.Project)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Project)))
+	if len(m.Project) > 0 {
+		i -= len(m.Project)
+		copy(dAtA[i:], m.Project)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Project)))
 		i--
 		dAtA[i] = 0x32
 	}
-	if m.AppNamespace != nil {
-		i -= len(*m.AppNamespace)
-		copy(dAtA[i:], *m.AppNamespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.AppNamespace)))
+	if len(m.AppNamespace) > 0 {
+		i -= len(m.AppNamespace)
+		copy(dAtA[i:], m.AppNamespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.AppNamespace)))
 		i--
 		dAtA[i] = 0x2a
 	}
-	if m.PatchType == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("patchType")
-	} else {
-		i -= len(*m.PatchType)
-		copy(dAtA[i:], *m.PatchType)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.PatchType)))
+	if len(m.PatchType) > 0 {
+		i -= len(m.PatchType)
+		copy(dAtA[i:], m.PatchType)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.PatchType)))
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.Patch == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("patch")
-	} else {
-		i -= len(*m.Patch)
-		copy(dAtA[i:], *m.Patch)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Patch)))
+	if len(m.Patch) > 0 {
+		i -= len(m.Patch)
+		copy(dAtA[i:], m.Patch)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Patch)))
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Name == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	} else {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -5336,23 +5325,23 @@ func (m *ApplicationRollbackRequest) MarshalToSizedBuffer(dAtA []byte) (int, err
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Project != nil {
-		i -= len(*m.Project)
-		copy(dAtA[i:], *m.Project)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Project)))
+	if len(m.Project) > 0 {
+		i -= len(m.Project)
+		copy(dAtA[i:], m.Project)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Project)))
 		i--
 		dAtA[i] = 0x3a
 	}
-	if m.AppNamespace != nil {
-		i -= len(*m.AppNamespace)
-		copy(dAtA[i:], *m.AppNamespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.AppNamespace)))
+	if len(m.AppNamespace) > 0 {
+		i -= len(m.AppNamespace)
+		copy(dAtA[i:], m.AppNamespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.AppNamespace)))
 		i--
 		dAtA[i] = 0x32
 	}
-	if m.Prune != nil {
+	if m.Prune {
 		i--
-		if *m.Prune {
+		if m.Prune {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
@@ -5360,9 +5349,9 @@ func (m *ApplicationRollbackRequest) MarshalToSizedBuffer(dAtA []byte) (int, err
 		i--
 		dAtA[i] = 0x20
 	}
-	if m.DryRun != nil {
+	if m.DryRun {
 		i--
-		if *m.DryRun {
+		if m.DryRun {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
@@ -5370,19 +5359,15 @@ func (m *ApplicationRollbackRequest) MarshalToSizedBuffer(dAtA []byte) (int, err
 		i--
 		dAtA[i] = 0x18
 	}
-	if m.Id == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("id")
-	} else {
-		i = encodeVarintApplication(dAtA, i, uint64(*m.Id))
+	if m.Id != 0 {
+		i = encodeVarintApplication(dAtA, i, uint64(m.Id))
 		i--
 		dAtA[i] = 0x10
 	}
-	if m.Name == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	} else {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -5413,67 +5398,59 @@ func (m *ApplicationResourceRequest) MarshalToSizedBuffer(dAtA []byte) (int, err
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Project != nil {
-		i -= len(*m.Project)
-		copy(dAtA[i:], *m.Project)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Project)))
+	if len(m.Project) > 0 {
+		i -= len(m.Project)
+		copy(dAtA[i:], m.Project)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Project)))
 		i--
 		dAtA[i] = 0x42
 	}
-	if m.AppNamespace != nil {
-		i -= len(*m.AppNamespace)
-		copy(dAtA[i:], *m.AppNamespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.AppNamespace)))
+	if len(m.AppNamespace) > 0 {
+		i -= len(m.AppNamespace)
+		copy(dAtA[i:], m.AppNamespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.AppNamespace)))
 		i--
 		dAtA[i] = 0x3a
 	}
-	if m.Kind == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("kind")
-	} else {
-		i -= len(*m.Kind)
-		copy(dAtA[i:], *m.Kind)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Kind)))
+	if len(m.Kind) > 0 {
+		i -= len(m.Kind)
+		copy(dAtA[i:], m.Kind)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Kind)))
 		i--
 		dAtA[i] = 0x32
 	}
-	if m.Group != nil {
-		i -= len(*m.Group)
-		copy(dAtA[i:], *m.Group)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Group)))
+	if len(m.Group) > 0 {
+		i -= len(m.Group)
+		copy(dAtA[i:], m.Group)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Group)))
 		i--
 		dAtA[i] = 0x2a
 	}
-	if m.Version == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("version")
-	} else {
-		i -= len(*m.Version)
-		copy(dAtA[i:], *m.Version)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Version)))
+	if len(m.Version) > 0 {
+		i -= len(m.Version)
+		copy(dAtA[i:], m.Version)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Version)))
 		i--
 		dAtA[i] = 0x22
 	}
-	if m.ResourceName == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("resourceName")
-	} else {
-		i -= len(*m.ResourceName)
-		copy(dAtA[i:], *m.ResourceName)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.ResourceName)))
+	if len(m.ResourceName) > 0 {
+		i -= len(m.ResourceName)
+		copy(dAtA[i:], m.ResourceName)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.ResourceName)))
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.Namespace != nil {
-		i -= len(*m.Namespace)
-		copy(dAtA[i:], *m.Namespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Namespace)))
+	if len(m.Namespace) > 0 {
+		i -= len(m.Namespace)
+		copy(dAtA[i:], m.Namespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Namespace)))
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Name == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	} else {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -5504,85 +5481,73 @@ func (m *ApplicationResourcePatchRequest) MarshalToSizedBuffer(dAtA []byte) (int
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Project != nil {
-		i -= len(*m.Project)
-		copy(dAtA[i:], *m.Project)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Project)))
+	if len(m.Project) > 0 {
+		i -= len(m.Project)
+		copy(dAtA[i:], m.Project)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Project)))
 		i--
 		dAtA[i] = 0x52
 	}
-	if m.AppNamespace != nil {
-		i -= len(*m.AppNamespace)
-		copy(dAtA[i:], *m.AppNamespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.AppNamespace)))
+	if len(m.AppNamespace) > 0 {
+		i -= len(m.AppNamespace)
+		copy(dAtA[i:], m.AppNamespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.AppNamespace)))
 		i--
 		dAtA[i] = 0x4a
 	}
-	if m.PatchType == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("patchType")
-	} else {
-		i -= len(*m.PatchType)
-		copy(dAtA[i:], *m.PatchType)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.PatchType)))
+	if len(m.PatchType) > 0 {
+		i -= len(m.PatchType)
+		copy(dAtA[i:], m.PatchType)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.PatchType)))
 		i--
 		dAtA[i] = 0x42
 	}
-	if m.Patch == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("patch")
-	} else {
-		i -= len(*m.Patch)
-		copy(dAtA[i:], *m.Patch)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Patch)))
+	if len(m.Patch) > 0 {
+		i -= len(m.Patch)
+		copy(dAtA[i:], m.Patch)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Patch)))
 		i--
 		dAtA[i] = 0x3a
 	}
-	if m.Kind == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("kind")
-	} else {
-		i -= len(*m.Kind)
-		copy(dAtA[i:], *m.Kind)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Kind)))
+	if len(m.Kind) > 0 {
+		i -= len(m.Kind)
+		copy(dAtA[i:], m.Kind)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Kind)))
 		i--
 		dAtA[i] = 0x32
 	}
-	if m.Group != nil {
-		i -= len(*m.Group)
-		copy(dAtA[i:], *m.Group)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Group)))
+	if len(m.Group) > 0 {
+		i -= len(m.Group)
+		copy(dAtA[i:], m.Group)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Group)))
 		i--
 		dAtA[i] = 0x2a
 	}
-	if m.Version == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("version")
-	} else {
-		i -= len(*m.Version)
-		copy(dAtA[i:], *m.Version)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Version)))
+	if len(m.Version) > 0 {
+		i -= len(m.Version)
+		copy(dAtA[i:], m.Version)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Version)))
 		i--
 		dAtA[i] = 0x22
 	}
-	if m.ResourceName == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("resourceName")
-	} else {
-		i -= len(*m.ResourceName)
-		copy(dAtA[i:], *m.ResourceName)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.ResourceName)))
+	if len(m.ResourceName) > 0 {
+		i -= len(m.ResourceName)
+		copy(dAtA[i:], m.ResourceName)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.ResourceName)))
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.Namespace != nil {
-		i -= len(*m.Namespace)
-		copy(dAtA[i:], *m.Namespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Namespace)))
+	if len(m.Namespace) > 0 {
+		i -= len(m.Namespace)
+		copy(dAtA[i:], m.Namespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Namespace)))
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Name == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	} else {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -5613,23 +5578,23 @@ func (m *ApplicationResourceDeleteRequest) MarshalToSizedBuffer(dAtA []byte) (in
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Project != nil {
-		i -= len(*m.Project)
-		copy(dAtA[i:], *m.Project)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Project)))
+	if len(m.Project) > 0 {
+		i -= len(m.Project)
+		copy(dAtA[i:], m.Project)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Project)))
 		i--
 		dAtA[i] = 0x52
 	}
-	if m.AppNamespace != nil {
-		i -= len(*m.AppNamespace)
-		copy(dAtA[i:], *m.AppNamespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.AppNamespace)))
+	if len(m.AppNamespace) > 0 {
+		i -= len(m.AppNamespace)
+		copy(dAtA[i:], m.AppNamespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.AppNamespace)))
 		i--
 		dAtA[i] = 0x4a
 	}
-	if m.Orphan != nil {
+	if m.Orphan {
 		i--
-		if *m.Orphan {
+		if m.Orphan {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
@@ -5637,9 +5602,9 @@ func (m *ApplicationResourceDeleteRequest) MarshalToSizedBuffer(dAtA []byte) (in
 		i--
 		dAtA[i] = 0x40
 	}
-	if m.Force != nil {
+	if m.Force {
 		i--
-		if *m.Force {
+		if m.Force {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
@@ -5647,53 +5612,45 @@ func (m *ApplicationResourceDeleteRequest) MarshalToSizedBuffer(dAtA []byte) (in
 		i--
 		dAtA[i] = 0x38
 	}
-	if m.Kind == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("kind")
-	} else {
-		i -= len(*m.Kind)
-		copy(dAtA[i:], *m.Kind)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Kind)))
+	if len(m.Kind) > 0 {
+		i -= len(m.Kind)
+		copy(dAtA[i:], m.Kind)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Kind)))
 		i--
 		dAtA[i] = 0x32
 	}
-	if m.Group != nil {
-		i -= len(*m.Group)
-		copy(dAtA[i:], *m.Group)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Group)))
+	if len(m.Group) > 0 {
+		i -= len(m.Group)
+		copy(dAtA[i:], m.Group)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Group)))
 		i--
 		dAtA[i] = 0x2a
 	}
-	if m.Version == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("version")
-	} else {
-		i -= len(*m.Version)
-		copy(dAtA[i:], *m.Version)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Version)))
+	if len(m.Version) > 0 {
+		i -= len(m.Version)
+		copy(dAtA[i:], m.Version)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Version)))
 		i--
 		dAtA[i] = 0x22
 	}
-	if m.ResourceName == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("resourceName")
-	} else {
-		i -= len(*m.ResourceName)
-		copy(dAtA[i:], *m.ResourceName)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.ResourceName)))
+	if len(m.ResourceName) > 0 {
+		i -= len(m.ResourceName)
+		copy(dAtA[i:], m.ResourceName)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.ResourceName)))
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.Namespace != nil {
-		i -= len(*m.Namespace)
-		copy(dAtA[i:], *m.Namespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Namespace)))
+	if len(m.Namespace) > 0 {
+		i -= len(m.Namespace)
+		copy(dAtA[i:], m.Namespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Namespace)))
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Name == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	} else {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -5724,76 +5681,66 @@ func (m *ResourceActionRunRequest) MarshalToSizedBuffer(dAtA []byte) (int, error
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Project != nil {
-		i -= len(*m.Project)
-		copy(dAtA[i:], *m.Project)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Project)))
+	if len(m.Project) > 0 {
+		i -= len(m.Project)
+		copy(dAtA[i:], m.Project)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Project)))
 		i--
 		dAtA[i] = 0x4a
 	}
-	if m.AppNamespace != nil {
-		i -= len(*m.AppNamespace)
-		copy(dAtA[i:], *m.AppNamespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.AppNamespace)))
+	if len(m.AppNamespace) > 0 {
+		i -= len(m.AppNamespace)
+		copy(dAtA[i:], m.AppNamespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.AppNamespace)))
 		i--
 		dAtA[i] = 0x42
 	}
-	if m.Action == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("action")
-	} else {
-		i -= len(*m.Action)
-		copy(dAtA[i:], *m.Action)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Action)))
+	if len(m.Action) > 0 {
+		i -= len(m.Action)
+		copy(dAtA[i:], m.Action)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Action)))
 		i--
 		dAtA[i] = 0x3a
 	}
-	if m.Kind == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("kind")
-	} else {
-		i -= len(*m.Kind)
-		copy(dAtA[i:], *m.Kind)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Kind)))
+	if len(m.Kind) > 0 {
+		i -= len(m.Kind)
+		copy(dAtA[i:], m.Kind)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Kind)))
 		i--
 		dAtA[i] = 0x32
 	}
-	if m.Group != nil {
-		i -= len(*m.Group)
-		copy(dAtA[i:], *m.Group)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Group)))
+	if len(m.Group) > 0 {
+		i -= len(m.Group)
+		copy(dAtA[i:], m.Group)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Group)))
 		i--
 		dAtA[i] = 0x2a
 	}
-	if m.Version == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("version")
-	} else {
-		i -= len(*m.Version)
-		copy(dAtA[i:], *m.Version)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Version)))
+	if len(m.Version) > 0 {
+		i -= len(m.Version)
+		copy(dAtA[i:], m.Version)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Version)))
 		i--
 		dAtA[i] = 0x22
 	}
-	if m.ResourceName == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("resourceName")
-	} else {
-		i -= len(*m.ResourceName)
-		copy(dAtA[i:], *m.ResourceName)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.ResourceName)))
+	if len(m.ResourceName) > 0 {
+		i -= len(m.ResourceName)
+		copy(dAtA[i:], m.ResourceName)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.ResourceName)))
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.Namespace != nil {
-		i -= len(*m.Namespace)
-		copy(dAtA[i:], *m.Namespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Namespace)))
+	if len(m.Namespace) > 0 {
+		i -= len(m.Namespace)
+		copy(dAtA[i:], m.Namespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Namespace)))
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Name == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	} else {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -5865,12 +5812,10 @@ func (m *ApplicationResourceResponse) MarshalToSizedBuffer(dAtA []byte) (int, er
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Manifest == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("manifest")
-	} else {
-		i -= len(*m.Manifest)
-		copy(dAtA[i:], *m.Manifest)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Manifest)))
+	if len(m.Manifest) > 0 {
+		i -= len(m.Manifest)
+		copy(dAtA[i:], m.Manifest)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Manifest)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -5901,25 +5846,25 @@ func (m *ApplicationPodLogsQuery) MarshalToSizedBuffer(dAtA []byte) (int, error)
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Project != nil {
-		i -= len(*m.Project)
-		copy(dAtA[i:], *m.Project)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Project)))
+	if len(m.Project) > 0 {
+		i -= len(m.Project)
+		copy(dAtA[i:], m.Project)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Project)))
 		i--
 		dAtA[i] = 0x1
 		i--
 		dAtA[i] = 0x82
 	}
-	if m.AppNamespace != nil {
-		i -= len(*m.AppNamespace)
-		copy(dAtA[i:], *m.AppNamespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.AppNamespace)))
+	if len(m.AppNamespace) > 0 {
+		i -= len(m.AppNamespace)
+		copy(dAtA[i:], m.AppNamespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.AppNamespace)))
 		i--
 		dAtA[i] = 0x7a
 	}
-	if m.Previous != nil {
+	if m.Previous {
 		i--
-		if *m.Previous {
+		if m.Previous {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
@@ -5927,44 +5872,44 @@ func (m *ApplicationPodLogsQuery) MarshalToSizedBuffer(dAtA []byte) (int, error)
 		i--
 		dAtA[i] = 0x70
 	}
-	if m.ResourceName != nil {
-		i -= len(*m.ResourceName)
-		copy(dAtA[i:], *m.ResourceName)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.ResourceName)))
+	if len(m.ResourceName) > 0 {
+		i -= len(m.ResourceName)
+		copy(dAtA[i:], m.ResourceName)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.ResourceName)))
 		i--
 		dAtA[i] = 0x6a
 	}
-	if m.Group != nil {
-		i -= len(*m.Group)
-		copy(dAtA[i:], *m.Group)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Group)))
+	if len(m.Group) > 0 {
+		i -= len(m.Group)
+		copy(dAtA[i:], m.Group)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Group)))
 		i--
 		dAtA[i] = 0x62
 	}
-	if m.Kind != nil {
-		i -= len(*m.Kind)
-		copy(dAtA[i:], *m.Kind)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Kind)))
+	if len(m.Kind) > 0 {
+		i -= len(m.Kind)
+		copy(dAtA[i:], m.Kind)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Kind)))
 		i--
 		dAtA[i] = 0x5a
 	}
-	if m.Filter != nil {
-		i -= len(*m.Filter)
-		copy(dAtA[i:], *m.Filter)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Filter)))
+	if len(m.Filter) > 0 {
+		i -= len(m.Filter)
+		copy(dAtA[i:], m.Filter)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Filter)))
 		i--
 		dAtA[i] = 0x52
 	}
-	if m.UntilTime != nil {
-		i -= len(*m.UntilTime)
-		copy(dAtA[i:], *m.UntilTime)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.UntilTime)))
+	if len(m.UntilTime) > 0 {
+		i -= len(m.UntilTime)
+		copy(dAtA[i:], m.UntilTime)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.UntilTime)))
 		i--
 		dAtA[i] = 0x4a
 	}
-	if m.Follow != nil {
+	if m.Follow {
 		i--
-		if *m.Follow {
+		if m.Follow {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
@@ -5972,8 +5917,8 @@ func (m *ApplicationPodLogsQuery) MarshalToSizedBuffer(dAtA []byte) (int, error)
 		i--
 		dAtA[i] = 0x40
 	}
-	if m.TailLines != nil {
-		i = encodeVarintApplication(dAtA, i, uint64(*m.TailLines))
+	if m.TailLines != 0 {
+		i = encodeVarintApplication(dAtA, i, uint64(m.TailLines))
 		i--
 		dAtA[i] = 0x38
 	}
@@ -5989,38 +5934,36 @@ func (m *ApplicationPodLogsQuery) MarshalToSizedBuffer(dAtA []byte) (int, error)
 		i--
 		dAtA[i] = 0x32
 	}
-	if m.SinceSeconds != nil {
-		i = encodeVarintApplication(dAtA, i, uint64(*m.SinceSeconds))
+	if m.SinceSeconds != 0 {
+		i = encodeVarintApplication(dAtA, i, uint64(m.SinceSeconds))
 		i--
 		dAtA[i] = 0x28
 	}
-	if m.Container != nil {
-		i -= len(*m.Container)
-		copy(dAtA[i:], *m.Container)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Container)))
+	if len(m.Container) > 0 {
+		i -= len(m.Container)
+		copy(dAtA[i:], m.Container)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Container)))
 		i--
 		dAtA[i] = 0x22
 	}
-	if m.PodName != nil {
-		i -= len(*m.PodName)
-		copy(dAtA[i:], *m.PodName)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.PodName)))
+	if len(m.PodName) > 0 {
+		i -= len(m.PodName)
+		copy(dAtA[i:], m.PodName)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.PodName)))
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.Namespace != nil {
-		i -= len(*m.Namespace)
-		copy(dAtA[i:], *m.Namespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Namespace)))
+	if len(m.Namespace) > 0 {
+		i -= len(m.Namespace)
+		copy(dAtA[i:], m.Namespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Namespace)))
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Name == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	} else {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -6051,29 +5994,23 @@ func (m *LogEntry) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.PodName == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("podName")
-	} else {
-		i -= len(*m.PodName)
-		copy(dAtA[i:], *m.PodName)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.PodName)))
+	if len(m.PodName) > 0 {
+		i -= len(m.PodName)
+		copy(dAtA[i:], m.PodName)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.PodName)))
 		i--
 		dAtA[i] = 0x2a
 	}
-	if m.TimeStampStr == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("timeStampStr")
-	} else {
-		i -= len(*m.TimeStampStr)
-		copy(dAtA[i:], *m.TimeStampStr)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.TimeStampStr)))
+	if len(m.TimeStampStr) > 0 {
+		i -= len(m.TimeStampStr)
+		copy(dAtA[i:], m.TimeStampStr)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.TimeStampStr)))
 		i--
 		dAtA[i] = 0x22
 	}
-	if m.Last == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("last")
-	} else {
+	if m.Last {
 		i--
-		if *m.Last {
+		if m.Last {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
@@ -6081,9 +6018,7 @@ func (m *LogEntry) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x18
 	}
-	if m.TimeStamp == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("timeStamp")
-	} else {
+	if m.TimeStamp != nil {
 		{
 			size, err := m.TimeStamp.MarshalToSizedBuffer(dAtA[:i])
 			if err != nil {
@@ -6095,12 +6030,10 @@ func (m *LogEntry) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Content == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("content")
-	} else {
-		i -= len(*m.Content)
-		copy(dAtA[i:], *m.Content)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Content)))
+	if len(m.Content) > 0 {
+		i -= len(m.Content)
+		copy(dAtA[i:], m.Content)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Content)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -6131,26 +6064,24 @@ func (m *OperationTerminateRequest) MarshalToSizedBuffer(dAtA []byte) (int, erro
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Project != nil {
-		i -= len(*m.Project)
-		copy(dAtA[i:], *m.Project)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Project)))
+	if len(m.Project) > 0 {
+		i -= len(m.Project)
+		copy(dAtA[i:], m.Project)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Project)))
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.AppNamespace != nil {
-		i -= len(*m.AppNamespace)
-		copy(dAtA[i:], *m.AppNamespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.AppNamespace)))
+	if len(m.AppNamespace) > 0 {
+		i -= len(m.AppNamespace)
+		copy(dAtA[i:], m.AppNamespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.AppNamespace)))
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Name == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	} else {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -6181,26 +6112,24 @@ func (m *ApplicationSyncWindowsQuery) MarshalToSizedBuffer(dAtA []byte) (int, er
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Project != nil {
-		i -= len(*m.Project)
-		copy(dAtA[i:], *m.Project)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Project)))
+	if len(m.Project) > 0 {
+		i -= len(m.Project)
+		copy(dAtA[i:], m.Project)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Project)))
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.AppNamespace != nil {
-		i -= len(*m.AppNamespace)
-		copy(dAtA[i:], *m.AppNamespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.AppNamespace)))
+	if len(m.AppNamespace) > 0 {
+		i -= len(m.AppNamespace)
+		copy(dAtA[i:], m.AppNamespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.AppNamespace)))
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Name == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	} else {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -6231,11 +6160,9 @@ func (m *ApplicationSyncWindowsResponse) MarshalToSizedBuffer(dAtA []byte) (int,
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.CanSync == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("canSync")
-	} else {
+	if m.CanSync {
 		i--
-		if *m.CanSync {
+		if m.CanSync {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
@@ -6298,11 +6225,9 @@ func (m *ApplicationSyncWindow) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.ManualSync == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("manualSync")
-	} else {
+	if m.ManualSync {
 		i--
-		if *m.ManualSync {
+		if m.ManualSync {
 			dAtA[i] = 1
 		} else {
 			dAtA[i] = 0
@@ -6310,30 +6235,24 @@ func (m *ApplicationSyncWindow) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x20
 	}
-	if m.Duration == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("duration")
-	} else {
-		i -= len(*m.Duration)
-		copy(dAtA[i:], *m.Duration)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Duration)))
+	if len(m.Duration) > 0 {
+		i -= len(m.Duration)
+		copy(dAtA[i:], m.Duration)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Duration)))
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.Schedule == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("schedule")
-	} else {
-		i -= len(*m.Schedule)
-		copy(dAtA[i:], *m.Schedule)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Schedule)))
+	if len(m.Schedule) > 0 {
+		i -= len(m.Schedule)
+		copy(dAtA[i:], m.Schedule)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Schedule)))
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Kind == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("kind")
-	} else {
-		i -= len(*m.Kind)
-		copy(dAtA[i:], *m.Kind)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Kind)))
+	if len(m.Kind) > 0 {
+		i -= len(m.Kind)
+		copy(dAtA[i:], m.Kind)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Kind)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -6391,61 +6310,59 @@ func (m *ResourcesQuery) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Project != nil {
-		i -= len(*m.Project)
-		copy(dAtA[i:], *m.Project)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Project)))
+	if len(m.Project) > 0 {
+		i -= len(m.Project)
+		copy(dAtA[i:], m.Project)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Project)))
 		i--
 		dAtA[i] = 0x42
 	}
-	if m.AppNamespace != nil {
-		i -= len(*m.AppNamespace)
-		copy(dAtA[i:], *m.AppNamespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.AppNamespace)))
+	if len(m.AppNamespace) > 0 {
+		i -= len(m.AppNamespace)
+		copy(dAtA[i:], m.AppNamespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.AppNamespace)))
 		i--
 		dAtA[i] = 0x3a
 	}
-	if m.Kind != nil {
-		i -= len(*m.Kind)
-		copy(dAtA[i:], *m.Kind)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Kind)))
+	if len(m.Kind) > 0 {
+		i -= len(m.Kind)
+		copy(dAtA[i:], m.Kind)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Kind)))
 		i--
 		dAtA[i] = 0x32
 	}
-	if m.Group != nil {
-		i -= len(*m.Group)
-		copy(dAtA[i:], *m.Group)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Group)))
+	if len(m.Group) > 0 {
+		i -= len(m.Group)
+		copy(dAtA[i:], m.Group)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Group)))
 		i--
 		dAtA[i] = 0x2a
 	}
-	if m.Version != nil {
-		i -= len(*m.Version)
-		copy(dAtA[i:], *m.Version)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Version)))
+	if len(m.Version) > 0 {
+		i -= len(m.Version)
+		copy(dAtA[i:], m.Version)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Version)))
 		i--
 		dAtA[i] = 0x22
 	}
-	if m.Name != nil {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.Namespace != nil {
-		i -= len(*m.Namespace)
-		copy(dAtA[i:], *m.Namespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Namespace)))
+	if len(m.Namespace) > 0 {
+		i -= len(m.Namespace)
+		copy(dAtA[i:], m.Namespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Namespace)))
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.ApplicationName == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("applicationName")
-	} else {
-		i -= len(*m.ApplicationName)
-		copy(dAtA[i:], *m.ApplicationName)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.ApplicationName)))
+	if len(m.ApplicationName) > 0 {
+		i -= len(m.ApplicationName)
+		copy(dAtA[i:], m.ApplicationName)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.ApplicationName)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -6517,35 +6434,31 @@ func (m *LinkInfo) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.IconClass != nil {
-		i -= len(*m.IconClass)
-		copy(dAtA[i:], *m.IconClass)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.IconClass)))
+	if len(m.IconClass) > 0 {
+		i -= len(m.IconClass)
+		copy(dAtA[i:], m.IconClass)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.IconClass)))
 		i--
 		dAtA[i] = 0x22
 	}
-	if m.Description != nil {
-		i -= len(*m.Description)
-		copy(dAtA[i:], *m.Description)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Description)))
+	if len(m.Description) > 0 {
+		i -= len(m.Description)
+		copy(dAtA[i:], m.Description)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Description)))
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.Url == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("url")
-	} else {
-		i -= len(*m.Url)
-		copy(dAtA[i:], *m.Url)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Url)))
+	if len(m.Url) > 0 {
+		i -= len(m.Url)
+		copy(dAtA[i:], m.Url)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Url)))
 		i--
 		dAtA[i] = 0x12
 	}
-	if m.Title == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("title")
-	} else {
-		i -= len(*m.Title)
-		copy(dAtA[i:], *m.Title)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Title)))
+	if len(m.Title) > 0 {
+		i -= len(m.Title)
+		copy(dAtA[i:], m.Title)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Title)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -6617,26 +6530,24 @@ func (m *ListAppLinksRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if m.Project != nil {
-		i -= len(*m.Project)
-		copy(dAtA[i:], *m.Project)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Project)))
+	if len(m.Project) > 0 {
+		i -= len(m.Project)
+		copy(dAtA[i:], m.Project)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Project)))
 		i--
 		dAtA[i] = 0x22
 	}
-	if m.Namespace != nil {
-		i -= len(*m.Namespace)
-		copy(dAtA[i:], *m.Namespace)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Namespace)))
+	if len(m.Namespace) > 0 {
+		i -= len(m.Namespace)
+		copy(dAtA[i:], m.Namespace)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Namespace)))
 		i--
 		dAtA[i] = 0x1a
 	}
-	if m.Name == nil {
-		return 0, github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	} else {
-		i -= len(*m.Name)
-		copy(dAtA[i:], *m.Name)
-		i = encodeVarintApplication(dAtA, i, uint64(len(*m.Name)))
+	if len(m.Name) > 0 {
+		i -= len(m.Name)
+		copy(dAtA[i:], m.Name)
+		i = encodeVarintApplication(dAtA, i, uint64(len(m.Name)))
 		i--
 		dAtA[i] = 0xa
 	}
@@ -6660,12 +6571,12 @@ func (m *ApplicationQuery) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Refresh != nil {
-		l = len(*m.Refresh)
+	l = len(m.Refresh)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if len(m.Projects) > 0 {
@@ -6674,20 +6585,20 @@ func (m *ApplicationQuery) Size() (n int) {
 			n += 1 + l + sovApplication(uint64(l))
 		}
 	}
-	if m.ResourceVersion != nil {
-		l = len(*m.ResourceVersion)
+	l = len(m.ResourceVersion)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Selector != nil {
-		l = len(*m.Selector)
+	l = len(m.Selector)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Repo != nil {
-		l = len(*m.Repo)
+	l = len(m.Repo)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.AppNamespace != nil {
-		l = len(*m.AppNamespace)
+	l = len(m.AppNamespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if len(m.Project) > 0 {
@@ -6708,12 +6619,12 @@ func (m *NodeQuery) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.AppNamespace != nil {
-		l = len(*m.AppNamespace)
+	l = len(m.AppNamespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -6728,27 +6639,27 @@ func (m *RevisionMetadataQuery) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Revision != nil {
-		l = len(*m.Revision)
+	l = len(m.Revision)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.AppNamespace != nil {
-		l = len(*m.AppNamespace)
+	l = len(m.AppNamespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Project != nil {
-		l = len(*m.Project)
+	l = len(m.Project)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.SourceIndex != nil {
-		n += 1 + sovApplication(uint64(*m.SourceIndex))
+	if m.SourceIndex != 0 {
+		n += 1 + sovApplication(uint64(m.SourceIndex))
 	}
-	if m.VersionId != nil {
-		n += 1 + sovApplication(uint64(*m.VersionId))
+	if m.VersionId != 0 {
+		n += 1 + sovApplication(uint64(m.VersionId))
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -6762,28 +6673,28 @@ func (m *ApplicationResourceEventsQuery) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.ResourceNamespace != nil {
-		l = len(*m.ResourceNamespace)
+	l = len(m.ResourceNamespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.ResourceName != nil {
-		l = len(*m.ResourceName)
+	l = len(m.ResourceName)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.ResourceUID != nil {
-		l = len(*m.ResourceUID)
+	l = len(m.ResourceUID)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.AppNamespace != nil {
-		l = len(*m.AppNamespace)
+	l = len(m.AppNamespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Project != nil {
-		l = len(*m.Project)
+	l = len(m.Project)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -6798,26 +6709,28 @@ func (m *ApplicationManifestQuery) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Revision != nil {
-		l = len(*m.Revision)
+	l = len(m.Revision)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.AppNamespace != nil {
-		l = len(*m.AppNamespace)
+	l = len(m.AppNamespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Project != nil {
-		l = len(*m.Project)
+	l = len(m.Project)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if len(m.SourcePositions) > 0 {
+		l = 0
 		for _, e := range m.SourcePositions {
-			n += 1 + sovApplication(uint64(e))
+			l += sovApplication(uint64(e))
 		}
+		n += 1 + sovApplication(uint64(l)) + l
 	}
 	if len(m.Revisions) > 0 {
 		for _, s := range m.Revisions {
@@ -6837,8 +6750,8 @@ func (m *FileChunk) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Chunk != nil {
-		l = len(m.Chunk)
+	l = len(m.Chunk)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -6853,20 +6766,20 @@ func (m *ApplicationManifestQueryWithFiles) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Checksum != nil {
-		l = len(*m.Checksum)
+	l = len(m.Checksum)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.AppNamespace != nil {
-		l = len(*m.AppNamespace)
+	l = len(m.AppNamespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Project != nil {
-		l = len(*m.Project)
+	l = len(m.Project)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -6936,10 +6849,10 @@ func (m *ApplicationCreateRequest) Size() (n int) {
 		l = m.Application.Size()
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Upsert != nil {
+	if m.Upsert {
 		n += 2
 	}
-	if m.Validate != nil {
+	if m.Validate {
 		n += 2
 	}
 	if m.XXX_unrecognized != nil {
@@ -6958,11 +6871,11 @@ func (m *ApplicationUpdateRequest) Size() (n int) {
 		l = m.Application.Size()
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Validate != nil {
+	if m.Validate {
 		n += 2
 	}
-	if m.Project != nil {
-		l = len(*m.Project)
+	l = len(m.Project)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -6977,23 +6890,23 @@ func (m *ApplicationDeleteRequest) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Cascade != nil {
+	if m.Cascade {
 		n += 2
 	}
-	if m.PropagationPolicy != nil {
-		l = len(*m.PropagationPolicy)
+	l = len(m.PropagationPolicy)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.AppNamespace != nil {
-		l = len(*m.AppNamespace)
+	l = len(m.AppNamespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Project != nil {
-		l = len(*m.Project)
+	l = len(m.Project)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -7026,18 +6939,18 @@ func (m *ApplicationSyncRequest) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Revision != nil {
-		l = len(*m.Revision)
+	l = len(m.Revision)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.DryRun != nil {
+	if m.DryRun {
 		n += 2
 	}
-	if m.Prune != nil {
+	if m.Prune {
 		n += 2
 	}
 	if m.Strategy != nil {
@@ -7070,18 +6983,20 @@ func (m *ApplicationSyncRequest) Size() (n int) {
 		l = m.SyncOptions.Size()
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.AppNamespace != nil {
-		l = len(*m.AppNamespace)
+	l = len(m.AppNamespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Project != nil {
-		l = len(*m.Project)
+	l = len(m.Project)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if len(m.SourcePositions) > 0 {
+		l = 0
 		for _, e := range m.SourcePositions {
-			n += 1 + sovApplication(uint64(e))
+			l += sovApplication(uint64(e))
 		}
+		n += 1 + sovApplication(uint64(l)) + l
 	}
 	if len(m.Revisions) > 0 {
 		for _, s := range m.Revisions {
@@ -7101,23 +7016,23 @@ func (m *ApplicationUpdateSpecRequest) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.Spec != nil {
 		l = m.Spec.Size()
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Validate != nil {
+	if m.Validate {
 		n += 2
 	}
-	if m.AppNamespace != nil {
-		l = len(*m.AppNamespace)
+	l = len(m.AppNamespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Project != nil {
-		l = len(*m.Project)
+	l = len(m.Project)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -7132,24 +7047,24 @@ func (m *ApplicationPatchRequest) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Patch != nil {
-		l = len(*m.Patch)
+	l = len(m.Patch)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.PatchType != nil {
-		l = len(*m.PatchType)
+	l = len(m.PatchType)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.AppNamespace != nil {
-		l = len(*m.AppNamespace)
+	l = len(m.AppNamespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Project != nil {
-		l = len(*m.Project)
+	l = len(m.Project)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -7164,25 +7079,25 @@ func (m *ApplicationRollbackRequest) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Id != nil {
-		n += 1 + sovApplication(uint64(*m.Id))
+	if m.Id != 0 {
+		n += 1 + sovApplication(uint64(m.Id))
 	}
-	if m.DryRun != nil {
+	if m.DryRun {
 		n += 2
 	}
-	if m.Prune != nil {
+	if m.Prune {
 		n += 2
 	}
-	if m.AppNamespace != nil {
-		l = len(*m.AppNamespace)
+	l = len(m.AppNamespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Project != nil {
-		l = len(*m.Project)
+	l = len(m.Project)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -7197,36 +7112,36 @@ func (m *ApplicationResourceRequest) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Namespace != nil {
-		l = len(*m.Namespace)
+	l = len(m.Namespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.ResourceName != nil {
-		l = len(*m.ResourceName)
+	l = len(m.ResourceName)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Version != nil {
-		l = len(*m.Version)
+	l = len(m.Version)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Group != nil {
-		l = len(*m.Group)
+	l = len(m.Group)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Kind != nil {
-		l = len(*m.Kind)
+	l = len(m.Kind)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.AppNamespace != nil {
-		l = len(*m.AppNamespace)
+	l = len(m.AppNamespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Project != nil {
-		l = len(*m.Project)
+	l = len(m.Project)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -7241,44 +7156,44 @@ func (m *ApplicationResourcePatchRequest) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Namespace != nil {
-		l = len(*m.Namespace)
+	l = len(m.Namespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.ResourceName != nil {
-		l = len(*m.ResourceName)
+	l = len(m.ResourceName)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Version != nil {
-		l = len(*m.Version)
+	l = len(m.Version)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Group != nil {
-		l = len(*m.Group)
+	l = len(m.Group)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Kind != nil {
-		l = len(*m.Kind)
+	l = len(m.Kind)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Patch != nil {
-		l = len(*m.Patch)
+	l = len(m.Patch)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.PatchType != nil {
-		l = len(*m.PatchType)
+	l = len(m.PatchType)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.AppNamespace != nil {
-		l = len(*m.AppNamespace)
+	l = len(m.AppNamespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Project != nil {
-		l = len(*m.Project)
+	l = len(m.Project)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -7293,42 +7208,42 @@ func (m *ApplicationResourceDeleteRequest) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Namespace != nil {
-		l = len(*m.Namespace)
+	l = len(m.Namespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.ResourceName != nil {
-		l = len(*m.ResourceName)
+	l = len(m.ResourceName)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Version != nil {
-		l = len(*m.Version)
+	l = len(m.Version)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Group != nil {
-		l = len(*m.Group)
+	l = len(m.Group)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Kind != nil {
-		l = len(*m.Kind)
+	l = len(m.Kind)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Force != nil {
+	if m.Force {
 		n += 2
 	}
-	if m.Orphan != nil {
+	if m.Orphan {
 		n += 2
 	}
-	if m.AppNamespace != nil {
-		l = len(*m.AppNamespace)
+	l = len(m.AppNamespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Project != nil {
-		l = len(*m.Project)
+	l = len(m.Project)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -7343,40 +7258,40 @@ func (m *ResourceActionRunRequest) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Namespace != nil {
-		l = len(*m.Namespace)
+	l = len(m.Namespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.ResourceName != nil {
-		l = len(*m.ResourceName)
+	l = len(m.ResourceName)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Version != nil {
-		l = len(*m.Version)
+	l = len(m.Version)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Group != nil {
-		l = len(*m.Group)
+	l = len(m.Group)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Kind != nil {
-		l = len(*m.Kind)
+	l = len(m.Kind)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Action != nil {
-		l = len(*m.Action)
+	l = len(m.Action)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.AppNamespace != nil {
-		l = len(*m.AppNamespace)
+	l = len(m.AppNamespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Project != nil {
-		l = len(*m.Project)
+	l = len(m.Project)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -7409,8 +7324,8 @@ func (m *ApplicationResourceResponse) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Manifest != nil {
-		l = len(*m.Manifest)
+	l = len(m.Manifest)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -7425,64 +7340,64 @@ func (m *ApplicationPodLogsQuery) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Namespace != nil {
-		l = len(*m.Namespace)
+	l = len(m.Namespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.PodName != nil {
-		l = len(*m.PodName)
+	l = len(m.PodName)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Container != nil {
-		l = len(*m.Container)
+	l = len(m.Container)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.SinceSeconds != nil {
-		n += 1 + sovApplication(uint64(*m.SinceSeconds))
+	if m.SinceSeconds != 0 {
+		n += 1 + sovApplication(uint64(m.SinceSeconds))
 	}
 	if m.SinceTime != nil {
 		l = m.SinceTime.Size()
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.TailLines != nil {
-		n += 1 + sovApplication(uint64(*m.TailLines))
+	if m.TailLines != 0 {
+		n += 1 + sovApplication(uint64(m.TailLines))
 	}
-	if m.Follow != nil {
+	if m.Follow {
 		n += 2
 	}
-	if m.UntilTime != nil {
-		l = len(*m.UntilTime)
+	l = len(m.UntilTime)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Filter != nil {
-		l = len(*m.Filter)
+	l = len(m.Filter)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Kind != nil {
-		l = len(*m.Kind)
+	l = len(m.Kind)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Group != nil {
-		l = len(*m.Group)
+	l = len(m.Group)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.ResourceName != nil {
-		l = len(*m.ResourceName)
+	l = len(m.ResourceName)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Previous != nil {
+	if m.Previous {
 		n += 2
 	}
-	if m.AppNamespace != nil {
-		l = len(*m.AppNamespace)
+	l = len(m.AppNamespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Project != nil {
-		l = len(*m.Project)
+	l = len(m.Project)
+	if l > 0 {
 		n += 2 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -7497,23 +7412,23 @@ func (m *LogEntry) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Content != nil {
-		l = len(*m.Content)
+	l = len(m.Content)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.TimeStamp != nil {
 		l = m.TimeStamp.Size()
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Last != nil {
+	if m.Last {
 		n += 2
 	}
-	if m.TimeStampStr != nil {
-		l = len(*m.TimeStampStr)
+	l = len(m.TimeStampStr)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.PodName != nil {
-		l = len(*m.PodName)
+	l = len(m.PodName)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -7528,16 +7443,16 @@ func (m *OperationTerminateRequest) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.AppNamespace != nil {
-		l = len(*m.AppNamespace)
+	l = len(m.AppNamespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Project != nil {
-		l = len(*m.Project)
+	l = len(m.Project)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -7552,16 +7467,16 @@ func (m *ApplicationSyncWindowsQuery) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.AppNamespace != nil {
-		l = len(*m.AppNamespace)
+	l = len(m.AppNamespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Project != nil {
-		l = len(*m.Project)
+	l = len(m.Project)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -7588,7 +7503,7 @@ func (m *ApplicationSyncWindowsResponse) Size() (n int) {
 			n += 1 + l + sovApplication(uint64(l))
 		}
 	}
-	if m.CanSync != nil {
+	if m.CanSync {
 		n += 2
 	}
 	if m.XXX_unrecognized != nil {
@@ -7603,19 +7518,19 @@ func (m *ApplicationSyncWindow) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Kind != nil {
-		l = len(*m.Kind)
+	l = len(m.Kind)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Schedule != nil {
-		l = len(*m.Schedule)
+	l = len(m.Schedule)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Duration != nil {
-		l = len(*m.Duration)
+	l = len(m.Duration)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.ManualSync != nil {
+	if m.ManualSync {
 		n += 2
 	}
 	if m.XXX_unrecognized != nil {
@@ -7642,36 +7557,36 @@ func (m *ResourcesQuery) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.ApplicationName != nil {
-		l = len(*m.ApplicationName)
+	l = len(m.ApplicationName)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Namespace != nil {
-		l = len(*m.Namespace)
+	l = len(m.Namespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Version != nil {
-		l = len(*m.Version)
+	l = len(m.Version)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Group != nil {
-		l = len(*m.Group)
+	l = len(m.Group)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Kind != nil {
-		l = len(*m.Kind)
+	l = len(m.Kind)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.AppNamespace != nil {
-		l = len(*m.AppNamespace)
+	l = len(m.AppNamespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Project != nil {
-		l = len(*m.Project)
+	l = len(m.Project)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -7704,20 +7619,20 @@ func (m *LinkInfo) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Title != nil {
-		l = len(*m.Title)
+	l = len(m.Title)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Url != nil {
-		l = len(*m.Url)
+	l = len(m.Url)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Description != nil {
-		l = len(*m.Description)
+	l = len(m.Description)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.IconClass != nil {
-		l = len(*m.IconClass)
+	l = len(m.IconClass)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -7750,16 +7665,16 @@ func (m *ListAppLinksRequest) Size() (n int) {
 	}
 	var l int
 	_ = l
-	if m.Name != nil {
-		l = len(*m.Name)
+	l = len(m.Name)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Namespace != nil {
-		l = len(*m.Namespace)
+	l = len(m.Namespace)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
-	if m.Project != nil {
-		l = len(*m.Project)
+	l = len(m.Project)
+	if l > 0 {
 		n += 1 + l + sovApplication(uint64(l))
 	}
 	if m.XXX_unrecognized != nil {
@@ -7833,8 +7748,7 @@ func (m *ApplicationQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
@@ -7866,8 +7780,7 @@ func (m *ApplicationQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Refresh = &s
+			m.Refresh = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
@@ -7931,8 +7844,7 @@ func (m *ApplicationQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.ResourceVersion = &s
+			m.ResourceVersion = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 5:
 			if wireType != 2 {
@@ -7964,8 +7876,7 @@ func (m *ApplicationQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Selector = &s
+			m.Selector = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 6:
 			if wireType != 2 {
@@ -7997,8 +7908,7 @@ func (m *ApplicationQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Repo = &s
+			m.Repo = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 7:
 			if wireType != 2 {
@@ -8030,8 +7940,7 @@ func (m *ApplicationQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.AppNamespace = &s
+			m.AppNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 8:
 			if wireType != 2 {
@@ -8146,8 +8055,7 @@ func (m *NodeQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
@@ -8179,8 +8087,7 @@ func (m *NodeQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.AppNamespace = &s
+			m.AppNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -8205,7 +8112,6 @@ func (m *NodeQuery) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *RevisionMetadataQuery) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -8264,10 +8170,8 @@ func (m *RevisionMetadataQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Revision", wireType)
@@ -8298,10 +8202,8 @@ func (m *RevisionMetadataQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Revision = &s
+			m.Revision = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000002)
 		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field AppNamespace", wireType)
@@ -8332,8 +8234,7 @@ func (m *RevisionMetadataQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.AppNamespace = &s
+			m.AppNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 4:
 			if wireType != 2 {
@@ -8365,14 +8266,13 @@ func (m *RevisionMetadataQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Project = &s
+			m.Project = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 5:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field SourceIndex", wireType)
 			}
-			var v int32
+			m.SourceIndex = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowApplication
@@ -8382,17 +8282,16 @@ func (m *RevisionMetadataQuery) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= int32(b&0x7F) << shift
+				m.SourceIndex |= int32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			m.SourceIndex = &v
 		case 6:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field VersionId", wireType)
 			}
-			var v int32
+			m.VersionId = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowApplication
@@ -8402,12 +8301,11 @@ func (m *RevisionMetadataQuery) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= int32(b&0x7F) << shift
+				m.VersionId |= int32(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			m.VersionId = &v
 		default:
 			iNdEx = preIndex
 			skippy, err := skipApplication(dAtA[iNdEx:])
@@ -8424,12 +8322,6 @@ func (m *RevisionMetadataQuery) Unmarshal(dAtA []byte) error {
 			iNdEx += skippy
 		}
 	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	}
-	if hasFields[0]&uint64(0x00000002) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("revision")
-	}
 
 	if iNdEx > l {
 		return io.ErrUnexpectedEOF
@@ -8437,7 +8329,6 @@ func (m *RevisionMetadataQuery) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ApplicationResourceEventsQuery) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -8496,10 +8387,8 @@ func (m *ApplicationResourceEventsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ResourceNamespace", wireType)
@@ -8530,8 +8419,7 @@ func (m *ApplicationResourceEventsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.ResourceNamespace = &s
+			m.ResourceNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
@@ -8563,8 +8451,7 @@ func (m *ApplicationResourceEventsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.ResourceName = &s
+			m.ResourceName = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 4:
 			if wireType != 2 {
@@ -8596,8 +8483,7 @@ func (m *ApplicationResourceEventsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.ResourceUID = &s
+			m.ResourceUID = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 5:
 			if wireType != 2 {
@@ -8629,8 +8515,7 @@ func (m *ApplicationResourceEventsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.AppNamespace = &s
+			m.AppNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 6:
 			if wireType != 2 {
@@ -8662,8 +8547,7 @@ func (m *ApplicationResourceEventsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Project = &s
+			m.Project = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -8681,9 +8565,6 @@ func (m *ApplicationResourceEventsQuery) Unmarshal(dAtA []byte) error {
 			iNdEx += skippy
 		}
 	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	}
 
 	if iNdEx > l {
 		return io.ErrUnexpectedEOF
@@ -8691,7 +8572,6 @@ func (m *ApplicationResourceEventsQuery) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ApplicationManifestQuery) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -8750,10 +8630,8 @@ func (m *ApplicationManifestQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Revision", wireType)
@@ -8784,8 +8662,7 @@ func (m *ApplicationManifestQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Revision = &s
+			m.Revision = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
@@ -8817,8 +8694,7 @@ func (m *ApplicationManifestQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.AppNamespace = &s
+			m.AppNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 4:
 			if wireType != 2 {
@@ -8850,8 +8726,7 @@ func (m *ApplicationManifestQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Project = &s
+			m.Project = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 5:
 			if wireType == 0 {
@@ -8977,9 +8852,6 @@ func (m *ApplicationManifestQuery) Unmarshal(dAtA []byte) error {
 			iNdEx += skippy
 		}
 	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	}
 
 	if iNdEx > l {
 		return io.ErrUnexpectedEOF
@@ -8987,7 +8859,6 @@ func (m *ApplicationManifestQuery) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *FileChunk) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -9050,7 +8921,6 @@ func (m *FileChunk) Unmarshal(dAtA []byte) error {
 				m.Chunk = []byte{}
 			}
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipApplication(dAtA[iNdEx:])
@@ -9067,9 +8937,6 @@ func (m *FileChunk) Unmarshal(dAtA []byte) error {
 			iNdEx += skippy
 		}
 	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("chunk")
-	}
 
 	if iNdEx > l {
 		return io.ErrUnexpectedEOF
@@ -9077,7 +8944,6 @@ func (m *FileChunk) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ApplicationManifestQueryWithFiles) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -9136,10 +9002,8 @@ func (m *ApplicationManifestQueryWithFiles) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Checksum", wireType)
@@ -9170,10 +9034,8 @@ func (m *ApplicationManifestQueryWithFiles) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Checksum = &s
+			m.Checksum = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000002)
 		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field AppNamespace", wireType)
@@ -9204,8 +9066,7 @@ func (m *ApplicationManifestQueryWithFiles) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.AppNamespace = &s
+			m.AppNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 4:
 			if wireType != 2 {
@@ -9237,8 +9098,7 @@ func (m *ApplicationManifestQueryWithFiles) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Project = &s
+			m.Project = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -9255,12 +9115,6 @@ func (m *ApplicationManifestQueryWithFiles) Unmarshal(dAtA []byte) error {
 			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
 			iNdEx += skippy
 		}
-	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	}
-	if hasFields[0]&uint64(0x00000002) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("checksum")
 	}
 
 	if iNdEx > l {
@@ -9441,7 +9295,6 @@ func (m *ApplicationResponse) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ApplicationCreateRequest) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -9506,7 +9359,6 @@ func (m *ApplicationCreateRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Upsert", wireType)
@@ -9526,8 +9378,7 @@ func (m *ApplicationCreateRequest) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-			b := bool(v != 0)
-			m.Upsert = &b
+			m.Upsert = bool(v != 0)
 		case 3:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Validate", wireType)
@@ -9547,8 +9398,7 @@ func (m *ApplicationCreateRequest) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-			b := bool(v != 0)
-			m.Validate = &b
+			m.Validate = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipApplication(dAtA[iNdEx:])
@@ -9565,9 +9415,6 @@ func (m *ApplicationCreateRequest) Unmarshal(dAtA []byte) error {
 			iNdEx += skippy
 		}
 	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("application")
-	}
 
 	if iNdEx > l {
 		return io.ErrUnexpectedEOF
@@ -9575,7 +9422,6 @@ func (m *ApplicationCreateRequest) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ApplicationUpdateRequest) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -9640,7 +9486,6 @@ func (m *ApplicationUpdateRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Validate", wireType)
@@ -9660,8 +9505,7 @@ func (m *ApplicationUpdateRequest) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-			b := bool(v != 0)
-			m.Validate = &b
+			m.Validate = bool(v != 0)
 		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Project", wireType)
@@ -9692,8 +9536,7 @@ func (m *ApplicationUpdateRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Project = &s
+			m.Project = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -9711,9 +9554,6 @@ func (m *ApplicationUpdateRequest) Unmarshal(dAtA []byte) error {
 			iNdEx += skippy
 		}
 	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("application")
-	}
 
 	if iNdEx > l {
 		return io.ErrUnexpectedEOF
@@ -9721,7 +9561,6 @@ func (m *ApplicationUpdateRequest) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ApplicationDeleteRequest) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -9780,10 +9619,8 @@ func (m *ApplicationDeleteRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Cascade", wireType)
@@ -9803,8 +9640,7 @@ func (m *ApplicationDeleteRequest) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-			b := bool(v != 0)
-			m.Cascade = &b
+			m.Cascade = bool(v != 0)
 		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field PropagationPolicy", wireType)
@@ -9835,8 +9671,7 @@ func (m *ApplicationDeleteRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.PropagationPolicy = &s
+			m.PropagationPolicy = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 4:
 			if wireType != 2 {
@@ -9868,8 +9703,7 @@ func (m *ApplicationDeleteRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.AppNamespace = &s
+			m.AppNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 5:
 			if wireType != 2 {
@@ -9901,8 +9735,7 @@ func (m *ApplicationDeleteRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Project = &s
+			m.Project = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -9919,9 +9752,6 @@ func (m *ApplicationDeleteRequest) Unmarshal(dAtA []byte) error {
 			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
 			iNdEx += skippy
 		}
-	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
 	}
 
 	if iNdEx > l {
@@ -10013,7 +9843,6 @@ func (m *SyncOptions) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ApplicationSyncRequest) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -10072,10 +9901,8 @@ func (m *ApplicationSyncRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Revision", wireType)
@@ -10106,8 +9933,7 @@ func (m *ApplicationSyncRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Revision = &s
+			m.Revision = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 3:
 			if wireType != 0 {
@@ -10128,8 +9954,7 @@ func (m *ApplicationSyncRequest) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-			b := bool(v != 0)
-			m.DryRun = &b
+			m.DryRun = bool(v != 0)
 		case 4:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Prune", wireType)
@@ -10149,8 +9974,7 @@ func (m *ApplicationSyncRequest) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-			b := bool(v != 0)
-			m.Prune = &b
+			m.Prune = bool(v != 0)
 		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Strategy", wireType)
@@ -10389,8 +10213,7 @@ func (m *ApplicationSyncRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.AppNamespace = &s
+			m.AppNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 13:
 			if wireType != 2 {
@@ -10422,8 +10245,7 @@ func (m *ApplicationSyncRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Project = &s
+			m.Project = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 14:
 			if wireType == 0 {
@@ -10549,9 +10371,6 @@ func (m *ApplicationSyncRequest) Unmarshal(dAtA []byte) error {
 			iNdEx += skippy
 		}
 	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	}
 
 	if iNdEx > l {
 		return io.ErrUnexpectedEOF
@@ -10559,7 +10378,6 @@ func (m *ApplicationSyncRequest) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ApplicationUpdateSpecRequest) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -10618,10 +10436,8 @@ func (m *ApplicationUpdateSpecRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Spec", wireType)
@@ -10658,7 +10474,6 @@ func (m *ApplicationUpdateSpecRequest) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000002)
 		case 3:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Validate", wireType)
@@ -10678,8 +10493,7 @@ func (m *ApplicationUpdateSpecRequest) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-			b := bool(v != 0)
-			m.Validate = &b
+			m.Validate = bool(v != 0)
 		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field AppNamespace", wireType)
@@ -10710,8 +10524,7 @@ func (m *ApplicationUpdateSpecRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.AppNamespace = &s
+			m.AppNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 5:
 			if wireType != 2 {
@@ -10743,8 +10556,7 @@ func (m *ApplicationUpdateSpecRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Project = &s
+			m.Project = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -10762,12 +10574,6 @@ func (m *ApplicationUpdateSpecRequest) Unmarshal(dAtA []byte) error {
 			iNdEx += skippy
 		}
 	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	}
-	if hasFields[0]&uint64(0x00000002) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("spec")
-	}
 
 	if iNdEx > l {
 		return io.ErrUnexpectedEOF
@@ -10775,7 +10581,6 @@ func (m *ApplicationUpdateSpecRequest) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ApplicationPatchRequest) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -10834,10 +10639,8 @@ func (m *ApplicationPatchRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Patch", wireType)
@@ -10868,10 +10671,8 @@ func (m *ApplicationPatchRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Patch = &s
+			m.Patch = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000002)
 		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field PatchType", wireType)
@@ -10902,10 +10703,8 @@ func (m *ApplicationPatchRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.PatchType = &s
+			m.PatchType = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000004)
 		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field AppNamespace", wireType)
@@ -10936,8 +10735,7 @@ func (m *ApplicationPatchRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.AppNamespace = &s
+			m.AppNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 6:
 			if wireType != 2 {
@@ -10969,8 +10767,7 @@ func (m *ApplicationPatchRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Project = &s
+			m.Project = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -10988,15 +10785,6 @@ func (m *ApplicationPatchRequest) Unmarshal(dAtA []byte) error {
 			iNdEx += skippy
 		}
 	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	}
-	if hasFields[0]&uint64(0x00000002) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("patch")
-	}
-	if hasFields[0]&uint64(0x00000004) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("patchType")
-	}
 
 	if iNdEx > l {
 		return io.ErrUnexpectedEOF
@@ -11004,7 +10792,6 @@ func (m *ApplicationPatchRequest) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ApplicationRollbackRequest) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -11063,15 +10850,13 @@ func (m *ApplicationRollbackRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Id", wireType)
 			}
-			var v int64
+			m.Id = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowApplication
@@ -11081,13 +10866,11 @@ func (m *ApplicationRollbackRequest) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= int64(b&0x7F) << shift
+				m.Id |= int64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			m.Id = &v
-			hasFields[0] |= uint64(0x00000002)
 		case 3:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field DryRun", wireType)
@@ -11107,8 +10890,7 @@ func (m *ApplicationRollbackRequest) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-			b := bool(v != 0)
-			m.DryRun = &b
+			m.DryRun = bool(v != 0)
 		case 4:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Prune", wireType)
@@ -11128,8 +10910,7 @@ func (m *ApplicationRollbackRequest) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-			b := bool(v != 0)
-			m.Prune = &b
+			m.Prune = bool(v != 0)
 		case 6:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field AppNamespace", wireType)
@@ -11160,8 +10941,7 @@ func (m *ApplicationRollbackRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.AppNamespace = &s
+			m.AppNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 7:
 			if wireType != 2 {
@@ -11193,8 +10973,7 @@ func (m *ApplicationRollbackRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Project = &s
+			m.Project = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -11212,12 +10991,6 @@ func (m *ApplicationRollbackRequest) Unmarshal(dAtA []byte) error {
 			iNdEx += skippy
 		}
 	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	}
-	if hasFields[0]&uint64(0x00000002) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("id")
-	}
 
 	if iNdEx > l {
 		return io.ErrUnexpectedEOF
@@ -11225,7 +10998,6 @@ func (m *ApplicationRollbackRequest) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ApplicationResourceRequest) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -11284,10 +11056,8 @@ func (m *ApplicationResourceRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
@@ -11318,8 +11088,7 @@ func (m *ApplicationResourceRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Namespace = &s
+			m.Namespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
@@ -11351,10 +11120,8 @@ func (m *ApplicationResourceRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.ResourceName = &s
+			m.ResourceName = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000002)
 		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Version", wireType)
@@ -11385,10 +11152,8 @@ func (m *ApplicationResourceRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Version = &s
+			m.Version = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000004)
 		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Group", wireType)
@@ -11419,8 +11184,7 @@ func (m *ApplicationResourceRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Group = &s
+			m.Group = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 6:
 			if wireType != 2 {
@@ -11452,10 +11216,8 @@ func (m *ApplicationResourceRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Kind = &s
+			m.Kind = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000008)
 		case 7:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field AppNamespace", wireType)
@@ -11486,8 +11248,7 @@ func (m *ApplicationResourceRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.AppNamespace = &s
+			m.AppNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 8:
 			if wireType != 2 {
@@ -11519,8 +11280,7 @@ func (m *ApplicationResourceRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Project = &s
+			m.Project = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -11538,18 +11298,6 @@ func (m *ApplicationResourceRequest) Unmarshal(dAtA []byte) error {
 			iNdEx += skippy
 		}
 	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	}
-	if hasFields[0]&uint64(0x00000002) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("resourceName")
-	}
-	if hasFields[0]&uint64(0x00000004) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("version")
-	}
-	if hasFields[0]&uint64(0x00000008) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("kind")
-	}
 
 	if iNdEx > l {
 		return io.ErrUnexpectedEOF
@@ -11557,7 +11305,6 @@ func (m *ApplicationResourceRequest) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ApplicationResourcePatchRequest) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -11616,10 +11363,8 @@ func (m *ApplicationResourcePatchRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
@@ -11650,8 +11395,7 @@ func (m *ApplicationResourcePatchRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Namespace = &s
+			m.Namespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
@@ -11683,10 +11427,8 @@ func (m *ApplicationResourcePatchRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.ResourceName = &s
+			m.ResourceName = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000002)
 		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Version", wireType)
@@ -11717,10 +11459,8 @@ func (m *ApplicationResourcePatchRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Version = &s
+			m.Version = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000004)
 		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Group", wireType)
@@ -11751,8 +11491,7 @@ func (m *ApplicationResourcePatchRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Group = &s
+			m.Group = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 6:
 			if wireType != 2 {
@@ -11784,10 +11523,8 @@ func (m *ApplicationResourcePatchRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Kind = &s
+			m.Kind = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000008)
 		case 7:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Patch", wireType)
@@ -11818,10 +11555,8 @@ func (m *ApplicationResourcePatchRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Patch = &s
+			m.Patch = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000010)
 		case 8:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field PatchType", wireType)
@@ -11852,10 +11587,8 @@ func (m *ApplicationResourcePatchRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.PatchType = &s
+			m.PatchType = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000020)
 		case 9:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field AppNamespace", wireType)
@@ -11886,8 +11619,7 @@ func (m *ApplicationResourcePatchRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.AppNamespace = &s
+			m.AppNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 10:
 			if wireType != 2 {
@@ -11919,8 +11651,7 @@ func (m *ApplicationResourcePatchRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Project = &s
+			m.Project = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -11938,24 +11669,6 @@ func (m *ApplicationResourcePatchRequest) Unmarshal(dAtA []byte) error {
 			iNdEx += skippy
 		}
 	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	}
-	if hasFields[0]&uint64(0x00000002) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("resourceName")
-	}
-	if hasFields[0]&uint64(0x00000004) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("version")
-	}
-	if hasFields[0]&uint64(0x00000008) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("kind")
-	}
-	if hasFields[0]&uint64(0x00000010) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("patch")
-	}
-	if hasFields[0]&uint64(0x00000020) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("patchType")
-	}
 
 	if iNdEx > l {
 		return io.ErrUnexpectedEOF
@@ -11963,7 +11676,6 @@ func (m *ApplicationResourcePatchRequest) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ApplicationResourceDeleteRequest) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -12022,10 +11734,8 @@ func (m *ApplicationResourceDeleteRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
@@ -12056,8 +11766,7 @@ func (m *ApplicationResourceDeleteRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Namespace = &s
+			m.Namespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
@@ -12089,10 +11798,8 @@ func (m *ApplicationResourceDeleteRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.ResourceName = &s
+			m.ResourceName = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000002)
 		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Version", wireType)
@@ -12123,10 +11830,8 @@ func (m *ApplicationResourceDeleteRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Version = &s
+			m.Version = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000004)
 		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Group", wireType)
@@ -12157,8 +11862,7 @@ func (m *ApplicationResourceDeleteRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Group = &s
+			m.Group = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 6:
 			if wireType != 2 {
@@ -12190,10 +11894,8 @@ func (m *ApplicationResourceDeleteRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Kind = &s
+			m.Kind = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000008)
 		case 7:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Force", wireType)
@@ -12213,8 +11915,7 @@ func (m *ApplicationResourceDeleteRequest) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-			b := bool(v != 0)
-			m.Force = &b
+			m.Force = bool(v != 0)
 		case 8:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Orphan", wireType)
@@ -12234,8 +11935,7 @@ func (m *ApplicationResourceDeleteRequest) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-			b := bool(v != 0)
-			m.Orphan = &b
+			m.Orphan = bool(v != 0)
 		case 9:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field AppNamespace", wireType)
@@ -12266,8 +11966,7 @@ func (m *ApplicationResourceDeleteRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.AppNamespace = &s
+			m.AppNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 10:
 			if wireType != 2 {
@@ -12299,8 +11998,7 @@ func (m *ApplicationResourceDeleteRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Project = &s
+			m.Project = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -12318,18 +12016,6 @@ func (m *ApplicationResourceDeleteRequest) Unmarshal(dAtA []byte) error {
 			iNdEx += skippy
 		}
 	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	}
-	if hasFields[0]&uint64(0x00000002) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("resourceName")
-	}
-	if hasFields[0]&uint64(0x00000004) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("version")
-	}
-	if hasFields[0]&uint64(0x00000008) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("kind")
-	}
 
 	if iNdEx > l {
 		return io.ErrUnexpectedEOF
@@ -12337,7 +12023,6 @@ func (m *ApplicationResourceDeleteRequest) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ResourceActionRunRequest) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -12396,10 +12081,8 @@ func (m *ResourceActionRunRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
@@ -12430,8 +12113,7 @@ func (m *ResourceActionRunRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Namespace = &s
+			m.Namespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
@@ -12463,10 +12145,8 @@ func (m *ResourceActionRunRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.ResourceName = &s
+			m.ResourceName = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000002)
 		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Version", wireType)
@@ -12497,10 +12177,8 @@ func (m *ResourceActionRunRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Version = &s
+			m.Version = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000004)
 		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Group", wireType)
@@ -12531,8 +12209,7 @@ func (m *ResourceActionRunRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Group = &s
+			m.Group = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 6:
 			if wireType != 2 {
@@ -12564,10 +12241,8 @@ func (m *ResourceActionRunRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Kind = &s
+			m.Kind = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000008)
 		case 7:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Action", wireType)
@@ -12598,10 +12273,8 @@ func (m *ResourceActionRunRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Action = &s
+			m.Action = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000010)
 		case 8:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field AppNamespace", wireType)
@@ -12632,8 +12305,7 @@ func (m *ResourceActionRunRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.AppNamespace = &s
+			m.AppNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 9:
 			if wireType != 2 {
@@ -12665,8 +12337,7 @@ func (m *ResourceActionRunRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Project = &s
+			m.Project = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -12683,21 +12354,6 @@ func (m *ResourceActionRunRequest) Unmarshal(dAtA []byte) error {
 			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
 			iNdEx += skippy
 		}
-	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	}
-	if hasFields[0]&uint64(0x00000002) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("resourceName")
-	}
-	if hasFields[0]&uint64(0x00000004) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("version")
-	}
-	if hasFields[0]&uint64(0x00000008) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("kind")
-	}
-	if hasFields[0]&uint64(0x00000010) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("action")
 	}
 
 	if iNdEx > l {
@@ -12791,7 +12447,6 @@ func (m *ResourceActionsListResponse) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ApplicationResourceResponse) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -12850,10 +12505,8 @@ func (m *ApplicationResourceResponse) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Manifest = &s
+			m.Manifest = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipApplication(dAtA[iNdEx:])
@@ -12870,9 +12523,6 @@ func (m *ApplicationResourceResponse) Unmarshal(dAtA []byte) error {
 			iNdEx += skippy
 		}
 	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("manifest")
-	}
 
 	if iNdEx > l {
 		return io.ErrUnexpectedEOF
@@ -12880,7 +12530,6 @@ func (m *ApplicationResourceResponse) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ApplicationPodLogsQuery) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -12939,10 +12588,8 @@ func (m *ApplicationPodLogsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
@@ -12973,8 +12620,7 @@ func (m *ApplicationPodLogsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Namespace = &s
+			m.Namespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
@@ -13006,8 +12652,7 @@ func (m *ApplicationPodLogsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.PodName = &s
+			m.PodName = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 4:
 			if wireType != 2 {
@@ -13039,14 +12684,13 @@ func (m *ApplicationPodLogsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Container = &s
+			m.Container = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 5:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field SinceSeconds", wireType)
 			}
-			var v int64
+			m.SinceSeconds = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowApplication
@@ -13056,12 +12700,11 @@ func (m *ApplicationPodLogsQuery) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= int64(b&0x7F) << shift
+				m.SinceSeconds |= int64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			m.SinceSeconds = &v
 		case 6:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field SinceTime", wireType)
@@ -13102,7 +12745,7 @@ func (m *ApplicationPodLogsQuery) Unmarshal(dAtA []byte) error {
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field TailLines", wireType)
 			}
-			var v int64
+			m.TailLines = 0
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowApplication
@@ -13112,12 +12755,11 @@ func (m *ApplicationPodLogsQuery) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				v |= int64(b&0x7F) << shift
+				m.TailLines |= int64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			m.TailLines = &v
 		case 8:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Follow", wireType)
@@ -13137,8 +12779,7 @@ func (m *ApplicationPodLogsQuery) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-			b := bool(v != 0)
-			m.Follow = &b
+			m.Follow = bool(v != 0)
 		case 9:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field UntilTime", wireType)
@@ -13169,8 +12810,7 @@ func (m *ApplicationPodLogsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.UntilTime = &s
+			m.UntilTime = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 10:
 			if wireType != 2 {
@@ -13202,8 +12842,7 @@ func (m *ApplicationPodLogsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Filter = &s
+			m.Filter = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 11:
 			if wireType != 2 {
@@ -13235,8 +12874,7 @@ func (m *ApplicationPodLogsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Kind = &s
+			m.Kind = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 12:
 			if wireType != 2 {
@@ -13268,8 +12906,7 @@ func (m *ApplicationPodLogsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Group = &s
+			m.Group = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 13:
 			if wireType != 2 {
@@ -13301,8 +12938,7 @@ func (m *ApplicationPodLogsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.ResourceName = &s
+			m.ResourceName = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 14:
 			if wireType != 0 {
@@ -13323,8 +12959,7 @@ func (m *ApplicationPodLogsQuery) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-			b := bool(v != 0)
-			m.Previous = &b
+			m.Previous = bool(v != 0)
 		case 15:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field AppNamespace", wireType)
@@ -13355,8 +12990,7 @@ func (m *ApplicationPodLogsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.AppNamespace = &s
+			m.AppNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 16:
 			if wireType != 2 {
@@ -13388,8 +13022,7 @@ func (m *ApplicationPodLogsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Project = &s
+			m.Project = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -13407,9 +13040,6 @@ func (m *ApplicationPodLogsQuery) Unmarshal(dAtA []byte) error {
 			iNdEx += skippy
 		}
 	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	}
 
 	if iNdEx > l {
 		return io.ErrUnexpectedEOF
@@ -13417,7 +13047,6 @@ func (m *ApplicationPodLogsQuery) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *LogEntry) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -13476,10 +13105,8 @@ func (m *LogEntry) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Content = &s
+			m.Content = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field TimeStamp", wireType)
@@ -13516,7 +13143,6 @@ func (m *LogEntry) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000002)
 		case 3:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Last", wireType)
@@ -13536,9 +13162,7 @@ func (m *LogEntry) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-			b := bool(v != 0)
-			m.Last = &b
-			hasFields[0] |= uint64(0x00000004)
+			m.Last = bool(v != 0)
 		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field TimeStampStr", wireType)
@@ -13569,10 +13193,8 @@ func (m *LogEntry) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.TimeStampStr = &s
+			m.TimeStampStr = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000008)
 		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field PodName", wireType)
@@ -13603,10 +13225,8 @@ func (m *LogEntry) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.PodName = &s
+			m.PodName = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000010)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipApplication(dAtA[iNdEx:])
@@ -13623,21 +13243,6 @@ func (m *LogEntry) Unmarshal(dAtA []byte) error {
 			iNdEx += skippy
 		}
 	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("content")
-	}
-	if hasFields[0]&uint64(0x00000002) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("timeStamp")
-	}
-	if hasFields[0]&uint64(0x00000004) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("last")
-	}
-	if hasFields[0]&uint64(0x00000008) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("timeStampStr")
-	}
-	if hasFields[0]&uint64(0x00000010) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("podName")
-	}
 
 	if iNdEx > l {
 		return io.ErrUnexpectedEOF
@@ -13645,7 +13250,6 @@ func (m *LogEntry) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *OperationTerminateRequest) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -13704,10 +13308,8 @@ func (m *OperationTerminateRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field AppNamespace", wireType)
@@ -13738,8 +13340,7 @@ func (m *OperationTerminateRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.AppNamespace = &s
+			m.AppNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
@@ -13771,8 +13372,7 @@ func (m *OperationTerminateRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Project = &s
+			m.Project = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -13790,9 +13390,6 @@ func (m *OperationTerminateRequest) Unmarshal(dAtA []byte) error {
 			iNdEx += skippy
 		}
 	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	}
 
 	if iNdEx > l {
 		return io.ErrUnexpectedEOF
@@ -13800,7 +13397,6 @@ func (m *OperationTerminateRequest) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ApplicationSyncWindowsQuery) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -13859,10 +13455,8 @@ func (m *ApplicationSyncWindowsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field AppNamespace", wireType)
@@ -13893,8 +13487,7 @@ func (m *ApplicationSyncWindowsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.AppNamespace = &s
+			m.AppNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
@@ -13926,8 +13519,7 @@ func (m *ApplicationSyncWindowsQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Project = &s
+			m.Project = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -13945,9 +13537,6 @@ func (m *ApplicationSyncWindowsQuery) Unmarshal(dAtA []byte) error {
 			iNdEx += skippy
 		}
 	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
-	}
 
 	if iNdEx > l {
 		return io.ErrUnexpectedEOF
@@ -13955,7 +13544,6 @@ func (m *ApplicationSyncWindowsQuery) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ApplicationSyncWindowsResponse) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -14071,9 +13659,7 @@ func (m *ApplicationSyncWindowsResponse) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-			b := bool(v != 0)
-			m.CanSync = &b
-			hasFields[0] |= uint64(0x00000001)
+			m.CanSync = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipApplication(dAtA[iNdEx:])
@@ -14090,9 +13676,6 @@ func (m *ApplicationSyncWindowsResponse) Unmarshal(dAtA []byte) error {
 			iNdEx += skippy
 		}
 	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("canSync")
-	}
 
 	if iNdEx > l {
 		return io.ErrUnexpectedEOF
@@ -14100,7 +13683,6 @@ func (m *ApplicationSyncWindowsResponse) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ApplicationSyncWindow) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -14159,10 +13741,8 @@ func (m *ApplicationSyncWindow) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Kind = &s
+			m.Kind = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Schedule", wireType)
@@ -14193,10 +13773,8 @@ func (m *ApplicationSyncWindow) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Schedule = &s
+			m.Schedule = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000002)
 		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Duration", wireType)
@@ -14227,10 +13805,8 @@ func (m *ApplicationSyncWindow) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Duration = &s
+			m.Duration = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000004)
 		case 4:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ManualSync", wireType)
@@ -14250,9 +13826,7 @@ func (m *ApplicationSyncWindow) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
-			b := bool(v != 0)
-			m.ManualSync = &b
-			hasFields[0] |= uint64(0x00000008)
+			m.ManualSync = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipApplication(dAtA[iNdEx:])
@@ -14268,18 +13842,6 @@ func (m *ApplicationSyncWindow) Unmarshal(dAtA []byte) error {
 			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
 			iNdEx += skippy
 		}
-	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("kind")
-	}
-	if hasFields[0]&uint64(0x00000002) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("schedule")
-	}
-	if hasFields[0]&uint64(0x00000004) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("duration")
-	}
-	if hasFields[0]&uint64(0x00000008) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("manualSync")
 	}
 
 	if iNdEx > l {
@@ -14339,7 +13901,6 @@ func (m *OperationTerminateResponse) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ResourcesQuery) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -14398,10 +13959,8 @@ func (m *ResourcesQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.ApplicationName = &s
+			m.ApplicationName = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
@@ -14432,8 +13991,7 @@ func (m *ResourcesQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Namespace = &s
+			m.Namespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
@@ -14465,8 +14023,7 @@ func (m *ResourcesQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 4:
 			if wireType != 2 {
@@ -14498,8 +14055,7 @@ func (m *ResourcesQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Version = &s
+			m.Version = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 5:
 			if wireType != 2 {
@@ -14531,8 +14087,7 @@ func (m *ResourcesQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Group = &s
+			m.Group = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 6:
 			if wireType != 2 {
@@ -14564,8 +14119,7 @@ func (m *ResourcesQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Kind = &s
+			m.Kind = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 7:
 			if wireType != 2 {
@@ -14597,8 +14151,7 @@ func (m *ResourcesQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.AppNamespace = &s
+			m.AppNamespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 8:
 			if wireType != 2 {
@@ -14630,8 +14183,7 @@ func (m *ResourcesQuery) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Project = &s
+			m.Project = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -14648,9 +14200,6 @@ func (m *ResourcesQuery) Unmarshal(dAtA []byte) error {
 			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
 			iNdEx += skippy
 		}
-	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("applicationName")
 	}
 
 	if iNdEx > l {
@@ -14744,7 +14293,6 @@ func (m *ManagedResourcesResponse) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *LinkInfo) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -14803,10 +14351,8 @@ func (m *LinkInfo) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Title = &s
+			m.Title = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 2:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Url", wireType)
@@ -14837,10 +14383,8 @@ func (m *LinkInfo) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Url = &s
+			m.Url = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000002)
 		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Description", wireType)
@@ -14871,8 +14415,7 @@ func (m *LinkInfo) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Description = &s
+			m.Description = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 4:
 			if wireType != 2 {
@@ -14904,8 +14447,7 @@ func (m *LinkInfo) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.IconClass = &s
+			m.IconClass = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -14922,12 +14464,6 @@ func (m *LinkInfo) Unmarshal(dAtA []byte) error {
 			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
 			iNdEx += skippy
 		}
-	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("title")
-	}
-	if hasFields[0]&uint64(0x00000002) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("url")
 	}
 
 	if iNdEx > l {
@@ -15021,7 +14557,6 @@ func (m *LinksResponse) Unmarshal(dAtA []byte) error {
 	return nil
 }
 func (m *ListAppLinksRequest) Unmarshal(dAtA []byte) error {
-	var hasFields [1]uint64
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -15080,10 +14615,8 @@ func (m *ListAppLinksRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Name = &s
+			m.Name = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-			hasFields[0] |= uint64(0x00000001)
 		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Namespace", wireType)
@@ -15114,8 +14647,7 @@ func (m *ListAppLinksRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Namespace = &s
+			m.Namespace = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 4:
 			if wireType != 2 {
@@ -15147,8 +14679,7 @@ func (m *ListAppLinksRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			s := string(dAtA[iNdEx:postIndex])
-			m.Project = &s
+			m.Project = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -15165,9 +14696,6 @@ func (m *ListAppLinksRequest) Unmarshal(dAtA []byte) error {
 			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
 			iNdEx += skippy
 		}
-	}
-	if hasFields[0]&uint64(0x00000001) == 0 {
-		return github_com_gogo_protobuf_proto.NewRequiredNotSetError("name")
 	}
 
 	if iNdEx > l {

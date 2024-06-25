@@ -273,8 +273,8 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*ap
 
 	filteredApps := apps
 	// Filter applications by name
-	if q.Name != nil {
-		filteredApps = argoutil.FilterByNameP(filteredApps, *q.Name)
+	if q.Name != "" {
+		filteredApps = argoutil.FilterByNameP(filteredApps, q.Name)
 	}
 
 	// Filter applications by projects
@@ -324,8 +324,8 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	defer s.projectLock.RUnlock(a.Spec.GetProject())
 
 	validate := true
-	if q.Validate != nil {
-		validate = *q.Validate
+	if q.Validate {
+		validate = q.Validate
 	}
 
 	proj, err := s.getAppProject(ctx, a, log.WithField("application", a.Name))
@@ -376,7 +376,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	if equalSpecs {
 		return existing, nil
 	}
-	if q.Upsert == nil || !*q.Upsert {
+	if !q.Upsert {
 		return nil, status.Errorf(codes.InvalidArgument, "existing application spec is different, use upsert flag to force update")
 	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionUpdate, a.RBACName(s.ns)); err != nil {
@@ -433,7 +433,7 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *appv1.AppProject, ac
 
 // GetManifests returns application manifests
 func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationManifestQuery) (*apiclient.ManifestResponse, error) {
-	if q.Name == nil || *q.Name == "" {
+	if q.Name == "" {
 		return nil, fmt.Errorf("invalid request: application name is missing")
 	}
 	a, proj, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
@@ -574,7 +574,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 		return fmt.Errorf("error getting query: %w", err)
 	}
 
-	if query.Name == nil || *query.Name == "" {
+	if query.Name == "" {
 		return fmt.Errorf("invalid request: application name is missing")
 	}
 
@@ -652,7 +652,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			return fmt.Errorf("error opening stream: %w", err)
 		}
 
-		err = manifeststream.SendRepoStream(repoStreamClient, stream, req, *query.Checksum)
+		err = manifeststream.SendRepoStream(repoStreamClient, stream, req, query.Checksum)
 		if err != nil {
 			return fmt.Errorf("error sending repo stream: %w", err)
 		}
@@ -715,12 +715,12 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*app
 
 	s.inferResourcesStatusHealth(a)
 
-	if q.Refresh == nil {
+	if q.Refresh == "" {
 		return a, nil
 	}
 
 	refreshType := appv1.RefreshTypeNormal
-	if *q.Refresh == string(appv1.RefreshTypeHard) {
+	if q.Refresh == string(appv1.RefreshTypeHard) {
 		refreshType = appv1.RefreshTypeHard
 	}
 	appIf := s.appclientset.ArgoprojV1alpha1().Applications(appNs)
@@ -961,10 +961,8 @@ func (s *Server) Update(ctx context.Context, q *application.ApplicationUpdateReq
 		return nil, err
 	}
 
-	validate := true
-	if q.Validate != nil {
-		validate = *q.Validate
-	}
+	validate := q.Validate
+	
 	return s.validateAndUpdateApp(ctx, q.Application, false, validate, rbacpolicy.ActionUpdate, q.GetProject())
 }
 
@@ -979,10 +977,7 @@ func (s *Server) UpdateSpec(ctx context.Context, q *application.ApplicationUpdat
 	}
 
 	a.Spec = *q.GetSpec()
-	validate := true
-	if q.Validate != nil {
-		validate = *q.Validate
-	}
+	validate := q.Validate
 	a, err = s.validateAndUpdateApp(ctx, a, false, validate, rbacpolicy.ActionUpdate, q.GetProject())
 	if err != nil {
 		return nil, fmt.Errorf("error validating and updating app: %w", err)
@@ -1076,16 +1071,16 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 		return nil, err
 	}
 
-	if q.Cascade != nil && !*q.Cascade && q.GetPropagationPolicy() != "" {
+	if !q.Cascade && q.GetPropagationPolicy() != "" {
 		return nil, status.Error(codes.InvalidArgument, "cannot set propagation policy when cascading is disabled")
 	}
 
 	patchFinalizer := false
-	if q.Cascade == nil || *q.Cascade {
+	if q.Cascade {
 		// validate the propgation policy
 		policyFinalizer := getPropagationPolicyFinalizer(q.GetPropagationPolicy())
 		if policyFinalizer == "" {
-			return nil, status.Errorf(codes.InvalidArgument, "invalid propagation policy: %s", *q.PropagationPolicy)
+			return nil, status.Errorf(codes.InvalidArgument, "invalid propagation policy: %s", q.PropagationPolicy)
 		}
 		if !a.IsFinalizerPresent(policyFinalizer) {
 			a.SetCascadedDeletion(policyFinalizer)
@@ -1151,8 +1146,8 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	appName := q.GetName()
 	appNs := s.appNamespaceOrDefault(q.GetAppNamespace())
 	logCtx := log.NewEntry(log.New())
-	if q.Name != nil {
-		logCtx = logCtx.WithField("application", *q.Name)
+	if q.Name != "" {
+		logCtx = logCtx.WithField("application", q.Name)
 	}
 	projects := map[string]bool{}
 	for _, project := range getProjectsFromApplicationQuery(*q) {
@@ -1297,9 +1292,9 @@ func (s *Server) getCachedAppState(ctx context.Context, a *appv1.Application, ge
 			return errors.New(argoutil.FormatAppConditions(conditions))
 		}
 		_, err = s.Get(ctx, &application.ApplicationQuery{
-			Name:         ptr.To(a.GetName()),
-			AppNamespace: ptr.To(a.GetNamespace()),
-			Refresh:      ptr.To(string(appv1.RefreshTypeNormal)),
+			Name:         a.GetName(),
+			AppNamespace: a.GetNamespace(),
+			Refresh:      string(appv1.RefreshTypeNormal),
 		})
 		if err != nil {
 			return fmt.Errorf("error getting application by query: %w", err)
@@ -1370,7 +1365,7 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 		return nil, fmt.Errorf("error marshaling object: %w", err)
 	}
 	manifest := string(data)
-	return &application.ApplicationResourceResponse{Manifest: &manifest}, nil
+	return &application.ApplicationResourceResponse{Manifest: manifest}, nil
 }
 
 func replaceSecretValues(obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
@@ -1423,7 +1418,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 	s.logAppEvent(a, ctx, argo.EventReasonResourceUpdated, fmt.Sprintf("patched resource %s/%s '%s'", q.GetGroup(), q.GetKind(), q.GetResourceName()))
 	m := string(data)
 	return &application.ApplicationResourceResponse{
-		Manifest: &m,
+		Manifest: m,
 	}, nil
 }
 
@@ -1495,10 +1490,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, err
 	}
 
-	var versionId int64 = 0
-	if q.VersionId != nil {
-		versionId = int64(*q.VersionId)
-	}
+	versionId := int64(q.VersionId)
 
 	var source *v1alpha1.ApplicationSource
 
@@ -1531,7 +1523,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 	// we have to use the history because sources can be added/removed
 	if emptyHistory {
 		if isRevisionMultiSource {
-			source = &a.Spec.Sources[*q.SourceIndex]
+			source = &a.Spec.Sources[q.SourceIndex]
 		} else {
 			s := a.Spec.GetSource()
 			source = &s
@@ -1551,7 +1543,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 				// https://golang.org/ref/spec#For_statements
 				h := h
 				if isRevisionMultiSource {
-					source = &h.Sources[*q.SourceIndex]
+					source = &h.Sources[q.SourceIndex]
 				} else {
 					source = &h.Source
 				}
@@ -1592,8 +1584,8 @@ func (s *Server) RevisionChartDetails(ctx context.Context, q *application.Revisi
 		// as this is only used for the UI and not internally, we can use the historical data
 		// using the specific revisionId
 		for _, h := range a.Status.History {
-			if h.ID == int64(*q.VersionId) {
-				source = &h.Sources[*q.SourceIndex]
+			if h.ID == int64(q.VersionId) {
+				source = &h.Sources[q.SourceIndex]
 			}
 		}
 		if source == nil {
@@ -1654,9 +1646,9 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 }
 
 func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.ApplicationService_PodLogsServer) error {
-	if q.PodName != nil {
+	if q.PodName != "" {
 		podKind := "Pod"
-		q.Kind = &podKind
+		q.Kind = podKind
 		q.ResourceName = q.PodName
 	}
 
@@ -1680,7 +1672,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 	literal := ""
 	inverse := false
 	if q.GetFilter() != "" {
-		literal = *q.Filter
+		literal = q.Filter
 		if literal[0] == '!' {
 			literal = literal[1:]
 			inverse = true
@@ -1777,7 +1769,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 				done <- entry.err
 				return
 			} else {
-				if q.Filter != nil {
+				if q.Filter != "" {
 					lineContainsFilter := strings.Contains(entry.line, literal)
 					if (inverse && lineContainsFilter) || (!inverse && !lineContainsFilter) {
 						continue
@@ -1786,21 +1778,21 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 				ts := metav1.NewTime(entry.timeStamp)
 				if untilTime != nil && entry.timeStamp.After(untilTime.Time) {
 					done <- ws.Send(&application.LogEntry{
-						Last:         ptr.To(true),
-						PodName:      &entry.podName,
-						Content:      &entry.line,
-						TimeStampStr: ptr.To(entry.timeStamp.Format(time.RFC3339Nano)),
+						Last:         true,
+						PodName:      entry.podName,
+						Content:      entry.line,
+						TimeStampStr: entry.timeStamp.Format(time.RFC3339Nano),
 						TimeStamp:    &ts,
 					})
 					return
 				} else {
 					sentCount++
 					if err := ws.Send(&application.LogEntry{
-						PodName:      &entry.podName,
-						Content:      &entry.line,
-						TimeStampStr: ptr.To(entry.timeStamp.Format(time.RFC3339Nano)),
+						PodName:      entry.podName,
+						Content:      entry.line,
+						TimeStampStr: entry.timeStamp.Format(time.RFC3339Nano),
 						TimeStamp:    &ts,
-						Last:         ptr.To(false),
+						Last:         false,
 					}); err != nil {
 						done <- err
 						break
@@ -1811,10 +1803,10 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		now := time.Now()
 		nowTS := metav1.NewTime(now)
 		done <- ws.Send(&application.LogEntry{
-			Last:         ptr.To(true),
-			PodName:      ptr.To(""),
-			Content:      ptr.To(""),
-			TimeStampStr: ptr.To(now.Format(time.RFC3339Nano)),
+			Last:         true,
+			PodName:      "",
+			Content:      "",
+			TimeStampStr: now.Format(time.RFC3339Nano),
 			TimeStamp:    &nowTS,
 		})
 	}()
@@ -2288,7 +2280,7 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		if !apierr.IsConflict(err) {
 			return nil, fmt.Errorf("error updating application: %w", err)
 		}
-		log.Warnf("failed to set operation for app %q due to update conflict. retrying again...", *termOpReq.Name)
+		log.Warnf("failed to set operation for app %q due to update conflict. retrying again...", termOpReq.Name)
 		time.Sleep(100 * time.Millisecond)
 		a, err = s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, appName, metav1.GetOptions{})
 		if err != nil {
@@ -2613,7 +2605,7 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 	res := &application.ApplicationSyncWindowsResponse{
 		ActiveWindows:   convertSyncWindows(windows.Active()),
 		AssignedWindows: convertSyncWindows(windows),
-		CanSync:         &sync,
+		CanSync:         sync,
 	}
 
 	return res, nil
@@ -2640,10 +2632,10 @@ func convertSyncWindows(w *appv1.SyncWindows) []*application.ApplicationSyncWind
 		var windows []*application.ApplicationSyncWindow
 		for _, w := range *w {
 			nw := &application.ApplicationSyncWindow{
-				Kind:       &w.Kind,
-				Schedule:   &w.Schedule,
-				Duration:   &w.Duration,
-				ManualSync: &w.ManualSync,
+				Kind:       w.Kind,
+				Schedule:   w.Schedule,
+				Duration:   w.Duration,
+				ManualSync: w.ManualSync,
 			}
 			windows = append(windows, nw)
 		}

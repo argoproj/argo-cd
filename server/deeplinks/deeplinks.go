@@ -7,13 +7,11 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/antonmedv/expr"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/utils/ptr"
-
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
@@ -105,10 +103,10 @@ func EvaluateDeepLinksResponse(obj map[string]interface{}, name string, links []
 			case bool:
 				if resOut {
 					finalLinks = append(finalLinks, &application.LinkInfo{
-						Title:       ptr.To(link.Title),
-						Url:         ptr.To(finalURL.String()),
-						Description: link.Description,
-						IconClass:   link.IconClass,
+						Title:       link.Title,
+						Url:         finalURL.String(),
+						Description: *link.Description,
+						IconClass:   *link.IconClass,
 					})
 				}
 			default:
@@ -117,10 +115,10 @@ func EvaluateDeepLinksResponse(obj map[string]interface{}, name string, links []
 			}
 		} else {
 			finalLinks = append(finalLinks, &application.LinkInfo{
-				Title:       ptr.To(link.Title),
-				Url:         ptr.To(finalURL.String()),
-				Description: link.Description,
-				IconClass:   link.IconClass,
+				Title:       link.Title,
+				Url:         finalURL.String(),
+				Description: *link.Description,
+				IconClass:   *link.IconClass,
 			})
 		}
 	}
