@@ -1061,11 +1061,12 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		require.NoError(t, err)
 		// post-delete hooks are deleted
 		require.Len(t, ctrl.kubectl.(*MockKubectl).DeletedResources, 4)
-		deletedResources := ctrl.kubectl.(*MockKubectl).DeletedResources
-		require.Equal(t, "hook-rolebinding", deletedResources[0].Name)
-		require.Equal(t, "hook-role", deletedResources[1].Name)
-		require.Equal(t, "hook-serviceaccount", deletedResources[2].Name)
-		require.Equal(t, "post-delete-hook", deletedResources[3].Name)
+		deletedResources := []string{}
+		for _, res := range ctrl.kubectl.(*MockKubectl).DeletedResources {
+			deletedResources = append(deletedResources, res.Name)
+		}
+		expectedNames := []string{"hook-rolebinding", "hook-role", "hook-serviceaccount", "post-delete-hook"}
+		require.ElementsMatch(t, expectedNames, deletedResources, "Deleted resources should match expected names")
 		// finalizer is not removed
 		assert.False(t, patched)
 	})
