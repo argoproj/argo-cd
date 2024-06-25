@@ -749,7 +749,7 @@ func TestPreserveStatusTimestamp(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
 	assert.Equal(t, timestamp, compRes.healthStatus.LastTransitionTime)

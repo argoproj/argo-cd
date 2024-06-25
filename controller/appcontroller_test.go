@@ -1750,7 +1750,7 @@ apps/Deployment:
 
 			ctrl.processAppRefreshQueueItem()
 			apps, err := ctrl.appLister.List(labels.Everything())
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NotEmpty(t, apps)
 			assert.Equal(t, tc.expectedStatus, apps[0].Status.Health.Status)
 			assert.NotEqual(t, testTimestamp, apps[0].Status.Health.LastTransitionTime)

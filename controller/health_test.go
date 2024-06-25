@@ -161,7 +161,7 @@ func TestSetApplicationHealth_HealthImproves(t *testing.T) {
 
 		t.Run(string(fmt.Sprintf("%s to %s", tc.oldStatus, tc.newStatus)), func(t *testing.T) {
 			healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tc.newStatus, healthStatus.Status)
 			assert.NotEqual(t, healthStatus.LastTransitionTime, timestamp)
 		})
