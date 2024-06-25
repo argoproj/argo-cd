@@ -14,7 +14,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
@@ -84,7 +83,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer io.Close(conn)
-		resources, err := getActionableResourcesForApplication(appIf, ctx, &appNs, &appName)
+		resources, err := getActionableResourcesForApplication(appIf, ctx, appNs, appName)
 		errors.CheckError(err)
 		filteredObjects, err := util.FilterResources(command.Flags().Changed("group"), resources, group, kind, namespace, resourceName, true)
 		errors.CheckError(err)
@@ -93,13 +92,13 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			obj := filteredObjects[i]
 			gvk := obj.GroupVersionKind()
 			availActionsForResource, err := appIf.ListResourceActions(ctx, &applicationpkg.ApplicationResourceRequest{
-				Name:         &appName,
-				AppNamespace: &appNs,
-				Namespace:    ptr.To(obj.GetNamespace()),
-				ResourceName: ptr.To(obj.GetName()),
-				Group:        ptr.To(gvk.Group),
-				Kind:         ptr.To(gvk.Kind),
-				Version:      ptr.To(gvk.Version),
+				Name:         appName,
+				AppNamespace: appNs,
+				Namespace:    obj.GetNamespace(),
+				ResourceName: obj.GetName(),
+				Group:        gvk.Group,
+				Kind:         gvk.Kind,
+				Version:      gvk.Version,
 			})
 			errors.CheckError(err)
 			for _, action := range availActionsForResource.Actions {
@@ -176,7 +175,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer io.Close(conn)
-		resources, err := getActionableResourcesForApplication(appIf, ctx, &appNs, &appName)
+		resources, err := getActionableResourcesForApplication(appIf, ctx, appNs, appName)
 		errors.CheckError(err)
 		filteredObjects, err := util.FilterResources(command.Flags().Changed("group"), resources, group, kind, namespace, resourceName, all)
 		errors.CheckError(err)
@@ -192,14 +191,14 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			gvk := obj.GroupVersionKind()
 			objResourceName := obj.GetName()
 			_, err := appIf.RunResourceAction(ctx, &applicationpkg.ResourceActionRunRequest{
-				Name:         &appName,
-				AppNamespace: &appNs,
-				Namespace:    ptr.To(obj.GetNamespace()),
-				ResourceName: ptr.To(objResourceName),
-				Group:        ptr.To(gvk.Group),
-				Kind:         ptr.To(gvk.Kind),
-				Version:      ptr.To(gvk.GroupVersion().Version),
-				Action:       ptr.To(actionName),
+				Name:         appName,
+				AppNamespace: appNs,
+				Namespace:    obj.GetNamespace(),
+				ResourceName: objResourceName,
+				Group:        gvk.Group,
+				Kind:         gvk.Kind,
+				Version:      gvk.GroupVersion().Version,
+				Action:       actionName,
 			})
 			errors.CheckError(err)
 		}
@@ -207,7 +206,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	return command
 }
 
-func getActionableResourcesForApplication(appIf applicationpkg.ApplicationServiceClient, ctx context.Context, appNs *string, appName *string) ([]*v1alpha1.ResourceDiff, error) {
+func getActionableResourcesForApplication(appIf applicationpkg.ApplicationServiceClient, ctx context.Context, appNs string, appName string) ([]*v1alpha1.ResourceDiff, error) {
 	resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
 		ApplicationName: appName,
 		AppNamespace:    appNs,
@@ -233,7 +232,7 @@ func getActionableResourcesForApplication(appIf applicationpkg.ApplicationServic
 		Group:     appGVK.Group,
 		Kind:      appGVK.Kind,
 		Namespace: app.Namespace,
-		Name:      *appName,
+		Name:      appName,
 		LiveState: string(appManifest),
 	}), nil
 }
