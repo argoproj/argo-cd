@@ -617,7 +617,7 @@ Edit the `--insecure` flag in the `argocd-server` command of the argocd-server d
 
 ### Creating a service
 
-Now you need an externally accessible service. This is practically the same as the internal service Argo CD has, but with Google Cloud annotations. Note that this service is annotated to use a [Network Endpoint Group](https://cloud.google.com/load-balancing/docs/negs) (NEG) to allow your load balancer to send traffic directly to your pods without using kube-proxy, so remove the `neg` annotation it that's not what you want.
+Now you need an externally accessible service. This is practically the same as the internal service Argo CD has, but with Google Cloud annotations. Note that this service is annotated to use a [Network Endpoint Group](https://cloud.google.com/load-balancing/docs/negs) (NEG) to allow your load balancer to send traffic directly to your pods without using kube-proxy, so remove the `neg` annotation if that's not what you want.
 
 The service:
 
