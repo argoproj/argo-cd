@@ -3,6 +3,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"k8s.io/utils/pointer"
 	"os"
 	"path"
 	"reflect"
@@ -23,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -610,13 +610,13 @@ func TestNamespacedManipulateApplicationResources(t *testing.T) {
 			defer io.Close(closer)
 
 			_, err = client.DeleteResource(context.Background(), &applicationpkg.ApplicationResourceDeleteRequest{
-				Name:         &app.Name,
-				AppNamespace: ptr.To(AppNamespace()),
-				Group:        ptr.To(deployment.GroupVersionKind().Group),
-				Kind:         ptr.To(deployment.GroupVersionKind().Kind),
-				Version:      ptr.To(deployment.GroupVersionKind().Version),
-				Namespace:    ptr.To(deployment.GetNamespace()),
-				ResourceName: ptr.To(deployment.GetName()),
+				Name:         app.Name,
+				AppNamespace: AppNamespace(),
+				Group:        deployment.GroupVersionKind().Group,
+				Kind:         deployment.GroupVersionKind().Kind,
+				Version:      deployment.GroupVersionKind().Version,
+				Namespace:    deployment.GetNamespace(),
+				ResourceName: deployment.GetName(),
 			})
 			require.NoError(t, err)
 		}).
@@ -640,19 +640,19 @@ func TestNamespacedAppWithSecrets(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			res := FailOnErr(client.GetResource(context.Background(), &applicationpkg.ApplicationResourceRequest{
-				Namespace:    &app.Spec.Destination.Namespace,
-				AppNamespace: ptr.To(AppNamespace()),
-				Kind:         ptr.To(kube.SecretKind),
-				Group:        ptr.To(""),
-				Name:         &app.Name,
-				Version:      ptr.To("v1"),
-				ResourceName: ptr.To("test-secret"),
+				Namespace:    app.Spec.Destination.Namespace,
+				AppNamespace: AppNamespace(),
+				Kind:         kube.SecretKind,
+				Group:        "",
+				Name:         app.Name,
+				Version:      "v1",
+				ResourceName: "test-secret",
 			})).(*applicationpkg.ApplicationResourceResponse)
 			assetSecretDataHidden(t, res.GetManifest())
 
 			manifests, err := client.GetManifests(context.Background(), &applicationpkg.ApplicationManifestQuery{
-				Name:         &app.Name,
-				AppNamespace: ptr.To(AppNamespace()),
+				Name:         app.Name,
+				AppNamespace: AppNamespace(),
 			})
 			errors.CheckError(err)
 
@@ -697,7 +697,7 @@ func TestNamespacedAppWithSecrets(t *testing.T) {
 			app.Spec.IgnoreDifferences = []ResourceIgnoreDifferences{{
 				Kind: kube.SecretKind, JSONPointers: []string{"/data"},
 			}}
-			FailOnErr(client.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, AppNamespace: ptr.To(AppNamespace()), Spec: &app.Spec}))
+			FailOnErr(client.UpdateSpec(context.Background(), &applicationpkg.ApplicationUpdateSpecRequest{Name: app.Name, AppNamespace: AppNamespace(), Spec: &app.Spec}))
 		}).
 		When().
 		Refresh(RefreshTypeNormal).
@@ -927,26 +927,26 @@ func TestNamespacedResourceAction(t *testing.T) {
 			defer io.Close(closer)
 
 			actions, err := client.ListResourceActions(context.Background(), &applicationpkg.ApplicationResourceRequest{
-				Name:         &app.Name,
-				AppNamespace: ptr.To(AppNamespace()),
-				Group:        ptr.To("apps"),
-				Kind:         ptr.To("Deployment"),
-				Version:      ptr.To("v1"),
-				Namespace:    ptr.To(DeploymentNamespace()),
-				ResourceName: ptr.To("guestbook-ui"),
+				Name:         app.Name,
+				AppNamespace: AppNamespace(),
+				Group:        "apps",
+				Kind:         "Deployment",
+				Version:      "v1",
+				Namespace:    DeploymentNamespace(),
+				ResourceName: "guestbook-ui",
 			})
 			require.NoError(t, err)
 			assert.Equal(t, []*ResourceAction{{Name: "sample", Disabled: false}}, actions.Actions)
 
 			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{
-				Name:         &app.Name,
-				Group:        ptr.To("apps"),
-				Kind:         ptr.To("Deployment"),
-				Version:      ptr.To("v1"),
-				Namespace:    ptr.To(DeploymentNamespace()),
-				ResourceName: ptr.To("guestbook-ui"),
-				Action:       ptr.To("sample"),
-				AppNamespace: ptr.To(AppNamespace()),
+				Name:         app.Name,
+				Group:        "apps",
+				Kind:         "Deployment",
+				Version:      "v1",
+				Namespace:    DeploymentNamespace(),
+				ResourceName: "guestbook-ui",
+				Action:       "sample",
+				AppNamespace: AppNamespace(),
 			})
 			require.NoError(t, err)
 
@@ -1105,15 +1105,15 @@ func assertNSResourceActions(t *testing.T, appName string, successful bool) {
 	require.NoError(t, err)
 
 	logs, err := cdClient.PodLogs(context.Background(), &applicationpkg.ApplicationPodLogsQuery{
-		Group:        ptr.To("apps"),
-		Kind:         ptr.To("Deployment"),
-		Name:         &appName,
-		AppNamespace: ptr.To(AppNamespace()),
-		Namespace:    ptr.To(DeploymentNamespace()),
-		Container:    ptr.To(""),
-		SinceSeconds: ptr.To(int64(0)),
-		TailLines:    ptr.To(int64(0)),
-		Follow:       ptr.To(false),
+		Group:        "apps",
+		Kind:         "Deployment",
+		Name:         appName,
+		AppNamespace: AppNamespace(),
+		Namespace:    DeploymentNamespace(),
+		Container:    "",
+		SinceSeconds: int64(0),
+		TailLines:    int64(0),
+		Follow:       false,
 	})
 	require.NoError(t, err)
 	_, err = logs.Recv()
@@ -1122,45 +1122,45 @@ func assertNSResourceActions(t *testing.T, appName string, successful bool) {
 	expectedError := fmt.Sprintf("Deployment apps guestbook-ui not found as part of application %s", appName)
 
 	_, err = cdClient.ListResourceEvents(context.Background(), &applicationpkg.ApplicationResourceEventsQuery{
-		Name:              &appName,
-		AppNamespace:      ptr.To(AppNamespace()),
-		ResourceName:      ptr.To("guestbook-ui"),
-		ResourceNamespace: ptr.To(DeploymentNamespace()),
-		ResourceUID:       ptr.To(string(deploymentResource.UID)),
+		Name:              appName,
+		AppNamespace:      AppNamespace(),
+		ResourceName:      "guestbook-ui",
+		ResourceNamespace: DeploymentNamespace(),
+		ResourceUID:       string(deploymentResource.UID),
 	})
 	assertError(err, fmt.Sprintf("%s not found as part of application %s", "guestbook-ui", appName))
 
 	_, err = cdClient.GetResource(context.Background(), &applicationpkg.ApplicationResourceRequest{
-		Name:         &appName,
-		AppNamespace: ptr.To(AppNamespace()),
-		ResourceName: ptr.To("guestbook-ui"),
-		Namespace:    ptr.To(DeploymentNamespace()),
-		Version:      ptr.To("v1"),
-		Group:        ptr.To("apps"),
-		Kind:         ptr.To("Deployment"),
+		Name:         appName,
+		AppNamespace: AppNamespace(),
+		ResourceName: "guestbook-ui",
+		Namespace:    DeploymentNamespace(),
+		Version:      "v1",
+		Group:        "apps",
+		Kind:         "Deployment",
 	})
 	assertError(err, expectedError)
 
 	_, err = cdClient.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{
-		Name:         &appName,
-		AppNamespace: ptr.To(AppNamespace()),
-		ResourceName: ptr.To("guestbook-ui"),
-		Namespace:    ptr.To(DeploymentNamespace()),
-		Version:      ptr.To("v1"),
-		Group:        ptr.To("apps"),
-		Kind:         ptr.To("Deployment"),
-		Action:       ptr.To("restart"),
+		Name:         appName,
+		AppNamespace: AppNamespace(),
+		ResourceName: "guestbook-ui",
+		Namespace:    DeploymentNamespace(),
+		Version:      "v1",
+		Group:        "apps",
+		Kind:         "Deployment",
+		Action:       "restart",
 	})
 	assertError(err, expectedError)
 
 	_, err = cdClient.DeleteResource(context.Background(), &applicationpkg.ApplicationResourceDeleteRequest{
-		Name:         &appName,
-		AppNamespace: ptr.To(AppNamespace()),
-		ResourceName: ptr.To("guestbook-ui"),
-		Namespace:    ptr.To(DeploymentNamespace()),
-		Version:      ptr.To("v1"),
-		Group:        ptr.To("apps"),
-		Kind:         ptr.To("Deployment"),
+		Name:         appName,
+		AppNamespace: AppNamespace(),
+		ResourceName: "guestbook-ui",
+		Namespace:    DeploymentNamespace(),
+		Version:      "v1",
+		Group:        "apps",
+		Kind:         "Deployment",
 	})
 	assertError(err, expectedError)
 }
@@ -1220,7 +1220,7 @@ func TestNamespacedPermissions(t *testing.T) {
 		And(func(app *Application) {
 			closer, cdClient := ArgoCDClientset.NewApplicationClientOrDie()
 			defer io.Close(closer)
-			tree, err := cdClient.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: &app.Name, AppNamespace: &app.Namespace})
+			tree, err := cdClient.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{ApplicationName: app.Name, AppNamespace: app.Namespace})
 			require.NoError(t, err)
 			assert.Empty(t, tree.Nodes)
 			assert.Empty(t, tree.OrphanedNodes)
@@ -1477,7 +1477,7 @@ func TestNamespacedOrphanedResource(t *testing.T) {
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: ptr.To(true)},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.Bool(true)},
 			SourceNamespaces:  []string{AppNamespace()},
 		}).
 		SetTrackingMethod("annotation").
@@ -1509,7 +1509,7 @@ func TestNamespacedOrphanedResource(t *testing.T) {
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: ptr.To(true), Ignore: []OrphanedResourceKey{{Group: "Test", Kind: "ConfigMap"}}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.Bool(true), Ignore: []OrphanedResourceKey{{Group: "Test", Kind: "ConfigMap"}}},
 			SourceNamespaces:  []string{AppNamespace()},
 		}).
 		When().
@@ -1525,7 +1525,7 @@ func TestNamespacedOrphanedResource(t *testing.T) {
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: ptr.To(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap"}}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.Bool(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap"}}},
 			SourceNamespaces:  []string{AppNamespace()},
 		}).
 		When().
@@ -1542,7 +1542,7 @@ func TestNamespacedOrphanedResource(t *testing.T) {
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: ptr.To(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap", Name: "orphaned-configmap"}}},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.Bool(true), Ignore: []OrphanedResourceKey{{Kind: "ConfigMap", Name: "orphaned-configmap"}}},
 			SourceNamespaces:  []string{AppNamespace()},
 		}).
 		When().
@@ -1765,7 +1765,7 @@ func TestNamespacedListResource(t *testing.T) {
 		ProjectSpec(AppProjectSpec{
 			SourceRepos:       []string{"*"},
 			Destinations:      []ApplicationDestination{{Namespace: "*", Server: "*"}},
-			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: ptr.To(true)},
+			OrphanedResources: &OrphanedResourcesMonitorSettings{Warn: pointer.Bool(true)},
 			SourceNamespaces:  []string{AppNamespace()},
 		}).
 		Path(guestbookPath).
