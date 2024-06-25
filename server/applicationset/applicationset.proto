@@ -37,7 +37,6 @@ message ApplicationSetResponse {
 message ApplicationSetCreateRequest {
 	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSet applicationset = 1;
 	bool upsert = 2;
-	bool dryRun = 3;
 }
 
 
@@ -55,6 +54,7 @@ message ApplicationSetTreeQuery {
 
 // ApplicationSetService
 service ApplicationSetService {
+	
 	// Get returns an applicationset by name
 	rpc Get (ApplicationSetGetQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSet) {
 		option (google.api.http).get = "/api/v1/applicationsets/{name}";
