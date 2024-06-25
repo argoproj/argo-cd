@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
@@ -27,6 +28,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -1681,6 +1683,79 @@ func TestUpdateReconciledAt(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, updated)
 	})
+}
+
+func TestUpdateHealthStatusTransitionTime(t *testing.T) {
+	deployment := kube.MustToUnstructured(&v1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "demo",
+			Namespace: "default",
+		},
+	})
+	testCases := []struct {
+		name           string
+		app            *v1alpha1.Application
+		configMapData  map[string]string
+		expectedStatus health.HealthStatusCode
+	}{
+		{
+			name: "Degraded to Healthy",
+			app:  newFakeAppWithHealthAndTime(health.HealthStatusDegraded, testTimestamp),
+			configMapData: map[string]string{
+				"resource.customizations": `
+apps/Deployment:
+  health.lua: |
+    hs = {}
+    hs.status = "Healthy"
+    hs.message = ""
+    return hs`,
+			},
+			expectedStatus: health.HealthStatusHealthy,
+		},
+		{
+			name: "Healthy  to Degraded",
+			app:  newFakeAppWithHealthAndTime(health.HealthStatusHealthy, testTimestamp),
+			configMapData: map[string]string{
+				"resource.customizations": `
+apps/Deployment:
+  health.lua: |
+    hs = {}
+    hs.status = "Degraded"
+    hs.message = ""
+    return hs`,
+			},
+			expectedStatus: health.HealthStatusDegraded,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctrl := newFakeController(&fakeData{
+				apps: []runtime.Object{tc.app, &defaultProj},
+				manifestResponse: &apiclient.ManifestResponse{
+					Manifests: []string{},
+					Namespace: test.FakeDestNamespace,
+					Server:    test.FakeClusterURL,
+					Revision:  "abc123",
+				},
+				managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+					kube.GetResourceKey(deployment): deployment,
+				},
+				configMapData: tc.configMapData,
+			}, nil)
+
+			ctrl.processAppRefreshQueueItem()
+			apps, err := ctrl.appLister.List(labels.Everything())
+			assert.NoError(t, err)
+			assert.NotEmpty(t, apps)
+			assert.Equal(t, tc.expectedStatus, apps[0].Status.Health.Status)
+			assert.NotEqual(t, testTimestamp, apps[0].Status.Health.LastTransitionTime)
+		})
+	}
 }
 
 func TestProjectErrorToCondition(t *testing.T) {

@@ -22,7 +22,13 @@ import (
 )
 
 var (
-	app           = &appv1.Application{}
+	app = &appv1.Application{
+		Status: appv1.ApplicationStatus{
+			Health: appv1.HealthStatus{
+				LastTransitionTime: metav1.NewTime(time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC)),
+			},
+		},
+	}
 	testTimestamp = metav1.NewTime(time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC))
 )
 
@@ -64,7 +70,6 @@ func TestSetApplicationHealth(t *testing.T) {
 	resourceStatuses := initStatuses(resources)
 	// Populate health status
 	resourceStatuses[0].Health.Status = health.HealthStatusHealthy
-	app.Status.Health.LastTransitionTime = testTimestamp
 
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	firstHealthStatusTransitionTime := healthStatus.LastTransitionTime
