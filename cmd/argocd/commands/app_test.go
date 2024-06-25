@@ -93,7 +93,7 @@ func Test_getRefreshType(t *testing.T) {
 				assert.Nil(t, refreshType)
 			} else {
 				assert.NotNil(t, refreshType)
-				assert.Equal(t, *testCase.expected, *refreshType)
+				assert.Equal(t, *testCase.expected, refreshType)
 			}
 		})
 	}

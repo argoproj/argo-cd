@@ -305,10 +305,10 @@ func (a *Actions) PatchAppHttp(patch string) *Actions {
 	appName := a.context.AppQualifiedName()
 	appNamespace := a.context.AppNamespace()
 	patchRequest := &client.ApplicationPatchRequest{
-		Name:         &appName,
-		PatchType:    &patchType,
-		Patch:        &patch,
-		AppNamespace: &appNamespace,
+		Name:         appName,
+		PatchType:    patchType,
+		Patch:        patch,
+		AppNamespace: appNamespace,
 	}
 	jsonBytes, err := json.MarshalIndent(patchRequest, "", "  ")
 	errors.CheckError(err)
