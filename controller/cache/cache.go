@@ -41,8 +41,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=LiveStateCache
-
 const (
 	// EnvClusterCacheResyncDuration is the env variable that holds cluster cache re-sync duration
 	EnvClusterCacheResyncDuration = "ARGOCD_CLUSTER_CACHE_RESYNC_DURATION"
@@ -173,8 +171,8 @@ func NewLiveStateCache(
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
 	clusterSharding sharding.ClusterShardingCache,
-	resourceTracking argo.ResourceTracking,
-) LiveStateCache {
+	resourceTracking argo.ResourceTracking) LiveStateCache {
+
 	return &liveStateCache{
 		appInformer:      appInformer,
 		db:               db,
@@ -331,9 +329,11 @@ func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clusterc
 	return "", true
 }
 
-var ignoredRefreshResources = map[string]bool{
-	"/" + kube.EndpointsKind: true,
-}
+var (
+	ignoredRefreshResources = map[string]bool{
+		"/" + kube.EndpointsKind: true,
+	}
+)
 
 // skipAppRequeuing checks if the object is an API type which we want to skip requeuing against.
 // We ignore API types which have a high churn rate, and/or whose updates are irrelevant to the app
@@ -396,17 +396,12 @@ func isResourceQuotaConflictErr(err error) bool {
 }
 
 func isTransientNetworkErr(err error) bool {
-	var netErr net.Error
-	switch {
-	case errors.As(err, &netErr):
-		var dnsErr *net.DNSError
-		var opErr *net.OpError
-		var unknownNetworkErr net.UnknownNetworkError
-		var urlErr *url.Error
-		switch {
-		case errors.As(err, &dnsErr), errors.As(err, &opErr), errors.As(err, &unknownNetworkErr):
+	switch err.(type) {
+	case net.Error:
+		switch err.(type) {
+		case *net.DNSError, *net.OpError, net.UnknownNetworkError:
 			return true
-		case errors.As(err, &urlErr):
+		case *url.Error:
 			// For a URL error, where it replies "connection closed"
 			// retry again.
 			return strings.Contains(err.Error(), "Connection closed by foreign host")
@@ -414,8 +409,7 @@ func isTransientNetworkErr(err error) bool {
 	}
 
 	errorString := err.Error()
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := err.(*exec.ExitError); ok {
 		errorString = fmt.Sprintf("%s %s", errorString, exitErr.Stderr)
 	}
 	if strings.Contains(errorString, "net/http: TLS handshake timeout") ||
@@ -811,6 +805,7 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 			}()
 		}
 	}
+
 }
 
 func (c *liveStateCache) handleDeleteEvent(clusterServer string) {

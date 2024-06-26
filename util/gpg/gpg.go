@@ -160,7 +160,7 @@ func writeKeyToFile(keyData string) (string, error) {
 		return "", err
 	}
 
-	err = os.WriteFile(f.Name(), []byte(keyData), 0o600)
+	err = os.WriteFile(f.Name(), []byte(keyData), 0600)
 	if err != nil {
 		os.Remove(f.Name())
 		return "", err
@@ -221,6 +221,7 @@ func IsGPGEnabled() bool {
 // InitializeGnuPG will initialize a GnuPG working directory and also create a
 // transient private key so that the trust DB will work correctly.
 func InitializeGnuPG() error {
+
 	gnuPgHome := common.GetGnuPGHomePath()
 
 	// We only operate if ARGOCD_GNUPGHOME is set
@@ -248,13 +249,13 @@ func InitializeGnuPG() error {
 		// re-initialize key ring.
 		err = removeKeyRing(gnuPgHome)
 		if err != nil {
-			return fmt.Errorf("re-initializing keyring at %s failed: %w", gnuPgHome, err)
+			return fmt.Errorf("re-initializing keyring at %s failed: %v", gnuPgHome, err)
 		}
 	}
 
-	err = os.WriteFile(filepath.Join(gnuPgHome, canaryMarkerFilename), []byte("canary"), 0o644)
+	err = os.WriteFile(filepath.Join(gnuPgHome, canaryMarkerFilename), []byte("canary"), 0644)
 	if err != nil {
-		return fmt.Errorf("could not create canary: %w", err)
+		return fmt.Errorf("could not create canary: %v", err)
 	}
 
 	f, err := os.CreateTemp("", "gpg-key-recipe")
@@ -673,7 +674,7 @@ func ParseGitCommitVerification(signature string) PGPVerifyResult {
 	}
 
 	if parseOk && linesParsed < MaxVerificationLinesToParse {
-		// Operation successful - return result
+		// Operation successfull - return result
 		return result
 	} else if linesParsed >= MaxVerificationLinesToParse {
 		// Too many output lines, return error
@@ -695,6 +696,7 @@ func SyncKeyRingFromDirectory(basePath string) ([]string, []string, error) {
 	fingerprints := make([]string, 0)
 	removedKeys := make([]string, 0)
 	st, err := os.Stat(basePath)
+
 	if err != nil {
 		return nil, nil, err
 	}

@@ -1,4 +1,3 @@
-/* eslint-disable no-prototype-builtins */
 import {AutocompleteField, Checkbox, DataLoader, DropDownMenu, FormField, HelpIcon, Select} from 'argo-ui';
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
@@ -13,7 +12,6 @@ import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import {SetFinalizerOnApplication} from './set-finalizer-on-application';
 import './application-create-panel.scss';
 import {getAppDefaultSource} from '../utils';
-import {debounce} from 'lodash-es';
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -111,7 +109,6 @@ export const ApplicationCreatePanel = (props: {
     const [destFormat, setDestFormat] = React.useState('URL');
     const [retry, setRetry] = React.useState(false);
     const app = deepMerge(DEFAULT_APP, props.app || {});
-    const debouncedOnAppChanged = debounce(props.onAppChanged, 800);
 
     React.useEffect(() => {
         if (app?.spec?.destination?.name && app.spec.destination.name !== '') {
@@ -183,7 +180,7 @@ export const ApplicationCreatePanel = (props: {
                                             'Cluster name is required'
                                     })}
                                     defaultValues={app}
-                                    formDidUpdate={state => debouncedOnAppChanged(state.values as any)}
+                                    formDidUpdate={state => props.onAppChanged(state.values as any)}
                                     onSubmit={props.createApp}
                                     getApi={props.getFormApi}>
                                     {api => {
@@ -447,7 +444,7 @@ export const ApplicationCreatePanel = (props: {
                                                 }}
                                                 load={async src => {
                                                     if (src.repoURL && src.targetRevision && (src.path || src.chart)) {
-                                                        return services.repos.appDetails(src, src.appName, app.spec.project, 0, 0).catch(() => ({
+                                                        return services.repos.appDetails(src, src.appName, app.spec.project).catch(() => ({
                                                             type: 'Directory',
                                                             details: {}
                                                         }));

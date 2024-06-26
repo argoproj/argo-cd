@@ -33,10 +33,10 @@ func TestInferGrantType(t *testing.T) {
 	for _, path := range []string{"dex", "okta", "auth0", "onelogin"} {
 		t.Run(path, func(t *testing.T) {
 			rawConfig, err := os.ReadFile("testdata/" + path + ".json")
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			var config OIDCConfiguration
 			err = json.Unmarshal(rawConfig, &config)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			grantType := InferGrantType(&config)
 			assert.Equal(t, GrantTypeAuthorizationCode, grantType)
 
@@ -67,22 +67,23 @@ func TestIDTokenClaims(t *testing.T) {
 	requestedClaims := make(map[string]*oidc.Claim)
 
 	opts = AppendClaimsAuthenticationRequestParameter(opts, requestedClaims)
-	assert.Empty(t, opts)
+	assert.Len(t, opts, 0)
 
 	requestedClaims["groups"] = &oidc.Claim{Essential: true}
 	opts = AppendClaimsAuthenticationRequestParameter(opts, requestedClaims)
 	assert.Len(t, opts, 1)
 
 	authCodeURL, err := url.Parse(oauth2Config.AuthCodeURL("TEST", opts...))
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	values, err := url.ParseQuery(authCodeURL.RawQuery)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, "{\"id_token\":{\"groups\":{\"essential\":true}}}", values.Get("claims"))
 }
 
-type fakeProvider struct{}
+type fakeProvider struct {
+}
 
 func (p *fakeProvider) Endpoint() (*oauth2.Endpoint, error) {
 	return &oauth2.Endpoint{}, nil
@@ -322,7 +323,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 }
 
 func TestIsValidRedirect(t *testing.T) {
-	tests := []struct {
+	var tests = []struct {
 		name        string
 		valid       bool
 		redirectURL string
@@ -421,7 +422,7 @@ func TestGenerateAppState(t *testing.T) {
 		}
 
 		returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), state)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, expectedReturnURL, returnURL)
 	})
 
@@ -432,7 +433,7 @@ func TestGenerateAppState(t *testing.T) {
 		}
 
 		_, err := app.verifyAppState(req, httptest.NewRecorder(), "wrong state")
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 }
 
@@ -465,7 +466,7 @@ func TestGenerateAppState_XSS(t *testing.T) {
 		}
 
 		returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), state)
-		require.ErrorIs(t, err, InvalidRedirectURLError)
+		assert.ErrorIs(t, err, InvalidRedirectURLError)
 		assert.Empty(t, returnURL)
 	})
 
@@ -481,7 +482,7 @@ func TestGenerateAppState_XSS(t *testing.T) {
 		}
 
 		returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), state)
-		require.NoError(t, err)
+		assert.NoError(t, err, InvalidRedirectURLError)
 		assert.Equal(t, expectedReturnURL, returnURL)
 	})
 }
@@ -502,12 +503,13 @@ func TestGenerateAppState_NoReturnURL(t *testing.T) {
 
 	req.AddCookie(&http.Cookie{Name: common.StateCookieName, Value: hex.EncodeToString(encrypted)})
 	returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), "123")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "/argo-cd", returnURL)
 }
 
 func TestGetUserInfo(t *testing.T) {
-	tests := []struct {
+
+	var tests = []struct {
 		name                  string
 		userInfoPath          string
 		expectedOutput        interface{}
@@ -728,7 +730,7 @@ func TestGetUserInfo(t *testing.T) {
 			require.NoError(t, err)
 			cdSettings := &settings.ArgoCDSettings{ServerSignature: signature}
 			encryptionKey, err := cdSettings.GetServerEncryptionKey()
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			a, _ := NewClientApp(cdSettings, "", nil, "/argo-cd", tt.cache)
 
 			for _, item := range tt.cacheItems {
@@ -736,7 +738,7 @@ func TestGetUserInfo(t *testing.T) {
 				newValue = []byte(item.value)
 				if item.encrypt {
 					newValue, err = crypto.Encrypt([]byte(item.value), encryptionKey)
-					require.NoError(t, err)
+					assert.NoError(t, err)
 				}
 				err := a.clientCache.Set(&cache.Item{
 					Key:    item.key,
@@ -749,9 +751,9 @@ func TestGetUserInfo(t *testing.T) {
 			assert.Equal(t, tt.expectedOutput, got)
 			assert.Equal(t, tt.expectUnauthenticated, unauthenticated)
 			if tt.expectError {
-				require.Error(t, err)
+				assert.Error(t, err)
 			} else {
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			}
 			for _, item := range tt.expectedCacheItems {
 				var tmpValue []byte
@@ -769,4 +771,5 @@ func TestGetUserInfo(t *testing.T) {
 			}
 		})
 	}
+
 }

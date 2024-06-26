@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -43,7 +42,7 @@ func NewRedisCache(client *redis.Client, expiration time.Duration, compressionTy
 	}
 }
 
-// compile-time validation of adherence of the CacheClient contract
+// compile-time validation of adherance of the CacheClient contract
 var _ CacheClient = &redisCache{}
 
 type redisCache struct {
@@ -128,7 +127,7 @@ func (r *redisCache) Set(item *Item) error {
 func (r *redisCache) Get(key string, obj interface{}) error {
 	var data []byte
 	err := r.cache.Get(context.TODO(), r.getKey(key), &data)
-	if errors.Is(err, rediscache.ErrCacheMiss) {
+	if err == rediscache.ErrCacheMiss {
 		err = ErrCacheMiss
 	}
 	if err != nil {
@@ -183,7 +182,7 @@ func (rh *redisHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 		startTime := time.Now()
 
 		err := next(ctx, cmd)
-		rh.registry.IncRedisRequest(err != nil && !errors.Is(err, redis.Nil))
+		rh.registry.IncRedisRequest(err != nil && err != redis.Nil)
 		rh.registry.ObserveRedisRequestDuration(time.Since(startTime))
 
 		return err

@@ -36,10 +36,8 @@ type AzureDevOpsService struct {
 	labels        []string
 }
 
-var (
-	_ PullRequestService       = (*AzureDevOpsService)(nil)
-	_ AzureDevOpsClientFactory = &devopsFactoryImpl{}
-)
+var _ PullRequestService = (*AzureDevOpsService)(nil)
+var _ AzureDevOpsClientFactory = &devopsFactoryImpl{}
 
 func NewAzureDevOpsService(ctx context.Context, token, url, organization, project, repo string, labels []string) (PullRequestService, error) {
 	organizationUrl := buildURL(url, organization)

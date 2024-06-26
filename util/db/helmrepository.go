@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/utils/ptr"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -59,7 +59,7 @@ func (db *db) ListHelmRepositories(ctx context.Context) ([]*v1alpha1.Repository,
 		}
 		result[i] = repo
 	}
-	repos, err := db.listRepositories(ctx, ptr.To("helm"))
+	repos, err := db.listRepositories(ctx, pointer.String("helm"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to list Helm repositories: %w", err)
 	}
