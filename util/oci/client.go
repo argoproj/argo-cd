@@ -10,13 +10,16 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/argoproj/argo-cd/v2/util/cache"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
+	"io"
 	"net/http"
 	"net/url"
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/file"
+	"oras.land/oras-go/v2/content/oci"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"os"
@@ -147,8 +150,8 @@ func (c *nativeOciClient) TestRepo(ctx context.Context) (bool, error) {
 	return err == nil, err
 }
 
-func (c *nativeOciClient) Extract(ctx context.Context, revision string, project string, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error) {
-	cachedPath, err := c.getCachedPath(revision, project)
+func (c *nativeOciClient) Extract(ctx context.Context, digest string, project string, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error) {
+	cachedPath, err := c.getCachedPath(digest, project)
 	if err != nil {
 		return "", nil, err
 	}
@@ -161,19 +164,81 @@ func (c *nativeOciClient) Extract(ctx context.Context, revision string, project 
 		return "", nil, err
 	}
 
-	fs, err := file.New(cachedPath)
-	if err != nil {
-		return "", nil, err
-	}
-
 	if !exists {
-		_, err = oras.Copy(ctx, c.repo, revision, fs, revision, oras.DefaultCopyOptions)
+		// Create scratch dir for the OCI store. This will be put into a TAR archive.
+		tempDir, err := files.CreateTempDir(os.TempDir())
+		if err != nil {
+			return "", nil, err
+		}
+		defer os.RemoveAll(tempDir)
+
+		store, err := oci.New(tempDir)
+		if err != nil {
+			return "", nil, err
+		}
+
+		// Copy remote repo at the given digest to the scratch dir.
+		_, err = oras.Copy(ctx, c.repo, digest, store, digest, oras.DefaultCopyOptions)
+		if err != nil {
+			return "", nil, err
+		}
+
+		err = createTarFile(tempDir, cachedPath)
 		if err != nil {
 			return "", nil, err
 		}
 	}
 
-	return cachedPath, fs, nil
+	// Create OCI store from the TAR file stored at cachedPath.
+	store, err := oci.NewFromTar(ctx, cachedPath)
+	if err != nil {
+		return "", nil, err
+	}
+
+	// Extract manifests that we want to use to a temp dir. This will be removed once the repo-server has generated and
+	// cached the manifests.
+	manifestsDir, closer, err := copyManifestsToTempDir(ctx, store, digest)
+	if err != nil {
+		return "", nil, err
+	}
+
+	return manifestsDir, argoio.NewCloser(func() error {
+		closer.Close()
+		return os.RemoveAll(manifestsDir)
+	}), nil
+}
+
+func createTarFile(from, to string) error {
+	f, err := os.Create(to)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = files.Tar(from, nil, nil, f)
+	if err != nil {
+		_ = os.RemoveAll(to)
+	}
+	return err
+}
+
+func copyManifestsToTempDir(ctx context.Context, store oras.ReadOnlyTarget, digest string) (string, io.Closer, error) {
+	manifestsDir, err := files.CreateTempDir(os.TempDir())
+	if err != nil {
+		return manifestsDir, nil, err
+	}
+
+	fs, err := file.New(manifestsDir)
+	if err != nil {
+		return manifestsDir, fs, err
+	}
+
+	_, err = oras.Copy(ctx, store, digest, fs, digest, oras.DefaultCopyOptions)
+	if err != nil {
+		return manifestsDir, fs, err
+	}
+
+	return manifestsDir, fs, nil
 }
 
 func (c *nativeOciClient) getCachedPath(version, project string) (string, error) {
