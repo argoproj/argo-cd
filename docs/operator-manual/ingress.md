@@ -405,6 +405,44 @@ spec:
     certResolver: default
 ```
 
+## Azure Application Gateway Ingress Controller
+Azure Application Gateway can be used as an ingress controller for Azure Kubernetes
+Service (AKS). When using Azure Application Gateway as ingress for AKS, you can
+expose the argocd User Interface by the use of cert-manager and Let's Encrypt
+as shown below
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server-ingress
+  namespace: argocd
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    appgw.ingress.kubernetes.io/ssl-redirect: "true"
+    # If you encounter a redirect loop or are getting a 307 response code
+    # then you need to force the nginx ingress to connect to the backend using HTTPS.
+    #
+    appgw.ingress.kubernetes.io/backend-protocol: "https"
+spec:
+  rules:
+  - host: argocd.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: https
+  tls:
+  - hosts:
+    - argocd.example.com
+    secretName: argocd-server-tls # as expected by argocd-server
+```
+
 ## AWS Application Load Balancers (ALBs) And Classic ELB (HTTP Mode)
 AWS ALBs can be used as an L7 Load Balancer for both UI and gRPC traffic, whereas Classic ELBs and NLBs can be used as L4 Load Balancers for both.
 
