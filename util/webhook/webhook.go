@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/bitbucket"
@@ -41,12 +42,15 @@ type settingsSource interface {
 // https://github.com/shadow-maint/shadow/blob/master/libmisc/chkname.c#L36
 const usernameRegex = `[a-zA-Z0-9_\.][a-zA-Z0-9_\.-]{0,30}[a-zA-Z0-9_\.\$-]?`
 
+const payloadQueueSize = 50000
+
 var (
 	_                              settingsSource = &settings.SettingsManager{}
 	errBasicAuthVerificationFailed                = errors.New("basic auth verification failed")
 )
 
 type ArgoCDWebhookHandler struct {
+	sync.WaitGroup         // for testing
 	repoCache              *cache.Cache
 	serverCache            *servercache.Cache
 	db                     db.ArgoDB
@@ -61,9 +65,10 @@ type ArgoCDWebhookHandler struct {
 	azuredevopsAuthHandler func(r *http.Request) error
 	gogs                   *gogs.Webhook
 	settingsSrc            settingsSource
+	queue                  chan interface{}
 }
 
-func NewHandler(namespace string, applicationNamespaces []string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB) *ArgoCDWebhookHandler {
+func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB) *ArgoCDWebhookHandler {
 	githubWebhook, err := github.New(github.Options.Secret(set.WebhookGitHubSecret))
 	if err != nil {
 		log.Warnf("Unable to init the GitHub webhook")
@@ -113,9 +118,28 @@ func NewHandler(namespace string, applicationNamespaces []string, appClientset a
 		repoCache:              repoCache,
 		serverCache:            serverCache,
 		db:                     argoDB,
+		queue:                  make(chan interface{}, payloadQueueSize),
 	}
 
+	acdWebhook.startWorkerPool(webhookParallelism)
+
 	return &acdWebhook
+}
+
+func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
+	for i := 0; i < webhookParallelism; i++ {
+		a.Add(1)
+		go func() {
+			defer a.Done()
+			for {
+				payload, ok := <-a.queue
+				if !ok {
+					return
+				}
+				a.HandleEvent(payload)
+			}
+		}()
+	}
 }
 
 func parseRevision(ref string) string {
@@ -444,5 +468,10 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a.HandleEvent(payload)
+	select {
+	case a.queue <- payload:
+	default:
+		log.Info("Queue is full, discarding webhook payload")
+		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
+	}
 }
