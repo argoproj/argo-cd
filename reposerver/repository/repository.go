@@ -2673,6 +2673,18 @@ func (s *Service) ResolveRevision(_ context.Context, q *apiclient.ResolveRevisio
 	ambiguousRevision := q.AmbiguousRevision
 	var revision string
 	source := app.Spec.GetSourcePtrByIndex(int(q.SourceIndex))
+
+	if source.IsOci() {
+		_, revision, err := s.newOciClientResolveRevision(ctx, repo, ambiguousRevision, true)
+		if err != nil {
+			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+		}
+		return &apiclient.ResolveRevisionResponse{
+			Revision:          revision,
+			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, revision),
+		}, nil
+	}
+
 	if source.IsHelm() {
 		_, revision, err := s.newHelmClientResolveRevision(repo, ambiguousRevision, source.Chart, true)
 		if err != nil {
