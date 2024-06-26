@@ -5,6 +5,50 @@ import {ApplicationSource, RevisionMetadata, ChartDetails} from '../../../shared
 import {services} from '../../../shared/services';
 
 export const RevisionMetadataRows = (props: {applicationName: string; applicationNamespace: string; source: ApplicationSource; index: number; versionId: number}) => {
+    if (props.source.repoURL.startsWith("oci://")) {
+        return (
+            <DataLoader
+                input={props}
+                load={input =>
+                    // TODO: Needs real impl
+                    services.applications.ociMetadata(input.applicationName, input.applicationNamespace, input.source.targetRevision, input.index, input.versionId)
+                }>
+                {(m: ChartDetails) => (
+                    // TODO: Needs real impl
+                    <div>
+                        <div className='row'>
+                            <div className='columns small-3'>Helm Chart:</div>
+                            <div className='columns small-9'>
+                                {props.source.chart}&nbsp;
+                                {m.home && (
+                                    <a
+                                        title={m.home}
+                                        onClick={e => {
+                                            e.stopPropagation();
+                                            window.open(m.home);
+                                        }}>
+                                        <i className='fa fa-external-link-alt' />
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                        {m.description && (
+                            <div className='row'>
+                                <div className='columns small-3'>Description:</div>
+                                <div className='columns small-9'>{m.description}</div>
+                            </div>
+                        )}
+                        {m.maintainers && m.maintainers.length > 0 && (
+                            <div className='row'>
+                                <div className='columns small-3'>Maintainers:</div>
+                                <div className='columns small-9'>{m.maintainers.join(', ')}</div>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </DataLoader>
+        );
+    }
     if (props.source.chart) {
         return (
             <DataLoader

@@ -3553,7 +3553,7 @@ func schema_pkg_apis_application_v1alpha1_GnuPGPublicKey(ref common.ReferenceCal
 					},
 					"subType": {
 						SchemaProps: spec.SchemaProps{
-							Description: "SubType holds the key's sub type (e.g. rsa4096)",
+							Description: "SubType holds the key's subtype (e.g. rsa4096)",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -5740,6 +5740,13 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 					"forceHttpBasicAuth": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"insecureHttpOnly": {
+						SchemaProps: spec.SchemaProps{
+							Description: "InsecureHttpOnly specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. Applicable for OCI repos only atm.",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

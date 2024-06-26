@@ -6960,7 +6960,7 @@
         },
         "serverVersion": {
           "type": "string",
-          "title": "DEPRECATED: use Info.ServerVersion field instead.\nThe server version"
+          "title": "Deprecated: use Info.ServerVersion field instead.\nThe server version"
         },
         "shard": {
           "description": "Shard contains optional shard number. Calculated on the fly by the application controller if not specified.",
@@ -7298,7 +7298,7 @@
         },
         "subType": {
           "type": "string",
-          "title": "SubType holds the key's sub type (e.g. rsa4096)"
+          "title": "SubType holds the key's subtype (e.g. rsa4096)"
         },
         "trust": {
           "type": "string",
@@ -8204,6 +8204,10 @@
         "insecure": {
           "type": "boolean",
           "title": "Insecure specifies whether the connection to the repository ignores any errors when verifying TLS certificates or SSH host keys"
+        },
+        "insecureHttpOnly": {
+          "description": "InsecureHttpOnly specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. Applicable for OCI repos only atm.",
+          "type": "boolean"
         },
         "insecureIgnoreHostKey": {
           "type": "boolean",
