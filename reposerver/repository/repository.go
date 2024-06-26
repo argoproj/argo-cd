@@ -2731,7 +2731,10 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 		return nil, status.Errorf(codes.Internal, "unable to get changed files for repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
 
-	changed := apppathutil.AppFilesHaveChanged(refreshPaths, files)
+	changed := false
+	if len(files) != 0 {
+		changed = apppathutil.AppFilesHaveChanged(refreshPaths, files)
+	}
 
 	if !changed {
 		logCtx.Debugf("no changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, syncedRevision, revision)
