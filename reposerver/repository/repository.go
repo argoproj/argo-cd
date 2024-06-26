@@ -2593,6 +2593,18 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 	ambiguousRevision := q.AmbiguousRevision
 	var revision string
 	source := app.Spec.GetSourcePtrByIndex(int(q.SourceIndex))
+
+	if source.IsOci() {
+		_, revision, err := s.newOciClientResolveRevision(ctx, repo, ambiguousRevision, true)
+		if err != nil {
+			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+		}
+		return &apiclient.ResolveRevisionResponse{
+			Revision:          revision,
+			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, revision),
+		}, nil
+	}
+
 	if source.IsHelm() {
 		_, revision, err := s.newHelmClientResolveRevision(repo, ambiguousRevision, source.Chart, true)
 		if err != nil {
@@ -2602,21 +2614,21 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 			Revision:          revision,
 			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, revision),
 		}, nil
-	} else {
-		gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy)
-		if err != nil {
-			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
-		}
-		revision, err = gitClient.LsRemote(ambiguousRevision)
-		if err != nil {
-			s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
-			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
-		}
-		return &apiclient.ResolveRevisionResponse{
-			Revision:          revision,
-			AmbiguousRevision: fmt.Sprintf("%s (%s)", ambiguousRevision, revision),
-		}, nil
 	}
+
+	gitClient, err := git.NewClient(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy)
+	if err != nil {
+		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+	}
+	revision, err = gitClient.LsRemote(ambiguousRevision)
+	if err != nil {
+		s.metricsServer.IncGitLsRemoteFail(gitClient.Root(), revision)
+		return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+	}
+	return &apiclient.ResolveRevisionResponse{
+		Revision:          revision,
+		AmbiguousRevision: fmt.Sprintf("%s (%s)", ambiguousRevision, revision),
+	}, nil
 }
 
 func (s *Service) GetGitFiles(_ context.Context, request *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
