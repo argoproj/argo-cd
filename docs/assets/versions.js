@@ -19,6 +19,14 @@ const observerCallback = function(mutationsList, observer) {
 const observer = new MutationObserver(observerCallback);
 observer.observe(targetNode, observerOptions);
 
+function getCurrentVersion() {
+  const currentVersion = window.location.href.match(/\/en\/(release-(?:v\d+|[\d\.]+|\w+)|latest|stable)\//);
+  if (currentVersion && currentVersion.length > 1) {
+    return currentVersion[1];
+  }
+  return null;
+}
+
 function initializeVersionDropdown() {
   const callbackName = 'callback_' + new Date().getTime();
   window[callbackName] = function(response) {
@@ -42,18 +50,18 @@ function initializeVersionDropdown() {
   document.getElementsByTagName('head')[0].appendChild(CSSLink);
 
   var script = document.createElement('script');
+  const currentVersion = getCurrentVersion();
   script.src = 'https://argo-cd.readthedocs.io/_/api/v2/footer_html/?' +
-      'callback=' + callbackName + '&project=argo-cd&page=&theme=mkdocs&format=jsonp&docroot=docs&source_suffix=.md&version=' + (window['READTHEDOCS_DATA'] || { version: 'latest' }).version;
+      'callback=' + callbackName + '&project=argo-cd&page=&theme=mkdocs&format=jsonp&docroot=docs&source_suffix=.md&version=' + (currentVersion || 'latest');
   document.getElementsByTagName('head')[0].appendChild(script);
 }
 
 // VERSION WARNINGS
 window.addEventListener("DOMContentLoaded", function() {
-  var currentVersion = window.location.href.match(/\/en\/(release-(?:v\d+|\w+)|latest|stable)\//);
   var margin = 30;
   var headerHeight = document.getElementsByClassName("md-header")[0].offsetHeight;
-  if (currentVersion && currentVersion.length > 1) {
-    currentVersion = currentVersion[1];
+  const currentVersion = getCurrentVersion();
+  if (currentVersion) {
     if (currentVersion === "latest") {
       document.querySelector("div[data-md-component=announce]").innerHTML = "<div id='announce-msg'>You are viewing the docs for an unreleased version of Argo CD, <a href='https://argo-cd.readthedocs.io/en/stable/'>click here to go to the latest stable version.</a></div>";
       var bannerHeight = document.getElementById('announce-msg').offsetHeight + margin;
