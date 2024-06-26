@@ -70,7 +70,7 @@ slack:
       ,
       {
         "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
+        "value": "{{js $c.message}}",
         "short": true
       }
       {{end}}
@@ -101,7 +101,7 @@ teams:
       }
     {{end}}
     ]
-  potentialAction: |-
+  potentialAction: |
     [{
       "@type":"OpenUri",
       "name":"Operation Application",
@@ -151,7 +151,7 @@ slack:
       ,
       {
         "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
+        "value": "{{js $c.message}}",
         "short": true
       }
       {{end}}
@@ -228,7 +228,7 @@ slack:
       ,
       {
         "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
+        "value": "{{js $c.message}}",
         "short": true
       }
       {{end}}
@@ -259,7 +259,7 @@ teams:
       }
     {{end}}
     ]
-  potentialAction: |-
+  potentialAction: |
     [{
       "@type":"OpenUri",
       "name":"Open Operation",
@@ -309,7 +309,7 @@ slack:
       ,
       {
         "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
+        "value": "{{js $c.message}}",
         "short": true
       }
       {{end}}
@@ -340,7 +340,7 @@ teams:
       }
     {{end}}
     ]
-  potentialAction: |-
+  potentialAction: |
     [{
       "@type":"OpenUri",
       "name":"Open Operation",
@@ -394,7 +394,7 @@ slack:
       ,
       {
         "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
+        "value": "{{js $c.message}}",
         "short": true
       }
       {{end}}
@@ -421,7 +421,7 @@ teams:
       }
     {{end}}
     ]
-  potentialAction: |-
+  potentialAction: |
     [{
       "@type":"OpenUri",
       "name":"Open Application",
@@ -470,7 +470,7 @@ slack:
       ,
       {
         "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
+        "value": "{{js $c.message}}",
         "short": true
       }
       {{end}}
@@ -501,7 +501,7 @@ teams:
       }
     {{end}}
     ]
-  potentialAction: |-
+  potentialAction: |
     [{
       "@type":"OpenUri",
       "name":"Operation Details",
