@@ -126,6 +126,6 @@ You can now login using our new Keycloak OIDC authentication:
 
 ![Keycloak ArgoCD login](../../assets/keycloak-login.png "Keycloak ArgoCD login")
 
-## Trouleshoot
-if ArgoCD auth returns 401 or when the login attempt leads to the loop, then restart the argocd-server pod.
-kubectl rollout restart deployment argocd-server -n argocd 
+## Troubleshoot
+If ArgoCD auth returns 401 or when the login attempt leads to the loop, then restart the argocd-server pod.
+`kubectl rollout restart deployment argocd-server -n argocd `
