@@ -129,6 +129,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Groww](https://groww.in)
 1. [Grupo MasMovil](https://grupomasmovil.com/en/)
 1. [Handelsbanken](https://www.handelsbanken.se)
+1. [Hazelcast](https://hazelcast.com/)
 1. [Healy](https://www.healyworld.net)
 1. [Helio](https://helio.exchange)
 1. [Hetki](https://hetki.ai)
