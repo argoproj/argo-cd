@@ -3,6 +3,7 @@ package reporter
 import (
 	"context"
 	"encoding/json"
+	"k8s.io/apimachinery/pkg/watch"
 	"net/http"
 	"testing"
 	"time"
@@ -535,4 +536,113 @@ func TestGetParentAppIdentityWithinControllerNs(t *testing.T) {
 
 	assert.Equal(t, expectedName, res.name)
 	assert.Equal(t, expectedNamespace, res.namespace)
+}
+
+func TestShouldSendApplicationEvent(t *testing.T) {
+	eventReporter := fakeReporter()
+
+	t.Run("should send because cache is missing", func(t *testing.T) {
+		app := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"sdsds": "sdsd",
+				},
+			},
+		}
+
+		shouldSend, _ := eventReporter.ShouldSendApplicationEvent(&v1alpha1.ApplicationWatchEvent{
+			Type:        watch.Modified,
+			Application: app,
+		})
+		assert.True(t, shouldSend)
+	})
+
+	t.Run("should send because labels changed", func(t *testing.T) {
+		appCache := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"data": "old value",
+				},
+			},
+		}
+
+		err := eventReporter.cache.SetLastApplicationEvent(&appCache, time.Second*5)
+		assert.NoError(t, err)
+
+		app := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{
+					"data": "new value",
+				},
+			},
+		}
+
+		shouldSend, _ := eventReporter.ShouldSendApplicationEvent(&v1alpha1.ApplicationWatchEvent{
+			Type:        watch.Modified,
+			Application: app,
+		})
+		assert.True(t, shouldSend)
+	})
+
+	t.Run("should send because annotations changed", func(t *testing.T) {
+		appCache := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"data": "old value",
+				},
+			},
+		}
+
+		err := eventReporter.cache.SetLastApplicationEvent(&appCache, time.Second*5)
+		assert.NoError(t, err)
+
+		app := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"data": "new value",
+				},
+			},
+		}
+
+		shouldSend, _ := eventReporter.ShouldSendApplicationEvent(&v1alpha1.ApplicationWatchEvent{
+			Type:        watch.Modified,
+			Application: app,
+		})
+		assert.True(t, shouldSend)
+	})
+
+	t.Run("should ignore some changed metadata fields", func(t *testing.T) {
+		appCache := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				ResourceVersion: "1",
+				Generation:      1,
+				GenerateName:    "first",
+				ManagedFields:   []metav1.ManagedFieldsEntry{},
+				Annotations: map[string]string{
+					"kubectl.kubernetes.io/last-applied-configuration": "first",
+				},
+			},
+		}
+
+		err := eventReporter.cache.SetLastApplicationEvent(&appCache, time.Second*5)
+		assert.NoError(t, err)
+
+		app := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				ResourceVersion: "2",
+				Generation:      2,
+				GenerateName:    "changed",
+				ManagedFields:   []metav1.ManagedFieldsEntry{{Manager: "changed"}},
+				Annotations: map[string]string{
+					"kubectl.kubernetes.io/last-applied-configuration": "changed",
+				},
+			},
+		}
+
+		shouldSend, _ := eventReporter.ShouldSendApplicationEvent(&v1alpha1.ApplicationWatchEvent{
+			Type:        watch.Modified,
+			Application: app,
+		})
+		assert.False(t, shouldSend)
+	})
 }
