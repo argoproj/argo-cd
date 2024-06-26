@@ -3,7 +3,6 @@ package oidc
 import (
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"html"
 	"html/template"
@@ -114,7 +113,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
 	if err != nil {
-		return nil, fmt.Errorf("parse redirect-uri: %w", err)
+		return nil, fmt.Errorf("parse redirect-uri: %v", err)
 	}
 
 	transport := &http.Transport{
@@ -368,6 +367,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	idToken, err := a.provider.Verify(idTokenRAW, a.settings)
+
 	if err != nil {
 		log.Warnf("Failed to verify token: %s", err)
 		http.Error(w, common.TokenVerificationError, http.StatusInternalServerError)
@@ -398,11 +398,9 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	sub := jwtutil.StringField(claims, "sub")
 	err = a.clientCache.Set(&cache.Item{
-		Key:    formatAccessTokenCacheKey(AccessTokenCachePrefix, sub),
-		Object: encToken,
-		CacheActionOpts: cache.CacheActionOpts{
-			Expiration: getTokenExpiration(claims),
-		},
+		Key:        formatAccessTokenCacheKey(AccessTokenCachePrefix, sub),
+		Object:     encToken,
+		Expiration: getTokenExpiration(claims),
 	})
 	if err != nil {
 		claimsJSON, _ := json.Marshal(claims)
@@ -572,7 +570,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	err := a.clientCache.Get(formatAccessTokenCacheKey(AccessTokenCachePrefix, sub), &encAccessToken)
 	// without an accessToken we can't query the user info endpoint
 	// thus the user needs to reauthenticate for argocd to get a new accessToken
-	if errors.Is(err, cache.ErrCacheMiss) {
+	if err == cache.ErrCacheMiss {
 		return claims, true, fmt.Errorf("no accessToken for %s: %w", sub, err)
 	} else if err != nil {
 		return claims, true, fmt.Errorf("couldn't read accessToken from cache for %s: %w", sub, err)
@@ -585,6 +583,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 
 	url := issuerURL + userInfoPath
 	request, err := http.NewRequest("GET", url, nil)
+
 	if err != nil {
 		err = fmt.Errorf("failed creating new http request: %w", err)
 		return claims, false, err
@@ -655,11 +654,9 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	}
 
 	err = a.clientCache.Set(&cache.Item{
-		Key:    clientCacheKey,
-		Object: encClaims,
-		CacheActionOpts: cache.CacheActionOpts{
-			Expiration: cacheExpiry,
-		},
+		Key:        clientCacheKey,
+		Object:     encClaims,
+		Expiration: cacheExpiry,
 	})
 	if err != nil {
 		return claims, false, fmt.Errorf("couldn't put item to cache: %w", err)

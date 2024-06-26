@@ -16,7 +16,7 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/utils/ptr"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -136,8 +136,7 @@ type ClusterEvent struct {
 func (db *db) WatchClusters(ctx context.Context,
 	handleAddEvent func(cluster *appv1.Cluster),
 	handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
-	handleDeleteEvent func(clusterServer string),
-) error {
+	handleDeleteEvent func(clusterServer string)) error {
 	localCls, err := db.GetCluster(ctx, appv1.KubernetesInternalAPIServerAddr)
 	if err != nil {
 		return err
@@ -317,7 +316,7 @@ func (db *db) DeleteCluster(ctx context.Context, server string) error {
 	return db.settingsMgr.ResyncInformers()
 }
 
-// clusterToSecret converts a cluster object to string data for serialization to a secret
+// clusterToData converts a cluster object to string data for serialization to a secret
 func clusterToSecret(c *appv1.Cluster, secret *apiv1.Secret) error {
 	data := make(map[string][]byte)
 	data["server"] = []byte(strings.TrimRight(c.Server, "/"))
@@ -394,7 +393,7 @@ func SecretToCluster(s *apiv1.Secret) (*appv1.Cluster, error) {
 		if val, err := strconv.Atoi(string(shardStr)); err != nil {
 			log.Warnf("Error while parsing shard in cluster secret '%s': %v", s.Name, err)
 		} else {
-			shard = ptr.To(int64(val))
+			shard = pointer.Int64(int64(val))
 		}
 	}
 

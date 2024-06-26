@@ -89,6 +89,7 @@ func mapToEditAddArgs(val map[string]string) []string {
 }
 
 func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env) ([]*unstructured.Unstructured, []Image, error) {
+
 	env := os.Environ()
 	if envVars != nil {
 		env = append(env, envVars.Environ()...)
@@ -182,9 +183,6 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			args := []string{"edit", "add", "label"}
 			if opts.ForceCommonLabels {
 				args = append(args, "--force")
-			}
-			if opts.LabelWithoutSelector {
-				args = append(args, "--without-selector")
 			}
 			commonLabels := map[string]string{}
 			for name, value := range opts.CommonLabels {
@@ -321,7 +319,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 }
 
 func parseKustomizeBuildOptions(path, buildOptions string) []string {
-	return append([]string{"build", path}, strings.Fields(buildOptions)...)
+	return append([]string{"build", path}, strings.Split(buildOptions, " ")...)
 }
 
 var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Kustomization"}
@@ -405,7 +403,7 @@ func Version(shortForm bool) (string, error) {
 	// short: "{kustomize/v3.8.1  2020-07-16T00:58:46Z  }"
 	version, err := executil.Run(cmd)
 	if err != nil {
-		return "", fmt.Errorf("could not get kustomize version: %w", err)
+		return "", fmt.Errorf("could not get kustomize version: %s", err)
 	}
 	version = strings.TrimSpace(version)
 	if shortForm {
@@ -419,6 +417,7 @@ func Version(shortForm bool) (string, error) {
 
 		// remove extra 'kustomize/' before version
 		version = strings.TrimPrefix(version, "kustomize/")
+
 	}
 	return version, nil
 }

@@ -31,7 +31,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/v2/util/oidc"
 	"github.com/argoproj/argo-cd/v2/util/rand"
-	oidcconfig "github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 // NewLoginCommand returns a new instance of `argocd login` command
@@ -44,7 +43,7 @@ func NewLoginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comman
 		ssoPort     int
 		skipTestTLS bool
 	)
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "login SERVER",
 		Short: "Log in to Argo CD",
 		Long:  "Log in to Argo CD",
@@ -307,7 +306,6 @@ func oauth2Login(
 	fmt.Printf("Opening browser for authentication\n")
 
 	var url string
-	var oidcconfig oidcconfig.OIDCConfig
 	grantType := oidcutil.InferGrantType(oidcConf)
 	opts := []oauth2.AuthCodeOption{oauth2.AccessTypeOffline}
 	if claimsRequested := oidcSettings.GetIDTokenClaims(); claimsRequested != nil {
@@ -318,9 +316,6 @@ func oauth2Login(
 	case oidcutil.GrantTypeAuthorizationCode:
 		opts = append(opts, oauth2.SetAuthURLParam("code_challenge", codeChallenge))
 		opts = append(opts, oauth2.SetAuthURLParam("code_challenge_method", "S256"))
-		if oidcconfig.DomainHint != "" {
-			opts = append(opts, oauth2.SetAuthURLParam("domain_hint", oidcconfig.DomainHint))
-		}
 		url = oauth2conf.AuthCodeURL(stateNonce, opts...)
 	case oidcutil.GrantTypeImplicit:
 		url, err = oidcutil.ImplicitFlowURL(oauth2conf, stateNonce, opts...)

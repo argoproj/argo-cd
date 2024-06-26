@@ -4,17 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 	"os"
 	"strconv"
 	"text/tabwriter"
-
-	"github.com/argoproj/argo-cd/v2/util/templates"
 
 	"github.com/argoproj/argo-cd/v2/cmd/util"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"k8s.io/utils/ptr"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
@@ -35,17 +34,19 @@ type DisplayedAction struct {
 	Disabled bool
 }
 
-var appActionExample = templates.Examples(`
+var (
+	appActionExample = templates.Examples(`
 	# List all the available actions for an application
 	argocd app actions list APPNAME
 
 	# Run an available action for an application
 	argocd app actions run APPNAME ACTION --kind KIND [--resource-name RESOURCE] [--namespace NAMESPACE] [--group GROUP]
 	`)
+)
 
 // NewApplicationResourceActionsCommand returns a new instance of an `argocd app actions` command
 func NewApplicationResourceActionsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:     "actions",
 		Short:   "Manage Resource actions",
 		Example: appActionExample,
@@ -66,7 +67,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 	var group string
 	var resourceName string
 	var output string
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "list APPNAME",
 		Short: "Lists available actions on a resource",
 		Example: templates.Examples(`
@@ -95,11 +96,11 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			availActionsForResource, err := appIf.ListResourceActions(ctx, &applicationpkg.ApplicationResourceRequest{
 				Name:         &appName,
 				AppNamespace: &appNs,
-				Namespace:    ptr.To(obj.GetNamespace()),
-				ResourceName: ptr.To(obj.GetName()),
-				Group:        ptr.To(gvk.Group),
-				Kind:         ptr.To(gvk.Kind),
-				Version:      ptr.To(gvk.Version),
+				Namespace:    pointer.String(obj.GetNamespace()),
+				ResourceName: pointer.String(obj.GetName()),
+				Group:        pointer.String(gvk.Group),
+				Kind:         pointer.String(gvk.Kind),
+				Version:      pointer.String(gvk.Version),
 			})
 			errors.CheckError(err)
 			for _, action := range availActionsForResource.Actions {
@@ -148,7 +149,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	var kind string
 	var group string
 	var all bool
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "run APPNAME ACTION",
 		Short: "Runs an available action on resource(s)",
 		Example: templates.Examples(`
@@ -180,7 +181,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 		errors.CheckError(err)
 		filteredObjects, err := util.FilterResources(command.Flags().Changed("group"), resources, group, kind, namespace, resourceName, all)
 		errors.CheckError(err)
-		resGroup := filteredObjects[0].GroupVersionKind().Group
+		var resGroup = filteredObjects[0].GroupVersionKind().Group
 		for i := range filteredObjects[1:] {
 			if filteredObjects[i].GroupVersionKind().Group != resGroup {
 				log.Fatal("Ambiguous resource group. Use flag --group to specify resource group explicitly.")
@@ -194,12 +195,12 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			_, err := appIf.RunResourceAction(ctx, &applicationpkg.ResourceActionRunRequest{
 				Name:         &appName,
 				AppNamespace: &appNs,
-				Namespace:    ptr.To(obj.GetNamespace()),
-				ResourceName: ptr.To(objResourceName),
-				Group:        ptr.To(gvk.Group),
-				Kind:         ptr.To(gvk.Kind),
-				Version:      ptr.To(gvk.GroupVersion().Version),
-				Action:       ptr.To(actionName),
+				Namespace:    pointer.String(obj.GetNamespace()),
+				ResourceName: pointer.String(objResourceName),
+				Group:        pointer.String(gvk.Group),
+				Kind:         pointer.String(gvk.Kind),
+				Version:      pointer.String(gvk.GroupVersion().Version),
+				Action:       pointer.String(actionName),
 			})
 			errors.CheckError(err)
 		}

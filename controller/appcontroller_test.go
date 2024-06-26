@@ -19,6 +19,7 @@ import (
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
 	"github.com/argoproj/argo-cd/v2/controller/sharding"
 
+	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -34,8 +35,6 @@ import (
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/yaml"
-
-	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 
 	mockstatecache "github.com/argoproj/argo-cd/v2/controller/cache/mocks"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -55,15 +54,14 @@ type namespacedResource struct {
 }
 
 type fakeData struct {
-	apps                           []runtime.Object
-	manifestResponse               *apiclient.ManifestResponse
-	manifestResponses              []*apiclient.ManifestResponse
-	managedLiveObjs                map[kube.ResourceKey]*unstructured.Unstructured
-	namespacedResources            map[kube.ResourceKey]namespacedResource
-	configMapData                  map[string]string
-	metricsCacheExpiration         time.Duration
-	applicationNamespaces          []string
-	updateRevisionForPathsResponse *apiclient.UpdateRevisionForPathsResponse
+	apps                   []runtime.Object
+	manifestResponse       *apiclient.ManifestResponse
+	manifestResponses      []*apiclient.ManifestResponse
+	managedLiveObjs        map[kube.ResourceKey]*unstructured.Unstructured
+	namespacedResources    map[kube.ResourceKey]namespacedResource
+	configMapData          map[string]string
+	metricsCacheExpiration time.Duration
+	applicationNamespaces  []string
 }
 
 type MockKubectl struct {
@@ -108,8 +106,6 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 			mockRepoClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(data.manifestResponse, nil).Once()
 		}
 	}
-
-	mockRepoClient.On("UpdateRevisionForPaths", mock.Anything, mock.Anything).Return(data.updateRevisionForPathsResponse, nil)
 
 	mockRepoClientset := mockrepoclient.Clientset{RepoServerServiceClient: &mockRepoClient}
 
@@ -222,7 +218,6 @@ metadata:
   namespace: ` + test.FakeArgoCDNamespace + `
 type: Opaque
 `
-
 var fakeApp = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -457,7 +452,7 @@ func TestAutoSync(t *testing.T) {
 	cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}})
 	assert.Nil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, app.Operation)
 	assert.NotNil(t, app.Operation.Sync)
 	assert.False(t, app.Operation.Sync.Prune)
@@ -501,7 +496,7 @@ func TestSkipAutoSync(t *testing.T) {
 		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{})
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Nil(t, app.Operation)
 	})
 
@@ -516,7 +511,7 @@ func TestSkipAutoSync(t *testing.T) {
 		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{})
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Nil(t, app.Operation)
 	})
 
@@ -532,7 +527,7 @@ func TestSkipAutoSync(t *testing.T) {
 		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{})
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Nil(t, app.Operation)
 	})
 
@@ -549,7 +544,7 @@ func TestSkipAutoSync(t *testing.T) {
 		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{})
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Nil(t, app.Operation)
 	})
 
@@ -575,7 +570,7 @@ func TestSkipAutoSync(t *testing.T) {
 		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}})
 		assert.NotNil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Nil(t, app.Operation)
 	})
 
@@ -591,7 +586,7 @@ func TestSkipAutoSync(t *testing.T) {
 		})
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Nil(t, app.Operation)
 	})
 }
@@ -627,7 +622,7 @@ func TestAutoSyncIndicateError(t *testing.T) {
 	cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}})
 	assert.NotNil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Nil(t, app.Operation)
 }
 
@@ -670,7 +665,7 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 	cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}})
 	assert.Nil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, app.Operation)
 }
 
@@ -715,7 +710,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.True(t, patched)
 	})
 
@@ -766,11 +761,11 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.True(t, patched)
 		objsMap, err := ctrl.stateCache.GetManagedLiveObjs(app, []*unstructured.Unstructured{})
 		if err != nil {
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		}
 		// Managed objects must be empty
 		assert.Empty(t, objsMap)
@@ -802,13 +797,14 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.True(t, patched)
 	})
 
 	// Create an Application with a cluster that doesn't exist
 	// Ensure it can be deleted.
 	t.Run("DeleteWithInvalidClusterName", func(t *testing.T) {
+
 		appTemplate := newFakeAppWithDestName()
 
 		testShouldDelete := func(app *v1alpha1.Application) {
@@ -826,7 +822,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 				return []*v1alpha1.Cluster{}, nil
 			})
-			require.NoError(t, err)
+			assert.NoError(t, err)
 		}
 
 		app1 := appTemplate.DeepCopy()
@@ -841,6 +837,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		app3.Spec.Destination.Name = "invalid"
 		app3.Spec.Destination.Server = "https://invalid"
 		testShouldDelete(app3)
+
 	})
 
 	t.Run("PostDelete_HookIsCreated", func(t *testing.T) {
@@ -852,8 +849,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 				Manifests: []string{fakePostDeleteHook},
 			}},
 			apps:            []runtime.Object{app, &defaultProj},
-			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
-		}, nil)
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{}}, nil)
 
 		patched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
@@ -869,7 +865,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		// finalizer is not deleted
 		assert.False(t, patched)
 		// post-delete hook is created
@@ -890,8 +886,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			apps: []runtime.Object{app, &defaultProj},
 			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
 				kube.GetResourceKey(liveHook): liveHook,
-			},
-		}, nil)
+			}}, nil)
 
 		patched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
@@ -907,7 +902,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		// finalizer is removed
 		assert.True(t, patched)
 	})
@@ -925,8 +920,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			apps: []runtime.Object{app, &defaultProj},
 			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
 				kube.GetResourceKey(liveHook): liveHook,
-			},
-		}, nil)
+			}}, nil)
 
 		patched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
@@ -942,7 +936,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		err := ctrl.finalizeApplicationDeletion(app, func(project string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		// post-delete hook is deleted
 		require.Len(t, ctrl.kubectl.(*MockKubectl).DeletedResources, 1)
 		require.Equal(t, "post-delete-hook", ctrl.kubectl.(*MockKubectl).DeletedResources[0].Name)
@@ -1103,9 +1097,9 @@ func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
 		TargetState: test.DeploymentManifest,
 	}})
 
-	require.NoError(t, err)
-	assert.Equal(t, []v1alpha1.ResourceNode{managedDeploy}, tree.Nodes)
-	assert.Equal(t, []v1alpha1.ResourceNode{orphanedDeploy1, orphanedDeploy2}, tree.OrphanedNodes)
+	assert.NoError(t, err)
+	assert.Equal(t, tree.Nodes, []v1alpha1.ResourceNode{managedDeploy})
+	assert.Equal(t, tree.OrphanedNodes, []v1alpha1.ResourceNode{orphanedDeploy1, orphanedDeploy2})
 }
 
 func TestSetOperationStateOnDeletedApp(t *testing.T) {
@@ -1412,7 +1406,7 @@ func TestRefreshAppConditions(t *testing.T) {
 
 		_, hasErrors := ctrl.refreshAppConditions(app)
 		assert.False(t, hasErrors)
-		assert.Empty(t, app.Status.Conditions)
+		assert.Len(t, app.Status.Conditions, 0)
 	})
 
 	t.Run("PreserveExistingWarningCondition", func(t *testing.T) {
@@ -1463,7 +1457,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 	receivedPatch := map[string]interface{}{}
 	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
 		}
 		return true, &v1alpha1.Application{}, nil
 	})
@@ -1476,11 +1470,11 @@ func TestUpdateReconciledAt(t *testing.T) {
 		ctrl.processAppRefreshQueueItem()
 
 		_, updated, err := unstructured.NestedString(receivedPatch, "status", "reconciledAt")
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.True(t, updated)
 
 		_, updated, err = unstructured.NestedString(receivedPatch, "status", "observedAt")
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.False(t, updated)
 	})
 
@@ -1492,13 +1486,14 @@ func TestUpdateReconciledAt(t *testing.T) {
 		ctrl.processAppRefreshQueueItem()
 
 		_, updated, err := unstructured.NestedString(receivedPatch, "status", "reconciledAt")
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.False(t, updated)
 
 		_, updated, err = unstructured.NestedString(receivedPatch, "status", "observedAt")
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.False(t, updated)
 	})
+
 }
 
 func TestProjectErrorToCondition(t *testing.T) {
@@ -1522,7 +1517,7 @@ func TestProjectErrorToCondition(t *testing.T) {
 
 	obj, ok, err := ctrl.appInformer.GetIndexer().GetByKey(key)
 	assert.True(t, ok)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	updatedApp := obj.(*v1alpha1.Application)
 	assert.Equal(t, v1alpha1.ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[0].Type)
 	assert.Equal(t, "Application referencing project wrong project which does not exist", updatedApp.Status.Conditions[0].Message)
@@ -1542,7 +1537,7 @@ func TestFinalizeProjectDeletion_HasApplications(t *testing.T) {
 	})
 
 	err := ctrl.finalizeProjectDeletion(proj)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.False(t, patched)
 }
 
@@ -1554,13 +1549,13 @@ func TestFinalizeProjectDeletion_DoesNotHaveApplications(t *testing.T) {
 	receivedPatch := map[string]interface{}{}
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
 		}
 		return true, &v1alpha1.AppProject{}, nil
 	})
 
 	err := ctrl.finalizeProjectDeletion(proj)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, map[string]interface{}{
 		"metadata": map[string]interface{}{
 			"finalizers": nil,
@@ -1579,7 +1574,7 @@ func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 	receivedPatch := map[string]interface{}{}
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
 		}
 		return true, &v1alpha1.Application{}, nil
 	})
@@ -1607,7 +1602,7 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 		defer fakeAppCs.Unlock()
 		fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			if patchAction, ok := action.(kubetesting.PatchAction); ok {
-				require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+				assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
 			}
 			return true, &v1alpha1.Application{}, nil
 		})
@@ -1633,7 +1628,7 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	receivedPatch := map[string]interface{}{}
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
 		}
 		return true, &v1alpha1.Application{}, nil
 	})
@@ -1645,7 +1640,7 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
 	assert.Contains(t, message, "Retrying attempt #1")
 	retryCount, _, _ := unstructured.NestedFloat64(receivedPatch, "status", "operationState", "retryCount")
-	assert.InEpsilon(t, float64(1), retryCount, 0.0001)
+	assert.Equal(t, float64(1), retryCount)
 }
 
 func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
@@ -1676,7 +1671,7 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
 	receivedPatch := map[string]interface{}{}
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
 		}
 		return true, &v1alpha1.Application{}, nil
 	})
@@ -1709,7 +1704,7 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 	receivedPatch := map[string]interface{}{}
 	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+			assert.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
 		}
 		return true, &v1alpha1.Application{}, nil
 	})
@@ -1718,36 +1713,6 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 
 	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
 	assert.Equal(t, string(synccommon.OperationFailed), phase)
-}
-
-func TestProcessRequestedAppOperation_Successful(t *testing.T) {
-	app := newFakeApp()
-	app.Spec.Project = "default"
-	app.Operation = &v1alpha1.Operation{
-		Sync: &v1alpha1.SyncOperation{},
-	}
-	ctrl := newFakeController(&fakeData{
-		apps: []runtime.Object{app, &defaultProj},
-		manifestResponses: []*apiclient.ManifestResponse{{
-			Manifests: []string{},
-		}},
-	}, nil)
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	receivedPatch := map[string]interface{}{}
-	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
-		}
-		return true, &v1alpha1.Application{}, nil
-	})
-
-	ctrl.processRequestedAppOperation(app)
-
-	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
-	assert.Equal(t, string(synccommon.OperationSucceeded), phase)
-	ok, level := ctrl.isRefreshRequested(ctrl.toAppKey(app.Name))
-	assert.True(t, ok)
-	assert.Equal(t, CompareWithLatestForceResolve, level)
 }
 
 func TestGetAppHosts(t *testing.T) {
@@ -1799,16 +1764,13 @@ func TestGetAppHosts(t *testing.T) {
 		}},
 	}})
 
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, []v1alpha1.HostInfo{{
 		Name:       "minikube",
 		SystemInfo: corev1.NodeSystemInfo{OSImage: "debian"},
-		ResourcesInfo: []v1alpha1.HostResourceInfo{
-			{
-				ResourceName: corev1.ResourceCPU, Capacity: 5000, RequestedByApp: 1000, RequestedByNeighbors: 2000,
-			},
-		},
-	}}, hosts)
+		ResourcesInfo: []v1alpha1.HostResourceInfo{{
+			ResourceName: corev1.ResourceCPU, Capacity: 5000, RequestedByApp: 1000, RequestedByNeighbors: 2000},
+		}}}, hosts)
 }
 
 func TestMetricsExpiration(t *testing.T) {
@@ -1926,7 +1888,7 @@ func TestAddControllerNamespace(t *testing.T) {
 		ctrl.processAppRefreshQueueItem()
 
 		updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(ctrl.namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, test.FakeArgoCDNamespace, updatedApp.Status.ControllerNamespace)
 	})
 	t.Run("set controllerNamespace when the app is in another namespace than the controller", func(t *testing.T) {
@@ -1945,7 +1907,7 @@ func TestAddControllerNamespace(t *testing.T) {
 		ctrl.processAppRefreshQueueItem()
 
 		updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(appNamespace).Get(context.Background(), app.Name, metav1.GetOptions{})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, test.FakeArgoCDNamespace, updatedApp.Status.ControllerNamespace)
 	})
 }
