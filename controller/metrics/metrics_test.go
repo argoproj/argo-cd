@@ -12,19 +12,15 @@ import (
 	gitopsCache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/yaml"
 
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	applister "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
 
 const fakeApp = `
@@ -144,12 +140,6 @@ var appFilter = func(obj interface{}) bool {
 	return true
 }
 
-func init() {
-	// Create a fake controller so we initialize the internal controller metrics.
-	// https://github.com/kubernetes-sigs/controller-runtime/blob/4000e996a202917ad7d40f02ed8a2079a9ce25e9/pkg/internal/controller/metrics/metrics.go
-	_, _ = controller.New("test-controller", nil, controller.Options{})
-}
-
 func newFakeApp(fakeAppYAML string) *argoappv1.Application {
 	var app argoappv1.Application
 	err := yaml.Unmarshal([]byte(fakeAppYAML), &app)
@@ -213,7 +203,7 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 	cancel, appLister := newFakeLister(cfg.FakeAppYAMLs...)
 	defer cancel()
 	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	if len(cfg.ClustersInfo) > 0 {
 		ci := &fakeClusterInfo{clustersInfo: cfg.ClustersInfo}
@@ -225,10 +215,10 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 	}
 
 	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, rr.Code, http.StatusOK)
 	body := rr.Body.String()
 	assertMetricsPrinted(t, cfg.ExpectedResponse, body)
 }
@@ -336,7 +326,7 @@ func TestMetricsSyncCounter(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
 	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	appSyncTotal := `
 # HELP argocd_app_sync_total Number of application syncs.
@@ -354,10 +344,10 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationSucceeded})
 
 	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, rr.Code, http.StatusOK)
 	body := rr.Body.String()
 	log.Println(body)
 	assertMetricsPrinted(t, appSyncTotal, body)
@@ -370,11 +360,11 @@ func assertMetricsPrinted(t *testing.T, expectedLines, body string) {
 		if line == "" {
 			continue
 		}
-		assert.Contains(t, body, line, "expected metrics mismatch for line: %s", line)
+		assert.Contains(t, body, line, "expected metrics mismatch")
 	}
 }
 
-// assertMetricsNotPrinted
+// assertMetricNotPrinted
 func assertMetricsNotPrinted(t *testing.T, expectedLines, body string) {
 	for _, line := range strings.Split(expectedLines, "\n") {
 		if line == "" {
@@ -388,10 +378,10 @@ func TestReconcileMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
 	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	appReconcileMetrics := `
-# HELP argocd_app_reconcile Application reconciliation performance in seconds.
+# HELP argocd_app_reconcile Application reconciliation performance.
 # TYPE argocd_app_reconcile histogram
 argocd_app_reconcile_bucket{dest_server="https://localhost:6443",namespace="argocd",le="0.25"} 0
 argocd_app_reconcile_bucket{dest_server="https://localhost:6443",namespace="argocd",le="0.5"} 0
@@ -408,10 +398,10 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 	metricsServ.IncReconcile(fakeApp, 5*time.Second)
 
 	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, rr.Code, http.StatusOK)
 	body := rr.Body.String()
 	log.Println(body)
 	assertMetricsPrinted(t, appReconcileMetrics, body)
@@ -421,7 +411,7 @@ func TestMetricsReset(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
 	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	appSyncTotal := `
 # HELP argocd_app_sync_total Number of application syncs.
@@ -432,91 +422,24 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 `
 
 	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, rr.Code, http.StatusOK)
 	body := rr.Body.String()
 	assertMetricsPrinted(t, appSyncTotal, body)
 
 	err = metricsServ.SetExpiration(time.Second)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	time.Sleep(2 * time.Second)
 	req, err = http.NewRequest(http.MethodGet, "/metrics", nil)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	rr = httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusOK, rr.Code)
+	assert.Equal(t, rr.Code, http.StatusOK)
 	body = rr.Body.String()
 	log.Println(body)
 	assertMetricsNotPrinted(t, appSyncTotal, body)
 	err = metricsServ.SetExpiration(time.Second)
-	require.Error(t, err)
-}
-
-func TestWorkqueueMetrics(t *testing.T) {
-	cancel, appLister := newFakeLister()
-	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
-	require.NoError(t, err)
-
-	expectedMetrics := `
-# TYPE workqueue_adds_total counter
-workqueue_adds_total{name="test"}
-
-# TYPE workqueue_depth gauge
-workqueue_depth{name="test"}
-
-# TYPE workqueue_longest_running_processor_seconds gauge
-workqueue_longest_running_processor_seconds{name="test"}
-
-# TYPE workqueue_queue_duration_seconds histogram
-
-# TYPE workqueue_unfinished_work_seconds gauge
-workqueue_unfinished_work_seconds{name="test"}
-
-# TYPE workqueue_work_duration_seconds histogram
-`
-	workqueue.NewNamed("test")
-
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
-	require.NoError(t, err)
-	rr := httptest.NewRecorder()
-	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusOK, rr.Code)
-	body := rr.Body.String()
-	log.Println(body)
-	assertMetricsPrinted(t, expectedMetrics, body)
-}
-
-func TestGoMetrics(t *testing.T) {
-	cancel, appLister := newFakeLister()
-	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
-	require.NoError(t, err)
-
-	expectedMetrics := `
-# TYPE go_gc_duration_seconds summary
-go_gc_duration_seconds_sum
-go_gc_duration_seconds_count
-# TYPE go_goroutines gauge
-go_goroutines
-# TYPE go_info gauge
-go_info
-# TYPE go_memstats_alloc_bytes gauge
-go_memstats_alloc_bytes
-# TYPE go_memstats_sys_bytes gauge
-go_memstats_sys_bytes
-# TYPE go_threads gauge
-go_threads
-`
-
-	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
-	require.NoError(t, err)
-	rr := httptest.NewRecorder()
-	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusOK, rr.Code)
-	body := rr.Body.String()
-	log.Println(body)
-	assertMetricsPrinted(t, expectedMetrics, body)
+	assert.Error(t, err)
 }

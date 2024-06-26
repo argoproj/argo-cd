@@ -1,5 +1,4 @@
 @import 'node_modules/argo-ui/src/styles/config';
-@import 'node_modules/argo-ui/src/styles/theme';
 
 .pod-logs-viewer {
     height: 90%;
@@ -32,12 +31,6 @@
             }
             .fa {
                 display: none;
-            }
-        }
-
-        .argo-field {
-            @include themify($themes){
-                background-color: themed('background-2');
             }
         }
 

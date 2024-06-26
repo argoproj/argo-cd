@@ -7,6 +7,7 @@ import (
 	"html"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -25,10 +26,10 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/reposerver/cache"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	"github.com/argoproj/argo-cd/v2/util/app/path"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/glob"
+	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -288,10 +289,10 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 			continue
 		}
 		for _, app := range filteredApps {
+
 			for _, source := range app.Spec.GetSources() {
 				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
-					refreshPaths := path.GetAppRefreshPaths(&app)
-					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
+					if appFilesHaveChanged(&app, changedFiles) {
 						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
 						_, err = argo.RefreshApp(namespacedAppInterface, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
 						if err != nil {
@@ -320,7 +321,7 @@ func getWebUrlRegex(webURL string) (*regexp.Regexp, error) {
 	}
 
 	regexEscapedHostname := regexp.QuoteMeta(urlObj.Hostname())
-	regexEscapedPath := regexp.QuoteMeta(urlObj.EscapedPath()[1:])
+	regexEscapedPath := regexp.QuoteMeta(urlObj.Path[1:])
 	regexpStr := fmt.Sprintf(`(?i)^(http://|https://|%s@|ssh://(%s@)?)%s(:[0-9]+|)[:/]%s(\.git)?$`,
 		usernameRegex, usernameRegex, regexEscapedHostname, regexEscapedPath)
 	repoRegexp, err := regexp.Compile(regexpStr)
@@ -343,25 +344,88 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		return fmt.Errorf("error getting cluster info: %w", err)
 	}
 
-	var sources v1alpha1.ApplicationSources
-	if app.Spec.HasMultipleSources() {
-		sources = app.Spec.GetSources()
-	} else {
-		sources = append(sources, app.Spec.GetSource())
-	}
-
-	refSources, err := argo.GetRefSources(context.Background(), sources, app.Spec.Project, a.db.GetRepository, []string{}, false)
+	refSources, err := argo.GetRefSources(context.Background(), app.Spec, a.db)
 	if err != nil {
 		return fmt.Errorf("error getting ref sources: %w", err)
 	}
 	source := app.Spec.GetSource()
-	cache.LogDebugManifestCacheKeyFields("moving manifests cache", "webhook app revision changed", change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil)
+	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "webhook app revision changed", change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil)
 
-	if err := a.repoCache.SetNewRevisionManifests(change.shaAfter, change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil); err != nil {
+	var cachedManifests cache.CachedManifestResponse
+	if err := a.repoCache.GetManifests(change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, &cachedManifests, nil); err != nil {
 		return err
 	}
 
+	cache.LogDebugManifestCacheKeyFields("setting manifests cache", "webhook app revision changed", change.shaAfter, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil)
+
+	if err = a.repoCache.SetManifests(change.shaAfter, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, &cachedManifests, nil); err != nil {
+		return err
+	}
 	return nil
+}
+
+func getAppRefreshPaths(app *v1alpha1.Application) []string {
+	var paths []string
+	if val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]; ok && val != "" {
+		for _, item := range strings.Split(val, ";") {
+			if item == "" {
+				continue
+			}
+			if filepath.IsAbs(item) {
+				paths = append(paths, item[1:])
+			} else {
+				for _, source := range app.Spec.GetSources() {
+					paths = append(paths, filepath.Clean(filepath.Join(source.Path, item)))
+				}
+			}
+		}
+	}
+	return paths
+}
+
+func appFilesHaveChanged(app *v1alpha1.Application, changedFiles []string) bool {
+	// an empty slice of changed files means that the payload didn't include a list
+	// of changed files and w have to assume that a refresh is required
+	if len(changedFiles) == 0 {
+		return true
+	}
+
+	// Check to see if the app has requested refreshes only on a specific prefix
+	refreshPaths := getAppRefreshPaths(app)
+
+	if len(refreshPaths) == 0 {
+		// Apps without a given refreshed paths always be refreshed, regardless of changed files
+		// this is the "default" behavior
+		return true
+	}
+
+	// At last one changed file must be under refresh path
+	for _, f := range changedFiles {
+		f = ensureAbsPath(f)
+		for _, item := range refreshPaths {
+			item = ensureAbsPath(item)
+			changed := false
+			if f == item {
+				changed = true
+			} else if _, err := security.EnforceToCurrentRoot(item, f); err == nil {
+				changed = true
+			}
+			if changed {
+				log.WithField("application", app.Name).Debugf("Application uses files that have changed")
+				return true
+			}
+		}
+	}
+
+	log.WithField("application", app.Name).Debugf("Application does not use any of the files that have changed")
+	return false
+}
+
+func ensureAbsPath(input string) string {
+	if !filepath.IsAbs(input) {
+		return string(filepath.Separator) + input
+	}
+	return input
 }
 
 func sourceRevisionHasChanged(source v1alpha1.ApplicationSource, revision string, touchedHead bool) bool {
@@ -390,6 +454,7 @@ func sourceUsesURL(source v1alpha1.ApplicationSource, webURL string, repoRegexp 
 }
 
 func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
+
 	var payload interface{}
 	var err error
 
@@ -402,7 +467,7 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		} else {
 			payload, err = a.azuredevops.Parse(r, azuredevops.GitPushEventType)
 		}
-	// Gogs needs to be checked before GitHub since it carries both Gogs and (incompatible) GitHub headers
+	//Gogs needs to be checked before GitHub since it carries both Gogs and (incompatible) GitHub headers
 	case r.Header.Get("X-Gogs-Event") != "":
 		payload, err = a.gogs.Parse(r, gogs.PushEvent)
 		if errors.Is(err, gogs.ErrHMACVerificationFailed) {

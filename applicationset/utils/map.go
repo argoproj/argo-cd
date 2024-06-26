@@ -26,6 +26,7 @@ func ConvertToMapStringInterface(mapStringString map[string]string) map[string]i
 }
 
 func CombineStringMaps(aSI map[string]interface{}, bSI map[string]interface{}) (map[string]string, error) {
+
 	a := ConvertToMapStringString(aSI)
 	b := ConvertToMapStringString(bSI)
 
@@ -48,6 +49,7 @@ func CombineStringMaps(aSI map[string]interface{}, bSI map[string]interface{}) (
 
 // CombineStringMapsAllowDuplicates merges two maps. Where there are duplicates, take the latter map's value.
 func CombineStringMapsAllowDuplicates(aSI map[string]interface{}, bSI map[string]interface{}) (map[string]string, error) {
+
 	a := ConvertToMapStringString(aSI)
 	b := ConvertToMapStringString(bSI)
 

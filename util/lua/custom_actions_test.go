@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
@@ -103,14 +102,14 @@ func TestLuaResourceActionsScript(t *testing.T) {
 		if !strings.Contains(path, "action_test.yaml") {
 			return nil
 		}
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		dir := filepath.Dir(path)
-		// TODO: Change to path
+		//TODO: Change to path
 		yamlBytes, err := os.ReadFile(dir + "/action_test.yaml")
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		var resourceTest ActionTestStructure
 		err = yaml.Unmarshal(yamlBytes, &resourceTest)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		for i := range resourceTest.DiscoveryTests {
 			test := resourceTest.DiscoveryTests[i]
 			testName := fmt.Sprintf("discovery/%s", test.InputPath)
@@ -120,9 +119,9 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				}
 				obj := getObj(filepath.Join(dir, test.InputPath))
 				discoveryLua, err := vm.GetResourceActionDiscovery(obj)
-				require.NoError(t, err)
+				assert.NoError(t, err)
 				result, err := vm.ExecuteResourceActionDiscovery(obj, discoveryLua)
-				require.NoError(t, err)
+				assert.NoError(t, err)
 				for i := range result {
 					assert.Contains(t, test.Result, result[i])
 				}
@@ -137,16 +136,16 @@ func TestLuaResourceActionsScript(t *testing.T) {
 					// Uncomment the following line if you need to use lua libraries debugging
 					// purposes. Otherwise, leave this false to ensure tests reflect the same
 					// privileges that API server has.
-					// UseOpenLibs: true,
+					//UseOpenLibs: true,
 				}
 				sourceObj := getObj(filepath.Join(dir, test.InputPath))
 				action, err := vm.GetResourceAction(sourceObj, test.Action)
 
-				require.NoError(t, err)
+				assert.NoError(t, err)
 
-				require.NoError(t, err)
+				assert.NoError(t, err)
 				impactedResources, err := vm.ExecuteResourceAction(sourceObj, action.ActionLua)
-				require.NoError(t, err)
+				assert.NoError(t, err)
 
 				// Treat the Lua expected output as a list
 				expectedObjects := getExpectedObjectList(t, filepath.Join(dir, test.ExpectedOutputPath))
@@ -186,11 +185,11 @@ func TestLuaResourceActionsScript(t *testing.T) {
 					}
 					// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
 					diffResult, err := diff.Diff(expectedObj, result, diff.WithNormalizer(testNormalizer{}))
-					require.NoError(t, err)
+					assert.NoError(t, err)
 					if diffResult.Modified {
 						t.Error("Output does not match input:")
 						err = cli.PrintDiff(test.Action, expectedObj, result)
-						require.NoError(t, err)
+						assert.NoError(t, err)
 					}
 				}
 			})
@@ -198,7 +197,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 
 		return nil
 	})
-	require.NoError(t, err)
+	assert.Nil(t, err)
 }
 
 // Handling backward compatibility.

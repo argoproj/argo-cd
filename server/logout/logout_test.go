@@ -17,7 +17,6 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -80,7 +79,7 @@ func TestConstructLogoutURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			constructedLogoutURL := constructLogoutURL(tt.logoutURL, tt.token, tt.logoutRedirectURL)
-			assert.Equal(t, tt.expectedLogoutURL, constructedLogoutURL)
+			assert.Equal(t, constructedLogoutURL, tt.expectedLogoutURL)
 		})
 	}
 }
@@ -253,17 +252,17 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	invalidHeader["Cookie"] = []string{"argocd.token=" + invalidToken}
 
 	oidcRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	oidcRequest.Header = oidcTokenHeader
 	nonoidcRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	nonoidcRequest.Header = nonOidcTokenHeader
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	requestWithInvalidToken, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	requestWithInvalidToken.Header = invalidHeader
 	invalidRequest, err := http.NewRequest(http.MethodGet, "http://localhost:4000/api/logout", nil)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	tests := []struct {
 		name              string

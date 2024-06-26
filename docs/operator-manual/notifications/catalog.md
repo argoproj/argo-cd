@@ -1,9 +1,4 @@
 # Triggers and Templates Catalog
-## Getting Started
-* Install Triggers and Templates from the catalog
-  ```bash
-  kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/notifications_catalog/install.yaml
-  ```
 ## Triggers
 |          NAME          |                          DESCRIPTION                          |                      TEMPLATE                       |
 |------------------------|---------------------------------------------------------------|-----------------------------------------------------|
@@ -67,7 +62,8 @@ slack:
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
-      ,
+      {{if not $index}},{{end}}
+      {{if $index}},{{end}}
       {
         "title": "{{$c.type}}",
         "value": "{{$c.message}}",
@@ -94,7 +90,8 @@ teams:
       "value": "{{.app.status.sync.revision}}"
     }
     {{range $index, $c := .app.status.conditions}}
-      ,
+      {{if not $index}},{{end}}
+      {{if $index}},{{end}}
       {
         "name": "{{$c.type}}",
         "value": "{{$c.message}}"
@@ -148,7 +145,8 @@ slack:
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
-      ,
+      {{if not $index}},{{end}}
+      {{if $index}},{{end}}
       {
         "title": "{{$c.type}}",
         "value": "{{$c.message}}",
@@ -171,7 +169,8 @@ teams:
       "value": "{{.app.spec.source.repoURL}}"
     }
     {{range $index, $c := .app.status.conditions}}
-      ,
+      {{if not $index}},{{end}}
+      {{if $index}},{{end}}
       {
         "name": "{{$c.type}}",
         "value": "{{$c.message}}"
@@ -225,7 +224,8 @@ slack:
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
-      ,
+      {{if not $index}},{{end}}
+      {{if $index}},{{end}}
       {
         "title": "{{$c.type}}",
         "value": "{{$c.message}}",
@@ -252,7 +252,8 @@ teams:
       "value": "{{.app.spec.source.repoURL}}"
     }
     {{range $index, $c := .app.status.conditions}}
-      ,
+      {{if not $index}},{{end}}
+      {{if $index}},{{end}}
       {
         "name": "{{$c.type}}",
         "value": "{{$c.message}}"
@@ -306,7 +307,8 @@ slack:
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
-      ,
+      {{if not $index}},{{end}}
+      {{if $index}},{{end}}
       {
         "title": "{{$c.type}}",
         "value": "{{$c.message}}",
@@ -333,7 +335,8 @@ teams:
       "value": "{{.app.spec.source.repoURL}}"
     }
     {{range $index, $c := .app.status.conditions}}
-      ,
+      {{if not $index}},{{end}}
+      {{if $index}},{{end}}
       {
         "name": "{{$c.type}}",
         "value": "{{$c.message}}"
@@ -391,7 +394,8 @@ slack:
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
-      ,
+      {{if not $index}},{{end}}
+      {{if $index}},{{end}}
       {
         "title": "{{$c.type}}",
         "value": "{{$c.message}}",
@@ -414,7 +418,8 @@ teams:
       "value": "{{.app.spec.source.repoURL}}"
     }
     {{range $index, $c := .app.status.conditions}}
-      ,
+      {{if not $index}},{{end}}
+      {{if $index}},{{end}}
       {
         "name": "{{$c.type}}",
         "value": "{{$c.message}}"
@@ -467,7 +472,8 @@ slack:
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
-      ,
+      {{if not $index}},{{end}}
+      {{if $index}},{{end}}
       {
         "title": "{{$c.type}}",
         "value": "{{$c.message}}",
@@ -494,7 +500,8 @@ teams:
       "value": "{{.app.spec.source.repoURL}}"
     }
     {{range $index, $c := .app.status.conditions}}
-      ,
+      {{if not $index}},{{end}}
+      {{if $index}},{{end}}
       {
         "name": "{{$c.type}}",
         "value": "{{$c.message}}"

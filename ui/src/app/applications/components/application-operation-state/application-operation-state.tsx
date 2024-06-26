@@ -93,15 +93,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
         });
     }
     if (operationState.syncResult) {
-        operationAttributes.push({
-            title: 'REVISION',
-            value: (
-                <div>
-                    <Revision repoUrl={utils.getAppDefaultSource(application).repoURL} revision={utils.getAppDefaultOperationSyncRevision(application)} />
-                    {utils.getAppDefaultOperationSyncRevisionExtra(application)}
-                </div>
-            )
-        });
+        operationAttributes.push({title: 'REVISION', value: <Revision repoUrl={utils.getAppDefaultSource(application).repoURL} revision={operationState.syncResult.revision} />});
     }
     let initiator = '';
     if (operationState.operation.initiatedBy) {

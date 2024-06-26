@@ -8,20 +8,6 @@ Manage clusters configuration
 argocd admin cluster [flags]
 ```
 
-### Examples
-
-```
-
-#Generate declarative config for a cluster
-argocd admin cluster generate-spec my-cluster -o yaml
-
-#Generate a kubeconfig for a cluster named "my-cluster" and display it in the console
-argocd admin cluster kubeconfig my-cluster
-
-#Print information namespaces which Argo CD manages in each cluster
-argocd admin cluster namespaces my-cluster 
-```
-
 ### Options
 
 ```
@@ -62,6 +48,6 @@ argocd admin cluster namespaces my-cluster
 * [argocd admin cluster generate-spec](argocd_admin_cluster_generate-spec.md)	 - Generate declarative config for a cluster
 * [argocd admin cluster kubeconfig](argocd_admin_cluster_kubeconfig.md)	 - Generates kubeconfig for the specified cluster
 * [argocd admin cluster namespaces](argocd_admin_cluster_namespaces.md)	 - Print information namespaces which Argo CD manages in each cluster.
-* [argocd admin cluster shards](argocd_admin_cluster_shards.md)	 - Print information about each controller shard and the estimated portion of Kubernetes resources it is responsible for.
+* [argocd admin cluster shards](argocd_admin_cluster_shards.md)	 - Print information about each controller shard and portion of Kubernetes resources it is responsible for.
 * [argocd admin cluster stats](argocd_admin_cluster_stats.md)	 - Prints information cluster statistics and inferred shard number
 

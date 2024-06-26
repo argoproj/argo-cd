@@ -40,7 +40,7 @@ const (
 
 // NewClusterCommand returns a new instance of an `argocd cluster` command
 func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "cluster",
 		Short: "Manage cluster credentials",
 		Run: func(c *cobra.Command, args []string) {
@@ -81,7 +81,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 		labels           []string
 		annotations      []string
 	)
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "add CONTEXT",
 		Short: fmt.Sprintf("%s cluster add CONTEXT", cliName),
 		Run: func(c *cobra.Command, args []string) {
@@ -111,7 +111,6 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				awsAuthConf = &argoappv1.AWSAuthConfig{
 					ClusterName: clusterOpts.AwsClusterName,
 					RoleARN:     clusterOpts.AwsRoleArn,
-					Profile:     clusterOpts.AwsProfile,
 				}
 			} else if clusterOpts.ExecProviderCommand != "" {
 				execProviderConf = &argoappv1.ExecProviderConfig{
@@ -221,7 +220,7 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		clusterOptions cmdutil.ClusterOptions
 		clusterName    string
 	)
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "set NAME",
 		Short: "Set cluster information",
 		Example: `  # Set cluster information
@@ -283,8 +282,10 @@ func checkFieldsToUpdate(clusterOptions cmdutil.ClusterOptions) []string {
 
 // NewClusterGetCommand returns a new instance of an `argocd cluster get` command
 func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var output string
-	command := &cobra.Command{
+	var (
+		output string
+	)
+	var command = &cobra.Command{
 		Use:   "get SERVER/NAME",
 		Short: "Get cluster information",
 		Example: `argocd cluster get https://12.34.567.89
@@ -357,7 +358,7 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 // NewClusterRemoveCommand returns a new instance of an `argocd cluster rm` command
 func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var noPrompt bool
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "rm SERVER/NAME",
 		Short: "Remove cluster credentials",
 		Example: `argocd cluster rm https://12.34.567.89
@@ -371,7 +372,7 @@ argocd cluster rm cluster-name`,
 			}
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer io.Close(conn)
-			numOfClusters := len(args)
+			var numOfClusters = len(args)
 			var isConfirmAll bool = false
 
 			for _, clusterSelector := range args {
@@ -459,8 +460,10 @@ func printClusterServers(clusters []argoappv1.Cluster) {
 
 // NewClusterListCommand returns a new instance of an `argocd cluster rm` command
 func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var output string
-	command := &cobra.Command{
+	var (
+		output string
+	)
+	var command = &cobra.Command{
 		Use:   "list",
 		Short: "List configured clusters",
 		Run: func(c *cobra.Command, args []string) {
@@ -482,23 +485,6 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
 		},
-		Example: `
-# List Clusters in Default "Wide" Format
-argocd cluster list
-
-# List Cluster via specifying the server
-argocd cluster list --server <ARGOCD_SERVER_ADDRESS>
-
-# List Clusters in JSON Format
-argocd cluster list -o json --server <ARGOCD_SERVER_ADDRESS>
-
-# List Clusters in YAML Format
-argocd cluster list -o yaml --server <ARGOCD_SERVER_ADDRESS>
-
-# List Clusters that have been added to your Argo CD 
-argocd cluster list -o server <ARGOCD_SERVER_ADDRESS>
-
-`,
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|server")
 	return command
@@ -506,7 +492,7 @@ argocd cluster list -o server <ARGOCD_SERVER_ADDRESS>
 
 // NewClusterRotateAuthCommand returns a new instance of an `argocd cluster rotate-auth` command
 func NewClusterRotateAuthCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "rotate-auth SERVER/NAME",
 		Short: fmt.Sprintf("%s cluster rotate-auth SERVER/NAME", cliName),
 		Example: `argocd cluster rotate-auth https://12.34.567.89
