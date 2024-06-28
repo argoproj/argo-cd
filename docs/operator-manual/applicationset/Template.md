@@ -9,6 +9,7 @@ ApplicationSet is using [fasttemplate](https://github.com/valyala/fasttemplate) 
 An Argo CD Application is created by combining the parameters from the generator with fields of the template (via `{{values}}`), and from that a concrete `Application` resource is produced and applied to the cluster.
 
 Here is the template subfield from a Cluster generator:
+
 ```yaml
 # (...)
  template:
@@ -23,6 +24,8 @@ Here is the template subfield from a Cluster generator:
        server: '{{ .server }}'
        namespace: guestbook
 ```
+
+For details on all available parameters (like `.name`, `.nameNormalized`, etc.) please refer to the [Cluster Generator docs](./Generators-Cluster.md).
 
 The template subfields correspond directly to [the spec of an Argo CD `Application` resource](../../declarative-setup/#applications):
 
