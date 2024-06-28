@@ -423,6 +423,19 @@ func TestListReposBasicAuth(t *testing.T) {
 	verifyDefaultRepo(t, err, repos)
 }
 
+func TestListReposBearerAuth(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "Bearer tolkien", r.Header.Get("Authorization"))
+		assert.Equal(t, "no-check", r.Header.Get("X-Atlassian-Token"))
+		defaultHandler(t)(w, r)
+	}))
+	defer ts.Close()
+	provider, err := NewBitbucketServerProviderBearerToken(context.Background(), "tolkien", ts.URL, "PROJECT", true)
+	require.NoError(t, err)
+	repos, err := provider.ListRepos(context.Background(), "ssh")
+	verifyDefaultRepo(t, err, repos)
+}
+
 func TestListReposDefaultBranch(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
