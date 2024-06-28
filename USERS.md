@@ -46,6 +46,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Boticario](https://www.boticario.com.br/)
 1. [Broker Consulting, a.s.](https://www.bcas.cz/en/)
 1. [Bulder Bank](https://bulderbank.no)
+1. [Cabify](https://cabify.com/en)
 1. [CAM](https://cam-inc.co.jp)
 1. [Camptocamp](https://camptocamp.com)
 1. [Candis](https://www.candis.io)
