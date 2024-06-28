@@ -57,7 +57,7 @@ metadata:
 data:
   my-styles.css: |
     .sidebar {
-      background: linear-gradient(to bottom, #999, #777, #333, #222, #111);
+      background-color: #444;
     }
 ```
 
