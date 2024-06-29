@@ -2,12 +2,20 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"google.golang.org/grpc"
+
+	v1 "k8s.io/api/core/v1"
+
+	"sigs.k8s.io/yaml"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
@@ -1849,6 +1857,168 @@ func testApp(name, project string, labels map[string]string, annotations map[str
 	}
 }
 
+func TestWaitOnApplicationStatus_JSONandYAMLOutput(t *testing.T) {
+	acdClient := &fakeAcdClient{}
+	ctx := context.Background()
+	var selectResource []*v1alpha1.SyncOperationResource
+
+	output, err := captureOutput(func() error {
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watchOpts{}, selectResource, "json")
+		return nil
+	},
+	)
+	require.NoError(t, err)
+	assert.True(t, json.Valid([]byte(output)))
+
+	output, err = captureOutput(func() error {
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watchOpts{}, selectResource, "yaml")
+		return nil
+	})
+
+	require.NoError(t, err)
+	err = yaml.Unmarshal([]byte(output), &v1alpha1.Application{})
+	require.NoError(t, err)
+}
+
+type fakeConnection struct{}
+
+func (c *fakeConnection) Close() error {
+	return nil
+}
+
+type fakeAppServiceClient struct{}
+
+func (c *fakeAppServiceClient) List(ctx context.Context, in *applicationpkg.ApplicationQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationList, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ListResourceEvents(ctx context.Context, in *applicationpkg.ApplicationResourceEventsQuery, opts ...grpc.CallOption) (*v1.EventList, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Watch(ctx context.Context, in *applicationpkg.ApplicationQuery, opts ...grpc.CallOption) (applicationpkg.ApplicationService_WatchClient, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Create(ctx context.Context, in *applicationpkg.ApplicationCreateRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetApplicationSyncWindows(ctx context.Context, in *applicationpkg.ApplicationSyncWindowsQuery, opts ...grpc.CallOption) (*applicationpkg.ApplicationSyncWindowsResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) RevisionMetadata(ctx context.Context, in *applicationpkg.RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.RevisionMetadata, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) RevisionChartDetails(ctx context.Context, in *applicationpkg.RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.ChartDetails, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetManifests(ctx context.Context, in *applicationpkg.ApplicationManifestQuery, opts ...grpc.CallOption) (*apiclient.ManifestResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetManifestsWithFiles(ctx context.Context, opts ...grpc.CallOption) (applicationpkg.ApplicationService_GetManifestsWithFilesClient, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Update(ctx context.Context, in *applicationpkg.ApplicationUpdateRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) UpdateSpec(ctx context.Context, in *applicationpkg.ApplicationUpdateSpecRequest, opts ...grpc.CallOption) (*v1alpha1.ApplicationSpec, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Patch(ctx context.Context, in *applicationpkg.ApplicationPatchRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Delete(ctx context.Context, in *applicationpkg.ApplicationDeleteRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Sync(ctx context.Context, in *applicationpkg.ApplicationSyncRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ManagedResources(ctx context.Context, in *applicationpkg.ResourcesQuery, opts ...grpc.CallOption) (*applicationpkg.ManagedResourcesResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ResourceTree(ctx context.Context, in *applicationpkg.ResourcesQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationTree, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) WatchResourceTree(ctx context.Context, in *applicationpkg.ResourcesQuery, opts ...grpc.CallOption) (applicationpkg.ApplicationService_WatchResourceTreeClient, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Rollback(ctx context.Context, in *applicationpkg.ApplicationRollbackRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) TerminateOperation(ctx context.Context, in *applicationpkg.OperationTerminateRequest, opts ...grpc.CallOption) (*applicationpkg.OperationTerminateResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetResource(ctx context.Context, in *applicationpkg.ApplicationResourceRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResourceResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) PatchResource(ctx context.Context, in *applicationpkg.ApplicationResourcePatchRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResourceResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ListResourceActions(ctx context.Context, in *applicationpkg.ApplicationResourceRequest, opts ...grpc.CallOption) (*applicationpkg.ResourceActionsListResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) RunResourceAction(ctx context.Context, in *applicationpkg.ResourceActionRunRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) DeleteResource(ctx context.Context, in *applicationpkg.ApplicationResourceDeleteRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) PodLogs(ctx context.Context, in *applicationpkg.ApplicationPodLogsQuery, opts ...grpc.CallOption) (applicationpkg.ApplicationService_PodLogsClient, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ListLinks(ctx context.Context, in *applicationpkg.ListAppLinksRequest, opts ...grpc.CallOption) (*applicationpkg.LinksResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ListResourceLinks(ctx context.Context, in *applicationpkg.ApplicationResourceRequest, opts ...grpc.CallOption) (*applicationpkg.LinksResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Get(ctx context.Context, in *applicationpkg.ApplicationQuery, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "app-name",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Destination: v1alpha1.ApplicationDestination{
+				Server:    "http://localhost:8080",
+				Namespace: "default",
+			},
+			Project: "prj",
+		},
+		Status: v1alpha1.ApplicationStatus{
+			Sync: v1alpha1.SyncStatus{
+				Status: "OutOfSync",
+			},
+			Health: v1alpha1.HealthStatus{
+				Status: "Healthy",
+			},
+		},
+	}, nil
+}
+
 type fakeAcdClient struct{}
 
 func (c *fakeAcdClient) ClientOptions() argocdclient.ClientOptions {
@@ -1908,7 +2078,7 @@ func (c *fakeAcdClient) NewApplicationSetClient() (io.Closer, applicationsetpkg.
 }
 
 func (c *fakeAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
-	return nil, nil
+	return &fakeConnection{}, &fakeAppServiceClient{}
 }
 
 func (c *fakeAcdClient) NewApplicationSetClientOrDie() (io.Closer, applicationsetpkg.ApplicationSetServiceClient) {
