@@ -10,8 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"google.golang.org/grpc"
+
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 
 	v1 "k8s.io/api/core/v1"
 
