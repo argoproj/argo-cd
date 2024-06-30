@@ -2427,12 +2427,19 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
-			fmt.Println()
-			fmt.Println("This is the state of the app after `wait` timed out:")
+
+			if printSummary {
+				fmt.Println()
+				fmt.Println("This is the state of the app after `wait` timed out:")
+			}
+
 			printFinalStatus(app)
 			cancel()
-			fmt.Println()
-			fmt.Println("The command timed out waiting for the conditions to be met.")
+
+			if printSummary {
+				fmt.Println()
+				fmt.Println("The command timed out waiting for the conditions to be met.")
+			}
 		})
 	}
 
