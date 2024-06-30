@@ -561,9 +561,9 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 	fmt.Printf(printOpFmtStr, "Namespace:", app.Spec.Destination.Namespace)
 	fmt.Printf(printOpFmtStr, "URL:", appURL)
 	if !app.Spec.HasMultipleSources() {
-		fmt.Println("Source:")
+		fmt.Println("# Source:")
 	} else {
-		fmt.Println("Sources:")
+		fmt.Println("# Sources:")
 	}
 	for _, source := range app.Spec.GetSources() {
 		printAppSourceDetails(&source)
@@ -2347,7 +2347,7 @@ func resourceParentChild(ctx context.Context, acdClient argocdclient.Client, app
 	return mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState
 }
 
-const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
+const waitFormatString = "# %s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 
 // waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
 // are fulfilled or we reach the timeout. Returns the app once desired conditions have been filled.
@@ -2360,10 +2360,6 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	// We only want to do this when an operation is in progress, since operations are the only
 	// time when the sync status lags behind when an operation completes
 	refresh := false
-
-	// printSummary controls whether we print the app summary table, OperationState, and ResourceState
-	// We don't want to print these when output type is json or yaml, as the output would become unparsable.
-	printSummary := output != "json" && output != "yaml"
 
 	appRealName, appNs := argo.ParseFromQualifiedName(appName, "")
 
@@ -2381,13 +2377,11 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			_ = conn.Close()
 		}
 
-		if printSummary {
-			fmt.Println()
-			printAppSummaryTable(app, appURL(ctx, acdClient, appName), nil)
-			fmt.Println()
-			if watch.operation {
-				printOperationResult(app.Status.OperationState)
-			}
+		fmt.Println()
+		printAppSummaryTable(app, appURL(ctx, acdClient, appName), nil)
+		fmt.Println()
+		if watch.operation {
+			printOperationResult(app.Status.OperationState)
 		}
 
 		switch output {
@@ -2437,9 +2431,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)
-	if printSummary {
-		_, _ = fmt.Fprintf(w, waitFormatString, "TIMESTAMP", "GROUP", "KIND", "NAMESPACE", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
-	}
+	_, _ = fmt.Fprintf(w, waitFormatString, "TIMESTAMP", "GROUP", "KIND", "NAMESPACE", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
 
 	prevStates := make(map[string]*resourceState)
 	conn, appClient := acdClient.NewApplicationClientOrDie()
@@ -2523,7 +2515,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 				prevStates[stateKey] = newState
 				doPrint = true
 			}
-			if doPrint && printSummary {
+			if doPrint {
 				_, _ = fmt.Fprintf(w, waitFormatString, prevStates[stateKey].FormatItems()...)
 			}
 		}
@@ -2743,7 +2735,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 }
 
 const (
-	printOpFmtStr              = "%-20s%s\n"
+	printOpFmtStr              = "# %-20s%s\n"
 	defaultCheckTimeoutSeconds = 0
 )
 
