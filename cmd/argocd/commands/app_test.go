@@ -1936,7 +1936,6 @@ type customAcdClient struct {
 
 func (c *customAcdClient) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent {
 	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
-	// time := metav1.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC)
 	_, appIf := c.NewApplicationClientOrDie()
 	app, _ := appIf.Get(ctx, &applicationpkg.ApplicationQuery{})
 
