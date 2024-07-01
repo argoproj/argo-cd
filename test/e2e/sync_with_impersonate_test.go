@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 	"github.com/stretchr/testify/require"
@@ -20,11 +20,11 @@ func TestSyncWithImpersonateDisable(t *testing.T) {
 		Path("guestbook").
 		When().
 		SetParamInSettingConfigMap("application.sync.impersonation.enabled", "false").
-		CreateFromFile(func(app *Application) {
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{}}
+		CreateFromFile(func(app *v1alpha1.Application) {
+			app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
 		}).
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
+		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeSynced))
 }
 
 func TestSyncWithImpersonateDefaultNamespaceServiceAccountNoRBAC(t *testing.T) {
@@ -32,11 +32,11 @@ func TestSyncWithImpersonateDefaultNamespaceServiceAccountNoRBAC(t *testing.T) {
 		Path("guestbook").
 		When().
 		SetParamInSettingConfigMap("application.sync.impersonation.enabled", "true").
-		CreateFromFile(func(app *Application) {
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{}}
+		CreateFromFile(func(app *v1alpha1.Application) {
+			app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
 		}).
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
+		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeOutOfSync))
 }
 
 func TestSyncWithImpersonateDefaultNamespaceServiceAccountWithRBAC(t *testing.T) {
@@ -45,8 +45,8 @@ func TestSyncWithImpersonateDefaultNamespaceServiceAccountWithRBAC(t *testing.T)
 		Path("guestbook").
 		When().
 		SetParamInSettingConfigMap("application.sync.impersonation.enabled", "true").
-		CreateFromFile(func(app *Application) {
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{}}
+		CreateFromFile(func(app *v1alpha1.Application) {
+			app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
 		}).
 		And(func() {
 			err := createTestRole(roleName, fixture.DeploymentNamespace(), []rbac.PolicyRule{
@@ -66,7 +66,7 @@ func TestSyncWithImpersonateDefaultNamespaceServiceAccountWithRBAC(t *testing.T)
 			require.NoError(t, err)
 		}).
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
+		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeSynced))
 }
 
 func TestSyncWithImpersonateWithSyncServiceAccount(t *testing.T) {
@@ -79,7 +79,7 @@ func TestSyncWithImpersonateWithSyncServiceAccount(t *testing.T) {
 		When().
 		SetParamInSettingConfigMap("application.sync.impersonation.enabled", "true").
 		And(func() {
-			destinationServiceAccounts := []ApplicationDestinationServiceAccount{
+			destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
 				{
 					Server:                "*",
 					Namespace:             fixture.DeploymentNamespace(),
@@ -112,12 +112,12 @@ func TestSyncWithImpersonateWithSyncServiceAccount(t *testing.T) {
 			err = createTestRoleBinding(roleName, serviceAccountName, fixture.DeploymentNamespace())
 			require.NoError(t, err)
 		}).
-		CreateFromFile(func(app *Application) {
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{}}
+		CreateFromFile(func(app *v1alpha1.Application) {
+			app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
 			app.Spec.Project = projectName
 		}).
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
+		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeSynced))
 }
 
 func TestSyncWithImpersonateWithFalseServiceAccount(t *testing.T) {
@@ -130,7 +130,7 @@ func TestSyncWithImpersonateWithFalseServiceAccount(t *testing.T) {
 		When().
 		SetParamInSettingConfigMap("application.sync.impersonation.enabled", "true").
 		And(func() {
-			destinationServiceAccounts := []ApplicationDestinationServiceAccount{
+			destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
 				{
 					Server:                "*",
 					Namespace:             fixture.DeploymentNamespace(),
@@ -163,12 +163,12 @@ func TestSyncWithImpersonateWithFalseServiceAccount(t *testing.T) {
 			err = createTestRoleBinding(roleName, serviceAccountName, fixture.DeploymentNamespace())
 			require.NoError(t, err)
 		}).
-		CreateFromFile(func(app *Application) {
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{}}
+		CreateFromFile(func(app *v1alpha1.Application) {
+			app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
 			app.Spec.Project = projectName
 		}).
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
+		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeOutOfSync))
 }
 
 func TestSyncWithNegationApplicationDestinationNamespace(t *testing.T) {
@@ -181,7 +181,7 @@ func TestSyncWithNegationApplicationDestinationNamespace(t *testing.T) {
 		When().
 		SetParamInSettingConfigMap("application.sync.impersonation.enabled", "true").
 		And(func() {
-			destinationServiceAccounts := []ApplicationDestinationServiceAccount{
+			destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
 				{
 					Server:                "*",
 					Namespace:             fixture.DeploymentNamespace(),
@@ -208,12 +208,12 @@ func TestSyncWithNegationApplicationDestinationNamespace(t *testing.T) {
 			err = createTestRoleBinding(roleName, serviceAccountName, fixture.DeploymentNamespace())
 			require.NoError(t, err)
 		}).
-		CreateFromFile(func(app *Application) {
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{}}
+		CreateFromFile(func(app *v1alpha1.Application) {
+			app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
 			app.Spec.Project = projectName
 		}).
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeSynced)).
 		When().
 		And(func() {
 			patch := []byte(fmt.Sprintf(`{"spec": {"destinations": [{"namespace": "%s"}]}}`, "!"+fixture.DeploymentNamespace()))
@@ -221,22 +221,22 @@ func TestSyncWithNegationApplicationDestinationNamespace(t *testing.T) {
 			_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Patch(context.Background(), projectName, types.MergePatchType, patch, metav1.PatchOptions{})
 			require.NoError(t, err)
 		}).
-		Refresh(RefreshTypeNormal).
+		Refresh(v1alpha1.RefreshTypeNormal).
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeUnknown))
+		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeUnknown))
 }
 
 // createTestAppProject creates a test AppProject resource.
-func createTestAppProject(name, namespace string, destinationServiceAccounts []ApplicationDestinationServiceAccount) error {
-	appProject := &AppProject{
+func createTestAppProject(name, namespace string, destinationServiceAccounts []v1alpha1.ApplicationDestinationServiceAccount) error {
+	appProject := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 		},
-		Spec: AppProjectSpec{
+		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:      []string{"*"},
 			SourceNamespaces: []string{"*"},
-			Destinations: []ApplicationDestination{
+			Destinations: []v1alpha1.ApplicationDestination{
 				{
 					Server:    "*",
 					Namespace: "*",
