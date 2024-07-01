@@ -62,14 +62,15 @@ export interface Operation {
     initiatedBy: OperationInitiator;
 }
 
-export type OperationPhase = 'Running' | 'Error' | 'Failed' | 'Succeeded' | 'Terminating';
+export type OperationPhase = 'Running' | 'Error' | 'Failed' | 'Succeeded' | 'Terminating' | 'Warning';
 
 export const OperationPhases = {
     Running: 'Running' as OperationPhase,
     Failed: 'Failed' as OperationPhase,
     Error: 'Error' as OperationPhase,
     Succeeded: 'Succeeded' as OperationPhase,
-    Terminating: 'Terminating' as OperationPhase
+    Terminating: 'Terminating' as OperationPhase,
+    Warning: 'Warning' as OperationPhase
 };
 
 /**
@@ -106,13 +107,14 @@ export interface SyncOperationResult {
     revisions: string[];
 }
 
-export type ResultCode = 'Synced' | 'SyncFailed' | 'Pruned' | 'PruneSkipped';
+export type ResultCode = 'Synced' | 'SyncFailed' | 'Pruned' | 'PruneSkipped' | 'SyncedWithWarning';
 
 export const ResultCodes = {
     Synced: 'Synced',
     SyncFailed: 'SyncFailed',
     Pruned: 'Pruned',
-    PruneSkipped: 'PruneSkipped'
+    PruneSkipped: 'PruneSkipped',
+    SyncedWithWarning: 'SyncedWithWarning'
 };
 
 export interface ResourceResult {
