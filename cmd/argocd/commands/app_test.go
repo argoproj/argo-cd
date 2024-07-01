@@ -2221,7 +2221,7 @@ func (c *fakeAcdClient) NewApplicationSetClient() (io.Closer, applicationsetpkg.
 }
 
 func (c *fakeAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
-	return &fakeConnection{}, &fakeAppServiceClient{}
+	return nil, nil
 }
 
 func (c *fakeAcdClient) NewApplicationSetClientOrDie() (io.Closer, applicationsetpkg.ApplicationSetServiceClient) {
