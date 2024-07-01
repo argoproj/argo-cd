@@ -7,10 +7,9 @@ import (
 	"os"
 	pathpkg "path"
 
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/xanzy/go-gitlab"
-
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 )
 
 type GitlabProvider struct {
@@ -58,7 +57,7 @@ func (g *GitlabProvider) GetBranches(ctx context.Context, repo *Repository) ([]*
 	repos := []*Repository{}
 	branches, err := g.listBranches(ctx, repo)
 	if err != nil {
-		return nil, fmt.Errorf("error listing branches for %s/%s: %w", repo.Organization, repo.Repository, err)
+		return nil, fmt.Errorf("error listing branches for %s/%s: %v", repo.Organization, repo.Repository, err)
 	}
 
 	for _, branch := range branches {
@@ -87,7 +86,7 @@ func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 	for {
 		gitlabRepos, resp, err := g.client.Groups.ListGroupProjects(g.organization, opt)
 		if err != nil {
-			return nil, fmt.Errorf("error listing projects for %s: %w", g.organization, err)
+			return nil, fmt.Errorf("error listing projects for %s: %v", g.organization, err)
 		}
 		for _, gitlabRepo := range gitlabRepos {
 			var url string
@@ -101,20 +100,12 @@ func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 				return nil, fmt.Errorf("unknown clone protocol for Gitlab %v", cloneProtocol)
 			}
 
-			var repoLabels []string
-			if len(gitlabRepo.Topics) == 0 {
-				// fallback to for gitlab prior to 14.5
-				repoLabels = gitlabRepo.TagList
-			} else {
-				repoLabels = gitlabRepo.Topics
-			}
-
 			repos = append(repos, &Repository{
 				Organization: gitlabRepo.Namespace.FullPath,
 				Repository:   gitlabRepo.Path,
 				URL:          url,
 				Branch:       gitlabRepo.DefaultBranch,
-				Labels:       repoLabels,
+				Labels:       gitlabRepo.TagList,
 				RepositoryId: gitlabRepo.ID,
 			})
 		}

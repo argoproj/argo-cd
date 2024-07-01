@@ -64,14 +64,14 @@ func (a *Actions) Then() *Consequences {
 	return &Consequences{a.context, a}
 }
 
-func (a *Actions) SwitchToExternalNamespace(namespace utils.ExternalNamespace) *Actions {
-	a.context.switchToNamespace = namespace
-	log.Infof("switched to external namespace: %s", namespace)
+func (a *Actions) SwitchToExternalNamespace() *Actions {
+	a.context.useExternalNamespace = true
+	log.Infof("switched to external namespace: %s", utils.ArgoCDExternalNamespace)
 	return a
 }
 
 func (a *Actions) SwitchToArgoCDNamespace() *Actions {
-	a.context.switchToNamespace = ""
+	a.context.useExternalNamespace = false
 	log.Infof("switched to argocd namespace: %s", utils.ArgoCDNamespace)
 	return a
 }
@@ -79,13 +79,15 @@ func (a *Actions) SwitchToArgoCDNamespace() *Actions {
 // CreateClusterSecret creates a faux cluster secret, with the given cluster server and cluster name (this cluster
 // will not actually be used by the Argo CD controller, but that's not needed for our E2E tests)
 func (a *Actions) CreateClusterSecret(secretName string, clusterName string, clusterServer string) *Actions {
+
 	fixtureClient := utils.GetE2EFixtureK8sClient()
 
 	var serviceAccountName string
 
 	// Look for a service account matching '*application-controller*'
-	err := wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, 30*time.Second, false, func(ctx context.Context) (bool, error) {
-		serviceAccountList, err := fixtureClient.KubeClientset.CoreV1().ServiceAccounts(fixture.TestNamespace()).List(ctx, metav1.ListOptions{})
+	err := wait.Poll(500*time.Millisecond, 30*time.Second, func() (bool, error) {
+
+		serviceAccountList, err := fixtureClient.KubeClientset.CoreV1().ServiceAccounts(fixture.TestNamespace()).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			fmt.Println("Unable to retrieve ServiceAccount list", err)
 			return false, nil
@@ -152,6 +154,7 @@ func (a *Actions) CreateClusterSecret(secretName string, clusterName string, clu
 
 // DeleteClusterSecret deletes a faux cluster secret
 func (a *Actions) DeleteClusterSecret(secretName string) *Actions {
+
 	err := utils.GetE2EFixtureK8sClient().KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Delete(context.Background(), secretName, metav1.DeleteOptions{})
 
 	a.describeAction = fmt.Sprintf("deleting cluster Secret '%s'", secretName)
@@ -163,6 +166,7 @@ func (a *Actions) DeleteClusterSecret(secretName string) *Actions {
 
 // DeleteConfigMap deletes a faux cluster secret
 func (a *Actions) DeleteConfigMap(configMapName string) *Actions {
+
 	err := utils.GetE2EFixtureK8sClient().KubeClientset.CoreV1().ConfigMaps(fixture.TestNamespace()).Delete(context.Background(), configMapName, metav1.DeleteOptions{})
 
 	a.describeAction = fmt.Sprintf("deleting configMap '%s'", configMapName)
@@ -174,6 +178,7 @@ func (a *Actions) DeleteConfigMap(configMapName string) *Actions {
 
 // DeletePlacementDecision deletes a faux cluster secret
 func (a *Actions) DeletePlacementDecision(placementDecisionName string) *Actions {
+
 	err := utils.GetE2EFixtureK8sClient().DynamicClientset.Resource(pdGVR).Namespace(fixture.TestNamespace()).Delete(context.Background(), placementDecisionName, metav1.DeleteOptions{})
 
 	a.describeAction = fmt.Sprintf("deleting placement decision '%s'", placementDecisionName)
@@ -211,13 +216,8 @@ func (a *Actions) Create(appSet v1alpha1.ApplicationSet) *Actions {
 
 	var appSetClientSet dynamic.ResourceInterface
 
-	if a.context.switchToNamespace != "" {
-		externalAppSetClientset, found := fixtureClient.ExternalAppSetClientsets[utils.ExternalNamespace(a.context.switchToNamespace)]
-		if !found {
-			a.lastOutput, a.lastError = "", fmt.Errorf("No external clientset found for %s", a.context.switchToNamespace)
-			return a
-		}
-		appSetClientSet = externalAppSetClientset
+	if a.context.useExternalNamespace {
+		appSetClientSet = fixtureClient.ExternalAppSetClientset
 	} else {
 		appSetClientSet = fixtureClient.AppSetClientset
 	}
@@ -390,13 +390,8 @@ func (a *Actions) Delete() *Actions {
 
 	var appSetClientSet dynamic.ResourceInterface
 
-	if a.context.switchToNamespace != "" {
-		externalAppSetClientset, found := fixtureClient.ExternalAppSetClientsets[utils.ExternalNamespace(a.context.switchToNamespace)]
-		if !found {
-			a.lastOutput, a.lastError = "", fmt.Errorf("No external clientset found for %s", a.context.switchToNamespace)
-			return a
-		}
-		appSetClientSet = externalAppSetClientset
+	if a.context.useExternalNamespace {
+		appSetClientSet = fixtureClient.ExternalAppSetClientset
 	} else {
 		appSetClientSet = fixtureClient.AppSetClientset
 	}
@@ -418,12 +413,8 @@ func (a *Actions) get() (*v1alpha1.ApplicationSet, error) {
 
 	var appSetClientSet dynamic.ResourceInterface
 
-	if a.context.switchToNamespace != "" {
-		externalAppSetClientset, found := fixtureClient.ExternalAppSetClientsets[utils.ExternalNamespace(a.context.switchToNamespace)]
-		if !found {
-			return nil, fmt.Errorf("No external clientset found for %s", a.context.switchToNamespace)
-		}
-		appSetClientSet = externalAppSetClientset
+	if a.context.useExternalNamespace {
+		appSetClientSet = fixtureClient.ExternalAppSetClientset
 	} else {
 		appSetClientSet = fixtureClient.AppSetClientset
 	}
@@ -444,6 +435,7 @@ func (a *Actions) get() (*v1alpha1.ApplicationSet, error) {
 	}
 
 	return &appSet, nil
+
 }
 
 // Update retrieves the latest copy the ApplicationSet, then allows the caller to mutate it via 'toUpdate', with
@@ -456,6 +448,7 @@ func (a *Actions) Update(toUpdate func(*v1alpha1.ApplicationSet)) *Actions {
 	var mostRecentError error
 
 	for start := time.Now(); time.Since(start) < timeout; time.Sleep(3 * time.Second) {
+
 		appSet, err := a.get()
 		mostRecentError = err
 		if err == nil {
@@ -467,13 +460,8 @@ func (a *Actions) Update(toUpdate func(*v1alpha1.ApplicationSet)) *Actions {
 
 			var appSetClientSet dynamic.ResourceInterface
 
-			if a.context.switchToNamespace != "" {
-				externalAppSetClientset, found := fixtureClient.ExternalAppSetClientsets[utils.ExternalNamespace(a.context.switchToNamespace)]
-				if !found {
-					a.lastOutput, a.lastError = "", fmt.Errorf("No external clientset found for %s", a.context.switchToNamespace)
-					return a
-				}
-				appSetClientSet = externalAppSetClientset
+			if a.context.useExternalNamespace {
+				appSetClientSet = fixtureClient.ExternalAppSetClientset
 			} else {
 				appSetClientSet = fixtureClient.AppSetClientset
 			}
@@ -520,10 +508,4 @@ func (a *Actions) runCli(args ...string) {
 	a.context.t.Helper()
 	a.lastOutput, a.lastError = fixture.RunCli(args...)
 	a.verifyAction()
-}
-
-func (a *Actions) AddSignedFile(fileName, fileContents string) *Actions {
-	a.context.t.Helper()
-	fixture.AddSignedFile(a.context.path+"/"+fileName, fileContents)
-	return a
 }

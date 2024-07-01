@@ -5,15 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/common"
-
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-
-	"github.com/argoproj/argo-cd/v2/util/env"
 
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -29,7 +26,9 @@ const (
 	EnvClusterInfoTimeout = "ARGO_CD_UPDATE_CLUSTER_INFO_TIMEOUT"
 )
 
-var clusterInfoTimeout = env.ParseDurationFromEnv(EnvClusterInfoTimeout, defaultSecretUpdateInterval, defaultSecretUpdateInterval, 1*time.Minute)
+var (
+	clusterInfoTimeout = env.ParseDurationFromEnv(EnvClusterInfoTimeout, defaultSecretUpdateInterval, defaultSecretUpdateInterval, 1*time.Minute)
+)
 
 type clusterInfoUpdater struct {
 	infoSource    metrics.HasClustersInfo
@@ -49,8 +48,8 @@ func NewClusterInfoUpdater(
 	cache *appstatecache.Cache,
 	clusterFilter func(cluster *appv1.Cluster) bool,
 	projGetter func(app *appv1.Application) (*appv1.AppProject, error),
-	namespace string,
-) *clusterInfoUpdater {
+	namespace string) *clusterInfoUpdater {
+
 	return &clusterInfoUpdater{infoSource, db, appLister, cache, clusterFilter, projGetter, namespace, time.Time{}}
 }
 
@@ -102,11 +101,8 @@ func (c *clusterInfoUpdater) updateClusters() {
 	}
 	_ = kube.RunAllAsync(len(clustersFiltered), func(i int) error {
 		cluster := clustersFiltered[i]
-		clusterInfo := infoByServer[cluster.Server]
-		if err := c.updateClusterInfo(ctx, cluster, clusterInfo); err != nil {
-			log.Warnf("Failed to save cluster info: %v", err)
-		} else if err := updateClusterLabels(ctx, clusterInfo, cluster, c.db.UpdateCluster); err != nil {
-			log.Warnf("Failed to update cluster labels: %v", err)
+		if err := c.updateClusterInfo(ctx, cluster, infoByServer[cluster.Server]); err != nil {
+			log.Warnf("Failed to save clusters info: %v", err)
 		}
 		return nil
 	})
@@ -118,12 +114,6 @@ func (c *clusterInfoUpdater) updateClusterInfo(ctx context.Context, cluster appv
 	if err != nil {
 		return fmt.Errorf("error while fetching the apps list: %w", err)
 	}
-
-	updated := c.getUpdatedClusterInfo(ctx, apps, cluster, info, metav1.Now())
-	return c.cache.SetClusterInfo(cluster.Server, &updated)
-}
-
-func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*appv1.Application, cluster appv1.Cluster, info *cache.ClusterInfo, now metav1.Time) appv1.ClusterInfo {
 	var appCount int64
 	for _, a := range apps {
 		if c.projGetter != nil {
@@ -139,6 +129,7 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 			appCount += 1
 		}
 	}
+	now := metav1.Now()
 	clusterInfo := appv1.ClusterInfo{
 		ConnectionState:   appv1.ConnectionState{ModifiedAt: &now},
 		ApplicationsCount: appCount,
@@ -165,15 +156,5 @@ func (c *clusterInfoUpdater) getUpdatedClusterInfo(ctx context.Context, apps []*
 		}
 	}
 
-	return clusterInfo
-}
-
-func updateClusterLabels(ctx context.Context, clusterInfo *cache.ClusterInfo, cluster appv1.Cluster, updateCluster func(context.Context, *appv1.Cluster) (*appv1.Cluster, error)) error {
-	if clusterInfo != nil && cluster.Labels[common.LabelKeyAutoLabelClusterInfo] == "true" && cluster.Labels[common.LabelKeyClusterKubernetesVersion] != clusterInfo.K8SVersion {
-		cluster.Labels[common.LabelKeyClusterKubernetesVersion] = clusterInfo.K8SVersion
-		_, err := updateCluster(ctx, &cluster)
-		return err
-	}
-
-	return nil
+	return c.cache.SetClusterInfo(cluster.Server, &clusterInfo)
 }

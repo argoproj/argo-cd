@@ -8,20 +8,6 @@ List project sync windows
 argocd proj windows list PROJECT [flags]
 ```
 
-### Examples
-
-```
-
-#List project windows
-argocd proj windows list PROJECT
-
-#List project windows in yaml format
-argocd proj windows list PROJECT -o yaml
-
-#List project windows info for a project name (test-project)
-argocd proj windows list test-project
-```
-
 ### Options
 
 ```

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 type foo struct {
@@ -21,8 +20,8 @@ func TestInMemoryCache(t *testing.T) {
 	assert.Equal(t, ErrCacheMiss, err)
 	// cache hit
 	err = cache.Set(&Item{Key: "my-key", Object: &foo{Bar: "bar"}})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	err = cache.Get("my-key", obj)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, &foo{Bar: "bar"}, obj)
 }

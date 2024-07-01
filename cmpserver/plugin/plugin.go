@@ -24,7 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	securejoin "github.com/cyphar/filepath-securejoin"
+	"github.com/cyphar/filepath-securejoin"
 	"github.com/mattn/go-zglob"
 	log "github.com/sirupsen/logrus"
 )
@@ -54,7 +54,7 @@ func (s *Service) Init(workDir string) error {
 	if err != nil {
 		return fmt.Errorf("error removing workdir %q: %w", workDir, err)
 	}
-	err = os.MkdirAll(workDir, 0o700)
+	err = os.MkdirAll(workDir, 0700)
 	if err != nil {
 		return fmt.Errorf("error creating workdir %q: %w", workDir, err)
 	}
@@ -128,8 +128,8 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	if len(output) == 0 {
 		logCtx.Warn("Plugin command returned zero output")
 	} else {
-		// Log stderr even on successful commands to help develop plugins
-		logCtx.Info("Plugin command successful")
+		// Log stderr even on successfull commands to help develop plugins
+		logCtx.Info("Plugin command successfull")
 	}
 
 	return strings.TrimSuffix(output, "\n"), nil
@@ -240,9 +240,6 @@ func (s *Service) generateManifestGeneric(stream GenerateManifestStream) error {
 	if err != nil {
 		return fmt.Errorf("error generating manifests: %w", err)
 	}
-
-	log.Tracef("Generated manifests result: %s", response.Manifests)
-
 	err = stream.SendAndClose(response)
 	if err != nil {
 		return fmt.Errorf("error sending manifest response: %w", err)

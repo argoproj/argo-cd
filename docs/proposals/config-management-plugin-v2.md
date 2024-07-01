@@ -291,7 +291,7 @@ There aren't any major drawbacks to this proposal. Also, the advantages supersed
 However following are few minor drawbacks,
 
 * With addition of plugin.yaml, there will be more yamls to manage
-* Operators need to be aware of the modified Kubernetes manifests in the subsequent version.
+* Operators need to be aware of the modified kubernetes manifests in the subsequent version.
 * The format of the CMP manifest is a new "contract" that would need to adhere the usual Argo CD compatibility promises in future.
 
 

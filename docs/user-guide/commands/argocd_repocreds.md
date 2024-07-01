@@ -8,19 +8,6 @@ Manage repository connection parameters
 argocd repocreds [flags]
 ```
 
-### Examples
-
-```
-  # Add credentials with user/pass authentication to use for all repositories under the specified URL
-  argocd repocreds add URL --username USERNAME --password PASSWORD
-  
-  # List all the configured repository credentials
-  argocd repocreds list
-  
-  # Remove credentials for the repositories with speficied URL
-  argocd repocreds rm URL
-```
-
 ### Options
 
 ```
@@ -32,7 +19,6 @@ argocd repocreds [flags]
       --client-key string              Path to a client key file for TLS
       --cluster string                 The name of the kubeconfig cluster to use
       --context string                 The name of the kubeconfig context to use
-      --disable-compression            If true, opt-out of response compression for all requests to the server
   -h, --help                           help for repocreds
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string              Path to a kube config. Only required if out-of-cluster

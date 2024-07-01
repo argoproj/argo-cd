@@ -2,18 +2,16 @@ package application
 
 import (
 	"encoding/json"
+	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/gorilla/websocket"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func reconnect(w http.ResponseWriter, r *http.Request) {
-	upgrader := websocket.Upgrader{}
+	var upgrader = websocket.Upgrader{}
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
@@ -24,6 +22,7 @@ func reconnect(w http.ResponseWriter, r *http.Request) {
 }
 
 func TestReconnect(t *testing.T) {
+
 	s := httptest.NewServer(http.HandlerFunc(reconnect))
 	defer s.Close()
 
@@ -31,7 +30,7 @@ func TestReconnect(t *testing.T) {
 
 	// Connect to the server
 	ws, _, err := websocket.DefaultDialer.Dial(u, nil)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	defer ws.Close()
 
@@ -41,6 +40,7 @@ func TestReconnect(t *testing.T) {
 
 	err = json.Unmarshal(p, &message)
 
-	require.NoError(t, err)
-	assert.Equal(t, ReconnectMessage, message.Data)
+	assert.NoError(t, err)
+	assert.Equal(t, message.Data, ReconnectMessage)
+
 }

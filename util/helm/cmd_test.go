@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func Test_cmd_redactor(t *testing.T) {
@@ -16,35 +15,35 @@ func Test_cmd_redactor(t *testing.T) {
 
 func TestCmd_template_kubeVersion(t *testing.T) {
 	cmd, err := NewCmdWithVersion(".", HelmV3, false, "")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	s, err := cmd.template("testdata/redis", &TemplateOpts{
 		KubeVersion: "1.14",
 	})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.NotEmpty(t, s)
 }
 
 func TestCmd_template_noApiVersionsInError(t *testing.T) {
 	cmd, err := NewCmdWithVersion(".", HelmV3, false, "")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	_, err = cmd.template("testdata/chart-does-not-exist", &TemplateOpts{
 		KubeVersion: "1.14",
 		APIVersions: []string{"foo", "bar"},
 	})
-	require.Error(t, err)
+	assert.Error(t, err)
 	assert.NotContains(t, err.Error(), "--api-version")
 	assert.ErrorContains(t, err, "<api versions removed> ")
 }
 
 func TestNewCmd_helmV3(t *testing.T) {
 	cmd, err := NewCmd(".", "v3", "")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "helm", cmd.HelmVer.binaryName)
 }
 
 func TestNewCmd_helmDefaultVersion(t *testing.T) {
 	cmd, err := NewCmd(".", "", "")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "helm", cmd.HelmVer.binaryName)
 }
 
@@ -56,6 +55,6 @@ func TestNewCmd_helmInvalidVersion(t *testing.T) {
 
 func TestNewCmd_withProxy(t *testing.T) {
 	cmd, err := NewCmd(".", "", "https://proxy:8888")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "https://proxy:8888", cmd.proxy)
 }

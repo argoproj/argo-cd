@@ -38,7 +38,7 @@ https://kubernetes.default.svc  in-cluster  %v     Successful           `, GetVe
 		When().
 		CreateApp()
 
-	tries := 5
+	tries := 2
 	for i := 0; i <= tries; i += 1 {
 		clusterFixture.GivenWithSameState(t).
 			When().
@@ -153,7 +153,7 @@ func TestClusterListDenied(t *testing.T) {
 		List().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Equal(t, "SERVER  NAME  VERSION  STATUS  MESSAGE  PROJECT", output)
+			assert.Equal(t, output, "SERVER  NAME  VERSION  STATUS  MESSAGE  PROJECT")
 		})
 }
 
@@ -199,7 +199,7 @@ func TestClusterNameInRestAPI(t *testing.T) {
 	err := DoHttpJsonRequest("GET", "/api/v1/clusters/in-cluster?id.type=name", &cluster)
 	require.NoError(t, err)
 
-	assert.Equal(t, "in-cluster", cluster.Name)
+	assert.Equal(t, cluster.Name, "in-cluster")
 	assert.Contains(t, cluster.Server, "https://kubernetes.default.svc")
 
 	err = DoHttpJsonRequest("PUT",
@@ -217,7 +217,7 @@ func TestClusterURLInRestAPI(t *testing.T) {
 	err := DoHttpJsonRequest("GET", fmt.Sprintf("/api/v1/clusters/%s", clusterURL), &cluster)
 	require.NoError(t, err)
 
-	assert.Equal(t, "in-cluster", cluster.Name)
+	assert.Equal(t, cluster.Name, "in-cluster")
 	assert.Contains(t, cluster.Server, "https://kubernetes.default.svc")
 
 	err = DoHttpJsonRequest("PUT",

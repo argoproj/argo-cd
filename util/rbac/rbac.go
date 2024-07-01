@@ -363,7 +363,7 @@ func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *apiv1
 
 func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.ConfigMap) error) {
 	cmInformer := e.newInformer()
-	_, err := cmInformer.AddEventHandler(
+	cmInformer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				if cm, ok := obj.(*apiv1.ConfigMap); ok {
@@ -390,9 +390,6 @@ func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.Con
 			},
 		},
 	)
-	if err != nil {
-		log.Error(err)
-	}
 	log.Info("Starting rbac config informer")
 	cmInformer.Run(ctx.Done())
 	log.Info("rbac configmap informer cancelled")
@@ -422,6 +419,7 @@ func PolicyCSV(data map[string]string) string {
 		if strings.HasPrefix(key, "policy.") &&
 			strings.HasSuffix(key, ".csv") &&
 			key != ConfigMapPolicyCSVKey {
+
 			strBuilder.WriteString("\n")
 			strBuilder.WriteString(value)
 		}

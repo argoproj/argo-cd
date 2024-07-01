@@ -18,7 +18,6 @@ import {hashCode} from './shared/utils';
 import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 import {AuthSettings} from './shared/models';
-import {PKCEVerification} from './login/components/pkce-verify';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -26,15 +25,14 @@ const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
 export const history = createBrowserHistory({basename: base});
 requests.setBaseHRef(base);
 
-type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}};
+type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean; extension?: boolean}};
 
 const routes: Routes = {
     '/login': {component: login.component as any, noLayout: true},
     '/applications': {component: applications.component},
     '/settings': {component: settings.component},
     '/user-info': {component: userInfo.component},
-    '/help': {component: help.component},
-    '/pkce/verify': {component: PKCEVerification, noLayout: true}
+    '/help': {component: help.component}
 };
 
 interface NavItem {
@@ -98,7 +96,10 @@ requests.onError.subscribe(async err => {
         }
         // Query for basehref and remove trailing /.
         // If basehref is the default `/` it will become an empty string.
-        const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
+        const basehref = document
+            .querySelector('head > base')
+            .getAttribute('href')
+            .replace(/\/$/, '');
         if (isSSO) {
             window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
         } else {
@@ -182,7 +183,8 @@ export class App extends React.Component<
                 </>
             );
             extendedRoutes[extension.path] = {
-                component: component as React.ComponentType<React.ComponentProps<any>>
+                component: component as React.ComponentType<React.ComponentProps<any>>,
+                extension: true
             };
         }
 
@@ -236,7 +238,11 @@ export class App extends React.Component<
                                                     ) : (
                                                         <DataLoader load={() => services.viewPreferences.getPreferences()}>
                                                             {pref => (
-                                                                <Layout onVersionClick={() => this.setState({showVersionPanel: true})} navItems={this.navItems} pref={pref}>
+                                                                <Layout
+                                                                    onVersionClick={() => this.setState({showVersionPanel: true})}
+                                                                    navItems={this.navItems}
+                                                                    pref={pref}
+                                                                    isExtension={route.extension}>
                                                                     <Banner>
                                                                         <route.component {...routeProps} />
                                                                     </Banner>

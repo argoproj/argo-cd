@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/yaml"
 
 	// "github.com/argoproj/argo-cd/common"
@@ -43,13 +42,12 @@ connectors:
   id: acme-github
   name: Acme GitHub
   config:
-    hostName: github.acme.example.com
+    hostName: github.acme.com
     clientID: abcdefghijklmnopqrst
     clientSecret: $dex.acme.clientSecret
     orgs:
     - name: your-github-org
 `
-
 var customStaticClientDexConfig = `
 connectors:
 # GitHub example
@@ -68,7 +66,6 @@ staticClients:
   - https://argo/oauth2/callback
   secret:  $dex.acme.clientSecret
 `
-
 var badDexConfig = `
 connectors:
 # GitHub example
@@ -82,7 +79,7 @@ connectors:
   id: acme-github
   name: Acme GitHub
   config:
-    hostName: github.acme.example.com
+    hostName: github.acme.com
     clientID: abcdefghijklmnopqrst
     clientSecret: $dex.acme.clientSecret
     orgs:
@@ -114,7 +111,6 @@ connectors:
       filter: "(objectClass=groupOfNames)"
       nameAttr: cn
 `
-
 var goodDexConfigWithEnabledApprovalScreen = `
 oauth2:
   passwordConnector: ldap
@@ -153,10 +149,11 @@ var goodSecretswithCRLF = map[string]string{
 }
 
 func Test_GenerateDexConfig(t *testing.T) {
+
 	t.Run("Empty settings", func(t *testing.T) {
 		s := settings.ArgoCDSettings{}
 		config, err := GenerateDexConfigYAML(&s, false)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Nil(t, config)
 	})
 
@@ -166,7 +163,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: goodDexConfig,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		require.Error(t, err)
+		assert.Error(t, err)
 		assert.Nil(t, config)
 	})
 
@@ -176,7 +173,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: "invalidyaml",
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Nil(t, config)
 	})
 
@@ -186,7 +183,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: "invalidyaml",
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Nil(t, config)
 	})
 
@@ -196,7 +193,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: malformedDexConfig,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		require.Error(t, err)
+		assert.Error(t, err)
 		assert.Nil(t, config)
 	})
 
@@ -206,7 +203,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: badDexConfig,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		require.Error(t, err)
+		assert.Error(t, err)
 		assert.Nil(t, config)
 	})
 
@@ -216,7 +213,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: goodDexConfig,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.NotNil(t, config)
 	})
 
@@ -227,7 +224,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			Secrets:   goodSecrets,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
@@ -253,7 +250,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			Secrets:   goodSecretswithCRLF,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
@@ -287,7 +284,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			Secrets:   goodSecretswithCRLF,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
@@ -296,11 +293,11 @@ func Test_GenerateDexConfig(t *testing.T) {
 		}
 		clients, ok := dexCfg["staticClients"].([]interface{})
 		assert.True(t, ok)
-		assert.Len(t, clients, 4)
+		assert.Equal(t, 3, len(clients))
 
-		customClient := clients[3].(map[string]interface{})
+		customClient := clients[2].(map[string]interface{})
 		assert.Equal(t, "argo-workflow", customClient["id"].(string))
-		assert.Len(t, customClient["redirectURIs"].([]interface{}), 1)
+		assert.Equal(t, 1, len(customClient["redirectURIs"].([]interface{})))
 	})
 	t.Run("Custom static clients secret dereference with trailing CRLF", func(t *testing.T) {
 		s := settings.ArgoCDSettings{
@@ -309,7 +306,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			Secrets:   goodSecretswithCRLF,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
@@ -318,9 +315,9 @@ func Test_GenerateDexConfig(t *testing.T) {
 		}
 		clients, ok := dexCfg["staticClients"].([]interface{})
 		assert.True(t, ok)
-		assert.Len(t, clients, 4)
+		assert.Equal(t, 3, len(clients))
 
-		customClient := clients[3].(map[string]interface{})
+		customClient := clients[2].(map[string]interface{})
 		assert.Equal(t, "barfoo", customClient["secret"])
 	})
 	t.Run("Override dex oauth2 configuration", func(t *testing.T) {
@@ -329,7 +326,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: goodDexConfigWithOauthOverrides,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
@@ -352,7 +349,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: goodDexConfigWithEnabledApprovalScreen,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
@@ -386,7 +383,7 @@ func Test_DexReverseProxy(t *testing.T) {
 		target, _ := url.Parse(fakeDex.URL)
 		resp, err := http.Get(server.URL)
 		assert.NotNil(t, resp)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		assert.Equal(t, host, target.Host)
 		fmt.Printf("%s\n", resp.Status)
@@ -404,11 +401,10 @@ func Test_DexReverseProxy(t *testing.T) {
 		client := &http.Client{
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse
-			},
-		}
+			}}
 		resp, err := client.Get(server.URL)
 		assert.NotNil(t, resp)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
 		location, _ := resp.Location()
 		fmt.Printf("%s %s\n", resp.Status, location.RequestURI())
@@ -430,9 +426,9 @@ func Test_DexReverseProxy(t *testing.T) {
 		rt := NewDexRewriteURLRoundTripper(server.URL, http.DefaultTransport)
 		assert.NotNil(t, rt)
 		req, err := http.NewRequest(http.MethodGet, "/", bytes.NewBuffer([]byte("")))
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		_, err = rt.RoundTrip(req)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		target, _ := url.Parse(server.URL)
 		assert.Equal(t, req.Host, target.Host)
 	})

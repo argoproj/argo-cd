@@ -11,7 +11,6 @@ import (
 
 	"github.com/argoproj/pkg/errors"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/yaml"
@@ -77,28 +76,36 @@ func TestNormalize_MapField(t *testing.T) {
 			}},
 		},
 	})
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	rollout := mustUnmarshalYAML(someCRDYaml)
 
 	err = normalizer.Normalize(rollout)
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	container, err := nestedSliceMap(rollout.Object, 0, "spec", "template", "spec", "containers")
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	cpu, ok, err := unstructured.NestedFieldNoCopy(container, "resources", "requests", "cpu")
-	require.NoError(t, err)
-	require.True(t, ok)
+	if !assert.NoError(t, err) || !assert.True(t, ok) {
+		return
+	}
 
 	assert.Equal(t, "2", cpu)
 
 	volumeMount, err := nestedSliceMap(container, 0, "volumeMounts")
-	require.NoError(t, err)
-	require.True(t, ok)
+	if !assert.NoError(t, err) || !assert.True(t, ok) {
+		return
+	}
 
 	_, ok, err = unstructured.NestedBool(volumeMount, "readOnly")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.False(t, ok)
 }
 
@@ -112,17 +119,24 @@ func TestNormalize_FieldInNestedSlice(t *testing.T) {
 			}},
 		},
 	})
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	err = normalizer.Normalize(rollout)
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	container, err := nestedSliceMap(rollout.Object, 0, "spec", "template", "spec", "containers")
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	cpu, ok, err := unstructured.NestedFieldNoCopy(container, "resources", "requests", "cpu")
-	require.NoError(t, err)
-	require.True(t, ok)
+	if !assert.NoError(t, err) || !assert.True(t, ok) {
+		return
+	}
 
 	assert.Equal(t, "2", cpu)
 }
@@ -157,20 +171,29 @@ spec:
 			}},
 		},
 	})
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	err = normalizer.Normalize(rollout)
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	template, err := nestedSliceMap(rollout.Object, 0, "spec", "templates")
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	container, err := nestedSliceMap(template, 0, "spec", "containers")
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	cpu, ok, err := unstructured.NestedFieldNoCopy(container, "resources", "requests", "cpu")
-	require.NoError(t, err)
-	require.True(t, ok)
+	if !assert.NoError(t, err) || !assert.True(t, ok) {
+		return
+	}
 	assert.Equal(t, "2", cpu)
 }
 
@@ -189,42 +212,20 @@ spec:
 			}},
 		},
 	})
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	err = normalizer.Normalize(rollout)
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	ram, ok, err := unstructured.NestedFieldNoCopy(rollout.Object, "spec", "ram")
-	require.NoError(t, err)
-	require.True(t, ok)
+	if !assert.NoError(t, err) || !assert.True(t, ok) {
+		return
+	}
 	assert.Equal(t, "1250M", ram)
-}
-
-func TestNormalize_Duration(t *testing.T) {
-	cert := mustUnmarshalYAML(`
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: my-cert
-spec:
-  duration: 8760h
-`)
-	normalizer, err := NewKnownTypesNormalizer(map[string]v1alpha1.ResourceOverride{
-		"cert-manager.io/Certificate": {
-			KnownTypeFields: []v1alpha1.KnownTypeField{{
-				Type:  "meta/v1/Duration",
-				Field: "spec.duration",
-			}},
-		},
-	})
-	require.NoError(t, err)
-
-	require.NoError(t, normalizer.Normalize(cert))
-
-	duration, ok, err := unstructured.NestedFieldNoCopy(cert.Object, "spec", "duration")
-	require.NoError(t, err)
-	require.True(t, ok)
-	require.Equal(t, "8760h0m0s", duration)
 }
 
 func TestFieldDoesNotExist(t *testing.T) {
@@ -237,24 +238,33 @@ func TestFieldDoesNotExist(t *testing.T) {
 			}},
 		},
 	})
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	err = normalizer.Normalize(rollout)
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	container, err := nestedSliceMap(rollout.Object, 0, "spec", "template", "spec", "containers")
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	cpu, ok, err := unstructured.NestedFieldNoCopy(container, "resources", "requests", "cpu")
-	require.NoError(t, err)
-	require.True(t, ok)
+	if !assert.NoError(t, err) || !assert.True(t, ok) {
+		return
+	}
 
 	assert.Equal(t, "2000m", cpu)
 }
 
 func TestRolloutPreConfigured(t *testing.T) {
 	normalizer, err := NewKnownTypesNormalizer(map[string]v1alpha1.ResourceOverride{})
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 	_, ok := normalizer.typeFields[schema.GroupKind{Group: application.Group, Kind: "Rollout"}]
 	assert.True(t, ok)
 }
@@ -268,14 +278,18 @@ func TestOverrideKeyWithoutGroup(t *testing.T) {
 			}},
 		},
 	})
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 	_, ok := normalizer.typeFields[schema.GroupKind{Group: "", Kind: "ConfigMap"}]
 	assert.True(t, ok)
 }
 
 func TestKnownTypes(t *testing.T) {
 	typesData, err := os.ReadFile("./diffing_known_types.txt")
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 	for _, typeName := range strings.Split(string(typesData), "\n") {
 		if typeName = strings.TrimSpace(typeName); typeName == "" {
 			continue
