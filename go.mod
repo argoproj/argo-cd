@@ -9,7 +9,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
-	github.com/alicebob/miniredis/v2 v2.30.4
+	github.com/alicebob/miniredis/v2 v2.33.0
 	github.com/antonmedv/expr v1.15.2
 	github.com/argoproj/gitops-engine v0.7.1-0.20240628145506-f38075deb303
 	github.com/argoproj/notifications-engine v0.4.1-0.20240606074338-0802cd427621
@@ -77,7 +77,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/xanzy/go-gitlab v0.91.1
-	github.com/yuin/gopher-lua v1.1.0
+	github.com/yuin/gopher-lua v1.1.1
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.46.1
 	go.opentelemetry.io/otel v1.21.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.21.0
