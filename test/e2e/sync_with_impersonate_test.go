@@ -8,7 +8,7 @@ import (
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,7 +41,6 @@ func TestSyncWithImpersonateDefaultNamespaceServiceAccountNoRBAC(t *testing.T) {
 
 func TestSyncWithImpersonateDefaultNamespaceServiceAccountWithRBAC(t *testing.T) {
 	roleName := "default-sa-role"
-	//assert.NoError(t, err)
 	Given(t).
 		Path("guestbook").
 		When().
@@ -62,9 +61,9 @@ func TestSyncWithImpersonateDefaultNamespaceServiceAccountWithRBAC(t *testing.T)
 					Verbs:     []string{"*"},
 				},
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			err = createTestRoleBinding(roleName, "default", fixture.DeploymentNamespace())
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
@@ -93,9 +92,9 @@ func TestSyncWithImpersonateWithSyncServiceAccount(t *testing.T) {
 				},
 			}
 			err := createTestServiceAccount(serviceAccountName, fixture.DeploymentNamespace())
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			err = createTestAppProject(projectName, fixture.TestNamespace(), destinationServiceAccounts)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			err = createTestRole(roleName, fixture.DeploymentNamespace(), []rbac.PolicyRule{
 				{
 					APIGroups: []string{"apps", ""},
@@ -108,11 +107,10 @@ func TestSyncWithImpersonateWithSyncServiceAccount(t *testing.T) {
 					Verbs:     []string{"*"},
 				},
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			err = createTestRoleBinding(roleName, serviceAccountName, fixture.DeploymentNamespace())
-			assert.NoError(t, err)
-
+			require.NoError(t, err)
 		}).
 		CreateFromFile(func(app *Application) {
 			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{}}
@@ -145,9 +143,9 @@ func TestSyncWithImpersonateWithFalseServiceAccount(t *testing.T) {
 				},
 			}
 			err := createTestServiceAccount(serviceAccountName, fixture.DeploymentNamespace())
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			err = createTestAppProject(projectName, fixture.TestNamespace(), destinationServiceAccounts)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			err = createTestRole(roleName, fixture.DeploymentNamespace(), []rbac.PolicyRule{
 				{
 					APIGroups: []string{"apps", ""},
@@ -160,11 +158,10 @@ func TestSyncWithImpersonateWithFalseServiceAccount(t *testing.T) {
 					Verbs:     []string{"*"},
 				},
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			err = createTestRoleBinding(roleName, serviceAccountName, fixture.DeploymentNamespace())
-			assert.NoError(t, err)
-
+			require.NoError(t, err)
 		}).
 		CreateFromFile(func(app *Application) {
 			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{}}
@@ -192,9 +189,9 @@ func TestSyncWithNegationApplicationDestinationNamespace(t *testing.T) {
 				},
 			}
 			err := createTestServiceAccount(serviceAccountName, fixture.DeploymentNamespace())
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			err = createTestAppProject(projectName, fixture.TestNamespace(), destinationServiceAccounts)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			err = createTestRole(roleName, fixture.DeploymentNamespace(), []rbac.PolicyRule{
 				{
 					APIGroups: []string{"apps", ""},
@@ -207,9 +204,9 @@ func TestSyncWithNegationApplicationDestinationNamespace(t *testing.T) {
 					Verbs:     []string{"*"},
 				},
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			err = createTestRoleBinding(roleName, serviceAccountName, fixture.DeploymentNamespace())
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}).
 		CreateFromFile(func(app *Application) {
 			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{}}
@@ -222,7 +219,7 @@ func TestSyncWithNegationApplicationDestinationNamespace(t *testing.T) {
 			patch := []byte(fmt.Sprintf(`{"spec": {"destinations": [{"namespace": "%s"}]}}`, "!"+fixture.DeploymentNamespace()))
 
 			_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Patch(context.Background(), projectName, types.MergePatchType, patch, metav1.PatchOptions{})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}).
 		Refresh(RefreshTypeNormal).
 		Then().
