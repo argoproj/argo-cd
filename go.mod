@@ -5,7 +5,6 @@ go 1.21.0
 require (
 	code.gitea.io/sdk/gitea v0.18.0
 	github.com/Azure/kubelogin v0.0.20
-	github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
@@ -18,7 +17,8 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.6.0
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.6.0
-	github.com/casbin/casbin/v2 v2.77.2
+	github.com/casbin/casbin/v2 v2.97.0
+	github.com/casbin/govaluate v1.1.0
 	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/chainguard-dev/git-urls v1.0.2
 	github.com/coreos/go-oidc/v3 v3.6.0
@@ -143,8 +143,6 @@ require (
 	github.com/matttproud/golang_protobuf_extensions/v2 v2.0.0 // indirect
 	github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f // indirect
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8 // indirect
-	github.com/tidwall/gjson v1.14.4 // indirect
-	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.starlark.net v0.0.0-20230525235612-a134d8f9ddca // indirect

@@ -141,7 +141,11 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface
 	groups := jwtutil.GetScopeValues(mapClaims, scopes)
 
 	// Get groups to reduce the amount to checking groups
-	groupingPolicies := enforcer.GetGroupingPolicy()
+	groupingPolicies, err := enforcer.GetGroupingPolicy()
+	if err != nil {
+		log.WithError(err).Error("failed to get grouping policy")
+		return false
+	}
 	for gidx := range groups {
 		for gpidx := range groupingPolicies {
 			// Prefilter user groups by groups defined in the model
