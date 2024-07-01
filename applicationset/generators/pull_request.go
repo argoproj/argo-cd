@@ -24,13 +24,19 @@ const (
 type PullRequestGenerator struct {
 	client                    client.Client
 	selectServiceProviderFunc func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
-	SCMConfig
+	auth                      SCMAuthProviders
+	scmRootCAPath             string
+	allowedSCMProviders       []string
+	enableSCMProviders        bool
 }
 
-func NewPullRequestGenerator(client client.Client, scmConfig SCMConfig) Generator {
+func NewPullRequestGenerator(client client.Client, auth SCMAuthProviders, scmRootCAPath string, allowedScmProviders []string, enableSCMProviders bool) Generator {
 	g := &PullRequestGenerator{
-		client:    client,
-		SCMConfig: scmConfig,
+		client:              client,
+		auth:                auth,
+		scmRootCAPath:       scmRootCAPath,
+		allowedSCMProviders: allowedScmProviders,
+		enableSCMProviders:  enableSCMProviders,
 	}
 	g.selectServiceProviderFunc = g.selectServiceProvider
 	return g
@@ -187,7 +193,7 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alpha1.PullRequestGeneratorGithub, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
 	// use an app if it was configured
 	if cfg.AppSecretName != "" {
-		auth, err := g.GitHubApps.GetAuthSecret(ctx, cfg.AppSecretName)
+		auth, err := g.auth.GitHubApps.GetAuthSecret(ctx, cfg.AppSecretName)
 		if err != nil {
 			return nil, fmt.Errorf("error getting GitHub App secret: %w", err)
 		}
