@@ -545,8 +545,10 @@ func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject
 	return !window.CanSync(isManual)
 }
 
-const impersonateUserNameFormat = "system:serviceaccount:%s"
-const defaultServiceAccountName = "default"
+const (
+	impersonateUserNameFormat = "system:serviceaccount:%s"
+	defaultServiceAccountName = "default"
+)
 
 // setImpersonationConfig sets the impersonation config if the feature is enabled via environment variable explicitly.
 func setImpersonationConfig(cfg *rest.Config, app *v1alpha1.Application, proj *v1alpha1.AppProject) {
