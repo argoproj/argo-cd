@@ -1096,7 +1096,6 @@ func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 
 // NewProjectAddDestinationServiceAccountCommand returns a new instance of an `argocd proj add-destination-service-account` command
 func NewProjectAddDestinationServiceAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-
 	var serviceAccountNamespace string
 
 	buildApplicationDestinationServiceAccount := func(destination string, namespace string, serviceAccount string, serviceAccountNamespace string) v1alpha1.ApplicationDestinationServiceAccount {
@@ -1115,7 +1114,7 @@ func NewProjectAddDestinationServiceAccountCommand(clientOpts *argocdclient.Clie
 		}
 	}
 
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "add-destination-service-account PROJECT SERVER NAMESPACE SERVICE_ACCOUNT",
 		Short: "Add project destination's default service account",
 		Example: templates.Examples(`
@@ -1170,7 +1169,7 @@ func NewProjectAddDestinationServiceAccountCommand(clientOpts *argocdclient.Clie
 
 // NewProjectRemoveDestinationCommand returns a new instance of an `argocd proj remove-destination-service-account` command
 func NewProjectRemoveDestinationServiceAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "remove-destination-service-account PROJECT SERVER NAMESPACE SERVICE_ACCOUNT",
 		Short: "Remove default destination service account from the project",
 		Example: templates.Examples(`
