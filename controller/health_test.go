@@ -1,8 +1,10 @@
 package controller
 
 import (
+	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -19,12 +21,26 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/lua"
 )
 
-var app = &appv1.Application{}
+var (
+	app = &appv1.Application{
+		Status: appv1.ApplicationStatus{
+			Health: appv1.HealthStatus{
+				LastTransitionTime: metav1.NewTime(time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC)),
+			},
+		},
+	}
+	testTimestamp = metav1.NewTime(time.Date(2020, time.January, 1, 12, 0, 0, 0, time.UTC))
+)
 
 func initStatuses(resources []managedResource) []appv1.ResourceStatus {
 	statuses := make([]appv1.ResourceStatus, len(resources))
 	for i := range resources {
-		statuses[i] = appv1.ResourceStatus{Group: resources[i].Group, Kind: resources[i].Kind, Version: resources[i].Version}
+		statuses[i] = appv1.ResourceStatus{
+			Group:   resources[i].Group,
+			Kind:    resources[i].Kind,
+			Version: resources[i].Version,
+			Health:  &appv1.HealthStatus{LastTransitionTime: testTimestamp},
+		}
 	}
 	return statuses
 }
@@ -52,13 +68,22 @@ func TestSetApplicationHealth(t *testing.T) {
 		Group: "batch", Version: "v1", Kind: "Job", Live: &failedJob,
 	}}
 	resourceStatuses := initStatuses(resources)
+	// Populate health status
+	resourceStatuses[0].Health.Status = health.HealthStatusHealthy
 
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
+	firstHealthStatusTransitionTime := healthStatus.LastTransitionTime
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
+	assert.NotEqual(t, testTimestamp, firstHealthStatusTransitionTime)
 
 	assert.Equal(t, health.HealthStatusHealthy, resourceStatuses[0].Health.Status)
+	assert.Equal(t, testTimestamp, resourceStatuses[0].Health.LastTransitionTime)
 	assert.Equal(t, health.HealthStatusDegraded, resourceStatuses[1].Health.Status)
+	assert.Equal(t, firstHealthStatusTransitionTime, resourceStatuses[1].Health.LastTransitionTime)
+	// Mark both health statuses as degraded, as app is degraded.
+	resourceStatuses[0].Health.Status = health.HealthStatusDegraded
+	resourceStatuses[1].Health.Status = health.HealthStatusDegraded
 
 	// now mark the job as a hook and retry. it should ignore the hook and consider the app healthy
 	failedJob.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
@@ -93,6 +118,43 @@ func TestSetApplicationHealth_MissingResource(t *testing.T) {
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusMissing, healthStatus.Status)
+	assert.False(t, healthStatus.LastTransitionTime.IsZero())
+}
+
+func TestSetApplicationHealth_HealthImproves(t *testing.T) {
+	testCases := []struct {
+		oldStatus health.HealthStatusCode
+		newStatus health.HealthStatusCode
+	}{
+		{health.HealthStatusUnknown, health.HealthStatusDegraded},
+		{health.HealthStatusDegraded, health.HealthStatusProgressing},
+		{health.HealthStatusMissing, health.HealthStatusProgressing},
+		{health.HealthStatusProgressing, health.HealthStatusSuspended},
+		{health.HealthStatusSuspended, health.HealthStatusHealthy},
+	}
+
+	for _, tc := range testCases {
+		overrides := lua.ResourceHealthOverrides{
+			lua.GetConfigMapKey(appv1.ApplicationSchemaGroupVersionKind): appv1.ResourceOverride{
+				HealthLua: fmt.Sprintf("hs = {}\nhs.status = \"%s\"\nhs.message = \"\"return hs", tc.newStatus),
+			},
+		}
+
+		degradedApp := newAppLiveObj(tc.oldStatus)
+		timestamp := metav1.Now()
+		resources := []managedResource{{
+			Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind, Live: degradedApp,
+		}, {}}
+		resourceStatuses := initStatuses(resources)
+		resourceStatuses[0].Health.Status = tc.oldStatus
+
+		t.Run(string(fmt.Sprintf("%s to %s", tc.oldStatus, tc.newStatus)), func(t *testing.T) {
+			healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
+			require.NoError(t, err)
+			assert.Equal(t, tc.newStatus, healthStatus.Status)
+			assert.NotEqual(t, healthStatus.LastTransitionTime, timestamp)
+		})
+	}
 }
 
 func TestSetApplicationHealth_MissingResourceNoBuiltHealthCheck(t *testing.T) {
@@ -118,6 +180,7 @@ func TestSetApplicationHealth_MissingResourceNoBuiltHealthCheck(t *testing.T) {
 		}, app, true)
 		require.NoError(t, err)
 		assert.Equal(t, health.HealthStatusMissing, healthStatus.Status)
+		assert.False(t, healthStatus.LastTransitionTime.IsZero())
 	})
 }
 
