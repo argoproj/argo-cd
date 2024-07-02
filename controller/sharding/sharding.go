@@ -123,8 +123,18 @@ func LegacyDistributionFunction(replicas int) DistributionFunction {
 			return 0
 		} else {
 			h := fnv.New32a()
-			_, _ = h.Write([]byte(id))
+			_, err := h.Write([]byte(id))
+			if err != nil {
+				return -1
+			}
+			
 			shard := int32(h.Sum32() % uint32(replicas))
+			if shard < 0 {
+                            shard = 0
+                        } else if shard >= int32(replicas) {
+                            shard = int32(replicas) - 1
+                        }
+			
 			log.Debugf("Cluster with id=%s will be processed by shard %d", id, shard)
 			return int(shard)
 		}
