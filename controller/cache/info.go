@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/integer"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
@@ -203,8 +204,26 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 				externalURL := fmt.Sprintf("%s://%s", stringPort, host)
 
 				subPath := ""
+				// Removes trailing wildcard character if present
 				if nestedPath, ok, err := unstructured.NestedString(path, "path"); ok && err == nil {
 					subPath = strings.TrimSuffix(nestedPath, "*")
+				}
+				// Removes everything after the opening first parenthesis or the first bracket whoever comes first
+				firstIndexOfParenthesis := strings.Index(subPath, "(")
+				firstIndexOfBracket := strings.Index(subPath, "[")
+
+				// if both '(' and '[' are present, we remove everything after the first one
+				if firstIndexOfParenthesis != -1 && firstIndexOfBracket != -1 {
+					subPath = subPath[:integer.IntMin(firstIndexOfParenthesis, firstIndexOfBracket)]
+				} else {
+					// Removes everything after the opening first parenthesis for the case where path is a regex
+					if firstIndexOfParenthesis != -1 {
+						subPath = subPath[:firstIndexOfParenthesis]
+					}
+					// Removes everything after the first opening bracket for the case where path is a regex
+					if firstIndexOfBracket != -1 {
+						subPath = subPath[:firstIndexOfBracket]
+					}
 				}
 				externalURL += subPath
 				urlsSet[externalURL] = true

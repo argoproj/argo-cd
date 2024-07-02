@@ -158,6 +158,45 @@ var (
       ingress:
       - ip: 107.178.210.11`)
 
+	testGetIngressInfoRegexPath = strToUnstructured(`
+  apiVersion: extensions/v1beta1
+  kind: Ingress
+  metadata:
+    name: helm-guestbook
+    namespace: default
+    uid: "4"
+  spec:
+    backend:
+      serviceName: not-found-service
+      servicePort: 443
+    rules:
+    - host: helm-guestbook.com
+      http:
+        paths:
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: https
+          path: /*
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: 443
+          path: /base-path/(pattern1|pattern2|pattern3)(/.*)?/*
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: https
+          path: /base-path/secondary-path/(pattern1|pattern2|pattern3)[A-Z0-9]{3}(/.*)?/*
+        - backend:
+            serviceName: helm-guestbook
+            servicePort: https
+          path: /base-path/bracket-path/[A-Z0-9]{3}(pattern1|pattern2)(/.*)?/*
+    tls:
+    - host: helm-guestbook.com
+    secretName: my-tls-secret
+  status:
+    loadBalancer:
+      ingress:
+      - ip: 107.178.210.11`)
+
 	testIngressWithoutTls = strToUnstructured(`
   apiVersion: extensions/v1beta1
   kind: Ingress
@@ -432,6 +471,42 @@ func TestGetIngressInfoWildCardPath(t *testing.T) {
 			Name:      "helm-guestbook",
 		}},
 		ExternalURLs: []string{"https://helm-guestbook.example.com/"},
+	}, info.NetworkingInfo)
+}
+
+func TestGetIngressInfoRegexPath(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testGetIngressInfoRegexPath, info, []string{})
+	assert.Equal(t, 0, len(info.Info))
+	sort.Slice(info.NetworkingInfo.TargetRefs, func(i, j int) bool {
+		return strings.Compare(info.NetworkingInfo.TargetRefs[j].Name, info.NetworkingInfo.TargetRefs[i].Name) < 0
+	})
+
+	expectedExternalUrls := []string{
+		"https://helm-guestbook.com/",
+		"https://helm-guestbook.com/base-path/",
+		"https://helm-guestbook.com/base-path/secondary-path/",
+		"https://helm-guestbook.com/base-path/bracket-path/",
+	}
+	actualExternalUrls := info.NetworkingInfo.ExternalURLs
+	assert.ElementsMatch(t, expectedExternalUrls, actualExternalUrls)
+
+	// assigning it to nil because we just compared by ignoring order
+	info.NetworkingInfo.ExternalURLs = nil
+	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{
+		Ingress: []v1.LoadBalancerIngress{{IP: "107.178.210.11"}},
+		TargetRefs: []v1alpha1.ResourceRef{{
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "not-found-service",
+		}, {
+			Namespace: "default",
+			Group:     "",
+			Kind:      kube.ServiceKind,
+			Name:      "helm-guestbook",
+		}},
+		ExternalURLs: nil,
 	}, info.NetworkingInfo)
 }
 
