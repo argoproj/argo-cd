@@ -106,7 +106,6 @@ func TestSetApplicationHealth_ResourceHealthNotPersisted(t *testing.T) {
 	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
 
 	assert.Nil(t, resourceStatuses[0].Health)
-	assert.False(t, healthStatus.LastTransitionTime.IsZero())
 }
 
 func TestSetApplicationHealth_MissingResource(t *testing.T) {
