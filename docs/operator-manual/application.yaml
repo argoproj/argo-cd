@@ -124,11 +124,10 @@ spec:
               path: /spec/template/spec/containers/0/ports/0/containerPort
               value: 443
           patch: |-
-            - op: add
+            - op: add # Add new element to manifest
               path: /spec/template/spec/nodeSelector/
               value:
-                env: {{.env}}   # patch using attribute from generator
-
+                env: "pro"
 
     # directory
     directory:
