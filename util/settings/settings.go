@@ -122,6 +122,9 @@ type ArgoCDSettings struct {
 	// ExtensionConfig configurations related to ArgoCD proxy extensions. The value
 	// is a yaml string defined in extension.ExtensionConfigs struct.
 	ExtensionConfig string `json:"extensionConfig,omitempty"`
+	// ImpersonationEnabled indicates whether Application sync privileges can be decoupled from control plane
+	// privileges using impersonation
+	ImpersonationEnabled bool `json:"impersonationEnabled"`
 }
 
 type GoogleAnalytics struct {
@@ -515,6 +518,8 @@ const (
 	RespectRBAC            = "resource.respectRBAC"
 	RespectRBACValueStrict = "strict"
 	RespectRBACValueNormal = "normal"
+	// impersonationEnabledKey is the key to configure whether the application sync decoupling through impersonation feature is enabled
+	impersonationEnabledKey = "application.sync.impersonation.enabled"
 )
 
 var sourceTypeToEnableGenerationKey = map[v1alpha1.ApplicationSourceType]string{
@@ -1500,6 +1505,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.TrackingMethod = argoCDCM.Data[settingsResourceTrackingMethodKey]
 	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"
 	settings.ExtensionConfig = argoCDCM.Data[extensionConfig]
+	settings.ImpersonationEnabled = argoCDCM.Data[impersonationEnabledKey] == "true"
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid
@@ -2256,4 +2262,13 @@ func (mgr *SettingsManager) GetExcludeEventLabelKeys() []string {
 		}
 	}
 	return labelKeys
+}
+
+// GetIsImpersonationEnabled returns true if application sync with impersonation feature is enabled in argocd-cm configmap
+func (mgr *SettingsManager) GetIsImpersonationEnabled() bool {
+	cm, err := mgr.getConfigMap()
+	if err != nil {
+		return false
+	}
+	return cm.Data[impersonationEnabledKey] == "true"
 }

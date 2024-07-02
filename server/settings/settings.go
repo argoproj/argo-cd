@@ -112,6 +112,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		TrackingMethod:            trackingMethod,
 		ExecEnabled:               argoCDSettings.ExecEnabled,
 		AppsInAnyNamespaceEnabled: s.appsInAnyNamespaceEnabled,
+		ImpersonationEnabled:      argoCDSettings.ImpersonationEnabled,
 	}
 
 	if sessionmgr.LoggedIn(ctx) || s.disableAuth {
