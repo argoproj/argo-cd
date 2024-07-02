@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+//go:generate go run github.com/vektra/mockery/v2@v2.25.1 --name=ApplicationClient
+
 type ApplicationClient interface {
 	Get(ctx context.Context, in *appclient.ApplicationQuery, opts ...grpc.CallOption) (*v1alpha1.Application, error)
 

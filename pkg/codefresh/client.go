@@ -2,6 +2,7 @@ package codefresh
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -54,12 +55,28 @@ func (c *CodefreshClient) SendEvent(ctx context.Context, appName string, event *
 			return err
 		}
 
-		req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(newPayloadBytes))
+		// Create a buffer to hold the compressed data
+		var buf bytes.Buffer
+
+		// Create a gzip writer
+		gz := gzip.NewWriter(&buf)
+		defer gz.Close()
+
+		// Write the data to the gzip writer
+		if _, err := gz.Write(newPayloadBytes); err != nil {
+			return err
+		}
+		if err := gz.Close(); err != nil {
+			return err
+		}
+
+		req, err := http.NewRequestWithContext(ctx, "POST", url, io.NopCloser(&buf))
 		if err != nil {
 			return err
 		}
 
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Content-Encoding", "gzip")
 		req.Header.Set("Authorization", c.cfConfig.AuthToken)
 
 		res, err := c.httpClient.Do(req)

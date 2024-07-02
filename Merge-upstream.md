@@ -28,7 +28,7 @@ This docs include info about places where codefresh made it's customizations:
 19. `ui` - accept theirs.
 20. `util / kustomize` - merge, as it includes ours changes.
 21. `mkdocs.yaml` - apply theirs.
-22. `go.mod` - merge direct dependencies. go.sum accept theirs. Run go mod tidy.
+22. `go.mod` - merge direct dependencies. go.sum accept theirs. Run go mod tidy. Check `replace` section, perform cleanup if needed.
 23. `reposerver / sepository.go` - merge, includes: cf appVersion logic; type manifest struct (with path to file, rawManifest);
 
 

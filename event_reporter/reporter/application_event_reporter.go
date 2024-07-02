@@ -32,7 +32,6 @@ import (
 	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
-	appv1reg "github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -352,35 +351,13 @@ func (s *applicationEventReporter) processResource(
 	// get resource desired state
 	desiredState := getResourceDesiredState(&rs, desiredManifests, logCtx)
 
-	// get resource actual state
-	project := parentApplication.Spec.GetProject()
-	actualState, err := s.applicationServiceClient.GetResource(ctx, &application.ApplicationResourceRequest{
-		Name:         &parentApplication.Name,
-		AppNamespace: &parentApplication.Namespace,
-		Namespace:    &rs.Namespace,
-		ResourceName: &rs.Name,
-		Version:      &rs.Version,
-		Group:        &rs.Group,
-		Kind:         &rs.Kind,
-		Project:      &project,
-	})
+	actualState, err := s.getResourceActualState(ctx, logCtx, metricsEventType, rs, parentApplication, originalApplication)
+
 	if err != nil {
-		if !strings.Contains(err.Error(), "not found") {
-			// only return error if there is no point in trying to send the
-			// next resource. For example if the shared context has exceeded
-			// its deadline
-			if strings.Contains(err.Error(), "context deadline exceeded") {
-				return fmt.Errorf("failed to get actual state: %w", err)
-			}
-
-			s.metricsServer.IncErroredEventsCounter(metricsEventType, metrics.MetricEventUnknownErrorType, parentApplication.Name)
-			logCtx.WithError(err).Warn("failed to get actual state, resuming")
-			return nil
-		}
-
-		manifest := ""
-		// empty actual state
-		actualState = &application.ApplicationResourceResponse{Manifest: &manifest}
+		return err
+	}
+	if actualState == nil {
+		return nil
 	}
 
 	parentApplicationToReport, revisionMetadataToReport := s.getAppForResourceReporting(rs, ctx, parentApplication, revisionMetadata)
@@ -423,6 +400,56 @@ func (s *applicationEventReporter) processResource(
 	}
 
 	return nil
+}
+
+func (s *applicationEventReporter) getResourceActualState(ctx context.Context, logCtx *log.Entry, metricsEventType metrics.MetricEventType, rs appv1.ResourceStatus, parentApplication *appv1.Application, childApplication *appv1.Application) (*application.ApplicationResourceResponse, error) {
+	if isApp(rs) {
+		if childApplication.IsEmptyTypeMeta() {
+			// make sure there is type meta on object
+			childApplication.SetDefaultTypeMeta()
+		}
+
+		manifestBytes, err := json.Marshal(childApplication)
+
+		if err == nil && len(manifestBytes) > 0 {
+			manifest := string(manifestBytes)
+			return &application.ApplicationResourceResponse{Manifest: &manifest}, nil
+		}
+	}
+
+	// get resource actual state
+	project := parentApplication.Spec.GetProject()
+
+	actualState, err := s.applicationServiceClient.GetResource(ctx, &application.ApplicationResourceRequest{
+		Name:         &parentApplication.Name,
+		AppNamespace: &parentApplication.Namespace,
+		Namespace:    &rs.Namespace,
+		ResourceName: &rs.Name,
+		Version:      &rs.Version,
+		Group:        &rs.Group,
+		Kind:         &rs.Kind,
+		Project:      &project,
+	})
+	if err != nil {
+		if !strings.Contains(err.Error(), "not found") {
+			// only return error if there is no point in trying to send the
+			// next resource. For example if the shared context has exceeded
+			// its deadline
+			if strings.Contains(err.Error(), "context deadline exceeded") {
+				return nil, fmt.Errorf("failed to get actual state: %w", err)
+			}
+
+			s.metricsServer.IncErroredEventsCounter(metricsEventType, metrics.MetricEventUnknownErrorType, parentApplication.Name)
+			logCtx.WithError(err).Warn("failed to get actual state, resuming")
+			return nil, nil
+		}
+
+		manifest := ""
+		// empty actual state
+		actualState = &application.ApplicationResourceResponse{Manifest: &manifest}
+	}
+
+	return actualState, nil
 }
 
 func (s *applicationEventReporter) ShouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) (shouldSend bool, syncStatusChanged bool) {
@@ -769,10 +796,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 	a.DeepCopyInto(&obj)
 
 	// make sure there is type meta on object
-	obj.TypeMeta = metav1.TypeMeta{
-		Kind:       appv1reg.ApplicationKind,
-		APIVersion: appv1.SchemeGroupVersion.String(),
-	}
+	obj.SetDefaultTypeMeta()
 
 	if a.Status.OperationState != nil {
 		syncStarted = a.Status.OperationState.StartedAt
