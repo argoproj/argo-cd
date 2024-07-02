@@ -39,7 +39,12 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(health.HealthStatusHealthy))
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
+			assert.NoError(t, err)
+			assert.Equal(t, "argocd", output)
+		})
 }
 
 // make sure we can echo back the Git creds
@@ -66,6 +71,11 @@ func TestCustomToolWithGitCredsTemplate(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
+			assert.NoError(t, err)
+			assert.Equal(t, "argocd", output)
+		}).
+		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitUsername}")
 			require.NoError(t, err)
 			assert.Empty(t, output)
@@ -74,6 +84,42 @@ func TestCustomToolWithGitCredsTemplate(t *testing.T) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitPassword}")
 			require.NoError(t, err)
 			assert.Empty(t, output)
+		})
+}
+
+// make sure we can read the Git creds stored in a temporary file
+func TestCustomToolWithSSHGitCreds(t *testing.T) {
+	ctx := Given(t)
+	// path does not matter, we ignore it
+	ctx.
+		And(func() {
+			go startCMPServer(t, "./testdata/cmp-gitsshcreds")
+			time.Sleep(1 * time.Second)
+			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		CustomCACertAdded().
+		// add the private repo with ssh credentials
+		CustomSSHKnownHostsAdded().
+		SSHRepoURLAdded(true).
+		RepoURLType(RepoURLTypeSSH).
+		Path("cmp-gitsshcreds").
+		When().
+		CreateApp().
+		Sync().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitSSHCommand}")
+			assert.NoError(t, err)
+			assert.Regexp(t, `-i [^ ]+`, output, "test plugin expects $GIT_SSH_COMMAND to contain the option '-i <path to ssh private key>'")
+		}).
+		And(func(app *Application) {
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitSSHCredsFileSHA}")
+			assert.NoError(t, err)
+			assert.Regexp(t, `\w+\s+[\/\w]+`, output, "git ssh credentials file should be able to be read, hashing the contents")
 		})
 }
 

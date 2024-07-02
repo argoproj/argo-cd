@@ -27,6 +27,8 @@ import (
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/mattn/go-zglob"
 	log "github.com/sirupsen/logrus"
+
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // cmpTimeoutBuffer is the amount of time before the request deadline to timeout server-side work. It makes sure there's
@@ -445,4 +447,11 @@ func getParametersAnnouncement(ctx context.Context, appDir string, announcements
 		ParameterAnnouncements: augmentedAnnouncements,
 	}
 	return repoResponse, nil
+}
+
+// GetCmpSettings shares information about the plugin configuration to the reposerver
+func (s *Service) GetCmpSettings(ctx context.Context, in *emptypb.Empty) (*apiclient.CmpSettingsResponse, error) {
+	return &apiclient.CmpSettingsResponse{
+		ProvideGitCreds: s.initConstants.PluginConfig.Spec.ProvideGitCreds,
+	}, nil
 }

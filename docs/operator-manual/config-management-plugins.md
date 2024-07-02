@@ -113,6 +113,10 @@ spec:
   # If set to `true` then the plugin receives repository files with original file mode. Dangerous since the repository
   # might have executable files. Set to true only if you trust the CMP plugin authors.
   preserveFileMode: false
+
+  # If set to `true` then the plugin can retrieve git credentials from the reposerver during generate. Plugin authors 
+  # should ensure these credentials are appropriately protected during execution
+  provideGitCreds: false
 ```
 
 !!! note
@@ -493,3 +497,29 @@ spec:
     args: ["sample args"]
   preserveFileMode: true
 ```
+
+##### Provide Git Credentials
+
+By default, the config management plugin is responsible for providing its own credentials to additional Git repositories
+that may need to be accessed during manifest generation. The reposerver has these credentials available in its git creds
+store, to allow the plugin to access these credentials, you can set `provideGitCreds` to `true` in the plugin spec:
+
+!!! warning
+    Make sure you trust the plugin you are using. If you set `provideGitCreds` to `true` then the plugin will receive
+    credentials used to clone the source Git repository.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: pluginName
+spec:
+  init:
+    command: ["sample command"]
+    args: ["sample args"]
+  generate:
+    command: ["sample command"]
+    args: ["sample args"]
+  provideGitCreds: true
+```
+
