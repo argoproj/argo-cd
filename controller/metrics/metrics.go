@@ -217,8 +217,8 @@ func normalizeLabels(prefix string, appLabels []string) []string {
 	return results
 }
 
-func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo) {
-	collector := &clusterCollector{infoSource: source}
+func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo, clusters argoappv1.ClusterList) {
+	collector := &clusterCollector{infoSource: source, clusters: clusters}
 	go collector.Run(ctx)
 	m.registry.MustRegister(collector)
 }
