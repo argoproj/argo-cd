@@ -119,10 +119,6 @@ spec:
             kind: Deployment
             name: guestbook-ui
           patch: |-
-            - op: replace
-              path: /spec/template/spec/containers/0/ports/0/containerPort
-              value: 443
-          patch: |-
             - op: add # Add new element to manifest
               path: /spec/template/spec/nodeSelector/
               value:
