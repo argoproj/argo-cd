@@ -375,6 +375,10 @@ func (a *Actions) Sync(args ...string) *Actions {
 		args = append(args, "--replace")
 	}
 
+	if a.context.respectIgnoreDifferences {
+		args = append(args, "--respect-ignore-differences")
+	}
+
 	//  are you adding new context values? if you only use them for this func, then use args instead
 
 	a.runCli(args...)

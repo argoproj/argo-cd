@@ -103,6 +103,29 @@ func TestSyncWithApplyOutOfSyncOnly(t *testing.T) {
 		Expect(ResourceResultIs(ResourceResult{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: ns, Name: "guestbook-ui", Message: "deployment.apps/guestbook-ui configured", SyncPhase: SyncPhaseSync, HookPhase: OperationRunning, Status: ResultCodeSynced}))
 }
 
+func TestSyncRespectIgnoreDifferences(t *testing.T) {
+	var ns string
+	Given(t).
+		Path(guestbookPath).
+		RespectIgnoreDifferences().
+		When().
+		CreateFromFile(func(app *Application) {
+			ns = app.Spec.Destination.Namespace
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 1 }]`).
+		Sync().
+		Then().
+		// Only one resource should be in sync result
+		Expect(ResourceResultNumbering(1)).
+		Expect(ResourceResultIs(ResourceResult{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: ns, Name: "guestbook-ui", Message: "deployment.apps/guestbook-ui configured", SyncPhase: SyncPhaseSync, HookPhase: OperationRunning, Status: ResultCodeSynced}))
+}
+
 func TestSyncWithSkipHook(t *testing.T) {
 	fixture.SkipOnEnv(t, "OPENSHIFT")
 	Given(t).
