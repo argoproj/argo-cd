@@ -142,7 +142,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 			}, parametersGenerated,
 		)
-		return ctrl.Result{}, err
+		return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, err
 	}
 
 	parametersGenerated = true
