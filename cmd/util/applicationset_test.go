@@ -3,8 +3,9 @@ package util
 import (
 	"testing"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/assert"
+
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 var appSet = `apiVersion: argoproj.io/v1alpha1
@@ -36,5 +37,5 @@ func TestReadAppSet(t *testing.T) {
 	if err != nil {
 		t.Logf("Failed reading appset file")
 	}
-	assert.Equal(t, len(appSets), 1)
+	assert.Len(t, appSets, 1)
 }

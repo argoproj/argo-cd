@@ -19,7 +19,7 @@ func TestWithEarlierDeadline_NoDeadline(t *testing.T) {
 	assert.Equal(t, ctx, bufferedCtx)
 
 	_, hasDeadline := bufferedCtx.Deadline()
-	assert.Equal(t, false, hasDeadline)
+	assert.False(t, hasDeadline)
 }
 
 func TestWithEarlierDeadline_WithDeadline(t *testing.T) {

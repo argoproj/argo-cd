@@ -58,7 +58,7 @@ data:
   controller.resource.health.persist: "true"
   # Cache expiration default (default 24h0m0s)
   controller.default.cache.expiration: "24h0m0s"
-  # Sharding algorithm used to balance clusters accross application controller shards (default "legacy")
+  # Sharding algorithm used to balance clusters across application controller shards (default "legacy")
   controller.sharding.algorithm: legacy
   # Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit.
   controller.kubectl.parallelism.limit: "20"
@@ -93,6 +93,8 @@ data:
   # Semicolon-separated list of content types allowed on non-GET requests. Set an empty string to allow all. Be aware
   # that allowing content types besides application/json may make your API more vulnerable to CSRF attacks.
   server.api.content.types: "application/json"
+  # Number of webhook requests processed concurrently (default 50)
+  server.webhook.parallelism.limit: "50"
 
   # Set the logging format. One of: text|json (default "text")
   server.log.format: "text"
@@ -179,6 +181,8 @@ data:
   reposerver.git.lsremote.parallelism.limit: "0"
   # Git requests timeout.
   reposerver.git.request.timeout: "15s"
+  # Include hidden directories from Git
+  reposerver.include.hidden.directories: "false"
 
   # Disable TLS on the HTTP endpoint
   dexserver.disable.tls: "false"
@@ -211,6 +215,8 @@ data:
   applicationsetcontroller.allowed.scm.providers: "https://git.example.com/,https://gitlab.example.com/"
   # To disable SCM providers entirely (i.e. disable the SCM and PR generators), set this to "false". Default is "true".
   applicationsetcontroller.enable.scm.providers: "false"
+  # Number of webhook requests processed concurrently (default 50)
+  applicationsetcontroller.webhook.parallelism.limit: "50"
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")
