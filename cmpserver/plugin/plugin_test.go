@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
@@ -532,6 +533,76 @@ func TestEnviron(t *testing.T) {
 	})
 }
 
+func TestIsDiscoveryConfigured(t *testing.T) {
+	type fixture struct {
+		service *Service
+	}
+	setup := func(t *testing.T, opts ...pluginOpt) *fixture {
+		t.Helper()
+		cic := buildPluginConfig(opts...)
+		s := NewService(*cic)
+		return &fixture{
+			service: s,
+		}
+	}
+	t.Run("discovery is enabled when is configured by FileName", func(t *testing.T) {
+		// given
+		d := Discover{
+			FileName: "kustomization.yaml",
+		}
+		f := setup(t, withDiscover(d))
+
+		// when
+		isDiscoveryConfigured := f.service.isDiscoveryConfigured()
+
+		// then
+		assert.True(t, isDiscoveryConfigured)
+	})
+	t.Run("discovery is enabled when is configured by Glob", func(t *testing.T) {
+		// given
+		d := Discover{
+			Find: Find{
+				Glob: "**/*/plugin.yaml",
+			},
+		}
+		f := setup(t, withDiscover(d))
+
+		// when
+		isDiscoveryConfigured := f.service.isDiscoveryConfigured()
+
+		// then
+		assert.True(t, isDiscoveryConfigured)
+	})
+	t.Run("discovery is enabled when is configured by Command", func(t *testing.T) {
+		// given
+		d := Discover{
+			Find: Find{
+				Command: Command{
+					Command: []string{"echo", "test"},
+				},
+			},
+		}
+		f := setup(t, withDiscover(d))
+
+		// when
+		isDiscoveryConfigured := f.service.isDiscoveryConfigured()
+
+		// then
+		assert.True(t, isDiscoveryConfigured)
+	})
+	t.Run("discovery is disabled when discover is not configured", func(t *testing.T) {
+		// given
+		d := Discover{}
+		f := setup(t, withDiscover(d))
+
+		// when
+		isDiscoveryConfigured := f.service.isDiscoveryConfigured()
+
+		// then
+		assert.False(t, isDiscoveryConfigured)
+	})
+}
+
 type MockGenerateManifestStream struct {
 	metadataSent    bool
 	fileSent        bool
@@ -804,4 +875,45 @@ func Test_getCommandArgsToLog(t *testing.T) {
 			assert.Equal(t, tcc.expected, getCommandArgsToLog(exec.Command(tcc.args[0], tcc.args[1:]...)))
 		})
 	}
+}
+
+func TestService_CheckPluginConfiguration(t *testing.T) {
+	type fixture struct {
+		service *Service
+	}
+	setup := func(t *testing.T, opts ...pluginOpt) *fixture {
+		t.Helper()
+		cic := buildPluginConfig(opts...)
+		s := NewService(*cic)
+		return &fixture{
+			service: s,
+		}
+	}
+	t.Run("discovery is enabled when is configured", func(t *testing.T) {
+		// given
+		d := Discover{
+			FileName: "kustomization.yaml",
+		}
+		f := setup(t, withDiscover(d))
+
+		// when
+		resp, err := f.service.CheckPluginConfiguration(context.Background(), &empty.Empty{})
+
+		// then
+		require.NoError(t, err)
+		assert.True(t, resp.IsDiscoveryConfigured)
+	})
+
+	t.Run("discovery is disabled when is not configured", func(t *testing.T) {
+		// given
+		d := Discover{}
+		f := setup(t, withDiscover(d))
+
+		// when
+		resp, err := f.service.CheckPluginConfiguration(context.Background(), &empty.Empty{})
+
+		// then
+		require.NoError(t, err)
+		assert.False(t, resp.IsDiscoveryConfigured)
+	})
 }
