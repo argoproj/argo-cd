@@ -24,7 +24,7 @@ func TestMetricClusterConnectivity(t *testing.T) {
 				applications: []string{fakeApp},
 				responseContains: `
 # TYPE argocd_cluster_connection_status gauge
-argocd_cluster_connection_status{k8s_version="1.21",server="server1"} 1
+argocd_cluster_connection_status{k8s_version="1.21",server="server1",name="name1",name="name1"} 1
 `,
 			},
 			clustersInfo: []gitopsCache.ClusterInfo{
@@ -43,7 +43,7 @@ argocd_cluster_connection_status{k8s_version="1.21",server="server1"} 1
 				applications: []string{fakeApp},
 				responseContains: `
 # TYPE argocd_cluster_connection_status gauge
-argocd_cluster_connection_status{k8s_version="1.21",server="server1"} 0
+argocd_cluster_connection_status{k8s_version="1.21",server="server1",name="name1"} 0
 `,
 			},
 			clustersInfo: []gitopsCache.ClusterInfo{
@@ -62,9 +62,9 @@ argocd_cluster_connection_status{k8s_version="1.21",server="server1"} 0
 				applications: []string{fakeApp},
 				responseContains: `
 # TYPE argocd_cluster_connection_status gauge
-argocd_cluster_connection_status{k8s_version="1.21",server="server1"} 1
-argocd_cluster_connection_status{k8s_version="1.21",server="server2"} 1
-argocd_cluster_connection_status{k8s_version="1.21",server="server3"} 1
+argocd_cluster_connection_status{k8s_version="1.21",server="server1",name="name1"} 1
+argocd_cluster_connection_status{k8s_version="1.21",server="server2",name="name2"} 1
+argocd_cluster_connection_status{k8s_version="1.21",server="server3",name="name3"} 1
 `,
 			},
 			clustersInfo: []gitopsCache.ClusterInfo{
