@@ -129,11 +129,19 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 	}
 	if generatorConfig.GitLab != nil {
 		providerConfig := generatorConfig.GitLab
+		var caCerts []byte
+		var prErr error
+		if providerConfig.CAConfigMapKeyRef != nil {
+			caCerts, prErr = g.getConfigMapData(ctx, providerConfig.CAConfigMapKeyRef, applicationSetInfo.Namespace)
+			if prErr != nil {
+				return nil, fmt.Errorf("error fetching CA certificates from ConfigMap: %w", prErr)
+			}
+		}
 		token, err := g.getSecretRef(ctx, providerConfig.TokenRef, applicationSetInfo.Namespace)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %w", err)
 		}
-		return pullrequest.NewGitLabService(ctx, token, providerConfig.API, providerConfig.Project, providerConfig.Labels, providerConfig.PullRequestState, g.scmRootCAPath, providerConfig.Insecure)
+		return pullrequest.NewGitLabService(ctx, token, providerConfig.API, providerConfig.Project, providerConfig.Labels, providerConfig.PullRequestState, g.scmRootCAPath, providerConfig.Insecure, caCerts)
 	}
 	if generatorConfig.Gitea != nil {
 		providerConfig := generatorConfig.Gitea
@@ -145,20 +153,28 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 	}
 	if generatorConfig.BitbucketServer != nil {
 		providerConfig := generatorConfig.BitbucketServer
+		var caCerts []byte
+		var prErr error
+		if providerConfig.CAConfigMapKeyRef != nil {
+			caCerts, prErr = g.getConfigMapData(ctx, providerConfig.CAConfigMapKeyRef, applicationSetInfo.Namespace)
+			if prErr != nil {
+				return nil, fmt.Errorf("error fetching CA certificates from ConfigMap: %w", prErr)
+			}
+		}
 		if providerConfig.BearerToken != nil {
 			appToken, err := g.getSecretRef(ctx, providerConfig.BearerToken.TokenRef, applicationSetInfo.Namespace)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret Bearer token: %w", err)
 			}
-			return pullrequest.NewBitbucketServiceBearerToken(ctx, providerConfig.API, appToken, providerConfig.Project, providerConfig.Repo)
+			return pullrequest.NewBitbucketServiceBearerToken(ctx, providerConfig.API, appToken, providerConfig.Project, providerConfig.Repo, g.scmRootCAPath, providerConfig.Insecure, caCerts)
 		} else if providerConfig.BasicAuth != nil {
 			password, err := g.getSecretRef(ctx, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret token: %w", err)
 			}
-			return pullrequest.NewBitbucketServiceBasicAuth(ctx, providerConfig.BasicAuth.Username, password, providerConfig.API, providerConfig.Project, providerConfig.Repo)
+			return pullrequest.NewBitbucketServiceBasicAuth(ctx, providerConfig.BasicAuth.Username, password, providerConfig.API, providerConfig.Project, providerConfig.Repo, g.scmRootCAPath, providerConfig.Insecure, caCerts)
 		} else {
-			return pullrequest.NewBitbucketServiceNoAuth(ctx, providerConfig.API, providerConfig.Project, providerConfig.Repo)
+			return pullrequest.NewBitbucketServiceNoAuth(ctx, providerConfig.API, providerConfig.Project, providerConfig.Repo, g.scmRootCAPath, providerConfig.Insecure, caCerts)
 		}
 	}
 	if generatorConfig.Bitbucket != nil {
@@ -230,4 +246,23 @@ func (g *PullRequestGenerator) getSecretRef(ctx context.Context, ref *argoprojio
 		return "", fmt.Errorf("key %q in secret %s/%s not found", ref.Key, namespace, ref.SecretName)
 	}
 	return string(tokenBytes), nil
+}
+
+func (g *PullRequestGenerator) getConfigMapData(ctx context.Context, ref *argoprojiov1alpha1.ConfigMapKeyRef, namespace string) ([]byte, error) {
+	if ref == nil {
+		return nil, nil
+	}
+
+	configMap := &corev1.ConfigMap{}
+	err := g.client.Get(ctx, client.ObjectKey{Name: ref.ConfigMapName, Namespace: namespace}, configMap)
+	if err != nil {
+		return nil, err
+	}
+
+	data, ok := configMap.Data[ref.Key]
+	if !ok {
+		return nil, fmt.Errorf("key %s not found in ConfigMap %s", ref.Key, configMap.Name)
+	}
+
+	return []byte(data), nil
 }

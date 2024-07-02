@@ -2,6 +2,8 @@ package pull_request
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -55,7 +57,7 @@ func TestListPullRequestNoAuth(t *testing.T) {
 		defaultHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO")
+	svc, err := NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO", "", false, nil)
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
@@ -136,7 +138,7 @@ func TestListPullRequestPagination(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO")
+	svc, err := NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO", "", false, nil)
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
@@ -172,7 +174,7 @@ func TestListPullRequestBasicAuth(t *testing.T) {
 		defaultHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketServiceBasicAuth(context.Background(), "user", "password", ts.URL, "PROJECT", "REPO")
+	svc, err := NewBitbucketServiceBasicAuth(context.Background(), "user", "password", ts.URL, "PROJECT", "REPO", "", false, nil)
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
@@ -189,7 +191,7 @@ func TestListPullRequestBearerAuth(t *testing.T) {
 		defaultHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketServiceBearerToken(context.Background(), "tolkien", ts.URL, "PROJECT", "REPO")
+	svc, err := NewBitbucketServiceBearerToken(context.Background(), "tolkien", ts.URL, "PROJECT", "REPO", "", false, nil)
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
@@ -199,12 +201,79 @@ func TestListPullRequestBearerAuth(t *testing.T) {
 	assert.Equal(t, "cb3cf2e4d1517c83e720d2585b9402dbef71f992", pullRequests[0].HeadSHA)
 }
 
+func TestListPullRequestTLS(t *testing.T) {
+	tests := []struct {
+		name        string
+		tlsInsecure bool
+		passCerts   bool
+		requireErr  bool
+	}{
+		{
+			name:        "TLS Insecure: true, No Certs",
+			tlsInsecure: true,
+			passCerts:   false,
+			requireErr:  false,
+		},
+		{
+			name:        "TLS Insecure: true, With Certs",
+			tlsInsecure: true,
+			passCerts:   true,
+			requireErr:  false,
+		},
+		{
+			name:        "TLS Insecure: false, With Certs",
+			tlsInsecure: false,
+			passCerts:   true,
+			requireErr:  false,
+		},
+		{
+			name:        "TLS Insecure: false, No Certs",
+			tlsInsecure: false,
+			passCerts:   false,
+			requireErr:  true,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				defaultHandler(t)(w, r)
+			}))
+			defer ts.Close()
+
+			var certs []byte
+			if test.passCerts == true {
+				for _, cert := range ts.TLS.Certificates {
+					for _, c := range cert.Certificate {
+						parsedCert, err := x509.ParseCertificate(c)
+						require.NoError(t, err, "Failed to parse certificate")
+						certs = append(certs, pem.EncodeToMemory(&pem.Block{
+							Type:  "CERTIFICATE",
+							Bytes: parsedCert.Raw,
+						})...)
+					}
+				}
+			}
+
+			svc, err := NewBitbucketServiceBasicAuth(context.Background(), "user", "password", ts.URL, "PROJECT", "REPO", "", test.tlsInsecure, certs)
+			require.NoError(t, err)
+			_, err = ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
+			if test.requireErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestListResponseError(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer ts.Close()
-	svc, _ := NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO")
+	svc, _ := NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO", "", false, nil)
 	_, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.Error(t, err)
 }
@@ -229,7 +298,7 @@ func TestListResponseMalformed(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	svc, _ := NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO")
+	svc, _ := NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO", "", false, nil)
 	_, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.Error(t, err)
 }
@@ -254,7 +323,7 @@ func TestListResponseEmpty(t *testing.T) {
 		}
 	}))
 	defer ts.Close()
-	svc, err := NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO")
+	svc, err := NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO", "", false, nil)
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
 	require.NoError(t, err)
@@ -332,7 +401,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 	}))
 	defer ts.Close()
 	regexp := `feature-1[\d]{2}`
-	svc, err := NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO")
+	svc, err := NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO", "", false, nil)
 	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{
 		{
@@ -357,7 +426,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 	}, *pullRequests[1])
 
 	regexp = `.*2$`
-	svc, err = NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO")
+	svc, err = NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO", "", false, nil)
 	require.NoError(t, err)
 	pullRequests, err = ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{
 		{
@@ -375,7 +444,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 	}, *pullRequests[0])
 
 	regexp = `[\d{2}`
-	svc, err = NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO")
+	svc, err = NewBitbucketServiceNoAuth(context.Background(), ts.URL, "PROJECT", "REPO", "", false, nil)
 	require.NoError(t, err)
 	_, err = ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{
 		{
