@@ -1798,7 +1798,6 @@ func TestUpdateHealthStatusProgression(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "demo",
 			Namespace: "default",
-			Labels:    map[string]string{"status": "Degraded"},
 		},
 		Status: v1.DeploymentStatus{
 			ObservedGeneration: 0,
@@ -1851,28 +1850,34 @@ apps/Deployment:
 
 	testCases := []struct {
 		name           string
+		initialStatus  string
 		expectedStatus health.HealthStatusCode
 	}{
 		{
 			name:           "Degraded to Missing",
+			initialStatus:  "Degraded",
 			expectedStatus: health.HealthStatusMissing,
 		},
 		{
 			name:           "Missing to Progressing",
+			initialStatus:  "Missing",
 			expectedStatus: health.HealthStatusProgressing,
 		},
 		{
 			name:           "Progressing to Healthy",
+			initialStatus:  "Progressing",
 			expectedStatus: health.HealthStatusHealthy,
 		},
 		{
-			name:           "Healthy  to Degraded",
+			name:           "Healthy to Degraded",
+			initialStatus:  "Healthy",
 			expectedStatus: health.HealthStatusDegraded,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+                        deployment.SetLabels(map[string]string{"status": tc.initialStatus})
 			ctrl.processAppRefreshQueueItem()
 			apps, err := ctrl.appLister.List(labels.Everything())
 			require.NoError(t, err)
