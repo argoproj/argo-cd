@@ -146,11 +146,20 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			return nil, fmt.Errorf("scm provider: %w", err)
 		}
 	} else if providerConfig.Gitlab != nil {
-		token, err := g.getSecretRef(ctx, providerConfig.Gitlab.TokenRef, applicationSetInfo.Namespace)
+		providerConfig := providerConfig.Gitlab
+		var caCerts []byte
+		var scmError error
+		if providerConfig.CAConfigMapKeyRef != nil {
+			caCerts, scmError = g.getConfigMapData(ctx, providerConfig.CAConfigMapKeyRef, applicationSetInfo.Namespace)
+			if scmError != nil {
+				return nil, fmt.Errorf("error fetching CA certificates from ConfigMap: %w", scmError)
+			}
+		}
+		token, err := g.getSecretRef(ctx, providerConfig.TokenRef, applicationSetInfo.Namespace)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitlab token: %w", err)
 		}
-		provider, err = scm_provider.NewGitlabProvider(ctx, providerConfig.Gitlab.Group, token, providerConfig.Gitlab.API, providerConfig.Gitlab.AllBranches, providerConfig.Gitlab.IncludeSubgroups, providerConfig.Gitlab.WillIncludeSharedProjects(), providerConfig.Gitlab.Insecure, g.scmRootCAPath, providerConfig.Gitlab.Topic)
+		provider, err = scm_provider.NewGitlabProvider(ctx, providerConfig.Group, token, providerConfig.API, providerConfig.AllBranches, providerConfig.IncludeSubgroups, providerConfig.WillIncludeSharedProjects(), providerConfig.Insecure, g.scmRootCAPath, providerConfig.Topic, caCerts)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Gitlab service: %w", err)
 		}
@@ -165,21 +174,28 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		}
 	} else if providerConfig.BitbucketServer != nil {
 		providerConfig := providerConfig.BitbucketServer
+		var caCerts []byte
 		var scmError error
+		if providerConfig.CAConfigMapKeyRef != nil {
+			caCerts, scmError = g.getConfigMapData(ctx, providerConfig.CAConfigMapKeyRef, applicationSetInfo.Namespace)
+			if scmError != nil {
+				return nil, fmt.Errorf("error fetching CA certificates from ConfigMap: %w", scmError)
+			}
+		}
 		if providerConfig.BearerToken != nil {
 			appToken, err := g.getSecretRef(ctx, providerConfig.BearerToken.TokenRef, applicationSetInfo.Namespace)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret Bearer token: %w", err)
 			}
-			provider, scmError = scm_provider.NewBitbucketServerProviderBearerToken(ctx, appToken, providerConfig.API, providerConfig.Project, providerConfig.AllBranches)
+			provider, scmError = scm_provider.NewBitbucketServerProviderBearerToken(ctx, appToken, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, g.scmRootCAPath, providerConfig.Insecure, caCerts)
 		} else if providerConfig.BasicAuth != nil {
 			password, err := g.getSecretRef(ctx, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret token: %w", err)
 			}
-			provider, scmError = scm_provider.NewBitbucketServerProviderBasicAuth(ctx, providerConfig.BasicAuth.Username, password, providerConfig.API, providerConfig.Project, providerConfig.AllBranches)
+			provider, scmError = scm_provider.NewBitbucketServerProviderBasicAuth(ctx, providerConfig.BasicAuth.Username, password, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, g.scmRootCAPath, providerConfig.Insecure, caCerts)
 		} else {
-			provider, scmError = scm_provider.NewBitbucketServerProviderNoAuth(ctx, providerConfig.API, providerConfig.Project, providerConfig.AllBranches)
+			provider, scmError = scm_provider.NewBitbucketServerProviderNoAuth(ctx, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, g.scmRootCAPath, providerConfig.Insecure, caCerts)
 		}
 		if scmError != nil {
 			return nil, fmt.Errorf("error initializing Bitbucket Server service: %w", scmError)
@@ -274,6 +290,25 @@ func (g *SCMProviderGenerator) getSecretRef(ctx context.Context, ref *argoprojio
 		return "", fmt.Errorf("key %q in secret %s/%s not found", ref.Key, namespace, ref.SecretName)
 	}
 	return string(tokenBytes), nil
+}
+
+func (g *SCMProviderGenerator) getConfigMapData(ctx context.Context, ref *argoprojiov1alpha1.ConfigMapKeyRef, namespace string) ([]byte, error) {
+	if ref == nil {
+		return nil, nil
+	}
+
+	configMap := &corev1.ConfigMap{}
+	err := g.client.Get(ctx, client.ObjectKey{Name: ref.ConfigMapName, Namespace: namespace}, configMap)
+	if err != nil {
+		return nil, err
+	}
+
+	data, ok := configMap.Data[ref.Key]
+	if !ok {
+		return nil, fmt.Errorf("key %s not found in ConfigMap %s", ref.Key, configMap.Name)
+	}
+
+	return []byte(data), nil
 }
 
 func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argoprojiov1alpha1.SCMProviderGeneratorGithub, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) (scm_provider.SCMProviderService, error) {

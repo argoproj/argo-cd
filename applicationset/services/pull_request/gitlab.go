@@ -21,7 +21,7 @@ type GitLabService struct {
 
 var _ PullRequestService = (*GitLabService)(nil)
 
-func NewGitLabService(ctx context.Context, token, url, project string, labels []string, pullRequestState string, scmRootCAPath string, insecure bool) (PullRequestService, error) {
+func NewGitLabService(ctx context.Context, token, url, project string, labels []string, pullRequestState string, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
 	var clientOptionFns []gitlab.ClientOptionFunc
 
 	// Set a custom Gitlab base URL if one is provided
@@ -34,7 +34,7 @@ func NewGitLabService(ctx context.Context, token, url, project string, labels []
 	}
 
 	tr := http.DefaultTransport.(*http.Transport).Clone()
-	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure)
+	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure, caCerts)
 
 	retryClient := retryablehttp.NewClient()
 	retryClient.HTTPClient.Transport = tr

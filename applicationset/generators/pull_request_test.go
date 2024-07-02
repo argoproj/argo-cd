@@ -289,6 +289,73 @@ func TestPullRequestGetSecretRef(t *testing.T) {
 	}
 }
 
+func TestPullRequestGetConfigMapData(t *testing.T) {
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-configmap", Namespace: "test"},
+		Data: map[string]string{
+			"my-data": "configmap-data",
+		},
+	}
+	gen := &PullRequestGenerator{client: fake.NewClientBuilder().WithObjects(configMap).Build()}
+	ctx := context.Background()
+
+	cases := []struct {
+		name, namespace, data string
+		ref                   *argoprojiov1alpha1.ConfigMapKeyRef
+		hasError              bool
+	}{
+		{
+			name:      "valid ref",
+			ref:       &argoprojiov1alpha1.ConfigMapKeyRef{ConfigMapName: "test-configmap", Key: "my-data"},
+			namespace: "test",
+			data:      "configmap-data",
+			hasError:  false,
+		},
+		{
+			name:      "nil ref",
+			ref:       nil,
+			namespace: "test",
+			data:      "",
+			hasError:  false,
+		},
+		{
+			name:      "wrong name",
+			ref:       &argoprojiov1alpha1.ConfigMapKeyRef{ConfigMapName: "other", Key: "my-data"},
+			namespace: "test",
+			data:      "",
+			hasError:  true,
+		},
+		{
+			name:      "wrong key",
+			ref:       &argoprojiov1alpha1.ConfigMapKeyRef{ConfigMapName: "test-configmap", Key: "other-data"},
+			namespace: "test",
+			data:      "",
+			hasError:  true,
+		},
+		{
+			name:      "wrong namespace",
+			ref:       &argoprojiov1alpha1.ConfigMapKeyRef{ConfigMapName: "test-configmap", Key: "my-data"},
+			namespace: "other",
+			data:      "",
+			hasError:  true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			data, err := gen.getConfigMapData(ctx, c.ref, c.namespace)
+			if c.hasError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			if !c.hasError {
+				assert.Equal(t, c.data, string(data))
+			}
+		})
+	}
+}
+
 func TestAllowedSCMProviderPullRequest(t *testing.T) {
 	cases := []struct {
 		name           string
