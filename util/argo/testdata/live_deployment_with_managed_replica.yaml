@@ -129,6 +129,11 @@ spec:
       - image: gcr.io/heptio-images/ks-guestbook-demo:0.1
         imagePullPolicy: IfNotPresent
         name: guestbook-ui
+        env:
+        - name: DUPLICATED
+          value: "A"
+        - name: DUPLICATED
+          value: "B"
         ports:
         - containerPort: 80
           protocol: TCP
