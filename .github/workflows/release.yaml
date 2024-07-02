@@ -197,7 +197,7 @@ jobs:
           echo "hashes=$(sha256sum /tmp/sbom.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
       
       - name: Upload SBOM
-        uses: softprops/action-gh-release@69320dbe05506a9a39fc8ae11030b214ec2d1f87 # v2.0.5
+        uses: softprops/action-gh-release@a74c6b72af54cfa997e81df42d94703d6313a2d0 # v2.0.6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -295,7 +295,7 @@ jobs:
         if: ${{ env.UPDATE_VERSION == 'true' }}
 
       - name: Create PR to update VERSION on master branch
-        uses: peter-evans/create-pull-request@6d6857d36972b65feb161a90e484f2984215f83e # v6.0.5
+        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6.1.0
         with:
           commit-message: Bump version in master
           title: "chore: Bump version in master"
