@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	core "github.com/microsoft/azure-devops-go-api/azuredevops/core"
 	git "github.com/microsoft/azure-devops-go-api/azuredevops/git"
@@ -41,15 +42,19 @@ var (
 	_ AzureDevOpsClientFactory = &devopsFactoryImpl{}
 )
 
-func NewAzureDevOpsService(ctx context.Context, token, url, organization, project, repo string, labels []string) (PullRequestService, error) {
+func NewAzureDevOpsService(ctx context.Context, token, url, organization, project, repo string, labels []string, scmRootCAPath string, insecure bool) (PullRequestService, error) {
 	organizationUrl := buildURL(url, organization)
 
 	var connection *azuredevops.Connection
+
 	if token == "" {
 		connection = azuredevops.NewAnonymousConnection(organizationUrl)
 	} else {
 		connection = azuredevops.NewPatConnection(organizationUrl, token)
 	}
+
+	tlsConfig := utils.GetTlsConfig(scmRootCAPath, insecure)
+	connection.TlsConfig = tlsConfig
 
 	return &AzureDevOpsService{
 		clientFactory: &devopsFactoryImpl{connection: connection},

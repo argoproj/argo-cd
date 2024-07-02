@@ -1399,6 +1399,9 @@ message PullRequestGeneratorAzureDevOps {
 
   // Labels is used to filter the PRs that you want to target
   repeated string labels = 6;
+
+  // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
+  optional bool insecure = 7;
 }
 
 // PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.
@@ -2011,6 +2014,9 @@ message SCMProviderGeneratorAzureDevOps {
 
   // Scan all branches instead of just the default branch.
   optional bool allBranches = 9;
+
+  // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: False
+  optional bool insecure = 10;
 }
 
 // SCMProviderGeneratorBitbucket defines connection info specific to Bitbucket Cloud (API version 2).

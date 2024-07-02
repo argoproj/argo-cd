@@ -540,6 +540,8 @@ type SCMProviderGeneratorAzureDevOps struct {
 	AccessTokenRef *SecretRef `json:"accessTokenRef" protobuf:"bytes,8,opt,name=accessTokenRef"`
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,9,opt,name=allBranches"`
+	// Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: False
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,10,opt,name=insecure"`
 }
 
 type TagFilter struct {
@@ -645,6 +647,8 @@ type PullRequestGeneratorAzureDevOps struct {
 	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,5,opt,name=tokenRef"`
 	// Labels is used to filter the PRs that you want to target
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
+	// Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,7,opt,name=insecure"`
 }
 
 // PullRequestGenerator defines connection info specific to GitHub.

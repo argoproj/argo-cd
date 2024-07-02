@@ -5344,6 +5344,8 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      insecure:
+                                        type: boolean
                                       labels:
                                         items:
                                           type: string
@@ -6135,6 +6137,8 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
+                                      insecure:
+                                        type: boolean
                                       organization:
                                         type: string
                                       teamProject:
@@ -10404,6 +10408,8 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      insecure:
+                                        type: boolean
                                       labels:
                                         items:
                                           type: string
@@ -11195,6 +11201,8 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
+                                      insecure:
+                                        type: boolean
                                       organization:
                                         type: string
                                       teamProject:
@@ -13105,6 +13113,8 @@ spec:
                           properties:
                             api:
                               type: string
+                            insecure:
+                              type: boolean
                             labels:
                               items:
                                 type: string
@@ -13896,6 +13906,8 @@ spec:
                               type: boolean
                             api:
                               type: string
+                            insecure:
+                              type: boolean
                             organization:
                               type: string
                             teamProject:
