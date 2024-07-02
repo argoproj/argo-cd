@@ -370,8 +370,57 @@ func TestLoggedIn(t *testing.T) {
 }
 
 func TestUsername(t *testing.T) {
-	assert.Empty(t, Username(loggedOutContext))
-	assert.Equal(t, "bar", Username(loggedInContext))
+	type args struct {
+		ctx context.Context
+	}
+	tests := []struct {
+		name   string
+		args   args
+		want   string
+		setenv func()
+	}{
+		{
+			name: "Should returns empty string if context is logged out",
+			args: args{
+				ctx: loggedOutContext,
+			},
+			want: "",
+		},
+		{
+			name: "Should returns username if context is logged in",
+			args: args{
+				ctx: loggedInContext,
+			},
+			want: "bar",
+		},
+		{
+			name: "Should returns username if context is logged in and username is set",
+			args: args{
+				// nolint:staticcheck
+				ctx: context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "name": "baz"}),
+			},
+			want: "baz",
+		},
+		{
+			name: "Should returns username if context is logged in and env var is set",
+			args: args{
+				// nolint:staticcheck
+				ctx: context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "name": "baz", "preferred_username": "qux"}),
+			},
+			want: "qux",
+			setenv: func() {
+				t.Setenv("ARGOCD_DEFAULT_LOGIN_FIELD", "preferred_username")
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.setenv != nil {
+				tt.setenv()
+			}
+			assert.Equal(t, tt.want, Username(tt.args.ctx), tt.args.ctx)
+		})
+	}
 }
 
 func TestSub(t *testing.T) {
