@@ -472,7 +472,13 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 		return repoRefs, nil
 	}
 
-	for _, valueFile := range source.ValueFiles {
+	refFileParams := make([]string, 0)
+	for _, fileParam := range source.FileParameters {
+		refFileParams = append(refFileParams, fileParam.Path)
+	}
+	refCandidates := append(source.ValueFiles, refFileParams...)
+
+	for _, valueFile := range refCandidates {
 		if strings.HasPrefix(valueFile, "$") {
 			refVar := strings.Split(valueFile, "/")[0]
 
@@ -710,8 +716,14 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 		// check whether they should be replicated in resolveReferencedSources.
 		if q.HasMultipleSources {
 			if q.ApplicationSource.Helm != nil {
+				refFileParams := make([]string, 0)
+				for _, fileParam := range q.ApplicationSource.Helm.FileParameters {
+					refFileParams = append(refFileParams, fileParam.Path)
+				}
+				refCandidates := append(q.ApplicationSource.Helm.ValueFiles, refFileParams...)
+
 				// Checkout every one of the referenced sources to the target revision before generating Manifests
-				for _, valueFile := range q.ApplicationSource.Helm.ValueFiles {
+				for _, valueFile := range refCandidates {
 					if strings.HasPrefix(valueFile, "$") {
 						refVar := strings.Split(valueFile, "/")[0]
 
@@ -1158,9 +1170,19 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			}
 		}
 		for _, p := range appHelm.FileParameters {
-			resolvedPath, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(p.Path), q.GetValuesFileSchemes())
-			if err != nil {
-				return nil, fmt.Errorf("error resolving helm value file path: %w", err)
+			var resolvedPath pathutil.ResolvedFilePath
+			referencedSource := getReferencedSource(p.Path, q.RefSources)
+			if referencedSource != nil {
+				// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving the source
+				resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, gitRepoPaths, referencedSource.Repo.Project)
+				if err != nil {
+					return nil, fmt.Errorf("error resolving set-file path: %w", err)
+				}
+			} else {
+				resolvedPath, _, err = pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(p.Path), q.GetValuesFileSchemes())
+				if err != nil {
+					return nil, fmt.Errorf("error resolving helm value file path: %w", err)
+				}
 			}
 			templateOpts.SetFile[p.Name] = resolvedPath
 		}
