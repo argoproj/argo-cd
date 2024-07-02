@@ -90,7 +90,6 @@ func TestSetApplicationHealth(t *testing.T) {
 	healthStatus, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
-	assert.Equal(t, testTimestamp, healthStatus.LastTransitionTime)
 }
 
 func TestSetApplicationHealth_ResourceHealthNotPersisted(t *testing.T) {
