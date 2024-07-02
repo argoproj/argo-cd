@@ -466,7 +466,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("error getting value for %v: %w", settings.RespectRBAC, err)
 	}
 
-	clusterCacheConfig := cluster.RESTConfig()
+	clusterCacheConfig := cluster.RESTConfigWithUserAgent("cluster-cache")
 	// Controller dynamically fetches all resource types available on the cluster
 	// using a discovery API that may contain deprecated APIs.
 	// This causes log flooding when managing a large number of clusters.
@@ -786,7 +786,7 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 
 		var updateSettings []clustercache.UpdateSettingsFunc
 		if !reflect.DeepEqual(oldCluster.Config, newCluster.Config) {
-			updateSettings = append(updateSettings, clustercache.SetConfig(newCluster.RESTConfig()))
+			updateSettings = append(updateSettings, clustercache.SetConfig(newCluster.RESTConfigWithUserAgent("cluster-cache")))
 		}
 		if !reflect.DeepEqual(oldCluster.Namespaces, newCluster.Namespaces) {
 			updateSettings = append(updateSettings, clustercache.SetNamespaces(newCluster.Namespaces))

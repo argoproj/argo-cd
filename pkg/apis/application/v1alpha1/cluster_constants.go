@@ -33,6 +33,9 @@ const (
 
 	// EnvK8sTCPIdleConnTimeout is the duration when idle TCP connection to the K8s API servers should timeout
 	EnvK8sTCPIdleConnTimeout = "ARGOCD_K8S_TCP_IDLE_TIMEOUT"
+
+	// EnvK8sAcceptProtobufContentType enables protobuf accept content type headers for the k8s api
+	EnvK8sAcceptProtobufContentType = "ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED"
 )
 
 // Configuration variables associated with the Cluster API
@@ -61,4 +64,7 @@ var (
 
 	// K8sServerSideTimeout defines which server side timeout to send with each API request
 	K8sServerSideTimeout = env.ParseDurationFromEnv(EnvK8sTCPTimeout, 0, 0, math.MaxInt32*time.Second)
+
+	// EnvK8sAcceptProtobufContentTypeEnabled enables protobuf accept content type headers for the k8s api
+	EnvK8sAcceptProtobufContentTypeEnabled = env.ParseBoolFromEnv(EnvK8sAcceptProtobufContentType, false)
 )

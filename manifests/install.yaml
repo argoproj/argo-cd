@@ -21732,6 +21732,12 @@ spec:
               key: applicationsetcontroller.webhook.parallelism.limit
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: accept.protobuf.contenttype.enabled
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
@@ -21824,6 +21830,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: dexserver.disable.tls
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: accept.protobuf.contenttype.enabled
               name: argocd-cmd-params-cm
               optional: true
         image: ghcr.io/dexidp/dex:v2.38.0
@@ -21935,6 +21947,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: notificationscontroller.selfservice.enabled
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: accept.protobuf.contenttype.enabled
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
@@ -22694,6 +22712,12 @@ spec:
               key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: accept.protobuf.contenttype.enabled
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -22991,6 +23015,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.ignore.normalizer.jq.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: accept.protobuf.contenttype.enabled
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest

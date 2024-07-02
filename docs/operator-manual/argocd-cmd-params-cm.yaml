@@ -30,6 +30,10 @@ data:
   # Feature state: Beta
   application.namespaces: ns1, ns2, ns3
 
+  # Allows Argo CD components to receive Kubernetes API responses in protobuf instead of json, if possible. This may
+  # improve performance in serialization but is experimental.
+  accept.protobuf.contenttype.enabled: "false"
+
   ## Controller Properties
   # Repo server RPC call timeout seconds.
   controller.repo.server.timeout.seconds: "60"

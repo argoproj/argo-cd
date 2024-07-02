@@ -47,6 +47,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: dexserver.disable.tls
                 optional: true
+          - name: ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: accept.protobuf.contenttype.enabled
+                optional: true
         securityContext:
           capabilities:
             drop:

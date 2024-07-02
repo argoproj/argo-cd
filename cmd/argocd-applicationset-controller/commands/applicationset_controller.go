@@ -70,6 +70,7 @@ func NewCommand() *cobra.Command {
 		globalPreservedLabels        []string
 		enableScmProviders           bool
 		webhookParallelism           int
+		acceptProtobufContentType    bool
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -99,6 +100,9 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			restConfig.UserAgent = fmt.Sprintf("argocd-applicationset-controller/%s (%s)", vers.Version, vers.Platform)
+			if acceptProtobufContentType {
+				restConfig.AcceptContentTypes = runtime.ContentTypeProtobuf + "," + runtime.ContentTypeJSON
+			}
 
 			policyObj, exists := utils.Policies[policy]
 			if !exists {
@@ -127,14 +131,13 @@ func NewCommand() *cobra.Command {
 				}
 			}
 
-			cfg := ctrl.GetConfigOrDie()
-			err = appv1alpha1.SetK8SConfigDefaults(cfg)
+			err = appv1alpha1.SetK8SConfigDefaults(restConfig)
 			if err != nil {
 				log.Error(err, "Unable to apply K8s REST config defaults")
 				os.Exit(1)
 			}
 
-			mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+			mgr, err := ctrl.NewManager(restConfig, ctrl.Options{
 				Scheme: scheme,
 				Metrics: metricsserver.Options{
 					BindAddress: metricsAddr,
@@ -250,6 +253,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&globalPreservedAnnotations, "preserved-annotations", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS", []string{}, ","), "Sets global preserved field values for annotations")
 	command.Flags().StringSliceVar(&globalPreservedLabels, "preserved-labels", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS", []string{}, ","), "Sets global preserved field values for labels")
 	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
+	command.Flags().BoolVar(&acceptProtobufContentType, "accept-protobuf-content-type-enabled", env.ParseBoolFromEnv("ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED", false), "Allows the Argo CD applicationset controller to receive Kubernetes API responses in protobuf instead of json, if possible. This may improve performance in serialization but is experimental.")
+
 	return &command
 }
 
