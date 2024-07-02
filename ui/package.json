@@ -119,7 +119,7 @@
     "style-loader": "^0.20.1",
     "ts-jest": "^29.1.2",
     "ts-node": "10.9.2",
-    "typescript": "^4.9.5",
+    "typescript": "^5.5.3",
     "typescript-eslint": "^7.8.0",
     "webpack": "^5.84.1",
     "webpack-cli": "^4.9.2",
