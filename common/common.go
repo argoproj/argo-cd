@@ -83,8 +83,14 @@ const (
 	DefaultPluginSockFilePath = "/home/argocd/cmp-server/plugins"
 	// DefaultPluginConfigFilePath is the Default path to cmp server plugin configuration file
 	DefaultPluginConfigFilePath = "/home/argocd/cmp-server/config"
+	// DefaultPluginAuthSecretsPath is the Default path to cmp server plugin secrets
+	DefaultPluginAuthSecretsPath = "/home/argocd/cmp-server/secrets"
 	// PluginConfigFileName is the Plugin Config File is a ConfigManagementPlugin manifest located inside the plugin container
 	PluginConfigFileName = "plugin.yaml"
+	// PluginAuthSecretName is the name of the authentication secret located inside the plugin container
+	PluginAuthSecretName = "secret"
+	// PluginAuthTokenHeader is the name of the header to be used for auth. It must be lower case.
+	PluginAuthTokenHeader = "authtoken"
 )
 
 // Argo CD application related constants

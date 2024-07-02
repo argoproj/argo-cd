@@ -40,17 +40,21 @@ type ArgoCDCMPServer struct {
 }
 
 // NewServer returns a new instance of the Argo CD config management plugin server
-func NewServer(initConstants plugin.CMPServerInitConstants) (*ArgoCDCMPServer, error) {
+func NewServer(initConstants plugin.CMPServerInitConstants, authProvider func() string) (*ArgoCDCMPServer, error) {
 	if os.Getenv(common.EnvEnableGRPCTimeHistogramEnv) == "true" {
 		grpc_prometheus.EnableHandlingTimeHistogram()
 	}
 
+	token := authToken{
+		token: authProvider,
+	}
 	serverLog := log.NewEntry(log.StandardLogger())
 	streamInterceptors := []grpc.StreamServerInterceptor{
 		otelgrpc.StreamServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		grpc_logrus.StreamServerInterceptor(serverLog),
 		grpc_prometheus.StreamServerInterceptor,
 		grpc_util.PanicLoggerStreamServerInterceptor(serverLog),
+		token.streamInterceptor,
 	}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
 		otelgrpc.UnaryServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258

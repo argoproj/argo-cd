@@ -64,10 +64,10 @@ func NewCommand() *cobra.Command {
 				}
 				defer closer()
 			}
-
+			authProvider := authTokenProvider{filePath: configFilePath}
 			server, err := cmpserver.NewServer(plugin.CMPServerInitConstants{
 				PluginConfig: *config,
-			})
+			}, authProvider.getAuthToken)
 			errors.CheckError(err)
 
 			// register dumper

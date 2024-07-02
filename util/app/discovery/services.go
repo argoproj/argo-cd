@@ -10,6 +10,9 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -40,8 +43,8 @@ func (s *plugins) namespace() string {
 }
 
 func (s *plugins) serviceWatcher(c *kubernetes.Clientset) {
-	//	labelOptions := informers.WithTweakListOptions()
-	factory := informers.NewFilteredSharedInformerFactory(c, 10*time.Minute, s.namespace(),
+	// Short refresh here will refresh names more rapidly, in case the
+	factory := informers.NewFilteredSharedInformerFactory(c, 1*time.Minute, s.namespace(),
 		func(opts *metav1.ListOptions) {
 			opts.LabelSelector = "argocd.argoproj.io/plugin=true"
 		})
@@ -110,12 +113,31 @@ func (s *plugins) deleteByOwner(owner string) {
 func (s *plugins) addFromService(svc *corev1.Service) {
 	// You must have the rw lock to call this
 	for _, port := range svc.Spec.Ports {
+		address := fmt.Sprintf("%s.%s.svc.cluster.local:%d",
+			svc.ObjectMeta.Name, svc.ObjectMeta.Namespace, port.Port)
+		cmpclientset := pluginclient.NewConfigManagementPluginClientSet(address, pluginclient.Service)
+		_, cmpClient, err := cmpclientset.NewConfigManagementPluginClient()
+		if err != nil {
+			log.Errorf("Error connecting to cmp service %v", err)
+			continue
+		}
+		specificationStream, err := cmpClient.GetSpecification(
+			context.Background(),
+			grpc_retry.Disable(),
+		)
+		if err != nil {
+			log.Errorf("Error getting specification %v", err)
+		}
+		specificationResp, err := specificationStream.CloseAndRecv()
+		if err != nil {
+			log.Errorf("Error getting specification response %v", err)
+		}
+		name := specificationResp.GetName()
 		s.servicePlugins = append(s.servicePlugins, &plugin{
-			name:       port.Name,
+			name:       name,
 			pluginType: service,
-			address: fmt.Sprintf("%s.%s.svc.cluster.local:%d",
-				svc.ObjectMeta.Name, svc.ObjectMeta.Namespace, port.Port),
-			owner: namespacedName(svc).String(),
+			address:    address,
+			owner:      namespacedName(svc).String(),
 		})
 	}
 }

@@ -446,3 +446,26 @@ func getParametersAnnouncement(ctx context.Context, appDir string, announcements
 	}
 	return repoResponse, nil
 }
+
+// GetSpecificationStream defines an interface able to get the name of the config management plugin
+type GetSpecificationStream interface {
+	Stream
+	SendAndClose(response *apiclient.SpecificationResponse) error
+}
+
+// GetSpecification gets the name of the config management plugin.
+func (s *Service) GetSpecification(stream apiclient.ConfigManagementPluginService_GetSpecificationServer) error {
+	name := s.initConstants.PluginConfig.Metadata.Name
+	if s.initConstants.PluginConfig.Spec.Version != "" {
+		name = name + "-" + s.initConstants.PluginConfig.Spec.Version
+	}
+	specResponse := &apiclient.SpecificationResponse{
+		Name: name,
+	}
+
+	err := stream.SendAndClose(specResponse)
+	if err != nil {
+		return fmt.Errorf("error sending specification response: %w", err)
+	}
+	return nil
+}
