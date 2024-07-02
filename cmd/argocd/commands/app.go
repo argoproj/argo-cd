@@ -781,8 +781,6 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				}
 			}
 
-			// sourcePosition startes with 1, thus, it needs to be decreased by 1 to find the correct index in the list of sources
-			sourcePosition = sourcePosition - 1
 			visited := cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts, sourcePosition)
 			if visited == 0 {
 				log.Error("Please set at least one option to update")
