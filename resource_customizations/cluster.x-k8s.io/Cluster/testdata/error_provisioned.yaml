@@ -1,4 +1,4 @@
-apiVersion: cluster.x-k8s.io/v1alpha3
+apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster
 metadata:
   labels:
@@ -24,7 +24,7 @@ spec:
     kind: VSphereCluster
 status:
   conditions:
-    - lastTransitionTime: '2022-12-14T07:45:14Z'
+    - lastTransitionTime: '2024-04-11T14:07:09Z'
       message: >-
         Post "https://tvc01.foo.bar/sdk": host "tvc01.foo.bar:443"
         thumbprint does not match
@@ -33,22 +33,41 @@ status:
       severity: Error
       status: 'False'
       type: Ready
-    - lastTransitionTime: '2022-11-30T12:04:22Z'
+    - lastTransitionTime: '2023-03-27T06:30:54Z'
       status: 'True'
-      type: ControlPlaneInitialized
-    - lastTransitionTime: '2022-11-30T12:10:30Z'
+      type: Available
+    - lastTransitionTime: '2023-03-27T06:28:48Z'
       status: 'True'
-      type: ControlPlaneReady
-    - lastTransitionTime: '2022-12-14T07:45:14Z'
-      message: >-
-        Post "https://tvc01.foo.bar/sdk": host "tvc01.foo.bar:443"
-        thumbprint does not match
-        "0A:21:BD:FC:71:40:BD:96"
-      reason: VCenterUnreachable
-      severity: Error
-      status: 'False'
-      type: InfrastructureReady
-  controlPlaneReady: true
-  infrastructureReady: true
-  observedGeneration: 2
-  phase: Provisioned
+      type: CertificatesAvailable
+    - lastTransitionTime: '2024-04-11T14:07:09Z'
+      status: 'True'
+      type: ControlPlaneComponentsHealthy
+    - lastTransitionTime: '2024-04-11T14:07:09Z'
+      status: 'True'
+      type: EtcdClusterHealthy
+    - lastTransitionTime: '2023-03-27T12:36:52Z'
+      status: 'True'
+      type: MachinesCreated
+    - lastTransitionTime: '2024-04-11T14:05:45Z'
+      status: 'True'
+      type: MachinesReady
+    - lastTransitionTime: '2024-04-11T14:06:26Z'
+      status: 'True'
+      type: MachinesSpecUpToDate
+    - lastTransitionTime: '2024-04-11T14:07:09Z'
+      status: 'True'
+      type: Resized
+  initialized: true
+  lastRemediation:
+    machine: test-fqblw-vj29n
+    retryCount: 0
+    timestamp: '2024-02-06T10:03:56Z'
+  observedGeneration: 24
+  ready: true
+  readyReplicas: 3
+  replicas: 3
+  selector: >-
+    cluster.x-k8s.io/cluster-name=test,cluster.x-k8s.io/control-plane
+  unavailableReplicas: 0
+  updatedReplicas: 3
+  version: v1.28.8
