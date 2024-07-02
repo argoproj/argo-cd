@@ -178,6 +178,12 @@ spec:
           passwordRef:
             secretName: mypassword
             key: password
+        # Credentials for Bearer Token (App Token) authentication. Either basicAuth or bearerToken
+        # authentication is required to access private repositories
+        bearerToken:
+          tokenRef:
+            secretName: repotoken
+            key: token
       # Labels are not supported by Bitbucket Server, so filtering by label is not possible.
       # Filter PRs using the source branch name. (optional)
       filters:
