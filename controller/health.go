@@ -86,17 +86,15 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 
 		if health.IsWorse(appHealth.Status, healthStatus.Status) {
 			appHealth.Status = healthStatus.Status
-			if persistResourceHealth {
-				appHealth.LastTransitionTime = statuses[i].Health.LastTransitionTime
-			} else {
-				appHealth.LastTransitionTime = now
-			}
-		} else if healthStatus.Status == health.HealthStatusHealthy {
-			appHealth.LastTransitionTime = lastTransitionTime
 		}
 	}
 	if persistResourceHealth {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationInline
+		if app.Status.Health.Status == appHealth.Status {
+			appHealth.LastTransitionTime = lastTransitionTime
+		} else {
+			appHealth.LastTransitionTime = metav1.Now()
+		}
 	} else {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationAppTree
 	}

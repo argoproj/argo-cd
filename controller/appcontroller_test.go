@@ -1709,7 +1709,7 @@ apps/Deployment:
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-                        deployment.SetLabels(map[string]string{"status": tc.initialStatus})
+			deployment.SetLabels(map[string]string{"status": tc.initialStatus})
 			ctrl.processAppRefreshQueueItem()
 			apps, err := ctrl.appLister.List(labels.Everything())
 			require.NoError(t, err)
