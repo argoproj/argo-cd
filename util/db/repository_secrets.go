@@ -312,6 +312,7 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 		GithubAppPrivateKey:        string(secret.Data["githubAppPrivateKey"]),
 		GitHubAppEnterpriseBaseURL: string(secret.Data["githubAppEnterpriseBaseUrl"]),
 		Proxy:                      string(secret.Data["proxy"]),
+		NoProxy:                    string(secret.Data["noProxy"]),
 		Project:                    string(secret.Data["project"]),
 		GCPServiceAccountKey:       string(secret.Data["gcpServiceAccountKey"]),
 	}
@@ -384,6 +385,7 @@ func repositoryToSecret(repository *appsv1.Repository, secret *corev1.Secret) {
 	updateSecretBool(secret, "insecure", repository.Insecure)
 	updateSecretBool(secret, "enableLfs", repository.EnableLFS)
 	updateSecretString(secret, "proxy", repository.Proxy)
+	updateSecretString(secret, "noProxy", repository.NoProxy)
 	updateSecretString(secret, "gcpServiceAccountKey", repository.GCPServiceAccountKey)
 	updateSecretBool(secret, "forceHttpBasicAuth", repository.ForceHttpBasicAuth)
 	addSecretMetadata(secret, common.LabelValueSecretTypeRepository)
@@ -402,6 +404,7 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 		GitHubAppEnterpriseBaseURL: string(secret.Data["githubAppEnterpriseBaseUrl"]),
 		GCPServiceAccountKey:       string(secret.Data["gcpServiceAccountKey"]),
 		Proxy:                      string(secret.Data["proxy"]),
+		NoProxy:                    string(secret.Data["noProxy"]),
 	}
 
 	enableOCI, err := boolOrFalse(secret, "enableOCI")
@@ -450,6 +453,7 @@ func repoCredsToSecret(repoCreds *appsv1.RepoCreds, secret *corev1.Secret) {
 	updateSecretString(secret, "githubAppEnterpriseBaseUrl", repoCreds.GitHubAppEnterpriseBaseURL)
 	updateSecretString(secret, "gcpServiceAccountKey", repoCreds.GCPServiceAccountKey)
 	updateSecretString(secret, "proxy", repoCreds.Proxy)
+	updateSecretString(secret, "noProxy", repoCreds.NoProxy)
 	updateSecretBool(secret, "forceHttpBasicAuth", repoCreds.ForceHttpBasicAuth)
 	addSecretMetadata(secret, common.LabelValueSecretTypeRepoCreds)
 }
