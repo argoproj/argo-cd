@@ -95,6 +95,7 @@ func (m *MockKubectl) DeleteResource(ctx context.Context, config *rest.Config, g
 func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 	return newFakeControllerWithResync(data, time.Minute, repoErr)
 }
+
 func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, repoErr error) *ApplicationController {
 	var clust corev1.Secret
 	err := yaml.Unmarshal([]byte(fakeCluster), &clust)
@@ -1788,6 +1789,7 @@ apps/Deployment:
 		})
 	}
 }
+
 func TestUpdateHealthStatusProgression(t *testing.T) {
 	app := newFakeAppWithHealthAndTime(health.HealthStatusDegraded, testTimestamp)
 	deployment := kube.MustToUnstructured(&v1.Deployment{
