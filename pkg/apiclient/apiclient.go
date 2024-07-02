@@ -126,6 +126,8 @@ type ClientOptions struct {
 	RedisHaProxyName     string
 	RedisName            string
 	RepoServerName       string
+	GRPCDialOpts         []grpc.DialOption
+	GRPCRetryOpts        []grpc_retry.CallOption
 }
 
 type client struct {
@@ -139,6 +141,8 @@ type client struct {
 	UserAgent       string
 	GRPCWeb         bool
 	GRPCWebRootPath string
+	GRPCDialOpts    []grpc.DialOption
+	GRPCRetryOpts   []grpc_retry.CallOption
 	Headers         []string
 
 	proxyMutex      *sync.Mutex
@@ -308,7 +312,8 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		}
 	}
 	c.Headers = opts.Headers
-
+	c.GRPCRetryOpts = opts.GRPCRetryOpts
+	c.GRPCDialOpts = opts.GRPCDialOpts
 	return &c, nil
 }
 
@@ -515,6 +520,9 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),
 	}
+	if len(c.GRPCRetryOpts) > 0 {
+		retryOpts = append(retryOpts, c.GRPCRetryOpts...)
+	}
 	var dialOpts []grpc.DialOption
 	dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(endpointCredentials))
 	dialOpts = append(dialOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)))
@@ -522,7 +530,9 @@ func (c *client) newConn() (*grpc.ClientConn, io.Closer, error) {
 	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(grpc_retry.UnaryClientInterceptor(retryOpts...))))
 	dialOpts = append(dialOpts, grpc.WithUnaryInterceptor(grpc_util.OTELUnaryClientInterceptor()))
 	dialOpts = append(dialOpts, grpc.WithStreamInterceptor(grpc_util.OTELStreamClientInterceptor()))
-
+	if c.GRPCDialOpts != nil {
+		dialOpts = append(dialOpts, c.GRPCDialOpts...)
+	}
 	ctx := context.Background()
 
 	headers, err := parseHeaders(c.Headers)
