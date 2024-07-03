@@ -331,13 +331,7 @@ func oauth2Login(
 	}
 	fmt.Printf("Performing %s flow login: %s\n", grantType, url)
 	time.Sleep(1 * time.Second)
-	if ssoLaunchBrowser {
-		fmt.Printf("Opening default browser for authentication\n")
-		err = open.Start(url)
-		errors.CheckError(err)
-	} else {
-		fmt.Printf("To authenticate, copy-and-paste the following URL into your preferred browser: %s\n", url)
-	}
+	ssoBrowserFlow(url, ssoLaunchBrowser)
 	go func() {
 		log.Debugf("Listen: %s", srv.Addr)
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
@@ -368,4 +362,14 @@ func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username,
 	createdSession, err := sessionIf.Create(ctx, &sessionRequest)
 	errors.CheckError(err)
 	return createdSession.Token
+}
+
+func ssoBrowserFlow(url string, ssoLaunchBrowser bool) {
+	if ssoLaunchBrowser {
+		fmt.Printf("Opening default browser for authentication\n")
+		err := open.Start(url)
+		errors.CheckError(err)
+	} else {
+		fmt.Printf("To authenticate, copy-and-paste the following URL into your preferred browser: %s\n", url)
+	}
 }
