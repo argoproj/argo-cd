@@ -167,7 +167,7 @@ func commitChanges(version string) error {
 		return fmt.Errorf("failed to add changelog: %w", err)
 	}
 
-	cmd = exec.Command("git", "commit", "-a", "-m", fmt.Sprintf("chore: update version to %s", version))
+	cmd = exec.Command("git", "commit", "-m", fmt.Sprintf("chore: update version to %s", version))
 	if output, err := cmd.CombinedOutput(); err != nil {
 		fmt.Print(string(output))
 		return fmt.Errorf("failed to commit changes: %w", err)
