@@ -93,7 +93,8 @@ COPY ./test/container/entrypoint.sh /usr/local/bin
 ARG UID
 
 # Prepare user configuration & build environments
-RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
+RUN userdel -r ubuntu && \
+	useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user && \
     mkdir -p /home/user/.kube && \
     mkdir -p /home/user/.cache && \
