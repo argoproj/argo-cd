@@ -55,9 +55,9 @@ func Test_userDisplayName_sub(t *testing.T) {
 	assert.Equal(t, expectedName, actualName)
 }
 
-func Test_ssoBrowserFlow_ssoLaunchBrowser_false(t *testing.T) {
+func Test_ssoAuthFlow_ssoLaunchBrowser_false(t *testing.T) {
 	out, _ := captureStdout(func() {
-		ssoBrowserFlow("http://test-sso-browser-flow.com", false)
+		ssoAuthFlow("http://test-sso-browser-flow.com", false)
 	})
 
 	assert.Contains(t, out, "To authenticate, copy-and-paste the following URL into your preferred browser: http://test-sso-browser-flow.com")

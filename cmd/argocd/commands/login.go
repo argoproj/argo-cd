@@ -331,7 +331,7 @@ func oauth2Login(
 	}
 	fmt.Printf("Performing %s flow login: %s\n", grantType, url)
 	time.Sleep(1 * time.Second)
-	ssoBrowserFlow(url, ssoLaunchBrowser)
+	ssoAuthFlow(url, ssoLaunchBrowser)
 	go func() {
 		log.Debugf("Listen: %s", srv.Addr)
 		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
@@ -364,7 +364,7 @@ func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username,
 	return createdSession.Token
 }
 
-func ssoBrowserFlow(url string, ssoLaunchBrowser bool) {
+func ssoAuthFlow(url string, ssoLaunchBrowser bool) {
 	if ssoLaunchBrowser {
 		fmt.Printf("Opening system default browser for authentication\n")
 		err := open.Start(url)
