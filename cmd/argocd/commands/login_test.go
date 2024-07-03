@@ -59,5 +59,5 @@ func Test_ssoBrowserFlow_ssoLaunchBrowser_false(t *testing.T) {
 		ssoBrowserFlow("http://test-sso-browser-flow.com", false)
 	})
 
-	assert.Contains(t, out, "To authenticate, copy-and-paste the following URL into your preferred browser: http://test.com")
+	assert.Contains(t, out, "To authenticate, copy-and-paste the following URL into your preferred browser: http://test-sso-browser-flow.com")
 }
