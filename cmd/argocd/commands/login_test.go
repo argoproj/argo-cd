@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	utils "github.com/argoproj/argo-cd/v2/util/io"
+
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 )
