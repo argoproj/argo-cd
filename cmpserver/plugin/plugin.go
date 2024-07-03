@@ -240,6 +240,9 @@ func (s *Service) generateManifestGeneric(stream GenerateManifestStream) error {
 	if err != nil {
 		return fmt.Errorf("error generating manifests: %w", err)
 	}
+
+	log.Tracef("Generated manifests result: %s", response.Manifests)
+
 	err = stream.SendAndClose(response)
 	if err != nil {
 		return fmt.Errorf("error sending manifest response: %w", err)

@@ -21,8 +21,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
-//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=RepoServerServiceClient
-
 // MaxGRPCMessageSize contains max grpc message size
 var MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 100, 0, math.MaxInt32) * 1024 * 1024
 

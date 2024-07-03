@@ -14,7 +14,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=Service
 type Service interface {
 	GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string, project string) (*shared.CommitMetadata, error)
 	GetAppDetails(ctx context.Context, app *v1alpha1.Application) (*shared.AppDetail, error)
