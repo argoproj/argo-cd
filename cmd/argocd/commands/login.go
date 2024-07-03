@@ -185,7 +185,7 @@ argocd login cd.argoproj.io --core`,
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
 	command.Flags().
 		BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
-	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the default browser when performing SSO login")
+	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the system default browser when performing SSO login")
 	return command
 }
 
@@ -366,7 +366,7 @@ func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username,
 
 func ssoBrowserFlow(url string, ssoLaunchBrowser bool) {
 	if ssoLaunchBrowser {
-		fmt.Printf("Opening default browser for authentication\n")
+		fmt.Printf("Opening system default browser for authentication\n")
 		err := open.Start(url)
 		errors.CheckError(err)
 	} else {
