@@ -148,12 +148,12 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 	return &a, nil
 }
 
-func (a *ClientApp) oauth2Config(scopes []string) (*oauth2.Config, error) {
+func (a *ClientApp) oauth2Config(request *http.Request, scopes []string) (*oauth2.Config, error) {
 	endpoint, err := a.provider.Endpoint()
 	if err != nil {
 		return nil, err
 	}
-	redirectURL, err := a.settings.RedirectURLForRequest(r)
+	redirectURL, err := a.settings.RedirectURLForRequest(request)
 	if err != nil {
 		redirectURL = a.redirectURI
 	}
@@ -297,7 +297,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		scopes = config.RequestedScopes
 		opts = AppendClaimsAuthenticationRequestParameter(opts, config.RequestedIDTokenClaims)
 	}
-	oauth2Config, err := a.oauth2Config(GetScopesOrDefault(scopes))
+	oauth2Config, err := a.oauth2Config(r, GetScopesOrDefault(scopes))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -336,7 +336,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 // HandleCallback is the callback handler for an OAuth2 login flow
 func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
-	oauth2Config, err := a.oauth2Config(nil)
+	oauth2Config, err := a.oauth2Config(r, nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
