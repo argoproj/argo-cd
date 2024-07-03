@@ -192,6 +192,10 @@ endif
 .PHONY: all
 all: cli image
 
+.PHONY: mockgen
+mockgen:
+	./hack/generate-mock.sh
+
 .PHONY: gogen
 gogen:
 	export GO111MODULE=off
@@ -231,11 +235,11 @@ clidocsgen:
 
 
 .PHONY: codegen-local
-codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
+codegen-local: mod-vendor-local mockgen gogen protogen clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
 	rm -rf vendor/
 
 .PHONY: codegen-local-fast
-codegen-local-fast: gogen protogen-fast clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
+codegen-local-fast: mockgen gogen protogen-fast clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
 
 .PHONY: codegen
 codegen: test-tools-image
