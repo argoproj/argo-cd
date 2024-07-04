@@ -146,21 +146,33 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 	} else {
 		log.Warnf("Values file %s is not allowed: %v", filepath.Join(appPath, "values.yaml"), err)
 	}
+	log.Infof("ValueFiles: %s", valuesFiles)
 	for i := range valuesFiles {
 		file := string(valuesFiles[i])
+		log.Infof("File: %s", file)
 		var fileValues []byte
 		parsedURL, err := url.ParseRequestURI(file)
 		if err == nil && (parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
 			fileValues, err = config.ReadRemoteFile(file)
 		} else {
-			if _, err := os.Stat(file); os.IsNotExist(err) {
+			log.Info("Herrrrrrreeeeeeee")
+			_, err := os.Stat(file)
+			if os.IsNotExist(err) {
+				log.Infof("File not found %s", file)
+				continue
+			}
+			if os.ErrPermission == err {
+				log.Infof("File does not have permissions %s", file)
 				continue
 			}
 			fileValues, err = os.ReadFile(file)
+			log.Infof("FileValues1: %s", string(fileValues))
 		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to read value file %s: %w", file, err)
 		}
+		log.Infof("Read values file %s", file)
+		log.Infof("FileValues: %s", string(fileValues))
 		values = append(values, string(fileValues))
 	}
 
