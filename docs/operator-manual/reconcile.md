@@ -111,3 +111,9 @@ data:
     # actually changing in content.
     - .status.conditions[].lastTransitionTime
 ```
+
+### Analyzing logs to find slow steps of reconciliation
+
+There are number of logs with timing information about reconcile like main "Reconciliation completed" and for called functions like "Finished getting resource tree". This information is attached as structured data. Each of those has a number of `_ms` fields like `time_ms` for total function execution duration and additional ones like `process_managed_resources_ms` for some parts of the function. You'd need some code understanding to make use of these. Search for the timing key in the code and look at the code between the corresponding checkpoint and a previous checkpoint. The slowness can be due to suboptimal algorithm (like [processing managed resources in getResourceTree](https://github.com/argoproj/argo-cd/issues/18929)), a lot of resources in the cluster, big applications or a combination of these and other factors. You might open an issue and try to fix it or ask the community after finding some inefficiencies.
+
+To query logs in Datadog for example, use `@application:*name` filter and make sure to not have your logs sampled. Also, Datadog processes structured fields much better if ArgoCD outputs them as JSON (configurable via `controller.log.format: json` in `argocd-cmd-params-cm` for application controller). Make sure to include debug logs (configurable via `controller.log.level: debug` for application controller), since a lot of logs with timings are on debug level. Note, that `argocd-cmd-params-cm` updates would require you to restart the application controller to take effect.
