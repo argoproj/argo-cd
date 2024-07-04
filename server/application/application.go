@@ -316,6 +316,9 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	}
 	a := q.GetApplication()
 
+	a.Name = strings.TrimSpace(a.Name)
+	a.Namespace = strings.TrimSpace(a.Namespace)
+
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionCreate, a.RBACName(s.ns)); err != nil {
 		return nil, err
 	}

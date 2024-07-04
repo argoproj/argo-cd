@@ -355,6 +355,10 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionUpdate, q.Project.Name); err != nil {
 		return nil, err
 	}
+
+	//whitespaceremoval
+	v1alpha1.RemoveWhiteSpace(&q.Project.Spec)
+
 	q.Project.NormalizePolicies()
 	q.Project.NormalizeJWTTokens()
 	err := validateProject(q.Project)
