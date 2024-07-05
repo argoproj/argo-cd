@@ -521,3 +521,9 @@ func (a *Actions) runCli(args ...string) {
 	a.lastOutput, a.lastError = fixture.RunCli(args...)
 	a.verifyAction()
 }
+
+func (a *Actions) AddSignedFile(fileName, fileContents string) *Actions {
+	a.context.t.Helper()
+	fixture.AddSignedFile(a.context.path+"/"+fileName, fileContents)
+	return a
+}

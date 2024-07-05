@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -308,12 +309,12 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 					LabelSelector: testCase.labelSelector,
 					Values:        testCase.values,
 				},
-			}, &applicationSetInfo)
+			}, &applicationSetInfo, nil)
 
 			if testCase.expectedError != nil {
-				assert.EqualError(t, err, testCase.expectedError.Error())
+				require.EqualError(t, err, testCase.expectedError.Error())
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.ElementsMatch(t, testCase.expected, got)
 			}
 		})
@@ -606,12 +607,12 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 					LabelSelector: testCase.labelSelector,
 					Values:        testCase.values,
 				},
-			}, &applicationSetInfo)
+			}, &applicationSetInfo, nil)
 
 			if testCase.expectedError != nil {
-				assert.EqualError(t, err, testCase.expectedError.Error())
+				require.EqualError(t, err, testCase.expectedError.Error())
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.ElementsMatch(t, testCase.expected, got)
 			}
 		})

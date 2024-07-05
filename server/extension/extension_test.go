@@ -56,7 +56,7 @@ func TestValidateHeaders(t *testing.T) {
 		rr, err := extension.ValidateHeaders(r)
 
 		// then
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, rr)
 	})
 	t.Run("will return error if application header is missing", func(t *testing.T) {
@@ -71,7 +71,7 @@ func TestValidateHeaders(t *testing.T) {
 		rr, err := extension.ValidateHeaders(r)
 
 		// then
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, rr)
 	})
 	t.Run("will return error if project header is missing", func(t *testing.T) {
@@ -86,7 +86,7 @@ func TestValidateHeaders(t *testing.T) {
 		rr, err := extension.ValidateHeaders(r)
 
 		// then
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, rr)
 	})
 	t.Run("will return error if invalid namespace", func(t *testing.T) {
@@ -102,7 +102,7 @@ func TestValidateHeaders(t *testing.T) {
 		rr, err := extension.ValidateHeaders(r)
 
 		// then
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, rr)
 	})
 	t.Run("will return error if invalid app name", func(t *testing.T) {
@@ -118,7 +118,7 @@ func TestValidateHeaders(t *testing.T) {
 		rr, err := extension.ValidateHeaders(r)
 
 		// then
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, rr)
 	})
 	t.Run("will return error if invalid project name", func(t *testing.T) {
@@ -134,7 +134,7 @@ func TestValidateHeaders(t *testing.T) {
 		rr, err := extension.ValidateHeaders(r)
 
 		// then
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, rr)
 	})
 }
@@ -231,7 +231,7 @@ func TestRegisterExtensions(t *testing.T) {
 				err := f.manager.RegisterExtensions()
 
 				// then
-				assert.Error(t, err, "expected error in test %s but got nil", tc.name)
+				require.Error(t, err, "expected error in test %s but got nil", tc.name)
 			})
 		}
 	})

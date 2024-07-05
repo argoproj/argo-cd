@@ -27,6 +27,7 @@ import (
 	applicationsv1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -501,10 +502,8 @@ func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestina
 				return fmt.Errorf("application references destination cluster %s which does not exist", dest.Name)
 			}
 			dest.SetInferredServer(server)
-		} else {
-			if !dest.IsServerInferred() {
-				return fmt.Errorf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server)
-			}
+		} else if !dest.IsServerInferred() {
+			return fmt.Errorf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server)
 		}
 	}
 	return nil
@@ -1005,7 +1004,7 @@ func GenerateSpecIsDifferentErrorMessage(entity string, a, b interface{}) string
 	if len(difference) == 0 {
 		return basicMsg
 	}
-	return fmt.Sprintf("%s; difference in keys \"%s\"", basicMsg, strings.Join(difference[:], ","))
+	return fmt.Sprintf("%s; difference in keys \"%s\"", basicMsg, strings.Join(difference, ","))
 }
 
 func GetDifferentPathsBetweenStructs(a, b interface{}) ([]string, error) {
@@ -1103,4 +1102,50 @@ func IsValidContainerName(name string) bool {
 	// https://github.com/kubernetes/kubernetes/blob/53a9d106c4aabcd550cc32ae4e8004f32fb0ae7b/pkg/api/validation/validation.go#L280
 	validationErrors := apimachineryvalidation.NameIsDNSLabel(name, false)
 	return len(validationErrors) == 0
+}
+
+// GetAppEventLabels returns a map of labels to add to a K8s event.
+// The Application and its AppProject labels are compared against the `resource.includeEventLabelKeys` key in argocd-cm.
+// If matched, the corresponding labels are returned to be added to the generated event. In case of a conflict
+// between labels on the Application and AppProject, the Application label values are prioritized and added to the event.
+// Furthermore, labels specified in `resource.excludeEventLabelKeys` in argocd-cm are removed from the event labels, if they were included.
+func GetAppEventLabels(app *argoappv1.Application, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) map[string]string {
+	eventLabels := make(map[string]string)
+
+	// Get all app & app-project labels
+	labels := app.Labels
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	proj, err := GetAppProject(app, projLister, ns, settingsManager, db, ctx)
+	if err == nil {
+		for k, v := range proj.Labels {
+			_, found := labels[k]
+			if !found {
+				labels[k] = v
+			}
+		}
+	} else {
+		log.Warn(err)
+	}
+
+	// Filter out event labels to include
+	inKeys := settingsManager.GetIncludeEventLabelKeys()
+	for k, v := range labels {
+		found := glob.MatchStringInList(inKeys, k, false)
+		if found {
+			eventLabels[k] = v
+		}
+	}
+
+	// Remove excluded event labels
+	exKeys := settingsManager.GetExcludeEventLabelKeys()
+	for k := range eventLabels {
+		found := glob.MatchStringInList(exKeys, k, false)
+		if found {
+			delete(eventLabels, k)
+		}
+	}
+
+	return eventLabels
 }

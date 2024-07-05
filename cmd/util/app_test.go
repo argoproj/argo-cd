@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
@@ -198,38 +199,38 @@ func newAppOptionsFixture() *appOptionsFixture {
 func Test_setAppSpecOptions(t *testing.T) {
 	f := newAppOptionsFixture()
 	t.Run("SyncPolicy", func(t *testing.T) {
-		assert.NoError(t, f.SetFlag("sync-policy", "automated"))
+		require.NoError(t, f.SetFlag("sync-policy", "automated"))
 		assert.NotNil(t, f.spec.SyncPolicy.Automated)
 
 		f.spec.SyncPolicy = nil
-		assert.NoError(t, f.SetFlag("sync-policy", "automatic"))
+		require.NoError(t, f.SetFlag("sync-policy", "automatic"))
 		assert.NotNil(t, f.spec.SyncPolicy.Automated)
 
 		f.spec.SyncPolicy = nil
-		assert.NoError(t, f.SetFlag("sync-policy", "auto"))
+		require.NoError(t, f.SetFlag("sync-policy", "auto"))
 		assert.NotNil(t, f.spec.SyncPolicy.Automated)
 
-		assert.NoError(t, f.SetFlag("sync-policy", "none"))
+		require.NoError(t, f.SetFlag("sync-policy", "none"))
 		assert.Nil(t, f.spec.SyncPolicy)
 	})
 	t.Run("SyncOptions", func(t *testing.T) {
-		assert.NoError(t, f.SetFlag("sync-option", "a=1"))
+		require.NoError(t, f.SetFlag("sync-option", "a=1"))
 		assert.True(t, f.spec.SyncPolicy.SyncOptions.HasOption("a=1"))
 
 		// remove the options using !
-		assert.NoError(t, f.SetFlag("sync-option", "!a=1"))
+		require.NoError(t, f.SetFlag("sync-option", "!a=1"))
 		assert.Nil(t, f.spec.SyncPolicy)
 	})
 	t.Run("RetryLimit", func(t *testing.T) {
-		assert.NoError(t, f.SetFlag("sync-retry-limit", "5"))
+		require.NoError(t, f.SetFlag("sync-retry-limit", "5"))
 		assert.Equal(t, int64(5), f.spec.SyncPolicy.Retry.Limit)
 
-		assert.NoError(t, f.SetFlag("sync-retry-limit", "0"))
+		require.NoError(t, f.SetFlag("sync-retry-limit", "0"))
 		assert.Nil(t, f.spec.SyncPolicy.Retry)
 	})
 	t.Run("Kustomize", func(t *testing.T) {
-		assert.NoError(t, f.SetFlag("kustomize-replica", "my-deployment=2"))
-		assert.NoError(t, f.SetFlag("kustomize-replica", "my-statefulset=4"))
+		require.NoError(t, f.SetFlag("kustomize-replica", "my-deployment=2"))
+		require.NoError(t, f.SetFlag("kustomize-replica", "my-statefulset=4"))
 		assert.Equal(t, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}, {Name: "my-statefulset", Count: intstr.FromInt(4)}}, f.spec.Source.Kustomize.Replicas)
 	})
 }
@@ -255,27 +256,27 @@ func Test_setAppSpecOptionsMultiSourceApp(t *testing.T) {
 	sourcePosition1 := 1
 	sourcePosition2 := 2
 	t.Run("SyncPolicy", func(t *testing.T) {
-		assert.NoError(t, f.SetFlagWithSourcePosition("sync-policy", "automated", sourcePosition1))
+		require.NoError(t, f.SetFlagWithSourcePosition("sync-policy", "automated", sourcePosition1))
 		assert.NotNil(t, f.spec.SyncPolicy.Automated)
 
 		f.spec.SyncPolicy = nil
-		assert.NoError(t, f.SetFlagWithSourcePosition("sync-policy", "automatic", sourcePosition1))
+		require.NoError(t, f.SetFlagWithSourcePosition("sync-policy", "automatic", sourcePosition1))
 		assert.NotNil(t, f.spec.SyncPolicy.Automated)
 	})
 	t.Run("Helm - SourcePosition 0", func(t *testing.T) {
-		assert.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v2", sourcePosition))
+		require.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v2", sourcePosition))
 		assert.Len(t, f.spec.GetSources(), 2)
 		assert.Equal(t, "v2", f.spec.GetSources()[sourcePosition].Helm.Version)
 	})
 	t.Run("Kustomize", func(t *testing.T) {
-		assert.NoError(t, f.SetFlagWithSourcePosition("kustomize-replica", "my-deployment=2", sourcePosition1))
+		require.NoError(t, f.SetFlagWithSourcePosition("kustomize-replica", "my-deployment=2", sourcePosition1))
 		assert.Equal(t, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(2)}}, f.spec.Sources[sourcePosition1-1].Kustomize.Replicas)
-		assert.NoError(t, f.SetFlagWithSourcePosition("kustomize-replica", "my-deployment=4", sourcePosition2))
+		require.NoError(t, f.SetFlagWithSourcePosition("kustomize-replica", "my-deployment=4", sourcePosition2))
 		assert.Equal(t, v1alpha1.KustomizeReplicas{{Name: "my-deployment", Count: intstr.FromInt(4)}}, f.spec.Sources[sourcePosition2-1].Kustomize.Replicas)
 	})
 	t.Run("Helm", func(t *testing.T) {
-		assert.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v2", sourcePosition1))
-		assert.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v3", sourcePosition2))
+		require.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v2", sourcePosition1))
+		require.NoError(t, f.SetFlagWithSourcePosition("helm-version", "v3", sourcePosition2))
 		assert.Len(t, f.spec.GetSources(), 2)
 		assert.Equal(t, "v2", f.spec.GetSources()[sourcePosition1-1].Helm.Version)
 		assert.Equal(t, "v3", f.spec.GetSources()[sourcePosition2-1].Helm.Version)
@@ -357,7 +358,7 @@ func TestReadAppsFromURI(t *testing.T) {
 
 	apps := make([]*v1alpha1.Application, 0)
 	err = readAppsFromURI(file.Name(), &apps)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, apps, 2)
 
 	assert.Equal(t, "sth1", apps[0].Name)
@@ -387,7 +388,7 @@ func TestConstructAppFromStdin(t *testing.T) {
 	if err := file.Close(); err != nil {
 		log.Fatal(err)
 	}
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, apps, 2)
 	assert.Equal(t, "sth1", apps[0].Name)
 	assert.Equal(t, "sth2", apps[1].Name)
@@ -396,7 +397,7 @@ func TestConstructAppFromStdin(t *testing.T) {
 func TestConstructBasedOnName(t *testing.T) {
 	apps, err := ConstructApps("", "test", []string{}, []string{}, []string{}, AppOptions{}, nil)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, apps, 1)
 	assert.Equal(t, "test", apps[0].Name)
 }
@@ -413,7 +414,7 @@ func TestFilterResources(t *testing.T) {
 		}
 
 		filteredResources, err := FilterResources(false, resources, "g", "Service", "ns", "test-helm-guestbook", true)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, filteredResources, 1)
 	})
 
@@ -428,7 +429,7 @@ func TestFilterResources(t *testing.T) {
 		}
 
 		filteredResources, err := FilterResources(false, resources, "g", "Deployment", "argocd", "test-helm-guestbook", true)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, filteredResources, 1)
 	})
 
@@ -443,7 +444,7 @@ func TestFilterResources(t *testing.T) {
 		}
 
 		filteredResources, err := FilterResources(false, resources, "g", "Service", "argocd", "test-helm", true)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, filteredResources, 1)
 	})
 
@@ -458,7 +459,7 @@ func TestFilterResources(t *testing.T) {
 		}
 
 		filteredResources, err := FilterResources(false, resources, "g", "Service", "argocd-unknown", "test-helm", true)
-		assert.ErrorContains(t, err, "No matching resource found")
+		require.ErrorContains(t, err, "No matching resource found")
 		assert.Nil(t, filteredResources)
 	})
 
@@ -473,7 +474,7 @@ func TestFilterResources(t *testing.T) {
 		}
 
 		filteredResources, err := FilterResources(false, resources, "g", "Service", "argocd", "test-helm", false)
-		assert.ErrorContains(t, err, "Use the --all flag")
+		require.ErrorContains(t, err, "Use the --all flag")
 		assert.Nil(t, filteredResources)
 	})
 }

@@ -17,18 +17,26 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	appsettemplate "github.com/argoproj/argo-cd/v2/applicationset/controllers/template"
+	"github.com/argoproj/argo-cd/v2/applicationset/generators"
+	"github.com/argoproj/argo-cd/v2/applicationset/services"
+	appsetstatus "github.com/argoproj/argo-cd/v2/applicationset/status"
 	appsetutils "github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/github_app"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/session"
@@ -36,24 +44,36 @@ import (
 )
 
 type Server struct {
-	ns                string
-	db                db.ArgoDB
-	enf               *rbac.Enforcer
-	appclientset      appclientset.Interface
-	appsetInformer    cache.SharedIndexInformer
-	appsetLister      applisters.ApplicationSetLister
-	projLister        applisters.AppProjectNamespaceLister
-	auditLogger       *argo.AuditLogger
-	settings          *settings.SettingsManager
-	projectLock       sync.KeyLock
-	enabledNamespaces []string
+	ns                       string
+	db                       db.ArgoDB
+	enf                      *rbac.Enforcer
+	k8sClient                kubernetes.Interface
+	dynamicClient            dynamic.Interface
+	client                   client.Client
+	repoClientSet            repoapiclient.Clientset
+	appclientset             appclientset.Interface
+	appsetInformer           cache.SharedIndexInformer
+	appsetLister             applisters.ApplicationSetLister
+	projLister               applisters.AppProjectNamespaceLister
+	auditLogger              *argo.AuditLogger
+	settings                 *settings.SettingsManager
+	projectLock              sync.KeyLock
+	enabledNamespaces        []string
+	GitSubmoduleEnabled      bool
+	EnableNewGitFileGlobbing bool
+	ScmRootCAPath            string
+	AllowedScmProviders      []string
+	EnableScmProviders       bool
 }
 
 // NewServer returns a new instance of the ApplicationSet service
 func NewServer(
 	db db.ArgoDB,
 	kubeclientset kubernetes.Interface,
+	dynamicClientset dynamic.Interface,
+	kubeControllerClientset client.Client,
 	enf *rbac.Enforcer,
+	repoClientSet repoapiclient.Clientset,
 	appclientset appclientset.Interface,
 	appsetInformer cache.SharedIndexInformer,
 	appsetLister applisters.ApplicationSetLister,
@@ -62,19 +82,33 @@ func NewServer(
 	namespace string,
 	projectLock sync.KeyLock,
 	enabledNamespaces []string,
+	gitSubmoduleEnabled bool,
+	enableNewGitFileGlobbing bool,
+	scmRootCAPath string,
+	allowedScmProviders []string,
+	enableScmProviders bool,
 ) applicationset.ApplicationSetServiceServer {
 	s := &Server{
-		ns:                namespace,
-		db:                db,
-		enf:               enf,
-		appclientset:      appclientset,
-		appsetInformer:    appsetInformer,
-		appsetLister:      appsetLister,
-		projLister:        projLister,
-		settings:          settings,
-		projectLock:       projectLock,
-		auditLogger:       argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
-		enabledNamespaces: enabledNamespaces,
+		ns:                       namespace,
+		db:                       db,
+		enf:                      enf,
+		dynamicClient:            dynamicClientset,
+		client:                   kubeControllerClientset,
+		k8sClient:                kubeclientset,
+		repoClientSet:            repoClientSet,
+		appclientset:             appclientset,
+		appsetInformer:           appsetInformer,
+		appsetLister:             appsetLister,
+		projLister:               projLister,
+		settings:                 settings,
+		projectLock:              projectLock,
+		auditLogger:              argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
+		enabledNamespaces:        enabledNamespaces,
+		GitSubmoduleEnabled:      gitSubmoduleEnabled,
+		EnableNewGitFileGlobbing: enableNewGitFileGlobbing,
+		ScmRootCAPath:            scmRootCAPath,
+		AllowedScmProviders:      allowedScmProviders,
+		EnableScmProviders:       enableScmProviders,
 	}
 	return s
 }
@@ -163,7 +197,24 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 	}
 
 	if err := s.checkCreatePermissions(ctx, appset, projectName); err != nil {
-		return nil, fmt.Errorf("error checking create permissions for ApplicationSets %s : %s", appset.Name, err)
+		return nil, fmt.Errorf("error checking create permissions for ApplicationSets %s : %w", appset.Name, err)
+	}
+
+	if q.GetDryRun() {
+		apps, err := s.generateApplicationSetApps(ctx, *appset, namespace)
+		if err != nil {
+			return nil, fmt.Errorf("unable to generate Applications of ApplicationSet: %w", err)
+		}
+
+		statusMap := appsetstatus.GetResourceStatusMap(appset)
+		statusMap = appsetstatus.BuildResourceStatus(statusMap, apps)
+
+		statuses := []v1alpha1.ResourceStatus{}
+		for _, status := range statusMap {
+			statuses = append(statuses, status)
+		}
+		appset.Status.Resources = statuses
+		return appset, nil
 	}
 
 	s.projectLock.RLock(projectName)
@@ -207,6 +258,30 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 		return nil, fmt.Errorf("error updating ApplicationSets: %w", err)
 	}
 	return updated, nil
+}
+
+func (s *Server) generateApplicationSetApps(ctx context.Context, appset v1alpha1.ApplicationSet, namespace string) ([]v1alpha1.Application, error) {
+	logCtx := log.WithField("applicationset", appset.Name)
+
+	argoCDDB := s.db
+
+	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)))
+
+	getRepository := func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
+		return s.db.GetRepository(ctx, url, project)
+	}
+	argoCDService, err := services.NewArgoCDService(getRepository, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
+	if err != nil {
+		return nil, fmt.Errorf("error creating ArgoCDService: %w", err)
+	}
+
+	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, namespace, argoCDService, s.dynamicClient, scmConfig)
+
+	apps, _, err := appsettemplate.GenerateApplications(logCtx, appset, appSetGenerators, &appsetutils.Render{}, s.client)
+	if err != nil {
+		return nil, fmt.Errorf("error generating applications: %w", err)
+	}
+	return apps, nil
 }
 
 func (s *Server) updateAppSet(appset *v1alpha1.ApplicationSet, newAppset *v1alpha1.ApplicationSet, ctx context.Context, merge bool) (*v1alpha1.ApplicationSet, error) {

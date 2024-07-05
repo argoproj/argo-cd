@@ -24,7 +24,7 @@ func TestPlugin(t *testing.T) {
 		}
 		_, err := w.Write([]byte(expectedJSON))
 		if err != nil {
-			assert.NoError(t, fmt.Errorf("Error Write %v", err))
+			assert.NoError(t, fmt.Errorf("Error Write %w", err))
 		}
 	})
 	ts := httptest.NewServer(handler)

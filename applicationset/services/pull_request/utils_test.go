@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
@@ -32,7 +33,7 @@ func TestFilterBranchMatchBadRegexp(t *testing.T) {
 		},
 	}
 	_, err := ListPullRequests(context.Background(), provider, filters)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestFilterBranchMatch(t *testing.T) {
@@ -72,7 +73,7 @@ func TestFilterBranchMatch(t *testing.T) {
 		},
 	}
 	pullRequests, err := ListPullRequests(context.Background(), provider, filters)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, "two", pullRequests[0].Branch)
 }
@@ -114,7 +115,7 @@ func TestFilterTargetBranchMatch(t *testing.T) {
 		},
 	}
 	pullRequests, err := ListPullRequests(context.Background(), provider, filters)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, "two", pullRequests[0].Branch)
 }
@@ -159,7 +160,7 @@ func TestMultiFilterOr(t *testing.T) {
 		},
 	}
 	pullRequests, err := ListPullRequests(context.Background(), provider, filters)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, pullRequests, 3)
 	assert.Equal(t, "two", pullRequests[0].Branch)
 	assert.Equal(t, "three", pullRequests[1].Branch)
@@ -208,7 +209,7 @@ func TestMultiFilterOrWithTargetBranchFilter(t *testing.T) {
 		},
 	}
 	pullRequests, err := ListPullRequests(context.Background(), provider, filters)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, pullRequests, 2)
 	assert.Equal(t, "two", pullRequests[0].Branch)
 	assert.Equal(t, "four", pullRequests[1].Branch)
@@ -235,7 +236,7 @@ func TestNoFilters(t *testing.T) {
 	)
 	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{}
 	repos, err := ListPullRequests(context.Background(), provider, filters)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, repos, 2)
 	assert.Equal(t, "one", repos[0].Branch)
 	assert.Equal(t, "two", repos[1].Branch)

@@ -41,8 +41,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
-//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=Client
-
 var ErrInvalidRepoURL = fmt.Errorf("repo URL is invalid")
 
 type RevisionMetadata struct {
@@ -81,6 +79,7 @@ type Client interface {
 	VerifyCommitSignature(string) (string, error)
 	IsAnnotatedTag(string) bool
 	ChangedFiles(revision string, targetRevision string) ([]string, error)
+	IsRevisionPresent(revision string) bool
 }
 
 type EventHandlers struct {
@@ -355,6 +354,21 @@ func (m *nativeGitClient) fetch(revision string) error {
 		err = m.runCredentialedCmd("fetch", "origin", "--tags", "--force", "--prune")
 	}
 	return err
+}
+
+// IsRevisionPresent checks to see if the given revision already exists locally.
+func (m *nativeGitClient) IsRevisionPresent(revision string) bool {
+	if revision == "" {
+		return false
+	}
+
+	cmd := exec.Command("git", "cat-file", "-t", revision)
+	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
+	if out == "commit" && err == nil {
+		return true
+	} else {
+		return false
+	}
 }
 
 // Fetch fetches latest updates from origin
@@ -752,7 +766,8 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error) {
 	out, err := m.runGnuPGWrapper("git-verify-wrapper.sh", revision)
 	if err != nil {
-		return "", err
+		log.Errorf("error verifying commit signature: %v", err)
+		return "", fmt.Errorf("permission denied")
 	}
 	return out, nil
 }
