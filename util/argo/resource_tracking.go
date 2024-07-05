@@ -56,7 +56,7 @@ func NewResourceTracking() ResourceTracking {
 func GetTrackingMethod(settingsMgr *settings.SettingsManager) v1alpha1.TrackingMethod {
 	tm, err := settingsMgr.GetTrackingMethod()
 	if err != nil || tm == "" {
-		return TrackingMethodLabel
+		return TrackingMethodAnnotation
 	}
 	return v1alpha1.TrackingMethod(tm)
 }
