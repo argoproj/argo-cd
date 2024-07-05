@@ -41,8 +41,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
-//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=Client
-
 var ErrInvalidRepoURL = fmt.Errorf("repo URL is invalid")
 
 type RevisionMetadata struct {

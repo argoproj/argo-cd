@@ -78,6 +78,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 		outputFormat string
 		annotations  []string
 		inline       bool
+		setFinalizer bool
 	)
 	command := &cobra.Command{
 		Use:   "generate-spec APPNAME",
@@ -112,7 +113,9 @@ func NewGenAppSpecCommand() *cobra.Command {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-
+			if setFinalizer {
+				app.Finalizers = append(app.Finalizers, "resources-finalizer.argocd.argoproj.io")
+			}
 			out, closer, err := getOutWriter(inline, fileURL)
 			errors.CheckError(err)
 			defer io.Close(closer)
@@ -126,6 +129,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 	command.Flags().StringArrayVarP(&annotations, "annotations", "", []string{}, "Set metadata annotations (e.g. example=value)")
 	command.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format. One of: json|yaml")
 	command.Flags().BoolVarP(&inline, "inline", "i", false, "If set then generated resource is written back to the file specified in --file flag")
+	command.Flags().BoolVar(&setFinalizer, "set-finalizer", false, "Sets deletion finalizer on the application, application resources will be cascaded on deletion")
 
 	// Only complete files with appropriate extension.
 	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})

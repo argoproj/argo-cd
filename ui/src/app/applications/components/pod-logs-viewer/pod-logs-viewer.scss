@@ -20,6 +20,7 @@
         .argo-checkbox,
         .argo-checkbox input,
         .argo-checkbox input:focus {
+            appearance: none;
             outline: none !important;
             border: none !important;
             width: 12px;
