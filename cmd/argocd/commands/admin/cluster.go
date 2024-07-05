@@ -104,7 +104,17 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 		if err != nil {
 			return nil, err
 		}
-		client := redis.NewClient(&redis.Options{Addr: fmt.Sprintf("localhost:%d", port)})
+
+		redisOptions := &redis.Options{Addr: fmt.Sprintf("localhost:%d", port)}
+
+		secret, err := kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), defaulRedisInitialPasswordSecretName, v1.GetOptions{})
+		if err == nil {
+			if _, ok := secret.Data[defaultResisInitialPasswordKey]; ok {
+				redisOptions.Password = string(secret.Data[defaultResisInitialPasswordKey])
+			}
+		}
+
+		client := redis.NewClient(redisOptions)
 		compressionType, err := cacheutil.CompressionTypeFromString(redisCompressionStr)
 		if err != nil {
 			return nil, err
