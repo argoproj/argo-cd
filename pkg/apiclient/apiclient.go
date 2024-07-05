@@ -64,10 +64,8 @@ const (
 	EnvArgoCDAuthToken = "ARGOCD_AUTH_TOKEN"
 )
 
-var (
-	// MaxGRPCMessageSize contains max grpc message size
-	MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 200, 0, math.MaxInt32) * 1024 * 1024
-)
+// MaxGRPCMessageSize contains max grpc message size
+var MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 200, 0, math.MaxInt32) * 1024 * 1024
 
 // Client defines an interface for interaction with an Argo CD server.
 type Client interface {
@@ -336,11 +334,11 @@ func (c *client) OIDCConfig(ctx context.Context, set *settingspkg.Settings) (*oa
 	}
 	provider, err := oidc.NewProvider(ctx, issuerURL)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to query provider %q: %v", issuerURL, err)
+		return nil, nil, fmt.Errorf("Failed to query provider %q: %w", issuerURL, err)
 	}
 	oidcConf, err := oidcutil.ParseConfig(provider)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to parse provider config: %v", err)
+		return nil, nil, fmt.Errorf("Failed to parse provider config: %w", err)
 	}
 	scopes = oidcutil.GetScopesOrDefault(scopes)
 	if oidcutil.OfflineAccess(oidcConf.ScopesSupported) {
@@ -847,7 +845,7 @@ func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, 
 }
 
 func isCanceledContextErr(err error) bool {
-	if err == context.Canceled {
+	if err != nil && errors.Is(err, context.Canceled) {
 		return true
 	}
 	if stat, ok := status.FromError(err); ok {

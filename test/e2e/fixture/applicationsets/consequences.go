@@ -27,7 +27,6 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 }
 
 func (c *Consequences) ExpectWithDuration(e Expectation, timeout time.Duration) *Consequences {
-
 	// this invocation makes sure this func is not reported as the cause of the failure - we are a "test helper"
 	c.context.t.Helper()
 	var message string
@@ -75,7 +74,6 @@ func (c *Consequences) app(name string) *v1alpha1.Application {
 }
 
 func (c *Consequences) apps() []v1alpha1.Application {
-
 	var namespace string
 	if c.context.switchToNamespace != "" {
 		namespace = string(c.context.switchToNamespace)
@@ -95,7 +93,6 @@ func (c *Consequences) apps() []v1alpha1.Application {
 }
 
 func (c *Consequences) applicationSet(applicationSetName string) *v1alpha1.ApplicationSet {
-
 	fixtureClient := utils.GetE2EFixtureK8sClient()
 
 	var appSetClientSet dynamic.ResourceInterface

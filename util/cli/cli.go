@@ -305,7 +305,7 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 			return err
 		}
 	}
-	err = os.WriteFile(targetFile, targetData, 0644)
+	err = os.WriteFile(targetFile, targetData, 0o644)
 	if err != nil {
 		return err
 	}
@@ -317,7 +317,7 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 			return err
 		}
 	}
-	err = os.WriteFile(liveFile, liveData, 0644)
+	err = os.WriteFile(liveFile, liveData, 0o644)
 	if err != nil {
 		return err
 	}

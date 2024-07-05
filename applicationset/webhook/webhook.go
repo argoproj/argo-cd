@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
@@ -26,11 +27,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var (
-	errBasicAuthVerificationFailed = errors.New("basic auth verification failed")
-)
+const payloadQueueSize = 50000
+
+var errBasicAuthVerificationFailed = errors.New("basic auth verification failed")
 
 type WebhookHandler struct {
+	sync.WaitGroup         // for testing
 	namespace              string
 	github                 *github.Webhook
 	gitlab                 *gitlab.Webhook
@@ -38,6 +40,7 @@ type WebhookHandler struct {
 	azuredevopsAuthHandler func(r *http.Request) error
 	client                 client.Client
 	generators             map[string]generators.Generator
+	queue                  chan interface{}
 }
 
 type gitGeneratorInfo struct {
@@ -68,23 +71,23 @@ type prGeneratorGitlabInfo struct {
 	APIHostname string
 }
 
-func NewWebhookHandler(namespace string, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
+func NewWebhookHandler(namespace string, webhookParallelism int, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
 	// register the webhook secrets stored under "argocd-secret" for verifying incoming payloads
 	argocdSettings, err := argocdSettingsMgr.GetSettings()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get argocd settings: %v", err)
+		return nil, fmt.Errorf("Failed to get argocd settings: %w", err)
 	}
 	githubHandler, err := github.New(github.Options.Secret(argocdSettings.WebhookGitHubSecret))
 	if err != nil {
-		return nil, fmt.Errorf("Unable to init GitHub webhook: %v", err)
+		return nil, fmt.Errorf("Unable to init GitHub webhook: %w", err)
 	}
 	gitlabHandler, err := gitlab.New(gitlab.Options.Secret(argocdSettings.WebhookGitLabSecret))
 	if err != nil {
-		return nil, fmt.Errorf("Unable to init GitLab webhook: %v", err)
+		return nil, fmt.Errorf("Unable to init GitLab webhook: %w", err)
 	}
 	azuredevopsHandler, err := azuredevops.New()
 	if err != nil {
-		return nil, fmt.Errorf("Unable to init Azure DevOps webhook: %v", err)
+		return nil, fmt.Errorf("Unable to init Azure DevOps webhook: %w", err)
 	}
 	azuredevopsAuthHandler := func(r *http.Request) error {
 		if argocdSettings.WebhookAzureDevOpsUsername != "" && argocdSettings.WebhookAzureDevOpsPassword != "" {
@@ -96,7 +99,7 @@ func NewWebhookHandler(namespace string, argocdSettingsMgr *argosettings.Setting
 		return nil
 	}
 
-	return &WebhookHandler{
+	webhookHandler := &WebhookHandler{
 		namespace:              namespace,
 		github:                 githubHandler,
 		gitlab:                 gitlabHandler,
@@ -104,7 +107,28 @@ func NewWebhookHandler(namespace string, argocdSettingsMgr *argosettings.Setting
 		azuredevopsAuthHandler: azuredevopsAuthHandler,
 		client:                 client,
 		generators:             generators,
-	}, nil
+		queue:                  make(chan interface{}, payloadQueueSize),
+	}
+
+	webhookHandler.startWorkerPool(webhookParallelism)
+
+	return webhookHandler, nil
+}
+
+func (h *WebhookHandler) startWorkerPool(webhookParallelism int) {
+	for i := 0; i < webhookParallelism; i++ {
+		h.Add(1)
+		go func() {
+			defer h.Done()
+			for {
+				payload, ok := <-h.queue
+				if !ok {
+					return
+				}
+				h.HandleEvent(payload)
+			}
+		}()
+	}
 }
 
 func (h *WebhookHandler) HandleEvent(payload interface{}) {
@@ -178,7 +202,12 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.HandleEvent(payload)
+	select {
+	case h.queue <- payload:
+	default:
+		log.Info("Queue is full, discarding webhook payload")
+		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
+	}
 }
 
 func parseRevision(ref string) string {
@@ -514,7 +543,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 	relGenerators := generators.GetRelevantGenerators(requestedGenerator0, h.generators)
 	params := []map[string]interface{}{}
 	for _, g := range relGenerators {
-		p, err := g.GenerateParams(requestedGenerator0, appSet)
+		p, err := g.GenerateParams(requestedGenerator0, appSet, h.client)
 		if err != nil {
 			log.Error(err)
 			return false

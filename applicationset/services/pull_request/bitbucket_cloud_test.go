@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
@@ -51,26 +52,26 @@ func TestParseUrlEmptyUrl(t *testing.T) {
 	url, err := parseUrl("")
 	bitbucketUrl, _ := url.Parse("https://api.bitbucket.org/2.0")
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, bitbucketUrl, url)
 }
 
 func TestInvalidBaseUrlBasicAuthCloud(t *testing.T) {
 	_, err := NewBitbucketCloudServiceBasicAuth("http:// example.org", "user", "password", "OWNER", "REPO")
 
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestInvalidBaseUrlBearerTokenCloud(t *testing.T) {
 	_, err := NewBitbucketCloudServiceBearerToken("http:// example.org", "TOKEN", "OWNER", "REPO")
 
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestInvalidBaseUrlNoAuthCloud(t *testing.T) {
 	_, err := NewBitbucketCloudServiceNoAuth("http:// example.org", "OWNER", "REPO")
 
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestListPullRequestBearerTokenCloud(t *testing.T) {
@@ -80,10 +81,10 @@ func TestListPullRequestBearerTokenCloud(t *testing.T) {
 	}))
 	defer ts.Close()
 	svc, err := NewBitbucketCloudServiceBearerToken(ts.URL, "TOKEN", "OWNER", "REPO")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(pullRequests))
+	require.NoError(t, err)
+	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, 101, pullRequests[0].Number)
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
@@ -96,10 +97,10 @@ func TestListPullRequestNoAuthCloud(t *testing.T) {
 	}))
 	defer ts.Close()
 	svc, err := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(pullRequests))
+	require.NoError(t, err)
+	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, 101, pullRequests[0].Number)
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
@@ -112,10 +113,10 @@ func TestListPullRequestBasicAuthCloud(t *testing.T) {
 	}))
 	defer ts.Close()
 	svc, err := NewBitbucketCloudServiceBasicAuth(ts.URL, "user", "password", "OWNER", "REPO")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(pullRequests))
+	require.NoError(t, err)
+	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, 101, pullRequests[0].Number)
 	assert.Equal(t, "feature/foo-bar", pullRequests[0].Branch)
 	assert.Equal(t, "1a8dd249c04a", pullRequests[0].HeadSHA)
@@ -189,10 +190,10 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 	}))
 	defer ts.Close()
 	svc, err := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
-	assert.NoError(t, err)
-	assert.Equal(t, 3, len(pullRequests))
+	require.NoError(t, err)
+	assert.Len(t, pullRequests, 3)
 	assert.Equal(t, PullRequest{
 		Number:  101,
 		Branch:  "feature-101",
@@ -217,7 +218,7 @@ func TestListResponseErrorCloud(t *testing.T) {
 	defer ts.Close()
 	svc, _ := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
 	_, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestListResponseMalformedCloud(t *testing.T) {
@@ -241,7 +242,7 @@ func TestListResponseMalformedCloud(t *testing.T) {
 	defer ts.Close()
 	svc, _ := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
 	_, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestListResponseMalformedValuesCloud(t *testing.T) {
@@ -265,7 +266,7 @@ func TestListResponseMalformedValuesCloud(t *testing.T) {
 	defer ts.Close()
 	svc, _ := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
 	_, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestListResponseEmptyCloud(t *testing.T) {
@@ -288,9 +289,9 @@ func TestListResponseEmptyCloud(t *testing.T) {
 	}))
 	defer ts.Close()
 	svc, err := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, pullRequests)
 }
 
@@ -363,14 +364,14 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 	defer ts.Close()
 	regexp := `feature-1[\d]{2}`
 	svc, err := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{
 		{
 			BranchMatch: &regexp,
 		},
 	})
-	assert.NoError(t, err)
-	assert.Equal(t, 2, len(pullRequests))
+	require.NoError(t, err)
+	assert.Len(t, pullRequests, 2)
 	assert.Equal(t, PullRequest{
 		Number:  101,
 		Branch:  "feature-101",
@@ -384,14 +385,14 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 
 	regexp = `.*2$`
 	svc, err = NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	pullRequests, err = ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{
 		{
 			BranchMatch: &regexp,
 		},
 	})
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(pullRequests))
+	require.NoError(t, err)
+	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, PullRequest{
 		Number:  102,
 		Branch:  "feature-102",
@@ -400,11 +401,11 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 
 	regexp = `[\d{2}`
 	svc, err = NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	_, err = ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{
 		{
 			BranchMatch: &regexp,
 		},
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 }

@@ -30,6 +30,10 @@ message RepoAppDetailsQuery {
 	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSource source = 1;
 	string appName = 2;
 	string appProject = 3;
+	// source index (for multi source apps)
+	int32 sourceIndex = 4;
+	// versionId from historical data (for multi source apps)
+	int32 versionId = 5;
 }
 
 // RepoAppsResponse contains applications of specified repository
@@ -43,6 +47,8 @@ message RepoQuery {
 	string repo = 1;
 	// Whether to force a cache refresh on repo's connection state
 	bool forceRefresh = 2;
+	// App project for query
+	string appProject = 3;
 }
 
 // RepoAccessQuery is a query for checking access to a repo

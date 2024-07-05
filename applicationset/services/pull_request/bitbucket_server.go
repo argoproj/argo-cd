@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	bitbucketv1 "github.com/gfleury/go-bitbucket-v1"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 )
 
 type BitbucketService struct {
@@ -56,12 +57,12 @@ func (b *BitbucketService) List(_ context.Context) ([]*PullRequest, error) {
 	for {
 		response, err := b.client.DefaultApi.GetPullRequestsPage(b.projectKey, b.repositorySlug, paged)
 		if err != nil {
-			return nil, fmt.Errorf("error listing pull requests for %s/%s: %v", b.projectKey, b.repositorySlug, err)
+			return nil, fmt.Errorf("error listing pull requests for %s/%s: %w", b.projectKey, b.repositorySlug, err)
 		}
 		pulls, err := bitbucketv1.GetPullRequestsResponse(response)
 		if err != nil {
 			log.Errorf("error parsing pull request response '%v'", response.Values)
-			return nil, fmt.Errorf("error parsing pull request response for %s/%s: %v", b.projectKey, b.repositorySlug, err)
+			return nil, fmt.Errorf("error parsing pull request response for %s/%s: %w", b.projectKey, b.repositorySlug, err)
 		}
 
 		for _, pull := range pulls {

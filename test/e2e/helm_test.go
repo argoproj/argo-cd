@@ -135,13 +135,13 @@ func TestHelmIgnoreMissingValueFiles(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			assert.Equal(t, []string{"does-not-exist-values.yaml"}, app.Spec.GetSource().Helm.ValueFiles)
-			assert.Equal(t, false, app.Spec.GetSource().Helm.IgnoreMissingValueFiles)
+			assert.False(t, app.Spec.GetSource().Helm.IgnoreMissingValueFiles)
 		}).
 		When().
 		AppSet("--ignore-missing-value-files").
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, true, app.Spec.GetSource().Helm.IgnoreMissingValueFiles)
+			assert.True(t, app.Spec.GetSource().Helm.IgnoreMissingValueFiles)
 		}).
 		When().
 		Sync().
@@ -153,7 +153,7 @@ func TestHelmIgnoreMissingValueFiles(t *testing.T) {
 		AppUnSet("--ignore-missing-value-files").
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, false, app.Spec.GetSource().Helm.IgnoreMissingValueFiles)
+			assert.False(t, app.Spec.GetSource().Helm.IgnoreMissingValueFiles)
 		}).
 		When().
 		IgnoreErrors().

@@ -136,7 +136,8 @@ type ClusterEvent struct {
 func (db *db) WatchClusters(ctx context.Context,
 	handleAddEvent func(cluster *appv1.Cluster),
 	handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
-	handleDeleteEvent func(clusterServer string)) error {
+	handleDeleteEvent func(clusterServer string),
+) error {
 	localCls, err := db.GetCluster(ctx, appv1.KubernetesInternalAPIServerAddr)
 	if err != nil {
 		return err
