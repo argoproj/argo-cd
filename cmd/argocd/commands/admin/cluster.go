@@ -96,6 +96,8 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 
 	var cache *appstatecache.Cache
 	if portForwardRedis {
+		redisInitialPasswordSecretName := defaulRedisInitialPasswordSecretName
+		redisInitialPasswordKey := defaultResisInitialPasswordKey
 		overrides := clientcmd.ConfigOverrides{}
 		redisHaProxyPodLabelSelector := common.LabelKeyAppName + "=" + redisHaProxyName
 		redisPodLabelSelector := common.LabelKeyAppName + "=" + redisName
@@ -104,7 +106,15 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 		if err != nil {
 			return nil, err
 		}
-		client := redis.NewClient(&redis.Options{Addr: fmt.Sprintf("localhost:%d", port)})
+		secret, _ := kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), redisInitialPasswordSecretName, v1.GetOptions{})
+		password := ""
+		if secret != nil {
+			if _, ok := secret.Data[redisInitialPasswordKey]; ok {
+				fmt.Println(string(secret.Data[redisInitialPasswordKey]))
+				password = string(secret.Data[redisInitialPasswordKey])
+			}
+		}
+		client := redis.NewClient(&redis.Options{Addr: fmt.Sprintf("localhost:%d", port), Password: password})
 		compressionType, err := cacheutil.CompressionTypeFromString(redisCompressionStr)
 		if err != nil {
 			return nil, err
