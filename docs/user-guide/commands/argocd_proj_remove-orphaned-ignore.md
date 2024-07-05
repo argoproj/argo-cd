@@ -5,17 +5,7 @@
 Remove a resource from orphaned ignore list
 
 ```
-argocd proj remove-orphaned-ignore PROJECT GROUP KIND [flags]
-```
-
-### Examples
-
-```
-  # Remove a resource of the specified GROUP and KIND from orphaned ignore list on the project with name PROJECT
-  argocd proj remove-orphaned-ignore PROJECT GROUP KIND
-  
-  # Remove resources of the specified GROUP and KIND using a NAME pattern from orphaned ignore list on the project with name PROJECT
-  argocd proj remove-orphaned-ignore PROJECT GROUP KIND --name NAME
+argocd proj remove-orphaned-ignore PROJECT GROUP KIND NAME [flags]
 ```
 
 ### Options

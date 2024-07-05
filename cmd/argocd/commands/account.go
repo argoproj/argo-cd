@@ -26,26 +26,12 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
 	sessionutil "github.com/argoproj/argo-cd/v2/util/session"
-	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 func NewAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "account",
 		Short: "Manage account settings",
-		Example: templates.Examples(`
-			# List accounts
-			argocd account list
-
-			# Update the current user's password
-			argocd account update-password
-
-			# Can I sync any app?
-			argocd account can-i sync applications '*'
-
-			# Get User information
-			argocd account get-user-info
-		`),
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -68,7 +54,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 		currentPassword string
 		newPassword     string
 	)
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "update-password",
 		Short: "Update an account's password",
 		Long: `
@@ -151,17 +137,12 @@ has appropriate RBAC permissions to change other accounts.
 }
 
 func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var output string
-	command := &cobra.Command{
+	var (
+		output string
+	)
+	var command = &cobra.Command{
 		Use:   "get-user-info",
 		Short: "Get user info",
-		Example: templates.Examples(`
-			# Get User information for the currently logged-in user (see 'argocd login')
-			argocd account get-user-info
-
-			# Get User information in yaml format
-			argocd account get-user-info -o yaml
-		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -256,7 +237,9 @@ func printAccountsTable(items []*accountpkg.Account) {
 }
 
 func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var output string
+	var (
+		output string
+	)
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "List accounts",
@@ -408,7 +391,9 @@ argocd account generate-token --account <account-name>`,
 }
 
 func NewAccountDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var account string
+	var (
+		account string
+	)
 	cmd := &cobra.Command{
 		Use:   "delete-token",
 		Short: "Deletes account token",

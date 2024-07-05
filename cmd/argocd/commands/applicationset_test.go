@@ -5,11 +5,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestPrintApplicationSetNames(t *testing.T) {
@@ -108,7 +106,7 @@ func TestPrintApplicationSetTable(t *testing.T) {
 		printApplicationSetTable([]v1alpha1.ApplicationSet{*app, *app2}, &output)
 		return nil
 	})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	expectation := "NAME               PROJECT  SYNCPOLICY  CONDITIONS\napp-name           default  nil         [{ResourcesUpToDate  <nil> True }]\nteam-two/app-name  default  nil         [{ResourcesUpToDate  <nil> True }]\n"
 	assert.Equal(t, expectation, output)
 }
@@ -182,9 +180,9 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 Project:            default
 Server:             
 Namespace:          
-Source:
-- Repo:             
-  Target:           
+Repo:               
+Target:             
+Path:               
 SyncPolicy:         <none>
 `,
 		},
@@ -195,9 +193,9 @@ SyncPolicy:         <none>
 Project:            default
 Server:             
 Namespace:          
-Source:
-- Repo:             
-  Target:           
+Repo:               
+Target:             
+Path:               
 SyncPolicy:         Automated
 `,
 		},
@@ -208,9 +206,9 @@ SyncPolicy:         Automated
 Project:            default
 Server:             
 Namespace:          
-Source:
-- Repo:             
-  Target:           
+Repo:               
+Target:             
+Path:               
 SyncPolicy:         Automated
 `,
 		},
@@ -228,7 +226,7 @@ SyncPolicy:         Automated
 			w.Close()
 
 			out, err := io.ReadAll(r)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedOutput, string(out))
 		})
 	}

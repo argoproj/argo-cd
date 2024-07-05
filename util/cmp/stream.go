@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -179,7 +178,7 @@ func receiveFile(ctx context.Context, receiver StreamReceiver, checksum, dst str
 		}
 		req, err := receiver.Recv()
 		if err != nil {
-			if errors.Is(err, io.EOF) {
+			if err == io.EOF {
 				break
 			}
 			return nil, fmt.Errorf("stream Recv error: %w", err)

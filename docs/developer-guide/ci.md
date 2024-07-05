@@ -66,7 +66,7 @@ make builder-image IMAGE_NAMESPACE=argoproj IMAGE_TAG=v1.0.0
 ## Public CD
 
 Every commit to master is built and published to `ghcr.io/argoproj/argo-cd/argocd:<version>-<short-sha>`. The list of images is available at
-[https://github.com/argoproj/argo-cd/packages](https://github.com/argoproj/argo-cd/packages).
+https://github.com/argoproj/argo-cd/packages.
 
 !!! note
     GitHub docker registry [requires](https://github.community/t5/GitHub-Actions/docker-pull-from-public-GitHub-Package-Registry-fail-with-quot/m-p/32888#M1294) authentication to read

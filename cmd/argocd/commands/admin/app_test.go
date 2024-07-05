@@ -9,7 +9,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -44,7 +43,9 @@ func TestGetReconcileResults(t *testing.T) {
 	})
 
 	result, err := getReconcileResults(ctx, appClientset, "default", "")
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	expectedResults := []appReconcileResult{{
 		Name:   "test",
@@ -113,19 +114,20 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 		func(argoDB db.ArgoDB, appInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) statecache.LiveStateCache {
 			return &liveStateCache
 		},
-		false,
 		normalizers.IgnoreNormalizerOpts{},
 	)
 
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
-	assert.Equal(t, health.HealthStatusMissing, result[0].Health.Status)
-	assert.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, result[0].Sync.Status)
+	assert.Equal(t, result[0].Health.Status, health.HealthStatusMissing)
+	assert.Equal(t, result[0].Sync.Status, v1alpha1.SyncStatusCodeOutOfSync)
 }
 
 func TestDiffReconcileResults_NoDifferences(t *testing.T) {
 	logs, err := captureStdout(func() {
-		require.NoError(t, diffReconcileResults(
+		assert.NoError(t, diffReconcileResults(
 			reconcileResults{Applications: []appReconcileResult{{
 				Name: "app1",
 				Sync: &v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
@@ -136,13 +138,13 @@ func TestDiffReconcileResults_NoDifferences(t *testing.T) {
 			}}},
 		))
 	})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "app1\n", logs)
 }
 
 func TestDiffReconcileResults_DifferentApps(t *testing.T) {
 	logs, err := captureStdout(func() {
-		require.NoError(t, diffReconcileResults(
+		assert.NoError(t, diffReconcileResults(
 			reconcileResults{Applications: []appReconcileResult{{
 				Name: "app1",
 				Sync: &v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
@@ -159,7 +161,7 @@ func TestDiffReconcileResults_DifferentApps(t *testing.T) {
 			}}},
 		))
 	})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, `app1
 app2
 1,9d0

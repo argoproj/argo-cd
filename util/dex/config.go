@@ -15,12 +15,12 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTls b
 	}
 	redirectURL, err := argocdSettings.RedirectURL()
 	if err != nil {
-		return nil, fmt.Errorf("failed to infer redirect url from config: %w", err)
+		return nil, fmt.Errorf("failed to infer redirect url from config: %v", err)
 	}
 	var dexCfg map[string]interface{}
 	err = yaml.Unmarshal([]byte(argocdSettings.DexConfig), &dexCfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal dex.config from configmap: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal dex.config from configmap: %v", err)
 	}
 	dexCfg["issuer"] = argocdSettings.IssuerURL()
 	dexCfg["storage"] = map[string]interface{}{
@@ -63,14 +63,6 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTls b
 			redirectURL,
 		},
 	}
-	argoCDPKCEStaticClient := map[string]interface{}{
-		"id":   "argo-cd-pkce",
-		"name": "Argo CD PKCE",
-		"redirectURIs": []string{
-			"http://localhost:4000/pkce/verify",
-		},
-		"public": true,
-	}
 	argoCDCLIStaticClient := map[string]interface{}{
 		"id":     common.ArgoCDCLIClientAppID,
 		"name":   common.ArgoCDCLIClientAppName,
@@ -83,9 +75,9 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTls b
 
 	staticClients, ok := dexCfg["staticClients"].([]interface{})
 	if ok {
-		dexCfg["staticClients"] = append([]interface{}{argoCDStaticClient, argoCDCLIStaticClient, argoCDPKCEStaticClient}, staticClients...)
+		dexCfg["staticClients"] = append([]interface{}{argoCDStaticClient, argoCDCLIStaticClient}, staticClients...)
 	} else {
-		dexCfg["staticClients"] = []interface{}{argoCDStaticClient, argoCDCLIStaticClient, argoCDPKCEStaticClient}
+		dexCfg["staticClients"] = []interface{}{argoCDStaticClient, argoCDCLIStaticClient}
 	}
 
 	dexRedirectURL, err := argocdSettings.DexRedirectURL()

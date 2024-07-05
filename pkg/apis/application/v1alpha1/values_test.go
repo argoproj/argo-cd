@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestValues_SetString(t *testing.T) {
@@ -70,12 +69,12 @@ func TestValues_SetString(t *testing.T) {
 			if !testCase.expectError {
 				assert.Equal(t, testCase.expectValue, source.ValuesString())
 				data, err := source.ValuesObject.MarshalJSON()
-				require.NoError(t, err)
+				assert.NoError(t, err)
 				err = source.ValuesObject.UnmarshalJSON(data)
-				require.NoError(t, err)
+				assert.NoError(t, err)
 				assert.Equal(t, testCase.expectValue, source.ValuesString())
 			} else {
-				require.Error(t, err)
+				assert.Error(t, err)
 			}
 		})
 	}

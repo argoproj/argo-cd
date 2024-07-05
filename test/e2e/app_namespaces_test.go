@@ -6,7 +6,6 @@ import (
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -38,7 +37,7 @@ func TestAppCreationInOtherNamespace(t *testing.T) {
 		And(func(_ *Application) {
 			// app should be listed
 			output, err := RunCli("app", "list")
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			assert.Contains(t, output, ctx.AppName())
 		}).
 		When().

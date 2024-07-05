@@ -21,6 +21,7 @@ import (
 )
 
 func TestRenderTemplateParams(t *testing.T) {
+
 	// Believe it or not, this is actually less complex than the equivalent solution using reflection
 	fieldMap := map[string]func(app *argoappsv1.Application) *string{}
 	fieldMap["Path"] = func(app *argoappsv1.Application) *string { return &app.Spec.Source.Path }
@@ -164,8 +165,11 @@ func TestRenderTemplateParams(t *testing.T) {
 	}
 
 	for _, test := range tests {
+
 		t.Run(test.name, func(t *testing.T) {
+
 			for fieldName, getPtrFunc := range fieldMap {
+
 				// Clone the template application
 				application := emptyApplication.DeepCopy()
 
@@ -180,21 +184,23 @@ func TestRenderTemplateParams(t *testing.T) {
 				// the target field has been templated into the expected value
 				actualValue := *getPtrFunc(newApplication)
 				assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", fieldName, test.expectedVal, actualValue)
-				assert.Equal(t, "annotation-value", newApplication.ObjectMeta.Annotations["annotation-key"])
-				assert.Equal(t, "annotation-value2", newApplication.ObjectMeta.Annotations["annotation-key2"])
-				assert.Equal(t, "label-value", newApplication.ObjectMeta.Labels["label-key"])
-				assert.Equal(t, "label-value2", newApplication.ObjectMeta.Labels["label-key2"])
-				assert.Equal(t, "application-one", newApplication.ObjectMeta.Name)
-				assert.Equal(t, "default", newApplication.ObjectMeta.Namespace)
+				assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key"], "annotation-value")
+				assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key2"], "annotation-value2")
+				assert.Equal(t, newApplication.ObjectMeta.Labels["label-key"], "label-value")
+				assert.Equal(t, newApplication.ObjectMeta.Labels["label-key2"], "label-value2")
+				assert.Equal(t, newApplication.ObjectMeta.Name, "application-one")
+				assert.Equal(t, newApplication.ObjectMeta.Namespace, "default")
 				assert.Equal(t, newApplication.ObjectMeta.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
 				assert.Equal(t, newApplication.ObjectMeta.CreationTimestamp, application.ObjectMeta.CreationTimestamp)
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			}
 		})
 	}
+
 }
 
 func TestRenderHelmValuesObjectJson(t *testing.T) {
+
 	params := map[string]interface{}{
 		"test": "Hello world",
 	}
@@ -237,17 +243,19 @@ func TestRenderHelmValuesObjectJson(t *testing.T) {
 	render := Render{}
 	newApplication, err := render.RenderTemplateParams(application, nil, params, true, []string{})
 
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, newApplication)
 
 	var unmarshaled interface{}
 	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject.Raw, &unmarshaled)
 
-	require.NoError(t, err)
-	assert.Equal(t, "Hello world", unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"])
+	assert.NoError(t, err)
+	assert.Equal(t, unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"], "Hello world")
+
 }
 
 func TestRenderHelmValuesObjectYaml(t *testing.T) {
+
 	params := map[string]interface{}{
 		"test": "Hello world",
 	}
@@ -287,17 +295,19 @@ func TestRenderHelmValuesObjectYaml(t *testing.T) {
 	render := Render{}
 	newApplication, err := render.RenderTemplateParams(application, nil, params, true, []string{})
 
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, newApplication)
 
 	var unmarshaled interface{}
 	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject.Raw, &unmarshaled)
 
-	require.NoError(t, err)
-	assert.Equal(t, "Hello world", unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"])
+	assert.NoError(t, err)
+	assert.Equal(t, unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"], "Hello world")
+
 }
 
 func TestRenderTemplateParamsGoTemplate(t *testing.T) {
+
 	// Believe it or not, this is actually less complex than the equivalent solution using reflection
 	fieldMap := map[string]func(app *argoappsv1.Application) *string{}
 	fieldMap["Path"] = func(app *argoappsv1.Application) *string { return &app.Spec.Source.Path }
@@ -606,8 +616,11 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 	}
 
 	for _, test := range tests {
+
 		t.Run(test.name, func(t *testing.T) {
+
 			for fieldName, getPtrFunc := range fieldMap {
+
 				// Clone the template application
 				application := emptyApplication.DeepCopy()
 
@@ -621,18 +634,18 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 				// Retrieve the value of the target field from the newApplication, then verify that
 				// the target field has been templated into the expected value
 				if test.errorMessage != "" {
-					require.Error(t, err)
+					assert.Error(t, err)
 					assert.Equal(t, test.errorMessage, err.Error())
 				} else {
-					require.NoError(t, err)
+					assert.NoError(t, err)
 					actualValue := *getPtrFunc(newApplication)
 					assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", fieldName, test.expectedVal, actualValue)
-					assert.Equal(t, "annotation-value", newApplication.ObjectMeta.Annotations["annotation-key"])
-					assert.Equal(t, "annotation-value2", newApplication.ObjectMeta.Annotations["annotation-key2"])
-					assert.Equal(t, "label-value", newApplication.ObjectMeta.Labels["label-key"])
-					assert.Equal(t, "label-value2", newApplication.ObjectMeta.Labels["label-key2"])
-					assert.Equal(t, "application-one", newApplication.ObjectMeta.Name)
-					assert.Equal(t, "default", newApplication.ObjectMeta.Namespace)
+					assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key"], "annotation-value")
+					assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key2"], "annotation-value2")
+					assert.Equal(t, newApplication.ObjectMeta.Labels["label-key"], "label-value")
+					assert.Equal(t, newApplication.ObjectMeta.Labels["label-key2"], "label-value2")
+					assert.Equal(t, newApplication.ObjectMeta.Name, "application-one")
+					assert.Equal(t, newApplication.ObjectMeta.Namespace, "default")
 					assert.Equal(t, newApplication.ObjectMeta.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
 					assert.Equal(t, newApplication.ObjectMeta.CreationTimestamp, application.ObjectMeta.CreationTimestamp)
 				}
@@ -666,7 +679,7 @@ func TestRenderGeneratorParams_does_not_panic(t *testing.T) {
 		},
 	}
 	_, err := render.RenderGeneratorParams(generator, params, true, []string{})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 }
 
 func TestRenderTemplateKeys(t *testing.T) {
@@ -688,7 +701,7 @@ func TestRenderTemplateKeys(t *testing.T) {
 		newApplication, err := render.RenderTemplateParams(application, nil, params, false, nil)
 		require.NoError(t, err)
 		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
-		assert.Equal(t, "annotation-some-value", newApplication.ObjectMeta.Annotations["annotation-some-key"])
+		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
 	})
 	t.Run("gotemplate", func(t *testing.T) {
 		application := &argoappsv1.Application{
@@ -708,7 +721,7 @@ func TestRenderTemplateKeys(t *testing.T) {
 		newApplication, err := render.RenderTemplateParams(application, nil, params, true, nil)
 		require.NoError(t, err)
 		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
-		assert.Equal(t, "annotation-some-value", newApplication.ObjectMeta.Annotations["annotation-some-key"])
+		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
 	})
 }
 
@@ -716,11 +729,12 @@ func Test_Render_Replace_no_panic_on_missing_closing_brace(t *testing.T) {
 	r := &Render{}
 	assert.NotPanics(t, func() {
 		_, err := r.Replace("{{properly.closed}} {{improperly.closed}", nil, false, []string{})
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 }
 
 func TestRenderTemplateParamsFinalizers(t *testing.T) {
+
 	emptyApplication := &argoappsv1.Application{
 		Spec: argoappsv1.ApplicationSpec{
 			Source: &argoappsv1.ApplicationSource{
@@ -799,7 +813,9 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
 		},
 	} {
+
 		t.Run(c.testName, func(t *testing.T) {
+
 			// Clone the template application
 			application := emptyApplication.DeepCopy()
 			application.Finalizers = c.existingFinalizers
@@ -812,19 +828,23 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 			render := Render{}
 
 			res, err := render.RenderTemplateParams(application, c.syncPolicy, params, true, nil)
-			require.NoError(t, err)
+			assert.Nil(t, err)
 
 			assert.ElementsMatch(t, res.Finalizers, c.expectedFinalizers)
+
 		})
+
 	}
+
 }
 
 func TestCheckInvalidGenerators(t *testing.T) {
+
 	scheme := runtime.NewScheme()
 	err := argoappsv1.AddToScheme(scheme)
-	require.NoError(t, err)
+	assert.Nil(t, err)
 	err = argoappsv1.AddToScheme(scheme)
-	require.NoError(t, err)
+	assert.Nil(t, err)
 
 	for _, c := range []struct {
 		testName    string
@@ -912,7 +932,7 @@ func TestCheckInvalidGenerators(t *testing.T) {
 		hook := logtest.NewGlobal()
 
 		_ = CheckInvalidGenerators(&c.appSet)
-		assert.GreaterOrEqual(t, len(hook.Entries), 1, c.testName)
+		assert.True(t, len(hook.Entries) >= 1, c.testName)
 		assert.NotNil(t, hook.LastEntry(), c.testName)
 		if hook.LastEntry() != nil {
 			assert.Equal(t, logrus.WarnLevel, hook.LastEntry().Level, c.testName)
@@ -923,11 +943,12 @@ func TestCheckInvalidGenerators(t *testing.T) {
 }
 
 func TestInvalidGenerators(t *testing.T) {
+
 	scheme := runtime.NewScheme()
 	err := argoappsv1.AddToScheme(scheme)
-	require.NoError(t, err)
+	assert.Nil(t, err)
 	err = argoappsv1.AddToScheme(scheme)
-	require.NoError(t, err)
+	assert.Nil(t, err)
 
 	for _, c := range []struct {
 		testName        string
@@ -1222,43 +1243,6 @@ func TestNormalizeBitbucketBasePath(t *testing.T) {
 	}
 }
 
-func TestSlugify(t *testing.T) {
-	for _, c := range []struct {
-		branch           string
-		smartTruncate    bool
-		length           int
-		expectedBasePath string
-	}{
-		{
-			branch:           "feat/a_really+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
-			smartTruncate:    false,
-			length:           50,
-			expectedBasePath: "feat-a-really-long-pull-request-name-to-test-argo",
-		},
-		{
-			branch:           "feat/a_really+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
-			smartTruncate:    true,
-			length:           53,
-			expectedBasePath: "feat-a-really-long-pull-request-name-to-test-argo",
-		},
-		{
-			branch:           "feat/areallylongpullrequestnametotestargoslugificationandbranchnameshorteningfeature",
-			smartTruncate:    true,
-			length:           50,
-			expectedBasePath: "feat",
-		},
-		{
-			branch:           "feat/areallylongpullrequestnametotestargoslugificationandbranchnameshorteningfeature",
-			smartTruncate:    false,
-			length:           50,
-			expectedBasePath: "feat-areallylongpullrequestnametotestargoslugifica",
-		},
-	} {
-		result := SlugifyName(c.length, c.smartTruncate, c.branch)
-		assert.Equal(t, c.expectedBasePath, result, c.branch)
-	}
-}
-
 func TestGetTLSConfig(t *testing.T) {
 	// certParsed, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
 	// require.NoError(t, err)
@@ -1301,7 +1285,7 @@ xO7Tr5lAo74vNUkF2EHNaI28/RGnJPm2TIxZqy4rNH6L
 `
 
 	rootCAPath := path.Join(temppath, "foo.example.com")
-	err := os.WriteFile(rootCAPath, []byte(cert), 0o666)
+	err := os.WriteFile(rootCAPath, []byte(cert), 0666)
 	if err != nil {
 		panic(err)
 	}

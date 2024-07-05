@@ -30,6 +30,7 @@ type Cmd struct {
 }
 
 func NewCmd(workDir string, version string, proxy string) (*Cmd, error) {
+
 	switch version {
 	// If v3 is specified (or by default, if no value is specified) then use v3
 	case "", "v3":
@@ -190,7 +191,7 @@ func writeToTmp(data []byte) (string, argoio.Closer, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	err = os.WriteFile(file.Name(), data, 0o644)
+	err = os.WriteFile(file.Name(), data, 0644)
 	if err != nil {
 		_ = os.RemoveAll(file.Name())
 		return "", nil, err
@@ -252,12 +253,10 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 }
 
 func (c *Cmd) PullOCI(repo string, chart string, version string, destination string, creds Creds) (string, error) {
-	args := []string{
-		"pull", fmt.Sprintf("oci://%s/%s", repo, chart), "--version",
+	args := []string{"pull", fmt.Sprintf("oci://%s/%s", repo, chart), "--version",
 		version,
 		"--destination",
-		destination,
-	}
+		destination}
 	if creds.CAPath != "" {
 		args = append(args, "--ca-file", creds.CAPath)
 	}

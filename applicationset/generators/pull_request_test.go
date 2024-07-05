@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -204,12 +203,8 @@ func TestPullRequestGithubGenerateParams(t *testing.T) {
 			PullRequest: &argoprojiov1alpha1.PullRequestGenerator{},
 		}
 
-		got, gotErr := gen.GenerateParams(&generatorConfig, &c.applicationSet, nil)
-		if c.expectedErr != nil {
-			assert.Equal(t, c.expectedErr.Error(), gotErr.Error())
-		} else {
-			require.NoError(t, gotErr)
-		}
+		got, gotErr := gen.GenerateParams(&generatorConfig, &c.applicationSet)
+		assert.Equal(t, c.expectedErr, gotErr)
 		assert.ElementsMatch(t, c.expected, got)
 	}
 }
@@ -270,9 +265,9 @@ func TestPullRequestGetSecretRef(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			token, err := gen.getSecretRef(ctx, c.ref, c.namespace)
 			if c.hasError {
-				require.Error(t, err)
+				assert.NotNil(t, err)
 			} else {
-				require.NoError(t, err)
+				assert.Nil(t, err)
 			}
 			assert.Equal(t, c.token, token)
 		})
@@ -283,6 +278,7 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 	cases := []struct {
 		name           string
 		providerConfig *argoprojiov1alpha1.PullRequestGenerator
+		expectedError  string
 	}{
 		{
 			name: "Error Github",
@@ -291,6 +287,7 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
+			expectedError: "failed to select pull request service provider: scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
 		},
 		{
 			name: "Error Gitlab",
@@ -299,6 +296,7 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
+			expectedError: "failed to select pull request service provider: scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
 		},
 		{
 			name: "Error Gitea",
@@ -307,6 +305,7 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
+			expectedError: "failed to select pull request service provider: scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
 		},
 		{
 			name: "Error Bitbucket",
@@ -315,6 +314,7 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
+			expectedError: "failed to select pull request service provider: scm provider not allowed: https://myservice.mynamespace.svc.cluster.local",
 		},
 	}
 
@@ -324,13 +324,13 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			pullRequestGenerator := NewPullRequestGenerator(nil, NewSCMConfig("", []string{
+			pullRequestGenerator := NewPullRequestGenerator(nil, SCMAuthProviders{}, "", []string{
 				"github.myorg.com",
 				"gitlab.myorg.com",
 				"gitea.myorg.com",
 				"bitbucket.myorg.com",
 				"azuredevops.myorg.com",
-			}, true, nil))
+			})
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -343,33 +343,10 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 				},
 			}
 
-			_, err := pullRequestGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
+			_, err := pullRequestGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
 
-			require.Error(t, err, "Must return an error")
-			var expectedError ErrDisallowedSCMProvider
-			assert.ErrorAs(t, err, &expectedError)
+			assert.Error(t, err, "Must return an error")
+			assert.Equal(t, testCaseCopy.expectedError, err.Error())
 		})
 	}
-}
-
-func TestSCMProviderDisabled_PRGenerator(t *testing.T) {
-	generator := NewPullRequestGenerator(nil, NewSCMConfig("", []string{}, false, nil))
-
-	applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "set",
-		},
-		Spec: argoprojiov1alpha1.ApplicationSetSpec{
-			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
-				PullRequest: &argoprojiov1alpha1.PullRequestGenerator{
-					Github: &argoprojiov1alpha1.PullRequestGeneratorGithub{
-						API: "https://myservice.mynamespace.svc.cluster.local",
-					},
-				},
-			}},
-		},
-	}
-
-	_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
-	assert.ErrorIs(t, err, ErrSCMProvidersDisabled)
 }

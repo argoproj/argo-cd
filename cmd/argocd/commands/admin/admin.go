@@ -37,21 +37,17 @@ var (
 
 // NewAdminCommand returns a new instance of an argocd command
 func NewAdminCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	pathOpts := clientcmd.NewDefaultPathOptions()
+	var (
+		pathOpts = clientcmd.NewDefaultPathOptions()
+	)
 
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:               "admin",
 		Short:             "Contains a set of commands useful for Argo CD administrators and requires direct Kubernetes access",
 		DisableAutoGenTag: true,
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 		},
-		Example: `# Access the Argo CD web UI
-$ argocd admin dashboard
-
-# Reset the initial admin password
-$ argocd admin initial-password reset
-`,
 	}
 
 	command.AddCommand(NewClusterCommand(clientOpts, pathOpts))
@@ -181,6 +177,7 @@ func isArgoCDConfigMap(name string) bool {
 		return true
 	}
 	return false
+
 }
 
 // specsEqual returns if the spec, data, labels, annotations, and finalizers of the two

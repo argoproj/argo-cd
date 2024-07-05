@@ -1,7 +1,6 @@
 package db
 
 import (
-	"context"
 	"fmt"
 	"hash/fnv"
 	"net/netip"
@@ -9,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"context"
 
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
@@ -111,8 +112,8 @@ func (db *db) watchSecrets(ctx context.Context,
 	secretType string,
 	handleAddEvent func(secret *apiv1.Secret),
 	handleModEvent func(oldSecret *apiv1.Secret, newSecret *apiv1.Secret),
-	handleDeleteEvent func(secret *apiv1.Secret),
-) {
+	handleDeleteEvent func(secret *apiv1.Secret)) {
+
 	secretListOptions := func(options *metav1.ListOptions) {
 		labelSelector := fields.ParseSelectorOrDie(common.LabelKeySecretType + "=" + secretType)
 		options.LabelSelector = labelSelector.String()
@@ -139,10 +140,7 @@ func (db *db) watchSecrets(ctx context.Context,
 
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 	clusterSecretInformer := informerv1.NewFilteredSecretInformer(db.kubeclientset, db.ns, 3*time.Minute, indexers, secretListOptions)
-	_, err := clusterSecretInformer.AddEventHandler(secretEventHandler)
-	if err != nil {
-		log.Error(err)
-	}
+	clusterSecretInformer.AddEventHandler(secretEventHandler)
 
 	log.Info("Starting secretInformer for", secretType)
 	go func() {
