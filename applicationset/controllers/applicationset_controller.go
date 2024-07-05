@@ -57,7 +57,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	"github.com/hashicorp/golang-lru/v2/expirable"
 )
 
 const (
@@ -462,14 +461,12 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 	return nil
 }
 
-// TODO add an option to choose cache expiration
-var argoProjCache = expirable.NewLRU[string, bool](0, nil, time.Hour*24)
-
 // validateGeneratedApplications uses the Argo CD validation functions to verify the correctness of the
 // generated applications.
 func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Context, desiredApplications []argov1alpha1.Application, applicationSetInfo argov1alpha1.ApplicationSet) (map[int]error, error) {
 	errorsByIndex := map[int]error{}
 	namesSet := map[string]bool{}
+	appProject := &argov1alpha1.AppProject{}
 	for i, app := range desiredApplications {
 		if !namesSet[app.Name] {
 			namesSet[app.Name] = true
@@ -478,17 +475,13 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 			continue
 		}
 
-		if !argoProjCache.Contains(app.Spec.GetProject()) {
-			_, err := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(r.ArgoCDNamespace).Get(ctx, app.Spec.GetProject(), metav1.GetOptions{})
-			if err != nil {
-				if apierr.IsNotFound(err) {
-					errorsByIndex[i] = fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
-					continue
-				}
-				return nil, err
-			} else {
-				argoProjCache.Add(app.Spec.GetProject(), true)
+		err := r.Client.Get(ctx, types.NamespacedName{Name: app.Spec.Project, Namespace: r.ArgoCDNamespace}, appProject)
+		if err != nil {
+			if apierr.IsNotFound(err) {
+				errorsByIndex[i] = fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
+				continue
 			}
+			return nil, err
 		}
 
 		if err := utils.ValidateDestination(ctx, &app.Spec.Destination, r.KubeClientset, r.ArgoCDNamespace); err != nil {
