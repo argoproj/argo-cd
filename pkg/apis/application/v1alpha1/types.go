@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -2821,7 +2822,21 @@ func (source *ApplicationSource) Equals(other *ApplicationSource) bool {
 	otherCopy := other.DeepCopy()
 	sourceCopy.Plugin = nil
 	otherCopy.Plugin = nil
+	sourceCopy.htmlEscape()
+	otherCopy.htmlEscape()
 	return reflect.DeepEqual(sourceCopy, otherCopy)
+}
+
+func (source *ApplicationSource) htmlEscape() {
+	if source.Helm != nil {
+		if source.Helm.ValuesObject != nil {
+			if source.Helm.ValuesObject.Raw != nil {
+				var buf bytes.Buffer
+				json.HTMLEscape(&buf, source.Helm.ValuesObject.Raw)
+				source.Helm.ValuesObject.Raw = buf.Bytes()
+			}
+		}
+	}
 }
 
 // ExplicitType returns the type (e.g. Helm, Kustomize, etc) of the application. If either none or multiple types are defined, returns an error.
