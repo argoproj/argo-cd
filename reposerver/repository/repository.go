@@ -1927,7 +1927,6 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
 	cmpManifests, err := generateManifestsCMP(ctx, appPath, repoPath, env, cmpClient, tarDoneCh, tarExcludedGlobs)
-
 	if err != nil {
 		return nil, fmt.Errorf("error generating manifests in cmp: %w", err)
 	}
