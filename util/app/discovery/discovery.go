@@ -169,10 +169,7 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 
 	cfg, err := cmpClient.CheckPluginConfiguration(ctx, &empty.Empty{})
 	if err != nil {
-		log.WithFields(log.Fields{
-			common.SecurityField:    common.SecurityMedium,
-			common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
-		}).Errorf("error checking plugin configuration %s, %v", fileName, err)
+		log.Errorf("error checking plugin configuration %s, %v", fileName, err)
 		return nil, nil, false
 	}
 
