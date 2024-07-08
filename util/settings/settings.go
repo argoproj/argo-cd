@@ -2344,12 +2344,12 @@ func (mgr *SettingsManager) GetExcludeEventLabelKeys() []string {
 	return labelKeys
 }
 
-func (mgr *SettingsManager) GetHideSecretAnnotations() []string {
-	annotsKeys := []string{}
+func (mgr *SettingsManager) GetHideSecretAnnotations() map[string]bool {
+	annotsKeys := make(map[string]bool)
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		log.Error(fmt.Errorf("failed getting configmap: %v", err))
-		return annotsKeys
+		return nil
 	}
 	if value, ok := argoCDCM.Data[hideSecretAnnotations]; ok {
 		annots := strings.Split(value, "\n")
@@ -2357,7 +2357,7 @@ func (mgr *SettingsManager) GetHideSecretAnnotations() []string {
 			a = regexp.MustCompile(`^\s*-`).ReplaceAllString(a, "")
 			a := strings.TrimSpace(a)
 			if a != "" {
-				annotsKeys = append(annotsKeys, a)
+				annotsKeys[a] = true
 			}
 		}
 	}

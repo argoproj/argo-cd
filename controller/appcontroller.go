@@ -759,7 +759,7 @@ func (ctrl *ApplicationController) hideSecretData(app *appv1.Application, compar
 		resDiff := res.Diff
 		if res.Kind == kube.SecretKind && res.Group == "" {
 			var err error
-			target, live, err = diff.HideSecretData(res.Target, res.Live, ctrl.settingsMgr.GetHideSecretAnnotations()...)
+			target, live, err = diff.HideSecretData(res.Target, res.Live, ctrl.settingsMgr.GetHideSecretAnnotations())
 			if err != nil {
 				return nil, fmt.Errorf("error hiding secret data: %w", err)
 			}

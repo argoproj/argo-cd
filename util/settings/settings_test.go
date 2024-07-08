@@ -1825,24 +1825,24 @@ func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {
 	tests := []struct {
 		name   string
 		input  string
-		output []string
+		output map[string]bool
 	}{
 		{
 			name:   "Empty input",
 			input:  "",
-			output: []string{},
+			output: map[string]bool{},
 		},
 		{
 			name: "Correct format",
 			input: `- example.com/token-secret.value
 							- token`,
-			output: []string{"example.com/token-secret.value", "token"},
+			output: map[string]bool{"example.com/token-secret.value": true, "token": true},
 		},
 		{
 			name: "Partially correct format with each key on new line - returns correct keys",
 			input: `  example.com/token-secret.value  
 							-token`,
-			output: []string{"example.com/token-secret.value", "token"},
+			output: map[string]bool{"example.com/token-secret.value": true, "token": true},
 		},
 	}
 	for _, tt := range tests {
@@ -1852,10 +1852,7 @@ func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {
 			})
 			keys := settingsManager.GetHideSecretAnnotations()
 			assert.Equal(t, len(tt.output), len(keys))
-
-			for i := range tt.output {
-				assert.Equal(t, tt.output[i], keys[i])
-			}
+			assert.Equal(t, tt.output, keys)
 		})
 	}
 }
