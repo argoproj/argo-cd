@@ -48,9 +48,6 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
-	err = v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
-
 	for _, c := range []struct {
 		// name is human-readable test name
 		name string
@@ -1091,9 +1088,6 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
-	err = v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
-
 	for _, c := range []struct {
 		// name is human-readable test name
 		name               string
@@ -1212,9 +1206,6 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
-
-	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	for _, c := range []struct {
@@ -1371,9 +1362,6 @@ func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
-	err = v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
-
 	for _, c := range []struct {
 		// name is human-readable test name
 		name string
@@ -1445,9 +1433,6 @@ func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 func TestCreateApplications(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
-
-	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -1653,8 +1638,6 @@ func TestDeleteInCluster(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
-	err = v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
 
 	for _, c := range []struct {
 		// appSet is the application set on which the delete function is called
@@ -1809,8 +1792,6 @@ func TestGetMinRequeueAfter(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
-	err = v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
 	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
@@ -1913,10 +1894,6 @@ func TestValidateGeneratedApplications(t *testing.T) {
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
-	err = v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
-
-	client := fake.NewClientBuilder().WithScheme(scheme).Build()
 	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
 	// Valid cluster
@@ -1944,6 +1921,8 @@ func TestValidateGeneratedApplications(t *testing.T) {
 			},
 		},
 	}
+
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(myProject).Build()
 
 	// Test a subset of the validations that 'validateGeneratedApplications' performs
 	for _, cc := range []struct {
@@ -2094,7 +2073,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 				myCluster,
 			}}, nil)
 
-			argoObjs := []runtime.Object{myProject}
+			argoObjs := []runtime.Object{}
 			for _, app := range cc.apps {
 				argoObjs = append(argoObjs, &app)
 			}
@@ -2108,7 +2087,6 @@ func TestValidateGeneratedApplications(t *testing.T) {
 				ArgoCDNamespace:  "namespace",
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
 				KubeClientset:    kubeclientset,
-				Metrics:          metrics,
 			}
 
 			appSetInfo := v1alpha1.ApplicationSet{}
@@ -2150,8 +2128,6 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
-	err = v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
 
 	project := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "good-project", Namespace: "argocd"},
@@ -2190,9 +2166,9 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 
 	kubeclientset := kubefake.NewSimpleClientset()
 	argoDBMock := dbmocks.ArgoDB{}
-	argoObjs := []runtime.Object{&project}
+	argoObjs := []runtime.Object{}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &project).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	badCluster := v1alpha1.Cluster{Server: "https://bad-cluster", Name: "bad-cluster"}
@@ -2245,8 +2221,6 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 func TestSetApplicationSetStatusCondition(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
-	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -2428,8 +2402,6 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
-	err = v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
 
 	defaultProject := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
@@ -2469,10 +2441,9 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 
 	kubeclientset := kubefake.NewSimpleClientset()
 	argoDBMock := dbmocks.ArgoDB{}
-	argoObjs := []runtime.Object{&defaultProject}
+	argoObjs := []runtime.Object{}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
 	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
@@ -2593,8 +2564,6 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
-	err = v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
 
 	defaultProject := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
@@ -2634,10 +2603,9 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 
 	kubeclientset := kubefake.NewSimpleClientset()
 	argoDBMock := dbmocks.ArgoDB{}
-	argoObjs := []runtime.Object{&defaultProject}
+	argoObjs := []runtime.Object{}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
 	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
@@ -2752,9 +2720,6 @@ func TestPolicies(t *testing.T) {
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
-	err = v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
-
 	defaultProject := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
 		Spec:       v1alpha1.AppProjectSpec{SourceRepos: []string{"*"}, Destinations: []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "https://kubernetes.default.svc"}}},
@@ -2767,7 +2732,7 @@ func TestPolicies(t *testing.T) {
 	kubeclientset := kubefake.NewSimpleClientset()
 	argoDBMock := dbmocks.ArgoDB{}
 	argoDBMock.On("GetCluster", mock.Anything, "https://kubernetes.default.svc").Return(&myCluster, nil)
-	argoObjs := []runtime.Object{&defaultProject}
+	argoObjs := []runtime.Object{}
 
 	for _, c := range []struct {
 		name          string
@@ -2839,7 +2804,7 @@ func TestPolicies(t *testing.T) {
 				},
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet, &defaultProject).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
@@ -2922,8 +2887,6 @@ func TestPolicies(t *testing.T) {
 func TestSetApplicationSetApplicationStatus(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
-	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
@@ -3029,9 +2992,6 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 func TestBuildAppDependencyList(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
-
-	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
@@ -3791,9 +3751,6 @@ func TestBuildAppSyncMap(t *testing.T) {
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
-	err = v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
-
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
 	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
@@ -4379,9 +4336,6 @@ func TestBuildAppSyncMap(t *testing.T) {
 func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
-
-	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	for _, cc := range []struct {
@@ -5178,9 +5132,6 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
-	err = v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
-
 	for _, cc := range []struct {
 		name              string
 		appSet            v1alpha1.ApplicationSet
@@ -5930,9 +5881,6 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 func TestUpdateResourceStatus(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
-
-	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	for _, cc := range []struct {
