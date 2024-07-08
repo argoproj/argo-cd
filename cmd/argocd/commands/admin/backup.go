@@ -381,7 +381,6 @@ func updateLive(bak, live *unstructured.Unstructured, stopOperation bool) *unstr
 // updateTracking will update the tracking label and annotation in the bak resources to the
 // value of the live resource.
 func updateTracking(bak, live *unstructured.Unstructured) {
-
 	// update the common annotation
 	bakAnnotations := bak.GetAnnotations()
 	liveAnnotations := live.GetAnnotations()
