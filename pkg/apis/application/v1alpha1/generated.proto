@@ -983,7 +983,7 @@ message GnuPGPublicKey {
   // Trust holds the level of trust assigned to this key
   optional string trust = 4;
 
-  // SubType holds the key's sub type (e.g. rsa4096)
+  // SubType holds the key's subtype (e.g. rsa4096)
   optional string subType = 5;
 
   // KeyData holds the raw key data, in base64 encoded format
@@ -1634,6 +1634,9 @@ message Repository {
 
   // ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
   optional bool forceHttpBasicAuth = 22;
+
+  // InsecureHttpOnly specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. Applicable for OCI repos only atm.
+  optional bool insecureHttpOnly = 23;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
