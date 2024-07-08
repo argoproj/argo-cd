@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
 	"net"
 
 	"github.com/spf13/cobra"
@@ -30,7 +31,10 @@ func NewCommand() *cobra.Command {
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
 
-			server := commitserver.NewServer()
+			askPassServer := askpass.NewServer()
+			go func() { errors.CheckError(askPassServer.Run(askpass.SocketPath)) }()
+
+			server := commitserver.NewServer(askPassServer)
 			grpc := server.CreateGRPC()
 
 			listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", listenHost, listenPort))

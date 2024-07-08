@@ -11,11 +11,14 @@ import {
     getAppDefaultSource,
     getAppDefaultSyncRevisionExtra,
     getAppOperationState,
-    HydrateOperationPhaseIcon
+    HydrateOperationPhaseIcon,
+    getAppDefaultOperationSyncRevision,
+    getConditionCategory,
+    HealthStatusIcon,
+    OperationState,
+    syncStatusMessage,
+    getAppDefaultSyncRevision,
 } from '../utils';
-import {getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage, getAppDefaultSyncRevision} from '../utils';
-import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppDefaultSource, getAppDefaultSyncRevisionExtra, getAppOperationState} from '../utils';
-import {getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage, getAppDefaultSyncRevision, getAppDefaultOperationSyncRevision} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 import * as utils from '../utils';
 
@@ -123,7 +126,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                         application.status.sync &&
                         (hasMultipleSources
                             ? application.status.sync.revisions && application.status.sync.revisions[0] && application.spec.sources && !application.spec.sources[0].chart
-                            : application.status.sync.revision && !application.spec.source.chart) && (
+                            : application.status.sync.revision && !application.spec.source?.chart) && (
                             <div className='application-status-panel__item-name'>
                                 <RevisionMetadataPanel
                                     appName={application.metadata.name}

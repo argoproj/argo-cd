@@ -1090,6 +1090,9 @@ message HydrateOperation {
 
   // Message contains a message describing the current status of the hydrate operation
   optional string message = 4;
+
+  // Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation
+  optional string revision = 5;
 }
 
 // HydrateTo specifies a location to which hydrated manifests should be pushed as a "staging area" before being moved to

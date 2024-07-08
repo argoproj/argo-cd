@@ -3916,6 +3916,13 @@ func schema_pkg_apis_application_v1alpha1_HydrateOperation(ref common.ReferenceC
 							Format:      "",
 						},
 					},
+					"revision": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"status", "message"},
 			},

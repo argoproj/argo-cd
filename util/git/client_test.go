@@ -222,7 +222,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	require.NoError(t, err)
 
 	// Call Checkout() with submoduleEnabled=false.
-	err = client.Checkout(commitSHA, false)
+	_, err = client.Checkout(commitSHA, false)
 	require.NoError(t, err)
 
 	// Check if submodule url does not exist in .git/config
@@ -230,7 +230,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	require.Error(t, err)
 
 	// Call Submodule() via Checkout() with submoduleEnabled=true.
-	err = client.Checkout(commitSHA, true)
+	_, err = client.Checkout(commitSHA, true)
 	require.NoError(t, err)
 
 	// Check if the .gitmodule URL is reflected in .git/config

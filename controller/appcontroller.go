@@ -1665,39 +1665,38 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			return
 		}
 		if app.Status.SourceHydrator.Revision != revision || (app.Status.SourceHydrator.HydrateOperation != nil && app.Status.SourceHydrator.HydrateOperation.Status != appv1.HydrateOperationPhaseSucceeded) {
-			restart := false
-			if app.Status.SourceHydrator.Revision != revision {
-				restart = true
-			}
-
-			if app.Status.SourceHydrator.HydrateOperation != nil && app.Status.SourceHydrator.HydrateOperation.FinishedAt != nil && app.Status.SourceHydrator.HydrateOperation.Status == appv1.HydrateOperationPhaseFailed {
-				retryWaitPeriod := 2 * 60 * time.Second
-				if metav1.Now().Sub(app.Status.SourceHydrator.HydrateOperation.FinishedAt.Time) > retryWaitPeriod {
-					logCtx.Info("Retrying failed hydration")
-					restart = true
+			start := false
+			if app.Status.SourceHydrator.HydrateOperation != nil {
+				if app.Status.SourceHydrator.HydrateOperation.Revision != revision {
+					start = true
+				} else if app.Status.SourceHydrator.HydrateOperation.Status == appv1.HydrateOperationPhaseFailed && metav1.Now().Sub(app.Status.SourceHydrator.HydrateOperation.FinishedAt.Time) > 2*time.Minute {
+					start = true
 				}
+			} else {
+				start = true
 			}
 
-			if restart {
+			if start {
 				app.Status.SourceHydrator.HydrateOperation = &appv1.HydrateOperation{
+					Revision:   revision,
 					StartedAt:  metav1.Now(),
 					FinishedAt: nil,
 					Status:     appv1.HydrateOperationPhaseRunning,
 				}
 				ctrl.persistAppStatus(origApp, &app.Status)
 				origApp.Status.SourceHydrator = app.Status.SourceHydrator
-			}
 
-			destinationBranch := app.Spec.SourceHydrator.SyncSource.TargetBranch
-			if app.Spec.SourceHydrator.HydrateTo != nil {
-				destinationBranch = app.Spec.SourceHydrator.HydrateTo.TargetBranch
+				destinationBranch := app.Spec.SourceHydrator.SyncSource.TargetBranch
+				if app.Spec.SourceHydrator.HydrateTo != nil {
+					destinationBranch = app.Spec.SourceHydrator.HydrateTo.TargetBranch
+				}
+				key := hydrationQueueKey{
+					sourceRepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
+					sourceTargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
+					destinationBranch:    destinationBranch,
+				}
+				ctrl.hydrationQueue.Add(key)
 			}
-			key := hydrationQueueKey{
-				sourceRepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
-				sourceTargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
-				destinationBranch:    destinationBranch,
-			}
-			ctrl.hydrationQueue.Add(key)
 		} else {
 			logCtx.Debug("No reason to re-hydrate")
 		}
@@ -1965,6 +1964,9 @@ func (ctrl *ApplicationController) hydrate(apps []*appv1.Application, refreshTyp
 	repo, err := ctrl.db.GetHydratorCredentials(context.Background(), repoURL)
 	if err != nil {
 		return fmt.Errorf("failed to get hydrator credentials: %w", err)
+	}
+	if repo == nil {
+		return fmt.Errorf("failed to get hydrator credentials: no credentials found")
 	}
 
 	manifestsRequest := commitclient.ManifestsRequest{

@@ -7464,6 +7464,10 @@
           "type": "string",
           "title": "Message contains a message describing the current status of the hydrate operation"
         },
+        "revision": {
+          "type": "string",
+          "title": "Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation"
+        },
         "startedAt": {
           "$ref": "#/definitions/v1Time"
         },

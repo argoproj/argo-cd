@@ -1073,6 +1073,8 @@ type HydrateOperation struct {
 	Status HydrateOperationPhase `json:"status" protobuf:"bytes,3,opt,name=status"`
 	// Message contains a message describing the current status of the hydrate operation
 	Message string `json:"message" protobuf:"bytes,4,opt,name=message"`
+	// Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation
+	Revision string `json:"revision,omitempty" protobuf:"bytes,5,opt,name=revision"`
 }
 
 type HydrateOperationPhase string

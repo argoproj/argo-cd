@@ -12,6 +12,10 @@ import (
 )
 
 func isGitHubApp(cred *v1alpha1.Repository) bool {
+	if cred == nil {
+		return false
+	}
+
 	return cred.GithubAppPrivateKey != "" && cred.GithubAppId != 0 && cred.GithubAppInstallationId != 0
 }
 

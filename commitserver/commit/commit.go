@@ -3,9 +3,9 @@ package commit
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/git"
 	"os"
 	"path"
-	"strings"
 
 	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/google/uuid"
@@ -16,20 +16,22 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
-type Service struct{}
+type Service struct {
+	gitCredsStore git.CredsStore
+}
 
-func NewService() *Service {
-	return &Service{}
+func NewService(gitCredsStore git.CredsStore) *Service {
+	return &Service{gitCredsStore: gitCredsStore}
 }
 
 func (s *Service) Commit(ctx context.Context, r *apiclient.ManifestsRequest) (*apiclient.ManifestsResponse, error) {
-	var authorName, authorEmail, basicAuth string
+	var authorName, authorEmail string
 
 	logCtx := log.WithFields(log.Fields{"repo": r.RepoUrl, "branch": r.TargetBranch, "drySHA": r.DrySha})
 
 	if isGitHubApp(r.Repo) {
 		var err error
-		authorName, authorEmail, basicAuth, err = getGitHubAppInfo(ctx, r.Repo)
+		authorName, authorEmail, err = getGitHubAppInfo(ctx, r.Repo)
 		if err != nil {
 			logCtx.WithError(err).Error("failed to get github app info")
 			return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to get github app info: %w", err)
@@ -39,6 +41,7 @@ func (s *Service) Commit(ctx context.Context, r *apiclient.ManifestsRequest) (*a
 	}
 
 	logCtx.Debug("Creating temp dir")
+	// The UUID is an important security mechanism to help mitigate path traversal attacks.
 	dirName, err := uuid.NewRandom()
 	if err != nil {
 		logCtx.WithError(err).Error("failed to generate uuid")
@@ -58,58 +61,52 @@ func (s *Service) Commit(ctx context.Context, r *apiclient.ManifestsRequest) (*a
 		}
 	}()
 
-	git := newGitHelper(dirPath, r.SyncBranch, r.TargetBranch)
+	gitClient, err := git.NewClientExt(r.RepoUrl, dirPath, r.Repo.GetGitCreds(s.gitCredsStore), r.Repo.IsInsecure(), r.Repo.IsLFSEnabled(), r.Repo.Proxy)
+	if err != nil {
+		logCtx.WithError(err).Error("failed to create git client")
+		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to create git client: %w", err)
+	}
+
+	err = gitClient.Init()
+	if err != nil {
+		logCtx.WithError(err).Error("failed to initialize git client")
+		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to init git client: %w", err)
+	}
 
 	// Clone the repo into the temp dir using the git CLI
 	logCtx.Debugf("Cloning repo %s", r.RepoUrl)
-	authRepoUrl := r.RepoUrl
-	if basicAuth != "" && strings.HasPrefix(authRepoUrl, "https://github.com/") {
-		authRepoUrl = fmt.Sprintf("https://%s@github.com/%s", basicAuth, strings.TrimPrefix(authRepoUrl, "https://github.com/"))
-	}
-	out, err := git.Clone(authRepoUrl)
+	err = gitClient.Fetch("")
 	if err != nil {
-		logCtx.WithError(err).WithField("output", string(out)).Error("failed to clone repo")
 		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to clone repo: %w", err)
 	}
 
-	if basicAuth != "" {
-		// This is the dumbest kind of auth and should never make it in main branch
-		// git config url."https://${TOKEN}@github.com/".insteadOf "https://github.com/"
-		logCtx.Debugf("Setting auth")
-		out, err = git.Config(fmt.Sprintf("url.\"https://%s@github.com/\".insteadOf", basicAuth), "https://github.com/")
-		if err != nil {
-			logCtx.WithError(err).WithField("output", string(out)).Error("failed to set auth")
-			return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to set auth: %w", err)
-		}
-	}
-
-	out, err = git.SetAuthor(authorName, authorEmail)
+	out, err := gitClient.SetAuthor(authorName, authorEmail)
 	if err != nil {
-		logCtx.WithError(err).WithField("output", string(out)).Error("failed to set author")
+		logCtx.WithError(err).WithField("output", out).Error("failed to set author")
 		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to set author: %w", err)
 	}
 
 	// Checkout the sync branch
 	logCtx.Debugf("Checking out sync branch %s", r.SyncBranch)
-	out, err = git.CheckoutSyncBranch()
+	out, err = gitClient.CheckoutOrOrphan(r.SyncBranch, false)
 	if err != nil {
-		logCtx.WithError(err).WithField("output", string(out)).Error("failed to checkout sync branch")
+		logCtx.WithError(err).WithField("output", out).Error("failed to checkout sync branch")
 		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to checkout sync branch: %w", err)
 	}
 
 	// Checkout the target branch
 	logCtx.Debugf("Checking out target branch %s", r.TargetBranch)
-	out, err = git.CheckoutTargetBranch()
+	out, err = gitClient.CheckoutOrNew(r.TargetBranch, r.SyncBranch, false)
 	if err != nil {
-		logCtx.WithError(err).WithField("output", string(out)).Error("failed to checkout target branch")
+		logCtx.WithError(err).WithField("output", out).Error("failed to checkout target branch")
 		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to checkout target branch: %w", err)
 	}
 
 	// Clear the repo contents using git rm
 	logCtx.Debug("Clearing repo contents")
-	out, err = git.RemoveContents()
+	out, err = gitClient.RemoveContents()
 	if err != nil {
-		logCtx.WithError(err).WithField("output", string(out)).Error("failed to clear repo")
+		logCtx.WithError(err).WithField("output", out).Error("failed to clear repo")
 		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to clear repo: %w", err)
 	}
 
@@ -173,19 +170,19 @@ func (s *Service) Commit(ctx context.Context, r *apiclient.ManifestsRequest) (*a
 
 	// Commit the changes
 	logCtx.Debugf("Committing and pushing changes")
-	out, err = git.CommitAndPush(r.CommitMessage)
+	out, err = gitClient.CommitAndPush(r.TargetBranch, r.CommitMessage)
 	if err != nil {
-		logCtx.WithError(err).WithField("output", string(out)).Error("failed to commit and push")
+		logCtx.WithError(err).WithField("output", out).Error("failed to commit and push")
 		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to commit and push: %w", err)
 	}
 
-	logCtx.WithField("output", string(out)).Debug("pushed manifests to git")
+	logCtx.WithField("output", out).Debug("pushed manifests to git")
 
 	return &apiclient.ManifestsResponse{}, nil
 }
 
 // getGitHubAppInfo retrieves the author name, author email, and basic auth header for a GitHub App.
-func getGitHubAppInfo(ctx context.Context, repo *v1alpha1.Repository) (string, string, string, error) {
+func getGitHubAppInfo(ctx context.Context, repo *v1alpha1.Repository) (string, string, error) {
 	info := github_app_auth.Authentication{
 		Id:             repo.GithubAppId,
 		InstallationId: repo.GithubAppInstallationId,
@@ -193,29 +190,24 @@ func getGitHubAppInfo(ctx context.Context, repo *v1alpha1.Repository) (string, s
 	}
 	appInstall, err := getAppInstallation(info)
 	if err != nil {
-		return "", "", "", fmt.Errorf("failed to get app installation: %w", err)
-	}
-	token, err := appInstall.Token(ctx)
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to get access token: %w", err)
+		return "", "", fmt.Errorf("failed to get app installation: %w", err)
 	}
 	client, err := getGitHubAppClient(info)
 	if err != nil {
-		return "", "", "", fmt.Errorf("cannot create github client: %w", err)
+		return "", "", fmt.Errorf("cannot create github client: %w", err)
 	}
 	app, _, err := client.Apps.Get(ctx, "")
 	if err != nil {
-		return "", "", "", fmt.Errorf("cannot get app info: %w", err)
+		return "", "", fmt.Errorf("cannot get app info: %w", err)
 	}
 	appLogin := fmt.Sprintf("%s[bot]", app.GetSlug())
 	user, _, err := getGitHubInstallationClient(appInstall).Users.Get(ctx, appLogin)
 	if err != nil {
-		return "", "", "", fmt.Errorf("cannot get app user info: %w", err)
+		return "", "", fmt.Errorf("cannot get app user info: %w", err)
 	}
 	authorName := user.GetLogin()
 	authorEmail := fmt.Sprintf("%d+%s@users.noreply.github.com", user.GetID(), user.GetLogin())
-	basicAuth := fmt.Sprintf("x-access-token:%s", token)
-	return authorName, authorEmail, basicAuth, nil
+	return authorName, authorEmail, nil
 }
 
 type hydratorMetadataFile struct {

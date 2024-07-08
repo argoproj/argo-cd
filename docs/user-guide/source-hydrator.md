@@ -22,7 +22,7 @@ kind: Secret
 metadata:
   name: my-push-secret
   namespace: argocd
-  annotations:
+  labels:
     argocd.argoproj.io/secret-type: repository-write
 type: Opaque
 stringData:
@@ -109,6 +109,18 @@ secrets operator that populates the secret values on the destination cluster.
 ## Best Practices
 
 ### Make Hydration Deterministic
+
+The source hydrator should be deterministic. For a given dry source commit, the hydrator should always produce the same
+hydrated manifests. This means that the hydrator should not rely on external state or configuration that is not stored
+in git.
+
+Examples of non-deterministic hydration:
+
+* A Helm chart using unpinned dependencies
+* A Helm chart is using a template function such as `randAlphaNum`
+* [Config Management Plugins](../operator-manual/config-management-plugins.md) which retrieve non-git state, such as secrets
+* Kustomize manifests referencing unpinned remote bases
+* Kustomize manifests which use generated names, such as the configMapGenerator
 
 ### Enable Branch Protection
 

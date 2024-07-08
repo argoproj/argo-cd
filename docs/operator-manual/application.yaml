@@ -190,16 +190,28 @@ spec:
       path: guestbook  # This has no meaning for Helm charts pulled directly from a Helm repo instead of git.
       ref: my-repo  # For Helm, acts as a reference to this source for fetching values files from this source. Has no meaning when under `source` field
 
+  # Hydrates manifests and pushes them to the configured hydrateTo or syncSource branch.
   sourceHydrator:
+    # drySource is the source of "don't repeat yourself" manifests to hydrate - i.e. Kustomize, Helm, etc. manifests.
     drySource:
-      repoURL:
-      path:
-      targetRevision:
+      # repoURL is the URL of the git repository containing the manifests to hydrate. It must be git, Helm is not
+      # a supported dry source.
+      repoURL: https://github.com/argoproj/argocd-example-apps.git
+      path: helm-guestbook
+      targetRevision: HEAD
+    # syncSource is the branch/path from which Argo CD will sync. If hydrateTo is not set, this is also the branch to
+    # which Argo CD will push hydrated manifests.
     syncSource:
-      targetBranch:
-      path:
+      targetBranch: env/dev
+      # You can set path to '.', but it is recommended to set it to a directory. This will make it easier to add other
+      # applications to hydrate to the same branch.
+      path: guestbook
+    # hydrateTo is the branch to which Argo CD will push hydrated manifests. If not set, Argo CD will push to the branch
+    # specified in syncSource.
+    # Setting hydrateTo allows you to "stage" changes in a branch which Argo CD does not sync from. You can then use an
+    # external tool to merge the changes into the syncSource branch.
     hydrateTo:
-      targetBranch:
+      targetBranch: env/dev-next
 
   # Destination cluster and namespace to deploy the application
   destination:

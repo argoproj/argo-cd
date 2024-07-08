@@ -4425,6 +4425,10 @@ spec:
                         description: Message contains a message describing the current
                           status of the hydrate operation
                         type: string
+                      revision:
+                        description: Revision holds the resolved revision (sha) of
+                          the dry source as of the most recent reconciliation
+                        type: string
                       startedAt:
                         description: StartedAt indicates when the hydrate operation
                           started
