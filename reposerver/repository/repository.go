@@ -1926,13 +1926,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 	defer io.Close(conn)
 
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
-	var cmpManifests *pluginclient.ManifestResponse
-	if pluginName != "" {
-		// In this case, we are using appPath instead of repoPath to only send app resources when app configures the plugin by name
-		cmpManifests, err = generateManifestsCMP(ctx, appPath, appPath, env, cmpClient, tarDoneCh, tarExcludedGlobs)
-	} else {
-		cmpManifests, err = generateManifestsCMP(ctx, appPath, repoPath, env, cmpClient, tarDoneCh, tarExcludedGlobs)
-	}
+	cmpManifests, err := generateManifestsCMP(ctx, appPath, repoPath, env, cmpClient, tarDoneCh, tarExcludedGlobs)
 
 	if err != nil {
 		return nil, fmt.Errorf("error generating manifests in cmp: %w", err)
