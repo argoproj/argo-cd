@@ -69,6 +69,7 @@ func NewCommand() *cobra.Command {
 		globalPreservedAnnotations   []string
 		globalPreservedLabels        []string
 		enableScmProviders           bool
+		webhookParallelism           int
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -126,7 +127,14 @@ func NewCommand() *cobra.Command {
 				}
 			}
 
-			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+			cfg := ctrl.GetConfigOrDie()
+			err = appv1alpha1.SetK8SConfigDefaults(cfg)
+			if err != nil {
+				log.Error(err, "Unable to apply K8s REST config defaults")
+				os.Exit(1)
+			}
+
+			mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 				Scheme: scheme,
 				Metrics: metricsserver.Options{
 					BindAddress: metricsAddr,
@@ -175,7 +183,7 @@ func NewCommand() *cobra.Command {
 			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig)
 
 			// start a webhook server that listens to incoming webhook payloads
-			webhookHandler, err := webhook.NewWebhookHandler(namespace, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
+			webhookHandler, err := webhook.NewWebhookHandler(namespace, webhookParallelism, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
 			if err != nil {
 				log.Error(err, "failed to create webhook handler")
 			}
@@ -241,6 +249,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&scmRootCAPath, "scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")
 	command.Flags().StringSliceVar(&globalPreservedAnnotations, "preserved-annotations", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS", []string{}, ","), "Sets global preserved field values for annotations")
 	command.Flags().StringSliceVar(&globalPreservedLabels, "preserved-labels", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS", []string{}, ","), "Sets global preserved field values for labels")
+	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
 	return &command
 }
 

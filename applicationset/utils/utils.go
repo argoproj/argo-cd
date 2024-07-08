@@ -25,8 +25,6 @@ import (
 	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
-//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=Renderer
-
 var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
 
 func init() {

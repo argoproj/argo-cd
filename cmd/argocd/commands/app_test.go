@@ -2,12 +2,24 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"slices"
+	"strings"
 	"testing"
 	"time"
+
+	"google.golang.org/grpc"
+	"k8s.io/apimachinery/pkg/watch"
+
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+
+	v1 "k8s.io/api/core/v1"
+
+	"sigs.k8s.io/yaml"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
@@ -1847,6 +1859,316 @@ func testApp(name, project string, labels map[string]string, annotations map[str
 			Project: project,
 		},
 	}
+}
+
+func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
+	acdClient := &customAcdClient{&fakeAcdClient{}}
+	ctx := context.Background()
+	var selectResource []*v1alpha1.SyncOperationResource
+	watch := watchOpts{
+		sync:      false,
+		health:    false,
+		operation: true,
+		suspended: false,
+	}
+	watch = getWatchOpts(watch)
+
+	output, err := captureOutput(func() error {
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
+		return nil
+	},
+	)
+	require.NoError(t, err)
+	assert.True(t, json.Valid([]byte(output)))
+
+	output, err = captureOutput(func() error {
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "yaml")
+		return nil
+	})
+
+	require.NoError(t, err)
+	err = yaml.Unmarshal([]byte(output), &v1alpha1.Application{})
+	require.NoError(t, err)
+
+	output, _ = captureOutput(func() error {
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "")
+		return nil
+	})
+	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
+
+	expectation := `TIMESTAMP                  GROUP        KIND   NAMESPACE                  NAME    STATUS   HEALTH        HOOK  MESSAGE
+%s            Service     default         service-name1    Synced  Healthy              
+%s   apps  Deployment     default                  test    Synced  Healthy              
+
+Name:               argocd/test
+Project:            default
+Server:             local
+Namespace:          argocd
+URL:                http://localhost:8080/applications/app-name
+Source:
+- Repo:             test
+  Target:           master
+  Path:             /test
+  Helm Values:      path1,path2
+  Name Prefix:      prefix
+SyncWindow:         Sync Allowed
+Sync Policy:        Automated (Prune)
+Sync Status:        OutOfSync from master
+Health Status:      Progressing (health-message)
+
+Operation:          Sync
+Sync Revision:      revision
+Phase:              
+Start:              0001-01-01 00:00:00 +0000 UTC
+Finished:           2020-11-10 23:00:00 +0000 UTC
+Duration:           2333448h16m18.871345152s
+Message:            test
+
+GROUP  KIND        NAMESPACE  NAME           STATUS  HEALTH   HOOK  MESSAGE
+       Service     default    service-name1  Synced  Healthy        
+apps   Deployment  default    test           Synced  Healthy        
+`
+	expectation = fmt.Sprintf(expectation, timeStr, timeStr)
+	expectationParts := strings.Split(expectation, "\n")
+	slices.Sort(expectationParts)
+	expectationSorted := strings.Join(expectationParts, "\n")
+	outputParts := strings.Split(output, "\n")
+	slices.Sort(outputParts)
+	outputSorted := strings.Join(outputParts, "\n")
+	// Need to compare sorted since map entries may not keep a specific order during serialization, leading to flakiness.
+	assert.Equalf(t, expectationSorted, outputSorted, "Incorrect output %q, should be %q (items order doesn't matter)", output, expectation)
+}
+
+type customAcdClient struct {
+	*fakeAcdClient
+}
+
+func (c *customAcdClient) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent {
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
+	_, appClient := c.NewApplicationClientOrDie()
+	app, _ := appClient.Get(ctx, &applicationpkg.ApplicationQuery{})
+
+	newApp := v1alpha1.Application{
+		TypeMeta:   app.TypeMeta,
+		ObjectMeta: app.ObjectMeta,
+		Spec:       app.Spec,
+		Status:     app.Status,
+		Operation:  app.Operation,
+	}
+
+	go func() {
+		appEventsCh <- &v1alpha1.ApplicationWatchEvent{
+			Type:        watch.Bookmark,
+			Application: newApp,
+		}
+		close(appEventsCh)
+	}()
+
+	return appEventsCh
+}
+
+func (c *customAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return &fakeConnection{}, &fakeAppServiceClient{}
+}
+
+func (c *customAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+type fakeConnection struct{}
+
+func (c *fakeConnection) Close() error {
+	return nil
+}
+
+type fakeSettingsServiceClient struct{}
+
+func (f fakeSettingsServiceClient) Get(ctx context.Context, in *settingspkg.SettingsQuery, opts ...grpc.CallOption) (*settingspkg.Settings, error) {
+	return &settingspkg.Settings{
+		URL: "http://localhost:8080",
+	}, nil
+}
+
+func (f fakeSettingsServiceClient) GetPlugins(ctx context.Context, in *settingspkg.SettingsQuery, opts ...grpc.CallOption) (*settingspkg.SettingsPluginsResponse, error) {
+	return nil, nil
+}
+
+type fakeAppServiceClient struct{}
+
+func (c *fakeAppServiceClient) Get(ctx context.Context, in *applicationpkg.ApplicationQuery, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+	time := metav1.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC)
+	return &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			SyncPolicy: &v1alpha1.SyncPolicy{
+				Automated: &v1alpha1.SyncPolicyAutomated{
+					Prune: true,
+				},
+			},
+			Project:     "default",
+			Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        "test",
+				TargetRevision: "master",
+				Path:           "/test",
+				Helm: &v1alpha1.ApplicationSourceHelm{
+					ValueFiles: []string{"path1", "path2"},
+				},
+				Kustomize: &v1alpha1.ApplicationSourceKustomize{NamePrefix: "prefix"},
+			},
+		},
+		Status: v1alpha1.ApplicationStatus{
+			Resources: []v1alpha1.ResourceStatus{
+				{
+					Group:     "",
+					Kind:      "Service",
+					Namespace: "default",
+					Name:      "service-name1",
+					Status:    "Synced",
+					Health: &v1alpha1.HealthStatus{
+						Status:  health.HealthStatusHealthy,
+						Message: "health-message",
+					},
+				},
+				{
+					Group:     "apps",
+					Kind:      "Deployment",
+					Namespace: "default",
+					Name:      "test",
+					Status:    "Synced",
+					Health: &v1alpha1.HealthStatus{
+						Status:  health.HealthStatusHealthy,
+						Message: "health-message",
+					},
+				},
+			},
+			OperationState: &v1alpha1.OperationState{
+				SyncResult: &v1alpha1.SyncOperationResult{
+					Revision: "revision",
+				},
+				FinishedAt: &time,
+				Message:    "test",
+			},
+			Sync: v1alpha1.SyncStatus{
+				Status: v1alpha1.SyncStatusCodeOutOfSync,
+			},
+			Health: v1alpha1.HealthStatus{
+				Status:  health.HealthStatusProgressing,
+				Message: "health-message",
+			},
+		},
+	}, nil
+}
+
+func (c *fakeAppServiceClient) List(ctx context.Context, in *applicationpkg.ApplicationQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationList, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ListResourceEvents(ctx context.Context, in *applicationpkg.ApplicationResourceEventsQuery, opts ...grpc.CallOption) (*v1.EventList, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Watch(ctx context.Context, in *applicationpkg.ApplicationQuery, opts ...grpc.CallOption) (applicationpkg.ApplicationService_WatchClient, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Create(ctx context.Context, in *applicationpkg.ApplicationCreateRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetApplicationSyncWindows(ctx context.Context, in *applicationpkg.ApplicationSyncWindowsQuery, opts ...grpc.CallOption) (*applicationpkg.ApplicationSyncWindowsResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) RevisionMetadata(ctx context.Context, in *applicationpkg.RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.RevisionMetadata, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) RevisionChartDetails(ctx context.Context, in *applicationpkg.RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.ChartDetails, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetManifests(ctx context.Context, in *applicationpkg.ApplicationManifestQuery, opts ...grpc.CallOption) (*apiclient.ManifestResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetManifestsWithFiles(ctx context.Context, opts ...grpc.CallOption) (applicationpkg.ApplicationService_GetManifestsWithFilesClient, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Update(ctx context.Context, in *applicationpkg.ApplicationUpdateRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) UpdateSpec(ctx context.Context, in *applicationpkg.ApplicationUpdateSpecRequest, opts ...grpc.CallOption) (*v1alpha1.ApplicationSpec, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Patch(ctx context.Context, in *applicationpkg.ApplicationPatchRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Delete(ctx context.Context, in *applicationpkg.ApplicationDeleteRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Sync(ctx context.Context, in *applicationpkg.ApplicationSyncRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ManagedResources(ctx context.Context, in *applicationpkg.ResourcesQuery, opts ...grpc.CallOption) (*applicationpkg.ManagedResourcesResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ResourceTree(ctx context.Context, in *applicationpkg.ResourcesQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationTree, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) WatchResourceTree(ctx context.Context, in *applicationpkg.ResourcesQuery, opts ...grpc.CallOption) (applicationpkg.ApplicationService_WatchResourceTreeClient, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Rollback(ctx context.Context, in *applicationpkg.ApplicationRollbackRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) TerminateOperation(ctx context.Context, in *applicationpkg.OperationTerminateRequest, opts ...grpc.CallOption) (*applicationpkg.OperationTerminateResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetResource(ctx context.Context, in *applicationpkg.ApplicationResourceRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResourceResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) PatchResource(ctx context.Context, in *applicationpkg.ApplicationResourcePatchRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResourceResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ListResourceActions(ctx context.Context, in *applicationpkg.ApplicationResourceRequest, opts ...grpc.CallOption) (*applicationpkg.ResourceActionsListResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) RunResourceAction(ctx context.Context, in *applicationpkg.ResourceActionRunRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) DeleteResource(ctx context.Context, in *applicationpkg.ApplicationResourceDeleteRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) PodLogs(ctx context.Context, in *applicationpkg.ApplicationPodLogsQuery, opts ...grpc.CallOption) (applicationpkg.ApplicationService_PodLogsClient, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ListLinks(ctx context.Context, in *applicationpkg.ListAppLinksRequest, opts ...grpc.CallOption) (*applicationpkg.LinksResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ListResourceLinks(ctx context.Context, in *applicationpkg.ApplicationResourceRequest, opts ...grpc.CallOption) (*applicationpkg.LinksResponse, error) {
+	return nil, nil
 }
 
 type fakeAcdClient struct{}

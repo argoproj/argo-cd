@@ -31,7 +31,7 @@ jobs:
       docs: ${{ steps.filter.outputs.docs_any_changed }}
     steps:
       - uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
-      - uses: tj-actions/changed-files@eaf854ef0c266753e1abec356dcf17d92695b251 # v44.5.3
+      - uses: tj-actions/changed-files@cc733854b1f224978ef800d29e4709d5ee2883e4 # v44.5.5
         id: filter
         with:
           # Any file which is not under docs/, ui/ or is not a markdown file is counted as a backend file
@@ -380,7 +380,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        uses: SonarSource/sonarqube-scan-action@540792c588b5c2740ad2bb4667db5cd46ae678f2 # v2.2
+        uses: SonarSource/sonarqube-scan-action@aecaf43ae57e412bd97d70ef9ce6076e672fe0a9 # v2.2
         if: env.sonar_secret != ''
   test-e2e:
     name: Run end-to-end tests
@@ -390,14 +390,14 @@ jobs:
       fail-fast: false
       matrix:
         k3s:
-          - version: v1.29.1
+          - version: v1.30.2
             # We designate the latest version because we only collect code coverage for that version.
             latest: true
-          - version: v1.28.6
+          - version: v1.29.6
             latest: false
-          - version: v1.27.10
+          - version: v1.28.11
             latest: false
-          - version: v1.26.13
+          - version: v1.27.15
             latest: false
     needs:
       - build-go
