@@ -3,7 +3,6 @@ package commit
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/git"
 	"os"
 	"path"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/services/github_app_auth"
 	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/git"
 )
 
 type Service struct {

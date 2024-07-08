@@ -17,7 +17,7 @@ import {
     HealthStatusIcon,
     OperationState,
     syncStatusMessage,
-    getAppDefaultSyncRevision,
+    getAppDefaultSyncRevision
 } from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 import * as utils from '../utils';

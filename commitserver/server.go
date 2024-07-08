@@ -1,8 +1,9 @@
 package commitserver
 
 import (
-	"github.com/argoproj/argo-cd/v2/util/git"
 	"google.golang.org/grpc"
+
+	"github.com/argoproj/argo-cd/v2/util/git"
 
 	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/commitserver/commit"
