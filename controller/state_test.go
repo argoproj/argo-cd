@@ -15,6 +15,7 @@ import (
 	"github.com/sirupsen/logrus"
 	logrustest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -50,7 +51,7 @@ func TestCompareAppStateEmpty(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -69,18 +70,18 @@ func TestCompareAppStateRepoError(t *testing.T) {
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	assert.Nil(t, compRes)
-	assert.EqualError(t, err, CompareStateRepoError.Error())
+	require.EqualError(t, err, CompareStateRepoError.Error())
 
 	// expect to still get compare state error to as inside grace period
 	compRes, err = ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	assert.Nil(t, compRes)
-	assert.EqualError(t, err, CompareStateRepoError.Error())
+	require.EqualError(t, err, CompareStateRepoError.Error())
 
 	time.Sleep(10 * time.Second)
 	// expect to not get error as outside of grace period, but status should be unknown
 	compRes, err = ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
 	assert.NotNil(t, compRes)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
 }
 
@@ -114,7 +115,7 @@ func TestCompareAppStateNamespaceMetadataDiffers(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
@@ -163,7 +164,7 @@ func TestCompareAppStateNamespaceMetadataDiffersToManifest(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
@@ -173,7 +174,7 @@ func TestCompareAppStateNamespaceMetadataDiffersToManifest(t *testing.T) {
 	assert.Len(t, compRes.diffResultList.Diffs, 1)
 
 	result := NewNamespace()
-	assert.NoError(t, json.Unmarshal(compRes.diffResultList.Diffs[0].PredictedLive, result))
+	require.NoError(t, json.Unmarshal(compRes.diffResultList.Diffs[0].PredictedLive, result))
 
 	labels := result.GetLabels()
 	delete(labels, "kubernetes.io/metadata.name")
@@ -221,7 +222,7 @@ func TestCompareAppStateNamespaceMetadata(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
@@ -231,7 +232,7 @@ func TestCompareAppStateNamespaceMetadata(t *testing.T) {
 	assert.Len(t, compRes.diffResultList.Diffs, 1)
 
 	result := NewNamespace()
-	assert.NoError(t, json.Unmarshal(compRes.diffResultList.Diffs[0].PredictedLive, result))
+	require.NoError(t, json.Unmarshal(compRes.diffResultList.Diffs[0].PredictedLive, result))
 
 	labels := result.GetLabels()
 	delete(labels, "kubernetes.io/metadata.name")
@@ -280,7 +281,7 @@ func TestCompareAppStateNamespaceMetadataIsTheSame(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -308,7 +309,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
@@ -340,7 +341,7 @@ func TestCompareAppStateExtra(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeOutOfSync, compRes.syncStatus.Status)
 	assert.Len(t, compRes.resources, 1)
@@ -371,7 +372,7 @@ func TestCompareAppStateHook(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Empty(t, compRes.resources)
@@ -403,7 +404,7 @@ func TestCompareAppStateSkipHook(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Len(t, compRes.resources, 1)
@@ -434,7 +435,7 @@ func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -467,7 +468,7 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -496,7 +497,7 @@ func TestAppRevisionsSingleSource(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources(), false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.NotEmpty(t, compRes.syncStatus.Revision)
@@ -536,7 +537,7 @@ func TestAppRevisionsMultiSource(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, app.Spec.HasMultipleSources(), false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.NotNil(t, compRes.syncStatus)
 	assert.Empty(t, compRes.syncStatus.Revision)
@@ -548,7 +549,7 @@ func TestAppRevisionsMultiSource(t *testing.T) {
 
 func toJSON(t *testing.T, obj *unstructured.Unstructured) string {
 	data, err := json.Marshal(obj)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	return string(data)
 }
 
@@ -584,7 +585,7 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.NotNil(t, compRes)
 	assert.Len(t, app.Status.Conditions, 1)
@@ -621,7 +622,7 @@ func TestCompareAppStateManagedNamespaceMetadataWithLiveNsDoesNotGetPruned(t *te
 	}
 	ctrl := newFakeController(&data, nil)
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, []string{}, app.Spec.Sources, false, false, nil, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.NotNil(t, compRes)
 	assert.Empty(t, app.Status.Conditions)
@@ -675,7 +676,7 @@ func TestCompareAppStateWithManifestGeneratePath(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "abc123")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, app.Spec.GetSources(), false, false, nil, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, "abc123", compRes.syncStatus.Revision)
@@ -712,7 +713,7 @@ func TestSetHealth(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
 }
@@ -749,7 +750,7 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
 }
@@ -773,7 +774,7 @@ func TestSetManagedResourcesWithOrphanedResources(t *testing.T) {
 
 	tree, err := ctrl.setAppManagedResources(app, &comparisonResult{managedResources: make([]managedResource, 0)})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, tree.OrphanedNodes, 1)
 	assert.Equal(t, "guestbook", tree.OrphanedNodes[0].Name)
 	assert.Equal(t, app.Namespace, tree.OrphanedNodes[0].Namespace)
@@ -802,7 +803,7 @@ func TestSetManagedResourcesWithResourcesOfAnotherApp(t *testing.T) {
 
 	tree, err := ctrl.setAppManagedResources(app1, &comparisonResult{managedResources: make([]managedResource, 0)})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, tree.OrphanedNodes)
 }
 
@@ -824,7 +825,7 @@ func TestReturnUnknownComparisonStateOnSettingLoadError(t *testing.T) {
 	revisions := make([]string, 0)
 	revisions = append(revisions, "")
 	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusUnknown, compRes.healthStatus.Status)
 	assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
@@ -855,7 +856,7 @@ func TestSetManagedResourcesKnownOrphanedResourceExceptions(t *testing.T) {
 
 	tree, err := ctrl.setAppManagedResources(app, &comparisonResult{managedResources: make([]managedResource, 0)})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, tree.OrphanedNodes, 1)
 	assert.Equal(t, "guestbook", tree.OrphanedNodes[0].Name)
 }
@@ -872,7 +873,7 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	}
 	addHistory := func() {
 		err := manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{}, []string{}, []argoappv1.ApplicationSource{}, false, metav1.Time{}, v1alpha1.OperationInitiator{})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 	addHistory()
 	assert.Len(t, app.Status.History, 1)
@@ -908,7 +909,7 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 
 	metav1NowTime := metav1.NewTime(time.Now())
 	err := manager.persistRevisionHistory(app, "my-revision", argoappv1.ApplicationSource{}, []string{}, []argoappv1.ApplicationSource{}, false, metav1NowTime, v1alpha1.OperationInitiator{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, app.Status.History.LastRevisionHistory().DeployStartedAt, &metav1NowTime)
 }
 
@@ -965,7 +966,7 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 		revisions := make([]string, 0)
 		revisions = append(revisions, "")
 		compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -992,7 +993,7 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 		revisions := make([]string, 0)
 		revisions = append(revisions, "")
 		compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -1024,7 +1025,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		revisions := make([]string, 0)
 		revisions = append(revisions, "")
 		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -1051,7 +1052,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -1078,7 +1079,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -1105,7 +1106,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -1135,7 +1136,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes, err := ctrl.appStateManager.CompareAppState(app, &testProj, revisions, sources, false, false, nil, false, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -1165,7 +1166,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, localManifests, false, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
@@ -1195,7 +1196,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, nil, false, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
@@ -1225,7 +1226,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		revisions := make([]string, 0)
 		revisions = append(revisions, "abc123")
 		compRes, err := ctrl.appStateManager.CompareAppState(app, &signedProj, revisions, sources, false, false, localManifests, false, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, compRes)
 		assert.NotNil(t, compRes.syncStatus)
 		assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)

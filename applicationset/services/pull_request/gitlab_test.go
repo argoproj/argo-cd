@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func writeMRListResponse(t *testing.T, w io.Writer) {
@@ -35,10 +36,10 @@ func TestGitLabServiceCustomBaseURL(t *testing.T) {
 	})
 
 	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", nil, "", "", false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = svc.List(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestGitLabServiceToken(t *testing.T) {
@@ -54,10 +55,10 @@ func TestGitLabServiceToken(t *testing.T) {
 	})
 
 	svc, err := NewGitLabService(context.Background(), "token-123", server.URL, "278964", nil, "", "", false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = svc.List(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestList(t *testing.T) {
@@ -73,10 +74,10 @@ func TestList(t *testing.T) {
 	})
 
 	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{}, "", "", false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	prs, err := svc.List(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, prs, 1)
 	assert.Equal(t, 15442, prs[0].Number)
 	assert.Equal(t, "use-structured-logging-for-db-load-balancer", prs[0].Branch)
@@ -97,10 +98,10 @@ func TestListWithLabels(t *testing.T) {
 	})
 
 	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{"feature", "ready"}, "", "", false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = svc.List(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestListWithState(t *testing.T) {
@@ -116,8 +117,8 @@ func TestListWithState(t *testing.T) {
 	})
 
 	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{}, "opened", "", false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = svc.List(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

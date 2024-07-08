@@ -448,6 +448,10 @@ const (
 	resourceIgnoreResourceUpdatesEnabledKey = "resource.ignoreResourceUpdatesEnabled"
 	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
 	resourceCustomLabelsKey = "resource.customLabels"
+	// resourceIncludeEventLabelKeys is the key to labels to be added onto Application k8s events if present on an Application or it's AppProject. Supports wildcard.
+	resourceIncludeEventLabelKeys = "resource.includeEventLabelKeys"
+	// resourceExcludeEventLabelKeys is the key to labels to be excluded from adding onto Application's k8s events. Supports wildcard.
+	resourceExcludeEventLabelKeys = "resource.excludeEventLabelKeys"
 	// kustomizeBuildOptionsKey is a string of kustomize build parameters
 	kustomizeBuildOptionsKey = "kustomize.buildOptions"
 	// kustomizeVersionKeyPrefix is a kustomize version key prefix
@@ -2220,4 +2224,36 @@ func (mgr *SettingsManager) GetResourceCustomLabels() ([]string, error) {
 		return strings.Split(labels, ","), nil
 	}
 	return []string{}, nil
+}
+
+func (mgr *SettingsManager) GetIncludeEventLabelKeys() []string {
+	labelKeys := []string{}
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		log.Error(fmt.Errorf("failed getting configmap: %w", err))
+		return labelKeys
+	}
+	if value, ok := argoCDCM.Data[resourceIncludeEventLabelKeys]; ok {
+		if value != "" {
+			value = strings.ReplaceAll(value, " ", "")
+			labelKeys = strings.Split(value, ",")
+		}
+	}
+	return labelKeys
+}
+
+func (mgr *SettingsManager) GetExcludeEventLabelKeys() []string {
+	labelKeys := []string{}
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		log.Error(fmt.Errorf("failed getting configmap: %w", err))
+		return labelKeys
+	}
+	if value, ok := argoCDCM.Data[resourceExcludeEventLabelKeys]; ok {
+		if value != "" {
+			value = strings.ReplaceAll(value, " ", "")
+			labelKeys = strings.Split(value, ",")
+		}
+	}
+	return labelKeys
 }

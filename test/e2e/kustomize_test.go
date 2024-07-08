@@ -7,6 +7,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -22,7 +23,7 @@ func TestKustomize2AppSource(t *testing.T) {
 				"", "kubectl", "-n="+fixture.DeploymentNamespace(),
 				"get", kind, name,
 				"-ojsonpath={.metadata.labels.patched-by}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, "argo-cd", labelValue, "wrong value of 'patched-by' label of %s %s", kind, name)
 		}
 	}
@@ -189,7 +190,7 @@ func TestKustomizeReplicas2AppSource(t *testing.T) {
 				"", "kubectl", "-n="+fixture.DeploymentNamespace(),
 				"get", kind, name,
 				"-ojsonpath={.spec.replicas}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, strconv.Itoa(deploymentReplicas), replicas, "wrong value of replicas %s %s", kind, name)
 		}
 	}

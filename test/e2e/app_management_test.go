@@ -100,7 +100,7 @@ func TestGetLogsDenySwitchOn(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
 			_, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Contains(t, err.Error(), "permission denied")
 		})
 }
@@ -151,17 +151,17 @@ func TestGetLogsAllowSwitchOn(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
 			out, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
 			out, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Pod")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
 			out, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Service")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
 		})
 }
@@ -207,17 +207,17 @@ func TestGetLogsAllowSwitchOff(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
 			out, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
 			out, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Pod")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
 			out, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Service")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
 		})
 }
@@ -401,7 +401,7 @@ func TestAppCreation(t *testing.T) {
 		And(func(_ *Application) {
 			// app should be listed
 			output, err := RunCli("app", "list")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, output, Name())
 		}).
 		When().
@@ -446,7 +446,7 @@ func TestAppCreationWithoutForceUpdate(t *testing.T) {
 		And(func(_ *Application) {
 			// app should be listed
 			output, err := RunCli("app", "list")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, output, Name())
 		}).
 		When().
@@ -508,7 +508,7 @@ func TestDeleteAppResource(t *testing.T) {
 		And(func(_ *Application) {
 			// app should be listed
 			if _, err := RunCli("app", "delete-resource", Name(), "--kind", "Service", "--resource-name", "guestbook-ui"); err != nil {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
@@ -602,7 +602,7 @@ func TestAppDeletion(t *testing.T) {
 		Expect(Event(EventReasonResourceDeleted, "delete"))
 
 	output, err := RunCli("app", "list")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotContains(t, output, Name())
 }
 
@@ -726,9 +726,9 @@ func TestManipulateApplicationResources(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			manifests, err := RunCli("app", "manifests", app.Name, "--source", "live")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			resources, err := kube.SplitYAML([]byte(manifests))
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			index := -1
 			for i := range resources {
@@ -742,7 +742,7 @@ func TestManipulateApplicationResources(t *testing.T) {
 			deployment := resources[index]
 
 			closer, client, err := ArgoCDClientset.NewApplicationClient()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			defer io.Close(closer)
 
 			_, err = client.DeleteResource(context.Background(), &applicationpkg.ApplicationResourceDeleteRequest{
@@ -753,21 +753,21 @@ func TestManipulateApplicationResources(t *testing.T) {
 				Namespace:    ptr.To(deployment.GetNamespace()),
 				ResourceName: ptr.To(deployment.GetName()),
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
 }
 
 func assetSecretDataHidden(t *testing.T, manifest string) {
 	secret, err := UnmarshalToUnstructured(manifest)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, hasStringData, err := unstructured.NestedMap(secret.Object, "stringData")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, hasStringData)
 
 	secretData, hasData, err := unstructured.NestedMap(secret.Object, "data")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, hasData)
 	for _, v := range secretData {
 		assert.Regexp(t, regexp.MustCompile(`[*]*`), v)
@@ -784,7 +784,7 @@ func assetSecretDataHidden(t *testing.T, manifest string) {
 
 func TestAppWithSecrets(t *testing.T) {
 	closer, client, err := ArgoCDClientset.NewApplicationClient()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	defer io.Close(closer)
 
 	Given(t).
@@ -837,7 +837,7 @@ func TestAppWithSecrets(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
 			diffOutput, err := RunCli("app", "diff", app.Name)
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Contains(t, diffOutput, "username: ++++++++")
 			assert.Contains(t, diffOutput, "password: ++++++++++++")
 
@@ -888,7 +888,7 @@ func TestResourceDiffing(t *testing.T) {
 			// Patch deployment
 			_, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Patch(context.Background(),
 				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "test" }]`), metav1.PatchOptions{})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}).
 		When().
 		Refresh(RefreshTypeNormal).
@@ -896,7 +896,7 @@ func TestResourceDiffing(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
 			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", DeploymentNamespace()))
 		}).
 		Given().
@@ -909,7 +909,7 @@ func TestResourceDiffing(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Empty(t, diffOutput)
 		}).
 		Given().
@@ -927,7 +927,7 @@ func TestResourceDiffing(t *testing.T) {
 		Sync().
 		And(func() {
 			output, err := RunWithStdin(testdata.SSARevisionHistoryDeployment, "", "kubectl", "apply", "-n", DeploymentNamespace(), "--server-side=true", "--field-manager=revision-history-manager", "--validate=false", "--force-conflicts", "-f", "-")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, output, "serverside-applied")
 		}).
 		Refresh(RefreshTypeNormal).
@@ -954,12 +954,12 @@ func TestResourceDiffing(t *testing.T) {
 			}]`).
 		And(func() {
 			deployment, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, int32(3), *deployment.Spec.RevisionHistoryLimit)
 		}).
 		And(func() {
 			output, err := RunWithStdin(testdata.SSARevisionHistoryDeployment, "", "kubectl", "apply", "-n", DeploymentNamespace(), "--server-side=true", "--field-manager=revision-history-manager", "--validate=false", "--force-conflicts", "-f", "-")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, output, "serverside-applied")
 		}).
 		Then().
@@ -968,13 +968,13 @@ func TestResourceDiffing(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			deployment, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, int32(1), *deployment.Spec.RevisionHistoryLimit)
 		}).
 		When().Sync().Then().Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			deployment, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, int32(1), *deployment.Spec.RevisionHistoryLimit)
 		})
 }
@@ -1039,7 +1039,7 @@ func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode 
 		And(func(app *Application) {
 			diffOutput, err := RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
 			assert.Empty(t, diffOutput)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
 }
 
@@ -1060,7 +1060,7 @@ func TestOldStyleResourceAction(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			closer, client, err := ArgoCDClientset.NewApplicationClient()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			defer io.Close(closer)
 
 			actions, err := client.ListResourceActions(context.Background(), &applicationpkg.ApplicationResourceRequest{
@@ -1071,7 +1071,7 @@ func TestOldStyleResourceAction(t *testing.T) {
 				Namespace:    ptr.To(DeploymentNamespace()),
 				ResourceName: ptr.To("guestbook-ui"),
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, []*ResourceAction{{Name: "sample", Disabled: false}}, actions.Actions)
 
 			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{
@@ -1083,10 +1083,10 @@ func TestOldStyleResourceAction(t *testing.T) {
 				ResourceName: ptr.To("guestbook-ui"),
 				Action:       ptr.To("sample"),
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			deployment, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			assert.Equal(t, "test", deployment.Labels["sample"])
 		})
@@ -1166,7 +1166,7 @@ func TestNewStyleResourceActionPermitted(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			closer, client, err := ArgoCDClientset.NewApplicationClient()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			defer io.Close(closer)
 
 			actions, err := client.ListResourceActions(context.Background(), &applicationpkg.ApplicationResourceRequest{
@@ -1177,7 +1177,7 @@ func TestNewStyleResourceActionPermitted(t *testing.T) {
 				Namespace:    ptr.To(DeploymentNamespace()),
 				ResourceName: ptr.To("hello"),
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, []*ResourceAction{{Name: "sample", Disabled: false}}, actions.Actions)
 
 			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{
@@ -1189,10 +1189,10 @@ func TestNewStyleResourceActionPermitted(t *testing.T) {
 				ResourceName: ptr.To("hello"),
 				Action:       ptr.To("sample"),
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			_, err = KubeClientset.BatchV1().Jobs(DeploymentNamespace()).Get(context.Background(), "hello-123", metav1.GetOptions{})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
 }
 
@@ -1277,7 +1277,7 @@ func TestNewStyleResourceActionMixedOk(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			closer, client, err := ArgoCDClientset.NewApplicationClient()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			defer io.Close(closer)
 
 			actions, err := client.ListResourceActions(context.Background(), &applicationpkg.ApplicationResourceRequest{
@@ -1288,7 +1288,7 @@ func TestNewStyleResourceActionMixedOk(t *testing.T) {
 				Namespace:    ptr.To(DeploymentNamespace()),
 				ResourceName: ptr.To("hello"),
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, []*ResourceAction{{Name: "sample", Disabled: false}}, actions.Actions)
 
 			_, err = client.RunResourceAction(context.Background(), &applicationpkg.ResourceActionRunRequest{
@@ -1300,15 +1300,15 @@ func TestNewStyleResourceActionMixedOk(t *testing.T) {
 				ResourceName: ptr.To("hello"),
 				Action:       ptr.To("sample"),
 			})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			// Assert new Job was created
 			_, err = KubeClientset.BatchV1().Jobs(DeploymentNamespace()).Get(context.Background(), "hello-123", metav1.GetOptions{})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			// Assert the original CronJob was patched
 			cronJob, err := KubeClientset.BatchV1().CronJobs(DeploymentNamespace()).Get(context.Background(), "hello", metav1.GetOptions{})
 			assert.Equal(t, "aValue", cronJob.Labels["aKey"])
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
 }
 
@@ -1325,7 +1325,7 @@ func TestSyncResourceByLabel(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			_, err := RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Contains(t, err.Error(), "level=fatal")
 		})
 }
@@ -1343,7 +1343,7 @@ func TestSyncResourceByProject(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			_, err := RunCli("app", "sync", app.Name, "--project", "this-project-does-not-exist")
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Contains(t, err.Error(), "level=fatal")
 		})
 }
@@ -1405,10 +1405,10 @@ func TestNoLocalSyncWithAutosyncEnabled(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			_, err := RunCli("app", "set", app.Name, "--sync-policy", "automated")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			_, err = RunCli("app", "sync", app.Name, "--local", guestbookPathLocal)
-			assert.Error(t, err)
+			require.Error(t, err)
 		})
 }
 
@@ -1421,11 +1421,11 @@ func TestLocalSyncDryRunWithAutosyncEnabled(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			_, err := RunCli("app", "set", app.Name, "--sync-policy", "automated")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			appBefore := app.DeepCopy()
 			_, err = RunCli("app", "sync", app.Name, "--dry-run", "--local-repo-root", ".", "--local", guestbookPathLocal)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			appAfter := app.DeepCopy()
 			assert.True(t, reflect.DeepEqual(appBefore, appAfter))
@@ -1449,11 +1449,10 @@ func TestSyncAsync(t *testing.T) {
 func assertResourceActions(t *testing.T, appName string, successful bool) {
 	assertError := func(err error, message string) {
 		if successful {
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		} else {
-			if assert.Error(t, err) {
-				assert.Contains(t, err.Error(), message)
-			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), message)
 		}
 	}
 
@@ -1923,7 +1922,7 @@ func TestOrphanedResource(t *testing.T) {
 		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
 		And(func(app *Application) {
 			output, err := RunCli("app", "resources", app.Name)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, output, "orphaned-configmap")
 		}).
 		Given().
@@ -1938,7 +1937,7 @@ func TestOrphanedResource(t *testing.T) {
 		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
 		And(func(app *Application) {
 			output, err := RunCli("app", "resources", app.Name)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, output, "orphaned-configmap")
 		}).
 		Given().
@@ -1954,7 +1953,7 @@ func TestOrphanedResource(t *testing.T) {
 		Expect(NoConditions()).
 		And(func(app *Application) {
 			output, err := RunCli("app", "resources", app.Name)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NotContains(t, output, "orphaned-configmap")
 		}).
 		Given().
@@ -1970,7 +1969,7 @@ func TestOrphanedResource(t *testing.T) {
 		Expect(NoConditions()).
 		And(func(app *Application) {
 			output, err := RunCli("app", "resources", app.Name)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NotContains(t, output, "orphaned-configmap")
 		}).
 		Given().
@@ -2091,7 +2090,7 @@ func TestSyncWithInfos(t *testing.T) {
 			_, err := RunCli("app", "sync", app.Name,
 				"--info", fmt.Sprintf("%s=%s", expectedInfo[0].Name, expectedInfo[0].Value),
 				"--info", fmt.Sprintf("%s=%s", expectedInfo[1].Name, expectedInfo[1].Value))
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
@@ -2113,7 +2112,7 @@ func TestCreateAppWithNoNameSpaceForGlobalResource(t *testing.T) {
 		And(func(app *Application) {
 			time.Sleep(500 * time.Millisecond)
 			app, err := AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).Get(context.Background(), app.Name, metav1.GetOptions{})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Empty(t, app.Status.Conditions)
 		})
 }
@@ -2193,19 +2192,19 @@ func TestListResource(t *testing.T) {
 		Expect(Condition(ApplicationConditionOrphanedResourceWarning, "Application has 1 orphaned resources")).
 		And(func(app *Application) {
 			output, err := RunCli("app", "resources", app.Name)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, output, "orphaned-configmap")
 			assert.Contains(t, output, "guestbook-ui")
 		}).
 		And(func(app *Application) {
 			output, err := RunCli("app", "resources", app.Name, "--orphaned=true")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, output, "orphaned-configmap")
 			assert.NotContains(t, output, "guestbook-ui")
 		}).
 		And(func(app *Application) {
 			output, err := RunCli("app", "resources", app.Name, "--orphaned=false")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NotContains(t, output, "orphaned-configmap")
 			assert.Contains(t, output, "guestbook-ui")
 		}).
@@ -2236,7 +2235,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 	defer func() {
 		if !t.Skipped() {
 			_, err := Run("", "kubectl", "delete", "namespace", updatedNamespace)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}
 	}()
 	Given(t).
@@ -2248,7 +2247,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 		And(func(app *Application) {
 			// Make sure the namespace we are about to update to does not exist
 			_, err := Run("", "kubectl", "get", "namespace", updatedNamespace)
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Contains(t, err.Error(), "not found")
 		}).
 		When().
@@ -2267,7 +2266,7 @@ func TestNamespaceAutoCreation(t *testing.T) {
 		And(func(app *Application) {
 			// Verify delete app does not delete the namespace auto created
 			output, err := Run("", "kubectl", "get", "namespace", updatedNamespace)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, output, updatedNamespace)
 		})
 }
@@ -2296,7 +2295,7 @@ func TestCreateDisableValidation(t *testing.T) {
 		And(func(app *Application) {
 			_, err := RunCli("app", "create", app.Name, "--upsert", "--validate=false", "--repo", RepoURL(RepoURLTypeFile),
 				"--path", "baddir2", "--project", app.Spec.Project, "--dest-server", KubernetesInternalAPIServerAddr, "--dest-namespace", DeploymentNamespace())
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}).
 		When().
 		AppSet("--path", "baddir3", "--validate=false")
@@ -2383,38 +2382,38 @@ definitions:
 		// tests resource actions on a CRD using status subresource
 		And(func(app *Application) {
 			_, err := RunCli("app", "actions", "run", app.Name, "--kind", "StatusSubResource", "update-both")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			text := FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
 			assert.Equal(t, "update-both", text)
 			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.status.bar}")).(string)
 			assert.Equal(t, "update-both", text)
 
 			_, err = RunCli("app", "actions", "run", app.Name, "--kind", "StatusSubResource", "update-spec")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
 			assert.Equal(t, "update-spec", text)
 
 			_, err = RunCli("app", "actions", "run", app.Name, "--kind", "StatusSubResource", "update-status")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "statussubresources", "status-subresource", "-o", "jsonpath={.status.bar}")).(string)
 			assert.Equal(t, "update-status", text)
 		}).
 		// tests resource actions on a CRD *not* using status subresource
 		And(func(app *Application) {
 			_, err := RunCli("app", "actions", "run", app.Name, "--kind", "NonStatusSubResource", "update-both")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			text := FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
 			assert.Equal(t, "update-both", text)
 			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.status.bar}")).(string)
 			assert.Equal(t, "update-both", text)
 
 			_, err = RunCli("app", "actions", "run", app.Name, "--kind", "NonStatusSubResource", "update-spec")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.spec.foo}")).(string)
 			assert.Equal(t, "update-spec", text)
 
 			_, err = RunCli("app", "actions", "run", app.Name, "--kind", "NonStatusSubResource", "update-status")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			text = FailOnErr(Run(".", "kubectl", "-n", app.Spec.Destination.Namespace, "get", "nonstatussubresources", "non-status-subresource", "-o", "jsonpath={.status.bar}")).(string)
 			assert.Equal(t, "update-status", text)
 		})
@@ -2431,17 +2430,17 @@ func TestAppLogs(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
 			out, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
 			out, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Pod")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, out, "Hi")
 		}).
 		And(func(app *Application) {
 			out, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Service")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
 		})
 }

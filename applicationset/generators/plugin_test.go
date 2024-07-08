@@ -645,7 +645,7 @@ func TestPluginGenerateParams(t *testing.T) {
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				authHeader := r.Header.Get("Authorization")
 				_, tokenKey := plugin.ParseSecretKey(testCase.configmap.Data["token"])
-				expectedToken := testCase.secret.Data[strings.Replace(tokenKey, "$", "", -1)]
+				expectedToken := testCase.secret.Data[strings.ReplaceAll(tokenKey, "$", "")]
 				if authHeader != "Bearer "+string(expectedToken) {
 					w.WriteHeader(http.StatusUnauthorized)
 					return
@@ -654,7 +654,7 @@ func TestPluginGenerateParams(t *testing.T) {
 				w.Header().Set("Content-Type", "application/json")
 				_, err := w.Write(testCase.content)
 				if err != nil {
-					assert.NoError(t, fmt.Errorf("Error Write %w", err))
+					require.NoError(t, fmt.Errorf("Error Write %w", err))
 				}
 			})
 
@@ -687,9 +687,9 @@ func TestPluginGenerateParams(t *testing.T) {
 			}
 
 			if testCase.expectedError != nil {
-				assert.EqualError(t, err, testCase.expectedError.Error())
+				require.EqualError(t, err, testCase.expectedError.Error())
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				expectedJson, err := json.Marshal(testCase.expected)
 				require.NoError(t, err)
 				gotJson, err := json.Marshal(got)

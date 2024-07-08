@@ -10,8 +10,7 @@ import './edit-notification-subscriptions.scss';
 
 export const NOTIFICATION_SUBSCRIPTION_ANNOTATION_PREFIX = 'notifications.argoproj.io/subscribe';
 
-// eslint-disable-next-line no-useless-escape
-export const NOTIFICATION_SUBSCRIPTION_ANNOTATION_REGEX = new RegExp(`^notifications\.argoproj\.io\/subscribe\.[a-zA-Z-]{1,100}\.[a-zA-Z-]{1,100}$`);
+export const NOTIFICATION_SUBSCRIPTION_ANNOTATION_REGEX = new RegExp(`^notifications\\.argoproj\\.io/subscribe\\.[a-zA-Z-]{1,100}\\.[a-zA-Z-]{1,100}$`);
 
 export type TNotificationSubscription = {
     trigger: string;

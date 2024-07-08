@@ -103,6 +103,8 @@ spec:
         beep: boop-${ARGOCD_APP_REVISION}
       # Toggle which enables/disables env variables substitution in commonAnnotations
       commonAnnotationsEnvsubst: true
+      forceCommonLabels: false
+      forceCommonAnnotations: false
       images:
       - gcr.io/heptio-images/ks-guestbook-demo:0.2
       - my-app=gcr.io/my-repo/my-app:0.1
@@ -110,6 +112,17 @@ spec:
       replicas:
       - name: kustomize-guestbook-ui
         count: 4
+      components:
+        - ../component  # relative to the kustomization.yaml (`source.path`).
+      patches:
+        - target:
+            kind: Deployment
+            name: guestbook-ui
+          patch: |-
+            - op: add # Add new element to manifest
+              path: /spec/template/spec/nodeSelector/
+              value:
+                env: "pro"
 
     # directory
     directory:

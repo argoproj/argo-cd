@@ -69,6 +69,7 @@ func NewCommand() *cobra.Command {
 		globalPreservedAnnotations   []string
 		globalPreservedLabels        []string
 		enableScmProviders           bool
+		webhookParallelism           int
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -126,7 +127,14 @@ func NewCommand() *cobra.Command {
 				}
 			}
 
-			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+			cfg := ctrl.GetConfigOrDie()
+			err = appv1alpha1.SetK8SConfigDefaults(cfg)
+			if err != nil {
+				log.Error(err, "Unable to apply K8s REST config defaults")
+				os.Exit(1)
+			}
+
+			mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 				Scheme: scheme,
 				Metrics: metricsserver.Options{
 					BindAddress: metricsAddr,
@@ -152,9 +160,7 @@ func NewCommand() *cobra.Command {
 			appSetConfig := appclientset.NewForConfigOrDie(mgr.GetConfig())
 			argoCDDB := db.NewDB(namespace, argoSettingsMgr, k8sClient)
 
-			scmAuth := generators.SCMAuthProviders{
-				GitHubApps: github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)),
-			}
+			scmConfig := generators.NewSCMConfig(scmRootCAPath, allowedScmProviders, enableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)))
 
 			tlsConfig := apiclient.TLSConfiguration{
 				DisableTLS:       repoServerPlaintext,
@@ -174,42 +180,10 @@ func NewCommand() *cobra.Command {
 			argoCDService, err := services.NewArgoCDService(argoCDDB.GetRepository, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
 			errors.CheckError(err)
 
-			terminalGenerators := map[string]generators.Generator{
-				"List":                    generators.NewListGenerator(),
-				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
-				"Git":                     generators.NewGitGenerator(argoCDService),
-				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient(), scmAuth, scmRootCAPath, allowedScmProviders, enableScmProviders),
-				"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
-				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient(), scmAuth, scmRootCAPath, allowedScmProviders, enableScmProviders),
-				"Plugin":                  generators.NewPluginGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
-			}
-
-			nestedGenerators := map[string]generators.Generator{
-				"List":                    terminalGenerators["List"],
-				"Clusters":                terminalGenerators["Clusters"],
-				"Git":                     terminalGenerators["Git"],
-				"SCMProvider":             terminalGenerators["SCMProvider"],
-				"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
-				"PullRequest":             terminalGenerators["PullRequest"],
-				"Plugin":                  terminalGenerators["Plugin"],
-				"Matrix":                  generators.NewMatrixGenerator(terminalGenerators),
-				"Merge":                   generators.NewMergeGenerator(terminalGenerators),
-			}
-
-			topLevelGenerators := map[string]generators.Generator{
-				"List":                    terminalGenerators["List"],
-				"Clusters":                terminalGenerators["Clusters"],
-				"Git":                     terminalGenerators["Git"],
-				"SCMProvider":             terminalGenerators["SCMProvider"],
-				"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
-				"PullRequest":             terminalGenerators["PullRequest"],
-				"Plugin":                  terminalGenerators["Plugin"],
-				"Matrix":                  generators.NewMatrixGenerator(nestedGenerators),
-				"Merge":                   generators.NewMergeGenerator(nestedGenerators),
-			}
+			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig)
 
 			// start a webhook server that listens to incoming webhook payloads
-			webhookHandler, err := webhook.NewWebhookHandler(namespace, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
+			webhookHandler, err := webhook.NewWebhookHandler(namespace, webhookParallelism, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
 			if err != nil {
 				log.Error(err, "failed to create webhook handler")
 			}
@@ -275,6 +249,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&scmRootCAPath, "scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")
 	command.Flags().StringSliceVar(&globalPreservedAnnotations, "preserved-annotations", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS", []string{}, ","), "Sets global preserved field values for annotations")
 	command.Flags().StringSliceVar(&globalPreservedLabels, "preserved-labels", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS", []string{}, ","), "Sets global preserved field values for labels")
+	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
 	return &command
 }
 
