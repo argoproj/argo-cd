@@ -455,7 +455,7 @@ func (s *Service) CheckPluginConfiguration(ctx context.Context, _ *empty.Empty) 
 	return response, nil
 }
 
-func (s *Service) isDiscoveryConfigured() (IsDiscoveryConfigured bool) {
+func (s *Service) isDiscoveryConfigured() (isDiscoveryConfigured bool) {
 	config := s.initConstants.PluginConfig
 	return config.Spec.Discover.FileName != "" || config.Spec.Discover.Find.Glob != "" || len(config.Spec.Discover.Find.Command.Command) > 0
 }
