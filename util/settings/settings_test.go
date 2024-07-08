@@ -1,7 +1,6 @@
 package settings
 
 import (
-	"bufio"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -12,12 +11,12 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/util/yaml"
+
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/scheme"
 	testutil "github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/test"
-	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -57,17 +56,13 @@ func fixtures(data map[string]string, opts ...func(secret *v1.Secret)) (*fake.Cl
 }
 
 func TestDocumentedArgoCDConfigMapIsValid(t *testing.T) {
+	var argocdCM *v1.ConfigMap
 	settings := ArgoCDSettings{}
-	fd, err := os.Open("../../docs/operator-manual/argocd-cm.yaml")
+	data, err := os.ReadFile("../../docs/operator-manual/argocd-cm.yaml")
 	require.NoError(t, err)
-	reader := yaml.NewYAMLReader(bufio.NewReader(fd))
-	data, err := reader.Read()
+	err = yaml.Unmarshal(data, &argocdCM)
 	require.NoError(t, err)
-	o, _, err := scheme.Codecs.UniversalDeserializer().Decode(data, nil, &v1.ConfigMap{})
-	require.NoError(t, err)
-	cm, ok := o.(*v1.ConfigMap)
-	require.True(t, ok)
-	updateSettingsFromConfigMap(&settings, cm)
+	updateSettingsFromConfigMap(&settings, argocdCM)
 }
 
 func TestGetRepositories(t *testing.T) {
