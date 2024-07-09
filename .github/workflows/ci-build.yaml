@@ -172,7 +172,7 @@ jobs:
       - name: Run all unit tests
         run: make test-local
       - name: Generate test results artifacts
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: test-results
           path: test-results
@@ -236,7 +236,7 @@ jobs:
       - name: Run all unit tests
         run: make test-race-local
       - name: Generate test results artifacts
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: race-results
           path: test-results/
@@ -354,12 +354,12 @@ jobs:
         run: |
           rm -rf ui/node_modules/argo-ui/node_modules
       - name: Get e2e code coverage
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: e2e-code-coverage
           path: e2e-code-coverage
       - name: Get unit test code coverage
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: test-results
           path: test-results
@@ -496,13 +496,13 @@ jobs:
           goreman run stop-all || echo "goreman trouble"
           sleep 30
       - name: Upload e2e coverage report
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: e2e-code-coverage
           path: /tmp/coverage
         if: ${{ matrix.k3s.latest }}
       - name: Upload e2e-server logs
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: e2e-server-k8s${{ matrix.k3s.version }}.log
           path: /tmp/e2e-server.log
