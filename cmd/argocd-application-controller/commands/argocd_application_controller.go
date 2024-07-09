@@ -3,15 +3,23 @@ package commands
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	"math"
+	"time"
+
 	flag "github.com/spf13/pflag"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"math"
+
+	"github.com/argoproj/argo-cd/v2/util/settings"
+
+	"github.com/argoproj/pkg/stats"
+	"github.com/redis/go-redis/v9"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"k8s.io/client-go/kubernetes"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/argoproj/pkg/stats"
 	"github.com/redis/go-redis/v9"
@@ -39,11 +47,6 @@ import (
 	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/tls"
 	"github.com/argoproj/argo-cd/v2/util/trace"
-	"github.com/argoproj/pkg/stats"
-	"github.com/redis/go-redis/v9"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -112,8 +115,6 @@ func (c *ApplicationControllerConfig) WithDefaultFlags() *ApplicationControllerC
 	c.flags.IntVar(&c.repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
 	c.flags.IntVar(&c.statusProcessors, "status-processors", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_STATUS_PROCESSORS", 20, 0, math.MaxInt32), "Number of application status processors")
 	c.flags.IntVar(&c.operationProcessors, "operation-processors", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_OPERATION_PROCESSORS", 10, 0, math.MaxInt32), "Number of application operation processors")
-	c.flags.StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
-	c.flags.StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	c.flags.IntVar(&c.glogLevel, "gloglevel", 0, "Set the glog logging level")
 	c.flags.IntVar(&c.metricsPort, "metrics-port", common.DefaultPortArgoCDMetrics, "Start metrics server on given port")
 	c.flags.DurationVar(&c.metricsCacheExpiration, "metrics-cache-expiration", env.ParseDurationFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_CACHE_EXPIRATION", 0*time.Second, 0, math.MaxInt64), "Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)")
@@ -128,10 +129,10 @@ func (c *ApplicationControllerConfig) WithDefaultFlags() *ApplicationControllerC
 	c.flags.StringSliceVar(&c.otlpAttrs, "otlp-attrs", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_ATTRS", []string{}, ","), "List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)")
 	c.flags.StringSliceVar(&c.applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces that applications are allowed to be reconciled from")
 	c.flags.BoolVar(&c.persistResourceHealth, "persist-resource-health", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH", true), "Enables storing the managed resources health in the Application CRD")
-	c.flags.StringVar(&c.shardingAlgorithm, "sharding-method", env.StringFromEnv(common.EnvControllerShardingAlgorithm, common.DefaultShardingAlgorithm), "Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin] ")
+	c.flags.StringVar(&c.shardingAlgorithm, "sharding-method", env.StringFromEnv(common.EnvControllerShardingAlgorithm, common.DefaultShardingAlgorithm), "Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin, consistent-hashing] ")
 	// global queue rate limit config
 	c.flags.Int64Var(&c.workqueueRateLimit.BucketSize, "wq-bucket-size", env.ParseInt64FromEnv("WORKQUEUE_BUCKET_SIZE", 500, 1, math.MaxInt64), "Set Workqueue Rate Limiter Bucket Size, default 500")
-	c.flags.Float64Var(&c.workqueueRateLimit.BucketQPS, "wq-bucket-qps", env.ParseFloat64FromEnv("WORKQUEUE_BUCKET_QPS", math.MaxFloat64, 1, math.MaxFloat64), "Set Workqueue Rate Limiter Bucket QPS, default c.flags to MaxFloat64 which disables the bucket limiter")
+	c.flags.Float64Var(&c.workqueueRateLimit.BucketQPS, "wq-bucket-qps", env.ParseFloat64FromEnv("WORKQUEUE_BUCKET_QPS", math.MaxFloat64, 1, math.MaxFloat64), "Set Workqueue Rate Limiter Bucket QPS, default set to MaxFloat64 which disables the bucket limiter")
 	// individual item rate limit config
 	// when WORKQUEUE_FAILURE_COOLDOWN is 0 per item rate limiting is disabled(default)
 	c.flags.DurationVar(&c.workqueueRateLimit.FailureCoolDown, "wq-cooldown-ns", time.Duration(env.ParseInt64FromEnv("WORKQUEUE_FAILURE_COOLDOWN_NS", 0, 0, (24*time.Hour).Nanoseconds())), "Set Workqueue Per Item Rate Limiter Cooldown duration in ns, default 0(per item rate limiter disabled)")
@@ -140,6 +141,7 @@ func (c *ApplicationControllerConfig) WithDefaultFlags() *ApplicationControllerC
 	c.flags.Float64Var(&c.workqueueRateLimit.BackoffFactor, "wq-backoff-factor", env.ParseFloat64FromEnv("WORKQUEUE_BACKOFF_FACTOR", 1.5, 0, math.MaxFloat64), "Set Workqueue Per Item Rate Limiter Backoff Factor, default is 1.5")
 	c.flags.BoolVar(&c.enableDynamicClusterDistribution, "dynamic-cluster-distribution-enabled", env.ParseBoolFromEnv(common.EnvEnableDynamicClusterDistribution, false), "Enables dynamic cluster distribution.")
 	c.flags.BoolVar(&c.serverSideDiff, "server-side-diff-enabled", env.ParseBoolFromEnv(common.EnvServerSideDiff, false), "Feature flag to enable ServerSide diff. Default (\"false\")")
+	c.flags.DurationVar(&c.ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout-seconds", env.ParseDurationFromEnv("ARGOCD_IGNORE_NORMALIZER_JQ_TIMEOUT", 0*time.Second, 0, math.MaxInt64), "Set ignore normalizer JQ execution timeout")
 	// argocd k8s event logging flag
 	c.flags.StringSliceVar(&c.enableK8sEvent, "enable-k8s-event", env.StringsFromEnv("ARGOCD_ENABLE_K8S_EVENT", argo.DefaultEnableEventList(), ","), "Enable ArgoCD to use k8s event. For disabling all events, set the value as `none`. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated)")
 	c.cacheSource = appstatecache.AddCacheFlagsToCmd(c.flags, cacheutil.Options{
@@ -285,16 +287,12 @@ func (c *ApplicationControllerConfig) CreateApplicationController(ctx context.Co
 
 	go appController.Run(ctx, c.statusProcessors, c.operationProcessors)
 
-	<-ctx.Done()
-
-	log.Println("clean shutdown")
-
 	return nil
 }
 
 func NewCommand() *cobra.Command {
 	var config *ApplicationControllerConfig
-	var command = cobra.Command{
+	command := cobra.Command{
 		Use:               cliName,
 		Short:             "Run ArgoCD Application Controller",
 		Long:              "ArgoCD application controller is a Kubernetes controller that continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo). This command runs Application Controller in the foreground.  It can be configured by following options.",
@@ -327,5 +325,7 @@ func NewCommand() *cobra.Command {
 	}
 
 	config = NewApplicationControllerConfig(command.Flags(), command.PersistentFlags()).WithDefaultFlags().WithKubectlFlags()
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	return &command
 }

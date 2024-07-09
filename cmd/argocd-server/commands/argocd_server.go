@@ -3,12 +3,14 @@ package commands
 import (
 	"context"
 	"fmt"
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
-	flag "github.com/spf13/pflag"
-	"k8s.io/client-go/rest"
 	"math"
 	"strings"
 	"time"
+
+	flag "github.com/spf13/pflag"
+	"k8s.io/client-go/rest"
+
+	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 
 	"github.com/argoproj/pkg/stats"
 	"github.com/redis/go-redis/v9"
@@ -137,6 +139,7 @@ func (c *ServerConfig) WithDefaultFlags() *ServerConfig {
 	c.flags.BoolVar(&c.dexServerStrictTLS, "dex-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_DEX_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to dex server")
 	c.flags.StringSliceVar(&c.applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
 	c.flags.BoolVar(&c.enableProxyExtension, "enable-proxy-extension", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_PROXY_EXTENSION", false), "Enable Proxy Extension feature")
+	c.flags.IntVar(&c.webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
 
 	// Flags related to the applicationSet component.
 	c.flags.StringVar(&c.scmRootCAPath, "appset-scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")
@@ -333,7 +336,7 @@ func (c *ServerConfig) CreateServer(ctx context.Context) *server.ArgoCDServer {
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var config *ServerConfig
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:               cliName,
 		Short:             "Run the ArgoCD API server",
 		Long:              "The API server is a gRPC/REST server which exposes the API consumed by the Web UI, CLI, and CI/CD systems.  This command runs API server in the foreground.  It can be configured by following options.",

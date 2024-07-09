@@ -3,9 +3,10 @@ package cache
 import (
 	"context"
 	"fmt"
-	flag "github.com/spf13/pflag"
 	"math"
 	"time"
+
+	flag "github.com/spf13/pflag"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"

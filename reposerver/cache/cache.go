@@ -5,12 +5,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	flag "github.com/spf13/pflag"
 	"hash/fnv"
 	"math"
 	"sort"
 	"strings"
 	"time"
+
+	flag "github.com/spf13/pflag"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/go-git/go-git/v5/plumbing"
+	log "github.com/sirupsen/logrus"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -18,9 +23,6 @@ import (
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/hash"
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
-	"github.com/go-git/go-git/v5/plumbing"
-	log "github.com/sirupsen/logrus"
 )
 
 var (

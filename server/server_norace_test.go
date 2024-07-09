@@ -38,7 +38,6 @@ func TestUserAgent(t *testing.T) {
 	defer cancel()
 	s.Init(ctx)
 	go s.Run(ctx, lns, cancel, func() {
-
 	})
 	defer func() { time.Sleep(3 * time.Second) }()
 
@@ -105,7 +104,6 @@ func Test_StaticHeaders(t *testing.T) {
 		defer cancel()
 		s.Init(ctx)
 		go s.Run(ctx, lns, cancel, func() {
-
 		})
 		defer func() { time.Sleep(3 * time.Second) }()
 
@@ -136,7 +134,6 @@ func Test_StaticHeaders(t *testing.T) {
 		defer cancel()
 		s.Init(ctx)
 		go s.Run(ctx, lns, cancel, func() {
-
 		})
 		defer func() { time.Sleep(3 * time.Second) }()
 
@@ -167,7 +164,6 @@ func Test_StaticHeaders(t *testing.T) {
 		defer cancel()
 		s.Init(ctx)
 		go s.Run(ctx, lns, cancel, func() {
-
 		})
 		defer func() { time.Sleep(3 * time.Second) }()
 

@@ -3,14 +3,17 @@ package command
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/tls"
-	flag "github.com/spf13/pflag"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/rest"
 	"math"
 	"net/http"
 	"os"
+
+	flag "github.com/spf13/pflag"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
+
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/tls"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -165,7 +168,7 @@ func (c *ApplicationSetControllerConfig) CreateApplicationSetController(ctx cont
 	}
 
 	// By default, watch all namespaces
-	var watchedNamespace = ""
+	watchedNamespace := ""
 
 	// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
 	if len(c.applicationSetNamespaces) == 1 {
