@@ -62,11 +62,11 @@ func IsManifestGenerationEnabled(sourceType v1alpha1.ApplicationSourceType, enab
 	return enabled
 }
 
-func Discover(ctx context.Context, appPath, repoPath string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string) (map[string]string, error) {
+func Discover(ctx context.Context, discoverer *Discoverer, appPath, repoPath string, enableGenerateManifests map[string]bool, tarExcludedGlobs []string, env []string) (map[string]string, error) {
 	apps := make(map[string]string)
 
 	// Check if it is CMP. When running from the CLI this won't work, so we don't try.
-	conn, _, err := DetectConfigManagementPlugin(ctx, discoverer, appPath, repoPath, "", []string{}, tarExcludedGlobs)
+	conn, _, err := DetectConfigManagementPlugin(ctx, discoverer, appPath, repoPath, "", env, tarExcludedGlobs)
 	if err == nil {
 		// Found CMP
 		io.Close(conn)
@@ -172,10 +172,18 @@ func matchRepositoryCMP(ctx context.Context, appPath, repoPath string, client pl
 	return resp.GetIsSupported(), resp.GetIsDiscoveryEnabled(), nil
 }
 
-func cmpSupports(ctx context.Context, appPath, repoPath string, plugin *plugin, env []string, tarExcludedGlobs []string, namedPlugin bool) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, bool) {
-	cmpclientset := pluginclient.NewConfigManagementPluginClientSet(plugin.address, plugin.pluginType.clientSetType())
+func getCmpClient(p *plugin) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, error) {
+	authPath := ``
+	if p.pluginType == service {
+		authPath = filepath.Join(p.owner.namespace, p.owner.serviceName, p.owner.portName)
+	}
+	cmpclientset := pluginclient.NewConfigManagementPluginClientSet(p.address, authPath, p.pluginType.clientSetType())
 
-	conn, cmpClient, err := cmpclientset.NewConfigManagementPluginClient()
+	return cmpclientset.NewConfigManagementPluginClient()
+}
+
+func cmpSupports(ctx context.Context, appPath, repoPath string, plugin *plugin, env []string, tarExcludedGlobs []string, namedPlugin bool) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, bool) {
+	conn, cmpClient, err := getCmpClient(plugin)
 	if err != nil {
 		log.WithFields(log.Fields{
 			common.SecurityField:    common.SecurityMedium,

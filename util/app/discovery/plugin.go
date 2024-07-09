@@ -26,13 +26,22 @@ type plugins struct {
 	servicePlugins []*plugin
 	serviceMutex   sync.RWMutex
 	informer       *informerscorev1.ServiceInformer
+	// getName is a function used to resolve the versioned name of a plugin
+	getName func(*plugin) string
+}
+
+type pluginOwner struct {
+	namespace   string
+	serviceName string
+	portName    string
+	fileName    string
 }
 
 type plugin struct {
 	name       string
 	pluginType pluginType
 	address    string
-	owner      string
+	owner      pluginOwner
 }
 
 func (p *pluginType) clientSetType() pluginclient.ClientType {
@@ -58,6 +67,7 @@ func kubernetesClient() (*kubernetes.Clientset, error) {
 func newPluginService() *plugins {
 	ps := plugins{
 		servicePlugins: make([]*plugin, 0),
+		getName:        getNameFromSvc,
 	}
 	c, err := kubernetesClient()
 	if err == nil {
@@ -99,7 +109,9 @@ func (_ *plugins) getSidecarPlugins() ([]*plugin, error) {
 					name:       name,
 					pluginType: sidecar,
 					address:    filepath.Join(pluginSockFilePath, file.Name()),
-					owner:      file.Name(),
+					owner:      pluginOwner{
+						fileName: file.Name(),
+					},
 				})
 			}
 		}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -62,6 +63,7 @@ func (ct *ClientType) String() string {
 
 type clientSet struct {
 	address    string
+	secretPath string
 	clientType ClientType
 }
 
@@ -107,8 +109,8 @@ func (c *clientSet) newConnection() (*grpc.ClientConn, error) {
 }
 
 // NewConfigManagementPluginClientSet creates new instance of config management plugin server Clientset
-func NewConfigManagementPluginClientSet(address string, clientType ClientType) Clientset {
-	return &clientSet{address: address, clientType: clientType}
+func NewConfigManagementPluginClientSet(address string, secretPath string, clientType ClientType) Clientset {
+	return &clientSet{address: address, secretPath: secretPath, clientType: clientType}
 }
 
 // wrappedStream  wraps around the embedded grpc.ClientStream, and intercepts the RecvMsg and
@@ -152,16 +154,32 @@ func (c *clientSet) authenticate(authSecret []string) error {
 		// Sidecars are trusted
 		return nil
 	case Service:
-		path := fmt.Sprintf("%s/secret", common.DefaultPluginAuthSecretsPath)
-		content, err := os.ReadFile(path)
+		secret, err := c.readAuthSecret(common.PluginAuthSecretsPath)
 		if err != nil {
-			return status.Errorf(codes.Unauthenticated, "No authentication secret present at %s", path)
+			return err
 		}
-		if strings.TrimSpace(string(content)) != authSecret[0] {
+		if secret != authSecret[0] {
 			return status.Errorf(codes.Unauthenticated, "Client secret doesn't match")
 		}
 		return nil
 	default:
 		return status.Errorf(codes.Unauthenticated, "Unknown client type %d attempting authentication", c.clientType)
 	}
+}
+
+func (c *clientSet) readAuthSecret(root string) (string, error) {
+	tryPath := c.secretPath
+	for {
+		path := fmt.Sprintf(filepath.Join(root, tryPath, common.PluginAuthSecretName))
+		content, err := os.ReadFile(path)
+		if err == nil {
+			return strings.TrimSpace(string(content)), nil
+		}
+		// If we've just tried the root, give up
+		if tryPath == `.` {
+			break
+		}
+		tryPath = filepath.Dir(tryPath)
+	}
+	return ``, status.Errorf(codes.Unauthenticated, "No authentication secret present at %s or parents", filepath.Join(root, c.secretPath))
 }

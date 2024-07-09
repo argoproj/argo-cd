@@ -10,7 +10,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	pluginclient "github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 
 	corev1 "k8s.io/api/core/v1"
@@ -83,7 +82,7 @@ func (s *plugins) svcDelete(obj interface{}) {
 	log.Infof("Deleting plugin service %s", namespacedName(svc))
 	s.serviceMutex.Lock()
 	defer s.serviceMutex.Unlock()
-	s.deleteByOwner(namespacedName(svc).String())
+	s.deleteByOwner(svc)
 }
 
 func (s *plugins) svcUpdate(_ interface{}, new interface{}) {
@@ -91,8 +90,9 @@ func (s *plugins) svcUpdate(_ interface{}, new interface{}) {
 	log.Infof("Updating plugin service %s", namespacedName(svc))
 	s.serviceMutex.Lock()
 	defer s.serviceMutex.Unlock()
-	// Simple delete all and add them all again logic
-	s.deleteByOwner(namespacedName(svc).String())
+	// Simple delete all and add them all again logic.
+	// Optimising this seems premature.
+	s.deleteByOwner(svc)
 	s.addFromService(svc)
 }
 
@@ -100,14 +100,34 @@ func namespacedName(svc *corev1.Service) types.NamespacedName {
 	return types.NamespacedName{Name: svc.ObjectMeta.Name, Namespace: svc.ObjectMeta.Namespace}
 }
 
-func (s *plugins) deleteByOwner(owner string) {
+func (s *plugins) deleteByOwner(svc *corev1.Service) {
+	namespace := svc.ObjectMeta.Namespace
+	name := svc.ObjectMeta.Name
 	// You must have the rw lock to call this
-	for i, svc := range s.servicePlugins {
-		if svc.owner == owner {
-			s.servicePlugins = slices.Delete(
-				s.servicePlugins, i, i+1)
-		}
+	s.servicePlugins = slices.DeleteFunc(s.servicePlugins,
+		func(svc *plugin) bool {
+			return svc.owner.namespace == namespace && svc.owner.serviceName == name
+		})
+}
+
+func getNameFromSvc(p *plugin) string {
+	_, cmpClient, err := getCmpClient(p)
+	if err != nil {
+		log.Errorf("Error connecting to cmp service %v", err)
+		return ""
 	}
+	specificationStream, err := cmpClient.GetSpecification(
+		context.Background(),
+		grpc_retry.Disable(),
+	)
+	if err != nil {
+		log.Errorf("Error getting specification %v", err)
+	}
+	specificationResp, err := specificationStream.CloseAndRecv()
+	if err != nil {
+		log.Errorf("Error getting specification response %v", err)
+	}
+	return specificationResp.GetName()
 }
 
 func (s *plugins) addFromService(svc *corev1.Service) {
@@ -115,29 +135,16 @@ func (s *plugins) addFromService(svc *corev1.Service) {
 	for _, port := range svc.Spec.Ports {
 		address := fmt.Sprintf("%s.%s.svc.cluster.local:%d",
 			svc.ObjectMeta.Name, svc.ObjectMeta.Namespace, port.Port)
-		cmpclientset := pluginclient.NewConfigManagementPluginClientSet(address, pluginclient.Service)
-		_, cmpClient, err := cmpclientset.NewConfigManagementPluginClient()
-		if err != nil {
-			log.Errorf("Error connecting to cmp service %v", err)
-			continue
-		}
-		specificationStream, err := cmpClient.GetSpecification(
-			context.Background(),
-			grpc_retry.Disable(),
-		)
-		if err != nil {
-			log.Errorf("Error getting specification %v", err)
-		}
-		specificationResp, err := specificationStream.CloseAndRecv()
-		if err != nil {
-			log.Errorf("Error getting specification response %v", err)
-		}
-		name := specificationResp.GetName()
-		s.servicePlugins = append(s.servicePlugins, &plugin{
-			name:       name,
+		p := plugin{
 			pluginType: service,
 			address:    address,
-			owner:      namespacedName(svc).String(),
-		})
+			owner: pluginOwner{
+				namespace:   svc.ObjectMeta.Namespace,
+				serviceName: svc.ObjectMeta.Name,
+				portName:    port.Name,
+			},
+		}
+		p.name = s.getName(&p)
+		s.servicePlugins = append(s.servicePlugins, &p)
 	}
 }
