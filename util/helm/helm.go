@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -153,7 +154,13 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 		if err == nil && (parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
 			fileValues, err = config.ReadRemoteFile(file)
 		} else {
-			if _, err := os.Stat(file); os.IsNotExist(err) {
+			_, fileReadErr := os.Stat(file)
+			if os.IsNotExist(fileReadErr) {
+				log.Debugf("File not found %s", file)
+				continue
+			}
+			if errors.Is(fileReadErr, os.ErrPermission) {
+				log.Debugf("File does not have permissions %s", file)
 				continue
 			}
 			fileValues, err = os.ReadFile(file)
