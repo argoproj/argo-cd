@@ -2010,10 +2010,6 @@ func (a *ArgoCDSettings) RedirectURL() (string, error) {
 }
 
 func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
-	if a == nil {
-		return "", errors.New("nil argocd settings")
-	}
-
 	for _, candidateURL := range append([]string{a.URL}, a.URLs...) {
 		u, err := url.Parse(candidateURL)
 		if err != nil {

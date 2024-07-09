@@ -97,7 +97,7 @@ func (p *fakeProvider) Verify(_ string, _ *settings.ArgoCDSettings) (*gooidc.IDT
 }
 
 func TestHandleCallback(t *testing.T) {
-	app := ClientApp{provider: &fakeProvider{}}
+	app := ClientApp{provider: &fakeProvider{}, settings: &settings.ArgoCDSettings{}}
 
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/foo", nil)
 	req.Form = url.Values{
