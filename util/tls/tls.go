@@ -12,15 +12,17 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/spf13/pflag"
 	"math/big"
 	"net"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/spf13/pflag"
+
 	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/v2/util/env"
 )
 
 const (

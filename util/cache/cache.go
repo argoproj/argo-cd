@@ -5,11 +5,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	flag "github.com/spf13/pflag"
 	"math"
 	"os"
 	"strings"
 	"time"
+
+	flag "github.com/spf13/pflag"
 
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"

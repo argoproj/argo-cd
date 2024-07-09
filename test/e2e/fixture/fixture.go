@@ -5,26 +5,29 @@ import (
 	"context"
 	goerrors "errors"
 	"fmt"
+	"os"
+	"os/user"
+	"path"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/spf13/pflag"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/k3s"
+	"github.com/testcontainers/testcontainers-go/modules/redis"
+	"github.com/testcontainers/testcontainers-go/wait"
+
 	appcontrollercommand "github.com/argoproj/argo-cd/v2/cmd/argocd-application-controller/commands"
 	appsetcontrollercommand "github.com/argoproj/argo-cd/v2/cmd/argocd-applicationset-controller/commands"
 	reposervercommand "github.com/argoproj/argo-cd/v2/cmd/argocd-repo-server/commands"
 	servercommand "github.com/argoproj/argo-cd/v2/cmd/argocd-server/commands"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	grpcutil "github.com/argoproj/argo-cd/v2/util/grpc"
-	"github.com/spf13/pflag"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/k3s"
-	"github.com/testcontainers/testcontainers-go/modules/redis"
-	"github.com/testcontainers/testcontainers-go/wait"
-	"os"
-	"os/user"
-	"path"
-	"path/filepath"
+
 	ctrl "sigs.k8s.io/controller-runtime"
-	"strconv"
-	"strings"
-	"testing"
-	"time"
 
 	"github.com/argoproj/pkg/errors"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -607,8 +610,7 @@ func WithTestData(testdata string) TestOption {
 	}
 }
 
-type testLogConsumer struct {
-}
+type testLogConsumer struct{}
 
 func (g *testLogConsumer) Accept(l testcontainers.Log) {
 	log.Info(string(l.Content))
@@ -644,6 +646,7 @@ func initTestContainers(ctx context.Context) {
 		},
 		Started: true,
 	})
+	CheckError(err)
 
 	c, err := k3s.RunContainer(ctx,
 		testcontainers.WithImage("rancher/k3s:v1.27.15-k3s1"), // TODO: env var k3s version
@@ -674,7 +677,7 @@ func initTestContainers(ctx context.Context) {
 	CheckError(err)
 	kubeConfigPath := temp + "/kubeconfig.yaml"
 
-	CheckError(os.WriteFile(kubeConfigPath, kubeConfigYaml, 0666))
+	CheckError(os.WriteFile(kubeConfigPath, kubeConfigYaml, 0o666))
 	CheckError(os.Setenv("REDIS_SERVER", endpoint))
 	CheckError(os.Setenv("KUBECONFIG", kubeConfigPath))
 	CheckError(os.Setenv("ARGOCD_FAKE_IN_CLUSTER", "true"))
@@ -729,9 +732,9 @@ func initTestServices(ctx context.Context) {
 	serverFlags := pflag.NewFlagSet("", pflag.PanicOnError)
 	CheckError(serverFlags.Parse([]string{}))
 	serverRestConfig := rest.CopyConfig(KubeConfig)
-	//serverRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-server", TestNamespace())
+	// serverRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-server", TestNamespace())
 	serverConfig := servercommand.NewServerConfig(serverFlags, serverFlags).WithDefaultFlags().WithK8sSettings(TestNamespace(), serverRestConfig)
-	//CheckError(serverFlags.Set("loglevel", "debug"))
+	// CheckError(serverFlags.Set("loglevel", "debug"))
 	CheckError(serverFlags.Set("insecure", "true"))
 	CheckError(serverFlags.Set("port", strings.Split(apiServerAddress, ":")[1]))
 	CheckError(serverFlags.Set("repo-server", "localhost:8081"))
@@ -742,7 +745,7 @@ func initTestServices(ctx context.Context) {
 	appControllerFlags := pflag.NewFlagSet("", pflag.PanicOnError)
 	CheckError(appControllerFlags.Parse([]string{}))
 	appRestConfig := rest.CopyConfig(KubeConfig)
-	//appRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-application-controller", TestNamespace())
+	// appRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-application-controller", TestNamespace())
 	appControllerConfig := appcontrollercommand.NewApplicationControllerConfig(appControllerFlags, appControllerFlags).WithDefaultFlags().WithK8sSettings(TestNamespace(), appRestConfig)
 	CheckError(appControllerFlags.Set("loglevel", "debug"))
 	CheckError(appControllerFlags.Set("repo-server", "localhost:8081"))
@@ -753,9 +756,9 @@ func initTestServices(ctx context.Context) {
 	CheckError(appSetControllerFlags.Parse([]string{}))
 
 	appsetRestConfig := rest.CopyConfig(KubeConfig)
-	//appsetRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-applicationset-controller", TestNamespace())
+	// appsetRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-applicationset-controller", TestNamespace())
 	appSetControllerConfig := appsetcontrollercommand.NewApplicationSetControllerConfig(appSetControllerFlags, appSetControllerFlags).WithDefaultFlags().WithK8sSettings(TestNamespace(), appsetRestConfig)
-	//CheckError(appSetControllerFlags.Set("loglevel", "debug"))
+	// CheckError(appSetControllerFlags.Set("loglevel", "debug"))
 	CheckError(appSetControllerFlags.Set("probe-addr", ":9999"))
 	CheckError(appSetControllerFlags.Set("argocd-repo-server", "localhost:8081"))
 	mgr, err := appSetControllerConfig.CreateApplicationSetController(ctx)
