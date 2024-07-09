@@ -1796,7 +1796,7 @@ func (a *ArgoCDSettings) IsSSOConfigured() bool {
 }
 
 func (a *ArgoCDSettings) IsDexConfigured() bool {
-	if a.URL == "" && len(a.URLs) == 0 {
+	if a.URL == "" {
 		return false
 	}
 	dexCfg, err := UnmarshalDexConfig(a.DexConfig)
