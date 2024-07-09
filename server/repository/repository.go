@@ -350,10 +350,13 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		return nil, err
 	}
 
-	// Store the map of all sources having ref field into a map for applications with sources field
-	refSources, err := argo.GetRefSources(context.Background(), app.Spec.Sources, app.Spec.Project, s.db.GetRepository, []string{}, false)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get ref sources: %w", err)
+	refSources := make(appsv1.RefTargetRevisionMapping)
+	if app != nil && app.Spec.HasMultipleSources() {
+		// Store the map of all sources having ref field into a map for applications with sources field
+		refSources, err = argo.GetRefSources(ctx, app.Spec.Sources, q.AppProject, s.db.GetRepository, []string{}, false)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get ref sources: %w", err)
+		}
 	}
 
 	return repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
