@@ -701,6 +701,12 @@ message BasicAuthBitbucketServer {
   optional SecretRef passwordRef = 2;
 }
 
+// BearerTokenBitbucket defines the Bearer token for BitBucket AppToken auth.
+message BearerTokenBitbucket {
+  // Password (or personal access token) reference.
+  optional SecretRef tokenRef = 1;
+}
+
 // BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.
 message BearerTokenBitbucketCloud {
   // Password (or personal access token) reference.
@@ -1432,6 +1438,9 @@ message PullRequestGeneratorBitbucketServer {
 
   // Credentials for Basic auth
   optional BasicAuthBitbucketServer basicAuth = 4;
+
+  // Credentials for AppToken (Bearer auth)
+  optional BearerTokenBitbucket bearerToken = 5;
 }
 
 // PullRequestGeneratorFilter is a single pull request filter.
@@ -2041,6 +2050,9 @@ message SCMProviderGeneratorBitbucketServer {
 
   // Scan all branches instead of just the default branch.
   optional bool allBranches = 4;
+
+  // Credentials for AccessToken (Bearer auth)
+  optional BearerTokenBitbucket bearerToken = 5;
 }
 
 // SCMProviderGeneratorFilter is a single repository filter.
