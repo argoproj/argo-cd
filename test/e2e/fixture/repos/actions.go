@@ -61,7 +61,11 @@ func (a *Actions) List() *Actions {
 
 func (a *Actions) Get() *Actions {
 	a.context.t.Helper()
-	a.runCli("repo", "get", a.context.path)
+	args := []string{"repo", "get", a.context.path}
+	if a.context.project != "" {
+		args = append(args, "--project", a.context.project)
+	}
+	a.runCli(args...)
 	return a
 }
 

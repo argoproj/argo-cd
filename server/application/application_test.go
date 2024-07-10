@@ -2976,10 +2976,12 @@ func TestGetAmbiguousRevision_SingleSource(t *testing.T) {
 }
 
 func TestServer_ResolveSourceRevisions_MultiSource(t *testing.T) {
-	s := newTestAppServer(t)
-
 	ctx := context.Background()
 	a := &appv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app",
+			Namespace: "default",
+		},
 		Spec: appv1.ApplicationSpec{
 			Sources: []appv1.ApplicationSource{
 				{
@@ -2988,6 +2990,7 @@ func TestServer_ResolveSourceRevisions_MultiSource(t *testing.T) {
 			},
 		},
 	}
+	s := newTestAppServer(t, a)
 
 	syncReq := &application.ApplicationSyncRequest{
 		SourcePositions: []int64{1},
@@ -3004,16 +3007,19 @@ func TestServer_ResolveSourceRevisions_MultiSource(t *testing.T) {
 }
 
 func TestServer_ResolveSourceRevisions_SingleSource(t *testing.T) {
-	s := newTestAppServer(t)
-
 	ctx := context.Background()
 	a := &appv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app",
+			Namespace: "default",
+		},
 		Spec: appv1.ApplicationSpec{
 			Source: &appv1.ApplicationSource{
 				RepoURL: "https://github.com/example/repo.git",
 			},
 		},
 	}
+	s := newTestAppServer(t, a)
 
 	syncReq := &application.ApplicationSyncRequest{
 		Revision: strToPtr("HEAD"),

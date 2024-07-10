@@ -47,6 +47,38 @@ spec:
 
 See [here](../operator-manual/declarative-setup.md#helm-chart-repositories) for more info about how to configure private Helm repositories.
 
+## Repository alias
+
+You can use the repository alias, as you have named it inside the repositoriesn as a repoURL in the source:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sealed-secrets
+  namespace: argocd
+spec:
+  project: default
+  source:
+    chart: sealed-secrets
+    repoURL: @sealed-secrets # supports also the format alias:sealed-secrets
+    targetRevision: 1.16.1
+    helm:
+      releaseName: sealed-secrets
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: kubeseal
+```
+
+Do not forget to add the corresponding entry in the project source repositories whitelist, if needed. You have to specify both syntaxes to allow them to work.
+
+```yaml
+spec:
+  sourceRepos:
+  - '@sealed-secrets'
+  - 'alias:sealed-secrets'
+```
+
 ## Values Files
 
 Helm has the ability to use a different, or even multiple "values.yaml" files to derive its
