@@ -8,6 +8,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
@@ -19,8 +20,16 @@ import (
 func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (*appv1.HealthStatus, error) {
 	var savedErr error
 	var errCount uint
+
+	lastTransitionTime := app.Status.Health.LastTransitionTime
+	if lastTransitionTime.IsZero() {
+		lastTransitionTime = metav1.Now()
+		log.WithField("application", app.QualifiedName()).Warn("no last transition time for health state set, setting it now")
+	}
+
 	appHealth := appv1.HealthStatus{Status: health.HealthStatusHealthy}
 	for i, res := range resources {
+		now := metav1.Now()
 		if res.Target != nil && hookutil.Skip(res.Target) {
 			continue
 		}
@@ -54,7 +63,12 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 		}
 
 		if persistResourceHealth {
-			resHealth := appv1.HealthStatus{Status: healthStatus.Status, Message: healthStatus.Message}
+			// If the status didn't change, we don't want to update the timestamp
+			if healthStatus.Status == statuses[i].Health.Status {
+				now = lastTransitionTime
+			}
+
+			resHealth := appv1.HealthStatus{Status: healthStatus.Status, Message: healthStatus.Message, LastTransitionTime: now}
 			statuses[i].Health = &resHealth
 		} else {
 			statuses[i].Health = nil
@@ -76,6 +90,11 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 	}
 	if persistResourceHealth {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationInline
+		if app.Status.Health.Status == appHealth.Status {
+			appHealth.LastTransitionTime = lastTransitionTime
+		} else {
+			appHealth.LastTransitionTime = metav1.Now()
+		}
 	} else {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationAppTree
 	}
