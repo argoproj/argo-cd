@@ -24,7 +24,6 @@ import (
 	appsetcontrollercommand "github.com/argoproj/argo-cd/v2/cmd/argocd-applicationset-controller/commands"
 	reposervercommand "github.com/argoproj/argo-cd/v2/cmd/argocd-repo-server/commands"
 	servercommand "github.com/argoproj/argo-cd/v2/cmd/argocd-server/commands"
-	"github.com/argoproj/argo-cd/v2/util/cli"
 	grpcutil "github.com/argoproj/argo-cd/v2/util/grpc"
 
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -713,8 +712,9 @@ func initTestContainers(ctx context.Context) {
 	FailOnErr(Run("", "kubectl", "apply", "-f", "https://raw.githubusercontent.com/open-cluster-management/api/a6845f2ebcb186ec26b832f60c988537a58f3859/cluster/v1alpha1/0000_04_clusters.open-cluster-management.io_placementdecisions.crd.yaml"))
 	FailOnErr(Run("", "kubectl", "apply", "-k", "../manifests/base"))
 
-	cli.SetLogLevel("debug")
-	cli.SetGLogLevel(0)
+	// TODO: For now this logging seems a bit verbose, this should be tweakable
+	//cli.SetLogLevel("debug")
+	//cli.SetGLogLevel(0)
 }
 
 func initTestServices(ctx context.Context) {
