@@ -424,12 +424,6 @@ test-race-local:
 		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES="$(TEST_MODULE)" ./hack/test.sh -race -args -test.gocoverdir="$(PWD)/test-results"; \
 	fi
 
-# Run the E2E test suite. E2E test servers (see start-e2e target) must be
-# started before.
-.PHONY: test-e2e
-test-e2e:
-	$(call exec-in-test-server,make test-e2e-local)
-
 # Run the E2E test suite (local version)
 .PHONY: test-e2e-local
 test-e2e-local: cli-local
@@ -444,52 +438,6 @@ debug-test-server: test-tools-image
 # Spawns a shell in the test client container for debugging purposes
 debug-test-client: test-tools-image
 	$(call run-in-test-client,/bin/bash)
-
-# Starts e2e server in a container
-.PHONY: start-e2e
-start-e2e: test-tools-image
-	$(DOCKER) version
-	mkdir -p ${GOCACHE}
-	$(call run-in-test-server,make ARGOCD_PROCFILE=test/container/Procfile start-e2e-local)
-
-# Starts e2e server locally (or within a container)
-.PHONY: start-e2e-local
-start-e2e-local: mod-vendor-local dep-ui-local cli-local
-	kubectl create ns argocd-e2e || true
-	kubectl create ns argocd-e2e-external || true
-	kubectl create ns argocd-e2e-external-2 || true
-	kubectl config set-context --current --namespace=argocd-e2e
-	kustomize build test/manifests/base | kubectl apply -f -
-	kubectl apply -f https://raw.githubusercontent.com/open-cluster-management/api/a6845f2ebcb186ec26b832f60c988537a58f3859/cluster/v1alpha1/0000_04_clusters.open-cluster-management.io_placementdecisions.crd.yaml
-	# Create GPG keys and source directories
-	if test -d /tmp/argo-e2e/app/config/gpg; then rm -rf /tmp/argo-e2e/app/config/gpg/*; fi
-	mkdir -p /tmp/argo-e2e/app/config/gpg/keys && chmod 0700 /tmp/argo-e2e/app/config/gpg/keys
-	mkdir -p /tmp/argo-e2e/app/config/gpg/source && chmod 0700 /tmp/argo-e2e/app/config/gpg/source
-	mkdir -p /tmp/argo-e2e/app/config/plugin && chmod 0700 /tmp/argo-e2e/app/config/plugin
-	# create folders to hold go coverage results for each component
-	mkdir -p /tmp/coverage/app-controller
-	mkdir -p /tmp/coverage/api-server
-	mkdir -p /tmp/coverage/repo-server
-	mkdir -p /tmp/coverage/applicationset-controller
-	mkdir -p /tmp/coverage/notification
-	# set paths for locally managed ssh known hosts and tls certs data
-	ARGOCD_SSH_DATA_PATH=/tmp/argo-e2e/app/config/ssh \
-	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \
-	ARGOCD_GPG_DATA_PATH=/tmp/argo-e2e/app/config/gpg/source \
-	ARGOCD_GNUPGHOME=/tmp/argo-e2e/app/config/gpg/keys \
-	ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \
-	ARGOCD_PLUGINCONFIGFILEPATH=/tmp/argo-e2e/app/config/plugin \
-	ARGOCD_PLUGINSOCKFILEPATH=/tmp/argo-e2e/app/config/plugin \
-	ARGOCD_E2E_DISABLE_AUTH=false \
-	ARGOCD_ZJWT_FEATURE_FLAG=always \
-	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
-	BIN_MODE=$(ARGOCD_BIN_MODE) \
-	ARGOCD_APPLICATION_NAMESPACES=argocd-e2e-external,argocd-e2e-external-2 \
-	ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES=argocd-e2e-external,argocd-e2e-external-2 \
-	ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS=http://127.0.0.1:8341,http://127.0.0.1:8342,http://127.0.0.1:8343,http://127.0.0.1:8344 \
-	ARGOCD_E2E_TEST=true \
-		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
-	ls -lrt /tmp/coverage
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in by golang embed
 .PHONY: clean-debug
@@ -669,8 +617,7 @@ help:
 	@echo
 	@echo 'testing:'
 	@echo '  test(-local)'
-	@echo '  start-e2e(-local)'
-	@echo '  test-e2e(-local)'
+	@echo '  test-e2e-local'
 	@echo '  test-race(-local)'
 	@echo
 	@echo 'debug:'

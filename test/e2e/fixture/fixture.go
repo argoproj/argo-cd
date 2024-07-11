@@ -53,6 +53,7 @@ import (
 )
 
 const (
+	defaultk3sVersion       = "v1.27.15"
 	defaultApiServer        = "localhost:8080"
 	defaultAdminPassword    = "password"
 	defaultAdminUsername    = "admin"
@@ -86,6 +87,7 @@ const (
 	EnvArgoCDRepoServerName    = "ARGOCD_E2E_REPO_SERVER_NAME"
 	EnvArgoCDAppControllerName = "ARGOCD_E2E_APPLICATION_CONTROLLER_NAME"
 	EnvArgoCDUseTestContainers = "ARGOCD_E2E_USE_TESTCONTAINERS"
+	EnvK3sVersion              = "ARGOCD_E2E_K3S_VERSION"
 )
 
 var (
@@ -108,7 +110,7 @@ var (
 	argoCDRedisName         string
 	argoCDRepoServerName    string
 	argoCDAppControllerName string
-	k3sContainer            *k3s.K3sContainer
+	k3sVersion              string
 )
 
 type RepoURLType string
@@ -181,7 +183,7 @@ func SetEnvWithDefaultIfNotSet(envName, value string) string {
 // IsRunningTestContainers returns true when the tests are being run against a workload that
 // is running in a testcontainer.
 func IsRunningTestContainers() bool {
-	return env.ParseBoolFromEnv(EnvArgoCDUseTestContainers, false)
+	return env.ParseBoolFromEnv(EnvArgoCDUseTestContainers, true)
 }
 
 // IsRemote returns true when the tests are being run against a workload that
@@ -210,6 +212,7 @@ func init() {
 	argoCDRedisName = GetEnvWithDefault(EnvArgoCDRedisName, common.DefaultRedisName)
 	argoCDRepoServerName = GetEnvWithDefault(EnvArgoCDRepoServerName, common.DefaultRepoServerName)
 	argoCDAppControllerName = GetEnvWithDefault(EnvArgoCDAppControllerName, common.DefaultApplicationControllerName)
+	k3sVersion = GetEnvWithDefault(EnvK3sVersion, defaultk3sVersion)
 
 	if IsRunningTestContainers() {
 		ctx := context.Background()
@@ -648,12 +651,11 @@ func initTestContainers(ctx context.Context) {
 	})
 	CheckError(err)
 
-	c, err := k3s.RunContainer(ctx,
-		testcontainers.WithImage("rancher/k3s:v1.27.15-k3s1"), // TODO: env var k3s version
+	k3sContainer, err := k3s.RunContainer(ctx,
+		testcontainers.WithImage(fmt.Sprintf("rancher/k3s:%s-k3s1", k3sVersion)),
 		testcontainers.WithWaitStrategy(wait.ForExec([]string{"kubectl", "wait", "--timeout=60s", "apiservice", "v1beta1.metrics.k8s.io", "--for", "condition=Available=True"})),
 	)
 	CheckError(err)
-	k3sContainer = c
 
 	kubeConfigYaml, err := k3sContainer.GetKubeConfig(ctx)
 	CheckError(err)
@@ -681,8 +683,8 @@ func initTestContainers(ctx context.Context) {
 	CheckError(os.Setenv("REDIS_SERVER", endpoint))
 	CheckError(os.Setenv("KUBECONFIG", kubeConfigPath))
 	CheckError(os.Setenv("ARGOCD_FAKE_IN_CLUSTER", "true"))
-	SetEnvWithDefaultIfNotSet("ARGOCD_E2E_K3S", "true")
-	SetEnvWithDefaultIfNotSet("ARGOCD_E2E_SKIP_OPENSHIFT", "true")
+	CheckError(os.Setenv("ARGOCD_E2E_K3S", "true"))
+	CheckError(os.Setenv("ARGOCD_E2E_SKIP_OPENSHIFT", "true"))
 	SetEnvWithDefaultIfNotSet("ARGOCD_E2E_GIT_SERVICE", "http://127.0.0.1:9081/argo-e2e/testdata.git")
 	SetEnvWithDefaultIfNotSet("ARGOCD_PLUGINCONFIGFILEPATH", "/tmp/argo-e2e/app/config/plugin")
 	SetEnvWithDefaultIfNotSet("ARGOCD_PLUGINSOCKFILEPATH", "/tmp/argo-e2e/app/config/plugin")
@@ -732,9 +734,8 @@ func initTestServices(ctx context.Context) {
 	serverFlags := pflag.NewFlagSet("", pflag.PanicOnError)
 	CheckError(serverFlags.Parse([]string{}))
 	serverRestConfig := rest.CopyConfig(KubeConfig)
-	// serverRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-server", TestNamespace())
+	// serverRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-server", TestNamespace()) // TODO: Run controller with serviceaccount perms
 	serverConfig := servercommand.NewServerConfig(serverFlags, serverFlags).WithDefaultFlags().WithK8sSettings(TestNamespace(), serverRestConfig)
-	// CheckError(serverFlags.Set("loglevel", "debug"))
 	CheckError(serverFlags.Set("insecure", "true"))
 	CheckError(serverFlags.Set("port", strings.Split(apiServerAddress, ":")[1]))
 	CheckError(serverFlags.Set("repo-server", "localhost:8081"))
@@ -745,9 +746,8 @@ func initTestServices(ctx context.Context) {
 	appControllerFlags := pflag.NewFlagSet("", pflag.PanicOnError)
 	CheckError(appControllerFlags.Parse([]string{}))
 	appRestConfig := rest.CopyConfig(KubeConfig)
-	// appRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-application-controller", TestNamespace())
+	// appRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-application-controller", TestNamespace()) // TODO: Run controller with serviceaccount perms
 	appControllerConfig := appcontrollercommand.NewApplicationControllerConfig(appControllerFlags, appControllerFlags).WithDefaultFlags().WithK8sSettings(TestNamespace(), appRestConfig)
-	CheckError(appControllerFlags.Set("loglevel", "debug"))
 	CheckError(appControllerFlags.Set("repo-server", "localhost:8081"))
 	CheckError(appControllerConfig.CreateApplicationController(ctx))
 
@@ -756,9 +756,8 @@ func initTestServices(ctx context.Context) {
 	CheckError(appSetControllerFlags.Parse([]string{}))
 
 	appsetRestConfig := rest.CopyConfig(KubeConfig)
-	// appsetRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-applicationset-controller", TestNamespace())
+	// appsetRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-applicationset-controller", TestNamespace()) // TODO: Run controller with serviceaccount perms
 	appSetControllerConfig := appsetcontrollercommand.NewApplicationSetControllerConfig(appSetControllerFlags, appSetControllerFlags).WithDefaultFlags().WithK8sSettings(TestNamespace(), appsetRestConfig)
-	// CheckError(appSetControllerFlags.Set("loglevel", "debug"))
 	CheckError(appSetControllerFlags.Set("probe-addr", ":9999"))
 	CheckError(appSetControllerFlags.Set("argocd-repo-server", "localhost:8081"))
 	mgr, err := appSetControllerConfig.CreateApplicationSetController(ctx)
