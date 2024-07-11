@@ -57,8 +57,7 @@ func TestCache_GetRepoConnectionState(t *testing.T) {
 }
 
 func TestAddCacheFlagsToCmd(t *testing.T) {
-	cmd := &cobra.Command{}
-	cache, err := AddCacheFlagsToCmd(cmd.Flags())()
+	cache, err := AddCacheFlagsToCmd(&cobra.Command{})()
 	require.NoError(t, err)
 	assert.Equal(t, 1*time.Hour, cache.connectionStatusCacheExpiration)
 	assert.Equal(t, 3*time.Minute, cache.oidcCacheExpiration)

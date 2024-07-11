@@ -18,9 +18,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/spf13/pflag"
-
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/util/env"
 )
@@ -167,13 +166,13 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) 
 
 // Adds TLS server related command line options to a command and returns a TLS
 // config customizer object, set up to the options specified
-func AddTLSFlagsToCmd(flags *pflag.FlagSet) func() (ConfigCustomizer, error) {
+func AddTLSFlagsToCmd(cmd *cobra.Command) func() (ConfigCustomizer, error) {
 	minVersionStr := ""
 	maxVersionStr := ""
 	tlsCiphersStr := ""
-	flags.StringVar(&minVersionStr, "tlsminversion", env.StringFromEnv("ARGOCD_TLS_MIN_VERSION", DefaultTLSMinVersion), "The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
-	flags.StringVar(&maxVersionStr, "tlsmaxversion", env.StringFromEnv("ARGOCD_TLS_MAX_VERSION", DefaultTLSMaxVersion), "The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
-	flags.StringVar(&tlsCiphersStr, "tlsciphers", env.StringFromEnv("ARGOCD_TLS_CIPHERS", DefaultTLSCipherSuite), "The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers.")
+	cmd.Flags().StringVar(&minVersionStr, "tlsminversion", env.StringFromEnv("ARGOCD_TLS_MIN_VERSION", DefaultTLSMinVersion), "The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
+	cmd.Flags().StringVar(&maxVersionStr, "tlsmaxversion", env.StringFromEnv("ARGOCD_TLS_MAX_VERSION", DefaultTLSMaxVersion), "The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
+	cmd.Flags().StringVar(&tlsCiphersStr, "tlsciphers", env.StringFromEnv("ARGOCD_TLS_CIPHERS", DefaultTLSCipherSuite), "The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers.")
 
 	return func() (ConfigCustomizer, error) {
 		return getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr)

@@ -10,10 +10,9 @@ import (
 	"strings"
 	"time"
 
-	flag "github.com/spf13/pflag"
-
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	certutil "github.com/argoproj/argo-cd/v2/util/cert"
@@ -113,11 +112,11 @@ func mergeOptions(opts ...Options) Options {
 	return result
 }
 
-func getFlagVal[T any](flags *flag.FlagSet, o Options, name string, getVal func(name string) (T, error)) func() T {
+func getFlagVal[T any](cmd *cobra.Command, o Options, name string, getVal func(name string) (T, error)) func() T {
 	return func() T {
 		var res T
 		var err error
-		if o.FlagPrefix != "" && flags.Changed(o.FlagPrefix+name) {
+		if o.FlagPrefix != "" && cmd.Flags().Changed(o.FlagPrefix+name) {
 			res, err = getVal(o.FlagPrefix + name)
 		} else {
 			res, err = getVal(name)
@@ -130,7 +129,7 @@ func getFlagVal[T any](flags *flag.FlagSet, o Options, name string, getVal func(
 }
 
 // AddCacheFlagsToCmd adds flags which control caching to the specified command
-func AddCacheFlagsToCmd(flags *flag.FlagSet, opts ...Options) func() (*Cache, error) {
+func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, error) {
 	redisAddress := ""
 	sentinelAddresses := make([]string, 0)
 	sentinelMaster := ""
@@ -144,28 +143,28 @@ func AddCacheFlagsToCmd(flags *flag.FlagSet, opts ...Options) func() (*Cache, er
 	opt := mergeOptions(opts...)
 	var defaultCacheExpiration time.Duration
 
-	flags.StringVar(&redisAddress, opt.FlagPrefix+"redis", env.StringFromEnv(opt.getEnvPrefix()+"REDIS_SERVER", ""), "Redis server hostname and port (e.g. argocd-redis:6379). ")
-	redisAddressSrc := getFlagVal(flags, opt, "redis", flags.GetString)
-	flags.IntVar(&redisDB, opt.FlagPrefix+"redisdb", env.ParseNumFromEnv(opt.getEnvPrefix()+"REDISDB", 0, 0, math.MaxInt32), "Redis database.")
-	redisDBSrc := getFlagVal(flags, opt, "redisdb", flags.GetInt)
-	flags.StringArrayVar(&sentinelAddresses, opt.FlagPrefix+"sentinel", []string{}, "Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). ")
-	sentinelAddressesSrc := getFlagVal(flags, opt, "sentinel", flags.GetStringArray)
-	flags.StringVar(&sentinelMaster, opt.FlagPrefix+"sentinelmaster", "master", "Redis sentinel master group name.")
-	sentinelMasterSrc := getFlagVal(flags, opt, "sentinelmaster", flags.GetString)
-	flags.DurationVar(&defaultCacheExpiration, opt.FlagPrefix+"default-cache-expiration", env.ParseDurationFromEnv("ARGOCD_DEFAULT_CACHE_EXPIRATION", 24*time.Hour, 0, math.MaxInt64), "Cache expiration default")
-	defaultCacheExpirationSrc := getFlagVal(flags, opt, "default-cache-expiration", flags.GetDuration)
-	flags.BoolVar(&redisUseTLS, opt.FlagPrefix+"redis-use-tls", false, "Use TLS when connecting to Redis. ")
-	redisUseTLSSrc := getFlagVal(flags, opt, "redis-use-tls", flags.GetBool)
-	flags.StringVar(&redisClientCertificate, opt.FlagPrefix+"redis-client-certificate", "", "Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).")
-	redisClientCertificateSrc := getFlagVal(flags, opt, "redis-client-certificate", flags.GetString)
-	flags.StringVar(&redisClientKey, opt.FlagPrefix+"redis-client-key", "", "Path to Redis client key (e.g. /etc/certs/redis/client.crt).")
-	redisClientKeySrc := getFlagVal(flags, opt, "redis-client-key", flags.GetString)
-	flags.BoolVar(&insecureRedis, opt.FlagPrefix+"redis-insecure-skip-tls-verify", false, "Skip Redis server certificate validation.")
-	insecureRedisSrc := getFlagVal(flags, opt, "redis-insecure-skip-tls-verify", flags.GetBool)
-	flags.StringVar(&redisCACertificate, opt.FlagPrefix+"redis-ca-certificate", "", "Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.")
-	redisCACertificateSrc := getFlagVal(flags, opt, "redis-ca-certificate", flags.GetString)
-	flags.StringVar(&compressionStr, opt.FlagPrefix+CLIFlagRedisCompress, env.StringFromEnv(opt.getEnvPrefix()+"REDIS_COMPRESSION", string(RedisCompressionGZip)), "Enable compression for data sent to Redis with the required compression algorithm. (possible values: gzip, none)")
-	compressionStrSrc := getFlagVal(flags, opt, CLIFlagRedisCompress, flags.GetString)
+	cmd.Flags().StringVar(&redisAddress, opt.FlagPrefix+"redis", env.StringFromEnv(opt.getEnvPrefix()+"REDIS_SERVER", ""), "Redis server hostname and port (e.g. argocd-redis:6379). ")
+	redisAddressSrc := getFlagVal(cmd, opt, "redis", cmd.Flags().GetString)
+	cmd.Flags().IntVar(&redisDB, opt.FlagPrefix+"redisdb", env.ParseNumFromEnv(opt.getEnvPrefix()+"REDISDB", 0, 0, math.MaxInt32), "Redis database.")
+	redisDBSrc := getFlagVal(cmd, opt, "redisdb", cmd.Flags().GetInt)
+	cmd.Flags().StringArrayVar(&sentinelAddresses, opt.FlagPrefix+"sentinel", []string{}, "Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). ")
+	sentinelAddressesSrc := getFlagVal(cmd, opt, "sentinel", cmd.Flags().GetStringArray)
+	cmd.Flags().StringVar(&sentinelMaster, opt.FlagPrefix+"sentinelmaster", "master", "Redis sentinel master group name.")
+	sentinelMasterSrc := getFlagVal(cmd, opt, "sentinelmaster", cmd.Flags().GetString)
+	cmd.Flags().DurationVar(&defaultCacheExpiration, opt.FlagPrefix+"default-cache-expiration", env.ParseDurationFromEnv("ARGOCD_DEFAULT_CACHE_EXPIRATION", 24*time.Hour, 0, math.MaxInt64), "Cache expiration default")
+	defaultCacheExpirationSrc := getFlagVal(cmd, opt, "default-cache-expiration", cmd.Flags().GetDuration)
+	cmd.Flags().BoolVar(&redisUseTLS, opt.FlagPrefix+"redis-use-tls", false, "Use TLS when connecting to Redis. ")
+	redisUseTLSSrc := getFlagVal(cmd, opt, "redis-use-tls", cmd.Flags().GetBool)
+	cmd.Flags().StringVar(&redisClientCertificate, opt.FlagPrefix+"redis-client-certificate", "", "Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).")
+	redisClientCertificateSrc := getFlagVal(cmd, opt, "redis-client-certificate", cmd.Flags().GetString)
+	cmd.Flags().StringVar(&redisClientKey, opt.FlagPrefix+"redis-client-key", "", "Path to Redis client key (e.g. /etc/certs/redis/client.crt).")
+	redisClientKeySrc := getFlagVal(cmd, opt, "redis-client-key", cmd.Flags().GetString)
+	cmd.Flags().BoolVar(&insecureRedis, opt.FlagPrefix+"redis-insecure-skip-tls-verify", false, "Skip Redis server certificate validation.")
+	insecureRedisSrc := getFlagVal(cmd, opt, "redis-insecure-skip-tls-verify", cmd.Flags().GetBool)
+	cmd.Flags().StringVar(&redisCACertificate, opt.FlagPrefix+"redis-ca-certificate", "", "Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.")
+	redisCACertificateSrc := getFlagVal(cmd, opt, "redis-ca-certificate", cmd.Flags().GetString)
+	cmd.Flags().StringVar(&compressionStr, opt.FlagPrefix+CLIFlagRedisCompress, env.StringFromEnv(opt.getEnvPrefix()+"REDIS_COMPRESSION", string(RedisCompressionGZip)), "Enable compression for data sent to Redis with the required compression algorithm. (possible values: gzip, none)")
+	compressionStrSrc := getFlagVal(cmd, opt, CLIFlagRedisCompress, cmd.Flags().GetString)
 	return func() (*Cache, error) {
 		redisAddress := redisAddressSrc()
 		redisDB := redisDBSrc()
