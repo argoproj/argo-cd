@@ -63,11 +63,6 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
                                     });
                                 };
                                 refreshActions.push(refreshAction());
-
-                                if (refreshActions.length >= 20) {
-                                    await Promise.all(refreshActions);
-                                    refreshActions.length = 0;
-                                }
                             }
                             await Promise.all(refreshActions);
                             setProgress({percentage: 100, title: 'Complete'});
