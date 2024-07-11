@@ -479,12 +479,6 @@ jobs:
           name: e2e-code-coverage
           path: /tmp/coverage
         if: ${{ matrix.k3s.latest }}
-      - name: Upload e2e-server logs
-        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
-        with:
-          name: e2e-server-k8s${{ matrix.k3s.version }}.log
-          path: /tmp/e2e-server.log
-        if: ${{ failure() }}
 
   # workaround for status checks -- check this one job instead of each individual E2E job in the matrix
   # this allows us to skip the entire matrix when it doesn't need to run while still having accurate status checks
