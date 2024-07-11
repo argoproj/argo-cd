@@ -1549,12 +1549,12 @@ func TestPermissions(t *testing.T) {
 		CreateApp().
 		Sync().
 		Then().
-		// make sure application resource actions are successful
+		// make sure application resource actiions are successful
 		And(func(app *Application) {
 			assertResourceActions(t, app.Name, true)
 		}).
 		When().
-		// remove project permissions and "refresh" app
+		// remove projet permissions and "refresh" app
 		And(func() {
 			projActions.UpdateProject(func(proj *AppProject) {
 				proj.Spec.Destinations = nil
@@ -1588,7 +1588,7 @@ func TestPermissions(t *testing.T) {
 		}).
 		Refresh(RefreshTypeNormal).
 		Then().
-		// make sure application resource actions are failing
+		// make sure application resource actiions are failing
 		And(func(app *Application) {
 			assertResourceActions(t, "test-permissions", false)
 		})

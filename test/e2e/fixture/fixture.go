@@ -5,6 +5,7 @@ import (
 	"context"
 	goerrors "errors"
 	"fmt"
+	"github.com/spf13/cobra"
 	"os"
 	"os/user"
 	"path"
@@ -14,7 +15,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/spf13/pflag"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/k3s"
 	"github.com/testcontainers/testcontainers-go/modules/redis"
@@ -683,7 +683,6 @@ func initTestContainers(ctx context.Context) {
 	CheckError(os.Setenv("KUBECONFIG", kubeConfigPath))
 	CheckError(os.Setenv("ARGOCD_FAKE_IN_CLUSTER", "true"))
 	CheckError(os.Setenv("ARGOCD_E2E_K3S", "true"))
-	CheckError(os.Setenv("ARGOCD_E2E_SKIP_OPENSHIFT", "true"))
 	SetEnvWithDefaultIfNotSet("ARGOCD_E2E_GIT_SERVICE", "http://127.0.0.1:9081/argo-e2e/testdata.git")
 	SetEnvWithDefaultIfNotSet("ARGOCD_PLUGINCONFIGFILEPATH", "/tmp/argo-e2e/app/config/plugin")
 	SetEnvWithDefaultIfNotSet("ARGOCD_PLUGINSOCKFILEPATH", "/tmp/argo-e2e/app/config/plugin")
@@ -719,10 +718,8 @@ func initTestContainers(ctx context.Context) {
 
 func initTestServices(ctx context.Context) {
 	// Start repo-server
-	repoServerFlags := pflag.NewFlagSet("", pflag.PanicOnError)
-	CheckError(repoServerFlags.Parse([]string{}))
-	reposerverConfig := reposervercommand.NewRepoServerConfig(repoServerFlags).WithDefaultFlags()
-
+	repoServerCmd := cobra.Command{}
+	reposerverConfig := reposervercommand.NewRepoServerConfig(&repoServerCmd).WithDefaultFlags()
 	go func() {
 		if err := reposerverConfig.CreateRepoServer(ctx); err != nil {
 			log.Error(err, "problem starting repo-server")
@@ -731,38 +728,32 @@ func initTestServices(ctx context.Context) {
 	}()
 
 	// Start argocd-server
-	serverFlags := pflag.NewFlagSet("", pflag.PanicOnError)
-	CheckError(serverFlags.Parse([]string{}))
+	serverCmd := cobra.Command{}
 	serverRestConfig := rest.CopyConfig(KubeConfig)
 	// serverRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-server", TestNamespace()) // TODO: Run controller with serviceaccount perms
-	serverConfig := servercommand.NewServerConfig(serverFlags, serverFlags).WithDefaultFlags().WithK8sSettings(TestNamespace(), serverRestConfig)
-	CheckError(serverFlags.Set("insecure", "true"))
-	CheckError(serverFlags.Set("port", strings.Split(apiServerAddress, ":")[1]))
-	CheckError(serverFlags.Set("repo-server", "localhost:8081"))
-
+	serverConfig := servercommand.NewServerConfig(&serverCmd).WithDefaultFlags().WithK8sSettings(TestNamespace(), serverRestConfig)
+	CheckError(serverCmd.Flags().Set("insecure", "true"))
+	CheckError(serverCmd.Flags().Set("port", strings.Split(apiServerAddress, ":")[1]))
+	CheckError(serverCmd.Flags().Set("repo-server", "localhost:8081"))
 	serverConfig.CreateServer(ctx)
 
 	// Start application-controller
-	appControllerFlags := pflag.NewFlagSet("", pflag.PanicOnError)
-	CheckError(appControllerFlags.Parse([]string{}))
 	appRestConfig := rest.CopyConfig(KubeConfig)
 	// appRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-application-controller", TestNamespace()) // TODO: Run controller with serviceaccount perms
-	appControllerConfig := appcontrollercommand.NewApplicationControllerConfig(appControllerFlags, appControllerFlags).WithDefaultFlags().WithK8sSettings(TestNamespace(), appRestConfig)
-	CheckError(appControllerFlags.Set("repo-server", "localhost:8081"))
+	appControllerCmd := &cobra.Command{}
+	appControllerConfig := appcontrollercommand.NewApplicationControllerConfig(appControllerCmd).WithDefaultFlags().WithK8sSettings(TestNamespace(), appRestConfig)
+	CheckError(appControllerCmd.Flags().Set("repo-server", "localhost:8081"))
 	CheckError(appControllerConfig.CreateApplicationController(ctx))
 
 	// Start applicationset-controller
-	appSetControllerFlags := pflag.NewFlagSet("", pflag.PanicOnError)
-	CheckError(appSetControllerFlags.Parse([]string{}))
-
+	appsetCmd := cobra.Command{}
 	appsetRestConfig := rest.CopyConfig(KubeConfig)
 	// appsetRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-applicationset-controller", TestNamespace()) // TODO: Run controller with serviceaccount perms
-	appSetControllerConfig := appsetcontrollercommand.NewApplicationSetControllerConfig(appSetControllerFlags, appSetControllerFlags).WithDefaultFlags().WithK8sSettings(TestNamespace(), appsetRestConfig)
-	CheckError(appSetControllerFlags.Set("probe-addr", ":9999"))
-	CheckError(appSetControllerFlags.Set("argocd-repo-server", "localhost:8081"))
+	appSetControllerConfig := appsetcontrollercommand.NewApplicationSetControllerConfig(&appsetCmd).WithDefaultFlags().WithK8sSettings(TestNamespace(), appsetRestConfig)
+	CheckError(appsetCmd.Flags().Set("probe-addr", ":9999"))
+	CheckError(appsetCmd.Flags().Set("argocd-repo-server", "localhost:8081"))
 	mgr, err := appSetControllerConfig.CreateApplicationSetController(ctx)
 	CheckError(err)
-
 	go func() {
 		log.Info("Starting manager")
 		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

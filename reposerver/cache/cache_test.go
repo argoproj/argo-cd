@@ -166,8 +166,7 @@ func TestCache_GetAppDetails(t *testing.T) {
 }
 
 func TestAddCacheFlagsToCmd(t *testing.T) {
-	cmd := &cobra.Command{}
-	cache, err := AddCacheFlagsToCmd(cmd.Flags())()
+	cache, err := AddCacheFlagsToCmd(&cobra.Command{})()
 	require.NoError(t, err)
 	assert.Equal(t, 24*time.Hour, cache.repoCacheExpiration)
 }
