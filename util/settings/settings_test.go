@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net/http"
 	"os"
 	"sort"
 	"strings"
@@ -1614,4 +1615,70 @@ func TestReplaceStringSecret(t *testing.T) {
 
 	result = ReplaceStringSecret("my-value", secretValues)
 	assert.Equal(t, "my-value", result)
+}
+
+func TestRedirectURLForRequest(t *testing.T) {
+	generateRequest := func(url string) *http.Request {
+		r, err := http.NewRequest(http.MethodPost, url, nil)
+		require.NoError(t, err)
+		return r
+	}
+
+	testCases := []struct {
+		Name        string
+		Settings    *ArgoCDSettings
+		Request     *http.Request
+		ExpectedURL string
+		ExpectError bool
+	}{
+		{
+			Name: "Single URL",
+			Settings: &ArgoCDSettings{
+				URL: "https://example.org",
+			},
+			Request:     generateRequest("https://example.org/login"),
+			ExpectedURL: "https://example.org/auth/callback",
+			ExpectError: false,
+		},
+		{
+			Name: "Request does not match configured URL.",
+			Settings: &ArgoCDSettings{
+				URL: "https://otherhost.org",
+			},
+			Request:     generateRequest("https://example.org/login"),
+			ExpectedURL: "https://otherhost.org/auth/callback",
+			ExpectError: false,
+		},
+		{
+			Name: "Cannot parse URL.",
+			Settings: &ArgoCDSettings{
+				URL: ":httpsotherhostorg",
+			},
+			Request:     generateRequest("https://example.org/login"),
+			ExpectedURL: "",
+			ExpectError: true,
+		},
+		{
+			Name: "Match extended URL in settings.URL.",
+			Settings: &ArgoCDSettings{
+				URL:  "https://otherhost.org",
+				URLs: []string{"https://anotherhost.org"},
+			},
+			Request:     generateRequest("https://anotherhost.org/login"),
+			ExpectedURL: "https://anotherhost.org/auth/callback",
+			ExpectError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result, err := tc.Settings.RedirectURLForRequest(tc.Request)
+			assert.Equal(t, tc.ExpectedURL, result)
+			if tc.ExpectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
