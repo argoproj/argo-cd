@@ -293,7 +293,7 @@ func NewCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:               cliName,
 		Short:             "Run ArgoCD Application Controller",
-		Long:              "ArgoCD application controller is a Kubernetes controller that continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo). This cmd runs Application Controller in the foreground.  It can be configured by following options.",
+		Long:              "ArgoCD application controller is a Kubernetes controller that continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo). This command runs Application Controller in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
 		RunE: func(c *cobra.Command, args []string) error {
 			ctx, cancel := context.WithCancel(c.Context())
