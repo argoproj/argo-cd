@@ -8,6 +8,7 @@ import (
 
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 
@@ -20,11 +21,6 @@ import (
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
-)
-
-const (
-	DefaultRedisInitialPasswordSecretName = "argocd-redis"
-	DefaultRedisInitialPasswordKey        = "auth"
 )
 
 func generateRandomPassword() (string, error) {
@@ -52,8 +48,8 @@ func NewRedisInitialPasswordCommand() *cobra.Command {
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 
-			redisInitialPasswordSecretName := DefaultRedisInitialPasswordSecretName
-			redisInitialPasswordKey := DefaultRedisInitialPasswordKey
+			redisInitialPasswordSecretName := common.DefaultRedisInitialPasswordSecretName
+			redisInitialPasswordKey := common.DefaultRedisInitialPasswordKey
 			fmt.Printf("Checking for initial Redis password in secret %s/%s at key %s. \n", namespace, redisInitialPasswordSecretName, redisInitialPasswordKey)
 
 			config, err := clientConfig.ClientConfig()

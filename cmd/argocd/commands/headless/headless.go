@@ -8,17 +8,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/spf13/cobra"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
-	"github.com/argoproj/argo-cd/v2/common"
-
 	"github.com/alicebob/miniredis/v2"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -27,7 +21,10 @@ import (
 	cache2 "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
@@ -257,10 +254,10 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: compression, redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName}), time.Hour)
 
 	redisOptions := &redis.Options{Addr: mr.Addr()}
-	secret, err := kubeClientset.CoreV1().Secrets(namespace).Get(context.Background(), admin.DefaultRedisInitialPasswordSecretName, v1.GetOptions{})
+	secret, err := kubeClientset.CoreV1().Secrets(namespace).Get(context.Background(), common.DefaultRedisInitialPasswordSecretName, v1.GetOptions{})
 	if err == nil {
-		if _, ok := secret.Data[admin.DefaultRedisInitialPasswordKey]; ok {
-			redisOptions.Password = string(secret.Data[admin.DefaultRedisInitialPasswordKey])
+		if _, ok := secret.Data[common.DefaultRedisInitialPasswordKey]; ok {
+			redisOptions.Password = string(secret.Data[common.DefaultRedisInitialPasswordKey])
 		}
 	}
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{

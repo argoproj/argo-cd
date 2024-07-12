@@ -414,3 +414,9 @@ const TokenVerificationError = "failed to verify the token"
 var TokenVerificationErr = errors.New(TokenVerificationError)
 
 var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission denied")
+
+// Redis password consts
+const (
+	DefaultRedisInitialPasswordSecretName = "argocd-redis"
+	DefaultRedisInitialPasswordKey        = "auth"
+)
