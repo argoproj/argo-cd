@@ -2,12 +2,13 @@ package common
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -425,11 +426,20 @@ const (
 	DefaultRedisInitialPasswordKey        = "auth"
 )
 
-// SetOptionalRedisPasswordFromKubeConfig sets the optional Redis password if it exists in the k8s namespace's secrets
-func SetOptionalRedisPasswordFromKubeConfig(ctx context.Context, kubeClient kubernetes.Interface, namespace string, redisOptions *redis.Options) {
-	if secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, DefaultRedisInitialPasswordSecretName, v1.GetOptions{}); err == nil {
-		if _, ok := secret.Data[DefaultRedisInitialPasswordKey]; ok {
-			redisOptions.Password = string(secret.Data[DefaultRedisInitialPasswordKey])
-		}
+/*
+SetOptionalRedisPasswordFromKubeConfig sets the optional Redis password if it exists in the k8s namespace's secrets.
+
+We specify kubeClient as kubernetes.Interface to allow for mocking in tests, but this should be treated as a kubernetes.Clientset param.
+*/
+func SetOptionalRedisPasswordFromKubeConfig(ctx context.Context, kubeClient kubernetes.Interface, namespace string, redisOptions *redis.Options) error {
+	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, DefaultRedisInitialPasswordSecretName, v1.GetOptions{})
+	if err != nil || secret == nil {
+		return errors.Wrapf(err, "failed to get secret %s/%s", namespace, DefaultRedisInitialPasswordSecretName)
 	}
+	_, ok := secret.Data[DefaultRedisInitialPasswordKey]
+	if !ok {
+		return fmt.Errorf("secret %s/%s does not contain key %s", namespace, DefaultRedisInitialPasswordSecretName, DefaultRedisInitialPasswordKey)
+	}
+	redisOptions.Password = string(secret.Data[DefaultRedisInitialPasswordKey])
+	return nil
 }
