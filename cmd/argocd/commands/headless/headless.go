@@ -254,12 +254,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: compression, redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName}), time.Hour)
 
 	redisOptions := &redis.Options{Addr: mr.Addr()}
-	secret, err := kubeClientset.CoreV1().Secrets(namespace).Get(context.Background(), common.DefaultRedisInitialPasswordSecretName, v1.GetOptions{})
-	if err == nil {
-		if _, ok := secret.Data[common.DefaultRedisInitialPasswordKey]; ok {
-			redisOptions.Password = string(secret.Data[common.DefaultRedisInitialPasswordKey])
-		}
-	}
+	common.SetOptionalRedisPasswordFromKubeConfig(ctx, kubeClientset, namespace, redisOptions)
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
 		EnableGZip:              false,
 		Namespace:               namespace,

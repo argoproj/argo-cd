@@ -1,15 +1,19 @@
 package common
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // Component names
@@ -417,6 +421,15 @@ var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission 
 
 // Redis password consts
 const (
-	DefaultRedisInitialPasswordSecretName = "argocd-redis"
-	DefaultRedisInitialPasswordKey        = "auth"
+	defaultRedisInitialPasswordSecretName = "argocd-redis"
+	defaultRedisInitialPasswordKey        = "auth"
 )
+
+// SetOptionalRedisPasswordFromKubeConfig sets the optional Redis password if it exists in the k8s namespace's secrets
+func SetOptionalRedisPasswordFromKubeConfig(ctx context.Context, kubeClient kubernetes.Interface, namespace string, redisOptions *redis.Options) {
+	if secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, defaultRedisInitialPasswordSecretName, v1.GetOptions{}); err == nil {
+		if _, ok := secret.Data[defaultRedisInitialPasswordKey]; ok {
+			redisOptions.Password = string(secret.Data[defaultRedisInitialPasswordKey])
+		}
+	}
+}
