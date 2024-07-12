@@ -9,6 +9,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubefake "k8s.io/client-go/kubernetes/fake"
@@ -99,10 +100,13 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 				}
 			}
 			err := SetOptionalRedisPasswordFromKubeConfig(ctx, kubeClient, tc.namespace, redisOptions)
-			if tc.expectedErr != "" && assert.Error(t, err) {
-				assert.Contains(t, err.Error(), tc.expectedErr)
+			if tc.expectedErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedErr)
+			} else {
+				require.NoError(t, err)
 			}
-			assert.Equal(t, tc.expectedPassword, redisOptions.Password)
+			require.Equal(t, tc.expectedPassword, redisOptions.Password)
 		})
 	}
 }
