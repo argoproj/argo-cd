@@ -31,9 +31,9 @@ COPY ./test/fixture/testrepos/nginx.conf /etc/nginx/nginx.conf
 COPY ./test/fixture/testrepos/.htpasswd /etc/nginx/.htpasswd
 COPY ./test/fixture/testrepos/sudoers.conf /etc/sudoers
 COPY ./test/fixture/testrepos/ssh_host_*_key* /etc/ssh/
-COPY ./test/fixture/certs/argocd-e2e-server.crt /etc/certs/argocd-test-server.crt
-COPY ./test/fixture/certs/argocd-e2e-server.key /etc/certs/argocd-test-server.key
-COPY ./test/fixture/certs/argocd-test-ca.crt /etc/certs/argocd-test-ca.crt
+COPY ./test/fixture/certs/argocd-e2e-server.crt.pem /etc/certs/argocd-test-server.crt.pem
+COPY ./test/fixture/certs/argocd-e2e-server.key.pem /etc/certs/argocd-test-server.key.pem
+COPY ./test/fixture/certs/argocd-test-ca.pem /etc/certs/argocd-test-ca.pem
 
 # Entrypoint is required for container's user management
 COPY ./test/remote/entrypoint.sh /usr/local/bin

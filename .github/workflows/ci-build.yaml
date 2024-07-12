@@ -468,6 +468,15 @@ jobs:
         run: |
           mkdir -p dist
           chown runner dist
+      - name: Install self-signed certs
+        run: |
+          curl -JLO "https://dl.filippo.io/mkcert/latest?for=linux/amd64"
+          chmod +x mkcert-v*-linux-amd64
+          sudo cp mkcert-v*-linux-amd64 /usr/local/bin/mkcert
+          mkcert -cert-file test/fixture/certs/argocd-e2e-server.crt.pem -key-file test/fixture/certs/argocd-e2e-server.key.pem argocd-e2e-server localhost 127.0.0.1 ::1
+          mkcert -install
+          cp "$(mkcert -CAROOT)"/rootCA.pem test/fixture/certs/argocd-test-ca.pem
+          cp "$(mkcert -CAROOT)"/rootCA-key.pem test/fixture/certs/argocd-test-ca.key.pem
       - name: Run E2E testsuite
         run: |
           set -x
