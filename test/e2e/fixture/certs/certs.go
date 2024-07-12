@@ -11,7 +11,7 @@ import (
 // Add a custom CA certificate to the test and also create the certificate file
 // on the file system, so argocd-server and argocd-repo-server can use it.
 func AddCustomCACert() {
-	caCertPath, err := filepath.Abs("../fixture/certs/argocd-test-ca.crt")
+	caCertPath, err := filepath.Abs("../fixture/certs/argocd-test-ca.pem")
 	errors.CheckError(err)
 	// We need to setup TLS certs according to whether we are running tests
 	// against a local workload (repositories available as localhost) and
