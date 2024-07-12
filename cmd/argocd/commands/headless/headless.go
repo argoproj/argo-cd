@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
 	"github.com/argoproj/argo-cd/v2/common"
 
@@ -254,13 +255,21 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		return fmt.Errorf("error running miniredis: %w", err)
 	}
 	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: compression, redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName}), time.Hour)
+
+	redisOptions := &redis.Options{Addr: mr.Addr()}
+	secret, err := kubeClientset.CoreV1().Secrets(namespace).Get(context.Background(), admin.DefaultRedisInitialPasswordSecretName, v1.GetOptions{})
+	if err == nil {
+		if _, ok := secret.Data[admin.DefaultRedisInitialPasswordKey]; ok {
+			redisOptions.Password = string(secret.Data[admin.DefaultRedisInitialPasswordKey])
+		}
+	}
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
 		EnableGZip:              false,
 		Namespace:               namespace,
 		ListenPort:              *port,
 		AppClientset:            appClientset,
 		DisableAuth:             true,
-		RedisClient:             redis.NewClient(&redis.Options{Addr: mr.Addr()}),
+		RedisClient:             redis.NewClient(redisOptions),
 		Cache:                   servercache.NewCache(appstateCache, 0, 0, 0),
 		KubeClientset:           kubeClientset,
 		DynamicClientset:        dynamicClientset,

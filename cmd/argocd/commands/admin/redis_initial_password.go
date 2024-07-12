@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	defaulRedisInitialPasswordSecretName = "argocd-redis"
-	defaultResisInitialPasswordKey       = "auth"
+	DefaultRedisInitialPasswordSecretName = "argocd-redis"
+	DefaultRedisInitialPasswordKey        = "auth"
 )
 
 func generateRandomPassword() (string, error) {
@@ -52,8 +52,8 @@ func NewRedisInitialPasswordCommand() *cobra.Command {
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 
-			redisInitialPasswordSecretName := defaulRedisInitialPasswordSecretName
-			redisInitialPasswordKey := defaultResisInitialPasswordKey
+			redisInitialPasswordSecretName := DefaultRedisInitialPasswordSecretName
+			redisInitialPasswordKey := DefaultRedisInitialPasswordKey
 			fmt.Printf("Checking for initial Redis password in secret %s/%s at key %s. \n", namespace, redisInitialPasswordSecretName, redisInitialPasswordKey)
 
 			config, err := clientConfig.ClientConfig()
