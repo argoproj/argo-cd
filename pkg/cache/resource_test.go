@@ -7,12 +7,12 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-var c = NewClusterCache(&rest.Config{})
+var cacheTest = NewClusterCache(&rest.Config{})
 
 func TestIsParentOf(t *testing.T) {
-	child := c.newResource(mustToUnstructured(testPod()))
-	parent := c.newResource(mustToUnstructured(testRS()))
-	grandParent := c.newResource(mustToUnstructured(testDeploy()))
+	child := cacheTest.newResource(mustToUnstructured(testPod()))
+	parent := cacheTest.newResource(mustToUnstructured(testRS()))
+	grandParent := cacheTest.newResource(mustToUnstructured(testDeploy()))
 
 	assert.True(t, parent.isParentOf(child))
 	assert.False(t, grandParent.isParentOf(child))
@@ -22,14 +22,14 @@ func TestIsParentOfSameKindDifferentGroupAndUID(t *testing.T) {
 	rs := testRS()
 	rs.APIVersion = "somecrd.io/v1"
 	rs.SetUID("123")
-	child := c.newResource(mustToUnstructured(testPod()))
-	invalidParent := c.newResource(mustToUnstructured(rs))
+	child := cacheTest.newResource(mustToUnstructured(testPod()))
+	invalidParent := cacheTest.newResource(mustToUnstructured(rs))
 
 	assert.False(t, invalidParent.isParentOf(child))
 }
 
 func TestIsServiceParentOfEndPointWithTheSameName(t *testing.T) {
-	nonMatchingNameEndPoint := c.newResource(strToUnstructured(`
+	nonMatchingNameEndPoint := cacheTest.newResource(strToUnstructured(`
 apiVersion: v1
 kind: Endpoints
 metadata:
@@ -37,7 +37,7 @@ metadata:
   namespace: default
 `))
 
-	matchingNameEndPoint := c.newResource(strToUnstructured(`
+	matchingNameEndPoint := cacheTest.newResource(strToUnstructured(`
 apiVersion: v1
 kind: Endpoints
 metadata:
@@ -45,7 +45,7 @@ metadata:
   namespace: default
 `))
 
-	parent := c.newResource(testService)
+	parent := cacheTest.newResource(testService)
 
 	assert.True(t, parent.isParentOf(matchingNameEndPoint))
 	assert.Equal(t, parent.Ref.UID, matchingNameEndPoint.OwnerRefs[0].UID)
@@ -53,7 +53,7 @@ metadata:
 }
 
 func TestIsServiceAccountParentOfSecret(t *testing.T) {
-	serviceAccount := c.newResource(strToUnstructured(`
+	serviceAccount := cacheTest.newResource(strToUnstructured(`
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -63,7 +63,7 @@ metadata:
 secrets:
 - name: default-token-123
 `))
-	tokenSecret := c.newResource(strToUnstructured(`
+	tokenSecret := cacheTest.newResource(strToUnstructured(`
 apiVersion: v1
 kind: Secret
 metadata:

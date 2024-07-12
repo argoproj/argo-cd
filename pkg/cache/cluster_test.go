@@ -3,11 +3,14 @@ package cache
 import (
 	"context"
 	"fmt"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
+
+	"golang.org/x/sync/semaphore"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -71,6 +74,16 @@ var (
 )
 
 func newCluster(t *testing.T, objs ...runtime.Object) *clusterCache {
+	cache := newClusterWithOptions(t, []UpdateSettingsFunc{}, objs...)
+
+	t.Cleanup(func() {
+		cache.Invalidate()
+	})
+
+	return cache
+}
+
+func newClusterWithOptions(t *testing.T, opts []UpdateSettingsFunc, objs ...runtime.Object) *clusterCache {
 	client := fake.NewSimpleDynamicClient(scheme.Scheme, objs...)
 	reactor := client.ReactionChain[0]
 	client.PrependReactor("list", "*", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
@@ -101,11 +114,14 @@ func newCluster(t *testing.T, objs ...runtime.Object) *clusterCache {
 		Meta:                 metav1.APIResource{Namespaced: true},
 	}}
 
+	opts = append([]UpdateSettingsFunc{
+		SetKubectl(&kubetest.MockKubectlCmd{APIResources: apiResources, DynamicClient: client}),
+	}, opts...)
+
 	cache := NewClusterCache(
-		&rest.Config{Host: "https://test"}, SetKubectl(&kubetest.MockKubectlCmd{APIResources: apiResources, DynamicClient: client}))
-	t.Cleanup(func() {
-		cache.Invalidate()
-	})
+		&rest.Config{Host: "https://test"},
+		opts...,
+	)
 	return cache
 }
 
@@ -492,23 +508,23 @@ metadata:
 func TestGetManagedLiveObjsFailedConversion(t *testing.T) {
 	cronTabGroup := "stable.example.com"
 
-	testCases := []struct{
-		name string
-		localConvertFails bool
+	testCases := []struct {
+		name                         string
+		localConvertFails            bool
 		expectConvertToVersionCalled bool
-		expectGetResourceCalled bool
+		expectGetResourceCalled      bool
 	}{
 		{
-			name: "local convert fails, so GetResource is called",
-			localConvertFails: true,
+			name:                         "local convert fails, so GetResource is called",
+			localConvertFails:            true,
 			expectConvertToVersionCalled: true,
-			expectGetResourceCalled: true,
+			expectGetResourceCalled:      true,
 		},
 		{
-			name: "local convert succeeds, so GetResource is not called",
-			localConvertFails: false,
+			name:                         "local convert succeeds, so GetResource is not called",
+			localConvertFails:            false,
 			expectConvertToVersionCalled: true,
-			expectGetResourceCalled: false,
+			expectGetResourceCalled:      false,
 		},
 	}
 
@@ -556,7 +572,6 @@ metadata:
 					getResourceWasCalled = true
 					return testCronTab(), nil
 				})
-
 
 			managedObjs, err := cluster.GetManagedLiveObjs([]*unstructured.Unstructured{targetDeploy}, func(r *Resource) bool {
 				return true
@@ -816,25 +831,25 @@ func testPod() *corev1.Pod {
 
 func testCRD() *apiextensions.CustomResourceDefinition {
 	return &apiextensions.CustomResourceDefinition{
-		TypeMeta:   metav1.TypeMeta{
+		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apiextensions.k8s.io/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "crontabs.stable.example.com",
 		},
-		Spec:       apiextensions.CustomResourceDefinitionSpec{
+		Spec: apiextensions.CustomResourceDefinitionSpec{
 			Group: "stable.example.com",
 			Versions: []apiextensions.CustomResourceDefinitionVersion{
 				{
-					Name: "v1",
-					Served: true,
+					Name:    "v1",
+					Served:  true,
 					Storage: true,
 					Schema: &apiextensions.CustomResourceValidation{
 						OpenAPIV3Schema: &apiextensions.JSONSchemaProps{
 							Type: "object",
 							Properties: map[string]apiextensions.JSONSchemaProps{
 								"cronSpec": {Type: "string"},
-								"image": {Type: "string"},
+								"image":    {Type: "string"},
 								"replicas": {Type: "integer"},
 							},
 						},
@@ -855,14 +870,14 @@ func testCRD() *apiextensions.CustomResourceDefinition {
 func testCronTab() *unstructured.Unstructured {
 	return &unstructured.Unstructured{Object: map[string]interface{}{
 		"apiVersion": "stable.example.com/v1",
-		"kind": "CronTab",
+		"kind":       "CronTab",
 		"metadata": map[string]interface{}{
-			"name": "test-crontab",
+			"name":      "test-crontab",
 			"namespace": "default",
 		},
 		"spec": map[string]interface{}{
 			"cronSpec": "* * * * */5",
-			"image": "my-awesome-cron-image",
+			"image":    "my-awesome-cron-image",
 		},
 	}}
 }
@@ -1005,4 +1020,79 @@ func TestIterateHierachy(t *testing.T) {
 			},
 			keys)
 	})
+}
+
+// Test_watchEvents_Deadlock validates that starting watches will not create a deadlock
+// caused by using improper locking in various callback methods when there is a high load on the
+// system.
+func Test_watchEvents_Deadlock(t *testing.T) {
+	// deadlock lock is used to simulate a user function calling the cluster cache while holding a lock
+	// and using this lock in callbacks such as OnPopulateResourceInfoHandler.
+	deadlock := sync.RWMutex{}
+
+	hasDeadlock := false
+	res1 := testPod()
+	res2 := testRS()
+
+	cluster := newClusterWithOptions(t, []UpdateSettingsFunc{
+		// Set low blocking semaphore
+		SetListSemaphore(semaphore.NewWeighted(1)),
+		// Resync watches often to use the semaphore and trigger the rate limiting behavior
+		SetResyncTimeout(500 * time.Millisecond),
+		// Use new resource handler to run code in the list callbacks
+		SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
+			if un.GroupVersionKind().GroupKind() == res1.GroupVersionKind().GroupKind() ||
+				un.GroupVersionKind().GroupKind() == res2.GroupVersionKind().GroupKind() {
+				// Create a bottleneck for resources holding the semaphore
+				time.Sleep(2 * time.Second)
+			}
+
+			//// Uncommenting the following code will simulate a different deadlock on purpose caused by
+			//// client code holding a lock and trying to acquire the same lock in the event callback.
+			//// It provides an easy way to validate if the test detect deadlocks as expected.
+			//// If the test fails with this code commented, a deadlock do exist in the codebase.
+			// deadlock.RLock()
+			// defer deadlock.RUnlock()
+
+			return
+		}),
+	}, res1, res2, testDeploy())
+	defer func() {
+		// Invalidate() is a blocking method and cannot be called safely in case of deadlock
+		if !hasDeadlock {
+			cluster.Invalidate()
+		}
+	}()
+
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	for i := 0; i < 2; i++ {
+		done := make(chan bool, 1)
+		go func() {
+			// Stop the watches, so startMissingWatches will restart them
+			cluster.stopWatching(res1.GroupVersionKind().GroupKind(), res1.Namespace)
+			cluster.stopWatching(res2.GroupVersionKind().GroupKind(), res2.Namespace)
+
+			// calling startMissingWatches to simulate that a CRD event was received
+			// TODO: how to simulate real watch events and test the full watchEvents function?
+			err = runSynced(&cluster.lock, func() error {
+				deadlock.Lock()
+				defer deadlock.Unlock()
+				return cluster.startMissingWatches()
+			})
+			require.NoError(t, err)
+			done <- true
+		}()
+		select {
+		case v := <-done:
+			require.True(t, v)
+		case <-time.After(10 * time.Second):
+			hasDeadlock = true
+			t.Errorf("timeout reached on attempt %d. It is possible that a deadlock occured", i)
+			// Tip: to debug the deadlock, increase the timer to a value higher than X in "go test -timeout X"
+			// This will make the test panic with the goroutines information
+			t.FailNow()
+		}
+	}
 }
