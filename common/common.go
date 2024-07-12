@@ -421,15 +421,15 @@ var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission 
 
 // Redis password consts
 const (
-	defaultRedisInitialPasswordSecretName = "argocd-redis"
-	defaultRedisInitialPasswordKey        = "auth"
+	DefaultRedisInitialPasswordSecretName = "argocd-redis"
+	DefaultRedisInitialPasswordKey        = "auth"
 )
 
 // SetOptionalRedisPasswordFromKubeConfig sets the optional Redis password if it exists in the k8s namespace's secrets
 func SetOptionalRedisPasswordFromKubeConfig(ctx context.Context, kubeClient kubernetes.Interface, namespace string, redisOptions *redis.Options) {
-	if secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, defaultRedisInitialPasswordSecretName, v1.GetOptions{}); err == nil {
-		if _, ok := secret.Data[defaultRedisInitialPasswordKey]; ok {
-			redisOptions.Password = string(secret.Data[defaultRedisInitialPasswordKey])
+	if secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, DefaultRedisInitialPasswordSecretName, v1.GetOptions{}); err == nil {
+		if _, ok := secret.Data[DefaultRedisInitialPasswordKey]; ok {
+			redisOptions.Password = string(secret.Data[DefaultRedisInitialPasswordKey])
 		}
 	}
 }
