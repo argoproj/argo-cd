@@ -5,7 +5,6 @@ import (
 	"context"
 	goerrors "errors"
 	"fmt"
-	"github.com/spf13/cobra"
 	"os"
 	"os/user"
 	"path"
@@ -14,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/spf13/cobra"
 
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/k3s"
@@ -712,8 +713,8 @@ func initTestContainers(ctx context.Context) {
 	FailOnErr(Run("", "kubectl", "apply", "-k", "../manifests/base"))
 
 	// TODO: For now this logging seems a bit verbose, this should be tweakable
-	//cli.SetLogLevel("debug")
-	//cli.SetGLogLevel(0)
+	// cli.SetLogLevel("debug")
+	// cli.SetGLogLevel(0)
 }
 
 func initTestServices(ctx context.Context) {
