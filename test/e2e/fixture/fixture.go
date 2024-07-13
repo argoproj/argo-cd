@@ -347,13 +347,13 @@ func RepoURL(urlType RepoURLType) string {
 	switch urlType {
 	// Git server via SSH
 	case RepoURLTypeSSH:
-		return GetEnvWithDefault(EnvRepoURLTypeSSH, "ssh://root@localhost:2222/tmp/argo-e2e/testdata.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSH, "ssh://user@localhost:2222/tmp/argo-e2e/testdata.git")
 	// Git submodule repo
 	case RepoURLTypeSSHSubmodule:
-		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmodule, "ssh://root@localhost:2222/tmp/argo-e2e/submodule.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmodule, "ssh://user@localhost:2222/tmp/argo-e2e/submodule.git")
 	// Git submodule parent repo
 	case RepoURLTypeSSHSubmoduleParent:
-		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmoduleParent, "ssh://root@localhost:2222/tmp/argo-e2e/submoduleParent.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmoduleParent, "ssh://user@localhost:2222/tmp/argo-e2e/submoduleParent.git")
 	// Git server via HTTPS
 	case RepoURLTypeHTTPS:
 		return GetEnvWithDefault(EnvRepoURLTypeHTTPS, "https://localhost:9443/argo-e2e/testdata.git")
@@ -684,6 +684,8 @@ func initTestContainers(ctx context.Context) {
 	CheckError(os.Setenv("KUBECONFIG", kubeConfigPath))
 	CheckError(os.Setenv("ARGOCD_FAKE_IN_CLUSTER", "true"))
 	CheckError(os.Setenv("ARGOCD_E2E_K3S", "true"))
+	SetEnvWithDefaultIfNotSet("ARGOCD_E2E_GIT_SERVICE_SUBMODULE", "https://localhost:9443/argo-e2e/submodule.git")
+	SetEnvWithDefaultIfNotSet("ARGOCD_E2E_GIT_SERVICE_SUBMODULE_PARENT", "https://localhost:9443/argo-e2e/submoduleParent.git")
 	SetEnvWithDefaultIfNotSet("ARGOCD_E2E_GIT_SERVICE", "http://127.0.0.1:9081/argo-e2e/testdata.git")
 	SetEnvWithDefaultIfNotSet("ARGOCD_PLUGINCONFIGFILEPATH", "/tmp/argo-e2e/app/config/plugin")
 	SetEnvWithDefaultIfNotSet("ARGOCD_PLUGINSOCKFILEPATH", "/tmp/argo-e2e/app/config/plugin")

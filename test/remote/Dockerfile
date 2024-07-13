@@ -26,7 +26,6 @@ RUN  apt-get update && apt-get install --no-install-recommends -y \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # These are required for running end-to-end tests
-COPY ./test/fixture/testrepos/id_rsa.pub /root/.ssh/authorized_keys
 COPY ./test/fixture/testrepos/nginx.conf /etc/nginx/nginx.conf
 COPY ./test/fixture/testrepos/.htpasswd /etc/nginx/.htpasswd
 COPY ./test/fixture/testrepos/sudoers.conf /etc/sudoers
@@ -54,7 +53,7 @@ RUN userdel -r ubuntu && \
     HOME=/home/user git config --global user.name "ArgoCD Test User" && \
     HOME=/home/user git config --global user.email "noreply@example.com" && \
     mkdir -p /var/run/sshd && \
-    mkdir -p /root/.ssh && \
+    mkdir -p /home/user/.ssh && \
     chown -R user /home/user && \
     chgrp -R user /home/user && \
     chown root /etc/ssh/ssh_host_*_key* && \
@@ -78,6 +77,8 @@ RUN userdel -r ubuntu && \
     chown -R user /tmp/argo-e2e/submodule.git && \
     chown -R user /tmp/argo-e2e/submoduleParent.git && \
     ln -s /usr/libexec/git-core /usr/lib/git-core
+
+COPY ./test/fixture/testrepos/id_rsa.pub /home/user/.ssh/authorized_keys
 
 RUN echo "[http]" >> /tmp/argo-e2e/testdata.git/config && \
     echo "  receivepack = true" >> /tmp/argo-e2e/testdata.git/config 
