@@ -610,6 +610,7 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 	err = os.WriteFile("./testdata/oob-symlink/values.yaml", []byte("foo: bar"), 0o644)
 	require.NoError(t, err)
 	spec := argoappv1.ApplicationSpec{
+		Project: "default",
 		Sources: []argoappv1.ApplicationSource{
 			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &argoappv1.ApplicationSourceHelm{
 				// Reference `ref` but do not use the oob symlink. The mere existence of the link should be enough to

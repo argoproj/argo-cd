@@ -178,7 +178,8 @@ spec:
         api: https://mycompany.bitbucket.org
         # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
         allBranches: true
-        # Credentials for Basic authentication. Required for private repositories.
+        # Credentials for Basic authentication (App Password). Either basicAuth or bearerToken
+        # authentication is required to access private repositories
         basicAuth:
           # The username to authenticate with
           username: myuser
@@ -186,6 +187,13 @@ spec:
           passwordRef:
             secretName: mypassword
             key: password
+        # Credentials for Bearer Token (App Token) authentication. Either basicAuth or bearerToken
+        # authentication is required to access private repositories
+        bearerToken:
+          # Reference to a Secret containing the bearer token.
+          tokenRef:
+            secretName: repotoken
+            key: token
         # Support for filtering by labels is TODO. Bitbucket server labels are not supported for PRs, but they are for repos
   template:
   # ...
@@ -198,6 +206,9 @@ spec:
 If you want to access a private repository, you must also provide the credentials for Basic auth (this is the only auth supported currently):
 * `username`: The username to authenticate with. It only needs read access to the relevant repo.
 * `passwordRef`: A `Secret` name and key containing the password or personal access token to use for requests.
+
+In case of Bitbucket App Token, go with `bearerToken` section.
+* `tokenRef`: A `Secret` name and key containing the app token to use for requests.
 
 Available clone protocols are `ssh` and `https`.
 

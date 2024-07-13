@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -1927,7 +1929,14 @@ GROUP  KIND        NAMESPACE  NAME           STATUS  HEALTH   HOOK  MESSAGE
 apps   Deployment  default    test           Synced  Healthy        
 `
 	expectation = fmt.Sprintf(expectation, timeStr, timeStr)
-	assert.Equalf(t, expectation, output, "Incorrect output %q, should be %q", output, expectation)
+	expectationParts := strings.Split(expectation, "\n")
+	slices.Sort(expectationParts)
+	expectationSorted := strings.Join(expectationParts, "\n")
+	outputParts := strings.Split(output, "\n")
+	slices.Sort(outputParts)
+	outputSorted := strings.Join(outputParts, "\n")
+	// Need to compare sorted since map entries may not keep a specific order during serialization, leading to flakiness.
+	assert.Equalf(t, expectationSorted, outputSorted, "Incorrect output %q, should be %q (items order doesn't matter)", output, expectation)
 }
 
 type customAcdClient struct {
