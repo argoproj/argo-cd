@@ -4,14 +4,8 @@ kind: Kustomization
 resources:
 - ../../../manifests/crds
 - ../../../manifests/base/config
-- ../../../manifests/base/application-controller-roles
-- ../../../manifests/base/applicationset-controller-roles
-- ../../../manifests/base/server-roles
 - ../../../manifests/cluster-rbac
 - ../../../manifests/base/notification
 
 patches:
-  - path: cluster-role-binding-app-controller.yaml
-  - path: cluster-role-binding-appset-controller.yaml
-  - path: cluster-role-binding-server.yaml
   - path: patches.yaml
