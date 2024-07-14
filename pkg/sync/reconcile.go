@@ -76,18 +76,36 @@ func Reconcile(targetObjs []*unstructured.Unstructured, liveObjByKey map[kube.Re
 	managedLiveObj := make([]*unstructured.Unstructured, len(targetObjs))
 	for i, obj := range targetObjs {
 		gvk := obj.GroupVersionKind()
+
 		ns := text.FirstNonEmpty(obj.GetNamespace(), namespace)
-		if namespaced := kubeutil.IsNamespacedOrUnknown(resInfo, obj.GroupVersionKind().GroupKind()); !namespaced {
-			ns = ""
+
+		namespaced, err := resInfo.IsNamespaced(gvk.GroupKind())
+		unknownScope := err != nil
+
+		var keysToCheck []kubeutil.ResourceKey
+		// If we get an error, we don't know whether the resource is namespaced. So we need to check for both in the
+		// live objects. If we don't check for both, then we risk missing the object and deleting it.
+		if namespaced || unknownScope {
+			keysToCheck = append(keysToCheck, kubeutil.NewResourceKey(gvk.Group, gvk.Kind, ns, obj.GetName()))
 		}
-		key := kubeutil.NewResourceKey(gvk.Group, gvk.Kind, ns, obj.GetName())
-		if liveObj, ok := liveObjByKey[key]; ok {
-			managedLiveObj[i] = liveObj
-			delete(liveObjByKey, key)
-		} else {
+		if !namespaced || unknownScope {
+			keysToCheck = append(keysToCheck, kubeutil.NewResourceKey(gvk.Group, gvk.Kind, "", obj.GetName()))
+		}
+
+		found := false
+		for _, key := range keysToCheck {
+			if liveObj, ok := liveObjByKey[key]; ok {
+				managedLiveObj[i] = liveObj
+				delete(liveObjByKey, key)
+				found = true
+				break
+			}
+		}
+		if !found {
 			managedLiveObj[i] = nil
 		}
 	}
+
 	for _, obj := range liveObjByKey {
 		targetObjs = append(targetObjs, nil)
 		managedLiveObj = append(managedLiveObj, obj)
