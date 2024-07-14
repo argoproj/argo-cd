@@ -173,6 +173,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Kvist](https://kvistsolutions.com)
 1. [Kyriba](https://www.kyriba.com/)
 1. [LexisNexis](https://www.lexisnexis.com/)
+1. [Lely](https://www.lely.com/)
 1. [Lian Chu Securities](https://lczq.com)
 1. [Liatrio](https://www.liatrio.com)
 1. [Lightricks](https://www.lightricks.com/)
