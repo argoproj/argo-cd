@@ -6,13 +6,13 @@ FROM docker.io/library/redis:7.2.5@sha256:fb534a36ac2034a6374933467d971fbcbfa5d2
 RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 
 # Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
-FROM docker.io/library/node:22.4.0@sha256:2558f19e787cb0baed81a8068adf7509023b43dedce24ed606f8a01522b21313 as node
+FROM docker.io/library/node:22.4.1@sha256:c8a559f733bf1f9b3c1d05b97d9a9c7e5d3647c99abedaf5cdd3b54c9cbb8eff as node
 
-FROM docker.io/library/golang:1.23rc1@sha256:e94e0159e05a05d1d0fce4e0b542422a4285cdb9201c0ac9a20acdca467cb950 as golang
+FROM docker.io/library/golang:1.23rc1@sha256:a7c0d04150f3c9bf69582f3f0dd324473e22355982dfb654294a9b6be862655c as golang
 
 FROM docker.io/library/registry:2.8@sha256:79b29591e1601a73f03fcd413e655b72b9abfae5a23f1ad2e883d4942fbb4351 as registry
 
-FROM docker.io/bitnami/kubectl:1.30@sha256:031d5658d2b9c0cadeabd8f58140d681b051b9860c149459caa0cb255730da4a as kubectl
+FROM docker.io/bitnami/kubectl:1.30@sha256:dc190b7c6b87ba74eabff4e1e78758eed95ebb97b5a186bbdaf2b43625f9a62a as kubectl
 
 FROM docker.io/library/ubuntu:24.04@sha256:3f85b7caad41a95462cf5b787d8a04604c8262cdcdf9a472b8c52ef83375fe15
 

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/argoproj/pkg/rand"
+	"github.com/golang/protobuf/ptypes/empty"
 
 	exec2 "github.com/argoproj/argo-cd/v2/util/exec"
 
@@ -423,4 +424,16 @@ func getParametersAnnouncement(ctx context.Context, appDir string, announcements
 		ParameterAnnouncements: augmentedAnnouncements,
 	}
 	return repoResponse, nil
+}
+
+func (s *Service) CheckPluginConfiguration(ctx context.Context, _ *empty.Empty) (*apiclient.CheckPluginConfigurationResponse, error) {
+	isDiscoveryConfigured := s.isDiscoveryConfigured()
+	response := &apiclient.CheckPluginConfigurationResponse{IsDiscoveryConfigured: isDiscoveryConfigured}
+
+	return response, nil
+}
+
+func (s *Service) isDiscoveryConfigured() (isDiscoveryConfigured bool) {
+	config := s.initConstants.PluginConfig
+	return config.Spec.Discover.FileName != "" || config.Spec.Discover.Find.Glob != "" || len(config.Spec.Discover.Find.Command.Command) > 0
 }

@@ -182,40 +182,6 @@ func (_m *Client) CommitSHA() (string, error) {
 	return r0, r1
 }
 
-// Config provides a mock function with given fields: args
-func (_m *Client) Config(args ...string) (string, error) {
-	_va := make([]interface{}, len(args))
-	for _i := range args {
-		_va[_i] = args[_i]
-	}
-	var _ca []interface{}
-	_ca = append(_ca, _va...)
-	ret := _m.Called(_ca...)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Config")
-	}
-
-	var r0 string
-	var r1 error
-	if rf, ok := ret.Get(0).(func(...string) (string, error)); ok {
-		return rf(args...)
-	}
-	if rf, ok := ret.Get(0).(func(...string) string); ok {
-		r0 = rf(args...)
-	} else {
-		r0 = ret.Get(0).(string)
-	}
-
-	if rf, ok := ret.Get(1).(func(...string) error); ok {
-		r1 = rf(args...)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // Fetch provides a mock function with given fields: revision
 func (_m *Client) Fetch(revision string) error {
 	ret := _m.Called(revision)

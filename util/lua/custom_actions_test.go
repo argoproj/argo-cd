@@ -77,6 +77,11 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 		if err != nil {
 			return fmt.Errorf("failed to normalize Rollout: %w", err)
 		}
+	case "HelmRelease", "ImageRepository", "ImageUpdateAutomation", "Kustomization", "Receiver", "Bucket", "GitRepository", "HelmChart", "HelmRepository", "OCIRepository":
+		err := unstructured.SetNestedStringMap(un.Object, map[string]string{"reconcile.fluxcd.io/requestedAt": "By Argo CD at: 0001-01-01T00:00:00"}, "metadata", "annotations")
+		if err != nil {
+			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+		}
 	}
 	return nil
 }

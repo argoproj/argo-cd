@@ -5904,6 +5904,21 @@ spec:
                                         - passwordRef
                                         - username
                                         type: object
+                                      bearerToken:
+                                        properties:
+                                          tokenRef:
+                                            properties:
+                                              key:
+                                                type: string
+                                              secretName:
+                                                type: string
+                                            required:
+                                            - key
+                                            - secretName
+                                            type: object
+                                        required:
+                                        - tokenRef
+                                        type: object
                                       project:
                                         type: string
                                       repo:
@@ -6710,6 +6725,21 @@ spec:
                                         required:
                                         - passwordRef
                                         - username
+                                        type: object
+                                      bearerToken:
+                                        properties:
+                                          tokenRef:
+                                            properties:
+                                              key:
+                                                type: string
+                                              secretName:
+                                                type: string
+                                            required:
+                                            - key
+                                            - secretName
+                                            type: object
+                                        required:
+                                        - tokenRef
                                         type: object
                                       project:
                                         type: string
@@ -11380,6 +11410,21 @@ spec:
                                         - passwordRef
                                         - username
                                         type: object
+                                      bearerToken:
+                                        properties:
+                                          tokenRef:
+                                            properties:
+                                              key:
+                                                type: string
+                                              secretName:
+                                                type: string
+                                            required:
+                                            - key
+                                            - secretName
+                                            type: object
+                                        required:
+                                        - tokenRef
+                                        type: object
                                       project:
                                         type: string
                                       repo:
@@ -12186,6 +12231,21 @@ spec:
                                         required:
                                         - passwordRef
                                         - username
+                                        type: object
+                                      bearerToken:
+                                        properties:
+                                          tokenRef:
+                                            properties:
+                                              key:
+                                                type: string
+                                              secretName:
+                                                type: string
+                                            required:
+                                            - key
+                                            - secretName
+                                            type: object
+                                        required:
+                                        - tokenRef
                                         type: object
                                       project:
                                         type: string
@@ -14289,6 +14349,21 @@ spec:
                               - passwordRef
                               - username
                               type: object
+                            bearerToken:
+                              properties:
+                                tokenRef:
+                                  properties:
+                                    key:
+                                      type: string
+                                    secretName:
+                                      type: string
+                                  required:
+                                  - key
+                                  - secretName
+                                  type: object
+                              required:
+                              - tokenRef
+                              type: object
                             project:
                               type: string
                             repo:
@@ -15095,6 +15170,21 @@ spec:
                               required:
                               - passwordRef
                               - username
+                              type: object
+                            bearerToken:
+                              properties:
+                                tokenRef:
+                                  properties:
+                                    key:
+                                      type: string
+                                    secretName:
+                                      type: string
+                                  required:
+                                  - key
+                                  - secretName
+                                  type: object
+                              required:
+                              - tokenRef
                               type: object
                             project:
                               type: string
