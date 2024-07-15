@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	CertPath    = mustToAbsPath("../fixture/certs/argocd-test-client.crt")
-	CertKeyPath = mustToAbsPath("../fixture/certs/argocd-test-client.key")
+	CertPath    = mustToAbsPath("../fixture/certs/argocd-test-client.crt.pem")
+	CertKeyPath = mustToAbsPath("../fixture/certs/argocd-test-client.key.pem")
 )
 
 func mustToAbsPath(relativePath string) string {

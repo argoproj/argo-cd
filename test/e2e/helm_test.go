@@ -45,7 +45,7 @@ func TestHelmHookWeight(t *testing.T) {
 	Given(t).
 		Path("hook").
 		When().
-		// this create a weird hook, that runs during sync - but before the pod, and because it'll fail - the pod will never be created
+		// this creates a weird hook, that runs during sync - but before the pod, and because it'll fail - the pod will never be created
 		PatchFile("hook.yaml", `[
 	{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "Sync", "helm.sh/hook-weight": "-1"}},
 	{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}
