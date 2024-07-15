@@ -433,8 +433,11 @@ We specify kubeClient as kubernetes.Interface to allow for mocking in tests, but
 */
 func SetOptionalRedisPasswordFromKubeConfig(ctx context.Context, kubeClient kubernetes.Interface, namespace string, redisOptions *redis.Options) error {
 	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, DefaultRedisInitialPasswordSecretName, v1.GetOptions{})
-	if err != nil || secret == nil {
-		return errors.Wrapf(err, "failed to get secret %s/%s", namespace, DefaultRedisInitialPasswordSecretName)
+	if err != nil {
+		return fmt.Errorf("failed to get secret %s/%s: %w", namespace, DefaultRedisInitialPasswordSecretName, err)
+	}
+	if secret == nil {
+		return fmt.Errorf("failed to get secret %s/%s: secret is nil", namespace, DefaultRedisInitialPasswordSecretName)
 	}
 	_, ok := secret.Data[DefaultRedisInitialPasswordKey]
 	if !ok {
