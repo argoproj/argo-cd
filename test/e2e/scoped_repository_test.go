@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -57,7 +56,7 @@ func TestCreateRepositoryNonAdminUserPermissionDenied(t *testing.T) {
 		Create().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.True(t, strings.Contains(err.Error(), "PermissionDenied desc = permission denied: repositories, create"))
+			assert.Contains(t, err.Error(), "PermissionDenied desc = permission denied: repositories, create")
 		})
 }
 
@@ -84,7 +83,7 @@ func TestCreateRepositoryNonAdminUserWithWrongProject(t *testing.T) {
 		Create().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.True(t, strings.Contains(err.Error(), "PermissionDenied desc = permission denied: repositories, create"))
+			assert.Contains(t, err.Error(), "PermissionDenied desc = permission denied: repositories, create")
 		})
 }
 
@@ -127,7 +126,7 @@ func TestDeleteRepositoryRbacAllowed(t *testing.T) {
 		Delete().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.True(t, strings.Contains(output, "Repository 'https://github.com/argoproj/argo-cd.git' removed"))
+			assert.Contains(t, output, "Repository 'https://github.com/argoproj/argo-cd.git' removed")
 		})
 }
 
@@ -171,7 +170,7 @@ func TestDeleteRepositoryRbacDenied(t *testing.T) {
 		Delete().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.True(t, strings.Contains(err.Error(), "PermissionDenied desc = permission denied: repositories, delete"))
+			assert.Contains(t, err.Error(), "PermissionDenied desc = permission denied: repositories, delete")
 		})
 }
 
