@@ -80,8 +80,6 @@ type Client interface {
 	IsAnnotatedTag(string) bool
 	ChangedFiles(revision string, targetRevision string) ([]string, error)
 	IsRevisionPresent(revision string) bool
-	// Config runs a git config command.
-	Config(args ...string) (string, error)
 	// SetAuthor sets the author name and email in the git configuration.
 	SetAuthor(name, email string) (string, error)
 	// CheckoutOrOrphan checks out the sync branch. If the branch does not exist, it creates an orphan branch.
@@ -819,8 +817,8 @@ func (m *nativeGitClient) ChangedFiles(revision string, targetRevision string) (
 	return files, nil
 }
 
-// Config runs a git config command.
-func (m *nativeGitClient) Config(args ...string) (string, error) {
+// config runs a git config command.
+func (m *nativeGitClient) config(args ...string) (string, error) {
 	args = append([]string{"config"}, args...)
 	out, err := m.runCmd(args...)
 	if err != nil {
@@ -832,13 +830,13 @@ func (m *nativeGitClient) Config(args ...string) (string, error) {
 // SetAuthor sets the author name and email in the git configuration.
 func (m *nativeGitClient) SetAuthor(name, email string) (string, error) {
 	if name != "" {
-		out, err := m.Config("--local", "user.name", name)
+		out, err := m.config("--local", "user.name", name)
 		if err != nil {
 			return out, err
 		}
 	}
 	if email != "" {
-		out, err := m.Config("--local", "user.email", email)
+		out, err := m.config("--local", "user.email", email)
 		if err != nil {
 			return out, err
 		}
