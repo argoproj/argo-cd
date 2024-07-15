@@ -6,6 +6,8 @@ import (
 	"math"
 	"time"
 
+	"k8s.io/apimachinery/pkg/runtime"
+
 	"github.com/argoproj/pkg/stats"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
@@ -74,6 +76,7 @@ func NewCommand() *cobra.Command {
 		enableDynamicClusterDistribution bool
 		serverSideDiff                   bool
 		ignoreNormalizerOpts             normalizers.IgnoreNormalizerOpts
+		acceptProtobufContentType        bool
 	)
 	command := cobra.Command{
 		Use:               cliName,
@@ -102,6 +105,9 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 			errors.CheckError(v1alpha1.SetK8SConfigDefaults(config))
 			config.UserAgent = fmt.Sprintf("%s/%s (%s)", common.DefaultApplicationControllerName, vers.Version, vers.Platform)
+			if acceptProtobufContentType {
+				config.AcceptContentTypes = runtime.ContentTypeProtobuf + "," + runtime.ContentTypeJSON
+			}
 
 			kubeClient := kubernetes.NewForConfigOrDie(config)
 			appClient := appclientset.NewForConfigOrDie(config)
@@ -233,6 +239,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableDynamicClusterDistribution, "dynamic-cluster-distribution-enabled", env.ParseBoolFromEnv(common.EnvEnableDynamicClusterDistribution, false), "Enables dynamic cluster distribution.")
 	command.Flags().BoolVar(&serverSideDiff, "server-side-diff-enabled", env.ParseBoolFromEnv(common.EnvServerSideDiff, false), "Feature flag to enable ServerSide diff. Default (\"false\")")
 	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout-seconds", env.ParseDurationFromEnv("ARGOCD_IGNORE_NORMALIZER_JQ_TIMEOUT", 0*time.Second, 0, math.MaxInt64), "Set ignore normalizer JQ execution timeout")
+	command.Flags().BoolVar(&acceptProtobufContentType, "accept-protobuf-content-type-enabled", env.ParseBoolFromEnv("ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED", false), "Allows the Argo CD application controller to receive Kubernetes API responses in protobuf instead of json, if possible. This may improve performance in serialization but is experimental.")
+
 	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {
 			redisClient = client

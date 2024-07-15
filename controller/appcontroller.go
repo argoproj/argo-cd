@@ -1158,7 +1158,9 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		logCtx.Infof("Resource entries removed from undefined cluster")
 		return nil
 	}
-	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
+
+	restConfig := cluster.RESTConfigWithUserAgent("app-controller")
+	restConfig = metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, restConfig)
 
 	if app.CascadedDeletion() {
 		logCtx.Infof("Deleting resources")
@@ -1191,7 +1193,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 		err = kube.RunAllAsync(len(filteredObjs), func(i int) error {
 			obj := filteredObjs[i]
-			return ctrl.kubectl.DeleteResource(context.Background(), config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+			return ctrl.kubectl.DeleteResource(context.Background(), restConfig, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
 		})
 		if err != nil {
 			return err
@@ -1222,7 +1224,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 			return err
 		}
 
-		done, err := ctrl.executePostDeleteHooks(app, proj, objsMap, config, logCtx)
+		done, err := ctrl.executePostDeleteHooks(app, proj, objsMap, restConfig, logCtx)
 		if err != nil {
 			return err
 		}
@@ -1239,7 +1241,7 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 			return err
 		}
 
-		done, err := ctrl.cleanupPostDeleteHooks(objsMap, config, logCtx)
+		done, err := ctrl.cleanupPostDeleteHooks(objsMap, restConfig, logCtx)
 		if err != nil {
 			return err
 		}

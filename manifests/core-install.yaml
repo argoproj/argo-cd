@@ -21366,6 +21366,12 @@ spec:
               key: applicationsetcontroller.webhook.parallelism.limit
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: accept.protobuf.contenttype.enabled
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
@@ -22059,6 +22065,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.ignore.normalizer.jq.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_ACCEPT_PROTOBUF_CONTENTTYPE_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: accept.protobuf.contenttype.enabled
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest
