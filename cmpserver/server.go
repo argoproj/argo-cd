@@ -40,17 +40,21 @@ type ArgoCDCMPServer struct {
 }
 
 // NewServer returns a new instance of the Argo CD config management plugin server
-func NewServer(initConstants plugin.CMPServerInitConstants) (*ArgoCDCMPServer, error) {
+func NewServer(initConstants plugin.CMPServerInitConstants, authProvider func() string) (*ArgoCDCMPServer, error) {
 	if os.Getenv(common.EnvEnableGRPCTimeHistogramEnv) == "true" {
 		grpc_prometheus.EnableHandlingTimeHistogram()
 	}
 
+	token := authToken{
+		token: authProvider,
+	}
 	serverLog := log.NewEntry(log.StandardLogger())
 	streamInterceptors := []grpc.StreamServerInterceptor{
 		otelgrpc.StreamServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
 		grpc_logrus.StreamServerInterceptor(serverLog),
 		grpc_prometheus.StreamServerInterceptor,
 		grpc_util.PanicLoggerStreamServerInterceptor(serverLog),
+		token.streamInterceptor,
 	}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
 		otelgrpc.UnaryServerInterceptor(), //nolint:staticcheck // TODO: ignore SA1019 for depreciation: see https://github.com/argoproj/argo-cd/issues/18258
@@ -84,13 +88,17 @@ func (a *ArgoCDCMPServer) Run() {
 	config := a.initConstants.PluginConfig
 
 	// Listen on the socket address
-	_ = os.Remove(config.Address())
-	listener, err := net.Listen("unix", config.Address())
+	address, addressType := config.Address()
+	if addressType == `unix` {
+		_ = os.Remove(address)
+	}
+	listener, err := net.Listen(addressType, address)
+
 	errors.CheckError(err)
 	log.Infof("argocd-cmp-server %s serving on %s", common.GetVersion(), listener.Addr())
 
 	signal.Notify(a.stopCh, syscall.SIGINT, syscall.SIGTERM)
-	go a.Shutdown(config.Address())
+	go a.Shutdown(address)
 
 	grpcServer, err := a.CreateGRPC()
 	errors.CheckError(err)

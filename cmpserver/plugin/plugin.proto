@@ -53,6 +53,11 @@ message ParametersAnnouncementResponse {
     repeated repository.ParameterAnnouncement parameterAnnouncements = 1;
 }
 
+// SpecificationResponse
+message SpecificationResponse {
+    string name = 1;
+}
+
 message File {
     bytes chunk = 1;
 }
@@ -66,6 +71,10 @@ service ConfigManagementPluginService {
 
     // MatchRepository returns whether or not the given application is supported by the plugin
     rpc MatchRepository(stream AppStreamRequest) returns (RepositoryResponse) {
+    }
+
+    // GetSpecification gets a specification for the plugin
+    rpc GetSpecification(stream AppStreamRequest) returns (SpecificationResponse) {
     }
 
     // GetParametersAnnouncement gets a list of parameter announcements for the given app
