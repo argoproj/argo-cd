@@ -54,7 +54,8 @@ import (
 
 const (
 	defaultk3sVersion       = "v1.27.15"
-	defaultApiServer        = "localhost:8080"
+	defaultApiServerPort    = "8088"
+	defaultRepoServerPort   = "8081"
 	defaultAdminPassword    = "password"
 	defaultAdminUsername    = "admin"
 	DefaultTestUserPassword = "password"
@@ -86,6 +87,8 @@ const (
 	EnvArgoCDRedisName         = "ARGOCD_E2E_REDIS_NAME"
 	EnvArgoCDRepoServerName    = "ARGOCD_E2E_REPO_SERVER_NAME"
 	EnvArgoCDAppControllerName = "ARGOCD_E2E_APPLICATION_CONTROLLER_NAME"
+	EnvArgoCDApiServerPort     = "ARGOCD_E2E_APISERVER_PORT"
+	EnvArgoCDRepoServerPort    = "ARGOCD_E2E_REPOSERVER_PORT"
 	EnvArgoCDUseTestContainers = "ARGOCD_E2E_USE_TESTCONTAINERS"
 	EnvK3sVersion              = "ARGOCD_E2E_K3S_VERSION"
 )
@@ -111,6 +114,8 @@ var (
 	argoCDRepoServerName    string
 	argoCDAppControllerName string
 	k3sVersion              string
+	apiServerPort           string
+	repoServerPort          string
 )
 
 type RepoURLType string
@@ -203,7 +208,11 @@ func init() {
 	// ensure we log all shell execs
 	log.SetLevel(log.DebugLevel)
 
-	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, defaultApiServer)
+	apiServerPort = GetEnvWithDefault(EnvArgoCDApiServerPort, defaultApiServerPort)
+	repoServerPort = GetEnvWithDefault(EnvArgoCDRepoServerPort, defaultRepoServerPort)
+	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, fmt.Sprintf("localhost:%s", apiServerPort))
+	apiServerPort = strings.Split(apiServerAddress, ":")[1]
+
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
 	AdminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
@@ -723,6 +732,8 @@ func initTestServices(ctx context.Context) {
 	// Start repo-server
 	repoServerCmd := cobra.Command{}
 	reposerverConfig := reposervercommand.NewRepoServerConfig(&repoServerCmd).WithDefaultFlags()
+	CheckError(repoServerCmd.Flags().Set("port", repoServerPort))
+
 	go func() {
 		if err := reposerverConfig.CreateRepoServer(ctx); err != nil {
 			log.Error(err, "problem starting repo-server")
@@ -730,14 +741,16 @@ func initTestServices(ctx context.Context) {
 		}
 	}()
 
+	repoServerAddress := fmt.Sprintf("localhost:%s", repoServerPort)
+
 	// Start argocd-server
 	serverCmd := cobra.Command{}
 	serverRestConfig := rest.CopyConfig(KubeConfig)
 	// serverRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-server", TestNamespace()) // TODO: Run controller with serviceaccount perms
 	serverConfig := servercommand.NewServerConfig(&serverCmd).WithDefaultFlags().WithK8sSettings(TestNamespace(), serverRestConfig)
 	CheckError(serverCmd.Flags().Set("insecure", "true"))
-	CheckError(serverCmd.Flags().Set("port", strings.Split(apiServerAddress, ":")[1]))
-	CheckError(serverCmd.Flags().Set("repo-server", "localhost:8081"))
+	CheckError(serverCmd.Flags().Set("port", apiServerPort))
+	CheckError(serverCmd.Flags().Set("repo-server", repoServerAddress))
 	serverConfig.CreateServer(ctx)
 
 	// Start application-controller
@@ -745,7 +758,7 @@ func initTestServices(ctx context.Context) {
 	// appRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-application-controller", TestNamespace()) // TODO: Run controller with serviceaccount perms
 	appControllerCmd := &cobra.Command{}
 	appControllerConfig := appcontrollercommand.NewApplicationControllerConfig(appControllerCmd).WithDefaultFlags().WithK8sSettings(TestNamespace(), appRestConfig)
-	CheckError(appControllerCmd.Flags().Set("repo-server", "localhost:8081"))
+	CheckError(appControllerCmd.Flags().Set("repo-server", repoServerAddress))
 	CheckError(appControllerConfig.CreateApplicationController(ctx))
 
 	// Start applicationset-controller
@@ -754,7 +767,7 @@ func initTestServices(ctx context.Context) {
 	// appsetRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-applicationset-controller", TestNamespace()) // TODO: Run controller with serviceaccount perms
 	appSetControllerConfig := appsetcontrollercommand.NewApplicationSetControllerConfig(&appsetCmd).WithDefaultFlags().WithK8sSettings(TestNamespace(), appsetRestConfig)
 	CheckError(appsetCmd.Flags().Set("probe-addr", ":9999"))
-	CheckError(appsetCmd.Flags().Set("argocd-repo-server", "localhost:8081"))
+	CheckError(appsetCmd.Flags().Set("argocd-repo-server", repoServerAddress))
 	mgr, err := appSetControllerConfig.CreateApplicationSetController(ctx)
 	CheckError(err)
 	go func() {
