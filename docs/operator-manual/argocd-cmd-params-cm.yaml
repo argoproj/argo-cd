@@ -191,7 +191,8 @@ data:
   # Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.
   applicationsetcontroller.enable.leader.election: "false"
   # "Modify how application is synced between the generator and the cluster. Default is '' (empty), which means AppSets
-  # will default to the 'sync' policy (create & update & delete). Other options are:
+  # will default to the 'sync' policy (create & update & delete). Explicitly setting the value prevents AppSet-level
+  # policy overrides unless overrides are explicitly enabled (see option below). Explicit options are:
   # 'create-only', 'create-update' (no deletion), 'create-delete' (no update)"
   applicationsetcontroller.policy: ""
   # If applicationsetcontroller.policy is empty, this flag has no effect. If applicationsetcontroller.policy is set,
