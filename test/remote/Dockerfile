@@ -76,6 +76,7 @@ RUN userdel -r ubuntu && \
     chown -R user /tmp/argo-e2e/testdata.git && \
     chown -R user /tmp/argo-e2e/submodule.git && \
     chown -R user /tmp/argo-e2e/submoduleParent.git && \
+    cp -r /app/config/testdata/helm-repo /tmp/argo-e2e/testdata.git/helm-repo && \
     ln -s /usr/libexec/git-core /usr/lib/git-core
 
 COPY ./test/fixture/testrepos/id_rsa.pub /home/user/.ssh/authorized_keys

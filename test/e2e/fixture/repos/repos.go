@@ -100,9 +100,9 @@ func AddHTTPSCredentialsUserPass() {
 
 // AddHTTPSRepoCredentialsTLSClientCert adds E2E  for HTTPS repos to context
 func AddHTTPSCredentialsTLSClientCert() {
-	certPath, err := filepath.Abs("../fixture/certs/argocd-test-client.crt")
+	certPath, err := filepath.Abs("../fixture/certs/argocd-test-client.crt.pem")
 	errors.CheckError(err)
-	keyPath, err := filepath.Abs("../fixture/certs/argocd-test-client.key")
+	keyPath, err := filepath.Abs("../fixture/certs/argocd-test-client.key.pem")
 	errors.CheckError(err)
 	args := []string{
 		"repocreds",
@@ -118,9 +118,9 @@ func AddHTTPSCredentialsTLSClientCert() {
 
 // AddHelmHTTPSCredentialsTLSClientCert adds credentials for Helm repos to context
 func AddHelmHTTPSCredentialsTLSClientCert() {
-	certPath, err := filepath.Abs("../fixture/certs/argocd-test-client.crt")
+	certPath, err := filepath.Abs("../fixture/certs/argocd-test-client.crt.pem")
 	errors.CheckError(err)
-	keyPath, err := filepath.Abs("../fixture/certs/argocd-test-client.key")
+	keyPath, err := filepath.Abs("../fixture/certs/argocd-test-client.key.pem")
 	errors.CheckError(err)
 	args := []string{
 		"repocreds",

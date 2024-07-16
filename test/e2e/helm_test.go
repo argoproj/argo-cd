@@ -576,9 +576,9 @@ func TestHelmRepoDiffLocal(t *testing.T) {
 			FailOnErr(Run("", "helm", "repo", "add", "custom-repo", GetEnvWithDefault("ARGOCD_E2E_HELM_SERVICE", RepoURL(RepoURLTypeHelm)),
 				"--username", GitUsername,
 				"--password", GitPassword,
-				"--cert-file", "../fixture/certs/argocd-test-client.crt",
-				"--key-file", "../fixture/certs/argocd-test-client.key",
-				"--ca-file", "../fixture/certs/argocd-test-ca.crt",
+				"--cert-file", "../fixture/certs/argocd-test-client.crt.pem",
+				"--key-file", "../fixture/certs/argocd-test-client.key.pem",
+				"--ca-file", "../fixture/certs/argocd-test-ca.pem",
 			))
 			diffOutput := FailOnErr(RunCli("app", "diff", app.Name, "--local", "testdata/helm")).(string)
 			assert.Empty(t, diffOutput)
