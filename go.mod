@@ -2,6 +2,8 @@ module github.com/argoproj/argo-cd/v2
 
 go 1.22.0
 
+toolchain go1.22.5
+
 require (
 	code.gitea.io/sdk/gitea v0.18.0
 	github.com/Azure/kubelogin v0.0.20
