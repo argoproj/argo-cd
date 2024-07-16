@@ -1,0 +1,22 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  interval: 5m0s
+  url: https://stefanprodan.github.io/podinfo
+status:
+  conditions:
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: 'stored artifact: revision ''sha256:3dfe15d87f81dedc8ddaf116c7302892e54a0d8f269e35f65aaff9ac4d1b179c'''
+      observedGeneration: 1
+      reason: Succeeded
+      status: "True"
+      type: Ready
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: 'stored artifact: revision ''sha256:3dfe15d87f81dedc8ddaf116c7302892e54a0d8f269e35f65aaff9ac4d1b179c'''
+      observedGeneration: 1
+      reason: Succeeded
+      status: "True"
+      type: ArtifactInStorage
