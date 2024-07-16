@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -337,7 +336,7 @@ func TestCachedManifestResponse_ShallowCopyExpectedFields(t *testing.T) {
 	// go do that first :)
 
 	for _, expectedField := range expectedFields {
-		assert.Truef(t, strings.Contains(string(str), "\""+expectedField+"\""), "Missing field: %s", expectedField)
+		assert.Containsf(t, string(str), "\""+expectedField+"\"", "Missing field: %s", expectedField)
 	}
 }
 

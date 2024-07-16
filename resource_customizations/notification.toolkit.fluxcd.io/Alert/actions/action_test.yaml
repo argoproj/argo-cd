@@ -1,0 +1,26 @@
+discoveryTests:
+- inputPath: testdata/initial_alert.yaml
+  result:
+    - name: suspend
+      disabled: false
+    - name: resume
+      disabled: true
+- inputPath: testdata/suspended_alert.yaml
+  result:
+    - name: suspend
+      disabled: true
+    - name: resume
+      disabled: false
+- inputPath: testdata/resumed_alert.yaml
+  result:
+    - name: suspend
+      disabled: false
+    - name: resume
+      disabled: true
+actionTests:
+- action: suspend
+  inputPath: testdata/initial_alert.yaml
+  expectedOutputPath: testdata/suspended_alert.yaml
+- action: resume
+  inputPath: testdata/suspended_alert.yaml
+  expectedOutputPath: testdata/resumed_alert.yaml

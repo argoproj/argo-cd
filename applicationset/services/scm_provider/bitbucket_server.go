@@ -33,6 +33,16 @@ func NewBitbucketServerProviderBasicAuth(ctx context.Context, username, password
 	return newBitbucketServerProvider(ctx, bitbucketConfig, projectKey, allBranches)
 }
 
+func NewBitbucketServerProviderBearerToken(ctx context.Context, bearerToken, url, projectKey string, allBranches bool) (*BitbucketServerProvider, error) {
+	bitbucketConfig := bitbucketv1.NewConfiguration(url)
+	// Avoid the XSRF check
+	bitbucketConfig.AddDefaultHeader("x-atlassian-token", "no-check")
+	bitbucketConfig.AddDefaultHeader("x-requested-with", "XMLHttpRequest")
+
+	ctx = context.WithValue(ctx, bitbucketv1.ContextAccessToken, bearerToken)
+	return newBitbucketServerProvider(ctx, bitbucketConfig, projectKey, allBranches)
+}
+
 func NewBitbucketServerProviderNoAuth(ctx context.Context, url, projectKey string, allBranches bool) (*BitbucketServerProvider, error) {
 	return newBitbucketServerProvider(ctx, bitbucketv1.NewConfiguration(url), projectKey, allBranches)
 }

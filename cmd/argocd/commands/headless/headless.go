@@ -8,16 +8,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/spf13/cobra"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
-	"github.com/argoproj/argo-cd/v2/common"
-
 	"github.com/alicebob/miniredis/v2"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
@@ -26,7 +21,10 @@ import (
 	cache2 "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
@@ -254,13 +252,18 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		return fmt.Errorf("error running miniredis: %w", err)
 	}
 	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: compression, redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName}), time.Hour)
+
+	redisOptions := &redis.Options{Addr: mr.Addr()}
+	if err = common.SetOptionalRedisPasswordFromKubeConfig(ctx, kubeClientset, namespace, redisOptions); err != nil {
+		log.Warnf("Failed to fetch & set redis password for namespace %s: %v", namespace, err)
+	}
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
 		EnableGZip:              false,
 		Namespace:               namespace,
 		ListenPort:              *port,
 		AppClientset:            appClientset,
 		DisableAuth:             true,
-		RedisClient:             redis.NewClient(&redis.Options{Addr: mr.Addr()}),
+		RedisClient:             redis.NewClient(redisOptions),
 		Cache:                   servercache.NewCache(appstateCache, 0, 0, 0),
 		KubeClientset:           kubeClientset,
 		DynamicClientset:        dynamicClientset,
