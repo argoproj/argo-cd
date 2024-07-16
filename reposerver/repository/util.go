@@ -7,9 +7,15 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 )
 
-// GetCommonRootPath identifies the common root path among a set of application-related paths.
-func GetCommonRootPath(q *apiclient.ManifestRequest, appPath, repoPath string) string {
-	paths := GetAppPaths(q, appPath, repoPath)
+// GetApplicationRootPath returns the common root path among a set of application-related paths for manifest generation.
+func GetApplicationRootPath(q *apiclient.ManifestRequest, appPath, repoPath string) string {
+	paths := getPaths(q, appPath, repoPath)
+
+	if len(paths) == 0 {
+		// backward compatibility, by default the root path is the repoPath
+		return repoPath
+	}
+
 	commonParts := strings.Split(paths[0], "/")
 
 	for _, path := range paths[1:] {
@@ -32,22 +38,18 @@ func GetCommonRootPath(q *apiclient.ManifestRequest, appPath, repoPath string) s
 	return strings.Join(commonParts, "/")
 }
 
-// GetAppPaths retrieves all absolute paths associated with the generation of application manifests.
-func GetAppPaths(q *apiclient.ManifestRequest, appPath, repoPath string) []string {
-	var appPaths []string
-	if q.AnnotationManifestGeneratePaths != "" {
-		for _, annotationPath := range strings.Split(q.AnnotationManifestGeneratePaths, ";") {
-			if annotationPath == "" {
-				continue
-			}
-			if filepath.IsAbs(annotationPath) {
-				appPaths = append(appPaths, filepath.Clean(filepath.Join(repoPath, annotationPath)))
-			} else {
-				appPaths = append(appPaths, filepath.Clean(filepath.Join(appPath, annotationPath)))
-			}
+// getAppPaths retrieves all absolute paths associated with the generation of application manifests.
+func getPaths(q *apiclient.ManifestRequest, appPath, repoPath string) []string {
+	var paths []string
+	for _, annotationPath := range strings.Split(q.AnnotationManifestGeneratePaths, ";") {
+		if annotationPath == "" {
+			continue
 		}
-	} else {
-		appPaths = append(appPaths, appPath)
+		if filepath.IsAbs(annotationPath) {
+			paths = append(paths, filepath.Clean(filepath.Join(repoPath, annotationPath)))
+		} else {
+			paths = append(paths, filepath.Clean(filepath.Join(appPath, annotationPath)))
+		}
 	}
-	return appPaths
+	return paths
 }

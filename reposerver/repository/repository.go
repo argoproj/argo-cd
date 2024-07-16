@@ -1926,7 +1926,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 	defer io.Close(conn)
 
 	// Transmit the files under the common root path for all paths related to the manifest generation.
-	rootPath := GetCommonRootPath(q, appPath, repoPath)
+	rootPath := GetApplicationRootPath(q, appPath, repoPath)
 
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
 	cmpManifests, err := generateManifestsCMP(ctx, appPath, rootPath, env, cmpClient, tarDoneCh, tarExcludedGlobs)
