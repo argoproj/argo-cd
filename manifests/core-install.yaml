@@ -10437,6 +10437,21 @@ spec:
                                         - passwordRef
                                         - username
                                         type: object
+                                      bearerToken:
+                                        properties:
+                                          tokenRef:
+                                            properties:
+                                              key:
+                                                type: string
+                                              secretName:
+                                                type: string
+                                            required:
+                                            - key
+                                            - secretName
+                                            type: object
+                                        required:
+                                        - tokenRef
+                                        type: object
                                       project:
                                         type: string
                                       repo:
@@ -11191,6 +11206,21 @@ spec:
                                         required:
                                         - passwordRef
                                         - username
+                                        type: object
+                                      bearerToken:
+                                        properties:
+                                          tokenRef:
+                                            properties:
+                                              key:
+                                                type: string
+                                              secretName:
+                                                type: string
+                                            required:
+                                            - key
+                                            - secretName
+                                            type: object
+                                        required:
+                                        - tokenRef
                                         type: object
                                       project:
                                         type: string
@@ -15497,6 +15527,21 @@ spec:
                                         - passwordRef
                                         - username
                                         type: object
+                                      bearerToken:
+                                        properties:
+                                          tokenRef:
+                                            properties:
+                                              key:
+                                                type: string
+                                              secretName:
+                                                type: string
+                                            required:
+                                            - key
+                                            - secretName
+                                            type: object
+                                        required:
+                                        - tokenRef
+                                        type: object
                                       project:
                                         type: string
                                       repo:
@@ -16251,6 +16296,21 @@ spec:
                                         required:
                                         - passwordRef
                                         - username
+                                        type: object
+                                      bearerToken:
+                                        properties:
+                                          tokenRef:
+                                            properties:
+                                              key:
+                                                type: string
+                                              secretName:
+                                                type: string
+                                            required:
+                                            - key
+                                            - secretName
+                                            type: object
+                                        required:
+                                        - tokenRef
                                         type: object
                                       project:
                                         type: string
@@ -18198,6 +18258,21 @@ spec:
                               - passwordRef
                               - username
                               type: object
+                            bearerToken:
+                              properties:
+                                tokenRef:
+                                  properties:
+                                    key:
+                                      type: string
+                                    secretName:
+                                      type: string
+                                  required:
+                                  - key
+                                  - secretName
+                                  type: object
+                              required:
+                              - tokenRef
+                              type: object
                             project:
                               type: string
                             repo:
@@ -18952,6 +19027,21 @@ spec:
                               required:
                               - passwordRef
                               - username
+                              type: object
+                            bearerToken:
+                              properties:
+                                tokenRef:
+                                  properties:
+                                    key:
+                                      type: string
+                                    secretName:
+                                      type: string
+                                  required:
+                                  - key
+                                  - secretName
+                                  type: object
+                              required:
+                              - tokenRef
                               type: object
                             project:
                               type: string
@@ -20305,11 +20395,16 @@ spec:
                       type: string
                     step:
                       type: string
+                    targetRevisions:
+                      items:
+                        type: string
+                      type: array
                   required:
                   - application
                   - message
                   - status
                   - step
+                  - targetRevisions
                   type: object
                 type: array
               conditions:
@@ -20817,6 +20912,8 @@ rules:
   - appprojects
   verbs:
   - get
+  - list
+  - watch
 - apiGroups:
   - argoproj.io
   resources:
@@ -21263,6 +21360,12 @@ spec:
               key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.webhook.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
@@ -21620,6 +21723,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.grpc.max.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.include.hidden.directories
               name: argocd-cmd-params-cm
               optional: true
         - name: HELM_CACHE_HOME

@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/bitbucket"
@@ -41,12 +42,15 @@ type settingsSource interface {
 // https://github.com/shadow-maint/shadow/blob/master/libmisc/chkname.c#L36
 const usernameRegex = `[a-zA-Z0-9_\.][a-zA-Z0-9_\.-]{0,30}[a-zA-Z0-9_\.\$-]?`
 
+const payloadQueueSize = 50000
+
 var (
 	_                              settingsSource = &settings.SettingsManager{}
 	errBasicAuthVerificationFailed                = errors.New("basic auth verification failed")
 )
 
 type ArgoCDWebhookHandler struct {
+	sync.WaitGroup         // for testing
 	repoCache              *cache.Cache
 	serverCache            *servercache.Cache
 	db                     db.ArgoDB
@@ -61,9 +65,10 @@ type ArgoCDWebhookHandler struct {
 	azuredevopsAuthHandler func(r *http.Request) error
 	gogs                   *gogs.Webhook
 	settingsSrc            settingsSource
+	queue                  chan interface{}
 }
 
-func NewHandler(namespace string, applicationNamespaces []string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB) *ArgoCDWebhookHandler {
+func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB) *ArgoCDWebhookHandler {
 	githubWebhook, err := github.New(github.Options.Secret(set.WebhookGitHubSecret))
 	if err != nil {
 		log.Warnf("Unable to init the GitHub webhook")
@@ -113,9 +118,28 @@ func NewHandler(namespace string, applicationNamespaces []string, appClientset a
 		repoCache:              repoCache,
 		serverCache:            serverCache,
 		db:                     argoDB,
+		queue:                  make(chan interface{}, payloadQueueSize),
 	}
 
+	acdWebhook.startWorkerPool(webhookParallelism)
+
 	return &acdWebhook
+}
+
+func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
+	for i := 0; i < webhookParallelism; i++ {
+		a.Add(1)
+		go func() {
+			defer a.Done()
+			for {
+				payload, ok := <-a.queue
+				if !ok {
+					return
+				}
+				a.HandleEvent(payload)
+			}
+		}()
+	}
 }
 
 func parseRevision(ref string) string {
@@ -288,7 +312,6 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 			continue
 		}
 		for _, app := range filteredApps {
-
 			for _, source := range app.Spec.GetSources() {
 				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
 					refreshPaths := path.GetAppRefreshPaths(&app)
@@ -344,7 +367,14 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		return fmt.Errorf("error getting cluster info: %w", err)
 	}
 
-	refSources, err := argo.GetRefSources(context.Background(), app.Spec, a.db)
+	var sources v1alpha1.ApplicationSources
+	if app.Spec.HasMultipleSources() {
+		sources = app.Spec.GetSources()
+	} else {
+		sources = append(sources, app.Spec.GetSource())
+	}
+
+	refSources, err := argo.GetRefSources(context.Background(), sources, app.Spec.Project, a.db.GetRepository, []string{}, false)
 	if err != nil {
 		return fmt.Errorf("error getting ref sources: %w", err)
 	}
@@ -384,7 +414,6 @@ func sourceUsesURL(source v1alpha1.ApplicationSource, webURL string, repoRegexp 
 }
 
 func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
-
 	var payload interface{}
 	var err error
 
@@ -397,7 +426,7 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		} else {
 			payload, err = a.azuredevops.Parse(r, azuredevops.GitPushEventType)
 		}
-	//Gogs needs to be checked before GitHub since it carries both Gogs and (incompatible) GitHub headers
+	// Gogs needs to be checked before GitHub since it carries both Gogs and (incompatible) GitHub headers
 	case r.Header.Get("X-Gogs-Event") != "":
 		payload, err = a.gogs.Parse(r, gogs.PushEvent)
 		if errors.Is(err, gogs.ErrHMACVerificationFailed) {
@@ -439,5 +468,10 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a.HandleEvent(payload)
+	select {
+	case a.queue <- payload:
+	default:
+		log.Info("Queue is full, discarding webhook payload")
+		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
+	}
 }

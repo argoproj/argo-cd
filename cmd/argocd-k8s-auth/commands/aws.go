@@ -39,7 +39,7 @@ func newAWSCommand() *cobra.Command {
 		roleARN     string
 		profile     string
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use: "aws",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -70,7 +70,7 @@ func getSignedRequestWithRetry(ctx context.Context, timeout, interval time.Durat
 		}
 		select {
 		case <-ctx.Done():
-			return "", fmt.Errorf("timeout while trying to get signed aws request: last error: %s", err)
+			return "", fmt.Errorf("timeout while trying to get signed aws request: last error: %w", err)
 		case <-time.After(interval):
 		}
 	}
@@ -81,7 +81,7 @@ func getSignedRequest(clusterName, roleARN string, profile string) (string, erro
 		Profile: profile,
 	})
 	if err != nil {
-		return "", fmt.Errorf("error creating new AWS session: %s", err)
+		return "", fmt.Errorf("error creating new AWS session: %w", err)
 	}
 	stsAPI := sts.New(sess)
 	if roleARN != "" {
@@ -92,7 +92,7 @@ func getSignedRequest(clusterName, roleARN string, profile string) (string, erro
 	request.HTTPRequest.Header.Add(clusterIDHeader, clusterName)
 	signed, err := request.Presign(requestPresignParam)
 	if err != nil {
-		return "", fmt.Errorf("error presigning AWS request: %s", err)
+		return "", fmt.Errorf("error presigning AWS request: %w", err)
 	}
 	return signed, nil
 }

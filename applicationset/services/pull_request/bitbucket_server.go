@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	bitbucketv1 "github.com/gfleury/go-bitbucket-v1"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 )
 
 type BitbucketService struct {
@@ -29,6 +30,16 @@ func NewBitbucketServiceBasicAuth(ctx context.Context, username, password, url, 
 		UserName: username,
 		Password: password,
 	})
+	return newBitbucketService(ctx, bitbucketConfig, projectKey, repositorySlug)
+}
+
+func NewBitbucketServiceBearerToken(ctx context.Context, bearerToken, url, projectKey, repositorySlug string) (PullRequestService, error) {
+	bitbucketConfig := bitbucketv1.NewConfiguration(url)
+	// Avoid the XSRF check
+	bitbucketConfig.AddDefaultHeader("x-atlassian-token", "no-check")
+	bitbucketConfig.AddDefaultHeader("x-requested-with", "XMLHttpRequest")
+
+	ctx = context.WithValue(ctx, bitbucketv1.ContextAccessToken, bearerToken)
 	return newBitbucketService(ctx, bitbucketConfig, projectKey, repositorySlug)
 }
 
@@ -56,12 +67,12 @@ func (b *BitbucketService) List(_ context.Context) ([]*PullRequest, error) {
 	for {
 		response, err := b.client.DefaultApi.GetPullRequestsPage(b.projectKey, b.repositorySlug, paged)
 		if err != nil {
-			return nil, fmt.Errorf("error listing pull requests for %s/%s: %v", b.projectKey, b.repositorySlug, err)
+			return nil, fmt.Errorf("error listing pull requests for %s/%s: %w", b.projectKey, b.repositorySlug, err)
 		}
 		pulls, err := bitbucketv1.GetPullRequestsResponse(response)
 		if err != nil {
 			log.Errorf("error parsing pull request response '%v'", response.Values)
-			return nil, fmt.Errorf("error parsing pull request response for %s/%s: %v", b.projectKey, b.repositorySlug, err)
+			return nil, fmt.Errorf("error parsing pull request response for %s/%s: %w", b.projectKey, b.repositorySlug, err)
 		}
 
 		for _, pull := range pulls {

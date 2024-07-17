@@ -56,6 +56,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationWatchEvent":                   schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Backoff":                                 schema_pkg_apis_application_v1alpha1_Backoff(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer":                schema_pkg_apis_application_v1alpha1_BasicAuthBitbucketServer(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BearerTokenBitbucket":                    schema_pkg_apis_application_v1alpha1_BearerTokenBitbucket(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BearerTokenBitbucketCloud":               schema_pkg_apis_application_v1alpha1_BearerTokenBitbucketCloud(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ChartDetails":                            schema_pkg_apis_application_v1alpha1_ChartDetails(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Cluster":                                 schema_pkg_apis_application_v1alpha1_Cluster(ref),
@@ -854,8 +855,23 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetApplicationStatus(ref co
 							Format:      "",
 						},
 					},
+					"targetRevisions": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TargetRevision tracks the desired revisions the Application should be synced to.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
 				},
-				Required: []string{"application", "message", "status", "step"},
+				Required: []string{"application", "message", "status", "step", "targetRevisions"},
 			},
 		},
 		Dependencies: []string{
@@ -867,7 +883,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetCondition(ref common.Ref
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning",
+				Description: "ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"type": {
@@ -2535,6 +2551,28 @@ func schema_pkg_apis_application_v1alpha1_BasicAuthBitbucketServer(ref common.Re
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_BearerTokenBitbucket(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "BearerTokenBitbucket defines the Bearer token for BitBucket AppToken auth.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"tokenRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Password (or personal access token) reference.",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"),
+						},
+					},
+				},
+				Required: []string{"tokenRef"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_BearerTokenBitbucketCloud(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2630,14 +2668,14 @@ func schema_pkg_apis_application_v1alpha1_Cluster(ref common.ReferenceCallback) 
 					},
 					"connectionState": {
 						SchemaProps: spec.SchemaProps{
-							Description: "DEPRECATED: use Info.ConnectionState field instead. ConnectionState contains information about cluster connection state",
+							Description: "Deprecated: use Info.ConnectionState field instead. ConnectionState contains information about cluster connection state",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConnectionState"),
 						},
 					},
 					"serverVersion": {
 						SchemaProps: spec.SchemaProps{
-							Description: "DEPRECATED: use Info.ServerVersion field instead. The server version",
+							Description: "Deprecated: use Info.ServerVersion field instead. The server version",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -5157,12 +5195,18 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorBitbucketServer(re
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer"),
 						},
 					},
+					"bearerToken": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Credentials for AppToken (Bearer auth)",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BearerTokenBitbucket"),
+						},
+					},
 				},
 				Required: []string{"project", "repo", "api"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BearerTokenBitbucket"},
 	}
 }
 
@@ -5421,7 +5465,7 @@ func schema_pkg_apis_application_v1alpha1_RepoCreds(ref common.ReferenceCallback
 				Properties: map[string]spec.Schema{
 					"url": {
 						SchemaProps: spec.SchemaProps{
-							Description: "URL is the URL that this credentials matches to",
+							Description: "URL is the URL to which these credentials match",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -5710,7 +5754,7 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 					},
 					"project": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity",
+							Description: "Reference between project and repository that allows it to be automatically added as an item inside SourceRepos project entity",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -7107,12 +7151,18 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorBitbucketServer(re
 							Format:      "",
 						},
 					},
+					"bearerToken": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Credentials for AccessToken (Bearer auth)",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BearerTokenBitbucket"),
+						},
+					},
 				},
 				Required: []string{"project", "api"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BearerTokenBitbucket"},
 	}
 }
 

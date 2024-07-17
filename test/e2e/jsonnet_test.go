@@ -6,6 +6,7 @@ import (
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -23,9 +24,9 @@ func TestJsonnetAppliedCorrectly(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			manifests, err := RunCli("app", "manifests", app.Name, "--source", "live")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			resources, err := kube.SplitYAML([]byte(manifests))
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			index := -1
 			for i := range resources {
@@ -35,7 +36,7 @@ func TestJsonnetAppliedCorrectly(t *testing.T) {
 				}
 			}
 
-			assert.True(t, index > -1)
+			assert.Greater(t, index, -1)
 
 			deployment := resources[index]
 			assert.Equal(t, "jsonnet-guestbook-ui", deployment.GetName())
@@ -53,9 +54,9 @@ func TestJsonnetTlaParameterAppliedCorrectly(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			manifests, err := RunCli("app", "manifests", app.Name, "--source", "live")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			resources, err := kube.SplitYAML([]byte(manifests))
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			index := -1
 			for i := range resources {
@@ -65,7 +66,7 @@ func TestJsonnetTlaParameterAppliedCorrectly(t *testing.T) {
 				}
 			}
 
-			assert.True(t, index > -1)
+			assert.Greater(t, index, -1)
 
 			deployment := resources[index]
 			assert.Equal(t, "testing-tla", deployment.GetName())
@@ -87,6 +88,7 @@ func TestJsonnetTlaEnv(t *testing.T) {
 			assert.Equal(t, Name(), FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map", "-o", "jsonpath={.data.bar}")).(string))
 		})
 }
+
 func TestJsonnetExtVarEnv(t *testing.T) {
 	Given(t).
 		Path("jsonnet-ext-var").

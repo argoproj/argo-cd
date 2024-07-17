@@ -14,10 +14,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/glob"
 	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
 
-	"github.com/Knetic/govaluate"
 	"github.com/casbin/casbin/v2"
 	"github.com/casbin/casbin/v2/model"
 	"github.com/casbin/casbin/v2/util"
+	"github.com/casbin/govaluate"
 	"github.com/golang-jwt/jwt/v4"
 	gocache "github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
@@ -50,7 +50,7 @@ type CasbinEnforcer interface {
 	LoadPolicy() error
 	EnableEnforce(bool)
 	AddFunction(name string, function govaluate.ExpressionFunction)
-	GetGroupingPolicy() [][]string
+	GetGroupingPolicy() ([][]string, error)
 }
 
 // Enforcer is a wrapper around an Casbin enforcer that:
@@ -422,7 +422,6 @@ func PolicyCSV(data map[string]string) string {
 		if strings.HasPrefix(key, "policy.") &&
 			strings.HasSuffix(key, ".csv") &&
 			key != ConfigMapPolicyCSVKey {
-
 			strBuilder.WriteString("\n")
 			strBuilder.WriteString(value)
 		}

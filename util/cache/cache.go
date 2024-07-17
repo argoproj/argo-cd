@@ -2,21 +2,21 @@ package cache
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"math"
 	"os"
 	"strings"
 	"time"
 
-	"crypto/tls"
-	"crypto/x509"
+	"github.com/redis/go-redis/v9"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	certutil "github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/redis/go-redis/v9"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -96,7 +96,7 @@ func (o *Options) callOnClientCreated(client *redis.Client) {
 }
 
 func (o *Options) getEnvPrefix() string {
-	return strings.Replace(strings.ToUpper(o.FlagPrefix), "-", "_", -1)
+	return strings.ReplaceAll(strings.ToUpper(o.FlagPrefix), "-", "_")
 }
 
 func mergeOptions(opts ...Options) Options {

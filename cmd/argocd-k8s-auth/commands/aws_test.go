@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetSignedRequestWithRetry(t *testing.T) {
@@ -25,7 +26,7 @@ func TestGetSignedRequestWithRetry(t *testing.T) {
 		signed, err := getSignedRequestWithRetry(ctx, time.Second, time.Millisecond, "cluster-name", "", "", mock.getSignedRequestMock)
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "token", signed)
 	})
 	t.Run("will return signed request on third attempt", func(t *testing.T) {
@@ -44,7 +45,7 @@ func TestGetSignedRequestWithRetry(t *testing.T) {
 		signed, err := getSignedRequestWithRetry(ctx, time.Second, time.Millisecond, "cluster-name", "", "", mock.getSignedRequestMock)
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "token", signed)
 	})
 	t.Run("will return error on timeout", func(t *testing.T) {
@@ -60,7 +61,7 @@ func TestGetSignedRequestWithRetry(t *testing.T) {
 		signed, err := getSignedRequestWithRetry(ctx, time.Second, time.Millisecond, "cluster-name", "", "", mock.getSignedRequestMock)
 
 		// then
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, "", signed)
 	})
 }
