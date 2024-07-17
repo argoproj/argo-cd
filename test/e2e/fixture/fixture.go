@@ -117,7 +117,6 @@ var (
 	apiServerPort             string
 	repoServerPort            string
 	mappedSSHPort             string // port 2222
-	mappedHelmHTTPSPort       string // port 9080
 	mappedGitNoAuthPort       string // port 9081
 	mappedHttpsAuthPort       string // port 9443
 	mappedHttpsClientAuthPort string // port 9444
@@ -654,7 +653,7 @@ func initTestContainers(ctx context.Context) {
 					"UID": &currentUser.Uid,
 				},
 			},
-			ExposedPorts: []string{"2222/tcp", "9080/tcp", "9081/tcp", "9443/tcp", "9444/tcp"},
+			ExposedPorts: []string{"2222:2222/tcp", "9080/tcp", "9081/tcp", "9443/tcp", "9444/tcp"},
 			Cmd:          []string{"goreman", "start"},
 			LogConsumerCfg: &testcontainers.LogConsumerConfig{
 				Opts:      []testcontainers.LogProductionOption{testcontainers.WithLogProductionTimeout(10 * time.Second)},
@@ -674,13 +673,10 @@ func initTestContainers(ctx context.Context) {
 	})
 	CheckError(err)
 
-	port, _ := e2eServer.MappedPort(ctx, "2222")
-	mappedSSHPort = port.Port()
+	// TODO: Make this a dynamically mapped port
+	mappedSSHPort = "2222"
 
-	port, _ = e2eServer.MappedPort(ctx, "9080")
-	mappedHelmHTTPSPort = port.Port()
-
-	port, _ = e2eServer.MappedPort(ctx, "9081")
+	port, _ := e2eServer.MappedPort(ctx, "9081")
 	mappedGitNoAuthPort = port.Port()
 
 	port, _ = e2eServer.MappedPort(ctx, "9443")
