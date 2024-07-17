@@ -182,6 +182,23 @@ func TestListPullRequestBasicAuth(t *testing.T) {
 	assert.Equal(t, "cb3cf2e4d1517c83e720d2585b9402dbef71f992", pullRequests[0].HeadSHA)
 }
 
+func TestListPullRequestBearerAuth(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "Bearer tolkien", r.Header.Get("Authorization"))
+		assert.Equal(t, "no-check", r.Header.Get("X-Atlassian-Token"))
+		defaultHandler(t)(w, r)
+	}))
+	defer ts.Close()
+	svc, err := NewBitbucketServiceBearerToken(context.Background(), "tolkien", ts.URL, "PROJECT", "REPO")
+	require.NoError(t, err)
+	pullRequests, err := ListPullRequests(context.Background(), svc, []v1alpha1.PullRequestGeneratorFilter{})
+	require.NoError(t, err)
+	assert.Len(t, pullRequests, 1)
+	assert.Equal(t, 101, pullRequests[0].Number)
+	assert.Equal(t, "feature-ABC-123", pullRequests[0].Branch)
+	assert.Equal(t, "cb3cf2e4d1517c83e720d2585b9402dbef71f992", pullRequests[0].HeadSHA)
+}
+
 func TestListResponseError(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
