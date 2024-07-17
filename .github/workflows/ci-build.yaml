@@ -469,6 +469,7 @@ jobs:
           chmod +x mkcert-v*-linux-amd64
           sudo cp mkcert-v*-linux-amd64 /usr/local/bin/mkcert
           mkcert -cert-file test/fixture/certs/argocd-e2e-server.crt.pem -key-file test/fixture/certs/argocd-e2e-server.key.pem argocd-e2e-server localhost 127.0.0.1 ::1
+          mkcert -cert-file test/fixture/certs/argocd-test-client.crt.pem -key-file test/fixture/certs/argocd-test-client.key.pem -client argocd-e2e-server localhost 127.0.0.1 ::1          
           mkcert -install
           cp "$(mkcert -CAROOT)"/rootCA.pem test/fixture/certs/argocd-test-ca.pem
           cp "$(mkcert -CAROOT)"/rootCA-key.pem test/fixture/certs/argocd-test-ca.key.pem
