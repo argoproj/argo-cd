@@ -17,5 +17,5 @@ func TestProjectAllowListGen(t *testing.T) {
 
 	globalProj, err := generateProjectAllowList(resourceList, "testdata/test_clusterrole.yaml", "testproj")
 	require.NoError(t, err)
-	assert.Positive(t, len(globalProj.Spec.NamespaceResourceWhitelist))
+	assert.NotEmpty(t, globalProj.Spec.NamespaceResourceWhitelist)
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"regexp"
 	"testing"
 	"time"
 
@@ -770,7 +769,7 @@ func assetSecretDataHidden(t *testing.T, manifest string) {
 	require.NoError(t, err)
 	assert.True(t, hasData)
 	for _, v := range secretData {
-		assert.Regexp(t, regexp.MustCompile(`[*]*`), v)
+		assert.Regexp(t, `[*]*`, v)
 	}
 	var lastAppliedConfigAnnotation string
 	annotations := secret.GetAnnotations()
