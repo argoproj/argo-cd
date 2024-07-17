@@ -660,6 +660,15 @@ func initTestContainers(ctx context.Context) {
 	})
 	CheckError(err)
 
+	_, err = testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			ExposedPorts: []string{"5000:5000/tcp"},
+			Image:        "docker.io/registry:2",
+		},
+		Started: true,
+	})
+	CheckError(err)
+
 	k3sContainer, err := k3s.RunContainer(ctx,
 		testcontainers.WithImage(fmt.Sprintf("rancher/k3s:%s-k3s1", k3sVersion)),
 		testcontainers.WithWaitStrategy(wait.ForExec([]string{"kubectl", "wait", "--timeout=60s", "apiservice", "v1beta1.metrics.k8s.io", "--for", "condition=Available=True"})),
