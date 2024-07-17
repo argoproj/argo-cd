@@ -56,7 +56,7 @@ spec:
   template:
 ```
 
-In order to prevent the scenario about administrator must restrict the urls of the allowed SCM Providers (example: `https://git.mydomain.com/,https://gitlab.mydomain.com/`) by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.allowed.scm.providers`. If another url is used, it will be rejected by the applicationset controller.
+In order to prevent the scenario above administrator must restrict the urls of the allowed SCM Providers (example: `https://git.mydomain.com/,https://gitlab.mydomain.com/`) by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.allowed.scm.providers`. If another url is used, it will be rejected by the applicationset controller.
 
 For example:
 ```yaml
