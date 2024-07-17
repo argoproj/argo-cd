@@ -5,6 +5,7 @@ import (
 	"context"
 	goerrors "errors"
 	"fmt"
+	"net"
 	"os"
 	"os/user"
 	"path"
@@ -212,8 +213,8 @@ func init() {
 	// ensure we log all shell execs
 	log.SetLevel(log.DebugLevel)
 
-	apiServerPort = GetEnvWithDefault(EnvArgoCDApiServerPort, defaultApiServerPort)
-	repoServerPort = GetEnvWithDefault(EnvArgoCDRepoServerPort, defaultRepoServerPort)
+	apiServerPort = GetEnvWithDefault(EnvArgoCDApiServerPort, randomPort())
+	repoServerPort = GetEnvWithDefault(EnvArgoCDRepoServerPort, randomPort())
 	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, fmt.Sprintf("localhost:%s", apiServerPort))
 	apiServerPort = strings.Split(apiServerAddress, ":")[1]
 
@@ -294,6 +295,14 @@ func init() {
 	for scanner.Scan() {
 		testsRun[scanner.Text()] = true
 	}
+}
+
+func randomPort() string {
+	l, err := net.Listen("tcp", ":0")
+	defer l.Close()
+	CheckError(err)
+	port := l.Addr().(*net.TCPAddr).Port
+	return strconv.FormatInt(int64(port), 10)
 }
 
 func loginAs(username, password string) {
@@ -653,7 +662,7 @@ func initTestContainers(ctx context.Context) {
 					"UID": &currentUser.Uid,
 				},
 			},
-			ExposedPorts: []string{"2222:2222/tcp", "9080/tcp", "9081/tcp", "9443/tcp", "9444/tcp"},
+			ExposedPorts: []string{"2222:2222/tcp", "9080:9080/tcp", "9081/tcp", "9443/tcp", "9444/tcp"},
 			Cmd:          []string{"goreman", "start"},
 			LogConsumerCfg: &testcontainers.LogConsumerConfig{
 				Opts:      []testcontainers.LogProductionOption{testcontainers.WithLogProductionTimeout(10 * time.Second)},
@@ -716,7 +725,7 @@ func initTestContainers(ctx context.Context) {
 	CheckError(err)
 	kubeConfigPath := temp + "/kubeconfig.yaml"
 
-	CheckError(os.WriteFile(kubeConfigPath, kubeConfigYaml, 0o666))
+	CheckError(os.WriteFile(kubeConfigPath, kubeConfigYaml, 0o600))
 	CheckError(os.Setenv("REDIS_SERVER", endpoint))
 	CheckError(os.Setenv("KUBECONFIG", kubeConfigPath))
 	CheckError(os.Setenv("ARGOCD_FAKE_IN_CLUSTER", "true"))
