@@ -94,28 +94,34 @@ const (
 )
 
 var (
-	id                      string
-	deploymentNamespace     string
-	name                    string
-	KubeClientset           kubernetes.Interface
-	KubeConfig              *rest.Config
-	DynamicClientset        dynamic.Interface
-	AppClientset            appclientset.Interface
-	ArgoCDClientset         apiclient.Client
-	adminUsername           string
-	AdminPassword           string
-	apiServerAddress        string
-	token                   string
-	plainText               bool
-	testsRun                map[string]bool
-	argoCDServerName        string
-	argoCDRedisHAProxyName  string
-	argoCDRedisName         string
-	argoCDRepoServerName    string
-	argoCDAppControllerName string
-	k3sVersion              string
-	apiServerPort           string
-	repoServerPort          string
+	id                        string
+	deploymentNamespace       string
+	name                      string
+	KubeClientset             kubernetes.Interface
+	KubeConfig                *rest.Config
+	DynamicClientset          dynamic.Interface
+	AppClientset              appclientset.Interface
+	ArgoCDClientset           apiclient.Client
+	adminUsername             string
+	AdminPassword             string
+	apiServerAddress          string
+	token                     string
+	plainText                 bool
+	testsRun                  map[string]bool
+	argoCDServerName          string
+	argoCDRedisHAProxyName    string
+	argoCDRedisName           string
+	argoCDRepoServerName      string
+	argoCDAppControllerName   string
+	k3sVersion                string
+	apiServerPort             string
+	repoServerPort            string
+	mappedSSHPort             string // port 2222
+	mappedHelmHTTPSPort       string // port 9080
+	mappedGitNoAuthPort       string // port 9081
+	mappedHttpsAuthPort       string // port 9443
+	mappedHttpsClientAuthPort string // port 9444
+	mappedOCIRegistryPort     string
 )
 
 type RepoURLType string
@@ -144,7 +150,6 @@ const (
 	GithubAppID                     = "2978632978"
 	GithubAppInstallationID         = "7893789433789"
 	GpgGoodKeyID                    = "D56C4FCA57A46444"
-	HelmOCIRegistryURL              = "localhost:5000/myrepo"
 )
 
 // TestNamespace returns the namespace where Argo CD E2E test instance will be
@@ -356,35 +361,35 @@ func RepoURL(urlType RepoURLType) string {
 	switch urlType {
 	// Git server via SSH
 	case RepoURLTypeSSH:
-		return GetEnvWithDefault(EnvRepoURLTypeSSH, "ssh://user@localhost:2222/tmp/argo-e2e/testdata.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSH, fmt.Sprintf("ssh://user@localhost:%s/tmp/argo-e2e/testdata.git", mappedSSHPort))
 	// Git submodule repo
 	case RepoURLTypeSSHSubmodule:
-		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmodule, "ssh://user@localhost:2222/tmp/argo-e2e/submodule.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmodule, fmt.Sprintf("ssh://user@localhost:%s/tmp/argo-e2e/submodule.git", mappedSSHPort))
 	// Git submodule parent repo
 	case RepoURLTypeSSHSubmoduleParent:
-		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmoduleParent, "ssh://user@localhost:2222/tmp/argo-e2e/submoduleParent.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmoduleParent, fmt.Sprintf("ssh://user@localhost:%s/tmp/argo-e2e/submoduleParent.git", mappedSSHPort))
 	// Git server via HTTPS
 	case RepoURLTypeHTTPS:
-		return GetEnvWithDefault(EnvRepoURLTypeHTTPS, "https://localhost:9443/argo-e2e/testdata.git")
+		return GetEnvWithDefault(EnvRepoURLTypeHTTPS, fmt.Sprintf("https://localhost:%s/argo-e2e/testdata.git", mappedHttpsAuthPort))
 	// Git "organisation" via HTTPS
 	case RepoURLTypeHTTPSOrg:
-		return GetEnvWithDefault(EnvRepoURLTypeHTTPSOrg, "https://localhost:9443/argo-e2e")
+		return GetEnvWithDefault(EnvRepoURLTypeHTTPSOrg, fmt.Sprintf("https://localhost:%s/argo-e2e", mappedHttpsAuthPort))
 	// Git server via HTTPS - Client Cert protected
 	case RepoURLTypeHTTPSClientCert:
-		return GetEnvWithDefault(EnvRepoURLTypeHTTPSClientCert, "https://localhost:9444/argo-e2e/testdata.git")
+		return GetEnvWithDefault(EnvRepoURLTypeHTTPSClientCert, fmt.Sprintf("https://localhost:%s/argo-e2e/testdata.git", mappedHttpsClientAuthPort))
 	case RepoURLTypeHTTPSSubmodule:
-		return GetEnvWithDefault(EnvRepoURLTypeHTTPSSubmodule, "https://localhost:9443/argo-e2e/submodule.git")
+		return GetEnvWithDefault(EnvRepoURLTypeHTTPSSubmodule, fmt.Sprintf("https://localhost:%s/argo-e2e/submodule.git", mappedHttpsAuthPort))
 		// Git submodule parent repo
 	case RepoURLTypeHTTPSSubmoduleParent:
-		return GetEnvWithDefault(EnvRepoURLTypeHTTPSSubmoduleParent, "https://localhost:9443/argo-e2e/submoduleParent.git")
+		return GetEnvWithDefault(EnvRepoURLTypeHTTPSSubmoduleParent, fmt.Sprintf("https://localhost:%s/argo-e2e/submoduleParent.git", mappedHttpsAuthPort))
 	// Default - file based Git repository
 	case RepoURLTypeHelm:
-		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo/local")
+		return GetEnvWithDefault(EnvRepoURLTypeHelm, fmt.Sprintf("https://localhost:%s/argo-e2e/testdata.git/helm-repo/local", mappedHttpsClientAuthPort))
 	// When Helm Repo has sub repos, this is the parent repo URL
 	case RepoURLTypeHelmParent:
-		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo")
+		return GetEnvWithDefault(EnvRepoURLTypeHelm, fmt.Sprintf("https://localhost:%s/argo-e2e/testdata.git/helm-repo", mappedHttpsClientAuthPort))
 	case RepoURLTypeHelmOCI:
-		return HelmOCIRegistryURL
+		return fmt.Sprintf("localhost:%s/myrepo", mappedOCIRegistryPort)
 	default:
 		return GetEnvWithDefault(EnvRepoURLDefault, fmt.Sprintf("file://%s", repoDirectory()))
 	}
@@ -638,7 +643,7 @@ func initTestContainers(ctx context.Context) {
 	currentUser, err := user.Current()
 	CheckError(err)
 
-	_, err = testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+	e2eServer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			User: fmt.Sprintf("%s:%s", currentUser.Uid, currentUser.Gid),
 			FromDockerfile: testcontainers.FromDockerfile{
@@ -649,7 +654,7 @@ func initTestContainers(ctx context.Context) {
 					"UID": &currentUser.Uid,
 				},
 			},
-			ExposedPorts: []string{"2222:2222/tcp", "9080:9080/tcp", "9081:9081/tcp", "9443:9443/tcp", "9444:9444/tcp"},
+			ExposedPorts: []string{"2222/tcp", "9080/tcp", "9081/tcp", "9443/tcp", "9444/tcp"},
 			Cmd:          []string{"goreman", "start"},
 			LogConsumerCfg: &testcontainers.LogConsumerConfig{
 				Opts:      []testcontainers.LogProductionOption{testcontainers.WithLogProductionTimeout(10 * time.Second)},
@@ -660,14 +665,32 @@ func initTestContainers(ctx context.Context) {
 	})
 	CheckError(err)
 
-	_, err = testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+	ociRegistry, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			ExposedPorts: []string{"5000:5000/tcp"},
+			ExposedPorts: []string{"5000/tcp"},
 			Image:        "docker.io/registry:2",
 		},
 		Started: true,
 	})
 	CheckError(err)
+
+	port, _ := e2eServer.MappedPort(ctx, "2222")
+	mappedSSHPort = port.Port()
+
+	port, _ = e2eServer.MappedPort(ctx, "9080")
+	mappedHelmHTTPSPort = port.Port()
+
+	port, _ = e2eServer.MappedPort(ctx, "9081")
+	mappedGitNoAuthPort = port.Port()
+
+	port, _ = e2eServer.MappedPort(ctx, "9443")
+	mappedHttpsAuthPort = port.Port()
+
+	port, _ = e2eServer.MappedPort(ctx, "9444")
+	mappedHttpsClientAuthPort = port.Port()
+
+	port, _ = ociRegistry.MappedPort(ctx, "5000")
+	mappedOCIRegistryPort = port.Port()
 
 	k3sContainer, err := k3s.RunContainer(ctx,
 		testcontainers.WithImage(fmt.Sprintf("rancher/k3s:%s-k3s1", k3sVersion)),
@@ -702,9 +725,9 @@ func initTestContainers(ctx context.Context) {
 	CheckError(os.Setenv("KUBECONFIG", kubeConfigPath))
 	CheckError(os.Setenv("ARGOCD_FAKE_IN_CLUSTER", "true"))
 	CheckError(os.Setenv("ARGOCD_E2E_K3S", "true"))
-	SetEnvWithDefaultIfNotSet("ARGOCD_E2E_GIT_SERVICE_SUBMODULE", "http://127.0.0.1:9081/argo-e2e/submodule.git")
-	SetEnvWithDefaultIfNotSet("ARGOCD_E2E_GIT_SERVICE_SUBMODULE_PARENT", "http://127.0.0.1:9081/argo-e2e/submoduleParent.git")
-	SetEnvWithDefaultIfNotSet("ARGOCD_E2E_GIT_SERVICE", "http://127.0.0.1:9081/argo-e2e/testdata.git")
+	SetEnvWithDefaultIfNotSet("ARGOCD_E2E_GIT_SERVICE_SUBMODULE", fmt.Sprintf("http://127.0.0.1:%s/argo-e2e/submodule.git", mappedGitNoAuthPort))
+	SetEnvWithDefaultIfNotSet("ARGOCD_E2E_GIT_SERVICE_SUBMODULE_PARENT", fmt.Sprintf("http://127.0.0.1:%s/argo-e2e/submoduleParent.git", mappedGitNoAuthPort))
+	SetEnvWithDefaultIfNotSet("ARGOCD_E2E_GIT_SERVICE", fmt.Sprintf("http://127.0.0.1:%s/argo-e2e/testdata.git", mappedGitNoAuthPort))
 	SetEnvWithDefaultIfNotSet("ARGOCD_PLUGINCONFIGFILEPATH", "/tmp/argo-e2e/app/config/plugin")
 	SetEnvWithDefaultIfNotSet("ARGOCD_PLUGINSOCKFILEPATH", "/tmp/argo-e2e/app/config/plugin")
 	SetEnvWithDefaultIfNotSet("ARGOCD_GPG_DATA_PATH", "/tmp/argo-e2e/app/config/gpg/source")

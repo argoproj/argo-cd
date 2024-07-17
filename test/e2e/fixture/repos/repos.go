@@ -83,7 +83,7 @@ func AddHelmOCIRepo(name string) {
 	args := []string{
 		"repo",
 		"add",
-		fixture.HelmOCIRegistryURL,
+		fixture.RepoURL(fixture.RepoURLTypeHelmOCI),
 		"--type", "helm",
 		"--name", name,
 		"--enable-oci",
@@ -172,6 +172,6 @@ func PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) {
 		"helm",
 		"push",
 		fmt.Sprintf("%s/%s-%s.tgz", tempDest, chartName, chartVersion),
-		fmt.Sprintf("oci://%s", fixture.HelmOCIRegistryURL),
+		fmt.Sprintf("oci://%s", fixture.RepoURL(fixture.RepoURLTypeHelmOCI)),
 	))
 }
