@@ -12,11 +12,14 @@ if obj.status ~= nil then
 end
 
 if obj.metadata.generation == obj.status.observedGeneration then
-  if (healthyCondition.status == "False" and (obj.metadata.generation == healthyCondition.observedGeneration)) or obj.status.phase == "Failed" then
+  if (healthyCondition ~= {} and healthyCondition.status == "False" and (obj.metadata.generation == healthyCondition.observedGeneration)) or obj.status.phase == "Failed" then
     hs.status = "Degraded"
-    hs.message = healthyCondition.message
-    return hs
-  elseif healthyCondition.status == "True" and (obj.metadata.generation == healthyCondition.observedGeneration) and obj.status.phase == "Deployed" then
+    if obj.status.phase == "Failed" then
+      hs.message = obj.status.message
+    else
+      hs.message = healthyCondition.message
+    end
+  elseif healthyCondition ~= {} and healthyCondition.status == "True" and (obj.metadata.generation == healthyCondition.observedGeneration) and obj.status.phase == "Deployed" then
     hs.status = "Healthy"
     hs.message = healthyCondition.message
     return hs

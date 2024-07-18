@@ -16,15 +16,19 @@ if obj.status ~= nil then
 end
 
 if obj.metadata.generation == obj.status.observedGeneration then
-  if (healthyCondition.status == "False" and (obj.metadata.generation == healthyCondition.observedGeneration)) or obj.status.phase == "Failed" then
+  if (healthyCondition ~= {} and healthyCondition.status == "False" and (obj.metadata.generation == healthyCondition.observedGeneration)) or obj.status.phase == "Failed" then
     hs.status = "Degraded"
-    hs.message = healthyCondition.message
+    if obj.status.phase == "Failed" then
+      hs.message = obj.status.message
+    else
+      hs.message = healthyCondition.message
+    end
     return hs
-  elseif pipelinePaused.status == "True" and (obj.metadata.generation == pipelinePaused.observedGeneration) then
+  elseif (pipelinePaused ~= {} and pipelinePaused.status == "True") and (obj.metadata.generation == pipelinePaused.observedGeneration) then
     hs.status = "Suspended"
     hs.message = "Pipeline is paused"
     return hs
-  elseif healthyCondition.status == "True" and (obj.metadata.generation == healthyCondition.observedGeneration) and obj.status.phase == "Deployed" then
+  elseif (healthyCondition ~= {} and healthyCondition.status == "True") and (obj.metadata.generation == healthyCondition.observedGeneration) and obj.status.phase == "Deployed" then
     hs.status = "Healthy"
     hs.message = healthyCondition.message
     return hs
