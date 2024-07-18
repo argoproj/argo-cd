@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -43,7 +44,11 @@ type GraphQLQuery struct {
 
 func (c *CodefreshClient) SendEvent(ctx context.Context, appName string, event *events.Event) error {
 	return WithRetry(&DefaultBackoff, func() error {
-		url := c.cfConfig.BaseURL + "/2.0/api/events"
+		url, err := url.JoinPath(c.cfConfig.BaseURL, "/2.0/api/events")
+		if err != nil {
+			return fmt.Errorf("failed to join URL: %w", err)
+		}
+
 		log.Infof("Sending application event for %s", appName)
 
 		wrappedPayload := map[string]json.RawMessage{
