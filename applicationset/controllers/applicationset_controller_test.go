@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/applicationset/generators/mocks"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/generators/mocks"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
