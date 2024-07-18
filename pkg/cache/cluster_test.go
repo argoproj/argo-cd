@@ -12,6 +12,7 @@ import (
 	"golang.org/x/sync/semaphore"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
@@ -73,7 +74,7 @@ var (
       - hostname: localhost`, testCreationTime.UTC().Format(time.RFC3339)))
 )
 
-func newCluster(t *testing.T, objs ...runtime.Object) *clusterCache {
+func newCluster(t testing.TB, objs ...runtime.Object) *clusterCache {
 	cache := newClusterWithOptions(t, []UpdateSettingsFunc{}, objs...)
 
 	t.Cleanup(func() {
@@ -83,7 +84,7 @@ func newCluster(t *testing.T, objs ...runtime.Object) *clusterCache {
 	return cache
 }
 
-func newClusterWithOptions(t *testing.T, opts []UpdateSettingsFunc, objs ...runtime.Object) *clusterCache {
+func newClusterWithOptions(t testing.TB, opts []UpdateSettingsFunc, objs ...runtime.Object) *clusterCache {
 	client := fake.NewSimpleDynamicClient(scheme.Scheme, objs...)
 	reactor := client.ReactionChain[0]
 	client.PrependReactor("list", "*", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
@@ -111,6 +112,10 @@ func newClusterWithOptions(t *testing.T, opts []UpdateSettingsFunc, objs ...runt
 	}, {
 		GroupKind:            schema.GroupKind{Group: "apps", Kind: "StatefulSet"},
 		GroupVersionResource: schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"},
+		Meta:                 metav1.APIResource{Namespaced: true},
+	}, {
+		GroupKind:            schema.GroupKind{Group: "extensions", Kind: "ReplicaSet"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "replicasets"},
 		Meta:                 metav1.APIResource{Namespaced: true},
 	}}
 
@@ -289,7 +294,7 @@ func TestEnsureSyncedSingleNamespace(t *testing.T) {
 }
 
 func TestGetChildren(t *testing.T) {
-	cluster := newCluster(t, testPod(), testRS(), testDeploy())
+	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
 	err := cluster.EnsureSynced()
 	require.NoError(t, err)
 
@@ -298,7 +303,7 @@ func TestGetChildren(t *testing.T) {
 		Ref: corev1.ObjectReference{
 			Kind:       "Pod",
 			Namespace:  "default",
-			Name:       "helm-guestbook-pod",
+			Name:       "helm-guestbook-pod-1",
 			APIVersion: "v1",
 			UID:        "1",
 		},
@@ -332,7 +337,7 @@ func TestGetChildren(t *testing.T) {
 }
 
 func TestGetManagedLiveObjs(t *testing.T) {
-	cluster := newCluster(t, testPod(), testRS(), testDeploy())
+	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
 		return nil, true
 	}))
@@ -358,7 +363,7 @@ metadata:
 }
 
 func TestGetManagedLiveObjsNamespacedModeClusterLevelResource(t *testing.T) {
-	cluster := newCluster(t, testPod(), testRS(), testDeploy())
+	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
 		return nil, true
 	}))
@@ -383,7 +388,7 @@ metadata:
 }
 
 func TestGetManagedLiveObjsNamespacedModeClusterLevelResource_ClusterResourceEnabled(t *testing.T) {
-	cluster := newCluster(t, testPod(), testRS(), testDeploy())
+	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
 		return nil, true
 	}))
@@ -424,7 +429,7 @@ metadata:
 }
 
 func TestGetManagedLiveObjsAllNamespaces(t *testing.T) {
-	cluster := newCluster(t, testPod(), testRS(), testDeploy())
+	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
 		return nil, true
 	}))
@@ -452,7 +457,7 @@ metadata:
 }
 
 func TestGetManagedLiveObjsValidNamespace(t *testing.T) {
-	cluster := newCluster(t, testPod(), testRS(), testDeploy())
+	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
 		return nil, true
 	}))
@@ -480,7 +485,7 @@ metadata:
 }
 
 func TestGetManagedLiveObjsInvalidNamespace(t *testing.T) {
-	cluster := newCluster(t, testPod(), testRS(), testDeploy())
+	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
 	cluster.Invalidate(SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (info interface{}, cacheManifest bool) {
 		return nil, true
 	}))
@@ -587,26 +592,26 @@ metadata:
 }
 
 func TestChildDeletedEvent(t *testing.T) {
-	cluster := newCluster(t, testPod(), testRS(), testDeploy())
+	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
 	err := cluster.EnsureSynced()
 	require.NoError(t, err)
 
-	cluster.processEvent(watch.Deleted, mustToUnstructured(testPod()))
+	cluster.processEvent(watch.Deleted, mustToUnstructured(testPod1()))
 
 	rsChildren := getChildren(cluster, mustToUnstructured(testRS()))
 	assert.Equal(t, []*Resource{}, rsChildren)
 }
 
 func TestProcessNewChildEvent(t *testing.T) {
-	cluster := newCluster(t, testPod(), testRS(), testDeploy())
+	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
 	err := cluster.EnsureSynced()
 	require.NoError(t, err)
 	newPod := strToUnstructured(`
   apiVersion: v1
   kind: Pod
   metadata:
-    uid: "4"
-    name: helm-guestbook-pod2
+    uid: "5"
+    name: helm-guestbook-pod-1-new
     namespace: default
     ownerReferences:
     - apiVersion: apps/v1
@@ -625,7 +630,7 @@ func TestProcessNewChildEvent(t *testing.T) {
 		Ref: corev1.ObjectReference{
 			Kind:       "Pod",
 			Namespace:  "default",
-			Name:       "helm-guestbook-pod",
+			Name:       "helm-guestbook-pod-1",
 			APIVersion: "v1",
 			UID:        "1",
 		},
@@ -643,9 +648,9 @@ func TestProcessNewChildEvent(t *testing.T) {
 		Ref: corev1.ObjectReference{
 			Kind:       "Pod",
 			Namespace:  "default",
-			Name:       "helm-guestbook-pod2",
+			Name:       "helm-guestbook-pod-1-new",
 			APIVersion: "v1",
-			UID:        "4",
+			UID:        "5",
 		},
 		OwnerRefs: []metav1.OwnerReference{{
 			APIVersion: "apps/v1",
@@ -658,10 +663,10 @@ func TestProcessNewChildEvent(t *testing.T) {
 }
 
 func TestWatchCacheUpdated(t *testing.T) {
-	removed := testPod()
+	removed := testPod1()
 	removed.SetName(removed.GetName() + "-removed-pod")
 
-	updated := testPod()
+	updated := testPod1()
 	updated.SetName(updated.GetName() + "-updated-pod")
 	updated.SetResourceVersion("updated-pod-version")
 
@@ -670,10 +675,10 @@ func TestWatchCacheUpdated(t *testing.T) {
 
 	require.NoError(t, err)
 
-	added := testPod()
+	added := testPod1()
 	added.SetName(added.GetName() + "-new-pod")
 
-	podGroupKind := testPod().GroupVersionKind().GroupKind()
+	podGroupKind := testPod1().GroupVersionKind().GroupKind()
 
 	cluster.lock.Lock()
 	defer cluster.lock.Unlock()
@@ -684,13 +689,13 @@ func TestWatchCacheUpdated(t *testing.T) {
 }
 
 func TestNamespaceModeReplace(t *testing.T) {
-	ns1Pod := testPod()
+	ns1Pod := testPod1()
 	ns1Pod.SetNamespace("ns1")
 	ns1Pod.SetName("pod1")
 
-	ns2Pod := testPod()
+	ns2Pod := testPod1()
 	ns2Pod.SetNamespace("ns2")
-	podGroupKind := testPod().GroupVersionKind().GroupKind()
+	podGroupKind := testPod1().GroupVersionKind().GroupKind()
 
 	cluster := newCluster(t, ns1Pod, ns2Pod)
 	err := cluster.EnsureSynced()
@@ -805,14 +810,14 @@ func getResourceKey(t *testing.T, obj runtime.Object) kube.ResourceKey {
 	return kube.NewResourceKey(gvk.Group, gvk.Kind, m.GetNamespace(), m.GetName())
 }
 
-func testPod() *corev1.Pod {
+func testPod1() *corev1.Pod {
 	return &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "Pod",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:              "helm-guestbook-pod",
+			Name:              "helm-guestbook-pod-1",
 			Namespace:         "default",
 			UID:               "1",
 			ResourceVersion:   "123",
@@ -823,6 +828,30 @@ func testPod() *corev1.Pod {
 					Kind:       "ReplicaSet",
 					Name:       "helm-guestbook-rs",
 					UID:        "2",
+				},
+			},
+		},
+	}
+}
+
+// Similar to pod1, but owner reference lacks uid
+func testPod2() *corev1.Pod {
+	return &corev1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Pod",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "helm-guestbook-pod-2",
+			Namespace:         "default",
+			UID:               "4",
+			ResourceVersion:   "123",
+			CreationTimestamp: metav1.NewTime(testCreationTime),
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "ReplicaSet",
+					Name:       "helm-guestbook-rs",
 				},
 			},
 		},
@@ -958,7 +987,7 @@ func testDeploy() *appsv1.Deployment {
 }
 
 func TestIterateHierachy(t *testing.T) {
-	cluster := newCluster(t, testPod(), testRS(), testDeploy())
+	cluster := newCluster(t, testPod1(), testPod2(), testRS(), testExtensionsRS(), testDeploy())
 	err := cluster.EnsureSynced()
 	require.NoError(t, err)
 
@@ -971,7 +1000,8 @@ func TestIterateHierachy(t *testing.T) {
 
 		assert.ElementsMatch(t,
 			[]kube.ResourceKey{
-				kube.GetResourceKey(mustToUnstructured(testPod())),
+				kube.GetResourceKey(mustToUnstructured(testPod1())),
+				kube.GetResourceKey(mustToUnstructured(testPod2())),
 				kube.GetResourceKey(mustToUnstructured(testRS())),
 				kube.GetResourceKey(mustToUnstructured(testDeploy()))},
 			keys)
@@ -1016,8 +1046,133 @@ func TestIterateHierachy(t *testing.T) {
 			[]kube.ResourceKey{
 				kube.GetResourceKey(mustToUnstructured(testDeploy())),
 				kube.GetResourceKey(mustToUnstructured(testRS())),
-				kube.GetResourceKey(mustToUnstructured(testPod())),
+				kube.GetResourceKey(mustToUnstructured(testPod1())),
+				kube.GetResourceKey(mustToUnstructured(testPod2())),
 			},
+			keys)
+	})
+
+	// After uid is backfilled for owner of pod2, it should appear in results here as well.
+	t.Run("IterateStartFromExtensionsRS", func(t *testing.T) {
+		keys := []kube.ResourceKey{}
+		cluster.IterateHierarchy(kube.GetResourceKey(mustToUnstructured(testExtensionsRS())), func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
+			keys = append(keys, child.ResourceKey())
+			return true
+		})
+
+		assert.ElementsMatch(t,
+			[]kube.ResourceKey{
+				kube.GetResourceKey(mustToUnstructured(testPod1())),
+				kube.GetResourceKey(mustToUnstructured(testPod2())),
+				kube.GetResourceKey(mustToUnstructured(testExtensionsRS()))},
+			keys)
+	})
+}
+
+func TestIterateHierachyV2(t *testing.T) {
+	cluster := newCluster(t, testPod1(), testPod2(), testRS(), testExtensionsRS(), testDeploy())
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	t.Run("IterateAll", func(t *testing.T) {
+		startKeys := []kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(testDeploy()))}
+		keys := []kube.ResourceKey{}
+		cluster.IterateHierarchyV2(startKeys, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
+			keys = append(keys, child.ResourceKey())
+			return true
+		})
+
+		assert.ElementsMatch(t,
+			[]kube.ResourceKey{
+				kube.GetResourceKey(mustToUnstructured(testPod1())),
+				kube.GetResourceKey(mustToUnstructured(testPod2())),
+				kube.GetResourceKey(mustToUnstructured(testRS())),
+				kube.GetResourceKey(mustToUnstructured(testDeploy()))},
+			keys)
+	})
+
+	t.Run("ExitAtRoot", func(t *testing.T) {
+		startKeys := []kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(testDeploy()))}
+		keys := []kube.ResourceKey{}
+		cluster.IterateHierarchyV2(startKeys, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
+			keys = append(keys, child.ResourceKey())
+			return false
+		})
+
+		assert.ElementsMatch(t,
+			[]kube.ResourceKey{
+				kube.GetResourceKey(mustToUnstructured(testDeploy()))},
+			keys)
+	})
+
+	t.Run("ExitAtSecondLevelChild", func(t *testing.T) {
+		startKeys := []kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(testDeploy()))}
+		keys := []kube.ResourceKey{}
+		cluster.IterateHierarchyV2(startKeys, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
+			keys = append(keys, child.ResourceKey())
+			return child.ResourceKey().Kind != kube.ReplicaSetKind
+		})
+
+		assert.ElementsMatch(t,
+			[]kube.ResourceKey{
+				kube.GetResourceKey(mustToUnstructured(testDeploy())),
+				kube.GetResourceKey(mustToUnstructured(testRS())),
+			},
+			keys)
+	})
+
+	t.Run("ExitAtThirdLevelChild", func(t *testing.T) {
+		startKeys := []kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(testDeploy()))}
+		keys := []kube.ResourceKey{}
+		cluster.IterateHierarchyV2(startKeys, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
+			keys = append(keys, child.ResourceKey())
+			return child.ResourceKey().Kind != kube.PodKind
+		})
+
+		assert.ElementsMatch(t,
+			[]kube.ResourceKey{
+				kube.GetResourceKey(mustToUnstructured(testDeploy())),
+				kube.GetResourceKey(mustToUnstructured(testRS())),
+				kube.GetResourceKey(mustToUnstructured(testPod1())),
+				kube.GetResourceKey(mustToUnstructured(testPod2())),
+			},
+			keys)
+	})
+
+	t.Run("IterateAllStartFromMultiple", func(t *testing.T) {
+		startKeys := []kube.ResourceKey{
+			kube.GetResourceKey(mustToUnstructured(testRS())),
+			kube.GetResourceKey(mustToUnstructured(testDeploy())),
+		}
+		keys := []kube.ResourceKey{}
+		cluster.IterateHierarchyV2(startKeys, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
+			keys = append(keys, child.ResourceKey())
+			return true
+		})
+
+		assert.ElementsMatch(t,
+			[]kube.ResourceKey{
+				kube.GetResourceKey(mustToUnstructured(testPod1())),
+				kube.GetResourceKey(mustToUnstructured(testPod2())),
+				kube.GetResourceKey(mustToUnstructured(testRS())),
+				kube.GetResourceKey(mustToUnstructured(testDeploy()))},
+			keys)
+	})
+
+	// After uid is backfilled for owner of pod2, it should appear in results here as well.
+	t.Run("IterateStartFromExtensionsRS", func(t *testing.T) {
+		startKeys := []kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(testExtensionsRS()))}
+		keys := []kube.ResourceKey{}
+		cluster.IterateHierarchyV2(startKeys, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
+			keys = append(keys, child.ResourceKey())
+			return true
+		})
+
+		assert.ElementsMatch(t,
+			[]kube.ResourceKey{
+				kube.GetResourceKey(mustToUnstructured(testPod1())),
+				kube.GetResourceKey(mustToUnstructured(testPod2())),
+				kube.GetResourceKey(mustToUnstructured(testExtensionsRS()))},
 			keys)
 	})
 }
@@ -1031,7 +1186,7 @@ func Test_watchEvents_Deadlock(t *testing.T) {
 	deadlock := sync.RWMutex{}
 
 	hasDeadlock := false
-	res1 := testPod()
+	res1 := testPod1()
 	res2 := testRS()
 
 	cluster := newClusterWithOptions(t, []UpdateSettingsFunc{
@@ -1096,3 +1251,79 @@ func Test_watchEvents_Deadlock(t *testing.T) {
 		}
 	}
 }
+
+func buildTestResourceMap() map[kube.ResourceKey]*Resource {
+	ns := make(map[kube.ResourceKey]*Resource)
+	for i := 0; i < 100000; i++ {
+		name := fmt.Sprintf("test-%d", i)
+		ownerName := fmt.Sprintf("test-%d", i/10)
+		uid := uuid.New().String()
+		key := kube.ResourceKey{
+			Namespace: "default",
+			Name:      name,
+			Kind:      "Pod",
+		}
+		resourceYaml := fmt.Sprintf(`
+apiVersion: v1
+kind: Pod
+metadata:
+  namespace: default
+  name: %s
+  uid: %s`, name, uid)
+		if i/10 != 0 {
+			owner := ns[kube.ResourceKey{
+				Namespace: "default",
+				Name:      ownerName,
+				Kind:      "Pod",
+			}]
+			ownerUid := owner.Ref.UID
+			resourceYaml += fmt.Sprintf(`
+  ownerReferences:
+  - apiVersion: v1
+    kind: Pod
+    name: %s
+    uid: %s`, ownerName, ownerUid)
+		}
+		ns[key] = cacheTest.newResource(strToUnstructured(resourceYaml))
+	}
+	return ns
+}
+
+func BenchmarkBuildGraph(b *testing.B) {
+	testResources := buildTestResourceMap()
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		buildGraph(testResources)
+	}
+}
+
+func BenchmarkIterateHierarchyV2(b *testing.B) {
+	cluster := newCluster(b)
+	testResources := buildTestResourceMap()
+	for _, resource := range testResources {
+		cluster.setNode(resource)
+	}
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		cluster.IterateHierarchyV2([]kube.ResourceKey{
+			{Namespace: "default", Name: "test-1", Kind: "Pod"},
+		}, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
+			return true
+		})
+	}
+}
+
+//func BenchmarkIterateHierarchy(b *testing.B) {
+//	cluster := newCluster(b)
+//	for _, resource := range testResources {
+//		cluster.setNode(resource)
+//	}
+//	b.ResetTimer()
+//	for n := 0; n < b.N; n++ {
+//		cluster.IterateHierarchy(kube.ResourceKey{
+//			Namespace: "default", Name: "test-1", Kind: "Pod",
+//		}, func(child *Resource, _ map[kube.ResourceKey]*Resource) bool {
+//			return true
+//		})
+//	}
+//}

@@ -122,6 +122,9 @@ type ClusterCache interface {
 	// IterateHierarchy iterates resource tree starting from the specified top level resource and executes callback for each resource in the tree.
 	// The action callback returns true if iteration should continue and false otherwise.
 	IterateHierarchy(key kube.ResourceKey, action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool)
+	// IterateHierarchyV2 iterates resource tree starting from the specified top level resources and executes callback for each resource in the tree.
+	// The action callback returns true if iteration should continue and false otherwise.
+	IterateHierarchyV2(keys []kube.ResourceKey, action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool)
 	// IsNamespaced answers if specified group/kind is a namespaced resource API or not
 	IsNamespaced(gk schema.GroupKind) (bool, error)
 	// GetManagedLiveObjs helps finding matching live K8S resources for a given resources list.
@@ -1021,6 +1024,107 @@ func (c *clusterCache) IterateHierarchy(key kube.ResourceKey, action func(resour
 			}
 		}
 	}
+}
+
+// IterateHierarchy iterates resource tree starting from the specified top level resources and executes callback for each resource in the tree
+func (c *clusterCache) IterateHierarchyV2(keys []kube.ResourceKey, action func(resource *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool) {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	keysPerNamespace := make(map[string][]kube.ResourceKey)
+	for _, key := range keys {
+		_, ok := c.resources[key]
+		if !ok {
+			continue
+		}
+		keysPerNamespace[key.Namespace] = append(keysPerNamespace[key.Namespace], key)
+	}
+	for namespace, namespaceKeys := range keysPerNamespace {
+		nsNodes := c.nsIndex[namespace]
+		graph := buildGraph(nsNodes)
+		visited := make(map[kube.ResourceKey]int)
+		for _, key := range namespaceKeys {
+			visited[key] = 0
+		}
+		for _, key := range namespaceKeys {
+			// The check for existence of key is done above.
+			res := c.resources[key]
+			if visited[key] == 2 || !action(res, nsNodes) {
+				continue
+			}
+			visited[key] = 1
+			if _, ok := graph[key]; ok {
+				for _, child := range graph[key] {
+					if visited[child.ResourceKey()] == 0 && action(child, nsNodes) {
+						child.iterateChildrenV2(graph, nsNodes, visited, func(err error, child *Resource, namespaceResources map[kube.ResourceKey]*Resource) bool {
+							if err != nil {
+								c.log.V(2).Info(err.Error())
+								return false
+							}
+							return action(child, namespaceResources)
+						})
+					}
+				}
+			}
+			visited[key] = 2
+		}
+	}
+}
+
+func buildGraph(nsNodes map[kube.ResourceKey]*Resource) map[kube.ResourceKey]map[types.UID]*Resource {
+	// Prepare to construct a graph
+	nodesByUID := make(map[types.UID][]*Resource, len(nsNodes))
+	for _, node := range nsNodes {
+		nodesByUID[node.Ref.UID] = append(nodesByUID[node.Ref.UID], node)
+	}
+
+	// In graph, they key is the parent and the value is a list of children.
+	graph := make(map[kube.ResourceKey]map[types.UID]*Resource)
+
+	// Loop through all nodes, calling each one "childNode," because we're only bothering with it if it has a parent.
+	for _, childNode := range nsNodes {
+		for i, ownerRef := range childNode.OwnerRefs {
+			// First, backfill UID of inferred owner child references.
+			if ownerRef.UID == "" {
+				group, err := schema.ParseGroupVersion(ownerRef.APIVersion)
+				if err != nil {
+					// APIVersion is invalid, so we couldn't find the parent.
+					continue
+				}
+				graphKeyNode, ok := nsNodes[kube.ResourceKey{Group: group.Group, Kind: ownerRef.Kind, Namespace: childNode.Ref.Namespace, Name: ownerRef.Name}]
+				if ok {
+					ownerRef.UID = graphKeyNode.Ref.UID
+					childNode.OwnerRefs[i] = ownerRef
+				} else {
+					// No resource found with the given graph key, so move on.
+					continue
+				}
+			}
+
+			// Now that we have the UID of the parent, update the graph.
+			uidNodes, ok := nodesByUID[ownerRef.UID]
+			if ok {
+				for _, uidNode := range uidNodes {
+					// Update the graph for this owner to include the child.
+					if _, ok := graph[uidNode.ResourceKey()]; !ok {
+						graph[uidNode.ResourceKey()] = make(map[types.UID]*Resource)
+					}
+					r, ok := graph[uidNode.ResourceKey()][childNode.Ref.UID]
+					if !ok {
+						graph[uidNode.ResourceKey()][childNode.Ref.UID] = childNode
+					} else if r != nil {
+						// The object might have multiple children with the same UID (e.g. replicaset from apps and extensions group).
+						// It is ok to pick any object, but we need to make sure we pick the same child after every refresh.
+						key1 := r.ResourceKey()
+						key2 := childNode.ResourceKey()
+						if strings.Compare(key1.String(), key2.String()) > 0 {
+							graph[uidNode.ResourceKey()][childNode.Ref.UID] = childNode
+						}
+					}
+				}
+			}
+		}
+	}
+	return graph
 }
 
 // IsNamespaced answers if specified group/kind is a namespaced resource API or not
