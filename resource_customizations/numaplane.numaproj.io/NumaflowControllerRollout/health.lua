@@ -19,6 +19,7 @@ if obj.metadata.generation == obj.status.observedGeneration then
     else
       hs.message = healthyCondition.message
     end
+    return hs
   elseif healthyCondition ~= {} and healthyCondition.status == "True" and (obj.metadata.generation == healthyCondition.observedGeneration) and obj.status.phase == "Deployed" then
     hs.status = "Healthy"
     hs.message = healthyCondition.message
