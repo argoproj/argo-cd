@@ -1,7 +1,6 @@
 package util
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -53,8 +52,8 @@ func Test_newCluster(t *testing.T) {
 		&v1alpha1.AWSAuthConfig{},
 		&v1alpha1.ExecProviderConfig{}, labels, nil)
 
-	assert.True(t, strings.Contains(string(clusterWithFiles.Config.CertData), "test-cert-data"))
-	assert.True(t, strings.Contains(string(clusterWithFiles.Config.KeyData), "test-key-data"))
+	assert.Contains(t, string(clusterWithFiles.Config.CertData), "test-cert-data")
+	assert.Contains(t, string(clusterWithFiles.Config.KeyData), "test-key-data")
 	assert.Equal(t, "", clusterWithFiles.Config.BearerToken)
 	assert.Equal(t, labels, clusterWithFiles.Labels)
 	assert.Nil(t, clusterWithFiles.Annotations)

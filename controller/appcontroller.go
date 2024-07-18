@@ -1531,7 +1531,6 @@ func (ctrl *ApplicationController) PatchAppWithWriteBack(ctx context.Context, na
 }
 
 func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext bool) {
-	ts := stats.NewTimingStats()
 	patchMs := time.Duration(0) // time spent in doing patch/update calls
 	setOpMs := time.Duration(0) // time spent in doing Operation patch calls in autosync
 	appKey, shutdown := ctrl.appRefreshQueue.Get()
@@ -1575,6 +1574,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	})
 
 	startTime := time.Now()
+	ts := stats.NewTimingStats()
 	defer func() {
 		reconcileDuration := time.Since(startTime)
 		ctrl.metricsServer.IncReconcile(origApp, reconcileDuration)

@@ -166,7 +166,13 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	} else if providerConfig.BitbucketServer != nil {
 		providerConfig := providerConfig.BitbucketServer
 		var scmError error
-		if providerConfig.BasicAuth != nil {
+		if providerConfig.BearerToken != nil {
+			appToken, err := g.getSecretRef(ctx, providerConfig.BearerToken.TokenRef, applicationSetInfo.Namespace)
+			if err != nil {
+				return nil, fmt.Errorf("error fetching Secret Bearer token: %w", err)
+			}
+			provider, scmError = scm_provider.NewBitbucketServerProviderBearerToken(ctx, appToken, providerConfig.API, providerConfig.Project, providerConfig.AllBranches)
+		} else if providerConfig.BasicAuth != nil {
 			password, err := g.getSecretRef(ctx, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret token: %w", err)
