@@ -9,5 +9,5 @@ tests:
   inputPath: testdata/healthy.yaml
 - healthStatus:
     status: Degraded
-    message: ""
+    message: "no controller definition found for version degraded"
   inputPath: testdata/degraded.yaml
