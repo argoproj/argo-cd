@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/applicationset/generators/mocks"
+	"github.com/stretchr/testify/require"
 	"reflect"
 	"strings"
 	"testing"
