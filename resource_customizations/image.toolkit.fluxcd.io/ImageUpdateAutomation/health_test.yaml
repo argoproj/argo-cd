@@ -1,0 +1,13 @@
+tests:
+  # - healthStatus:
+  #     status: Progressing
+  #     message: Progressing
+  #   inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Degraded
+      message: ReconciliationFailed
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Healthy
+      message: ReconciliationSucceeded
+    inputPath: testdata/healthy.yaml
