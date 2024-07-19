@@ -66,6 +66,7 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 			}
 			pullRequests = append(pullRequests, &PullRequest{
 				Number:       *pull.Number,
+				Name:         *pull.Head.Repo.Name,
 				Branch:       *pull.Head.Ref,
 				TargetBranch: *pull.Base.Ref,
 				HeadSHA:      *pull.Head.SHA,

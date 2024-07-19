@@ -10,6 +10,8 @@ type PullRequest struct {
 	Number int
 	// Branch is the name of the branch from which the pull request originated.
 	Branch string
+	// Name is the name of the repositoyr.
+	Name string
 	// TargetBranch is the name of the target branch of the pull request.
 	TargetBranch string
 	// HeadSHA is the SHA of the HEAD from which the pull request originated.
