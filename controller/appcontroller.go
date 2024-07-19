@@ -1860,8 +1860,7 @@ func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool
 		return
 	}
 
-	// FIXME: detect if multiple apps are attempting to write to the same path
-	relevantApps := map[string][]*appv1.Application{}
+	var relevantApps []*appv1.Application
 	for _, app := range apps {
 		// TODO: test that we're actually skipping un-processable apps.
 		if !ctrl.canProcessApp(app) {
@@ -1881,10 +1880,7 @@ func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool
 		if destinationBranch != hydrationKey.destinationBranch {
 			continue
 		}
-		if _, ok := relevantApps[app.Spec.SourceHydrator.SyncSource.TargetBranch]; !ok {
-			relevantApps[app.Spec.SourceHydrator.SyncSource.TargetBranch] = []*appv1.Application{}
-		}
-		relevantApps[app.Spec.SourceHydrator.SyncSource.TargetBranch] = append(relevantApps[app.Spec.SourceHydrator.SyncSource.TargetBranch], app)
+		relevantApps = append(relevantApps, app)
 	}
 
 	// Get the latest revision
@@ -1893,34 +1889,32 @@ func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool
 		logCtx.Errorf("Failed to resolve dry revision: %v", err)
 		return
 	}
-	for _, apps := range relevantApps {
-		err = ctrl.hydrate(apps, appv1.RefreshTypeNormal, CompareWithLatest, revision)
-		if err != nil {
-			for _, app := range apps {
-				origApp := app.DeepCopy()
-				app.Status.SourceHydrator.HydrateOperation.Status = appv1.HydrateOperationPhaseFailed
-				failedAt := metav1.Now()
-				app.Status.SourceHydrator.HydrateOperation.FinishedAt = &failedAt
-				app.Status.SourceHydrator.HydrateOperation.Message = fmt.Sprintf("Failed to hydrated revision %s: %v", revision, err.Error())
-				ctrl.persistAppStatus(origApp, &app.Status)
-				logCtx.Errorf("Failed to hydrate app: %v", err)
-				return
-			}
-		}
-		finishedAt := metav1.Now()
+	err = ctrl.hydrate(apps, appv1.RefreshTypeNormal, CompareWithLatest, revision)
+	if err != nil {
 		for _, app := range apps {
 			origApp := app.DeepCopy()
-			operation := &appv1.HydrateOperation{
-				StartedAt:  app.Status.SourceHydrator.HydrateOperation.StartedAt,
-				FinishedAt: &finishedAt,
-				Status:     appv1.HydrateOperationPhaseSucceeded,
-				Message:    "",
-			}
-			app.Status.SourceHydrator.Revision = revision
-			app.Status.SourceHydrator.HydrateOperation = operation
+			app.Status.SourceHydrator.HydrateOperation.Status = appv1.HydrateOperationPhaseFailed
+			failedAt := metav1.Now()
+			app.Status.SourceHydrator.HydrateOperation.FinishedAt = &failedAt
+			app.Status.SourceHydrator.HydrateOperation.Message = fmt.Sprintf("Failed to hydrated revision %s: %v", revision, err.Error())
 			ctrl.persistAppStatus(origApp, &app.Status)
-			origApp.Status.SourceHydrator = app.Status.SourceHydrator
+			logCtx.Errorf("Failed to hydrate app: %v", err)
+			return
 		}
+	}
+	finishedAt := metav1.Now()
+	for _, app := range apps {
+		origApp := app.DeepCopy()
+		operation := &appv1.HydrateOperation{
+			StartedAt:  app.Status.SourceHydrator.HydrateOperation.StartedAt,
+			FinishedAt: &finishedAt,
+			Status:     appv1.HydrateOperationPhaseSucceeded,
+			Message:    "",
+		}
+		app.Status.SourceHydrator.Revision = revision
+		app.Status.SourceHydrator.HydrateOperation = operation
+		ctrl.persistAppStatus(origApp, &app.Status)
+		origApp.Status.SourceHydrator = app.Status.SourceHydrator
 	}
 	return
 }
