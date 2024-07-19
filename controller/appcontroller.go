@@ -1829,6 +1829,13 @@ type hydrationQueueKey struct {
 	destinationBranch    string
 }
 
+type uniqueHydrationDestination struct {
+	sourceRepoURL        string
+	sourceTargetRevision string
+	destinationBranch    string
+	destinationPath      string
+}
+
 func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool) {
 	key, shutdown := ctrl.hydrationQueue.Get()
 	if shutdown {
@@ -1861,6 +1868,7 @@ func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool
 	}
 
 	var relevantApps []*appv1.Application
+	uniqueDestinations := make(map[uniqueHydrationDestination]bool, len(apps))
 	for _, app := range apps {
 		// TODO: test that we're actually skipping un-processable apps.
 		if !ctrl.canProcessApp(app) {
@@ -1869,6 +1877,9 @@ func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool
 		if app.Spec.SourceHydrator == nil {
 			continue
 		}
+
+		// TODO: check that this app is actually allowed to use the project
+
 		if app.Spec.SourceHydrator.DrySource.RepoURL != hydrationKey.sourceRepoURL ||
 			app.Spec.SourceHydrator.DrySource.TargetRevision != hydrationKey.sourceTargetRevision {
 			continue
@@ -1880,18 +1891,33 @@ func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool
 		if destinationBranch != hydrationKey.destinationBranch {
 			continue
 		}
+
+		uniqueDestinationKey := uniqueHydrationDestination{
+			sourceRepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
+			sourceTargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
+			destinationBranch:    destinationBranch,
+			destinationPath:      app.Spec.SourceHydrator.SyncSource.Path,
+		}
+		// TODO: test the dupe detection
+		if _, ok := uniqueDestinations[uniqueDestinationKey]; ok {
+			err = fmt.Errorf("multiple app hydrators use the same destination: %v", uniqueDestinationKey)
+		}
+		uniqueDestinations[uniqueDestinationKey] = true
+
 		relevantApps = append(relevantApps, app)
 	}
 
-	// Get the latest revision
-	revision, err := ctrl.appStateManager.ResolveDryRevision(hydrationKey.sourceRepoURL, hydrationKey.sourceTargetRevision)
-	if err != nil {
-		logCtx.Errorf("Failed to resolve dry revision: %v", err)
-		return
+	// TODO: handle abstract out error persistence instead of doing this weird error handling
+	var revision string
+	if err == nil {
+		// Get the latest revision
+		revision, err = ctrl.appStateManager.ResolveDryRevision(hydrationKey.sourceRepoURL, hydrationKey.sourceTargetRevision)
 	}
-	err = ctrl.hydrate(apps, appv1.RefreshTypeNormal, CompareWithLatest, revision)
+	if err == nil {
+		err = ctrl.hydrate(relevantApps, appv1.RefreshTypeNormal, CompareWithLatest, revision)
+	}
 	if err != nil {
-		for _, app := range apps {
+		for _, app := range relevantApps {
 			origApp := app.DeepCopy()
 			app.Status.SourceHydrator.HydrateOperation.Status = appv1.HydrateOperationPhaseFailed
 			failedAt := metav1.Now()
@@ -1903,7 +1929,7 @@ func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool
 		}
 	}
 	finishedAt := metav1.Now()
-	for _, app := range apps {
+	for _, app := range relevantApps {
 		origApp := app.DeepCopy()
 		operation := &appv1.HydrateOperation{
 			StartedAt:  app.Status.SourceHydrator.HydrateOperation.StartedAt,
