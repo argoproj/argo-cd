@@ -1690,21 +1690,13 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 				}
 				ctrl.persistAppStatus(origApp, &app.Status)
 				origApp.Status.SourceHydrator = app.Status.SourceHydrator
-
-				destinationBranch := app.Spec.SourceHydrator.SyncSource.TargetBranch
-				if app.Spec.SourceHydrator.HydrateTo != nil {
-					destinationBranch = app.Spec.SourceHydrator.HydrateTo.TargetBranch
-				}
-				key := hydrationQueueKey{
-					sourceRepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
-					sourceTargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
-					destinationBranch:    destinationBranch,
-				}
-				ctrl.hydrationQueue.Add(key)
+				ctrl.hydrationQueue.Add(getHydrationQueueKey(app))
 			}
 		} else {
 			logCtx.Debug("No reason to re-hydrate")
 		}
+
+		ts.AddCheckpoint("source_hydrator_ms")
 	}
 
 	var localManifests []string
@@ -1818,6 +1810,19 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	return
 }
 
+func getHydrationQueueKey(app *appv1.Application) hydrationQueueKey {
+	destinationBranch := app.Spec.SourceHydrator.SyncSource.TargetBranch
+	if app.Spec.SourceHydrator.HydrateTo != nil {
+		destinationBranch = app.Spec.SourceHydrator.HydrateTo.TargetBranch
+	}
+	key := hydrationQueueKey{
+		sourceRepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
+		sourceTargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
+		destinationBranch:    destinationBranch,
+	}
+	return key
+}
+
 type hydrationQueueKey struct {
 	sourceRepoURL        string
 	sourceTargetRevision string
@@ -1858,6 +1863,10 @@ func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool
 	// FIXME: detect if multiple apps are attempting to write to the same path
 	relevantApps := map[string][]*appv1.Application{}
 	for _, app := range apps {
+		// TODO: test that we're actually skipping un-processable apps.
+		if !ctrl.canProcessApp(app) {
+			continue
+		}
 		if app.Spec.SourceHydrator == nil {
 			continue
 		}

@@ -215,12 +215,12 @@ export interface DrySource {
 }
 
 export interface SyncSource {
-    targetRevision: string;
+    targetBranch: string;
     path: string;
 }
 
 export interface HydrateTo {
-    targetRevision: string;
+    targetBranch: string;
 }
 
 export interface ApplicationSourceHelm {
