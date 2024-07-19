@@ -19,17 +19,20 @@ type Server interface {
 	git.CredsStore
 	AskPassServiceServer
 	Run(path string) error
+	SocketPath() string
 }
 
 type server struct {
-	lock  sync.Mutex
-	creds map[string]Creds
+	lock       sync.Mutex
+	creds      map[string]Creds
+	socketPath string
 }
 
 // NewServer returns a new server
-func NewServer() *server {
+func NewServer(socketPath string) *server {
 	return &server{
-		creds: make(map[string]Creds),
+		creds:      make(map[string]Creds),
+		socketPath: socketPath,
 	}
 }
 
@@ -58,8 +61,8 @@ func (s *server) Start(path string) (io.Closer, error) {
 	return io.NewCloser(listener.Close), nil
 }
 
-func (s *server) Run(path string) error {
-	_, err := s.Start(path)
+func (s *server) Run() error {
+	_, err := s.Start(s.socketPath)
 	return err
 }
 
@@ -87,4 +90,8 @@ func (s *server) getCreds(id string) (*Creds, bool) {
 	defer s.lock.Unlock()
 	creds, ok := s.creds[id]
 	return &creds, ok
+}
+
+func (s *server) SocketPath() string {
+	return s.socketPath
 }

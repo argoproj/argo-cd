@@ -39,6 +39,8 @@ var (
 const (
 	// ASKPASS_NONCE_ENV is the environment variable that is used to pass the nonce to the askpass script
 	ASKPASS_NONCE_ENV = "ARGOCD_GIT_ASKPASS_NONCE"
+	// AKSPASS_SOCKET_PATH_ENV is the environment variable that is used to pass the socket path to the askpass script
+	AKSPASS_SOCKET_PATH_ENV = "ARGOCD_ASK_PASS_SOCK"
 	// githubAccessTokenUsername is a username that is used to with the github access token
 	githubAccessTokenUsername = "x-access-token"
 	forceBasicAuthHeaderEnv   = "ARGOCD_GIT_AUTH_HEADER"
@@ -66,21 +68,27 @@ func (d NoopCredsStore) Add(username string, password string) string {
 func (d NoopCredsStore) Remove(id string) {
 }
 
+func (d NoopCredsStore) SocketPath() string {
+	return ""
+}
+
 type CredsStore interface {
 	Add(username string, password string) string
 	Remove(id string)
+	SocketPath() string
 }
 
 type Creds interface {
 	Environ() (io.Closer, []string, error)
 }
 
-func getGitAskPassEnv(id string) []string {
+func getGitAskPassEnv(id string, socketPath string) []string {
 	return []string{
 		fmt.Sprintf("GIT_ASKPASS=%s", "argocd"),
 		fmt.Sprintf("%s=%s", ASKPASS_NONCE_ENV, id),
 		"GIT_TERMINAL_PROMPT=0",
 		"ARGOCD_BINARY_NAME=argocd-git-ask-pass",
+		fmt.Sprintf("%s=%s", AKSPASS_SOCKET_PATH_ENV, socketPath),
 	}
 }
 
@@ -214,7 +222,7 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 		env = append(env, fmt.Sprintf("%s=%s", forceBasicAuthHeaderEnv, c.BasicAuthHeader()))
 	}
 	nonce := c.store.Add(text.FirstNonEmpty(c.username, githubAccessTokenUsername), c.password)
-	env = append(env, getGitAskPassEnv(nonce)...)
+	env = append(env, getGitAskPassEnv(nonce, c.store.SocketPath())...)
 	return argoioutils.NewCloser(func() error {
 		c.store.Remove(nonce)
 		return httpCloser.Close()
@@ -407,7 +415,7 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 		env = append(env, fmt.Sprintf("GIT_SSL_KEY=%s", keyFile.Name()))
 	}
 	nonce := g.store.Add(githubAccessTokenUsername, token)
-	env = append(env, getGitAskPassEnv(nonce)...)
+	env = append(env, getGitAskPassEnv(nonce, g.store.SocketPath())...)
 	return argoioutils.NewCloser(func() error {
 		g.store.Remove(nonce)
 		return httpCloser.Close()
@@ -500,7 +508,7 @@ func (c GoogleCloudCreds) Environ() (io.Closer, []string, error) {
 	}
 
 	nonce := c.store.Add(username, token)
-	env := getGitAskPassEnv(nonce)
+	env := getGitAskPassEnv(nonce, c.store.SocketPath())
 
 	return argoioutils.NewCloser(func() error {
 		c.store.Remove(nonce)

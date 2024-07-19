@@ -37,7 +37,7 @@ func NewCommand() *cobra.Command {
 			if nonce == "" {
 				errors.CheckError(fmt.Errorf("%s is not set", git.ASKPASS_NONCE_ENV))
 			}
-			conn, err := grpc_util.BlockingDial(ctx, "unix", askpass.SocketPath, nil, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			conn, err := grpc_util.BlockingDial(ctx, "unix", git.AKSPASS_SOCKET_PATH_ENV, nil, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			errors.CheckError(err)
 			defer io.Close(conn)
 			client := askpass.NewAskPassServiceClient(conn)

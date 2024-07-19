@@ -31,8 +31,8 @@ func NewCommand() *cobra.Command {
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
 
-			askPassServer := askpass.NewServer()
-			go func() { errors.CheckError(askPassServer.Run(askpass.SocketPath)) }()
+			askPassServer := askpass.NewServer(askpass.CommitServerSocketPath)
+			go func() { errors.CheckError(askPassServer.Run()) }()
 
 			server := commitserver.NewServer(askPassServer)
 			grpc := server.CreateGRPC()
