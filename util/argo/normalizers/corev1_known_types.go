@@ -10,6 +10,9 @@ func init() {
 	knownTypes["core/v1/Affinity"] = func() interface{} {
 		return &corev1.Affinity{}
 	}
+	knownTypes["core/v1/AppArmorProfile"] = func() interface{} {
+		return &corev1.AppArmorProfile{}
+	}
 	knownTypes["core/v1/AttachedVolume"] = func() interface{} {
 		return &corev1.AttachedVolume{}
 	}
@@ -310,8 +313,11 @@ func init() {
 	knownTypes["core/v1/NodeProxyOptions"] = func() interface{} {
 		return &corev1.NodeProxyOptions{}
 	}
-	knownTypes["core/v1/NodeResources"] = func() interface{} {
-		return &corev1.NodeResources{}
+	knownTypes["core/v1/NodeRuntimeHandler"] = func() interface{} {
+		return &corev1.NodeRuntimeHandler{}
+	}
+	knownTypes["core/v1/NodeRuntimeHandlerFeatures"] = func() interface{} {
+		return &corev1.NodeRuntimeHandlerFeatures{}
 	}
 	knownTypes["core/v1/NodeSelector"] = func() interface{} {
 		return &corev1.NodeSelector{}
@@ -651,6 +657,9 @@ func init() {
 	}
 	knownTypes["core/v1/VolumeMount"] = func() interface{} {
 		return &corev1.VolumeMount{}
+	}
+	knownTypes["core/v1/VolumeMountStatus"] = func() interface{} {
+		return &corev1.VolumeMountStatus{}
 	}
 	knownTypes["core/v1/VolumeNodeAffinity"] = func() interface{} {
 		return &corev1.VolumeNodeAffinity{}
