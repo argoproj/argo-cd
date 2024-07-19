@@ -197,7 +197,7 @@ jobs:
           echo "hashes=$(sha256sum /tmp/sbom.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
       
       - name: Upload SBOM
-        uses: softprops/action-gh-release@fb2d03176f42a1f0dd433ca263f314051d3edd44 # v2.0.7
+        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2.0.8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
