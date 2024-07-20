@@ -55,8 +55,6 @@ import (
 
 const (
 	defaultk3sVersion       = "v1.27.15"
-	defaultApiServerPort    = "8088"
-	defaultRepoServerPort   = "8081"
 	defaultAdminPassword    = "password"
 	defaultAdminUsername    = "admin"
 	DefaultTestUserPassword = "password"
@@ -803,7 +801,9 @@ func initTestServices(ctx context.Context) {
 	appsetRestConfig := rest.CopyConfig(KubeConfig)
 	// appsetRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-applicationset-controller", TestNamespace()) // TODO: Run controller with serviceaccount perms
 	appSetControllerConfig := appsetcontrollercommand.NewApplicationSetControllerConfig(&appsetCmd).WithDefaultFlags().WithK8sSettings(TestNamespace(), appsetRestConfig)
-	CheckError(appsetCmd.Flags().Set("probe-addr", ":9999"))
+	CheckError(appsetCmd.Flags().Set("probe-addr", randomPort()))
+	CheckError(appsetCmd.Flags().Set("metrics-addr", randomPort()))
+	CheckError(appsetCmd.Flags().Set("webhook-addr", randomPort()))
 	CheckError(appsetCmd.Flags().Set("argocd-repo-server", repoServerAddress))
 	mgr, err := appSetControllerConfig.CreateApplicationSetController(ctx)
 	CheckError(err)
@@ -814,6 +814,20 @@ func initTestServices(ctx context.Context) {
 			os.Exit(1)
 		}
 	}()
+}
+
+func replaceInFile(path string, replacements map[string]string) error {
+	input, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	output := string(input)
+	for k, v := range replacements {
+		output = strings.Replace(output, k, v, -1)
+	}
+
+	return os.WriteFile(path, []byte(output), 0666)
 }
 
 func EnsureCleanState(t *testing.T, opts ...TestOption) {
@@ -922,6 +936,22 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	FailOnErr(Run("", "cp", "-Rf", opt.testdata, repoDirectory()))
 	FailOnErr(Run(repoDirectory(), "chmod", "777", "."))
 	FailOnErr(Run(repoDirectory(), "git", "init", "-b", "master"))
+
+	err = filepath.Walk(repoDirectory(), func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && strings.HasSuffix(path, ".yaml") {
+			errors.CheckError(replaceInFile(path, map[string]string{
+				"5000": mappedOCIRegistryPort,
+				"9443": mappedHttpsAuthPort,
+				"9444": mappedHttpsClientAuthPort,
+			}))
+		}
+		return nil
+	})
+	CheckError(err)
+
 	FailOnErr(Run(repoDirectory(), "git", "add", "."))
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-q", "-m", "initial commit"))
 
