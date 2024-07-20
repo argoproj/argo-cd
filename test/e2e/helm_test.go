@@ -468,7 +468,7 @@ func TestHelmDependenciesPermissionDenied(t *testing.T) {
 		Create().
 		AddSource(RepoURL(RepoURLTypeFile))
 
-	expectedErr := fmt.Sprintf("helm repos localhost:5000/myrepo are not permitted in project '%s'", projName)
+	expectedErr := fmt.Sprintf("helm repos localhost:%s/myrepo are not permitted in project '%s'", MappedOCIRegistryPort, projName)
 	GivenWithSameState(t).
 		Project(projName).
 		Path("helm-oci-with-dependencies").
@@ -481,7 +481,12 @@ func TestHelmDependenciesPermissionDenied(t *testing.T) {
 		Then().
 		Expect(Error("", expectedErr))
 
-	expectedErr = fmt.Sprintf("helm repos https://localhost:9443/argo-e2e/testdata.git/helm-repo/local, https://localhost:9443/argo-e2e/testdata.git/helm-repo/local2 are not permitted in project '%s'", projName)
+	expectedErr = fmt.Sprintf(
+		"helm repos https://localhost:%s/argo-e2e/testdata.git/helm-repo/local, https://localhost:%s/argo-e2e/testdata.git/helm-repo/local2 are not permitted in project '%s'",
+		MappedHttpsAuthPort,
+		MappedHttpsAuthPort,
+		projName,
+	)
 	GivenWithSameState(t).
 		Project(projName).
 		Path("helm-with-multiple-dependencies-permission-denied").
