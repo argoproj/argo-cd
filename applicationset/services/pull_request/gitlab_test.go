@@ -80,6 +80,7 @@ func TestList(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, prs, 1)
 	assert.Equal(t, 15442, prs[0].Number)
+	assert.Equal(t, "Draft: Use structured logging for DB load balancer", prs[0].Title)
 	assert.Equal(t, "use-structured-logging-for-db-load-balancer", prs[0].Branch)
 	assert.Equal(t, "master", prs[0].TargetBranch)
 	assert.Equal(t, "2fc4e8b972ff3208ec63b6143e34ad67ff343ad7", prs[0].HeadSHA)
