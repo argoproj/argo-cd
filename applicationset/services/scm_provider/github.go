@@ -120,7 +120,7 @@ func (g *GithubProvider) RepoHasPath(ctx context.Context, repo *Repository, path
 func (g *GithubProvider) listBranches(ctx context.Context, repo *Repository) ([]github.Branch, error) {
 	// If we don't specifically want to query for all branches, just use the default branch and call it a day.
 	if !g.allBranches {
-		defaultBranch, _, err := g.client.Repositories.GetBranch(ctx, repo.Organization, repo.Repository, repo.Branch, 1)
+		defaultBranch, _, err := g.client.Repositories.GetBranch(ctx, repo.Organization, repo.Repository, repo.Branch, 0)
 		if err != nil {
 			var githubErrorResponse *github.ErrorResponse
 			if errors.As(err, &githubErrorResponse) {
