@@ -1276,7 +1276,20 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		commands = append(commands, command)
 	}
 	objs, err := kube.SplitYAML([]byte(out))
-	return objs, commands, err
+
+	redactedCommands := make([]string, len(commands))
+	for i, c := range commands {
+		redactedCommands[i] = redactPaths(c, gitRepoPaths)
+	}
+
+	return objs, redactedCommands, err
+}
+
+func redactPaths(s string, paths io.TempPaths) string {
+	for _, p := range paths.GetPaths() {
+		s = strings.ReplaceAll(s, p, ".")
+	}
+	return s
 }
 
 func getResolvedValueFiles(

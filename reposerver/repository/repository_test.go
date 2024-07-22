@@ -106,7 +106,7 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 		gitClient.On("Init").Return(nil)
 		gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
 		gitClient.On("Fetch", mock.Anything).Return(nil)
-		gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+		gitClient.On("Checkout", mock.Anything, mock.Anything).Return("fake-rev", nil)
 		gitClient.On("LsRemote", mock.Anything).Return(mock.Anything, nil)
 		gitClient.On("CommitSHA").Return(mock.Anything, nil)
 		gitClient.On("Root").Return(root)
@@ -133,6 +133,7 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 		paths.On("Add", mock.Anything, mock.Anything).Return(root, nil)
 		paths.On("GetPath", mock.Anything).Return(root, nil)
 		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
+		paths.On("GetPaths").Return(map[string]string{"": root})
 	}, root)
 }
 
@@ -180,7 +181,7 @@ func newServiceWithCommitSHA(t *testing.T, root, revision string) *Service {
 		gitClient.On("Init").Return(nil)
 		gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
 		gitClient.On("Fetch", mock.Anything).Return(nil)
-		gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+		gitClient.On("Checkout", mock.Anything, mock.Anything).Return("fake-rev", nil)
 		gitClient.On("LsRemote", revision).Return(revision, revisionErr)
 		gitClient.On("CommitSHA").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 		gitClient.On("Root").Return(root)
@@ -207,7 +208,7 @@ func TestGenerateYamlManifestInDir(t *testing.T) {
 	}
 
 	// update this value if we add/remove manifests
-	const countOfManifests = 50
+	const countOfManifests = 54
 
 	res1, err := service.GenerateManifest(context.Background(), &q)
 
@@ -462,6 +463,7 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 		Revision:           "HEAD",
 		HasMultipleSources: true,
 		ApplicationSource:  &src,
+		Namespace:          "default",
 		ProjectName:        "default",
 		ProjectSourceRepos: []string{"*"},
 		RefSources:         map[string]*argoappv1.RefTarget{"$ref": {TargetRevision: "HEAD", Repo: *repo}},
@@ -494,6 +496,7 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
+		Commands:   []string{"helm template . --include-crds"},
 	}, response)
 	mockCache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 1,
@@ -521,6 +524,7 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 	request := &apiclient.ManifestRequest{
 		Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"},
+		Namespace:          "default",
 	}
 	response, err := service.GenerateManifest(context.Background(), request)
 	require.NoError(t, err)
@@ -531,6 +535,7 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
+		Commands:   []string{"helm template . --namespace default --values ./testdata/my-chart/my-chart-values.yaml --include-crds"},
 	}, response)
 }
 
@@ -1096,6 +1101,7 @@ func TestGenerateHelmWithValues(t *testing.T) {
 		},
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
+		Namespace:          "default",
 	})
 
 	require.NoError(t, err)
@@ -1132,6 +1138,7 @@ func TestHelmWithMissingValueFiles(t *testing.T) {
 		},
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
+		Namespace:          "default",
 	}
 
 	// Should fail since we're passing a non-existent values file, and error should indicate that
@@ -1159,6 +1166,7 @@ func TestGenerateHelmWithEnvVars(t *testing.T) {
 		},
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
+		Namespace:          "default",
 	})
 
 	require.NoError(t, err)
@@ -1196,6 +1204,7 @@ func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 		},
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
+		Namespace:          "default",
 	})
 	require.NoError(t, err)
 
@@ -1209,6 +1218,7 @@ func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 		},
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
+		Namespace:          "default",
 	})
 	require.NoError(t, err)
 }
@@ -1216,7 +1226,7 @@ func TestGenerateHelmWithValuesDirectoryTraversal(t *testing.T) {
 func TestChartRepoWithOutOfBoundsSymlink(t *testing.T) {
 	service := newService(t, ".")
 	source := &argoappv1.ApplicationSource{Chart: "out-of-bounds-chart", TargetRevision: ">= 1.0.0"}
-	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true}
+	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true, Namespace: "default"}
 	_, err := service.GenerateManifest(context.Background(), request)
 	assert.ErrorContains(t, err, "chart contains out-of-bounds symlinks")
 }
@@ -1238,6 +1248,7 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 		NoCache:            true,
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
+		Namespace:          "default",
 	}
 	response, err := service.GenerateManifest(context.Background(), request)
 	require.NoError(t, err)
@@ -1248,6 +1259,7 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
+		Commands:   []string{"helm template . --namespace default --values ./testdata/my-chart/my-chart-values.yaml --include-crds"},
 	}, response)
 }
 
@@ -1262,7 +1274,7 @@ func TestHelmManifestFromChartRepoWithValueFileOutsideRepo(t *testing.T) {
 			ValueFiles: []string{"../my-chart-2/my-chart-2-values.yaml"},
 		},
 	}
-	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true}
+	request := &apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true, Namespace: "default"}
 	_, err := service.GenerateManifest(context.Background(), request)
 	require.Error(t, err)
 }
@@ -1280,6 +1292,7 @@ func TestHelmManifestFromChartRepoWithValueFileLinks(t *testing.T) {
 		request := &apiclient.ManifestRequest{
 			Repo: &argoappv1.Repository{}, ApplicationSource: source, NoCache: true, ProjectName: "something",
 			ProjectSourceRepos: []string{"*"},
+			Namespace:          "default",
 		}
 		_, err := service.GenerateManifest(context.Background(), request)
 		require.NoError(t, err)
@@ -1302,6 +1315,7 @@ func TestGenerateHelmWithURL(t *testing.T) {
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
 		HelmOptions:        &argoappv1.HelmOptions{ValuesFileSchemes: []string{"https"}},
+		Namespace:          "default",
 	})
 	require.NoError(t, err)
 }
@@ -1323,6 +1337,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			},
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
+			Namespace:          "default",
 		})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "outside repository root")
@@ -1342,6 +1357,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			},
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
+			Namespace:          "default",
 		})
 		require.NoError(t, err)
 	})
@@ -1360,6 +1376,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			},
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
+			Namespace:          "default",
 		})
 		require.NoError(t, err)
 	})
@@ -1378,6 +1395,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			},
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
+			Namespace:          "default",
 		})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "outside repository root")
@@ -1397,6 +1415,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			},
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
+			Namespace:          "default",
 		})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "is not allowed")
@@ -1416,6 +1435,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			HelmOptions:        &argoappv1.HelmOptions{ValuesFileSchemes: []string{"s3"}},
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
+			Namespace:          "default",
 		})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "s3://my-bucket/my-chart-values.yaml: no such file or directory")
@@ -1484,6 +1504,7 @@ func TestGenerateHelmWithFileParameter(t *testing.T) {
 		},
 		ProjectName:        "something",
 		ProjectSourceRepos: []string{"*"},
+		Namespace:          "default",
 	})
 	require.NoError(t, err)
 	assert.Contains(t, res.Manifests[6], `"replicas":2`, "ValuesObject should override Values")
@@ -1986,6 +2007,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 				},
 				ProjectName:        "something",
 				ProjectSourceRepos: []string{"*"},
+				Namespace:          "default",
 			})
 			require.NoError(t, err)
 			resourceByKindName := make(map[string]*unstructured.Unstructured)
@@ -2981,7 +3003,7 @@ func TestCheckoutRevisionPresentSkipFetch(t *testing.T) {
 	gitClient := &gitmocks.Client{}
 	gitClient.On("Init").Return(nil)
 	gitClient.On("IsRevisionPresent", revision).Return(true)
-	gitClient.On("Checkout", revision, mock.Anything).Return(nil)
+	gitClient.On("Checkout", revision, mock.Anything).Return("fake-rev", nil)
 
 	err := checkoutRevision(gitClient, revision, false)
 	require.NoError(t, err)
@@ -2994,7 +3016,7 @@ func TestCheckoutRevisionNotPresentCallFetch(t *testing.T) {
 	gitClient.On("Init").Return(nil)
 	gitClient.On("IsRevisionPresent", revision).Return(false)
 	gitClient.On("Fetch", "").Return(nil)
-	gitClient.On("Checkout", revision, mock.Anything).Return(nil)
+	gitClient.On("Checkout", revision, mock.Anything).Return("fake-rev", nil)
 
 	err := checkoutRevision(gitClient, revision, false)
 	require.NoError(t, err)
@@ -3319,7 +3341,7 @@ func TestErrorGetGitDirectories(t *testing.T) {
 		}, want: nil, wantErr: assert.Error},
 		{name: "InvalidResolveRevision", fields: fields{service: func() *Service {
 			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("fake-rev", nil)
 				gitClient.On("LsRemote", mock.Anything).Return("", fmt.Errorf("ah error"))
 				gitClient.On("Root").Return(root)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
@@ -3336,7 +3358,7 @@ func TestErrorGetGitDirectories(t *testing.T) {
 		}, want: nil, wantErr: assert.Error},
 		{name: "ErrorVerifyCommit", fields: fields{service: func() *Service {
 			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("fake-rev", nil)
 				gitClient.On("LsRemote", mock.Anything).Return("", fmt.Errorf("ah error"))
 				gitClient.On("VerifyCommitSignature", mock.Anything).Return("", fmt.Errorf("revision %s is not signed", "sadfsadf"))
 				gitClient.On("Root").Return(root)
@@ -3373,7 +3395,7 @@ func TestGetGitDirectories(t *testing.T) {
 		gitClient.On("Init").Return(nil)
 		gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
 		gitClient.On("Fetch", mock.Anything).Return(nil)
-		gitClient.On("Checkout", mock.Anything, mock.Anything).Once().Return(nil)
+		gitClient.On("Checkout", mock.Anything, mock.Anything).Once().Return("fake-rev", nil)
 		gitClient.On("LsRemote", "HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 		gitClient.On("Root").Return(root)
 		paths.On("GetPath", mock.Anything).Return(root, nil)
@@ -3406,7 +3428,7 @@ func TestGetGitDirectoriesWithHiddenDirSupported(t *testing.T) {
 		gitClient.On("Init").Return(nil)
 		gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
 		gitClient.On("Fetch", mock.Anything).Return(nil)
-		gitClient.On("Checkout", mock.Anything, mock.Anything).Once().Return(nil)
+		gitClient.On("Checkout", mock.Anything, mock.Anything).Once().Return("fake-rev", nil)
 		gitClient.On("LsRemote", "HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 		gitClient.On("Root").Return(root)
 		paths.On("GetPath", mock.Anything).Return(root, nil)
@@ -3461,7 +3483,7 @@ func TestErrorGetGitFiles(t *testing.T) {
 		}, want: nil, wantErr: assert.Error},
 		{name: "InvalidResolveRevision", fields: fields{service: func() *Service {
 			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("fake-rev", nil)
 				gitClient.On("LsRemote", mock.Anything).Return("", fmt.Errorf("ah error"))
 				gitClient.On("Root").Return(root)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
@@ -3500,7 +3522,7 @@ func TestGetGitFiles(t *testing.T) {
 		gitClient.On("Init").Return(nil)
 		gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
 		gitClient.On("Fetch", mock.Anything).Return(nil)
-		gitClient.On("Checkout", mock.Anything, mock.Anything).Once().Return(nil)
+		gitClient.On("Checkout", mock.Anything, mock.Anything).Once().Return("fake-rev", nil)
 		gitClient.On("LsRemote", "HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 		gitClient.On("Root").Return(root)
 		gitClient.On("LsFiles", mock.Anything, mock.Anything).Once().Return(files, nil)
@@ -3564,7 +3586,7 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 		}, want: nil, wantErr: assert.Error},
 		{name: "InvalidResolveRevision", fields: fields{service: func() *Service {
 			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("fake-rev", nil)
 				gitClient.On("LsRemote", mock.Anything).Return("", fmt.Errorf("ah error"))
 				gitClient.On("Root").Return(root)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
@@ -3582,7 +3604,7 @@ func TestErrorUpdateRevisionForPaths(t *testing.T) {
 		}, want: nil, wantErr: assert.Error},
 		{name: "InvalidResolveSyncedRevision", fields: fields{service: func() *Service {
 			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("fake-rev", nil)
 				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.On("LsRemote", mock.Anything).Return("", fmt.Errorf("ah error"))
 				gitClient.On("Root").Return(root)
@@ -3635,7 +3657,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 	}{
 		{name: "NoPathAbort", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("fake-rev", nil)
 			}, ".")
 			return fields{
 				service: s,
@@ -3650,7 +3672,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
 		{name: "SameResolvedRevisionAbort", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("fake-rev", nil)
 				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
@@ -3674,7 +3696,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				gitClient.On("Init").Return(nil)
 				gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
 				gitClient.On("Fetch", mock.Anything).Return(nil)
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("fake-rev", nil)
 				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
@@ -3700,7 +3722,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				gitClient.On("Init").Return(nil)
 				gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
 				gitClient.On("Fetch", mock.Anything).Return(nil)
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("fake-rev", nil)
 				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
@@ -3736,7 +3758,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				gitClient.On("Init").Return(nil)
 				gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
 				gitClient.On("Fetch", mock.Anything).Return(nil)
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+				gitClient.On("Checkout", mock.Anything, mock.Anything).Return("fake-rev", nil)
 				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
