@@ -256,7 +256,7 @@ type store struct {
 	// and never edit a published one.
 	namespacedResources atomic.Pointer[map[schema.GroupKind]bool]
 
-	// maximum time we allow watches to run before relisting the group/kind and restarting the watch
+	// maximum time we allow watches to run before restarting them
 	watchResyncTimeout time.Duration
 	// sync retry timeout for cluster when sync error happens
 	clusterSyncRetryTimeout time.Duration
