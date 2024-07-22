@@ -193,14 +193,16 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 	mockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything).Return(response, nil)
 	mockStateCache.On("IterateResources", mock.Anything, mock.Anything).Return(nil)
 	mockStateCache.On("GetClusterCache", mock.Anything).Return(&clusterCacheMock, nil)
-	mockStateCache.On("IterateHierarchy", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		key := args[1].(kube.ResourceKey)
+	mockStateCache.On("IterateHierarchyV2", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		keys := args[1].([]kube.ResourceKey)
 		action := args[2].(func(child v1alpha1.ResourceNode, appName string) bool)
-		appName := ""
-		if res, ok := data.namespacedResources[key]; ok {
-			appName = res.AppName
+		for _, key := range keys {
+			appName := ""
+			if res, ok := data.namespacedResources[key]; ok {
+				appName = res.AppName
+			}
+			_ = action(v1alpha1.ResourceNode{ResourceRef: v1alpha1.ResourceRef{Kind: key.Kind, Group: key.Group, Namespace: key.Namespace, Name: key.Name}}, appName)
 		}
-		_ = action(v1alpha1.ResourceNode{ResourceRef: v1alpha1.ResourceRef{Kind: key.Kind, Group: key.Group, Namespace: key.Namespace, Name: key.Name}}, appName)
 	}).Return(nil)
 	return ctrl
 }
