@@ -10,9 +10,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
-//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=CommitServiceClient
-//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=Clientset
-
 // Clientset represents commit server api clients
 type Clientset interface {
 	NewCommitServerClient() (io.Closer, CommitServiceClient, error)
