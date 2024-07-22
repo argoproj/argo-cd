@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	exec2 "github.com/argoproj/argo-cd/v2/util/exec"
+	execargo "github.com/argoproj/argo-cd/v2/util/exec"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
@@ -879,7 +879,7 @@ func Test_getCommandArgsToLog(t *testing.T) {
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tcc.expected, exec2.GetCommandArgsToLog(exec.Command(tcc.args[0], tcc.args[1:]...)))
+			assert.Equal(t, tcc.expected, execargo.GetCommandArgsToLog(exec.Command(tcc.args[0], tcc.args[1:]...)))
 		})
 	}
 }
