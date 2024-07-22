@@ -15,7 +15,7 @@ import (
 	"github.com/argoproj/pkg/rand"
 	"github.com/golang/protobuf/ptypes/empty"
 
-	exec2 "github.com/argoproj/argo-cd/v2/util/exec"
+	execargo "github.com/argoproj/argo-cd/v2/util/exec"
 
 	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
@@ -77,7 +77,7 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	}
 	logCtx := log.WithFields(log.Fields{"execID": execId})
 
-	argsToLog := exec2.GetCommandArgsToLog(cmd)
+	argsToLog := execargo.GetCommandArgsToLog(cmd)
 	logCtx.WithFields(log.Fields{"dir": cmd.Dir}).Info(argsToLog)
 
 	var stdout bytes.Buffer
