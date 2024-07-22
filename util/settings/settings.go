@@ -420,6 +420,8 @@ const (
 	settingsWebhookAzureDevOpsUsernameKey = "webhook.azuredevops.username"
 	// settingsWebhookAzureDevOpsPasswordKey is the key for Azure DevOps webhook password
 	settingsWebhookAzureDevOpsPasswordKey = "webhook.azuredevops.password"
+	// settingsWebhookMaxPayloadSize is the key for the maximum payload size for webhooks in MB
+	settingsWebhookMaxPayloadSizeMB = "webhook.maxPayloadSizeMB"
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
 	// settingsResourceTrackingMethodKey is the key to configure tracking method for application resources
@@ -497,13 +499,16 @@ const (
 	RespectRBACValueNormal = "normal"
 )
 
-var (
-	sourceTypeToEnableGenerationKey = map[v1alpha1.ApplicationSourceType]string{
-		v1alpha1.ApplicationSourceTypeKustomize: "kustomize.enable",
-		v1alpha1.ApplicationSourceTypeHelm:      "helm.enable",
-		v1alpha1.ApplicationSourceTypeDirectory: "jsonnet.enable",
-	}
+const (
+	// default max webhook payload size is 1GB
+	defaultMaxWebhookPayloadSize = int64(1) * 1024 * 1024 * 1024
 )
+
+var sourceTypeToEnableGenerationKey = map[v1alpha1.ApplicationSourceType]string{
+	v1alpha1.ApplicationSourceTypeKustomize: "kustomize.enable",
+	v1alpha1.ApplicationSourceTypeHelm:      "helm.enable",
+	v1alpha1.ApplicationSourceTypeDirectory: "jsonnet.enable",
+}
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
 type SettingsManager struct {
@@ -2158,4 +2163,23 @@ func (mgr *SettingsManager) GetResourceCustomLabels() ([]string, error) {
 		return strings.Split(labels, ","), nil
 	}
 	return []string{}, nil
+}
+
+func (mgr *SettingsManager) GetMaxWebhookPayloadSize() int64 {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return defaultMaxWebhookPayloadSize
+	}
+
+	if argoCDCM.Data[settingsWebhookMaxPayloadSizeMB] == "" {
+		return defaultMaxWebhookPayloadSize
+	}
+
+	maxPayloadSizeMB, err := strconv.ParseInt(argoCDCM.Data[settingsWebhookMaxPayloadSizeMB], 10, 64)
+	if err != nil {
+		log.Warnf("Failed to parse '%s' key: %v", settingsWebhookMaxPayloadSizeMB, err)
+		return defaultMaxWebhookPayloadSize
+	}
+
+	return maxPayloadSizeMB * 1024 * 1024
 }
