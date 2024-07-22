@@ -41,6 +41,8 @@ type settingsSource interface {
 // https://github.com/shadow-maint/shadow/blob/master/libmisc/chkname.c#L36
 const usernameRegex = `[a-zA-Z0-9_\.][a-zA-Z0-9_\.-]{0,30}[a-zA-Z0-9_\.\$-]?`
 
+const payloadQueueSize = 50000
+
 var (
 	_                              settingsSource = &settings.SettingsManager{}
 	errBasicAuthVerificationFailed                = errors.New("basic auth verification failed")
@@ -61,9 +63,11 @@ type ArgoCDWebhookHandler struct {
 	azuredevopsAuthHandler func(r *http.Request) error
 	gogs                   *gogs.Webhook
 	settingsSrc            settingsSource
+	queue                  chan interface{}
+	maxWebhookPayloadSizeB int64
 }
 
-func NewHandler(namespace string, applicationNamespaces []string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB) *ArgoCDWebhookHandler {
+func NewHandler(namespace string, applicationNamespaces []string, appClientset appclientset.Interface, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64) *ArgoCDWebhookHandler {
 	githubWebhook, err := github.New(github.Options.Secret(set.WebhookGitHubSecret))
 	if err != nil {
 		log.Warnf("Unable to init the GitHub webhook")
@@ -113,6 +117,8 @@ func NewHandler(namespace string, applicationNamespaces []string, appClientset a
 		repoCache:              repoCache,
 		serverCache:            serverCache,
 		db:                     argoDB,
+		queue:                  make(chan interface{}, payloadQueueSize),
+		maxWebhookPayloadSizeB: maxWebhookPayloadSizeB,
 	}
 
 	return &acdWebhook
@@ -388,6 +394,8 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	var payload interface{}
 	var err error
 
+	r.Body = http.MaxBytesReader(w, r.Body, a.maxWebhookPayloadSizeB)
+
 	switch {
 	case r.Header.Get("X-Vss-Activityid") != "":
 		if err = a.azuredevopsAuthHandler(r); err != nil {
@@ -430,6 +438,14 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
+		// If the error is due to a large payload, return a more user-friendly error message
+		if err.Error() == "error parsing payload" {
+			msg := fmt.Sprintf("Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under %v MB) and ensure it is valid JSON", a.maxWebhookPayloadSizeB/1024/1024)
+			log.WithField(common.SecurityField, common.SecurityHigh).Warn(msg)
+			http.Error(w, msg, http.StatusBadRequest)
+			return
+		}
+
 		log.Infof("Webhook processing failed: %s", err)
 		status := http.StatusBadRequest
 		if r.Method != http.MethodPost {

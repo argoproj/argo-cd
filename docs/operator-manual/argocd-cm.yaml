@@ -410,3 +410,6 @@ data:
               cluster:
                 name: some-cluster
                 server: https://some-cluster
+          
+          # The maximum size of the payload that can be sent to the webhook server.
+          webhook.maxPayloadSizeMB: 1024
