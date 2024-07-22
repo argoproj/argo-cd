@@ -505,7 +505,7 @@ type SCMProviderGeneratorGitlab struct {
 	// Filter repos list based on Gitlab Topic.
 	Topic string `json:"topic,omitempty" protobuf:"bytes,8,opt,name=topic"`
 	// ConfigMap key holding the trusted certificates
-	CAConfigMapKeyRef *ConfigMapKeyRef `json:"caConfigMapKeyRef,omitempty" protobuf:"bytes,9,opt,name=caConfigMapKeyRef"`
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,9,opt,name=caRef"`
 }
 
 func (s *SCMProviderGeneratorGitlab) WillIncludeSharedProjects() bool {
@@ -539,7 +539,7 @@ type SCMProviderGeneratorBitbucketServer struct {
 	// Allow self-signed TLS / Certificates; default: false
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
 	// ConfigMap key holding the trusted certificates
-	CAConfigMapKeyRef *ConfigMapKeyRef `json:"caConfigMapKeyRef,omitempty" protobuf:"bytes,7,opt,name=caConfigMapKeyRef"`
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,7,opt,name=caRef"`
 }
 
 // SCMProviderGeneratorAzureDevOps defines connection info specific to Azure DevOps.
@@ -692,7 +692,7 @@ type PullRequestGeneratorGitLab struct {
 	// Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
 	// ConfigMap key holding the trusted certificates
-	CAConfigMapKeyRef *ConfigMapKeyRef `json:"caConfigMapKeyRef,omitempty" protobuf:"bytes,7,opt,name=caConfigMapKeyRef"`
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,7,opt,name=caRef"`
 }
 
 // PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.
@@ -710,7 +710,7 @@ type PullRequestGeneratorBitbucketServer struct {
 	// Allow self-signed TLS / Certificates; default: false
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
 	// ConfigMap key holding the trusted certificates
-	CAConfigMapKeyRef *ConfigMapKeyRef `json:"caConfigMapKeyRef,omitempty" protobuf:"bytes,7,opt,name=caConfigMapKeyRef"`
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,7,opt,name=caRef"`
 }
 
 // PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.

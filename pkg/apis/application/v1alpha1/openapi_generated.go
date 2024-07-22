@@ -5237,7 +5237,7 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorBitbucketServer(re
 							Format:      "",
 						},
 					},
-					"caConfigMapKeyRef": {
+					"caRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ConfigMap key holding the trusted certificates",
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef"),
@@ -5334,7 +5334,7 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitLab(ref common.
 							Format:      "",
 						},
 					},
-					"caConfigMapKeyRef": {
+					"caRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ConfigMap key holding the trusted certificates",
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef"),
@@ -7212,7 +7212,7 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorBitbucketServer(re
 							Format:      "",
 						},
 					},
-					"caConfigMapKeyRef": {
+					"caRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ConfigMap key holding the trusted certificates",
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef"),
@@ -7457,7 +7457,7 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorGitlab(ref common.
 							Format:      "",
 						},
 					},
-					"caConfigMapKeyRef": {
+					"caRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ConfigMap key holding the trusted certificates",
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef"),

@@ -7991,7 +7991,7 @@
         "bearerToken": {
           "$ref": "#/definitions/v1alpha1BearerTokenBitbucket"
         },
-        "caConfigMapKeyRef": {
+        "caRef": {
           "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
         },
         "insecure": {
@@ -8028,7 +8028,7 @@
           "description": "The GitLab API URL to talk to. If blank, uses https://gitlab.com/.",
           "type": "string"
         },
-        "caConfigMapKeyRef": {
+        "caRef": {
           "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
         },
         "insecure": {
@@ -8911,7 +8911,7 @@
         "bearerToken": {
           "$ref": "#/definitions/v1alpha1BearerTokenBitbucket"
         },
-        "caConfigMapKeyRef": {
+        "caRef": {
           "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
         },
         "insecure": {
@@ -9018,7 +9018,7 @@
           "description": "The Gitlab API URL to talk to.",
           "type": "string"
         },
-        "caConfigMapKeyRef": {
+        "caRef": {
           "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
         },
         "group": {

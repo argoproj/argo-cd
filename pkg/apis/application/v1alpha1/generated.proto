@@ -1453,7 +1453,7 @@ message PullRequestGeneratorBitbucketServer {
   optional bool insecure = 6;
 
   // ConfigMap key holding the trusted certificates
-  optional ConfigMapKeyRef caConfigMapKeyRef = 7;
+  optional ConfigMapKeyRef caRef = 7;
 }
 
 // PullRequestGeneratorFilter is a single pull request filter.
@@ -1486,7 +1486,7 @@ message PullRequestGeneratorGitLab {
   optional bool insecure = 6;
 
   // ConfigMap key holding the trusted certificates
-  optional ConfigMapKeyRef caConfigMapKeyRef = 7;
+  optional ConfigMapKeyRef caRef = 7;
 }
 
 // PullRequestGeneratorGitea defines connection info specific to Gitea.
@@ -2074,7 +2074,7 @@ message SCMProviderGeneratorBitbucketServer {
   optional bool insecure = 6;
 
   // ConfigMap key holding the trusted certificates
-  optional ConfigMapKeyRef caConfigMapKeyRef = 7;
+  optional ConfigMapKeyRef caRef = 7;
 }
 
 // SCMProviderGeneratorFilter is a single repository filter.
@@ -2160,7 +2160,7 @@ message SCMProviderGeneratorGitlab {
   optional string topic = 8;
 
   // ConfigMap key holding the trusted certificates
-  optional ConfigMapKeyRef caConfigMapKeyRef = 9;
+  optional ConfigMapKeyRef caRef = 9;
 }
 
 // Utility struct for a reference to a secret key.

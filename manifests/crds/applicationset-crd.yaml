@@ -5451,7 +5451,7 @@ spec:
                                         required:
                                         - tokenRef
                                         type: object
-                                      caConfigMapKeyRef:
+                                      caRef:
                                         properties:
                                           configMapName:
                                             type: string
@@ -5538,7 +5538,7 @@ spec:
                                     properties:
                                       api:
                                         type: string
-                                      caConfigMapKeyRef:
+                                      caRef:
                                         properties:
                                           configMapName:
                                             type: string
@@ -6243,7 +6243,7 @@ spec:
                                         required:
                                         - tokenRef
                                         type: object
-                                      caConfigMapKeyRef:
+                                      caRef:
                                         properties:
                                           configMapName:
                                             type: string
@@ -6335,7 +6335,7 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
-                                      caConfigMapKeyRef:
+                                      caRef:
                                         properties:
                                           configMapName:
                                             type: string
@@ -10585,7 +10585,7 @@ spec:
                                         required:
                                         - tokenRef
                                         type: object
-                                      caConfigMapKeyRef:
+                                      caRef:
                                         properties:
                                           configMapName:
                                             type: string
@@ -10672,7 +10672,7 @@ spec:
                                     properties:
                                       api:
                                         type: string
-                                      caConfigMapKeyRef:
+                                      caRef:
                                         properties:
                                           configMapName:
                                             type: string
@@ -11377,7 +11377,7 @@ spec:
                                         required:
                                         - tokenRef
                                         type: object
-                                      caConfigMapKeyRef:
+                                      caRef:
                                         properties:
                                           configMapName:
                                             type: string
@@ -11469,7 +11469,7 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
-                                      caConfigMapKeyRef:
+                                      caRef:
                                         properties:
                                           configMapName:
                                             type: string
@@ -13360,7 +13360,7 @@ spec:
                               required:
                               - tokenRef
                               type: object
-                            caConfigMapKeyRef:
+                            caRef:
                               properties:
                                 configMapName:
                                   type: string
@@ -13447,7 +13447,7 @@ spec:
                           properties:
                             api:
                               type: string
-                            caConfigMapKeyRef:
+                            caRef:
                               properties:
                                 configMapName:
                                   type: string
@@ -14152,7 +14152,7 @@ spec:
                               required:
                               - tokenRef
                               type: object
-                            caConfigMapKeyRef:
+                            caRef:
                               properties:
                                 configMapName:
                                   type: string
@@ -14244,7 +14244,7 @@ spec:
                               type: boolean
                             api:
                               type: string
-                            caConfigMapKeyRef:
+                            caRef:
                               properties:
                                 configMapName:
                                   type: string

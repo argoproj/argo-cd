@@ -100,7 +100,7 @@ spec:
         # If true, skips validating the SCM provider's TLS certificate - useful for self-signed certificates.
         insecure: false
         # Reference to a ConfigMap containing trusted CA certs - useful for self-signed certificates. (optional)
-        caConfigMapKeyRef:
+        caRef:
           configMapName: argocd-tls-certs-cm
           key: gitlab-ca
       requeueAfterSeconds: 1800
@@ -114,7 +114,7 @@ spec:
 * `labels`: Labels is used to filter the MRs that you want to target. (Optional)
 * `pullRequestState`: PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
-* `caConfigMapKeyRef`: Optional `ConfigMap` name and key containing the GitLab certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
+* `caRef`: Optional `ConfigMap` name and key containing the GitLab certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
 
 As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab by [mounting self-signed certificate to the applicationset controller](./Generators-SCM-Provider.md#self-signed-tls-certificates).
 
@@ -194,7 +194,7 @@ spec:
         # If true, skips validating the SCM provider's TLS certificate - useful for self-signed certificates.
         insecure: true
         # Reference to a ConfigMap containing trusted CA certs - useful for self-signed certificates. (optional)
-        caConfigMapKeyRef:
+        caRef:
           configMapName: argocd-tls-certs-cm
           key: bitbucket-ca
       # Labels are not supported by Bitbucket Server, so filtering by label is not possible.
@@ -219,7 +219,7 @@ In case of Bitbucket App Token, go with `bearerToken` section.
 
 In case self-signed BitBucket Server certificates, the following options can be usefully:
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
-* `caConfigMapKeyRef`: Optional `ConfigMap` name and key containing the BitBucket server certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
+* `caRef`: Optional `ConfigMap` name and key containing the BitBucket server certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
 
 ## Bitbucket Cloud
 
