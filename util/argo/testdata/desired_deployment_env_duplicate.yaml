@@ -19,5 +19,10 @@ spec:
       containers:
       - image: 'gcr.io/heptio-images/ks-guestbook-demo:0.1'
         name: guestbook-ui
+        env:
+        - name: DUPLICATED
+          value: "A"
+        - name: DUPLICATED
+          value: "B"
         ports:
         - containerPort: 80
