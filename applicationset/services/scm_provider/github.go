@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/google/go-github/v35/github"
+	"github.com/google/go-github/v63/github"
 	"golang.org/x/oauth2"
 )
 
@@ -36,7 +36,7 @@ func NewGithubProvider(ctx context.Context, organization string, token string, u
 		client = github.NewClient(httpClient)
 	} else {
 		var err error
-		client, err = github.NewEnterpriseClient(url, url, httpClient)
+		client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)
 		if err != nil {
 			return nil, err
 		}
@@ -120,7 +120,7 @@ func (g *GithubProvider) RepoHasPath(ctx context.Context, repo *Repository, path
 func (g *GithubProvider) listBranches(ctx context.Context, repo *Repository) ([]github.Branch, error) {
 	// If we don't specifically want to query for all branches, just use the default branch and call it a day.
 	if !g.allBranches {
-		defaultBranch, _, err := g.client.Repositories.GetBranch(ctx, repo.Organization, repo.Repository, repo.Branch)
+		defaultBranch, _, err := g.client.Repositories.GetBranch(ctx, repo.Organization, repo.Repository, repo.Branch, 1)
 		if err != nil {
 			var githubErrorResponse *github.ErrorResponse
 			if errors.As(err, &githubErrorResponse) {
