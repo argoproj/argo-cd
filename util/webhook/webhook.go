@@ -384,7 +384,7 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 	cache.LogDebugManifestCacheKeyFields("moving manifests cache", "webhook app revision changed", change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil)
 
 	if err := a.repoCache.SetNewRevisionManifests(change.shaAfter, change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil); err != nil {
-		return err
+		return fmt.Errorf("error setting new revision manifests: %w", err)
 	}
 
 	return nil
