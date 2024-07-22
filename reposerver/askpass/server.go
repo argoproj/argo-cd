@@ -2,6 +2,7 @@ package askpass
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"sync"
@@ -19,7 +20,6 @@ type Server interface {
 	git.CredsStore
 	AskPassServiceServer
 	Run(path string) error
-	SocketPath() string
 }
 
 type server struct {
@@ -92,6 +92,12 @@ func (s *server) getCreds(id string) (*Creds, bool) {
 	return &creds, ok
 }
 
-func (s *server) SocketPath() string {
-	return s.socketPath
+func (s *server) Environ(id string) []string {
+	return []string{
+		fmt.Sprintf("GIT_ASKPASS=%s", "argocd"),
+		fmt.Sprintf("%s=%s", ASKPASS_NONCE_ENV, id),
+		"GIT_TERMINAL_PROMPT=0",
+		"ARGOCD_BINARY_NAME=argocd-git-ask-pass",
+		fmt.Sprintf("%s=%s", AKSPASS_SOCKET_PATH_ENV, s.socketPath),
+	}
 }

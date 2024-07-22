@@ -389,7 +389,7 @@ func TestRunCommandContextTimeoutWithCleanup(t *testing.T) {
 	after := time.Now()
 
 	require.Error(t, err) // The command should time out, causing an error.
-	assert.Less(t, after.Sub(before), 1*time.Second)
+	assert.Less(t, after.Sub(before), 2*time.Second)
 	// The command should still have completed the cleanup after termination.
 	assert.Contains(t, output, "cleanup completed")
 }

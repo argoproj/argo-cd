@@ -11,6 +11,7 @@ type TempPaths interface {
 	Add(key string, value string)
 	GetPath(key string) (string, error)
 	GetPathIfExists(key string) string
+	GetPaths() map[string]string
 }
 
 // RandomizedTempPaths allows generating and memoizing random paths, each path being mapped to a specific key.
@@ -57,4 +58,15 @@ func (p *RandomizedTempPaths) GetPathIfExists(key string) string {
 		return val
 	}
 	return ""
+}
+
+// GetPaths gets a copy of the map of paths.
+func (p *RandomizedTempPaths) GetPaths() map[string]string {
+	p.lock.Lock()
+	defer p.lock.Unlock()
+	paths := map[string]string{}
+	for k, v := range p.paths {
+		paths[k] = v
+	}
+	return paths
 }
