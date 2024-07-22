@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,6 +19,13 @@ func runCmd(workingDir string, name string, args ...string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+func outputCmd(workingDir string, name string, args ...string) ([]byte, error) {
+	cmd := exec.Command(name, args...)
+	cmd.Dir = workingDir
+	cmd.Stderr = os.Stderr
+	return cmd.Output()
 }
 
 func _createEmptyGitRepo() (string, error) {
@@ -295,4 +303,34 @@ func Test_IsRevisionPresent(t *testing.T) {
 	// Ensure invalid revision is not returned.
 	revisionPresent = client.IsRevisionPresent("invalid-revision")
 	assert.False(t, revisionPresent)
+}
+
+func Test_nativeGitClient_SetAuthor(t *testing.T) {
+	expectedName := "Tester"
+	expectedEmail := "test@example.com"
+
+	tempDir, err := _createEmptyGitRepo()
+	require.NoError(t, err)
+	fmt.Println(tempDir)
+
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	out, err := client.SetAuthor(expectedName, expectedEmail)
+	require.NoError(t, err, "error output: ", out)
+
+	// Check git user.name
+	gitUserName, err := outputCmd(client.Root(), "git", "config", "--local", "user.name")
+	require.NoError(t, err)
+	actualName := strings.TrimSpace(string(gitUserName))
+	require.Equal(t, expectedName, actualName)
+
+	// Check git user.email
+	gitUserEmail, err := outputCmd(client.Root(), "git", "config", "--local", "user.email")
+	require.NoError(t, err)
+	actualEmail := strings.TrimSpace(string(gitUserEmail))
+	require.Equal(t, expectedEmail, actualEmail)
 }
