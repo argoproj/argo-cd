@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/google/go-github/v35/github"
+	"github.com/google/go-github/v63/github"
 	"golang.org/x/oauth2"
 )
 
@@ -35,7 +35,7 @@ func NewGithubService(ctx context.Context, token, url, owner, repo string, label
 		client = github.NewClient(httpClient)
 	} else {
 		var err error
-		client, err = github.NewEnterpriseClient(url, url, httpClient)
+		client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)
 		if err != nil {
 			return nil, err
 		}
