@@ -153,3 +153,4 @@ clean_swagger server
 clean_swagger reposerver
 clean_swagger controller
 clean_swagger cmpserver
+clean_swagger commitserver
