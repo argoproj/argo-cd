@@ -10,9 +10,7 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services/github_app_auth"
 	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/git"
 )
 
@@ -25,20 +23,8 @@ func NewService(gitCredsStore git.CredsStore) *Service {
 }
 
 func (s *Service) Commit(ctx context.Context, r *apiclient.ManifestsRequest) (*apiclient.ManifestsResponse, error) {
-	var authorName, authorEmail string
 
 	logCtx := log.WithFields(log.Fields{"repo": r.RepoUrl, "branch": r.TargetBranch, "drySHA": r.DrySha})
-
-	if isGitHubApp(r.Repo) {
-		var err error
-		authorName, authorEmail, err = getGitHubAppInfo(ctx, r.Repo)
-		if err != nil {
-			logCtx.WithError(err).Error("failed to get github app info")
-			return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to get github app info: %w", err)
-		}
-	} else {
-		logCtx.Warn("No github app credentials were found")
-	}
 
 	logCtx.Debug("Creating temp dir")
 	// The UUID is an important security mechanism to help mitigate path traversal attacks.
@@ -61,7 +47,8 @@ func (s *Service) Commit(ctx context.Context, r *apiclient.ManifestsRequest) (*a
 		}
 	}()
 
-	gitClient, err := git.NewClientExt(r.RepoUrl, dirPath, r.Repo.GetGitCreds(s.gitCredsStore), r.Repo.IsInsecure(), r.Repo.IsLFSEnabled(), r.Repo.Proxy)
+	gitCreds := r.Repo.GetGitCreds(s.gitCredsStore)
+	gitClient, err := git.NewClientExt(r.RepoUrl, dirPath, gitCreds, r.Repo.IsInsecure(), r.Repo.IsLFSEnabled(), r.Repo.Proxy)
 	if err != nil {
 		logCtx.WithError(err).Error("failed to create git client")
 		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to create git client: %w", err)
@@ -78,6 +65,12 @@ func (s *Service) Commit(ctx context.Context, r *apiclient.ManifestsRequest) (*a
 	err = gitClient.Fetch("")
 	if err != nil {
 		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to clone repo: %w", err)
+	}
+
+	authorName, authorEmail, err := gitCreds.GetUserInfo(ctx)
+	if err != nil {
+		logCtx.WithError(err).Error("failed to get github app info")
+		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to get github app info: %w", err)
 	}
 
 	out, err := gitClient.SetAuthor(authorName, authorEmail)
@@ -179,35 +172,6 @@ func (s *Service) Commit(ctx context.Context, r *apiclient.ManifestsRequest) (*a
 	logCtx.WithField("output", out).Debug("pushed manifests to git")
 
 	return &apiclient.ManifestsResponse{}, nil
-}
-
-// getGitHubAppInfo retrieves the author name, author email, and basic auth header for a GitHub App.
-func getGitHubAppInfo(ctx context.Context, repo *v1alpha1.Repository) (string, string, error) {
-	info := github_app_auth.Authentication{
-		Id:             repo.GithubAppId,
-		InstallationId: repo.GithubAppInstallationId,
-		PrivateKey:     repo.GithubAppPrivateKey,
-	}
-	appInstall, err := getAppInstallation(info)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to get app installation: %w", err)
-	}
-	client, err := getGitHubAppClient(info)
-	if err != nil {
-		return "", "", fmt.Errorf("cannot create github client: %w", err)
-	}
-	app, _, err := client.Apps.Get(ctx, "")
-	if err != nil {
-		return "", "", fmt.Errorf("cannot get app info: %w", err)
-	}
-	appLogin := fmt.Sprintf("%s[bot]", app.GetSlug())
-	user, _, err := getGitHubInstallationClient(appInstall).Users.Get(ctx, appLogin)
-	if err != nil {
-		return "", "", fmt.Errorf("cannot get app user info: %w", err)
-	}
-	authorName := user.GetLogin()
-	authorEmail := fmt.Sprintf("%d+%s@users.noreply.github.com", user.GetID(), user.GetLogin())
-	return authorName, authorEmail, nil
 }
 
 type hydratorMetadataFile struct {
