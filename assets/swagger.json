@@ -7180,6 +7180,18 @@
         }
       }
     },
+    "v1alpha1ConfigMapKeyRef": {
+      "description": "Utility struct for a reference to a configmap key.",
+      "type": "object",
+      "properties": {
+        "configMapName": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1ConnectionState": {
       "type": "object",
       "title": "ConnectionState contains information about remote resource connection state, currently used for clusters and repositories",
@@ -8054,6 +8066,13 @@
         "bearerToken": {
           "$ref": "#/definitions/v1alpha1BearerTokenBitbucket"
         },
+        "caRef": {
+          "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
+        },
+        "insecure": {
+          "type": "boolean",
+          "title": "Allow self-signed TLS / Certificates; default: false"
+        },
         "project": {
           "description": "Project to scan. Required.",
           "type": "string"
@@ -8083,6 +8102,9 @@
         "api": {
           "description": "The GitLab API URL to talk to. If blank, uses https://gitlab.com/.",
           "type": "string"
+        },
+        "caRef": {
+          "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
         },
         "insecure": {
           "type": "boolean",
@@ -8964,6 +8986,13 @@
         "bearerToken": {
           "$ref": "#/definitions/v1alpha1BearerTokenBitbucket"
         },
+        "caRef": {
+          "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
+        },
+        "insecure": {
+          "type": "boolean",
+          "title": "Allow self-signed TLS / Certificates; default: false"
+        },
         "project": {
           "description": "Project to scan. Required.",
           "type": "string"
@@ -9063,6 +9092,9 @@
         "api": {
           "description": "The Gitlab API URL to talk to.",
           "type": "string"
+        },
+        "caRef": {
+          "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
         },
         "group": {
           "description": "Gitlab group to scan. Required.  You can use either the project id (recommended) or the full namespaced path.",

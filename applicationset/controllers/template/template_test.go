@@ -254,6 +254,7 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 			params: []map[string]interface{}{
 				{
 					"number":                                "1",
+					"title":                                 "title1",
 					"branch":                                "branch1",
 					"branch_slug":                           "branchSlug1",
 					"head_sha":                              "089d92cbf9ff857a39e6feccd32798ca700fb958",

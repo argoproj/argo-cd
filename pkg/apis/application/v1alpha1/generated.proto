@@ -898,6 +898,13 @@ message ConfigManagementPlugin {
   optional bool lockRepo = 4;
 }
 
+// Utility struct for a reference to a configmap key.
+message ConfigMapKeyRef {
+  optional string configMapName = 1;
+
+  optional string key = 2;
+}
+
 // ConnectionState contains information about remote resource connection state, currently used for clusters and repositories
 message ConnectionState {
   // Status contains the current status indicator for the connection
@@ -1486,8 +1493,14 @@ message PullRequestGeneratorBitbucketServer {
   // Credentials for Basic auth
   optional BasicAuthBitbucketServer basicAuth = 4;
 
-  // Credentials for AppToken (Bearer auth)
+  // Credentials for AccessToken (Bearer auth)
   optional BearerTokenBitbucket bearerToken = 5;
+
+  // Allow self-signed TLS / Certificates; default: false
+  optional bool insecure = 6;
+
+  // ConfigMap key holding the trusted certificates
+  optional ConfigMapKeyRef caRef = 7;
 }
 
 // PullRequestGeneratorFilter is a single pull request filter.
@@ -1518,6 +1531,9 @@ message PullRequestGeneratorGitLab {
 
   // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
   optional bool insecure = 6;
+
+  // ConfigMap key holding the trusted certificates
+  optional ConfigMapKeyRef caRef = 7;
 }
 
 // PullRequestGeneratorGitea defines connection info specific to Gitea.
@@ -2100,6 +2116,12 @@ message SCMProviderGeneratorBitbucketServer {
 
   // Credentials for AccessToken (Bearer auth)
   optional BearerTokenBitbucket bearerToken = 5;
+
+  // Allow self-signed TLS / Certificates; default: false
+  optional bool insecure = 6;
+
+  // ConfigMap key holding the trusted certificates
+  optional ConfigMapKeyRef caRef = 7;
 }
 
 // SCMProviderGeneratorFilter is a single repository filter.
@@ -2183,6 +2205,9 @@ message SCMProviderGeneratorGitlab {
 
   // Filter repos list based on Gitlab Topic.
   optional string topic = 8;
+
+  // ConfigMap key holding the trusted certificates
+  optional ConfigMapKeyRef caRef = 9;
 }
 
 // Utility struct for a reference to a secret key.
