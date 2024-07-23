@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/go-github/v62/github"
 	"io"
 	"net/http"
 	"net/url"
@@ -15,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/go-github/v62/github"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -111,8 +112,10 @@ type GenericHTTPSCreds interface {
 	Creds
 }
 
-var _ GenericHTTPSCreds = HTTPSCreds{}
-var _ Creds = HTTPSCreds{}
+var (
+	_ GenericHTTPSCreds = HTTPSCreds{}
+	_ Creds             = HTTPSCreds{}
+)
 
 // HTTPS creds implementation
 type HTTPSCreds struct {

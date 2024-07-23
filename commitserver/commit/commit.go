@@ -23,7 +23,6 @@ func NewService(gitCredsStore git.CredsStore) *Service {
 }
 
 func (s *Service) Commit(ctx context.Context, r *apiclient.ManifestsRequest) (*apiclient.ManifestsResponse, error) {
-
 	logCtx := log.WithFields(log.Fields{"repo": r.RepoUrl, "branch": r.TargetBranch, "drySHA": r.DrySha})
 
 	logCtx.Debug("Creating temp dir")
