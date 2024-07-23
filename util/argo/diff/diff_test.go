@@ -140,22 +140,23 @@ func TestStateDiff(t *testing.T) {
 			result, err := argo.StateDiff(tc.liveState, tc.desiredState, dc)
 
 			// then
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NotNil(t, result)
 			assert.True(t, result.Modified)
 			normalized := testutil.YamlToUnstructured(string(result.NormalizedLive))
 			replicas, found, err := unstructured.NestedFloat64(normalized.Object, "spec", "replicas")
 			require.NoError(t, err)
 			assert.True(t, found)
-			assert.Equal(t, float64(tc.expectedNormalizedReplicas), replicas)
+			assert.InEpsilon(t, float64(tc.expectedNormalizedReplicas), replicas, 0.0001)
 			predicted := testutil.YamlToUnstructured(string(result.PredictedLive))
 			predictedReplicas, found, err := unstructured.NestedFloat64(predicted.Object, "spec", "replicas")
 			require.NoError(t, err)
 			assert.True(t, found)
-			assert.Equal(t, float64(tc.expectedPredictedReplicas), predictedReplicas)
+			assert.InEpsilon(t, float64(tc.expectedPredictedReplicas), predictedReplicas, 0.0001)
 		})
 	}
 }
+
 func TestDiffConfigBuilder(t *testing.T) {
 	type fixture struct {
 		ignores        []v1alpha1.ResourceIgnoreDifferences
@@ -178,7 +179,6 @@ func TestDiffConfigBuilder(t *testing.T) {
 			appName:        "application-name",
 			stateCache:     &appstatecache.Cache{},
 		}
-
 	}
 	t.Run("will build diff config successfully", func(t *testing.T) {
 		// given
@@ -256,5 +256,4 @@ func TestDiffConfigBuilder(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, diffConfig)
 	})
-
 }

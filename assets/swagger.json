@@ -1967,6 +1967,11 @@
             "type": "boolean",
             "name": "upsert",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "dryRun",
+            "in": "query"
           }
         ],
         "responses": {
@@ -6876,6 +6881,15 @@
         }
       }
     },
+    "v1alpha1BearerTokenBitbucket": {
+      "description": "BearerTokenBitbucket defines the Bearer token for BitBucket AppToken auth.",
+      "type": "object",
+      "properties": {
+        "tokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef"
+        }
+      }
+    },
     "v1alpha1BearerTokenBitbucketCloud": {
       "description": "BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.",
       "type": "object",
@@ -6960,7 +6974,7 @@
         },
         "serverVersion": {
           "type": "string",
-          "title": "DEPRECATED: use Info.ServerVersion field instead.\nThe server version"
+          "title": "Deprecated: use Info.ServerVersion field instead.\nThe server version"
         },
         "shard": {
           "description": "Shard contains optional shard number. Calculated on the fly by the application controller if not specified.",
@@ -7962,6 +7976,9 @@
         "basicAuth": {
           "$ref": "#/definitions/v1alpha1BasicAuthBitbucketServer"
         },
+        "bearerToken": {
+          "$ref": "#/definitions/v1alpha1BearerTokenBitbucket"
+        },
         "project": {
           "description": "Project to scan. Required.",
           "type": "string"
@@ -8868,6 +8885,9 @@
         },
         "basicAuth": {
           "$ref": "#/definitions/v1alpha1BasicAuthBitbucketServer"
+        },
+        "bearerToken": {
+          "$ref": "#/definitions/v1alpha1BearerTokenBitbucket"
         },
         "project": {
           "description": "Project to scan. Required.",

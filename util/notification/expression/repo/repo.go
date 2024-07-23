@@ -19,9 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
-var (
-	gitSuffix = regexp.MustCompile(`\.git$`)
-)
+var gitSuffix = regexp.MustCompile(`\.git$`)
 
 func getApplication(obj *unstructured.Unstructured) (*v1alpha1.Application, error) {
 	data, err := json.Marshal(obj)

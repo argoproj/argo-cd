@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-
-	"github.com/argoproj/argo-cd/v2/util/git"
+	"sort"
+	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
+	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -67,9 +68,7 @@ func NewServer(
 	}
 }
 
-var (
-	errPermissionDenied = status.Error(codes.PermissionDenied, "permission denied")
-)
+var errPermissionDenied = status.Error(codes.PermissionDenied, "permission denied")
 
 func (s *Server) getRepo(ctx context.Context, url, project string) (*appsv1.Repository, error) {
 	repo, err := s.db.GetRepository(ctx, url, project)
@@ -210,6 +209,11 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 	if err != nil {
 		return nil, err
 	}
+	sort.Slice(items, func(i, j int) bool {
+		first := items[i]
+		second := items[j]
+		return strings.Compare(fmt.Sprintf("%s/%s", first.Project, first.Repo), fmt.Sprintf("%s/%s", second.Project, second.Repo)) < 0
+	})
 	return &appsv1.RepositoryList{Items: items}, nil
 }
 
@@ -346,6 +350,15 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		return nil, err
 	}
 
+	refSources := make(appsv1.RefTargetRevisionMapping)
+	if app != nil && app.Spec.HasMultipleSources() {
+		// Store the map of all sources having ref field into a map for applications with sources field
+		refSources, err = argo.GetRefSources(ctx, app.Spec.Sources, q.AppProject, s.db.GetRepository, []string{}, false)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get ref sources: %w", err)
+		}
+	}
+
 	return repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo:             repo,
 		Source:           q.Source,
@@ -353,6 +366,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		KustomizeOptions: kustomizeOptions,
 		HelmOptions:      helmOptions,
 		AppName:          q.AppName,
+		RefSources:       refSources,
 	})
 }
 
@@ -484,7 +498,7 @@ func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuer
 	}
 
 	// invalidate cache
-	if err := s.cache.SetRepoConnectionState(repo.Repo, repo.Project, nil); err == nil {
+	if err := s.cache.SetRepoConnectionState(repo.Repo, repo.Project, nil); err != nil {
 		log.Errorf("error invalidating cache: %v", err)
 	}
 

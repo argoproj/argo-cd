@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -65,7 +66,6 @@ func TestPostDeleteHook(t *testing.T) {
 			assert.Len(t, hooks.Items, 1)
 			assert.Equal(t, "hook", hooks.Items[0].Name)
 		})
-
 }
 
 // make sure that that hooks do not appear in "argocd app diff"
@@ -77,7 +77,7 @@ func TestHookDiff(t *testing.T) {
 		Then().
 		And(func(_ *Application) {
 			output, err := RunCli("app", "diff", Name())
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Contains(t, output, "name: pod")
 			assert.NotContains(t, output, "name: hook")
 		})

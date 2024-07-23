@@ -46,12 +46,11 @@ func treeViewAppGet(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode
 		}
 		treeViewAppGet(p, uidToNodeMap, parentToChildMap, uidToNodeMap[childUid], mapNodeNameToResourceState, w)
 	}
-
 }
 
 func detailedTreeViewAppGet(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentChildMap map[string][]string, parent v1alpha1.ResourceNode, mapNodeNameToResourceState map[string]*resourceState, w *tabwriter.Writer) {
 	healthStatus, reason := extractHealthStatusAndReason(parent)
-	var age = "<unknown>"
+	age := "<unknown>"
 	if parent.CreatedAt != nil {
 		age = duration.HumanDuration(time.Since(parent.CreatedAt.Time))
 	}
@@ -61,7 +60,6 @@ func detailedTreeViewAppGet(prefix string, uidToNodeMap map[string]v1alpha1.Reso
 		_, _ = fmt.Fprintf(w, "%s%s\t%s\t%s\t%s\t%s\t%s\n", printPrefix(prefix), parent.Kind+"/"+value.Name, value.Status, value.Health, age, value.Message, reason)
 	} else {
 		_, _ = fmt.Fprintf(w, "%s%s\t%s\t%s\t%s\t%s\t%s\n", printPrefix(prefix), parent.Kind+"/"+parent.Name, "", healthStatus, age, "", reason)
-
 	}
 	chs := parentChildMap[parent.UID]
 	for i, child := range chs {
@@ -109,10 +107,9 @@ func treeViewAppResourcesOrphaned(prefix string, uidToNodeMap map[string]v1alpha
 }
 
 func detailedTreeViewAppResourcesNotOrphaned(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentChildMap map[string][]string, parent v1alpha1.ResourceNode, w *tabwriter.Writer) {
-
 	if len(parent.ParentRefs) == 0 {
 		healthStatus, reason := extractHealthStatusAndReason(parent)
-		var age = "<unknown>"
+		age := "<unknown>"
 		if parent.CreatedAt != nil {
 			age = duration.HumanDuration(time.Since(parent.CreatedAt.Time))
 		}
@@ -133,7 +130,7 @@ func detailedTreeViewAppResourcesNotOrphaned(prefix string, uidToNodeMap map[str
 
 func detailedTreeViewAppResourcesOrphaned(prefix string, uidToNodeMap map[string]v1alpha1.ResourceNode, parentChildMap map[string][]string, parent v1alpha1.ResourceNode, w *tabwriter.Writer) {
 	healthStatus, reason := extractHealthStatusAndReason(parent)
-	var age = "<unknown>"
+	age := "<unknown>"
 	if parent.CreatedAt != nil {
 		age = duration.HumanDuration(time.Since(parent.CreatedAt.Time))
 	}
@@ -153,7 +150,6 @@ func detailedTreeViewAppResourcesOrphaned(prefix string, uidToNodeMap map[string
 }
 
 func printPrefix(p string) string {
-
 	if strings.HasSuffix(p, firstElemPrefix) {
 		p = strings.Replace(p, firstElemPrefix, pipe, strings.Count(p, firstElemPrefix)-1)
 	} else {

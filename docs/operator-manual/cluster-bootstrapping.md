@@ -119,4 +119,29 @@ metadata:
   - resources-finalizer.argocd.argoproj.io
 spec:
  ...
-``` 
+```
+
+### Ignoring differences in child applications
+
+To allow changes in child apps without triggering an out-of-sync status, or modification for debugging etc, the app of apps pattern works with [diff customization](../user-guide/diffing/). The example below shows how to ignore changes to syncPolicy and other common values.
+
+```yaml
+spec:
+  ...
+  syncPolicy:
+    ...
+    syncOptions:
+      - RespectIgnoreDifferences=true
+    ...
+  ignoreDifferences:
+    - group: "*"
+      kind: "Application"
+      namespace: "*"
+      jsonPointers:
+        # Allow manually disabling auto sync for apps, useful for debugging.
+        - /spec/syncPolicy/automated
+        # These are automatically updated on a regular basis. Not ignoring last applied configuration since it's used for computing diffs after normalization.
+        - /metadata/annotations/argocd.argoproj.io~1refresh
+        - /operation
+  ...
+```

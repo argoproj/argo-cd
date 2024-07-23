@@ -23,14 +23,13 @@ func constructAppsetFromFileUrl(fileURL string) ([]*argoprojiov1alpha1.Applicati
 	// read uri
 	err := readAppsetFromURI(fileURL, &appset)
 	if err != nil {
-		return nil, fmt.Errorf("error reading applicationset from file %s: %s", fileURL, err)
+		return nil, fmt.Errorf("error reading applicationset from file %s: %w", fileURL, err)
 	}
 
 	return appset, nil
 }
 
 func readAppsetFromURI(fileURL string, appset *[]*argoprojiov1alpha1.ApplicationSet) error {
-
 	readFilePayload := func() ([]byte, error) {
 		parsedURL, err := url.ParseRequestURI(fileURL)
 		if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {
@@ -60,7 +59,6 @@ func readAppset(yml []byte, appsets *[]*argoprojiov1alpha1.ApplicationSet) error
 			return fmt.Errorf("error unmarshalling appset: %w", err)
 		}
 		*appsets = append(*appsets, &appset)
-
 	}
 	// we reach here if there is no error found while reading the Application Set
 	return nil

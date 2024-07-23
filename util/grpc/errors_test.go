@@ -11,11 +11,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_gitErrToGRPC(t *testing.T) {
 	var ok bool
-	assert.NoError(t, gitErrToGRPC(nil))
+	require.NoError(t, gitErrToGRPC(nil))
 
 	defaultErrorMsg := "default error"
 	defaultError := gitErrToGRPC(errors.New(defaultErrorMsg))
@@ -39,7 +40,6 @@ func Test_gitErrToGRPC(t *testing.T) {
 }
 
 func Test_kubeErrToGRPC(t *testing.T) {
-
 	type testCase struct {
 		name               string
 		givenErrFn         func() error

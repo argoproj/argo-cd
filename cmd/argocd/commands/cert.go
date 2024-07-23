@@ -21,7 +21,7 @@ import (
 
 // NewCertCommand returns a new instance of an `argocd repo` command
 func NewCertCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "cert",
 		Short: "Manage repository certificates and SSH known hosts entries",
 		Run: func(c *cobra.Command, args []string) {
@@ -60,7 +60,7 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		fromFile string
 		upsert   bool
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "add-tls SERVERNAME",
 		Short: "Add TLS certificate data for connecting to repository server SERVERNAME",
 		Run: func(c *cobra.Command, args []string) {
@@ -144,7 +144,7 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		certificates []appsv1.RepositoryCertificate
 	)
 
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "add-ssh --batch",
 		Short: "Add SSH known host entries for repository servers",
 		Run: func(c *cobra.Command, args []string) {
@@ -214,7 +214,7 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 		certSubType string
 		certQuery   certificatepkg.RepositoryCertificateQuery
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "rm REPOSERVER",
 		Short: "Remove certificate of TYPE for REPOSERVER",
 		Run: func(c *cobra.Command, args []string) {
@@ -265,7 +265,7 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		sortOrder       string
 		output          string
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "list",
 		Short: "List configured certificates",
 		Run: func(c *cobra.Command, args []string) {
@@ -295,7 +295,6 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
-
 		},
 	}
 

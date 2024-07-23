@@ -42,8 +42,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=LiveStateCache
-
 const (
 	// EnvClusterCacheResyncDuration is the env variable that holds cluster cache re-sync duration
 	EnvClusterCacheResyncDuration = "ARGOCD_CLUSTER_CACHE_RESYNC_DURATION"
@@ -127,6 +125,8 @@ type LiveStateCache interface {
 	GetClusterCache(server string) (clustercache.ClusterCache, error)
 	// Executes give callback against resource specified by the key and all its children
 	IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error
+	// Executes give callback against resources specified by the keys and all its children
+	IterateHierarchyV2(server string, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error
 	// Returns state of live nodes which correspond for target nodes of specified application.
 	GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// IterateResources iterates all resource stored in cache
@@ -178,8 +178,8 @@ func NewLiveStateCache(
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
 	clusterSharding sharding.ClusterShardingCache,
-	resourceTracking argo.ResourceTracking) LiveStateCache {
-
+	resourceTracking argo.ResourceTracking,
+) LiveStateCache {
 	return &liveStateCache{
 		appInformer:      appInformer,
 		db:               db,
@@ -336,11 +336,9 @@ func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clusterc
 	return "", true
 }
 
-var (
-	ignoredRefreshResources = map[string]bool{
-		"/" + kube.EndpointsKind: true,
-	}
-)
+var ignoredRefreshResources = map[string]bool{
+	"/" + kube.EndpointsKind: true,
+}
 
 // skipAppRequeuing checks if the object is an API type which we want to skip requeuing against.
 // We ignore API types which have a high churn rate, and/or whose updates are irrelevant to the app
@@ -420,12 +418,17 @@ func isResourceQuotaConflictErr(err error) bool {
 }
 
 func isTransientNetworkErr(err error) bool {
-	switch err.(type) {
-	case net.Error:
-		switch err.(type) {
-		case *net.DNSError, *net.OpError, net.UnknownNetworkError:
+	var netErr net.Error
+	switch {
+	case errors.As(err, &netErr):
+		var dnsErr *net.DNSError
+		var opErr *net.OpError
+		var unknownNetworkErr net.UnknownNetworkError
+		var urlErr *url.Error
+		switch {
+		case errors.As(err, &dnsErr), errors.As(err, &opErr), errors.As(err, &unknownNetworkErr):
 			return true
-		case *url.Error:
+		case errors.As(err, &urlErr):
 			// For a URL error, where it replies "connection closed"
 			// retry again.
 			return strings.Contains(err.Error(), "Connection closed by foreign host")
@@ -433,7 +436,8 @@ func isTransientNetworkErr(err error) bool {
 	}
 
 	errorString := err.Error()
-	if exitErr, ok := err.(*exec.ExitError); ok {
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
 		errorString = fmt.Sprintf("%s %s", errorString, exitErr.Stderr)
 	}
 	if strings.Contains(errorString, "net/http: TLS handshake timeout") ||
@@ -645,6 +649,17 @@ func (c *liveStateCache) IterateHierarchy(server string, key kube.ResourceKey, a
 	return nil
 }
 
+func (c *liveStateCache) IterateHierarchyV2(server string, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error {
+	clusterInfo, err := c.getSyncedCluster(server)
+	if err != nil {
+		return err
+	}
+	clusterInfo.IterateHierarchyV2(keys, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
+		return action(asResourceNode(resource), getApp(resource, namespaceResources))
+	})
+	return nil
+}
+
 func (c *liveStateCache) IterateResources(server string, callback func(res *clustercache.Resource, info *ResourceInfo)) error {
 	clusterInfo, err := c.getSyncedCluster(server)
 	if err != nil {
@@ -829,7 +844,6 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 			}()
 		}
 	}
-
 }
 
 func (c *liveStateCache) handleDeleteEvent(clusterServer string) {

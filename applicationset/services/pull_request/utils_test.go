@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
@@ -12,12 +13,14 @@ import (
 func strp(s string) *string {
 	return &s
 }
+
 func TestFilterBranchMatchBadRegexp(t *testing.T) {
 	provider, _ := NewFakeService(
 		context.Background(),
 		[]*PullRequest{
 			{
 				Number:       1,
+				Title:        "PR branch1",
 				Branch:       "branch1",
 				TargetBranch: "master",
 				HeadSHA:      "089d92cbf9ff857a39e6feccd32798ca700fb958",
@@ -31,7 +34,7 @@ func TestFilterBranchMatchBadRegexp(t *testing.T) {
 		},
 	}
 	_, err := ListPullRequests(context.Background(), provider, filters)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestFilterBranchMatch(t *testing.T) {
@@ -40,24 +43,28 @@ func TestFilterBranchMatch(t *testing.T) {
 		[]*PullRequest{
 			{
 				Number:       1,
+				Title:        "PR one",
 				Branch:       "one",
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       2,
+				Title:        "PR two",
 				Branch:       "two",
 				TargetBranch: "master",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       3,
+				Title:        "PR three",
 				Branch:       "three",
 				TargetBranch: "master",
 				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       4,
+				Title:        "PR four",
 				Branch:       "four",
 				TargetBranch: "master",
 				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
@@ -71,7 +78,7 @@ func TestFilterBranchMatch(t *testing.T) {
 		},
 	}
 	pullRequests, err := ListPullRequests(context.Background(), provider, filters)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, "two", pullRequests[0].Branch)
 }
@@ -82,24 +89,28 @@ func TestFilterTargetBranchMatch(t *testing.T) {
 		[]*PullRequest{
 			{
 				Number:       1,
+				Title:        "PR one",
 				Branch:       "one",
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       2,
+				Title:        "PR two",
 				Branch:       "two",
 				TargetBranch: "branch1",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       3,
+				Title:        "PR three",
 				Branch:       "three",
 				TargetBranch: "branch2",
 				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       4,
+				Title:        "PR four",
 				Branch:       "four",
 				TargetBranch: "branch3",
 				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
@@ -113,7 +124,7 @@ func TestFilterTargetBranchMatch(t *testing.T) {
 		},
 	}
 	pullRequests, err := ListPullRequests(context.Background(), provider, filters)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, pullRequests, 1)
 	assert.Equal(t, "two", pullRequests[0].Branch)
 }
@@ -124,24 +135,28 @@ func TestMultiFilterOr(t *testing.T) {
 		[]*PullRequest{
 			{
 				Number:       1,
+				Title:        "PR one",
 				Branch:       "one",
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       2,
+				Title:        "PR two",
 				Branch:       "two",
 				TargetBranch: "master",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       3,
+				Title:        "PR three",
 				Branch:       "three",
 				TargetBranch: "master",
 				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       4,
+				Title:        "PR four",
 				Branch:       "four",
 				TargetBranch: "master",
 				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
@@ -158,7 +173,7 @@ func TestMultiFilterOr(t *testing.T) {
 		},
 	}
 	pullRequests, err := ListPullRequests(context.Background(), provider, filters)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, pullRequests, 3)
 	assert.Equal(t, "two", pullRequests[0].Branch)
 	assert.Equal(t, "three", pullRequests[1].Branch)
@@ -171,24 +186,28 @@ func TestMultiFilterOrWithTargetBranchFilter(t *testing.T) {
 		[]*PullRequest{
 			{
 				Number:       1,
+				Title:        "PR one",
 				Branch:       "one",
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       2,
+				Title:        "PR two",
 				Branch:       "two",
 				TargetBranch: "branch1",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       3,
+				Title:        "PR three",
 				Branch:       "three",
 				TargetBranch: "branch2",
 				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       4,
+				Title:        "PR four",
 				Branch:       "four",
 				TargetBranch: "branch3",
 				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
@@ -207,7 +226,7 @@ func TestMultiFilterOrWithTargetBranchFilter(t *testing.T) {
 		},
 	}
 	pullRequests, err := ListPullRequests(context.Background(), provider, filters)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, pullRequests, 2)
 	assert.Equal(t, "two", pullRequests[0].Branch)
 	assert.Equal(t, "four", pullRequests[1].Branch)
@@ -219,12 +238,14 @@ func TestNoFilters(t *testing.T) {
 		[]*PullRequest{
 			{
 				Number:       1,
+				Title:        "PR one",
 				Branch:       "one",
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
 			},
 			{
 				Number:       2,
+				Title:        "PR two",
 				Branch:       "two",
 				TargetBranch: "master",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
@@ -234,7 +255,7 @@ func TestNoFilters(t *testing.T) {
 	)
 	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{}
 	repos, err := ListPullRequests(context.Background(), provider, filters)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, repos, 2)
 	assert.Equal(t, "one", repos[0].Branch)
 	assert.Equal(t, "two", repos[1].Branch)

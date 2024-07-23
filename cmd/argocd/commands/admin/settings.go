@@ -146,11 +146,9 @@ func (opts *settingsOpts) getK8sClient() (*kubernetes.Clientset, string, error) 
 }
 
 func NewSettingsCommand() *cobra.Command {
-	var (
-		opts settingsOpts
-	)
+	var opts settingsOpts
 
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "settings",
 		Short: "Provides set of commands for settings validation and troubleshooting",
 		Run: func(c *cobra.Command, args []string) {
@@ -218,7 +216,6 @@ var validatorsByGroup = map[string]settingValidator{
 				summary = summary + " ('url' field is missing)"
 			}
 		} else if ssoProvider != "" && general.URL != "" {
-
 		} else {
 			summary = "SSO is not configured"
 		}
@@ -277,9 +274,7 @@ var validatorsByGroup = map[string]settingValidator{
 }
 
 func NewValidateSettingsCommand(cmdCtx commandContext) *cobra.Command {
-	var (
-		groups []string
-	)
+	var groups []string
 
 	var allGroups []string
 	for k := range validatorsByGroup {
@@ -289,7 +284,7 @@ func NewValidateSettingsCommand(cmdCtx commandContext) *cobra.Command {
 		return allGroups[i] < allGroups[j]
 	})
 
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "validate",
 		Short: "Validate settings",
 		Long:  "Validates settings specified in 'argocd-cm' ConfigMap and 'argocd-secret' Secret",
@@ -341,7 +336,7 @@ argocd admin settings validate --group accounts --group plugins --load-cluster-s
 }
 
 func NewResourceOverridesCommand(cmdCtx commandContext) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "resource-overrides",
 		Short: "Troubleshoot resource overrides",
 		Run: func(c *cobra.Command, args []string) {
@@ -403,7 +398,7 @@ func executeIgnoreResourceUpdatesOverrideCommand(ctx context.Context, cmdCtx com
 }
 
 func NewResourceIgnoreDifferencesCommand(cmdCtx commandContext) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "ignore-differences RESOURCE_YAML_PATH",
 		Short: "Renders fields excluded from diffing",
 		Long:  "Renders ignored fields using the 'ignoreDifferences' setting specified in the 'resource.customizations' field of 'argocd-cm' ConfigMap",
@@ -453,10 +448,8 @@ argocd admin settings resource-overrides ignore-differences ./deploy.yaml --argo
 }
 
 func NewResourceIgnoreResourceUpdatesCommand(cmdCtx commandContext) *cobra.Command {
-	var (
-		ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
-	)
-	var command = &cobra.Command{
+	var ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
+	command := &cobra.Command{
 		Use:   "ignore-resource-updates RESOURCE_YAML_PATH",
 		Short: "Renders fields excluded from resource updates",
 		Long:  "Renders ignored fields using the 'ignoreResourceUpdates' setting specified in the 'resource.customizations' field of 'argocd-cm' ConfigMap",
@@ -503,7 +496,7 @@ argocd admin settings resource-overrides ignore-resource-updates ./deploy.yaml -
 }
 
 func NewResourceHealthCommand(cmdCtx commandContext) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "health RESOURCE_YAML_PATH",
 		Short: "Assess resource health",
 		Long:  "Assess resource health using the lua script configured in the 'resource.customizations' field of 'argocd-cm' ConfigMap",
@@ -536,7 +529,7 @@ argocd admin settings resource-overrides health ./deploy.yaml --argocd-cm-path .
 }
 
 func NewResourceActionListCommand(cmdCtx commandContext) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "list-actions RESOURCE_YAML_PATH",
 		Short: "List available resource actions",
 		Long:  "List actions available for given resource action using the lua scripts configured in the 'resource.customizations' field of 'argocd-cm' ConfigMap and outputs updated fields",
@@ -580,7 +573,7 @@ argocd admin settings resource-overrides action list /tmp/deploy.yaml --argocd-c
 }
 
 func NewResourceActionRunCommand(cmdCtx commandContext) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:     "run-action RESOURCE_YAML_PATH ACTION",
 		Aliases: []string{"action"},
 		Short:   "Executes resource action",
@@ -629,7 +622,6 @@ argocd admin settings resource-overrides action run /tmp/deploy.yaml restart --a
 						fmt.Println(bytes.NewBuffer(yamlBytes).String())
 					}
 				}
-
 			})
 		},
 	}

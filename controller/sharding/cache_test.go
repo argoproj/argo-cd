@@ -320,7 +320,6 @@ func TestClusterSharding_IsManagedCluster(t *testing.T) {
 		ID:     "2",
 		Server: "https://127.0.0.1:6443",
 	}))
-
 }
 
 func TestClusterSharding_ClusterShardOfResourceShouldNotBeChanged(t *testing.T) {

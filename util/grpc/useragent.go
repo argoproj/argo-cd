@@ -1,9 +1,8 @@
 package grpc
 
 import (
-	"strings"
-
 	"context"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	"google.golang.org/grpc"

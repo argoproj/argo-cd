@@ -4,20 +4,20 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 )
 
 func TestNewRepoServerClient_CorrectClientReturned(t *testing.T) {
-
 	mockClientset := &mocks.Clientset{
 		RepoServerServiceClient: &mocks.RepoServerServiceClient{},
 	}
 
 	closer, client, err := mockClientset.NewRepoServerClient()
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, closer)
 	assert.NotNil(t, client)
 	assert.Equal(t, mockClientset.RepoServerServiceClient, client)
@@ -60,7 +60,7 @@ func TestNewConnection_TLSWithStrictValidation(t *testing.T) {
 
 	conn, err := apiclient.NewConnection("example.com:443", 10, &tlsConfig)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, conn)
 }
 
@@ -73,7 +73,7 @@ func TestNewConnection_TLSWithStrictValidationAndCertificates(t *testing.T) {
 
 	conn, err := apiclient.NewConnection("example.com:443", 10, &tlsConfig)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, conn)
 }
 
@@ -87,6 +87,6 @@ func TestNewConnection_InsecureConnection(t *testing.T) {
 
 	conn, err := apiclient.NewConnection("example.com:80", 10, &tlsConfig)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, conn)
 }

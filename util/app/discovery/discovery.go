@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/golang/protobuf/ptypes/empty"
+
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -128,16 +130,16 @@ func DetectConfigManagementPlugin(ctx context.Context, appPath, repoPath, plugin
 func matchRepositoryCMP(ctx context.Context, appPath, repoPath string, client pluginclient.ConfigManagementPluginServiceClient, env []string, tarExcludedGlobs []string) (bool, bool, error) {
 	matchRepoStream, err := client.MatchRepository(ctx, grpc_retry.Disable())
 	if err != nil {
-		return false, false, fmt.Errorf("error getting stream client: %s", err)
+		return false, false, fmt.Errorf("error getting stream client: %w", err)
 	}
 
 	err = cmp.SendRepoStream(ctx, appPath, repoPath, matchRepoStream, env, tarExcludedGlobs)
 	if err != nil {
-		return false, false, fmt.Errorf("error sending stream: %s", err)
+		return false, false, fmt.Errorf("error sending stream: %w", err)
 	}
 	resp, err := matchRepoStream.CloseAndRecv()
 	if err != nil {
-		return false, false, fmt.Errorf("error receiving stream response: %s", err)
+		return false, false, fmt.Errorf("error receiving stream response: %w", err)
 	}
 	return resp.GetIsSupported(), resp.GetIsDiscoveryEnabled(), nil
 }
@@ -163,6 +165,17 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 			common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
 		}).Errorf("error dialing to cmp-server for plugin %s, %v", fileName, err)
 		return nil, nil, false
+	}
+
+	cfg, err := cmpClient.CheckPluginConfiguration(ctx, &empty.Empty{})
+	if err != nil {
+		log.Errorf("error checking plugin configuration %s, %v", fileName, err)
+		return nil, nil, false
+	}
+
+	// if discovery is not configured, return the client without further checks
+	if !cfg.IsDiscoveryConfigured {
+		return conn, cmpClient, true
 	}
 
 	isSupported, isDiscoveryEnabled, err := matchRepositoryCMP(ctx, appPath, repoPath, cmpClient, env, tarExcludedGlobs)

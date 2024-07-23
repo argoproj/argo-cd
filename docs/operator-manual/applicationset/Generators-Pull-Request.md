@@ -170,7 +170,8 @@ spec:
         repo: myrepository
         # URL of the Bitbucket Server. Required.
         api: https://mycompany.bitbucket.org
-        # Credentials for Basic authentication. Required for private repositories.
+        # Credentials for Basic authentication (App Password). Either basicAuth or bearerToken
+        # authentication is required to access private repositories
         basicAuth:
           # The username to authenticate with
           username: myuser
@@ -178,6 +179,13 @@ spec:
           passwordRef:
             secretName: mypassword
             key: password
+        # Credentials for Bearer Token (App Token) authentication. Either basicAuth or bearerToken
+        # authentication is required to access private repositories
+        bearerToken:
+          # Reference to a Secret containing the bearer token.
+          tokenRef:
+            secretName: repotoken
+            key: token
       # Labels are not supported by Bitbucket Server, so filtering by label is not possible.
       # Filter PRs using the source branch name. (optional)
       filters:
@@ -194,6 +202,9 @@ spec:
 If you want to access a private repository, you must also provide the credentials for Basic auth (this is the only auth supported currently):
 * `username`: The username to authenticate with. It only needs read access to the relevant repo.
 * `passwordRef`: A `Secret` name and key containing the password or personal access token to use for requests.
+
+In case of Bitbucket App Token, go with `bearerToken` section.
+* `tokenRef`: A `Secret` name and key containing the app token to use for requests.
 
 ## Bitbucket Cloud
 
@@ -228,6 +239,7 @@ spec:
           # Credentials for Bearer Token (App Token) authentication. Either basicAuth or bearerToken
           # authentication is required to access private repositories
           bearerToken:
+            # Reference to a Secret containing the bearer token.
             tokenRef:
               secretName: repotoken
               key: token
@@ -392,6 +404,7 @@ spec:
 ```
 
 * `number`: The ID number of the pull request.
+* `title`: The title of the pull request.
 * `branch`: The name of the branch of the pull request head.
 * `branch_slug`: The branch name will be cleaned to be conform to the DNS label standard as defined in [RFC 1123](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names), and truncated to 50 characters to give room to append/suffix-ing it with 13 more characters.
 * `target_branch`: The name of the target branch of the pull request.
