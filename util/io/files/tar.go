@@ -79,12 +79,16 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 			}
 			return fmt.Errorf("error while iterating on tar reader: %w", err)
 		}
-		if header == nil || header.Name == "." {
+		if header == nil {
 			continue
 		}
-
-		target := filepath.Join(dstPath, header.Name)
-		// Sanity check to protect against zip-slip
+	 
+		normalizedHeaderName := filepath.Clean(header.Name)
+		if normalizedHeaderName == "." || strings.Contains(normalizedHeaderName, "..") {
+			continue
+		}
+	 
+		target := filepath.Join(dstPath, normalizedHeaderName)
 		if !Inbound(target, dstPath) {
 			return fmt.Errorf("illegal filepath in archive: %s", target)
 		}
