@@ -28,10 +28,15 @@ import (
 // represents a Docker image in the format NAME[:TAG].
 type Image = string
 
+type BuildOpts struct {
+	KubeVersion string
+	APIVersions []string
+}
+
 // Kustomize provides wrapper functionality around the `kustomize` command.
 type Kustomize interface {
 	// Build returns a list of unstructured objects from a `kustomize build` command and extract supported parameters
-	Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env) ([]*unstructured.Unstructured, []Image, []string, error)
+	Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, buildOpts *BuildOpts) ([]*unstructured.Unstructured, []Image, []string, error)
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
@@ -88,7 +93,7 @@ func mapToEditAddArgs(val map[string]string) []string {
 	return args
 }
 
-func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env) ([]*unstructured.Unstructured, []Image, []string, error) {
+func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, buildOpts *BuildOpts) ([]*unstructured.Unstructured, []Image, []string, error) {
 	// commands stores all the commands that were run as part of this build.
 	var commands []string
 
@@ -320,7 +325,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 
 	var cmd *exec.Cmd
 	if kustomizeOptions != nil && kustomizeOptions.BuildOptions != "" {
-		params := parseKustomizeBuildOptions(k.path, kustomizeOptions.BuildOptions)
+		params := parseKustomizeBuildOptions(k.path, kustomizeOptions.BuildOptions, buildOpts)
 		cmd = exec.Command(k.getBinaryPath(), params...)
 	} else {
 		cmd = exec.Command(k.getBinaryPath(), "build", k.path)
@@ -347,8 +352,23 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	return objs, getImageParameters(objs), redactedCommands, nil
 }
 
-func parseKustomizeBuildOptions(path, buildOptions string) []string {
-	return append([]string{"build", path}, strings.Fields(buildOptions)...)
+func parseKustomizeBuildOptions(path string, buildOptions string, buildOpts *BuildOpts) []string {
+	buildOptsParams := append([]string{"build", path}, strings.Fields(buildOptions)...)
+
+	if buildOpts != nil && !getSemverSafe().LessThan(semver.MustParse("v5.3.0")) && isHelmEnabled(buildOptions) {
+		if buildOpts.KubeVersion != "" {
+			buildOptsParams = append(buildOptsParams, "--helm-kube-version", buildOpts.KubeVersion)
+		}
+		for _, v := range buildOpts.APIVersions {
+			buildOptsParams = append(buildOptsParams, "--helm-api-versions", v)
+		}
+	}
+
+	return buildOptsParams
+}
+
+func isHelmEnabled(buildOptions string) bool {
+	return strings.Contains(buildOptions, "--enable-helm")
 }
 
 var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Kustomization"}

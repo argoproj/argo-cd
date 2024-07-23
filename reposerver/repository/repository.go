@@ -1452,7 +1452,10 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			kustomizeBinary = q.KustomizeOptions.BinaryPath
 		}
 		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary)
-		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env)
+		targetObjs, _, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
+			KubeVersion: q.KubeVersion,
+			APIVersions: q.ApiVersions,
+		})
 	case v1alpha1.ApplicationSourceTypePlugin:
 		pluginName := ""
 		if q.ApplicationSource.Plugin != nil {
@@ -2204,7 +2207,7 @@ func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apicl
 		ApplicationSource: q.Source,
 	}
 	env := newEnv(&fakeManifestRequest, reversion)
-	_, images, _, err := k.Build(q.Source.Kustomize, q.KustomizeOptions, env)
+	_, images, _, err := k.Build(q.Source.Kustomize, q.KustomizeOptions, env, nil)
 	if err != nil {
 		return err
 	}
