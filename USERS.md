@@ -284,6 +284,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Schwarz IT](https://jobs.schwarz/it-mission)
 1. [SCRM Lidl International Hub](https://scrm.lidl)
 1. [SEEK](https://seek.com.au)
+1. [SEKAI](https://www.sekai.io/)
 1. [Semgrep](https://semgrep.com)
 1. [Shield](https://shield.com)
 1. [SI Analytics](https://si-analytics.ai)
@@ -366,5 +367,5 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [ZDF](https://www.zdf.de/)
 1. [Zimpler](https://www.zimpler.com/)
 1. [ZOZO](https://corp.zozo.com/)
-1. [SEKAI](https://www.sekai.io/)
+
    
