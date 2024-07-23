@@ -378,7 +378,7 @@ spec:
         helm:
           parameters:
           - name: "image.tag"
-            value: "pull-{{.head_sha}}"
+            value: "pull-{{.author}}-{{.head_sha}}"
       project: "my-project"
       destination:
         server: https://kubernetes.default.svc
@@ -411,7 +411,7 @@ spec:
           commonLabels:
             app.kubernetes.io/instance: '{{.branch}}-{{.number}}'
           images:
-          - 'ghcr.io/myorg/myrepo:{{.head_sha}}'
+          - 'ghcr.io/myorg/myrepo:{{.author}}-{{.head_sha}}'
       project: "my-project"
       destination:
         server: https://kubernetes.default.svc
@@ -428,6 +428,7 @@ spec:
 * `head_short_sha`: This is the short SHA of the head of the pull request (8 characters long or the length of the head SHA if it's shorter).
 * `head_short_sha_7`: This is the short SHA of the head of the pull request (7 characters long or the length of the head SHA if it's shorter).
 * `labels`: The array of pull request labels. (Supported only for Go Template ApplicationSet manifests.)
+* `author`: The author/creator of the pull request.
 
 ## Webhook Configuration
 
