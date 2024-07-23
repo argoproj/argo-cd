@@ -1286,6 +1286,9 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 }
 
 func redactPaths(s string, paths io.TempPaths) string {
+	if paths == nil {
+		return s
+	}
 	for _, p := range paths.GetPaths() {
 		s = strings.ReplaceAll(s, p, ".")
 	}
