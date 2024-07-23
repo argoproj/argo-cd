@@ -2,6 +2,8 @@ package pull_request
 
 import (
 	"context"
+	"crypto/x509"
+	"encoding/pem"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -35,7 +37,7 @@ func TestGitLabServiceCustomBaseURL(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", nil, "", "", false)
+	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", nil, "", "", false, nil)
 	require.NoError(t, err)
 
 	_, err = svc.List(context.Background())
@@ -54,7 +56,7 @@ func TestGitLabServiceToken(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService(context.Background(), "token-123", server.URL, "278964", nil, "", "", false)
+	svc, err := NewGitLabService(context.Background(), "token-123", server.URL, "278964", nil, "", "", false, nil)
 	require.NoError(t, err)
 
 	_, err = svc.List(context.Background())
@@ -73,7 +75,7 @@ func TestList(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{}, "", "", false)
+	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{}, "", "", false, nil)
 	require.NoError(t, err)
 
 	prs, err := svc.List(context.Background())
@@ -98,7 +100,7 @@ func TestListWithLabels(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{"feature", "ready"}, "", "", false)
+	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{"feature", "ready"}, "", "", false, nil)
 	require.NoError(t, err)
 
 	_, err = svc.List(context.Background())
@@ -117,9 +119,77 @@ func TestListWithState(t *testing.T) {
 		writeMRListResponse(t, w)
 	})
 
-	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{}, "opened", "", false)
+	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{}, "opened", "", false, nil)
 	require.NoError(t, err)
 
 	_, err = svc.List(context.Background())
 	require.NoError(t, err)
+}
+
+func TestListWithStateTLS(t *testing.T) {
+	tests := []struct {
+		name        string
+		tlsInsecure bool
+		passCerts   bool
+		requireErr  bool
+	}{
+		{
+			name:        "TLS Insecure: true, No Certs",
+			tlsInsecure: true,
+			passCerts:   false,
+			requireErr:  false,
+		},
+		{
+			name:        "TLS Insecure: true, With Certs",
+			tlsInsecure: true,
+			passCerts:   true,
+			requireErr:  false,
+		},
+		{
+			name:        "TLS Insecure: false, With Certs",
+			tlsInsecure: false,
+			passCerts:   true,
+			requireErr:  false,
+		},
+		{
+			name:        "TLS Insecure: false, No Certs",
+			tlsInsecure: false,
+			passCerts:   false,
+			requireErr:  true,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				writeMRListResponse(t, w)
+			}))
+			defer ts.Close()
+
+			var certs []byte
+			if test.passCerts == true {
+				for _, cert := range ts.TLS.Certificates {
+					for _, c := range cert.Certificate {
+						parsedCert, err := x509.ParseCertificate(c)
+						require.NoError(t, err, "Failed to parse certificate")
+						certs = append(certs, pem.EncodeToMemory(&pem.Block{
+							Type:  "CERTIFICATE",
+							Bytes: parsedCert.Raw,
+						})...)
+					}
+				}
+			}
+
+			svc, err := NewGitLabService(context.Background(), "", ts.URL, "278964", []string{}, "opened", "", test.tlsInsecure, certs)
+			require.NoError(t, err)
+
+			_, err = svc.List(context.Background())
+			if test.requireErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
