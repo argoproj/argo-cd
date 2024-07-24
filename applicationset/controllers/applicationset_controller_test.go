@@ -1875,6 +1875,58 @@ func TestGetMinRequeueAfter(t *testing.T) {
 	assert.Equal(t, time.Duration(1)*time.Second, got)
 }
 
+func TestRequeueGeneratorFails(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+	err = v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "name",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{{
+				PullRequest: &v1alpha1.PullRequestGenerator{},
+			}},
+		},
+	}
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+
+	generator := v1alpha1.ApplicationSetGenerator{
+		PullRequest: &v1alpha1.PullRequestGenerator{},
+	}
+
+	generatorMock := mocks.Generator{}
+	generatorMock.On("GetTemplate", &generator).
+		Return(&v1alpha1.ApplicationSetTemplate{})
+	generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
+		Return([]map[string]interface{}{}, fmt.Errorf("Simulated error generating params that could be related to an external service/API call"))
+
+	r := ApplicationSetReconciler{
+		Client:   client,
+		Scheme:   scheme,
+		Recorder: record.NewFakeRecorder(0),
+		Cache:    &fakeCache{},
+		Generators: map[string]generators.Generator{
+			"PullRequest": &generatorMock,
+		},
+	}
+
+	req := ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Namespace: "argocd",
+			Name:      "name",
+		},
+	}
+
+	res, err := r.Reconcile(context.Background(), req)
+	require.Error(t, err)
+	assert.Equal(t, ReconcileRequeueOnValidationError, res.RequeueAfter)
+}
+
 func TestValidateGeneratedApplications(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)

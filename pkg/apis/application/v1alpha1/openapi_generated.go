@@ -56,6 +56,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationWatchEvent":                   schema_pkg_apis_application_v1alpha1_ApplicationWatchEvent(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Backoff":                                 schema_pkg_apis_application_v1alpha1_Backoff(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer":                schema_pkg_apis_application_v1alpha1_BasicAuthBitbucketServer(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BearerTokenBitbucket":                    schema_pkg_apis_application_v1alpha1_BearerTokenBitbucket(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BearerTokenBitbucketCloud":               schema_pkg_apis_application_v1alpha1_BearerTokenBitbucketCloud(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ChartDetails":                            schema_pkg_apis_application_v1alpha1_ChartDetails(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Cluster":                                 schema_pkg_apis_application_v1alpha1_Cluster(ref),
@@ -68,6 +69,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ComparedTo":                              schema_pkg_apis_application_v1alpha1_ComparedTo(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ComponentParameter":                      schema_pkg_apis_application_v1alpha1_ComponentParameter(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigManagementPlugin":                  schema_pkg_apis_application_v1alpha1_ConfigManagementPlugin(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef":                         schema_pkg_apis_application_v1alpha1_ConfigMapKeyRef(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConnectionState":                         schema_pkg_apis_application_v1alpha1_ConnectionState(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DuckTypeGenerator":                       schema_pkg_apis_application_v1alpha1_DuckTypeGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.EnvEntry":                                schema_pkg_apis_application_v1alpha1_EnvEntry(ref),
@@ -2550,6 +2552,28 @@ func schema_pkg_apis_application_v1alpha1_BasicAuthBitbucketServer(ref common.Re
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_BearerTokenBitbucket(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "BearerTokenBitbucket defines the Bearer token for BitBucket AppToken auth.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"tokenRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Password (or personal access token) reference.",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"),
+						},
+					},
+				},
+				Required: []string{"tokenRef"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_BearerTokenBitbucketCloud(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -3146,6 +3170,34 @@ func schema_pkg_apis_application_v1alpha1_ConfigManagementPlugin(ref common.Refe
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Command"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ConfigMapKeyRef(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Utility struct for a reference to a configmap key.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"configMapName": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"key": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"configMapName", "key"},
+			},
+		},
 	}
 }
 
@@ -5172,12 +5224,31 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorBitbucketServer(re
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer"),
 						},
 					},
+					"bearerToken": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Credentials for AccessToken (Bearer auth)",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BearerTokenBitbucket"),
+						},
+					},
+					"insecure": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Allow self-signed TLS / Certificates; default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"caRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigMap key holding the trusted certificates",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef"),
+						},
+					},
 				},
 				Required: []string{"project", "repo", "api"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BearerTokenBitbucket", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef"},
 	}
 }
 
@@ -5263,12 +5334,18 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitLab(ref common.
 							Format:      "",
 						},
 					},
+					"caRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigMap key holding the trusted certificates",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef"),
+						},
+					},
 				},
 				Required: []string{"project"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
 	}
 }
 
@@ -7122,12 +7199,31 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorBitbucketServer(re
 							Format:      "",
 						},
 					},
+					"bearerToken": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Credentials for AccessToken (Bearer auth)",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BearerTokenBitbucket"),
+						},
+					},
+					"insecure": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Allow self-signed TLS / Certificates; default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"caRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigMap key holding the trusted certificates",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef"),
+						},
+					},
 				},
 				Required: []string{"project", "api"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BasicAuthBitbucketServer", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.BearerTokenBitbucket", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef"},
 	}
 }
 
@@ -7361,12 +7457,18 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorGitlab(ref common.
 							Format:      "",
 						},
 					},
+					"caRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigMap key holding the trusted certificates",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef"),
+						},
+					},
 				},
 				Required: []string{"group"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
 	}
 }
 

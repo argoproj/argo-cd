@@ -6881,6 +6881,15 @@
         }
       }
     },
+    "v1alpha1BearerTokenBitbucket": {
+      "description": "BearerTokenBitbucket defines the Bearer token for BitBucket AppToken auth.",
+      "type": "object",
+      "properties": {
+        "tokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef"
+        }
+      }
+    },
     "v1alpha1BearerTokenBitbucketCloud": {
       "description": "BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.",
       "type": "object",
@@ -7139,6 +7148,18 @@
           "type": "boolean"
         },
         "name": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ConfigMapKeyRef": {
+      "description": "Utility struct for a reference to a configmap key.",
+      "type": "object",
+      "properties": {
+        "configMapName": {
+          "type": "string"
+        },
+        "key": {
           "type": "string"
         }
       }
@@ -7967,6 +7988,16 @@
         "basicAuth": {
           "$ref": "#/definitions/v1alpha1BasicAuthBitbucketServer"
         },
+        "bearerToken": {
+          "$ref": "#/definitions/v1alpha1BearerTokenBitbucket"
+        },
+        "caRef": {
+          "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
+        },
+        "insecure": {
+          "type": "boolean",
+          "title": "Allow self-signed TLS / Certificates; default: false"
+        },
         "project": {
           "description": "Project to scan. Required.",
           "type": "string"
@@ -7996,6 +8027,9 @@
         "api": {
           "description": "The GitLab API URL to talk to. If blank, uses https://gitlab.com/.",
           "type": "string"
+        },
+        "caRef": {
+          "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
         },
         "insecure": {
           "type": "boolean",
@@ -8874,6 +8908,16 @@
         "basicAuth": {
           "$ref": "#/definitions/v1alpha1BasicAuthBitbucketServer"
         },
+        "bearerToken": {
+          "$ref": "#/definitions/v1alpha1BearerTokenBitbucket"
+        },
+        "caRef": {
+          "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
+        },
+        "insecure": {
+          "type": "boolean",
+          "title": "Allow self-signed TLS / Certificates; default: false"
+        },
         "project": {
           "description": "Project to scan. Required.",
           "type": "string"
@@ -8973,6 +9017,9 @@
         "api": {
           "description": "The Gitlab API URL to talk to.",
           "type": "string"
+        },
+        "caRef": {
+          "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
         },
         "group": {
           "description": "Gitlab group to scan. Required.  You can use either the project id (recommended) or the full namespaced path.",
