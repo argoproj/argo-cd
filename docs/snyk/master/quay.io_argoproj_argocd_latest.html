@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="21 known vulnerabilities found in 98 vulnerable dependency paths.">
+  <meta name="description" content="23 known vulnerabilities found in 102 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">July 14th 2024, 12:17:38 am (UTC+00:00)</p>
+                <p class="timestamp">July 21st 2024, 12:17:49 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -470,8 +470,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>21</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>98 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>23</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>102 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2293</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -563,7 +563,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         pam/libpam-modules@1.5.3-5ubuntu5.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        systemd/libsystemd0@255.4-1ubuntu8.1
+                                        systemd/libsystemd0@255.4-1ubuntu8.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         xz-utils/liblzma5@5.6.1+really5.4.5-1
                                         
@@ -730,7 +730,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         pam/libpam-modules@1.5.3-5ubuntu5.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        systemd/libsystemd0@255.4-1ubuntu8.1
+                                        systemd/libsystemd0@255.4-1ubuntu8.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         libgcrypt20@1.10.3-2build1
                                         
@@ -969,6 +969,85 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-KRB5-6693037">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Credential Exposure</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            k8s.io/client-go/transport
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v2@* and k8s.io/client-go/transport@v0.29.6
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport@v0.29.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        helm.sh/helm/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport@v0.30.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Credential Exposure. When the verbosity level is set to <code>debug</code>, authorization tokens are logged.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>k8s.io/client-go/transport</code> to version 1.17.0-alpha.1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/kubernetes/client-go/commit/689d090711762a4ab315320d706d3c9e3b225d3d">GitHub Commit</a></li>
+        <li><a href="https://github.com/kubernetes/kubernetes/commit/4441f1d9c3e94d9a3d93b4f184a591cab02a5245">GitHub Commit</a></li>
+        <li><a href="https://github.com/kubernetes/kubernetes/issues/81114">GitHub Issue</a></li>
+        <li><a href="https://github.com/kubernetes/kubernetes/pull/81330">GitHub PR</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-K8SIOCLIENTGOTRANSPORT-7538822">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -2587,6 +2666,129 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">Denial of Service (DoS)</h2>
+            <div class="card__section">
+        
+                <div class="label label--low">
+                    <span class="label__text">low severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            k8s.io/client-go/util/jsonpath
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v2@* and k8s.io/client-go/util/jsonpath@v0.29.6
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/util/jsonpath@v0.29.6
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        helm.sh/helm/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/util/jsonpath@v0.30.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/k8s.io/client-go/util/jsonpath?tab=doc">k8s.io/client-go/util/jsonpath</a> is a Go client for Kubernetes.</p>
+        <p>Affected versions of this package are vulnerable to Denial of Service (DoS). A user able to create CRDs could create a malicious CRD such that listing CRs will cause enormous amounts of CPU usage on the API server.</p>
+        <h3 id="poc">PoC</h3>
+        <ol>
+        <li></li>
+        </ol>
+        <pre><code>kubectl create -f - &lt;&lt;EOF
+        apiVersion: apiextensions.k8s.io/v1beta1
+        kind: CustomResourceDefinition
+        metadata:
+          name: foos.example.com
+        spec:
+          group: example.com
+          scope: Namespaced
+          names:
+            plural: foos
+            singular: foo
+            kind: Foo
+          version: v1
+          additionalPrinterColumns:
+          - name: FOO
+            type: string
+            JSONPath: ........................................................................................................................................................................................................
+        EOF
+        </code></pre>
+        <ol start="2">
+        <li></li>
+        </ol>
+        <pre><code>kubectl create -f - &lt;&lt;EOF
+        apiVersion: example.com/v1
+        kind: Foo
+        metadata:
+          name: foo-cr
+        spec:
+          foo:
+            bar:
+              baz:
+                qux: data
+        EOF
+        </code></pre>
+        <ol start="3">
+        <li><code>kubectl get foo</code></li>
+        </ol>
+        <p>The API server CPU usage significantly increases</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>k8s.io/client-go/util/jsonpath</code> to version 1.20.0-alpha.1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/kubernetes/client-go/commit/2221ace3738ccc30c6613e5b5fbaaefb3148458c">GitHub Commit</a></li>
+        <li><a href="https://github.com/kubernetes/kubernetes/pull/93408/commits/8c702254938c40a48b2e3db78fcc944ca50fdc65">GitHub Commit</a></li>
+        <li><a href="https://github.com/kubernetes/kubernetes/issues/93400">GitHub Issue</a></li>
+        <li><a href="https://github.com/kubernetes/kubernetes/pull/93408">GitHub PR</a></li>
+        <li><a href="https://hackerone.com/reports/882923">HackerOne Report</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-K8SIOCLIENTGOUTILJSONPATH-7540854">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">Out-of-bounds Write</h2>
             <div class="card__section">
         
@@ -2873,7 +3075,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        git-lfs@3.4.1-1
+                                        git-lfs@3.4.1-1ubuntu0.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                         
