@@ -6,6 +6,10 @@ updates:
       interval: "daily"
     ignore:
     - dependency-name: k8s.io/*
+    groups:
+      otel:
+        patterns:
+          - "^go.opentelemetry.io/.*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
