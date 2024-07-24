@@ -348,6 +348,10 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		err = client.Init()
 		require.NoError(t, err)
 
+		// set the author for the initial commit of the orphan branch
+		out, err := client.SetAuthor("test", "test@example.com")
+		require.NoError(t, err, "error output: %s", out)
+
 		// get base branch
 		gitCurrentBranch, err := outputCmd(tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
 		require.NoError(t, err)
@@ -366,7 +370,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		err = runCmd(tempDir, "git", "checkout", baseBranch)
 		require.NoError(t, err)
 
-		out, err := client.CheckoutOrOrphan(expectedBranch, false)
+		out, err = client.CheckoutOrOrphan(expectedBranch, false)
 		require.NoError(t, err, "error output: ", out)
 
 		// get current branch, verify current branch
@@ -409,6 +413,10 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		err = client.Init()
 		require.NoError(t, err)
 
+		// set the author for the initial commit of the orphan branch
+		out, err := client.SetAuthor("test", "test@example.com")
+		require.NoError(t, err, "error output: %s", out)
+
 		err = client.Fetch("")
 		require.NoError(t, err)
 
@@ -421,7 +429,7 @@ func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
 		require.NoError(t, err)
 		baseCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
 
-		out, err := client.CheckoutOrOrphan(expectedBranch, false)
+		out, err = client.CheckoutOrOrphan(expectedBranch, false)
 		require.NoError(t, err, "error output: ", out)
 
 		// get current branch, verify current branch
