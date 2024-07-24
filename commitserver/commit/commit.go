@@ -11,18 +11,23 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v2/commitserver/metrics"
 	"github.com/argoproj/argo-cd/v2/util/git"
 )
 
 type Service struct {
 	gitCredsStore git.CredsStore
+	metricsServer *metrics.Server
 }
 
-func NewService(gitCredsStore git.CredsStore) *Service {
-	return &Service{gitCredsStore: gitCredsStore}
+func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *Service {
+	return &Service{gitCredsStore: gitCredsStore, metricsServer: metricsServer}
 }
 
 func (s *Service) Commit(ctx context.Context, r *apiclient.ManifestsRequest) (*apiclient.ManifestsResponse, error) {
+	s.metricsServer.IncPendingCommitRequest(r.Repo.Repo)
+	defer s.metricsServer.DecPendingCommitRequest(r.Repo.Repo)
+
 	logCtx := log.WithFields(log.Fields{"repo": r.RepoUrl, "branch": r.TargetBranch, "drySHA": r.DrySha})
 
 	logCtx.Debug("Creating temp dir")

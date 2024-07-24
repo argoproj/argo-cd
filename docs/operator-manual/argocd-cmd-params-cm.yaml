@@ -194,6 +194,8 @@ data:
   commitserver.log.format: "text"
   # Set the logging level. One of: debug|info|warn|error (default "info")
   commitserver.log.level: "info"
+  # Listen on given address for metrics (default "0.0.0.0")
+  commitserver.metrics.listen.address: "0.0.0.0"
 
   # Disable TLS on the HTTP endpoint
   dexserver.disable.tls: "false"
