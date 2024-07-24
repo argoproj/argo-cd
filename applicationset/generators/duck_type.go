@@ -125,7 +125,7 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 	duckResources, err := g.dynClient.Resource(duckGVR).Namespace(g.namespace).List(g.ctx, listOptions)
 	if err != nil {
 		log.WithField("GVK", duckGVR).Warning("resources were not found")
-		return nil, err
+		return nil, fmt.Errorf("no dynamic resources found: %w", err)
 	}
 
 	if len(duckResources.Items) == 0 {
