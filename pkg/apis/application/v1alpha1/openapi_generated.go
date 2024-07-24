@@ -5460,6 +5460,13 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGithub(ref common.
 							},
 						},
 					},
+					"pullRequestState": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Pull request state",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"owner", "repo"},
 			},

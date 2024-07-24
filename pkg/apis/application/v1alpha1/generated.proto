@@ -1526,6 +1526,9 @@ message PullRequestGeneratorGithub {
 
   // Labels is used to filter the PRs that you want to target
   repeated string labels = 6;
+
+  // Pull request state
+  optional string pullRequestState = 7;
 }
 
 message RefTarget {
