@@ -5518,6 +5518,8 @@ spec:
                                         type: array
                                       owner:
                                         type: string
+                                      pullRequestState:
+                                        type: string
                                       repo:
                                         type: string
                                       tokenRef:
@@ -10652,6 +10654,8 @@ spec:
                                         type: array
                                       owner:
                                         type: string
+                                      pullRequestState:
+                                        type: string
                                       repo:
                                         type: string
                                       tokenRef:
@@ -13426,6 +13430,8 @@ spec:
                                 type: string
                               type: array
                             owner:
+                              type: string
+                            pullRequestState:
                               type: string
                             repo:
                               type: string
