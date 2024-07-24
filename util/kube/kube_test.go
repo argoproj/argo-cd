@@ -100,9 +100,9 @@ func TestSetLegacyLabels(t *testing.T) {
 		var depV1Beta1 extv1beta1.Deployment
 		err = json.Unmarshal(manifestBytes, &depV1Beta1)
 		require.NoError(t, err)
-		assert.Len(t, len(depV1Beta1.Spec.Selector.MatchLabels), 1)
+		assert.Len(t, depV1Beta1.Spec.Selector.MatchLabels, 1)
 		assert.Equal(t, "nginx", depV1Beta1.Spec.Selector.MatchLabels["app"])
-		assert.Len(t, len(depV1Beta1.Spec.Template.Labels), 2)
+		assert.Len(t, depV1Beta1.Spec.Template.Labels, 2)
 		assert.Equal(t, "nginx", depV1Beta1.Spec.Template.Labels["app"])
 		assert.Equal(t, "my-app", depV1Beta1.Spec.Template.Labels[common.LabelKeyLegacyApplicationName])
 	}
