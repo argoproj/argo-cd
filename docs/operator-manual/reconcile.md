@@ -112,7 +112,7 @@ data:
     - .status.conditions[].lastTransitionTime
 ```
 
-### Analyzing logs to find slow steps of reconciliation
+### Using logs to measure reconciliation performance
 
 There are number of logs with reconciliation timing information. For example, main "Reconciliation completed" and for called functions like "Finished getting resource tree". This information is attached as structured data. Each one has a number of `_ms` fields like `time_ms` for total function execution duration and additional ones like `process_managed_resources_ms` for some parts of the function. You'd need some code understanding to make use of these. Search for the timing key in the code and look at the code between the corresponding checkpoint and a previous checkpoint. The slowness can be due to suboptimal algorithms (like [processing managed resources in getResourceTree](https://github.com/argoproj/argo-cd/issues/18929)), a lot of resources in the cluster, big applications or a combination of these and other factors. You might open an issue and try to fix it or ask the community after finding some inefficiencies.
 
