@@ -311,7 +311,6 @@ func Test_nativeGitClient_SetAuthor(t *testing.T) {
 
 	tempDir, err := _createEmptyGitRepo()
 	require.NoError(t, err)
-	fmt.Println(tempDir)
 
 	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "")
 	require.NoError(t, err)
@@ -333,4 +332,116 @@ func Test_nativeGitClient_SetAuthor(t *testing.T) {
 	require.NoError(t, err)
 	actualEmail := strings.TrimSpace(string(gitUserEmail))
 	require.Equal(t, expectedEmail, actualEmail)
+}
+
+func Test_nativeGitClient_CheckoutOrOrphan(t *testing.T) {
+	t.Run("checkout to an existing branch", func(t *testing.T) {
+		// not main or master
+		expectedBranch := "feature"
+
+		tempDir, err := _createEmptyGitRepo()
+		require.NoError(t, err)
+
+		client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "")
+		require.NoError(t, err)
+
+		err = client.Init()
+		require.NoError(t, err)
+
+		// get base branch
+		gitCurrentBranch, err := outputCmd(tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
+		require.NoError(t, err)
+		baseBranch := strings.TrimSpace(string(gitCurrentBranch))
+
+		// get base commit
+		gitCurrentCommitHash, err := outputCmd(tempDir, "git", "rev-parse", "HEAD")
+		require.NoError(t, err)
+		expectedCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
+
+		// make expected branch
+		err = runCmd(tempDir, "git", "checkout", "-b", expectedBranch)
+		require.NoError(t, err)
+
+		// checkout to base branch, ready to test
+		err = runCmd(tempDir, "git", "checkout", baseBranch)
+		require.NoError(t, err)
+
+		out, err := client.CheckoutOrOrphan(expectedBranch, false)
+		require.NoError(t, err, "error output: ", out)
+
+		// get current branch, verify current branch
+		gitCurrentBranch, err = outputCmd(tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
+		require.NoError(t, err)
+		actualBranch := strings.TrimSpace(string(gitCurrentBranch))
+		require.Equal(t, expectedBranch, actualBranch)
+
+		// get current commit hash, verify current commit hash
+		// equal -> not orphan
+		gitCurrentCommitHash, err = outputCmd(tempDir, "git", "rev-parse", "HEAD")
+		require.NoError(t, err)
+		actualCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
+		require.Equal(t, expectedCommitHash, actualCommitHash)
+	})
+
+	t.Run("orphan", func(t *testing.T) {
+		// not main or master
+		expectedBranch := "feature"
+
+		// make origin git repository
+		tempDir, err := _createEmptyGitRepo()
+		require.NoError(t, err)
+		originGitRepoUrl := fmt.Sprintf("file://%s", tempDir)
+		err = runCmd(tempDir, "git", "commit", "-m", "Second commit", "--allow-empty")
+		require.NoError(t, err)
+
+		// get base branch
+		gitCurrentBranch, err := outputCmd(tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
+		require.NoError(t, err)
+		baseBranch := strings.TrimSpace(string(gitCurrentBranch))
+
+		// make test dir
+		tempDir, err = os.MkdirTemp("", "")
+		require.NoError(t, err)
+
+		client, err := NewClientExt(originGitRepoUrl, tempDir, NopCreds{}, true, false, "")
+		require.NoError(t, err)
+
+		err = client.Init()
+		require.NoError(t, err)
+
+		err = client.Fetch("")
+		require.NoError(t, err)
+
+		// checkout to origin base branch
+		err = runCmd(tempDir, "git", "checkout", baseBranch)
+		require.NoError(t, err)
+
+		// get base commit
+		gitCurrentCommitHash, err := outputCmd(tempDir, "git", "rev-parse", "HEAD")
+		require.NoError(t, err)
+		baseCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
+
+		out, err := client.CheckoutOrOrphan(expectedBranch, false)
+		require.NoError(t, err, "error output: ", out)
+
+		// get current branch, verify current branch
+		gitCurrentBranch, err = outputCmd(tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
+		require.NoError(t, err)
+		actualBranch := strings.TrimSpace(string(gitCurrentBranch))
+		require.Equal(t, expectedBranch, actualBranch)
+
+		// check orphan branch
+
+		// get current commit hash, verify current commit hash
+		// not equal -> orphan
+		gitCurrentCommitHash, err = outputCmd(tempDir, "git", "rev-parse", "HEAD")
+		require.NoError(t, err)
+		currentCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
+		require.NotEqual(t, baseCommitHash, currentCommitHash)
+
+		// get commit count on current branch, verify 1 -> orphan
+		gitCommitCount, err := outputCmd(tempDir, "git", "rev-list", "--count", actualBranch)
+		require.NoError(t, err)
+		require.Equal(t, "1", strings.TrimSpace(string(gitCommitCount)))
+	})
 }
