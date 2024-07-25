@@ -3,7 +3,7 @@ import * as React from 'react';
 import {FormApi} from 'react-form';
 
 import {EditablePanel} from '../../../shared/components';
-import {ApplicationDestination, ApplicationDestinationServiceAccounts, GroupKind, Groups, Project, ProjectSpec, ResourceKinds} from '../../../shared/models';
+import {ApplicationDestination, ApplicationDestinationServiceAccount, GroupKind, Groups, Project, ProjectSpec, ResourceKinds} from '../../../shared/models';
 
 function removeEl(items: any[], index: number) {
     return items.slice(0, index).concat(items.slice(index + 1));
@@ -173,7 +173,7 @@ const destinationServiceAccountsInfoByField: {[type: string]: {title: string; he
 
 function viewDestinationServiceAccountsInfoList(type: field, proj: Project) {
     const info = destinationServiceAccountsInfoByField[type];
-    const list = proj.spec[type] as Array<ApplicationDestinationServiceAccounts>;
+    const list = proj.spec[type] as Array<ApplicationDestinationServiceAccount>;
     return (
         <React.Fragment>
             <p className='project-details__list-title'>
