@@ -223,6 +223,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [omegaUp](https://omegaUp.com)
 1. [Omni](https://omni.se/)
 1. [Oncourse Home Solutions](https://oncoursehome.com/)
+1. [Open Analytics](https://openanalytics.eu)
 1. [openEuler](https://openeuler.org)
 1. [openGauss](https://opengauss.org/)
 1. [OpenGov](https://opengov.com)
