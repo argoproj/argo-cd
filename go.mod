@@ -19,7 +19,7 @@ require (
 	github.com/bradleyfalzon/ghinstallation/v2 v2.6.0
 	github.com/casbin/casbin/v2 v2.97.0
 	github.com/casbin/govaluate v1.2.0
-	github.com/cespare/xxhash/v2 v2.2.0
+	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/chainguard-dev/git-urls v1.0.2
 	github.com/coreos/go-oidc/v3 v3.10.0
 	github.com/cyphar/filepath-securejoin v0.2.4
