@@ -79,7 +79,7 @@ spec:
     syncOptions:
     - CreateNamespace=true
     - ApplyOutOfSyncOnly=true
-    - RespectIgnoreDifferences=false
+    - RespectIgnoreDifferences=true
     - ServerSideApply=true
     - Validate=true
 status:
