@@ -15,7 +15,7 @@ requests before forwarding to the backend service.
 
 As proxy extension is in [Alpha][1] phase, the feature is disabled by
 default. To enable it, it is necessary to configure the feature flag
-in Argo CD command parameters. The easiest way to to properly enable
+in Argo CD command parameters. The easiest way to properly enable
 this feature flag is by adding the `server.enable.proxy.extension` key
 in the existing `argocd-cmd-params-cm`. For example:
 
@@ -120,7 +120,7 @@ Is the address where the extension backend must be available.
 
 If provided, the headers list will be added on all outgoing requests
 for this service config. Existing headers in the incoming request with
-the same name will be overriden by the one in this list. Reserved header
+the same name will be overridden by the one in this list. Reserved header
 names will be ignored (see the [headers](#incoming-request-headers) below).
 
 #### `extensions.backend.services.headers.name` (*string*)
@@ -263,6 +263,10 @@ it is not empty string is the Application resource.
 Note that additional pre-configured headers can be added to outgoing
 request. See [backend service headers](#extensionsbackendservicesheaders-list)
 section for more details.
+
+#### `Argocd-Username`
+
+Will be populated with the username logged in Argo CD.
 
 ### Multi Backend Use-Case
 

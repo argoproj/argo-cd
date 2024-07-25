@@ -35,11 +35,11 @@ import (
 	"k8s.io/client-go/tools/clientcmd/api"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/util/env"
-
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/collections"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/helm"
+	utilhttp "github.com/argoproj/argo-cd/v2/util/http"
 	"github.com/argoproj/argo-cd/v2/util/security"
 )
 
@@ -51,6 +51,7 @@ import (
 // +kubebuilder:printcolumn:name="Sync Status",type=string,JSONPath=`.status.sync.status`
 // +kubebuilder:printcolumn:name="Health Status",type=string,JSONPath=`.status.health.status`
 // +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.sync.revision`,priority=10
+// +kubebuilder:printcolumn:name="Project",type=string,JSONPath=`.spec.project`,priority=10
 type Application struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
@@ -205,6 +206,11 @@ func (s ApplicationSources) Equals(other ApplicationSources) bool {
 	return true
 }
 
+// IsZero returns true if the application source is considered empty
+func (a ApplicationSources) IsZero() bool {
+	return len(a) == 0
+}
+
 func (a *ApplicationSpec) GetSource() ApplicationSource {
 	// if Application has multiple sources, return the first source in sources
 	if a.HasMultipleSources() {
@@ -230,9 +236,17 @@ func (a *ApplicationSpec) HasMultipleSources() bool {
 	return a.Sources != nil && len(a.Sources) > 0
 }
 
-func (a *ApplicationSpec) GetSourcePtr() *ApplicationSource {
+func (a *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *ApplicationSource {
+	// if Application has multiple sources, return the first source in sources
+	return a.GetSourcePtrByIndex(sourcePosition - 1)
+}
+
+func (a *ApplicationSpec) GetSourcePtrByIndex(sourceIndex int) *ApplicationSource {
 	// if Application has multiple sources, return the first source in sources
 	if a.HasMultipleSources() {
+		if sourceIndex > 0 {
+			return &a.Sources[sourceIndex]
+		}
 		return &a.Sources[0]
 	}
 	return a.Source
@@ -246,6 +260,11 @@ func (a *ApplicationSource) AllowsConcurrentProcessing() bool {
 		return a.Kustomize.AllowsConcurrentProcessing()
 	}
 	return true
+}
+
+// IsRef returns true when the application source is of type Ref
+func (a *ApplicationSource) IsRef() bool {
+	return a.Ref != ""
 }
 
 // IsHelm returns true when the application source is of type Helm
@@ -467,6 +486,10 @@ type ApplicationSourceKustomize struct {
 	Replicas KustomizeReplicas `json:"replicas,omitempty" protobuf:"bytes,11,opt,name=replicas"`
 	// Patches is a list of Kustomize patches
 	Patches KustomizePatches `json:"patches,omitempty" protobuf:"bytes,12,opt,name=patches"`
+	// Components specifies a list of kustomize components to add to the kustomization before building
+	Components []string `json:"components,omitempty" protobuf:"bytes,13,rep,name=components"`
+	// LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
+	LabelWithoutSelector bool `json:"labelWithoutSelector,omitempty" protobuf:"bytes,14,opt,name=labelWithoutSelector"`
 }
 
 type KustomizeReplica struct {
@@ -556,7 +579,8 @@ func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
 		k.NamePrefix == "" &&
 		k.Namespace == "" &&
 		k.NameSuffix == "" &&
-		len(k.Patches) == 0
+		len(k.Patches) == 0 &&
+		len(k.Components) == 0
 }
 
 // IsZero returns true when the Kustomize options are considered empty
@@ -570,7 +594,8 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 			len(k.Replicas) == 0 &&
 			len(k.CommonLabels) == 0 &&
 			len(k.CommonAnnotations) == 0 &&
-			len(k.Patches) == 0
+			len(k.Patches) == 0 &&
+			len(k.Components) == 0
 }
 
 // MergeImage merges a new Kustomize image identifier in to a list of images
@@ -951,6 +976,35 @@ type ApplicationStatus struct {
 	ControllerNamespace string `json:"controllerNamespace,omitempty" protobuf:"bytes,13,opt,name=controllerNamespace"`
 }
 
+// GetRevisions will return the current revision associated with the Application.
+// If app has multisources, it will return all corresponding revisions preserving
+// order from the app.spec.sources. If app has only one source, it will return a
+// single revision in the list.
+func (a *ApplicationStatus) GetRevisions() []string {
+	revisions := []string{}
+	if len(a.Sync.Revisions) > 0 {
+		revisions = a.Sync.Revisions
+	} else if a.Sync.Revision != "" {
+		revisions = append(revisions, a.Sync.Revision)
+	}
+	return revisions
+}
+
+// BuildComparedToStatus will build a ComparedTo object based on the current
+// Application state.
+func (app *Application) BuildComparedToStatus() ComparedTo {
+	ct := ComparedTo{
+		Destination:       app.Spec.Destination,
+		IgnoreDifferences: app.Spec.IgnoreDifferences,
+	}
+	if app.Spec.HasMultipleSources() {
+		ct.Sources = app.Spec.Sources
+	} else {
+		ct.Source = app.Spec.GetSource()
+	}
+	return ct
+}
+
 // JWTTokens represents a list of JWT tokens
 type JWTTokens struct {
 	Items []JWTToken `json:"items,omitempty" protobuf:"bytes,1,opt,name=items"`
@@ -1135,11 +1189,12 @@ type SyncPolicy struct {
 	Retry *RetryStrategy `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
 	// ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
 	ManagedNamespaceMetadata *ManagedNamespaceMetadata `json:"managedNamespaceMetadata,omitempty" protobuf:"bytes,4,opt,name=managedNamespaceMetadata"`
+	// If you add a field here, be sure to update IsZero.
 }
 
 // IsZero returns true if the sync policy is empty
 func (p *SyncPolicy) IsZero() bool {
-	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil)
+	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil && p.ManagedNamespaceMetadata == nil)
 }
 
 // RetryStrategy contains information about the strategy to apply when a sync failed
@@ -1183,7 +1238,6 @@ func (r *RetryStrategy) NextRetryAt(lastAttempt time.Time, retryCounts int64) (t
 		if r.Backoff.Factor != nil {
 			factor = *r.Backoff.Factor
 		}
-
 	}
 	// Formula: timeToWait = duration * factor^retry_number
 	// Note that timeToWait should equal to duration for the first retry attempt.
@@ -1367,6 +1421,8 @@ type RevisionHistory struct {
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,8,opt,name=sources"`
 	// Revisions holds the revision of each source in sources field the sync was performed against
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,9,opt,name=revisions"`
+	// InitiatedBy contains information about who initiated the operations
+	InitiatedBy OperationInitiator `json:"initiatedBy,omitempty" protobuf:"bytes,10,opt,name=initiatedBy"`
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -1463,7 +1519,8 @@ type SyncStatus struct {
 	// Status is the sync state of the comparison
 	Status SyncStatusCode `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
 	// ComparedTo contains information about what has been compared
-	ComparedTo ComparedTo `json:"comparedTo,omitempty" protobuf:"bytes,2,opt,name=comparedTo"`
+	// +patchStrategy=replace
+	ComparedTo ComparedTo `json:"comparedTo,omitempty" protobuf:"bytes,2,opt,name=comparedTo" patchStrategy:"replace"`
 	// Revision contains information about the revision the comparison has been performed to
 	Revision string `json:"revision,omitempty" protobuf:"bytes,3,opt,name=revision"`
 	// Revisions contains information about the revisions of multiple sources the comparison has been performed to
@@ -1647,7 +1704,7 @@ type ResourceStatus struct {
 	SyncWave        int64          `json:"syncWave,omitempty" protobuf:"bytes,10,opt,name=syncWave"`
 }
 
-// GroupKindVersion returns the GVK schema type for given resource status
+// GroupVersionKind returns the GVK schema type for given resource status
 func (r *ResourceStatus) GroupVersionKind() schema.GroupVersionKind {
 	return schema.GroupVersionKind{Group: r.Group, Version: r.Version, Kind: r.Kind}
 }
@@ -1713,10 +1770,10 @@ type Cluster struct {
 	Name string `json:"name" protobuf:"bytes,2,opt,name=name"`
 	// Config holds cluster information for connecting to a cluster
 	Config ClusterConfig `json:"config" protobuf:"bytes,3,opt,name=config"`
-	// DEPRECATED: use Info.ConnectionState field instead.
+	// Deprecated: use Info.ConnectionState field instead.
 	// ConnectionState contains information about cluster connection state
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,4,opt,name=connectionState"`
-	// DEPRECATED: use Info.ServerVersion field instead.
+	// Deprecated: use Info.ServerVersion field instead.
 	// The server version
 	ServerVersion string `json:"serverVersion,omitempty" protobuf:"bytes,5,opt,name=serverVersion"`
 	// Holds list of namespaces which are accessible in that cluster. Cluster level resources will be ignored if namespace list is not empty.
@@ -1820,6 +1877,9 @@ type AWSAuthConfig struct {
 
 	// RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.
 	RoleARN string `json:"roleARN,omitempty" protobuf:"bytes,2,opt,name=roleARN"`
+
+	// Profile contains optional role ARN. If set then AWS IAM Authenticator uses the profile to perform cluster operations instead of the default AWS credential provider chain.
+	Profile string `json:"profile,omitempty" protobuf:"bytes,3,opt,name=profile"`
 }
 
 // ExecProviderConfig is config used to call an external command to perform cluster authentication
@@ -2040,6 +2100,12 @@ func isValidResource(resource string) bool {
 	return validResources[resource]
 }
 
+func isValidObject(proj string, object string) bool {
+	// match against <PROJECT>[/<NAMESPACE>]/<APPLICATION>
+	objectRegexp, err := regexp.Compile(fmt.Sprintf(`^%s(/[*\w-.]+)?/[*\w-.]+$`, regexp.QuoteMeta(proj)))
+	return objectRegexp.MatchString(object) && err == nil
+}
+
 func validatePolicy(proj string, role string, policy string) error {
 	policyComponents := strings.Split(policy, ",")
 	if len(policyComponents) != 6 || strings.Trim(policyComponents[0], " ") != "p" {
@@ -2063,9 +2129,8 @@ func validatePolicy(proj string, role string, policy string) error {
 	}
 	// object
 	object := strings.Trim(policyComponents[4], " ")
-	objectRegexp, err := regexp.Compile(fmt.Sprintf(`^%s/[*\w-.]+$`, regexp.QuoteMeta(proj)))
-	if err != nil || !objectRegexp.MatchString(object) {
-		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': object must be of form '%s/*' or '%s/<APPNAME>', not '%s'", policy, proj, proj, object)
+	if !isValidObject(proj, object) {
+		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': object must be of form '%s/*', '%s[/<NAMESPACE>]/<APPNAME>' or '%s/<APPNAME>', not '%s'", policy, proj, proj, proj, object)
 	}
 	// effect
 	effect := strings.Trim(policyComponents[5], " ")
@@ -2200,7 +2265,6 @@ func (s *SyncWindows) Active() *SyncWindows {
 }
 
 func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
-
 	// If SyncWindows.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before we scan through the SyncWindows.
 	currentTime = currentTime.In(time.UTC)
@@ -2234,7 +2298,6 @@ func (s *SyncWindows) InactiveAllows() *SyncWindows {
 }
 
 func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
-
 	// If SyncWindows.InactiveAllows() is called outside of a UTC locale, it should be
 	// first converted to UTC before we scan through the SyncWindows.
 	currentTime = currentTime.In(time.UTC)
@@ -2276,7 +2339,6 @@ func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
 func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string) error {
 	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {
 		return fmt.Errorf("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
-
 	}
 
 	window := &SyncWindow{
@@ -2305,7 +2367,6 @@ func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []str
 	s.SyncWindows = append(s.SyncWindows, window)
 
 	return nil
-
 }
 
 // DeleteWindow deletes a sync window with the given id from the AppProject
@@ -2411,10 +2472,8 @@ func (w *SyncWindows) hasDeny() (bool, bool) {
 		if a.Kind == "deny" {
 			if !denyFound {
 				manualEnabled = a.ManualSync
-			} else {
-				if manualEnabled {
-					manualEnabled = a.ManualSync
-				}
+			} else if manualEnabled {
+				manualEnabled = a.ManualSync
 			}
 			denyFound = true
 		}
@@ -2456,7 +2515,6 @@ func (w SyncWindow) Active() bool {
 }
 
 func (w SyncWindow) active(currentTime time.Time) bool {
-
 	// If SyncWindow.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before search
 	currentTime = currentTime.UTC()
@@ -2474,7 +2532,6 @@ func (w SyncWindow) active(currentTime time.Time) bool {
 
 // Update updates a sync window's settings with the given parameter
 func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string) error {
-
 	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 {
 		return fmt.Errorf("cannot update: require one or more of schedule, duration, application, namespace, or cluster")
 	}
@@ -2505,7 +2562,6 @@ func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []stri
 
 // Validate checks whether a sync window has valid configuration. The error returned indicates any problems that has been found.
 func (w *SyncWindow) Validate() error {
-
 	// Default timeZone to UTC if timeZone is not specified
 	if w.TimeZone == "" {
 		w.TimeZone = "UTC"
@@ -2521,11 +2577,11 @@ func (w *SyncWindow) Validate() error {
 	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 	_, err := specParser.Parse(w.Schedule)
 	if err != nil {
-		return fmt.Errorf("cannot parse schedule '%s': %s", w.Schedule, err)
+		return fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, err)
 	}
 	_, err = time.ParseDuration(w.Duration)
 	if err != nil {
-		return fmt.Errorf("cannot parse duration '%s': %s", w.Duration, err)
+		return fmt.Errorf("cannot parse duration '%s': %w", w.Duration, err)
 	}
 	return nil
 }
@@ -2615,6 +2671,18 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 		refreshType = RefreshTypeHard
 	}
 	return refreshType, true
+}
+
+func (app *Application) HasPostDeleteFinalizer(stage ...string) bool {
+	return getFinalizerIndex(app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/")) > -1
+}
+
+func (app *Application) SetPostDeleteFinalizer(stage ...string) {
+	setFinalizer(&app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/"), true)
+}
+
+func (app *Application) UnSetPostDeleteFinalizer(stage ...string) {
+	setFinalizer(&app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/"), false)
 }
 
 // SetCascadedDeletion will enable cascaded deletion by setting the propagation policy finalizer
@@ -2891,6 +2959,12 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	config.Timeout = K8sServerSideTimeout
 
 	config.Transport = tr
+	maxRetries := env.ParseInt64FromEnv(utilhttp.EnvRetryMax, 0, 1, math.MaxInt64)
+	if maxRetries > 0 {
+		backoffDurationMS := env.ParseInt64FromEnv(utilhttp.EnvRetryBaseBackoff, 100, 1, math.MaxInt64)
+		backoffDuration := time.Duration(backoffDurationMS) * time.Millisecond
+		config.WrapTransport = utilhttp.WithRetry(maxRetries, backoffDuration)
+	}
 	return nil
 }
 
@@ -2932,6 +3006,9 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 			args := []string{"aws", "--cluster-name", c.Config.AWSAuthConfig.ClusterName}
 			if c.Config.AWSAuthConfig.RoleARN != "" {
 				args = append(args, "--role-arn", c.Config.AWSAuthConfig.RoleARN)
+			}
+			if c.Config.AWSAuthConfig.Profile != "" {
+				args = append(args, "--profile", c.Config.AWSAuthConfig.Profile)
 			}
 			config = &rest.Config{
 				Host:            c.Server,
@@ -3019,7 +3096,6 @@ func (r ResourceDiff) TargetObject() (*unstructured.Unstructured, error) {
 
 // SetInferredServer sets the Server field of the destination. See IsServerInferred() for details.
 func (d *ApplicationDestination) SetInferredServer(server string) {
-
 	d.isServerInferred = true
 	d.Server = server
 }

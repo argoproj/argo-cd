@@ -1,0 +1,30 @@
+apiVersion: astra.netapp.io/v1
+kind: Schedule
+metadata:
+  creationTimestamp: "2024-04-15T20:46:16Z"
+  generation: 2
+  labels:
+    argocd.argoproj.io/instance: ghost-demo
+  name: ghost-daily
+  namespace: astra-connector
+  ownerReferences:
+    - apiVersion: astra.netapp.io/v1
+      kind: Application
+      name: ghost
+      uid: 0af10ee8-772b-4367-8334-44f9e4ad2849
+  resourceVersion: "9963815"
+  uid: a2736922-6801-482c-a199-03ef8a3f35d7
+spec:
+  appVaultRef: astra-gcp-backup-743cfd150129
+  applicationRef: ghost
+  backupRetention: "1"
+  dayOfMonth: ""
+  dayOfWeek: ""
+  enabled: true
+  granularity: daily
+  hour: "1"
+  minute: "0"
+  recurrenceRule: ""
+  snapshotRetention: "1"
+status:
+  lastScheduleTime: "2024-04-24T01:00:00Z"

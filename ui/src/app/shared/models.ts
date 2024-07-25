@@ -103,6 +103,7 @@ export interface ChartDetails {
 export interface SyncOperationResult {
     resources: ResourceResult[];
     revision: string;
+    revisions: string[];
 }
 
 export type ResultCode = 'Synced' | 'SyncFailed' | 'Pruned' | 'PruneSkipped';
@@ -197,6 +198,8 @@ export interface ApplicationSource {
     plugin?: ApplicationSourcePlugin;
 
     directory?: ApplicationSourceDirectory;
+
+    ref?: string;
 }
 
 export interface ApplicationSourceHelm {
@@ -297,6 +300,7 @@ export interface RevisionHistory {
     sources: ApplicationSource[];
     deployStartedAt: models.Time;
     deployedAt: models.Time;
+    initiatedBy: OperationInitiator;
 }
 
 export type SyncStatusCode = 'Unknown' | 'Synced' | 'OutOfSync';
@@ -468,6 +472,10 @@ export interface AuthSettings {
     };
     oidcConfig: {
         name: string;
+        issuer: string;
+        clientID: string;
+        scopes: string[];
+        enablePKCEAuthentication: boolean;
     };
     help: {
         chatUrl: string;
@@ -710,6 +718,7 @@ export interface ProjectSignatureKey {
 
 export interface ProjectSpec {
     sourceRepos: string[];
+    sourceNamespaces: string[];
     destinations: ApplicationDestination[];
     description: string;
     roles: ProjectRole[];

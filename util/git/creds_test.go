@@ -15,6 +15,8 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
+	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
+
 	"github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
@@ -185,27 +187,27 @@ func TestHTTPSCreds_Environ_clientCert(t *testing.T) {
 	assert.NotEmpty(t, key)
 
 	certBytes, err := os.ReadFile(cert)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "clientCertData", string(certBytes))
 	keyBytes, err := os.ReadFile(key)
 	assert.Equal(t, "clientCertKey", string(keyBytes))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	io.Close(closer)
 
 	_, err = os.Stat(cert)
-	assert.ErrorIs(t, err, os.ErrNotExist)
+	require.ErrorIs(t, err, os.ErrNotExist)
 	_, err = os.Stat(key)
-	assert.ErrorIs(t, err, os.ErrNotExist)
+	require.ErrorIs(t, err, os.ErrNotExist)
 }
 
 func Test_SSHCreds_Environ(t *testing.T) {
 	for _, insecureIgnoreHostKey := range []bool{false, true} {
 		tempDir := t.TempDir()
 		caFile := path.Join(tempDir, "caFile")
-		err := os.WriteFile(caFile, []byte(""), os.FileMode(0600))
+		err := os.WriteFile(caFile, []byte(""), os.FileMode(0o600))
 		require.NoError(t, err)
-		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, &NoopCredsStore{})
+		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, &NoopCredsStore{}, "")
 		closer, env, err := creds.Environ()
 		require.NoError(t, err)
 		require.Len(t, env, 2)
@@ -229,6 +231,105 @@ func Test_SSHCreds_Environ(t *testing.T) {
 		assert.FileExists(t, privateKeyFile)
 		io.Close(closer)
 		assert.NoFileExists(t, privateKeyFile)
+	}
+}
+
+func Test_SSHCreds_Environ_WithProxy(t *testing.T) {
+	for _, insecureIgnoreHostKey := range []bool{false, true} {
+		tempDir := t.TempDir()
+		caFile := path.Join(tempDir, "caFile")
+		err := os.WriteFile(caFile, []byte(""), os.FileMode(0o600))
+		require.NoError(t, err)
+		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, &NoopCredsStore{}, "socks5://127.0.0.1:1080")
+		closer, env, err := creds.Environ()
+		require.NoError(t, err)
+		require.Len(t, env, 2)
+
+		assert.Equal(t, fmt.Sprintf("GIT_SSL_CAINFO=%s/caFile", tempDir), env[0], "CAINFO env var must be set")
+
+		assert.True(t, strings.HasPrefix(env[1], "GIT_SSH_COMMAND="))
+
+		if insecureIgnoreHostKey {
+			assert.Contains(t, env[1], "-o StrictHostKeyChecking=no")
+			assert.Contains(t, env[1], "-o UserKnownHostsFile=/dev/null")
+		} else {
+			assert.Contains(t, env[1], "-o StrictHostKeyChecking=yes")
+			hostsPath := cert.GetSSHKnownHostsDataPath()
+			assert.Contains(t, env[1], fmt.Sprintf("-o UserKnownHostsFile=%s", hostsPath))
+		}
+		assert.Contains(t, env[1], "-o ProxyCommand='connect-proxy -S 127.0.0.1:1080 -5 %h %p'")
+
+		envRegex := regexp.MustCompile("-i ([^ ]+)")
+		assert.Regexp(t, envRegex, env[1])
+		privateKeyFile := envRegex.FindStringSubmatch(env[1])[1]
+		assert.FileExists(t, privateKeyFile)
+		io.Close(closer)
+		assert.NoFileExists(t, privateKeyFile)
+	}
+}
+
+func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
+	for _, insecureIgnoreHostKey := range []bool{false, true} {
+		tempDir := t.TempDir()
+		caFile := path.Join(tempDir, "caFile")
+		err := os.WriteFile(caFile, []byte(""), os.FileMode(0o600))
+		require.NoError(t, err)
+		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, &NoopCredsStore{}, "socks5://user:password@127.0.0.1:1080")
+		closer, env, err := creds.Environ()
+		require.NoError(t, err)
+		require.Len(t, env, 4)
+
+		assert.Equal(t, fmt.Sprintf("GIT_SSL_CAINFO=%s/caFile", tempDir), env[0], "CAINFO env var must be set")
+
+		assert.True(t, strings.HasPrefix(env[1], "GIT_SSH_COMMAND="))
+		assert.Equal(t, "SOCKS5_USER=user", env[2], "SOCKS5 user env var must be set")
+		assert.Equal(t, "SOCKS5_PASSWD=password", env[3], "SOCKS5 password env var must be set")
+
+		if insecureIgnoreHostKey {
+			assert.Contains(t, env[1], "-o StrictHostKeyChecking=no")
+			assert.Contains(t, env[1], "-o UserKnownHostsFile=/dev/null")
+		} else {
+			assert.Contains(t, env[1], "-o StrictHostKeyChecking=yes")
+			hostsPath := cert.GetSSHKnownHostsDataPath()
+			assert.Contains(t, env[1], fmt.Sprintf("-o UserKnownHostsFile=%s", hostsPath))
+		}
+		assert.Contains(t, env[1], "-o ProxyCommand='connect-proxy -S 127.0.0.1:1080 -5 %h %p'")
+
+		envRegex := regexp.MustCompile("-i ([^ ]+)")
+		assert.Regexp(t, envRegex, env[1])
+		privateKeyFile := envRegex.FindStringSubmatch(env[1])[1]
+		assert.FileExists(t, privateKeyFile)
+		io.Close(closer)
+		assert.NoFileExists(t, privateKeyFile)
+	}
+}
+
+func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
+	// Previously, if the proxy URL was invalid, a temporary file would be left in /dev/shm. This ensures the file is cleaned up in this case.
+
+	// countDev returns the number of files in /dev/shm (argoio.TempDir)
+	countFilesInDevShm := func() int {
+		entries, err := os.ReadDir(argoio.TempDir)
+		require.NoError(t, err)
+
+		return len(entries)
+	}
+
+	for _, insecureIgnoreHostKey := range []bool{false, true} {
+		tempDir := t.TempDir()
+		caFile := path.Join(tempDir, "caFile")
+		err := os.WriteFile(caFile, []byte(""), os.FileMode(0o600))
+		require.NoError(t, err)
+		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, &NoopCredsStore{}, ":invalid-proxy-url")
+
+		filesInDevShmBeforeInvocation := countFilesInDevShm()
+
+		_, _, err = creds.Environ()
+		require.Error(t, err)
+
+		filesInDevShmAfterInvocation := countFilesInDevShm()
+
+		assert.Equal(t, filesInDevShmBeforeInvocation, filesInDevShmAfterInvocation, "no temporary files should leak if the proxy url cannot be parsed")
 	}
 }
 
@@ -263,16 +364,16 @@ func TestNewGoogleCloudCreds_invalidJSON(t *testing.T) {
 
 	token, err := googleCloudCreds.getAccessToken()
 	assert.Equal(t, "", token)
-	assert.NotNil(t, err)
+	require.Error(t, err)
 
 	username, err := googleCloudCreds.getUsername()
 	assert.Equal(t, "", username)
-	assert.NotNil(t, err)
+	require.Error(t, err)
 
 	closer, envStringSlice, err := googleCloudCreds.Environ()
 	assert.Equal(t, NopCloser{}, closer)
 	assert.Equal(t, []string(nil), envStringSlice)
-	assert.NotNil(t, err)
+	require.Error(t, err)
 }
 
 func TestGoogleCloudCreds_Environ_cleanup(t *testing.T) {
@@ -285,7 +386,7 @@ func TestGoogleCloudCreds_Environ_cleanup(t *testing.T) {
 	}, store}
 
 	closer, env, err := googleCloudCreds.Environ()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	var nonce string
 	for _, envVar := range env {
 		if strings.HasPrefix(envVar, ASKPASS_NONCE_ENV) {

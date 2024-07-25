@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"text/tabwriter"
 
 	"github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -10,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -18,8 +19,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
-
-	"text/tabwriter"
 )
 
 func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -30,6 +29,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 	var kind string
 	var group string
 	var all bool
+	var project string
 	command := &cobra.Command{
 		Use:   "patch-resource APPNAME",
 		Short: "Patch resource in an application",
@@ -46,6 +46,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 	command.Flags().StringVar(&group, "group", "", "Group")
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to patch multiple matching of resources")
+	command.Flags().StringVar(&project, "project", "", `The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist`)
 	command.Run = func(c *cobra.Command, args []string) {
 		ctx := c.Context()
 
@@ -70,13 +71,14 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 			_, err = appIf.PatchResource(ctx, &applicationpkg.ApplicationResourcePatchRequest{
 				Name:         &appName,
 				AppNamespace: &appNs,
-				Namespace:    pointer.String(obj.GetNamespace()),
-				ResourceName: pointer.String(obj.GetName()),
-				Version:      pointer.String(gvk.Version),
-				Group:        pointer.String(gvk.Group),
-				Kind:         pointer.String(gvk.Kind),
-				Patch:        pointer.String(patch),
-				PatchType:    pointer.String(patchType),
+				Namespace:    ptr.To(obj.GetNamespace()),
+				ResourceName: ptr.To(obj.GetName()),
+				Version:      ptr.To(gvk.Version),
+				Group:        ptr.To(gvk.Group),
+				Kind:         ptr.To(gvk.Kind),
+				Patch:        ptr.To(patch),
+				PatchType:    ptr.To(patchType),
+				Project:      ptr.To(project),
 			})
 			errors.CheckError(err)
 			log.Infof("Resource '%s' patched", obj.GetName())
@@ -94,6 +96,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 	var force bool
 	var orphan bool
 	var all bool
+	var project string
 	command := &cobra.Command{
 		Use:   "delete-resource APPNAME",
 		Short: "Delete resource in an application",
@@ -105,9 +108,10 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 	errors.CheckError(err)
 	command.Flags().StringVar(&group, "group", "", "Group")
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
-	command.Flags().BoolVar(&force, "force", false, "Indicates whether to orphan the dependents of the deleted resource")
-	command.Flags().BoolVar(&orphan, "orphan", false, "Indicates whether to force delete the resource")
+	command.Flags().BoolVar(&force, "force", false, "Indicates whether to force delete the resource")
+	command.Flags().BoolVar(&orphan, "orphan", false, "Indicates whether to orphan the dependents of the deleted resource")
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to patch multiple matching of resources")
+	command.Flags().StringVar(&project, "project", "", `The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist`)
 	command.Run = func(c *cobra.Command, args []string) {
 		ctx := c.Context()
 
@@ -132,13 +136,14 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 			_, err = appIf.DeleteResource(ctx, &applicationpkg.ApplicationResourceDeleteRequest{
 				Name:         &appName,
 				AppNamespace: &appNs,
-				Namespace:    pointer.String(obj.GetNamespace()),
-				ResourceName: pointer.String(obj.GetName()),
-				Version:      pointer.String(gvk.Version),
-				Group:        pointer.String(gvk.Group),
-				Kind:         pointer.String(gvk.Kind),
+				Namespace:    ptr.To(obj.GetNamespace()),
+				ResourceName: ptr.To(obj.GetName()),
+				Version:      ptr.To(gvk.Version),
+				Group:        ptr.To(gvk.Group),
+				Kind:         ptr.To(gvk.Kind),
 				Force:        &force,
 				Orphan:       &orphan,
+				Project:      ptr.To(project),
 			})
 			errors.CheckError(err)
 			log.Infof("Resource '%s' deleted", obj.GetName())
@@ -174,7 +179,6 @@ func printDetailedTreeViewAppResourcesNotOrphaned(nodeMapping map[string]v1alpha
 	for uid := range parentNodes {
 		detailedTreeViewAppResourcesNotOrphaned("", nodeMapping, parentChildMapping, nodeMapping[uid], w)
 	}
-
 }
 
 func printDetailedTreeViewAppResourcesOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, orphaned bool, listAll bool, w *tabwriter.Writer) {
@@ -187,7 +191,6 @@ func printTreeViewAppResourcesNotOrphaned(nodeMapping map[string]v1alpha1.Resour
 	for uid := range parentNodes {
 		treeViewAppResourcesNotOrphaned("", nodeMapping, parentChildMapping, nodeMapping[uid], w)
 	}
-
 }
 
 func printTreeViewAppResourcesOrphaned(nodeMapping map[string]v1alpha1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, orphaned bool, listAll bool, w *tabwriter.Writer) {
@@ -210,7 +213,6 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 			mapUidToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.OrphanedNodes)
 			printDetailedTreeViewAppResourcesOrphaned(mapUidToNode, mapParentToChild, parentNode, orphaned, listAll, w)
 		}
-
 	} else if output == "tree" {
 		fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tORPHANED\n")
 
@@ -223,9 +225,7 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 			mapUidToNode, mapParentToChild, parentNode := parentChildInfo(appResourceTree.OrphanedNodes)
 			printTreeViewAppResourcesOrphaned(mapUidToNode, mapParentToChild, parentNode, orphaned, listAll, w)
 		}
-
 	} else {
-
 		headers := []interface{}{"GROUP", "KIND", "NAMESPACE", "NAME", "ORPHANED"}
 		fmtStr := "%s\t%s\t%s\t%s\t%s\n"
 		_, _ = fmt.Fprintf(w, fmtStr, headers...)
@@ -241,16 +241,15 @@ func printResources(listAll bool, orphaned bool, appResourceTree *v1alpha1.Appli
 				_, _ = fmt.Fprintf(w, fmtStr, res.Group, res.Kind, res.Namespace, res.Name, "Yes")
 			}
 		}
-
 	}
 	_ = w.Flush()
-
 }
 
 func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var orphaned bool
 	var output string
-	var command = &cobra.Command{
+	var project string
+	command := &cobra.Command{
 		Use:   "resources APPNAME",
 		Short: "List resource of application",
 		Run: func(c *cobra.Command, args []string) {
@@ -266,6 +265,7 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 			appResourceTree, err := appIf.ResourceTree(ctx, &applicationpkg.ResourcesQuery{
 				ApplicationName: &appName,
 				AppNamespace:    &appNs,
+				Project:         &project,
 			})
 			errors.CheckError(err)
 			printResources(listAll, orphaned, appResourceTree, output)
@@ -273,5 +273,6 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 	}
 	command.Flags().BoolVar(&orphaned, "orphaned", false, "Lists only orphaned resources")
 	command.Flags().StringVar(&output, "output", "", "Provides the tree view of the resources")
+	command.Flags().StringVar(&project, "project", "", `The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist`)
 	return command
 }

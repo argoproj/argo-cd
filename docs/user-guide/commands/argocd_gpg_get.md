@@ -8,6 +8,19 @@ Get the GPG public key with ID <KEYID> from the server
 argocd gpg get KEYID [flags]
 ```
 
+### Examples
+
+```
+  # Get a GPG public key with the specified KEYID in wide format (default).
+  argocd gpg get KEYID
+  
+  # Get a GPG public key with the specified KEYID in JSON format.
+  argocd gpg get KEYID -o json
+  
+  # Get a GPG public key with the specified KEYID in YAML format.
+  argocd gpg get KEYID -o yaml
+```
+
 ### Options
 
 ```

@@ -13,15 +13,15 @@ import (
 	lua "github.com/yuin/gopher-lua"
 )
 
-func OpenSafeOs(L *lua.LState) int {
-	tabmod := L.RegisterModule(lua.TabLibName, osFuncs)
-	L.Push(tabmod)
+func OpenSafeOs(l *lua.LState) int {
+	tabmod := l.RegisterModule(lua.TabLibName, osFuncs)
+	l.Push(tabmod)
 	return 1
 }
 
-func SafeOsLoader(L *lua.LState) int {
-	mod := L.SetFuncs(L.NewTable(), osFuncs)
-	L.Push(mod)
+func SafeOsLoader(l *lua.LState) int {
+	mod := l.SetFuncs(l.NewTable(), osFuncs)
+	l.Push(mod)
 	return 1
 }
 
@@ -30,11 +30,11 @@ var osFuncs = map[string]lua.LGFunction{
 	"date": osDate,
 }
 
-func osTime(L *lua.LState) int {
-	if L.GetTop() == 0 {
-		L.Push(lua.LNumber(time.Now().Unix()))
+func osTime(l *lua.LState) int {
+	if l.GetTop() == 0 {
+		l.Push(lua.LNumber(time.Now().Unix()))
 	} else {
-		tbl := L.CheckTable(1)
+		tbl := l.CheckTable(1)
 		sec := getIntField(tbl, "sec", 0)
 		min := getIntField(tbl, "min", 0)
 		hour := getIntField(tbl, "hour", 12)
@@ -47,7 +47,7 @@ func osTime(L *lua.LState) int {
 		if false {
 			print(isdst)
 		}
-		L.Push(lua.LNumber(t.Unix()))
+		l.Push(lua.LNumber(t.Unix()))
 	}
 	return 1
 }
@@ -68,20 +68,20 @@ func getBoolField(tb *lua.LTable, key string, v bool) bool {
 	return v
 }
 
-func osDate(L *lua.LState) int {
+func osDate(l *lua.LState) int {
 	t := time.Now()
 	cfmt := "%c"
-	if L.GetTop() >= 1 {
-		cfmt = L.CheckString(1)
+	if l.GetTop() >= 1 {
+		cfmt = l.CheckString(1)
 		if strings.HasPrefix(cfmt, "!") {
 			t = time.Now().UTC()
 			cfmt = strings.TrimLeft(cfmt, "!")
 		}
-		if L.GetTop() >= 2 {
-			t = time.Unix(L.CheckInt64(2), 0)
+		if l.GetTop() >= 2 {
+			t = time.Unix(l.CheckInt64(2), 0)
 		}
 		if strings.HasPrefix(cfmt, "*t") {
-			ret := L.NewTable()
+			ret := l.NewTable()
 			ret.RawSetString("year", lua.LNumber(t.Year()))
 			ret.RawSetString("month", lua.LNumber(t.Month()))
 			ret.RawSetString("day", lua.LNumber(t.Day()))
@@ -92,18 +92,19 @@ func osDate(L *lua.LState) int {
 			// TODO yday & dst
 			ret.RawSetString("yday", lua.LNumber(0))
 			ret.RawSetString("isdst", lua.LFalse)
-			L.Push(ret)
+			l.Push(ret)
 			return 1
 		}
 	}
-	L.Push(lua.LString(strftime(t, cfmt)))
+	l.Push(lua.LString(strftime(t, cfmt)))
 	return 1
 }
 
 var cDateFlagToGo = map[byte]string{
 	'a': "mon", 'A': "Monday", 'b': "Jan", 'B': "January", 'c': "02 Jan 06 15:04 MST", 'd': "02",
 	'F': "2006-01-02", 'H': "15", 'I': "03", 'm': "01", 'M': "04", 'p': "PM", 'P': "pm", 'S': "05",
-	'x': "15/04/05", 'X': "15:04:05", 'y': "06", 'Y': "2006", 'z': "-0700", 'Z': "MST"}
+	'x': "15/04/05", 'X': "15:04:05", 'y': "06", 'Y': "2006", 'z': "-0700", 'Z': "MST",
+}
 
 func strftime(t time.Time, cfmt string) string {
 	sc := newFlagScanner('%', "", "", cfmt)

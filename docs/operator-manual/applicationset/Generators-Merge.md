@@ -17,6 +17,8 @@ kind: ApplicationSet
 metadata:
   name: cluster-git
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     # merge 'parent' generator
     - merge:
@@ -41,9 +43,9 @@ spec:
                   values.redis: 'true'
   template:
     metadata:
-      name: '{{name}}'
+      name: '{{.name}}'
     spec:
-      project: '{{metadata.labels.environment}}'
+      project: '{{index .metadata.labels "environment"}}'
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
@@ -51,11 +53,11 @@ spec:
         helm:
           parameters:
             - name: kafka
-              value: '{{values.kafka}}'
+              value: '{{.values.kafka}}'
             - name: redis
-              value: '{{values.redis}}'
+              value: '{{.values.redis}}'
       destination:
-        server: '{{server}}'
+        server: '{{.server}}'
         namespace: default
 ```
 
@@ -122,6 +124,8 @@ kind: ApplicationSet
 metadata:
   name: cluster-git
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     # merge 'parent' generator:
     # Use the selector set by both child generators to combine them.
@@ -135,7 +139,7 @@ spec:
           # Set the selector to this location.
           - clusters:
               values:
-                selector: '{{ metadata.labels.location }}'
+                selector: '{{index .metadata.labels "location"}}'
           # The git repo may have different directories which correspond to the
           # cluster locations, using these as a selector.
           - git:
@@ -144,19 +148,19 @@ spec:
               directories:
               - path: '*'
               values:
-                selector: '{{ path }}'
+                selector: '{{.path.path}}'
   template:
     metadata:
-      name: '{{name}}'
+      name: '{{.name}}'
     spec:
-      project: '{{metadata.labels.environment}}'
+      project: '{{index .metadata.labels "environment"}}'
       source:
         repoURL: https://github.com/argoproj/argocd-example-apps/
         # The cluster values field for each generator will be substituted here:
         targetRevision: HEAD
-        path: '{{path}}'
+        path: '{{.path.path}}'
       destination:
-        server: '{{server}}'
+        server: '{{.server}}'
         namespace: default
 ```
 

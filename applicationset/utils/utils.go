@@ -16,6 +16,7 @@ import (
 	"unsafe"
 
 	"github.com/Masterminds/sprig/v3"
+	"github.com/gosimple/slug"
 	"github.com/valyala/fasttemplate"
 	"sigs.k8s.io/yaml"
 
@@ -32,6 +33,7 @@ func init() {
 	delete(sprigFuncMap, "expandenv")
 	delete(sprigFuncMap, "getHostByName")
 	sprigFuncMap["normalize"] = SanitizeName
+	sprigFuncMap["slugify"] = SlugifyName
 	sprigFuncMap["toYaml"] = toYAML
 	sprigFuncMap["fromYaml"] = fromYAML
 	sprigFuncMap["fromYamlArray"] = fromYAMLArray
@@ -39,10 +41,10 @@ func init() {
 
 type Renderer interface {
 	RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *argoappsv1.ApplicationSetSyncPolicy, params map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (*argoappsv1.Application, error)
+	Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (string, error)
 }
 
-type Render struct {
-}
+type Render struct{}
 
 func copyValueIntoUnexported(destination, value reflect.Value) {
 	reflect.NewAt(destination.Type(), unsafe.Pointer(destination.UnsafeAddr())).
@@ -51,7 +53,7 @@ func copyValueIntoUnexported(destination, value reflect.Value) {
 }
 
 func copyUnexported(copy, original reflect.Value) {
-	var unexported = reflect.NewAt(original.Type(), unsafe.Pointer(original.UnsafeAddr())).Elem()
+	unexported := reflect.NewAt(original.Type(), unsafe.Pointer(original.UnsafeAddr())).Elem()
 	copyValueIntoUnexported(copy, unexported)
 }
 
@@ -124,7 +126,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 	// If it is a struct we translate each field
 	case reflect.Struct:
 		for i := 0; i < original.NumField(); i += 1 {
-			var currentType = fmt.Sprintf("%s.%s", original.Type().Field(i).Name, original.Type().PkgPath())
+			currentType := fmt.Sprintf("%s.%s", original.Type().Field(i).Name, original.Type().PkgPath())
 			// specific case time
 			if currentType == "time.Time" {
 				copy.Field(i).Set(original.Field(i))
@@ -266,9 +268,8 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 	// b) there IS a syncPolicy, but preserveResourcesOnDeletion is set to false
 	// See TestRenderTemplateParamsFinalizers in util_test.go for test-based definition of behaviour
 	if (syncPolicy == nil || !syncPolicy.PreserveResourcesOnDeletion) &&
-		((*replacedTmpl).ObjectMeta.Finalizers == nil || len((*replacedTmpl).ObjectMeta.Finalizers) == 0) {
-
-		(*replacedTmpl).ObjectMeta.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
+		(replacedTmpl.ObjectMeta.Finalizers == nil || len(replacedTmpl.ObjectMeta.Finalizers) == 0) {
+		replacedTmpl.ObjectMeta.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
 	}
 
 	return replacedTmpl, nil
@@ -434,8 +435,55 @@ func NormalizeBitbucketBasePath(basePath string) string {
 	return basePath
 }
 
-func getTlsConfigWithCACert(scmRootCAPath string) *tls.Config {
+// SlugifyName generates a URL-friendly slug from the provided name and additional options.
+// The slug is generated in accordance with the following rules:
+// 1. The generated slug will be URL-safe and suitable for use in URLs.
+// 2. The maximum length of the slug can be specified using the `maxSize` argument.
+// 3. Smart truncation can be enabled or disabled using the `EnableSmartTruncate` argument.
+// 4. The input name can be any string value that needs to be converted into a slug.
+//
+// Args:
+// - args: A variadic number of arguments where:
+//   - The first argument (if provided) is an integer specifying the maximum length of the slug.
+//   - The second argument (if provided) is a boolean indicating whether smart truncation is enabled.
+//   - The last argument (if provided) is the input name that needs to be slugified.
+//     If no name is provided, an empty string will be used.
+//
+// Returns:
+// - string: The generated URL-friendly slug based on the input name and options.
+func SlugifyName(args ...interface{}) string {
+	// Default values for arguments
+	maxSize := 50
+	EnableSmartTruncate := true
+	name := ""
 
+	// Process the arguments
+	for idx, arg := range args {
+		switch idx {
+		case len(args) - 1:
+			name = arg.(string)
+		case 0:
+			maxSize = arg.(int)
+		case 1:
+			EnableSmartTruncate = arg.(bool)
+		default:
+			log.Errorf("Bad 'slugify' arguments.")
+		}
+	}
+
+	sanitizedName := SanitizeName(name)
+
+	// Configure slug generation options
+	slug.EnableSmartTruncate = EnableSmartTruncate
+	slug.MaxLength = maxSize
+
+	// Generate the slug from the input name
+	urlSlug := slug.Make(sanitizedName)
+
+	return urlSlug
+}
+
+func getTlsConfigWithCACert(scmRootCAPath string, caCerts []byte) *tls.Config {
 	tlsConfig := &tls.Config{}
 
 	if scmRootCAPath != "" {
@@ -449,8 +497,12 @@ func getTlsConfigWithCACert(scmRootCAPath string) *tls.Config {
 			log.Errorf("error reading certificate from file '%s', proceeding without custom rootCA : %s", scmRootCAPath, err)
 			return tlsConfig
 		}
+		caCerts = append(caCerts, rootCA...)
+	}
+
+	if len(caCerts) > 0 {
 		certPool := x509.NewCertPool()
-		ok := certPool.AppendCertsFromPEM([]byte(rootCA))
+		ok := certPool.AppendCertsFromPEM(caCerts)
 		if !ok {
 			log.Errorf("failed to append certificates from PEM: proceeding without custom rootCA")
 		} else {
@@ -460,8 +512,8 @@ func getTlsConfigWithCACert(scmRootCAPath string) *tls.Config {
 	return tlsConfig
 }
 
-func GetTlsConfig(scmRootCAPath string, insecure bool) *tls.Config {
-	tlsConfig := getTlsConfigWithCACert(scmRootCAPath)
+func GetTlsConfig(scmRootCAPath string, insecure bool, caCerts []byte) *tls.Config {
+	tlsConfig := getTlsConfigWithCACert(scmRootCAPath, caCerts)
 
 	if insecure {
 		tlsConfig.InsecureSkipVerify = true

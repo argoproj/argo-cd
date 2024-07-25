@@ -1,0 +1,7 @@
+apiVersion: v2
+name: helm-with-dependencies-alias
+version: v1.0.0
+dependencies:
+  - name: helm
+    repository: "alias:custom-repo-alias"
+    version: v1.0.0

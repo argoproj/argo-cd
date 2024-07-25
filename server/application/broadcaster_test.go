@@ -49,5 +49,4 @@ func TestBroadcasterHandler_ReceiveEvents(t *testing.T) {
 			return
 		}
 	}
-
 }

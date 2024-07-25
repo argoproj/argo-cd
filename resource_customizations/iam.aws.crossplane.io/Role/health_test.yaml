@@ -1,0 +1,10 @@
+tests:
+- healthStatus:
+    status: Degraded
+    message: 'connect failed: cannot get referenced Provider: ProviderConfig.aws.crossplane.io
+      "provider-aws1" not found'
+  inputPath: testdata/ReconcileError.yaml
+- healthStatus:
+    status: Healthy
+    message: Available
+  inputPath: testdata/healthy.yaml
