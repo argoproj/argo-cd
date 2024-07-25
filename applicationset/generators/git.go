@@ -121,7 +121,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	for _, requestedPath := range appSetGenerator.Git.Files {
 		files, err := g.repos.GetFiles(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, requestedPath.Path, noRevisionCache, verifyCommit)
 		if err != nil {
-			return nil, fmt.Errorf("%w", err)
+			return nil, err
 		}
 		for filePath, content := range files {
 			allFiles[filePath] = content
