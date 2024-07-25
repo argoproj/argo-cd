@@ -200,6 +200,11 @@ data:
   # (i.e. the spec.syncPlicy.applicationSync field). Set it to "true" to allow overrides. "" or "false" will disable
   # overrides. (default "")
   applicationsetcontroller.enable.policy.override: ""
+  # Max concurrent reconciliation limit for the controller (default 10)
+  applicationsetcontroller.concurrent.reconciliations.max: "10"
+  # Enable new globbing in Git files generator (default "false")
+  # See https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Generators-Git-File-Globbing/
+  applicationsetcontroller.enable.new.git.file.globbing: "false"
   # Print debug logs. Takes precedence over loglevel
   applicationsetcontroller.debug: "false"
   # Set the logging format. One of: text|json (default "text")
