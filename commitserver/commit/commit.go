@@ -52,7 +52,8 @@ func (s *Service) Commit(ctx context.Context, r *apiclient.ManifestsRequest) (*a
 	}()
 
 	gitCreds := r.Repo.GetGitCreds(s.gitCredsStore)
-	gitClient, err := git.NewClientExt(r.RepoUrl, dirPath, gitCreds, r.Repo.IsInsecure(), r.Repo.IsLFSEnabled(), r.Repo.Proxy)
+	opts := git.WithEventHandlers(metrics.NewGitClientEventHandlers(s.metricsServer))
+	gitClient, err := git.NewClientExt(r.RepoUrl, dirPath, gitCreds, r.Repo.IsInsecure(), r.Repo.IsLFSEnabled(), r.Repo.Proxy, opts)
 	if err != nil {
 		logCtx.WithError(err).Error("failed to create git client")
 		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to create git client: %w", err)
