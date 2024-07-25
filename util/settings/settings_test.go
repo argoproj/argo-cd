@@ -1661,8 +1661,8 @@ func TestRedirectURLForRequest(t *testing.T) {
 		{
 			Name: "Match extended URL in settings.URL.",
 			Settings: &ArgoCDSettings{
-				URL:  "https://otherhost.org",
-				URLs: []string{"https://anotherhost.org"},
+				URL:            "https://otherhost.org",
+				AdditionalURLs: []string{"https://anotherhost.org"},
 			},
 			Request:     generateRequest("https://anotherhost.org/login"),
 			ExpectedURL: "https://anotherhost.org/auth/callback",

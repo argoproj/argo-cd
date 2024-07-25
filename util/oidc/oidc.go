@@ -155,6 +155,7 @@ func (a *ClientApp) oauth2Config(request *http.Request, scopes []string) (*oauth
 	}
 	redirectURL, err := a.settings.RedirectURLForRequest(request)
 	if err != nil {
+		log.Warnf("Unable to find ArgoCD URL from request, falling back to configured redirect URI: %v", err)
 		redirectURL = a.redirectURI
 	}
 	return &oauth2.Config{
@@ -212,7 +213,8 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 	redirectURL := a.baseHRef
 	parts := strings.SplitN(cookieVal, ":", 2)
 	if len(parts) == 2 && parts[1] != "" {
-		if !isValidRedirectURL(parts[1], append([]string{a.settings.URL, a.baseHRef}, a.settings.URLs...)) {
+		if !isValidRedirectURL(parts[1],
+			append([]string{a.settings.URL, a.baseHRef}, a.settings.AdditionalURLs...)) {
 			sanitizedUrl := parts[1]
 			if len(sanitizedUrl) > 100 {
 				sanitizedUrl = sanitizedUrl[:100]
@@ -304,7 +306,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	returnURL := r.FormValue("return_url")
 	// Check if return_url is valid, otherwise abort processing (see https://github.com/argoproj/argo-cd/pull/4780)
-	if !isValidRedirectURL(returnURL, append([]string{a.settings.URL}, a.settings.URLs...)) {
+	if !isValidRedirectURL(returnURL, append([]string{a.settings.URL}, a.settings.AdditionalURLs...)) {
 		http.Error(w, "Invalid redirect URL: the protocol and host (including port) must match and the path must be within allowed URLs if provided", http.StatusBadRequest)
 		return
 	}

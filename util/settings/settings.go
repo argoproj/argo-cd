@@ -52,7 +52,7 @@ type ArgoCDSettings struct {
 	URL string `json:"url,omitempty"`
 	// URLs is a list of externally facing URLs users will visit to reach Argo CD.
 	// The value here is used when configuring SSO reachable from multiple domains.
-	URLs []string `json:"urls,omitempty"`
+	AdditionalURLs []string `json:"additionalUrls,omitempty"`
 	// Indicates if status badge is enabled or not.
 	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
 	// Indicates if status badge custom root URL should be used.
@@ -1477,11 +1477,11 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
 	}
 	if argoCDCM.Data[settingURLsKey] != "" {
-		if err := yaml.Unmarshal([]byte(argoCDCM.Data[settingURLsKey]), &settings.URLs); err != nil {
+		if err := yaml.Unmarshal([]byte(argoCDCM.Data[settingURLsKey]), &settings.AdditionalURLs); err != nil {
 			log.Warnf("Failed to decode all external URLs in configmap: %v", err)
 		}
 	}
-	for _, url := range settings.URLs {
+	for _, url := range settings.AdditionalURLs {
 		if err := validateExternalURL(url); err != nil {
 			log.Warnf("Failed to validate external URL in configmap: %v", err)
 		}
@@ -2010,7 +2010,7 @@ func (a *ArgoCDSettings) RedirectURL() (string, error) {
 }
 
 func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
-	for _, candidateURL := range append([]string{a.URL}, a.URLs...) {
+	for _, candidateURL := range append([]string{a.URL}, a.AdditionalURLs...) {
 		u, err := url.Parse(candidateURL)
 		if err != nil {
 			return "", err
