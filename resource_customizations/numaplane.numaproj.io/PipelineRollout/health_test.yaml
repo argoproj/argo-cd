@@ -9,7 +9,7 @@ tests:
   inputPath: testdata/healthy.yaml
 - healthStatus:
     status: Suspended
-    message: "Pipeline is paused"
+    message: "Pipeline paused"
   inputPath: testdata/paused.yaml
 - healthStatus:
     status: Degraded

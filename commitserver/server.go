@@ -1,8 +1,9 @@
 package commitserver
 
 import (
-	"github.com/argoproj/argo-cd/v2/commitserver/metrics"
 	"google.golang.org/grpc"
+
+	"github.com/argoproj/argo-cd/v2/commitserver/metrics"
 
 	"github.com/argoproj/argo-cd/v2/util/git"
 

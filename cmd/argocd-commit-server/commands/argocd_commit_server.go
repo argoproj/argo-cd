@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/commitserver/metrics"
 	"net"
 	"net/http"
 
@@ -10,6 +9,7 @@ import (
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/commitserver"
+	"github.com/argoproj/argo-cd/v2/commitserver/metrics"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/reposerver/askpass"
 	"github.com/argoproj/argo-cd/v2/util/cli"

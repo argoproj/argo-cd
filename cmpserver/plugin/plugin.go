@@ -15,13 +15,12 @@ import (
 	"github.com/argoproj/pkg/rand"
 	"github.com/golang/protobuf/ptypes/empty"
 
-	execargo "github.com/argoproj/argo-cd/v2/util/exec"
-
 	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
 	repoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/buffered_context"
 	"github.com/argoproj/argo-cd/v2/util/cmp"
+	argoexec "github.com/argoproj/argo-cd/v2/util/exec"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -77,7 +76,7 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	}
 	logCtx := log.WithFields(log.Fields{"execID": execId})
 
-	argsToLog := execargo.GetCommandArgsToLog(cmd)
+	argsToLog := argoexec.GetCommandArgsToLog(cmd)
 	logCtx.WithFields(log.Fields{"dir": cmd.Dir}).Info(argsToLog)
 
 	var stdout bytes.Buffer

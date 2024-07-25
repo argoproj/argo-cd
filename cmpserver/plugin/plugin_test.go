@@ -6,13 +6,10 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"testing"
 	"time"
-
-	execargo "github.com/argoproj/argo-cd/v2/util/exec"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
@@ -389,7 +386,7 @@ func TestRunCommandContextTimeoutWithCleanup(t *testing.T) {
 	after := time.Now()
 
 	require.Error(t, err) // The command should time out, causing an error.
-	assert.Less(t, after.Sub(before), 2*time.Second)
+	assert.Less(t, after.Sub(before), 1*time.Second)
 	// The command should still have completed the cleanup after termination.
 	assert.Contains(t, output, "cleanup completed")
 }
@@ -850,38 +847,6 @@ func TestService_GetParametersAnnouncement(t *testing.T) {
 		require.ErrorContains(t, err, "error executing dynamic parameter output command")
 		require.Nil(t, s.response)
 	})
-}
-
-func Test_getCommandArgsToLog(t *testing.T) {
-	testCases := []struct {
-		name     string
-		args     []string
-		expected string
-	}{
-		{
-			name:     "no spaces",
-			args:     []string{"sh", "-c", "cat"},
-			expected: "sh -c cat",
-		},
-		{
-			name:     "spaces",
-			args:     []string{"sh", "-c", `echo "hello world"`},
-			expected: `sh -c "echo \"hello world\""`,
-		},
-		{
-			name:     "empty string arg",
-			args:     []string{"sh", "-c", ""},
-			expected: `sh -c ""`,
-		},
-	}
-
-	for _, tc := range testCases {
-		tcc := tc
-		t.Run(tcc.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tcc.expected, execargo.GetCommandArgsToLog(exec.Command(tcc.args[0], tcc.args[1:]...)))
-		})
-	}
 }
 
 func TestService_CheckPluginConfiguration(t *testing.T) {
