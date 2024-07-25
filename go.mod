@@ -13,7 +13,7 @@ require (
 	github.com/argoproj/gitops-engine v0.7.1-0.20240718175351-6b2984ebc470
 	github.com/argoproj/notifications-engine v0.4.1-0.20240606074338-0802cd427621
 	github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1
-	github.com/aws/aws-sdk-go v1.50.8
+	github.com/aws/aws-sdk-go v1.55.2
 	github.com/bmatcuk/doublestar/v4 v4.6.1
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.6.0
