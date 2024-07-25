@@ -91,9 +91,11 @@ Scraped at the `argocd-repo-server:8084/metrics` endpoint.
 Metrics about the Commit Server.
 Scraped at the `argocd-commit-server:8087/metrics` endpoint.
 
-| Metric | Type  | Description |
-|--------|:-----:|-------------|
-| `argocd_commitserver_commit_pending_request_total` | guage | Number of pending commit requests. |
+| Metric                                             |   Type    | Description                                       |
+|----------------------------------------------------|:---------:|---------------------------------------------------|
+| `argocd_commitserver_commit_pending_request_total` |   guage   | Number of pending commit requests.                |
+| `argocd_commitserver_git_request_duration_seconds` | histogram | Git requests duration seconds.                    |
+| `argocd_commitserver_git_request_total`            |  counter  | Number of git requests performed by commit server |
 
 ## Prometheus Operator
 

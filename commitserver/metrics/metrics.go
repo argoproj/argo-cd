@@ -21,6 +21,7 @@ type GitRequestType string
 const (
 	GitRequestTypeLsRemote = "ls-remote"
 	GitRequestTypeFetch    = "fetch"
+	GitRequestTypePush     = "push"
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics.
