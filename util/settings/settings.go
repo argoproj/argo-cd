@@ -2337,7 +2337,7 @@ func (mgr *SettingsManager) GetMaxWebhookPayloadSize() int64 {
 }
 
 // GetIsImpersonationEnabled returns true if application sync with impersonation feature is enabled in argocd-cm configmap
-func (mgr *SettingsManager) GetIsImpersonationEnabled() bool {
+func (mgr *SettingsManager) IsImpersonationEnabled() bool {
 	cm, err := mgr.getConfigMap()
 	if err != nil {
 		return false

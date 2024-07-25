@@ -171,7 +171,7 @@ export interface ApplicationDestination {
     name: string;
 }
 
-export interface ApplicationDestinationServiceAccounts {
+export interface ApplicationDestinationServiceAccount {
     server: string;
     namespace: string;
     defaultServiceAccount: string;
@@ -727,7 +727,7 @@ export interface ProjectSpec {
     sourceRepos: string[];
     sourceNamespaces: string[];
     destinations: ApplicationDestination[];
-    destinationServiceAccounts: ApplicationDestinationServiceAccounts[];
+    destinationServiceAccounts: ApplicationDestinationServiceAccount[];
     description: string;
     roles: ProjectRole[];
     clusterResourceWhitelist: GroupKind[];
