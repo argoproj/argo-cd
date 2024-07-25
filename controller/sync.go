@@ -216,7 +216,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	rawConfig := clst.RawRestConfig()
 	restConfig := metrics.AddMetricsTransportWrapper(m.metricsServer, app, clst.RESTConfig())
 
-	if m.settingsMgr.GetIsImpersonationEnabled() {
+	if m.settingsMgr.IsImpersonationEnabled() {
 		setImpersonationConfig(rawConfig, app, proj)
 		setImpersonationConfig(restConfig, app, proj)
 	}
