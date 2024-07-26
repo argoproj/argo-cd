@@ -15,3 +15,7 @@ tests:
     status: Progressing
     message: "Waiting for ISBService status"
   inputPath: testdata/progressing-nostatus.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for ISBService status"
+  inputPath: testdata/progressing-reason.yaml

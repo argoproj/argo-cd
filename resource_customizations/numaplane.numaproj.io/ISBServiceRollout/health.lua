@@ -11,7 +11,7 @@ if obj.status ~= nil then
   end
 
   if obj.metadata.generation == obj.status.observedGeneration then
-    if (healthyCondition ~= {} and healthyCondition.status == "False" and (obj.metadata.generation == healthyCondition.observedGeneration)) or obj.status.phase == "Failed" then
+    if (healthyCondition ~= {} and healthyCondition.status == "False" and (obj.metadata.generation == healthyCondition.observedGeneration) and healthyCondition.reason == "ISBSvcFailed") or obj.status.phase == "Failed" then
       hs.status = "Degraded"
       if obj.status.phase == "Failed" then
         hs.message = obj.status.message
