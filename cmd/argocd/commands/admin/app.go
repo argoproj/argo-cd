@@ -41,6 +41,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 )
 
 func NewAppCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
@@ -452,5 +453,5 @@ func reconcileApplications(
 }
 
 func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache {
-	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), server, func(managedByApp map[string]bool, ref apiv1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
+	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, kubeutil.NewKubectl(), argoio.TempPathUseDevShmIfAvailable(), server, func(managedByApp map[string]bool, ref apiv1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
 }
