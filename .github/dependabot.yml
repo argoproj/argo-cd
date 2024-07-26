@@ -4,8 +4,13 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    open-pull-requests-limit: 20
     ignore:
     - dependency-name: k8s.io/*
+    groups:
+      otel:
+        patterns:
+          - "^go.opentelemetry.io/.*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
