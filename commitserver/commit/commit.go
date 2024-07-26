@@ -28,26 +28,22 @@ func (s *Service) Commit(ctx context.Context, r *apiclient.ManifestsRequest) (*a
 	s.metricsServer.IncPendingCommitRequest(r.Repo.Repo)
 	defer s.metricsServer.DecPendingCommitRequest(r.Repo.Repo)
 
+	// TODO: add the following metrics:
+	//       - histogram for commit request duration, labeled by repo
+	//       - counter for successful commits, labeled by repo
+	//       - counter for failed commits, labeled by repo
+
 	logCtx := log.WithFields(log.Fields{"repo": r.RepoUrl, "branch": r.TargetBranch, "drySHA": r.DrySha})
 
-	logCtx.Debug("Creating temp dir")
-	// The UUID is an important security mechanism to help mitigate path traversal attacks.
-	dirName, err := uuid.NewRandom()
-	if err != nil {
-		logCtx.WithError(err).Error("failed to generate uuid")
-		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to generate a uuid to create temp dir: %w", err)
-	}
-	// Don't need SecureJoin here, both parts are safe.
-	dirPath := path.Join("/tmp/_commit-service", dirName.String())
-	err = os.MkdirAll(dirPath, os.ModePerm)
+	dirPath, cleanup, err := makeSecureTempDir()
 	if err != nil {
 		logCtx.WithError(err).Error("failed to create temp dir")
 		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to create temp dir: %w", err)
 	}
 	defer func() {
-		err := os.RemoveAll(dirPath)
+		err := cleanup()
 		if err != nil {
-			logCtx.WithError(err).Errorf("failed to remove temp dir %s", dirPath)
+			logCtx.WithError(err).Error("failed to clean up temp dir")
 		}
 	}()
 
@@ -72,6 +68,8 @@ func (s *Service) Commit(ctx context.Context, r *apiclient.ManifestsRequest) (*a
 		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to clone repo: %w", err)
 	}
 
+	// TODO: Produce metrics on getting user info, since it'll generally hit APIs. Make sure to label by _which_ API is
+	//       being hit.
 	authorName, authorEmail, err := gitCreds.GetUserInfo(ctx)
 	if err != nil {
 		logCtx.WithError(err).Error("failed to get github app info")
@@ -108,6 +106,8 @@ func (s *Service) Commit(ctx context.Context, r *apiclient.ManifestsRequest) (*a
 		return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to clear repo: %w", err)
 	}
 
+	// TODO: abstract out the "write to disk" part - it's making this function too long.
+
 	h := newHydratorHelper(dirPath)
 
 	// Write hydrator.metadata containing information about the hydration process. This top-level metadata file is used
@@ -131,6 +131,7 @@ func (s *Service) Commit(ctx context.Context, r *apiclient.ManifestsRequest) (*a
 			logCtx.WithError(err).Error("failed to construct hydrate path")
 			return &apiclient.ManifestsResponse{}, fmt.Errorf("failed to construct hydrate path: %w", err)
 		}
+		// TODO: consider switching to securejoin.MkdirAll: https://github.com/cyphar/filepath-securejoin?tab=readme-ov-file#mkdirall
 		err = os.MkdirAll(fullHydratePath, os.ModePerm)
 		if err != nil {
 			logCtx.WithError(err).Error("failed to create path")
@@ -177,6 +178,31 @@ func (s *Service) Commit(ctx context.Context, r *apiclient.ManifestsRequest) (*a
 	logCtx.WithField("output", out).Debug("pushed manifests to git")
 
 	return &apiclient.ManifestsResponse{}, nil
+}
+
+// makeSecureTempDir creates a secure temporary directory and returns the path to the directory. The path is "secure" in
+// the sense that its name is a UUID, which helps mitigate path traversal attacks. The function also returns a cleanup
+// function that should be used to remove the directory when it is no longer needed.
+func makeSecureTempDir() (string, func() error, error) {
+	// The UUID is an important security mechanism to help mitigate path traversal attacks.
+	dirName, err := uuid.NewRandom()
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to generate uuid: %w", err)
+	}
+	// Don't need SecureJoin here, both parts are safe.
+	dirPath := path.Join("/tmp/_commit-service", dirName.String())
+	err = os.MkdirAll(dirPath, os.ModePerm)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	cleanup := func() error {
+		err := os.RemoveAll(dirPath)
+		if err != nil {
+			return fmt.Errorf("failed to remove temp dir: %w", err)
+		}
+		return nil
+	}
+	return dirPath, cleanup, nil
 }
 
 type hydratorMetadataFile struct {
