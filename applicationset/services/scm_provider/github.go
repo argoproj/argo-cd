@@ -11,19 +11,19 @@ import (
 )
 
 type GithubProvider struct {
-	client          *github.Client
-	organization    string
-	allBranches     bool
-	includeArchived bool
+	client               *github.Client
+	organization         string
+	allBranches          bool
+	includeArchivedRepos bool
 }
 
 type GithubOption func(*GithubProvider)
 
 var _ SCMProviderService = &GithubProvider{}
 
-func WithIncludeArchived(includeArchived bool) func(*GithubProvider) {
+func WithIncludeArchivedRepos(includeArchivedRepos bool) func(*GithubProvider) {
 	return func(g *GithubProvider) {
-		g.includeArchived = includeArchived
+		g.includeArchivedRepos = includeArchivedRepos
 	}
 }
 
@@ -107,7 +107,7 @@ func (g *GithubProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 		for _, githubRepo := range githubRepos {
 			excludeRepo := false
 			// check if the repo is archived
-			if g.includeArchived == false && githubRepo.GetArchived() {
+			if !g.includeArchivedRepos && githubRepo.GetArchived() {
 				excludeRepo = true
 			}
 			var url string

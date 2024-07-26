@@ -280,7 +280,7 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 			github.API,
 			scm_provider.WithOrganization(github.Organization),
 			scm_provider.WithAllBranches(github.AllBranches),
-			scm_provider.WithIncludeArchived(github.IncludeArchived),
+			scm_provider.WithIncludeArchivedRepos(github.IncludeArchivedRepos),
 		)
 	}
 
