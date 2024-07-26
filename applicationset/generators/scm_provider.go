@@ -277,9 +277,10 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 
 		return scm_provider.NewGithubAppProviderFor(
 			*auth,
-			github.Organization,
 			github.API,
-			github.AllBranches,
+			scm_provider.WithOrganization(github.Organization),
+			scm_provider.WithAllBranches(github.AllBranches),
+			scm_provider.WithIncludeArchived(github.IncludeArchived),
 		)
 	}
 
@@ -287,5 +288,5 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 	if err != nil {
 		return nil, fmt.Errorf("error fetching Github token: %w", err)
 	}
-	return scm_provider.NewGithubProvider(ctx, github.Organization, token, github.API, github.AllBranches)
+	return scm_provider.NewGithubProvider(ctx, token, github.API, scm_provider.WithOrganization(github.Organization), scm_provider.WithAllBranches(github.AllBranches))
 }

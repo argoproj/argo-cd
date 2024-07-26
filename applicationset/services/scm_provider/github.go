@@ -17,6 +17,8 @@ type GithubProvider struct {
 	includeArchived bool
 }
 
+type GithubOption func(*GithubProvider)
+
 var _ SCMProviderService = &GithubProvider{}
 
 func WithIncludeArchived(includeArchived bool) func(*GithubProvider) {
@@ -37,15 +39,7 @@ func WithOrganization(organization string) func(*GithubProvider) {
 	}
 }
 
-func WithClient(client *github.Client) func(*GithubProvider) {
-	return func(g *GithubProvider) {
-		g.client = client
-	}
-}
-
-type Option func(*GithubProvider)
-
-func NewGithubProvider(ctx context.Context, token string, url string, options ...Option) (*GithubProvider, error) {
+func NewGithubProvider(ctx context.Context, token string, url string, options ...GithubOption) (*GithubProvider, error) {
 	var ts oauth2.TokenSource
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
@@ -68,12 +62,15 @@ func NewGithubProvider(ctx context.Context, token string, url string, options ..
 		}
 	}
 
-	githubProvider := &GithubProvider{}
+	githubProvider := &GithubProvider{
+		client: client,
+	}
+
 	for _, option := range options {
 		option(githubProvider)
 	}
 
-	return &GithubProvider{client: client}, nil
+	return githubProvider, nil
 }
 
 func (g *GithubProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
@@ -108,10 +105,10 @@ func (g *GithubProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 			return nil, fmt.Errorf("error listing repositories for %s: %w", g.organization, err)
 		}
 		for _, githubRepo := range githubRepos {
-
+			excludeRepo := false
 			// check if the repo is archived
-			if githubRepo.GetArchived() {
-				continue
+			if g.includeArchived == false && githubRepo.GetArchived() {
+				excludeRepo = true
 			}
 			var url string
 			switch cloneProtocol {
@@ -123,14 +120,18 @@ func (g *GithubProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 			default:
 				return nil, fmt.Errorf("unknown clone protocol for GitHub %v", cloneProtocol)
 			}
-			repos = append(repos, &Repository{
-				Organization: githubRepo.Owner.GetLogin(),
-				Repository:   githubRepo.GetName(),
-				Branch:       githubRepo.GetDefaultBranch(),
-				URL:          url,
-				Labels:       githubRepo.Topics,
-				RepositoryId: githubRepo.ID,
-			})
+			if excludeRepo {
+				continue
+			} else {
+				repos = append(repos, &Repository{
+					Organization: githubRepo.Owner.GetLogin(),
+					Repository:   githubRepo.GetName(),
+					Branch:       githubRepo.GetDefaultBranch(),
+					URL:          url,
+					Labels:       githubRepo.Topics,
+					RepositoryId: githubRepo.ID,
+				})
+			}
 		}
 		if resp.NextPage == 0 {
 			break

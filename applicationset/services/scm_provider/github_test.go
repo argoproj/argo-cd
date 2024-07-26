@@ -235,6 +235,12 @@ func TestGithubListRepos(t *testing.T) {
 			url:         "git@github.com:argoproj/argo-cd.git",
 			branches:    []string{"master"},
 		},
+		// {
+		// 	name:        "should not return archived repos",
+		// 	url:         "git@github.com:argoproj/argo-cd.git",
+		// 	branches:    []string{"main"},
+		// 	allBranches: false,
+		// },
 	}
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		githubMockHandler(t)(w, r)
@@ -242,7 +248,7 @@ func TestGithubListRepos(t *testing.T) {
 	defer ts.Close()
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, c.allBranches)
+			provider, _ := NewGithubProvider(context.Background(), "", ts.URL, WithAllBranches(c.allBranches), WithOrganization("argoproj"))
 			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)
@@ -272,7 +278,8 @@ func TestGithubHasPath(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	host, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, false)
+
+	host, _ := NewGithubProvider(context.Background(), "", ts.URL, WithOrganization("argoproj"), WithAllBranches(false))
 	repo := &Repository{
 		Organization: "argoproj",
 		Repository:   "argo-cd",
@@ -292,7 +299,7 @@ func TestGithubGetBranches(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	host, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, false)
+	host, _ := NewGithubProvider(context.Background(), "", ts.URL, WithOrganization("argoproj"), WithAllBranches(false))
 	repo := &Repository{
 		Organization: "argoproj",
 		Repository:   "argo-cd",
