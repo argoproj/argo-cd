@@ -758,3 +758,19 @@ func TestManifestHash(t *testing.T) {
 	assert.Equal(t, expected, hash)
 	assert.NoError(t, err)
 }
+
+func TestReplicaSet(t *testing.T) {
+	replicaSet := strToUnstructured(`
+  apiVersion: v1
+  kind: ReplicaSet
+  metadata:
+    name: helm-guestbook
+  spec:
+    replicas: 10
+`)
+
+	info := &ResourceInfo{}
+	populateNodeInfo(replicaSet, info, []string{})
+
+	assert.Contains(t, info.Info, v1alpha1.InfoItem{Name: "Replicas", Value: "Replicas:10"})
+}
