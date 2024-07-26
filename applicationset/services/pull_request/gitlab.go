@@ -56,12 +56,16 @@ func NewGitLabService(ctx context.Context, token, url, project string, labels []
 
 func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 	// Filter the merge requests on labels, if they are specified.
-	var labels gitlab.LabelOptions = g.labels
+	var labels *gitlab.LabelOptions
+	if len(g.labels) > 0 {
+		var labelsList gitlab.LabelOptions = g.labels
+		labels = &labelsList
+	}
 	opts := &gitlab.ListProjectMergeRequestsOptions{
 		ListOptions: gitlab.ListOptions{
 			PerPage: 100,
 		},
-		Labels: &labels,
+		Labels: labels,
 	}
 
 	if g.pullRequestState != "" {
