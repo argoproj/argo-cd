@@ -844,14 +844,14 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 func (r *ApplicationSetReconciler) removeOwnerReferencesOnDeleteAppSet(ctx context.Context, applicationSet argov1alpha1.ApplicationSet) error {
 	applications, err := r.getCurrentApplications(ctx, applicationSet)
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting current applications for ApplicationSet: %w", err)
 	}
 
 	for _, app := range applications {
 		app.SetOwnerReferences([]metav1.OwnerReference{})
 		err := r.Client.Update(ctx, &app)
 		if err != nil {
-			return err
+			return fmt.Errorf("error updating application: %w", err)
 		}
 	}
 

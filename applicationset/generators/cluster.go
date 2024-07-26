@@ -85,7 +85,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 
 	clusterSecrets, err := g.getSecretsByClusterName(appSetGenerator)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error getting cluster secrets: %w", err)
 	}
 
 	res := []map[string]interface{}{}
@@ -106,7 +106,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 
 			err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error appending templated values for local cluster: %w", err)
 			}
 
 			res = append(res, params)
@@ -146,7 +146,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 
 		err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error appending templated values for cluster: %w", err)
 		}
 
 		res = append(res, params)
@@ -164,7 +164,7 @@ func (g *ClusterGenerator) getSecretsByClusterName(appSetGenerator *argoappsetv1
 	selector := metav1.AddLabelToSelector(&appSetGenerator.Clusters.Selector, ArgoCDSecretTypeLabel, ArgoCDSecretTypeCluster)
 	secretSelector, err := metav1.LabelSelectorAsSelector(selector)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error converting label selector: %w", err)
 	}
 
 	if err := g.Client.List(context.Background(), clusterSecretList, client.MatchingLabelsSelector{Selector: secretSelector}); err != nil {
