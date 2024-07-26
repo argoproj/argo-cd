@@ -1,6 +1,7 @@
 module github.com/argoproj/argo-cd/v2
 
-go 1.21.0
+go 1.21.11
+
 toolchain go1.22.5
 
 require (
