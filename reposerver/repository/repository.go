@@ -1395,7 +1395,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		}
 		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary)
 		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
-			KubeVersion: q.KubeVersion,
+			KubeVersion: text.SemVer(q.KubeVersion),
 			APIVersions: q.ApiVersions,
 		})
 	case v1alpha1.ApplicationSourceTypePlugin:
