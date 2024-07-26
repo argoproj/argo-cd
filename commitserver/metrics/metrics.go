@@ -14,6 +14,8 @@ type Server struct {
 	commitPendingRequestsGauge *prometheus.GaugeVec
 	gitRequestCounter          *prometheus.CounterVec
 	gitRequestHistogram        *prometheus.HistogramVec
+	commitRequestHistogram     *prometheus.HistogramVec
+	commitRequestCounter       *prometheus.CounterVec
 }
 
 type GitRequestType string
@@ -22,6 +24,13 @@ const (
 	GitRequestTypeLsRemote = "ls-remote"
 	GitRequestTypeFetch    = "fetch"
 	GitRequestTypePush     = "push"
+)
+
+type CommitResponseType string
+
+const (
+	CommitRequestTypeSuccess = "success"
+	CommitRequestTypeFailure = "failure"
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics.
@@ -58,11 +67,32 @@ func NewMetricsServer() *Server {
 	)
 	registry.MustRegister(gitRequestHistogram)
 
+	commitRequestHistogram := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "argocd_commitserver_commit_request_duration_seconds",
+			Help:    "Commit request duration seconds.",
+			Buckets: []float64{0.1, 0.25, .5, 1, 2, 4, 10, 20},
+		},
+		[]string{"repo", "response_type"},
+	)
+	registry.MustRegister(commitRequestHistogram)
+
+	commitRequestCounter := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "argocd_commitserver_commit_request_total",
+			Help: "Number of commit requests performed handled",
+		},
+		[]string{"repo", "response_type"},
+	)
+	registry.MustRegister(commitRequestCounter)
+
 	return &Server{
 		handler:                    promhttp.HandlerFor(registry, promhttp.HandlerOpts{}),
 		commitPendingRequestsGauge: commitPendingRequestsGauge,
 		gitRequestCounter:          gitRequestCounter,
 		gitRequestHistogram:        gitRequestHistogram,
+		commitRequestHistogram:     commitRequestHistogram,
+		commitRequestCounter:       commitRequestCounter,
 	}
 }
 
@@ -85,4 +115,12 @@ func (m *Server) IncGitRequest(repo string, requestType GitRequestType) {
 
 func (m *Server) ObserveGitRequestDuration(repo string, requestType GitRequestType, duration time.Duration) {
 	m.gitRequestHistogram.WithLabelValues(repo, string(requestType)).Observe(duration.Seconds())
+}
+
+func (m *Server) ObserveCommitRequestDuration(repo string, rt CommitResponseType, duration time.Duration) {
+	m.commitRequestHistogram.WithLabelValues(repo, string(rt)).Observe(duration.Seconds())
+}
+
+func (m *Server) IncCommitRequest(repo string, rt CommitResponseType) {
+	m.commitRequestCounter.WithLabelValues(repo, string(rt)).Inc()
 }
