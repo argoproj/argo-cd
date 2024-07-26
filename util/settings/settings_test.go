@@ -1682,3 +1682,46 @@ func TestRedirectURLForRequest(t *testing.T) {
 		})
 	}
 }
+
+func TestRedirectAdditionalURLs(t *testing.T) {
+	testCases := []struct {
+		Name           string
+		Settings       *ArgoCDSettings
+		ExpectedResult []string
+		ExpectedError  bool
+	}{
+		{
+			Name: "Good case with two AdditionalURLs",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org", "https://yetanother.org"},
+			},
+			ExpectedResult: []string{
+				"https://anotherhost.org/auth/callback",
+				"https://yetanother.org/auth/callback",
+			},
+			ExpectedError: false,
+		},
+		{
+			Name: "Bad URL causes error",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{":httpsotherhostorg"},
+			},
+			ExpectedResult: []string{},
+			ExpectedError:  true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result, err := tc.Settings.RedirectAdditionalURLs()
+			if tc.ExpectedError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.ExpectedResult, result)
+		})
+	}
+}

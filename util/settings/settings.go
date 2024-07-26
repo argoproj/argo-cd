@@ -2030,6 +2030,18 @@ func (a *ArgoCDSettings) RedirectURLForRequest(r *http.Request) (string, error) 
 	return appendURLPath(base, common.CallbackEndpoint)
 }
 
+func (a *ArgoCDSettings) RedirectAdditionalURLs() ([]string, error) {
+	RedirectAdditionalURLs := []string{}
+	for _, url := range a.AdditionalURLs {
+		redirectURL, err := appendURLPath(url, common.CallbackEndpoint)
+		if err != nil {
+			return []string{}, err
+		}
+		RedirectAdditionalURLs = append(RedirectAdditionalURLs, redirectURL)
+	}
+	return RedirectAdditionalURLs, nil
+}
+
 func (a *ArgoCDSettings) DexRedirectURL() (string, error) {
 	return appendURLPath(a.URL, common.DexCallbackEndpoint)
 }
