@@ -11,14 +11,41 @@ import (
 )
 
 type GithubProvider struct {
-	client       *github.Client
-	organization string
-	allBranches  bool
+	client          *github.Client
+	organization    string
+	allBranches     bool
+	includeArchived bool
 }
 
 var _ SCMProviderService = &GithubProvider{}
 
-func NewGithubProvider(ctx context.Context, organization string, token string, url string, allBranches bool) (*GithubProvider, error) {
+func WithIncludeArchived(includeArchived bool) func(*GithubProvider) {
+	return func(g *GithubProvider) {
+		g.includeArchived = includeArchived
+	}
+}
+
+func WithAllBranches(allBranches bool) func(*GithubProvider) {
+	return func(g *GithubProvider) {
+		g.allBranches = allBranches
+	}
+}
+
+func WithOrganization(organization string) func(*GithubProvider) {
+	return func(g *GithubProvider) {
+		g.organization = organization
+	}
+}
+
+func WithClient(client *github.Client) func(*GithubProvider) {
+	return func(g *GithubProvider) {
+		g.client = client
+	}
+}
+
+type Option func(*GithubProvider)
+
+func NewGithubProvider(ctx context.Context, token string, url string, options ...Option) (*GithubProvider, error) {
 	var ts oauth2.TokenSource
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
@@ -40,7 +67,13 @@ func NewGithubProvider(ctx context.Context, organization string, token string, u
 			return nil, err
 		}
 	}
-	return &GithubProvider{client: client, organization: organization, allBranches: allBranches}, nil
+
+	githubProvider := &GithubProvider{}
+	for _, option := range options {
+		option(githubProvider)
+	}
+
+	return &GithubProvider{client: client}, nil
 }
 
 func (g *GithubProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
@@ -75,6 +108,11 @@ func (g *GithubProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 			return nil, fmt.Errorf("error listing repositories for %s: %w", g.organization, err)
 		}
 		for _, githubRepo := range githubRepos {
+
+			// check if the repo is archived
+			if githubRepo.GetArchived() {
+				continue
+			}
 			var url string
 			switch cloneProtocol {
 			// Default to SSH if unspecified (i.e. if "").
