@@ -365,7 +365,7 @@ data:
     - url: https://mycompany.splunk.com?search={{.spec.destination.namespace}}
       title: Splunk
     # conditionally show link e.g. for specific project
-    # github.com/antonmedv/expr is used for evaluation of conditions
+    # github.com/expr-lang/expr is used for evaluation of conditions
     - url: https://mycompany.splunk.com?search={{.spec.destination.namespace}}
       title: Splunk
       if: spec.project == "default"
