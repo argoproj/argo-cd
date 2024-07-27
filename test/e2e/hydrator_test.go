@@ -2,9 +2,8 @@ package e2e
 
 import (
 	"testing"
-
-	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	//. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	//. "github.com/argoproj/gitops-engine/pkg/sync/common"
 )
 
 func TestSimpleHydrator(t *testing.T) {
@@ -12,7 +11,7 @@ func TestSimpleHydrator(t *testing.T) {
 	// hydration is finished. I think we need a `wait` command for hydration.
 	t.Skipped()
 
-	//Given(t).
+	// Given(t).
 	//	DrySourcePath("guestbook").
 	//	DrySourceRevision("HEAD").
 	//	SyncSourcePath("guestbook").

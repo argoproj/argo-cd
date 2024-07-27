@@ -23630,6 +23630,12 @@ spec:
               key: commitserver.listen.address
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_COMMIT_SERVER_METRICS_LISTEN_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              key: commitserver.metrics.listen.address
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_COMMIT_SERVER_LOGFORMAT
           valueFrom:
             configMapKeyRef:

@@ -45,7 +45,6 @@ type Context struct {
 	helmSkipCrds           bool
 	trackingMethod         v1alpha1.TrackingMethod
 	sources                []v1alpha1.ApplicationSource
-	sourceHydrator         v1alpha1.SourceHydrator
 	drySourceRevision      string
 	drySourcePath          string
 	syncSourceBranch       string
