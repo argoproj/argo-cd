@@ -44,6 +44,8 @@ spec:
         api: https://git.example.com/
         # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
         allBranches: true
+        # If true, exclude repositories that are archived.
+        includeArchivedRepos: false
         # Reference to a Secret containing an access token. (optional)
         tokenRef:
           secretName: github-token
@@ -57,6 +59,7 @@ spec:
 * `organization`: Required name of the GitHub organization to scan. If you have multiple organizations, use multiple generators.
 * `api`: If using GitHub Enterprise, the URL to access it.
 * `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
+* `includeArchivedRepos`: Whether or not to include archived repos. By default this is false. 
 * `tokenRef`: A `Secret` name and key containing the GitHub access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
 * `appSecretName`: A `Secret` name containing a GitHub App secret in [repo-creds format][repo-creds].
 
