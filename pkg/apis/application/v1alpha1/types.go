@@ -220,7 +220,7 @@ func (a *ApplicationSpec) GetSource() ApplicationSource {
 		return a.Sources[0]
 	}
 	if a.SourceHydrator != nil {
-		return a.SourceHydrator.GetApplicationSource()
+		return a.SourceHydrator.GetSyncSource()
 	}
 	if a.Source != nil {
 		return *a.Source
@@ -249,7 +249,7 @@ func (a *ApplicationSpec) GetSources() ApplicationSources {
 		return a.Sources
 	}
 	if a.SourceHydrator != nil {
-		return ApplicationSources{a.SourceHydrator.GetApplicationSource()}
+		return ApplicationSources{a.SourceHydrator.GetSyncSource()}
 	}
 	if a.Source != nil {
 		return ApplicationSources{*a.Source}
@@ -275,7 +275,7 @@ func (a *ApplicationSpec) GetSourcePtrByIndex(sourceIndex int) *ApplicationSourc
 		return &a.Sources[0]
 	}
 	if a.SourceHydrator != nil {
-		source := a.SourceHydrator.GetApplicationSource()
+		source := a.SourceHydrator.GetSyncSource()
 		return &source
 	}
 	return a.Source
@@ -343,13 +343,22 @@ type SourceHydrator struct {
 	HydrateTo *HydrateTo `json:"hydrateTo,omitempty" protobuf:"bytes,3,opt,name=hydrateTo"`
 }
 
-// GetApplicationSource gets the source from which we should sync when a source hydrator is configured.
-func (s SourceHydrator) GetApplicationSource() ApplicationSource {
+// GetSyncSource gets the source from which we should sync when a source hydrator is configured.
+func (s SourceHydrator) GetSyncSource() ApplicationSource {
 	return ApplicationSource{
 		// Pull the RepoURL from the dry source. The SyncSource's RepoURL is assumed to be the same.
 		RepoURL:        s.DrySource.RepoURL,
 		Path:           s.SyncSource.Path,
 		TargetRevision: s.SyncSource.TargetBranch,
+	}
+}
+
+// GetDrySource gets the dry source when a source hydrator is configured.
+func (s SourceHydrator) GetDrySource() ApplicationSource {
+	return ApplicationSource{
+		RepoURL:        s.DrySource.RepoURL,
+		Path:           s.DrySource.Path,
+		TargetRevision: s.DrySource.TargetRevision,
 	}
 }
 

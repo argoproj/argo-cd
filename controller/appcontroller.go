@@ -2000,7 +2000,10 @@ func (ctrl *ApplicationController) hydrate(apps []*appv1.Application, refreshTyp
 		return fmt.Errorf("failed to get hydrator credentials: %w", err)
 	}
 	if repo == nil {
-		return fmt.Errorf("failed to get hydrator credentials: no credentials found")
+		// Try without credentials.
+		repo = &appv1.Repository{
+			Repo: repoURL,
+		}
 	}
 
 	manifestsRequest := commitclient.ManifestsRequest{

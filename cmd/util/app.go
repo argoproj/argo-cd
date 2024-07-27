@@ -81,6 +81,10 @@ type AppOptions struct {
 	retryBackoffMaxDuration         time.Duration
 	retryBackoffFactor              int64
 	ref                             string
+	drySourceRevision               string
+	drySourcePath                   string
+	syncSourceBranch                string
+	syncSourcePath                  string
 }
 
 func AddAppFlags(command *cobra.Command, opts *AppOptions) {
@@ -89,6 +93,10 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.chart, "helm-chart", "", "Helm Chart name")
 	command.Flags().StringVar(&opts.env, "env", "", "Application environment to monitor")
 	command.Flags().StringVar(&opts.revision, "revision", "", "The tracking source branch, tag, commit or Helm chart version the application will sync to")
+	command.Flags().StringVar(&opts.drySourceRevision, "dry-source-revision", "", "Revision of the app dry source")
+	command.Flags().StringVar(&opts.drySourcePath, "dry-source-path", "", "Path in repository to the app directory for the dry source")
+	command.Flags().StringVar(&opts.syncSourceBranch, "sync-source-branch", "", "The branch from which the app will sync")
+	command.Flags().StringVar(&opts.syncSourcePath, "sync-source-path", "", "The path in the repository from which the app will sync")
 	command.Flags().IntVar(&opts.revisionHistoryLimit, "revision-history-limit", argoappv1.RevisionHistoryLimit, "How many items to keep in revision history")
 	command.Flags().StringVar(&opts.destServer, "dest-server", "", "K8s cluster URL (e.g. https://kubernetes.default.svc)")
 	command.Flags().StringVar(&opts.destName, "dest-name", "", "K8s cluster Name (e.g. minikube)")
@@ -139,26 +147,50 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.ref, "ref", "", "Ref is reference to another source within sources field")
 }
 
+// HasHydratorConfig returns true if the app options have hydrator configuration.
+func (a *AppOptions) HasHydratorConfig() bool {
+	return a.drySourcePath != "" || a.drySourceRevision != "" || a.syncSourceBranch != "" || a.syncSourcePath != ""
+}
+
+func (a *AppOptions) HydratorFromConfig() *argoappv1.SourceHydrator {
+	return &argoappv1.SourceHydrator{
+		DrySource: argoappv1.DrySource{
+			RepoURL:        a.repoURL,
+			Path:           a.drySourcePath,
+			TargetRevision: a.drySourceRevision,
+		},
+		SyncSource: argoappv1.SyncSource{
+			TargetBranch: a.syncSourceBranch,
+			Path:         a.syncSourcePath,
+		},
+	}
+}
+
 func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions, sourcePosition int) int {
 	visited := 0
 	if flags == nil {
 		return visited
 	}
-	source := spec.GetSourcePtrByPosition(sourcePosition)
-	if source == nil {
-		source = &argoappv1.ApplicationSource{}
-	}
-	source, visited = ConstructSource(source, *appOpts, flags)
-	if spec.HasMultipleSources() {
-		if sourcePosition == 0 {
-			spec.Sources[sourcePosition] = *source
-		} else if sourcePosition > 0 {
-			spec.Sources[sourcePosition-1] = *source
-		} else {
-			spec.Sources = append(spec.Sources, *source)
-		}
+
+	if appOpts.HasHydratorConfig() {
+		spec.SourceHydrator = appOpts.HydratorFromConfig()
 	} else {
-		spec.Source = source
+		source := spec.GetSourcePtrByPosition(sourcePosition)
+		if source == nil {
+			source = &argoappv1.ApplicationSource{}
+		}
+		source, visited = ConstructSource(source, *appOpts, flags)
+		if spec.HasMultipleSources() {
+			if sourcePosition == 0 {
+				spec.Sources[sourcePosition] = *source
+			} else if sourcePosition > 0 {
+				spec.Sources[sourcePosition-1] = *source
+			} else {
+				spec.Sources = append(spec.Sources, *source)
+			}
+		} else {
+			spec.Source = source
+		}
 	}
 	flags.Visit(func(f *pflag.Flag) {
 		visited++
@@ -533,9 +565,7 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 			Name:      appName,
 			Namespace: appNs,
 		},
-		Spec: argoappv1.ApplicationSpec{
-			Source: &argoappv1.ApplicationSource{},
-		},
+		Spec: argoappv1.ApplicationSpec{},
 	}
 	SetAppSpecOptions(flags, &app.Spec, &appOpts, 0)
 	SetParameterOverrides(app, appOpts.Parameters, 0)

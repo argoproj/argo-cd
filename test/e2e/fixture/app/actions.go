@@ -234,6 +234,22 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 		args = append(args, "--path", a.context.path)
 	}
 
+	if a.context.drySourceRevision != "" {
+		args = append(args, "--dry-source-revision", a.context.drySourceRevision)
+	}
+
+	if a.context.drySourcePath != "" {
+		args = append(args, "--dry-source-path", a.context.drySourcePath)
+	}
+
+	if a.context.syncSourceBranch != "" {
+		args = append(args, "--sync-source-branch", a.context.syncSourceBranch)
+	}
+
+	if a.context.syncSourcePath != "" {
+		args = append(args, "--sync-source-path", a.context.syncSourcePath)
+	}
+
 	if a.context.chart != "" {
 		args = append(args, "--helm-chart", a.context.chart)
 	}

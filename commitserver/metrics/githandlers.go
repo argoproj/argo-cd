@@ -3,6 +3,7 @@ package metrics
 import (
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/git"
 )
 
 // NewGitClientEventHandlers creates event handlers that update Git related metrics
