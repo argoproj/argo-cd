@@ -485,7 +485,7 @@ type SCMProviderGeneratorGithub struct {
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,5,opt,name=allBranches"`
 	// Include repositories that are archived.
-	IncludeArchived bool `json:"includeArchived,omitempty" protobuf:"varint,6,opt,name=includeArchived"`
+	IncludeArchivedRepos bool `json:"includeArchived,omitempty" protobuf:"varint,6,opt,name=includeArchived"`
 }
 
 // SCMProviderGeneratorGitlab defines connection info specific to Gitlab.
