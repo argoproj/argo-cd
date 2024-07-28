@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="23 known vulnerabilities found in 102 vulnerable dependency paths.">
+  <meta name="description" content="22 known vulnerabilities found in 100 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">July 21st 2024, 12:17:49 am (UTC+00:00)</p>
+                <p class="timestamp">July 28th 2024, 12:18:05 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -470,9 +470,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>23</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>102 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2293</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>22</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>100 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2294</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -973,85 +973,6 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Credential Exposure</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            k8s.io/client-go/transport
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/argoproj/argo-cd/v2@* and k8s.io/client-go/transport@v0.29.6
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/argoproj/argo-cd/v2@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/transport@v0.29.6
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        helm.sh/helm/v3@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/transport@v0.30.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Credential Exposure. When the verbosity level is set to <code>debug</code>, authorization tokens are logged.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>k8s.io/client-go/transport</code> to version 1.17.0-alpha.1 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/kubernetes/client-go/commit/689d090711762a4ab315320d706d3c9e3b225d3d">GitHub Commit</a></li>
-        <li><a href="https://github.com/kubernetes/kubernetes/commit/4441f1d9c3e94d9a3d93b4f184a591cab02a5245">GitHub Commit</a></li>
-        <li><a href="https://github.com/kubernetes/kubernetes/issues/81114">GitHub Issue</a></li>
-        <li><a href="https://github.com/kubernetes/kubernetes/pull/81330">GitHub PR</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-K8SIOCLIENTGOTRANSPORT-7538822">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">LGPL-3.0 license</h2>
             <div class="card__section">
         
@@ -1436,7 +1357,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                github.com/argoproj/argo-cd/v2@* and github.com/gosimple/slug@v1.13.1
+                                github.com/argoproj/argo-cd/v2@* and github.com/gosimple/slug@v1.14.0
         
                     </li>
                 </ul>
@@ -1451,7 +1372,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         github.com/argoproj/argo-cd/v2@*
                                          <span class="list-paths__item__arrow">›</span> 
-                                        github.com/gosimple/slug@v1.13.1
+                                        github.com/gosimple/slug@v1.14.0
                                         
                                 </span>
         
