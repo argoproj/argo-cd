@@ -43,6 +43,8 @@ func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]
 			}
 			outFilter.FilterType = FilterTypeBranch
 		}
+
+		outFilter.IncludeArchivedRepos = filter.IncludeArchivedRepos
 		outFilters = append(outFilters, outFilter)
 	}
 	return outFilters, nil
@@ -68,6 +70,11 @@ func matchFilter(ctx context.Context, provider SCMProviderService, repo *Reposit
 		if !found {
 			return false, nil
 		}
+	}
+
+	// check if include archived repos is false and if the repo is archived return false
+	if !filter.IncludeArchivedRepos && repo.Archived {
+		return false, nil
 	}
 
 	if len(filter.PathsExist) != 0 {

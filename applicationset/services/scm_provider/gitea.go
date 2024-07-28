@@ -121,6 +121,7 @@ func (g *GiteaProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]
 			URL:          url,
 			Labels:       labels,
 			RepositoryId: int(repo.ID),
+			Archived:     repo.Archived,
 		})
 	}
 	return repos, nil

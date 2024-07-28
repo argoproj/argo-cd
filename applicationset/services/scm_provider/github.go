@@ -92,6 +92,7 @@ func (g *GithubProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 				URL:          url,
 				Labels:       githubRepo.Topics,
 				RepositoryId: githubRepo.ID,
+				Archived:     githubRepo.GetArchived(),
 			})
 		}
 		if resp.NextPage == 0 {
