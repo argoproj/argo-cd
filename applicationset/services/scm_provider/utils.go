@@ -58,15 +58,12 @@ func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]
 }
 
 func matchFilter(ctx context.Context, provider SCMProviderService, repo *Repository, filter *Filter) (bool, error) {
-
 	if filter.RepositoryMatch != nil && !filter.RepositoryMatch.MatchString(repo.Repository) {
 		return false, nil
 	}
-
 	if filter.BranchMatch != nil && !filter.BranchMatch.MatchString(repo.Branch) {
 		return false, nil
 	}
-
 	if filter.LabelMatch != nil {
 		found := false
 		for _, label := range repo.Labels {
@@ -79,9 +76,7 @@ func matchFilter(ctx context.Context, provider SCMProviderService, repo *Reposit
 			return false, nil
 		}
 	}
-	fmt.Printf("Checking repo %s with IncludeArchivedRepos: %t and Archived: %t\n", repo.Repository, filter.IncludeArchivedRepos, repo.Archived)
 
-	// check if include archived repos is false and if the repo is archived return false
 	if !filter.IncludeArchivedRepos && repo.Archived {
 		return false, nil
 	}
@@ -117,18 +112,14 @@ func matchFilter(ctx context.Context, provider SCMProviderService, repo *Reposit
 
 func ListRepos(ctx context.Context, provider SCMProviderService, filters []argoprojiov1alpha1.SCMProviderGeneratorFilter, cloneProtocol string) ([]*Repository, error) {
 	compiledFilters, err := compileFilters(filters)
-	fmt.Println("Filters: ", filters)
-	fmt.Println("Compiled filters: ", compiledFilters)
 	if err != nil {
 		return nil, err
 	}
 	repos, err := provider.ListRepos(ctx, cloneProtocol)
-	fmt.Println("Repos: ", repos)
 	if err != nil {
 		return nil, err
 	}
 	repoFilters := getApplicableFilters(compiledFilters)[FilterTypeRepo]
-	fmt.Println("Repo filters: ", repoFilters)
 	if len(repoFilters) == 0 {
 		repos, err := getBranches(ctx, provider, repos, compiledFilters)
 		if err != nil {
