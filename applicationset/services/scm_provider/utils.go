@@ -44,13 +44,21 @@ func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]
 			outFilter.FilterType = FilterTypeBranch
 		}
 
-		outFilter.IncludeArchivedRepos = filter.IncludeArchivedRepos
+		if filter.IncludeArchivedRepos {
+			outFilter.IncludeArchivedRepos = true
+			outFilter.FilterType = FilterTypeRepo
+		} else {
+			outFilter.IncludeArchivedRepos = false
+			outFilter.FilterType = FilterTypeRepo
+		}
+
 		outFilters = append(outFilters, outFilter)
 	}
 	return outFilters, nil
 }
 
 func matchFilter(ctx context.Context, provider SCMProviderService, repo *Repository, filter *Filter) (bool, error) {
+
 	if filter.RepositoryMatch != nil && !filter.RepositoryMatch.MatchString(repo.Repository) {
 		return false, nil
 	}
@@ -71,6 +79,7 @@ func matchFilter(ctx context.Context, provider SCMProviderService, repo *Reposit
 			return false, nil
 		}
 	}
+	fmt.Printf("Checking repo %s with IncludeArchivedRepos: %t and Archived: %t\n", repo.Repository, filter.IncludeArchivedRepos, repo.Archived)
 
 	// check if include archived repos is false and if the repo is archived return false
 	if !filter.IncludeArchivedRepos && repo.Archived {
@@ -89,6 +98,7 @@ func matchFilter(ctx context.Context, provider SCMProviderService, repo *Reposit
 			}
 		}
 	}
+
 	if len(filter.PathsDoNotExist) != 0 {
 		for _, path := range filter.PathsDoNotExist {
 			path = strings.TrimRight(path, "/")
@@ -107,14 +117,18 @@ func matchFilter(ctx context.Context, provider SCMProviderService, repo *Reposit
 
 func ListRepos(ctx context.Context, provider SCMProviderService, filters []argoprojiov1alpha1.SCMProviderGeneratorFilter, cloneProtocol string) ([]*Repository, error) {
 	compiledFilters, err := compileFilters(filters)
+	fmt.Println("Filters: ", filters)
+	fmt.Println("Compiled filters: ", compiledFilters)
 	if err != nil {
 		return nil, err
 	}
 	repos, err := provider.ListRepos(ctx, cloneProtocol)
+	fmt.Println("Repos: ", repos)
 	if err != nil {
 		return nil, err
 	}
 	repoFilters := getApplicableFilters(compiledFilters)[FilterTypeRepo]
+	fmt.Println("Repo filters: ", repoFilters)
 	if len(repoFilters) == 0 {
 		repos, err := getBranches(ctx, provider, repos, compiledFilters)
 		if err != nil {
