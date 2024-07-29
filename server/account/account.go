@@ -90,7 +90,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 
 	if !validPasswordRegexp.Match([]byte(q.NewPassword)) {
 		err := fmt.Errorf("New password does not match the following expression: %s.", passwordPattern)
-		return nil, fmt.Errorf("failed to compile password regex: %w", err)
+		return nil, err
 	}
 
 	hashedPassword, err := password.HashPassword(q.NewPassword)
