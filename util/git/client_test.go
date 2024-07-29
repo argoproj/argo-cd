@@ -563,3 +563,47 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 		require.Equal(t, expectedCommitHash, actualCommitHash)
 	})
 }
+
+func Test_nativeGitClient_RemoveContents(t *testing.T) {
+	// Example status
+	// 2 files :
+	//   * <RepoRoot>/README.md
+	//   * <RepoRoot>/scripts/startup.sh
+
+	// given
+	tempDir, err := _createEmptyGitRepo()
+	require.NoError(t, err)
+
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	out, err := client.SetAuthor("test", "test@example.com")
+	require.NoError(t, err, "error output: ", out)
+
+	err = runCmd(client.Root(), "touch", "README.md")
+	require.NoError(t, err)
+
+	err = runCmd(client.Root(), "mkdir", "scripts")
+	require.NoError(t, err)
+
+	err = runCmd(client.Root(), "touch", "scripts/startup.sh")
+	require.NoError(t, err)
+
+	err = runCmd(client.Root(), "git", "add", "--all")
+	require.NoError(t, err)
+
+	err = runCmd(client.Root(), "git", "commit", "-m", "Make files")
+	require.NoError(t, err)
+
+	// when
+	out, err = client.RemoveContents()
+	require.NoError(t, err, "error output: ", out)
+
+	// then
+	ls, err := outputCmd(client.Root(), "ls", "-l")
+	require.NoError(t, err)
+	require.Equal(t, "total 0", strings.TrimSpace(string(ls)))
+}
