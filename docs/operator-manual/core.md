@@ -12,6 +12,7 @@ installation:
 
 - Argo CD RBAC model
 - Argo CD API
+- Argo CD Notification Controller
 - OIDC based authentication
 
 The following features will be partially available (see the
