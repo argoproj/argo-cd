@@ -2253,7 +2253,7 @@ func TestGenerateManifestWithAnnotatedTagsAndMultiSourceApp(t *testing.T) {
 
 func TestGenerateMultiSourceHelmWithFileParameter(t *testing.T) {
 	expectedFileContent, err := os.ReadFile("../../util/helm/testdata/external/external-secret.txt")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	service := newService(t, "../../util/helm/testdata")
 
@@ -2298,12 +2298,13 @@ func TestGenerateMultiSourceHelmWithFileParameter(t *testing.T) {
 				HasMultipleSources: true,
 				NoCache:            true,
 				RefSources:         tc.refSources,
+				Namespace:          "default",
 			}
 
 			res, err := service.GenerateManifest(context.Background(), manifestRequest)
 
 			if !tc.expectedErr {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 
 				// Check that any of the manifests contains the secret
 				idx := slices.IndexFunc(res.Manifests, func(content string) bool {
