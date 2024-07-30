@@ -1476,9 +1476,9 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	if err := validateExternalURL(argoCDCM.Data[settingUiBannerURLKey]); err != nil {
 		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
 	}
-	if argoCDCM.Data[settingURLsKey] != "" {
-		if err := yaml.Unmarshal([]byte(argoCDCM.Data[settingURLsKey]), &settings.AdditionalURLs); err != nil {
-			log.Warnf("Failed to decode all external URLs in configmap: %v", err)
+	if argoCDCM.Data[settingAdditionalUrlsKey] != "" {
+		if err := yaml.Unmarshal([]byte(argoCDCM.Data[settingAdditionalUrlsKey]), &settings.AdditionalURLs); err != nil {
+			log.Warnf("Failed to decode all additional URLs in configmap: %v", err)
 		}
 	}
 	for _, url := range settings.AdditionalURLs {
