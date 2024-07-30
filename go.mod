@@ -3,7 +3,7 @@ module github.com/argoproj/argo-cd/v2
 go 1.21.0
 
 require (
-	code.gitea.io/sdk/gitea v0.18.0
+	code.gitea.io/sdk/gitea v0.19.0
 	github.com/Azure/kubelogin v0.0.20
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/Masterminds/sprig/v3 v3.2.3
