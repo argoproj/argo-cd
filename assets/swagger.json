@@ -6507,7 +6507,7 @@
         },
         "namespace": {
           "type": "string",
-          "title": "ReleaseName is the namespace scope to use. If omitted it will use the application name"
+          "title": "Namespace is the namespace scope to use. If omitted it will use the application name"
         },
         "parameters": {
           "type": "array",

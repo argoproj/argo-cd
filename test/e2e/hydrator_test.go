@@ -24,3 +24,7 @@ func TestSimpleHydrator(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
+
+// TODO: write tests
+//       - If I configure `hydrateTo` on the app, the hydration operation should succeed, but the app should fail to sync because the syncSource branch doesn't exist.
+//       - If I change the destination path on one of the apps, the app should be rehydrated, and a new commit should be created.

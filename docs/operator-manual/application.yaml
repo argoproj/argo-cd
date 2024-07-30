@@ -104,6 +104,9 @@ spec:
         - traefik.io/v1alpha1/TLSOption
         - v1/Service
 
+      # Optional namespace to template with. If left empty, defaults to the app name.
+      namespace: custom-namespace
+
     # kustomize specific config
     kustomize:
       # Optional kustomize version. Note: version must be configured in argocd-cm ConfigMap

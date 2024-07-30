@@ -267,7 +267,7 @@ spec:
                               current Kubernetes version.
                             type: string
                           namespace:
-                            description: ReleaseName is the namespace scope to use.
+                            description: Namespace is the namespace scope to use.
                               If omitted it will use the application name
                             type: string
                           parameters:
@@ -619,7 +619,7 @@ spec:
                                 server's current Kubernetes version.
                               type: string
                             namespace:
-                              description: ReleaseName is the namespace scope to use.
+                              description: Namespace is the namespace scope to use.
                                 If omitted it will use the application name
                               type: string
                             parameters:
@@ -1090,8 +1090,8 @@ spec:
                           Kubernetes version.
                         type: string
                       namespace:
-                        description: ReleaseName is the namespace scope to use. If
-                          omitted it will use the application name
+                        description: Namespace is the namespace scope to use. If omitted
+                          it will use the application name
                         type: string
                       parameters:
                         description: Parameters is a list of Helm parameters which
@@ -1478,8 +1478,8 @@ spec:
                             Kubernetes version.
                           type: string
                         namespace:
-                          description: ReleaseName is the namespace scope to use.
-                            If omitted it will use the application name
+                          description: Namespace is the namespace scope to use. If
+                            omitted it will use the application name
                           type: string
                         parameters:
                           description: Parameters is a list of Helm parameters which
@@ -1986,7 +1986,7 @@ spec:
                                 server's current Kubernetes version.
                               type: string
                             namespace:
-                              description: ReleaseName is the namespace scope to use.
+                              description: Namespace is the namespace scope to use.
                                 If omitted it will use the application name
                               type: string
                             parameters:
@@ -2341,8 +2341,8 @@ spec:
                                   server's current Kubernetes version.
                                 type: string
                               namespace:
-                                description: ReleaseName is the namespace scope to
-                                  use. If omitted it will use the application name
+                                description: Namespace is the namespace scope to use.
+                                  If omitted it will use the application name
                                 type: string
                               parameters:
                                 description: Parameters is a list of Helm parameters
@@ -2840,7 +2840,7 @@ spec:
                                       to the server's current Kubernetes version.
                                     type: string
                                   namespace:
-                                    description: ReleaseName is the namespace scope
+                                    description: Namespace is the namespace scope
                                       to use. If omitted it will use the application
                                       name
                                     type: string
@@ -3216,7 +3216,7 @@ spec:
                                         version.
                                       type: string
                                     namespace:
-                                      description: ReleaseName is the namespace scope
+                                      description: Namespace is the namespace scope
                                         to use. If omitted it will use the application
                                         name
                                       type: string
@@ -3711,8 +3711,8 @@ spec:
                                   server's current Kubernetes version.
                                 type: string
                               namespace:
-                                description: ReleaseName is the namespace scope to
-                                  use. If omitted it will use the application name
+                                description: Namespace is the namespace scope to use.
+                                  If omitted it will use the application name
                                 type: string
                               parameters:
                                 description: Parameters is a list of Helm parameters
@@ -4077,9 +4077,8 @@ spec:
                                     the server's current Kubernetes version.
                                   type: string
                                 namespace:
-                                  description: ReleaseName is the namespace scope
-                                    to use. If omitted it will use the application
-                                    name
+                                  description: Namespace is the namespace scope to
+                                    use. If omitted it will use the application name
                                   type: string
                                 parameters:
                                   description: Parameters is a list of Helm parameters
@@ -4645,8 +4644,8 @@ spec:
                                   server's current Kubernetes version.
                                 type: string
                               namespace:
-                                description: ReleaseName is the namespace scope to
-                                  use. If omitted it will use the application name
+                                description: Namespace is the namespace scope to use.
+                                  If omitted it will use the application name
                                 type: string
                               parameters:
                                 description: Parameters is a list of Helm parameters
@@ -5011,9 +5010,8 @@ spec:
                                     the server's current Kubernetes version.
                                   type: string
                                 namespace:
-                                  description: ReleaseName is the namespace scope
-                                    to use. If omitted it will use the application
-                                    name
+                                  description: Namespace is the namespace scope to
+                                    use. If omitted it will use the application name
                                   type: string
                                 parameters:
                                   description: Parameters is a list of Helm parameters

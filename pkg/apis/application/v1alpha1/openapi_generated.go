@@ -1865,7 +1865,7 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 					},
 					"namespace": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ReleaseName is the namespace scope to use. If omitted it will use the application name",
+							Description: "Namespace is the namespace scope to use. If omitted it will use the application name",
 							Type:        []string{"string"},
 							Format:      "",
 						},

@@ -215,12 +215,12 @@ func (a ApplicationSources) IsZero() bool {
 }
 
 func (a *ApplicationSpec) GetSource() ApplicationSource {
+	if a.SourceHydrator != nil {
+		return a.SourceHydrator.GetSyncSource()
+	}
 	// if Application has multiple sources, return the first source in sources
 	if a.HasMultipleSources() {
 		return a.Sources[0]
-	}
-	if a.SourceHydrator != nil {
-		return a.SourceHydrator.GetSyncSource()
 	}
 	if a.Source != nil {
 		return *a.Source
@@ -245,11 +245,11 @@ func (a *ApplicationSpec) GetHydrateToSource() ApplicationSource {
 }
 
 func (a *ApplicationSpec) GetSources() ApplicationSources {
-	if a.HasMultipleSources() {
-		return a.Sources
-	}
 	if a.SourceHydrator != nil {
 		return ApplicationSources{a.SourceHydrator.GetSyncSource()}
+	}
+	if a.HasMultipleSources() {
+		return a.Sources
 	}
 	if a.Source != nil {
 		return ApplicationSources{*a.Source}
@@ -267,16 +267,16 @@ func (a *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *Applicatio
 }
 
 func (a *ApplicationSpec) GetSourcePtrByIndex(sourceIndex int) *ApplicationSource {
+	if a.SourceHydrator != nil {
+		source := a.SourceHydrator.GetSyncSource()
+		return &source
+	}
 	// if Application has multiple sources, return the first source in sources
 	if a.HasMultipleSources() {
 		if sourceIndex > 0 {
 			return &a.Sources[sourceIndex]
 		}
 		return &a.Sources[0]
-	}
-	if a.SourceHydrator != nil {
-		source := a.SourceHydrator.GetSyncSource()
-		return &source
 	}
 	return a.Source
 }
@@ -426,7 +426,7 @@ type ApplicationSourceHelm struct {
 	KubeVersion string `json:"kubeVersion,omitempty" protobuf:"bytes,11,opt,name=kubeVersion"`
 	// APIVersions is a list of Kubernetes API versions to use for templating. If not set, defaults to the server's preferred API versions.
 	ApiVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,12,opt,name=apiVersions"`
-	// ReleaseName is the namespace scope to use. If omitted it will use the application name
+	// Namespace is the namespace scope to use. If omitted it will use the application name
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,13,opt,name=namespace"`
 }
 
