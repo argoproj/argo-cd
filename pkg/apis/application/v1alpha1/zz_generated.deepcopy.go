@@ -4252,6 +4252,13 @@ func (in *SyncStatus) DeepCopyInto(out *SyncStatus) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.ManifestsChanged != nil {
+		in, out := &in.ManifestsChanged, &out.ManifestsChanged
+		*out = make(map[string]bool, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 
