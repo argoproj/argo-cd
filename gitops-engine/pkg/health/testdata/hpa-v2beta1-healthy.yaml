@@ -1,0 +1,72 @@
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: >
+      {"apiVersion":"autoscaling/v2beta1","kind":"HorizontalPodAutoscaler","metadata":{"annotations":{},"labels":{"app.kubernetes.io/component":"repo-server","app.kubernetes.io/instance":"argocd","app.kubernetes.io/managed-by":"Helm","app.kubernetes.io/name":"argocd-repo-server-hpa","app.kubernetes.io/part-of":"argocd","argocd.argoproj.io/instance":"argocd","helm.sh/chart":"argo-cd-2.5.0"},"name":"argocd-repo-server-hpa","namespace":"argocd"},"spec":{"maxReplicas":40,"metrics":[{"resource":{"name":"memory","targetAverageUtilization":150},"type":"Resource"},{"resource":{"name":"cpu","targetAverageUtilization":80},"type":"Resource"}],"minReplicas":1,"scaleTargetRef":{"apiVersion":"apps/v1","kind":"Deployment","name":"argocd-repo-server"}}}
+    meta.helm.sh/release-name: argocd
+    meta.helm.sh/release-namespace: argocd
+  creationTimestamp: '2020-09-01T23:37:42Z'
+  labels:
+    app.kubernetes.io/component: repo-server
+    app.kubernetes.io/instance: argocd
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: argocd-repo-server-hpa
+    app.kubernetes.io/part-of: argocd
+    argocd.argoproj.io/instance: argocd
+    helm.sh/chart: argo-cd-2.5.0
+  name: argocd-repo-server-hpa
+  namespace: argocd
+  resourceVersion: '65843573'
+  selfLink: >-
+    /apis/autoscaling/v2beta1/namespaces/argocd/horizontalpodautoscalers/argocd-repo-server-hpa
+  uid: ca7e0de8-7eb1-404a-b2f9-b9702b88ca8b
+spec:
+  maxReplicas: 40
+  metrics:
+    - resource:
+        name: memory
+        targetAverageUtilization: 150
+      type: Resource
+    - resource:
+        name: cpu
+        targetAverageUtilization: 80
+      type: Resource
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: argocd-repo-server
+status:
+  conditions:
+    - lastTransitionTime: '2020-09-16T17:59:42Z'
+      message: recommended size matches current size
+      reason: ReadyForNewScale
+      status: 'True'
+      type: AbleToScale
+    - lastTransitionTime: '2020-11-09T21:31:12Z'
+      message: >-
+        the HPA was able to successfully calculate a replica count from memory
+        resource utilization (percentage of request)
+      reason: ValidMetricFound
+      status: 'True'
+      type: ScalingActive
+    - lastTransitionTime: '2020-11-14T23:12:46Z'
+      message: the desired count is within the acceptable range
+      reason: DesiredWithinRange
+      status: 'False'
+      type: ScalingLimited
+  currentMetrics:
+    - resource:
+        currentAverageUtilization: 12
+        currentAverageValue: '65454080'
+        name: memory
+      type: Resource
+    - resource:
+        currentAverageUtilization: 2
+        currentAverageValue: 12m
+        name: cpu
+      type: Resource
+  currentReplicas: 1
+  desiredReplicas: 1
+  lastScaleTime: '2020-12-07T22:59:53Z'
