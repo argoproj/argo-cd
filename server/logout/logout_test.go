@@ -192,8 +192,8 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 				},
 			},
 			Data: map[string]string{
-				"url":  "http://localhost:4000",
-				"urls": "- http://argocd.my-corp.tld",
+				"url":            "http://localhost:4000",
+				"additionalUrls": "- http://argocd.my-corp.tld",
 			},
 		},
 		&corev1.Secret{
