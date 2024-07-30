@@ -2,13 +2,14 @@ package commands
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/spf13/cobra"
 

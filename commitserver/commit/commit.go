@@ -80,11 +80,9 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 		return out, fmt.Errorf("failed to clear repo: %w", err)
 	}
 
-	h := newHydratorHelper(dirPath)
-
 	// Write the manifests to the temp dir
 	logCtx.Debugf("Writing manifests")
-	err = h.WriteForPaths(r.RepoUrl, r.DrySha, r.Paths)
+	err = WriteForPaths(dirPath, r.RepoUrl, r.DrySha, r.Paths)
 	if err != nil {
 		return "", fmt.Errorf("failed to write manifests: %w", err)
 	}

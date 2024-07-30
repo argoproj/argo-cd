@@ -16,25 +16,11 @@ import (
 	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
 )
 
-// HydratorHelper is an interface for writing metadata, readme, and manifests for hydrator.
-type HydratorHelper interface {
-	// WriteForPaths writes metadata, readme, and manifests for the given paths.
-	WriteForPaths(repoUrl string, drySha string, paths []*apiclient.PathDetails) error
-}
-
-type hydratorHelper struct {
-	dirPath string
-}
-
-// NewHydratorHelper creates a new HydratorHelper. The dirPath is the root directory where the hydrator files will be
-// written, i.e. a git repository.
-func newHydratorHelper(dirPath string) HydratorHelper {
-	return &hydratorHelper{dirPath: dirPath}
-}
-
-func (h *hydratorHelper) WriteForPaths(repoUrl string, drySha string, paths []*apiclient.PathDetails) error {
+// WriteForPaths writes the manifests, hydrator.metadata, and README.md files for each path in the provided paths. It
+// also writes a root-level hydrator.metadata file containing the repo URL and dry SHA.
+func WriteForPaths(rootPath string, repoUrl string, drySha string, paths []*apiclient.PathDetails) error {
 	// Write the top-level readme.
-	err := h.writeMetadata(hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl}, "")
+	err := writeMetadata(rootPath, hydratorMetadataFile{DrySHA: drySha, RepoURL: repoUrl})
 	if err != nil {
 		return fmt.Errorf("failed to write top-level hydrator metadata: %w", err)
 	}
@@ -45,7 +31,7 @@ func (h *hydratorHelper) WriteForPaths(repoUrl string, drySha string, paths []*a
 			hydratePath = ""
 		}
 		var fullHydratePath string
-		fullHydratePath, err = securejoin.SecureJoin(h.dirPath, hydratePath)
+		fullHydratePath, err = securejoin.SecureJoin(rootPath, hydratePath)
 		if err != nil {
 			return fmt.Errorf("failed to construct hydrate path: %w", err)
 		}
@@ -56,7 +42,7 @@ func (h *hydratorHelper) WriteForPaths(repoUrl string, drySha string, paths []*a
 		}
 
 		// Write the manifests
-		err = h.writeManifests(p.Manifests, hydratePath)
+		err = writeManifests(fullHydratePath, p.Manifests)
 		if err != nil {
 			return fmt.Errorf("failed to write manifests: %w", err)
 		}
@@ -67,13 +53,13 @@ func (h *hydratorHelper) WriteForPaths(repoUrl string, drySha string, paths []*a
 			DrySHA:   drySha,
 			RepoURL:  repoUrl,
 		}
-		err = h.writeMetadata(hydratorMetadata, hydratePath)
+		err = writeMetadata(fullHydratePath, hydratorMetadata)
 		if err != nil {
 			return fmt.Errorf("failed to write hydrator metadata: %w", err)
 		}
 
 		// Write README
-		err = h.writeReadme(hydratorMetadata, hydratePath)
+		err = writeReadme(fullHydratePath, hydratorMetadata)
 		if err != nil {
 			return fmt.Errorf("failed to write readme: %w", err)
 		}
@@ -82,18 +68,13 @@ func (h *hydratorHelper) WriteForPaths(repoUrl string, drySha string, paths []*a
 }
 
 // writeMetadata writes the metadata to the hydrator.metadata file.
-func (h *hydratorHelper) writeMetadata(metadata hydratorMetadataFile, subDirPath string) error {
-	fullPath, err := securejoin.SecureJoin(h.dirPath, subDirPath)
-	if err != nil {
-		return fmt.Errorf("failed to join path: %w", err)
-	}
-
+func writeMetadata(dirPath string, metadata hydratorMetadataFile) error {
 	hydratorMetadataJson, err := json.MarshalIndent(metadata, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal hydrator metadata: %w", err)
 	}
 	// No need to use SecureJoin here, as the path is already sanitized.
-	hydratorMetadataPath := path.Join(fullPath, "hydrator.metadata")
+	hydratorMetadataPath := path.Join(dirPath, "hydrator.metadata")
 	err = os.WriteFile(hydratorMetadataPath, hydratorMetadataJson, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("failed to write hydrator metadata: %w", err)
@@ -102,20 +83,15 @@ func (h *hydratorHelper) writeMetadata(metadata hydratorMetadataFile, subDirPath
 }
 
 // writeReadme writes the readme to the README.md file.
-func (h *hydratorHelper) writeReadme(metadata hydratorMetadataFile, subDirPath string) error {
-	fullPath, err := securejoin.SecureJoin(h.dirPath, subDirPath)
-	if err != nil {
-		return fmt.Errorf("failed to join path: %w", err)
-	}
-
+func writeReadme(dirPath string, metadata hydratorMetadataFile) error {
 	readmeTemplate := template.New("readme")
-	readmeTemplate, err = readmeTemplate.Parse(manifestHydrationReadmeTemplate)
+	readmeTemplate, err := readmeTemplate.Parse(manifestHydrationReadmeTemplate)
 	if err != nil {
 		return fmt.Errorf("failed to parse readme template: %w", err)
 	}
 	// Create writer to template into
 	// No need to use SecureJoin here, as the path is already sanitized.
-	readmePath := path.Join(fullPath, "README.md")
+	readmePath := path.Join(dirPath, "README.md")
 	readmeFile, err := os.Create(readmePath)
 	if err != nil && !os.IsExist(err) {
 		return fmt.Errorf("failed to create README file: %w", err)
@@ -133,15 +109,10 @@ func (h *hydratorHelper) writeReadme(metadata hydratorMetadataFile, subDirPath s
 
 // writeManifests writes the manifests to the manifest.yaml file, truncating the file if it exists and appending the
 // manifests in the order they are provided.
-func (h *hydratorHelper) writeManifests(manifests []*apiclient.ManifestDetails, subDirPath string) error {
-	fullHydratePath, err := securejoin.SecureJoin(h.dirPath, subDirPath)
-	if err != nil {
-		return fmt.Errorf("failed to join path: %w", err)
-	}
-
+func writeManifests(dirPath string, manifests []*apiclient.ManifestDetails) error {
 	// If the file exists, truncate it.
 	// No need to use SecureJoin here, as the path is already sanitized.
-	manifestPath := path.Join(fullHydratePath, "manifest.yaml")
+	manifestPath := path.Join(dirPath, "manifest.yaml")
 	if _, err := os.Stat(manifestPath); err == nil {
 		err = os.Truncate(manifestPath, 0)
 		if err != nil {
