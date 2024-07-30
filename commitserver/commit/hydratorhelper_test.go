@@ -6,8 +6,10 @@ import (
 	"path"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
 )
 
 func TestWriteMetadata(t *testing.T) {
@@ -19,15 +21,15 @@ func TestWriteMetadata(t *testing.T) {
 	}
 
 	err := writeMetadata(dir, metadata)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	metadataPath := path.Join(dir, "hydrator.metadata")
 	metadataBytes, err := os.ReadFile(metadataPath)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	var readMetadata hydratorMetadataFile
 	err = json.Unmarshal(metadataBytes, &readMetadata)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, metadata, readMetadata)
 }
 
@@ -40,11 +42,11 @@ func TestWriteReadme(t *testing.T) {
 	}
 
 	err := writeReadme(dir, metadata)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	readmePath := path.Join(dir, "README.md")
 	readmeBytes, err := os.ReadFile(readmePath)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Contains(t, string(readmeBytes), metadata.RepoURL)
 }
 
@@ -56,10 +58,10 @@ func TestWriteManifests(t *testing.T) {
 	}
 
 	err := writeManifests(dir, manifests)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	manifestPath := path.Join(dir, "manifest.yaml")
 	manifestBytes, err := os.ReadFile(manifestPath)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Contains(t, string(manifestBytes), "kind: Pod")
 }
