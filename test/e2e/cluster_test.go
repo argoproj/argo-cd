@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/client-go/tools/clientcmd"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -274,8 +275,17 @@ func TestClusterDeleteDenied(t *testing.T) {
 }
 
 func TestClusterDelete(t *testing.T) {
+	// Use current context for test.
+	// Needed for RBAC cleanup.
+	pathOpts := clientcmd.NewDefaultPathOptions()
+	config, err := pathOpts.GetStartingConfig()
+	if err != nil {
+		t.Errorf("retrieving context: %v", err)
+	}
+	ctxName := config.CurrentContext
+
 	accountFixture.Given(t).
-		Name("default").
+		Name(ctxName).
 		When().
 		Create().
 		Login().
@@ -299,7 +309,7 @@ func TestClusterDelete(t *testing.T) {
 
 	clstAction := clusterFixture.
 		GivenWithSameState(t).
-		Name("default").
+		Name(ctxName).
 		Project(ProjectName).
 		Upsert(true).
 		Server(KubernetesInternalAPIServerAddr).
@@ -307,7 +317,7 @@ func TestClusterDelete(t *testing.T) {
 		CreateWithRBAC()
 
 	// Check that RBAC is created
-	_, err := fixture.Run("", "kubectl", "get", "serviceaccount", "argocd-manager", "-n", "kube-system")
+	_, err = fixture.Run("", "kubectl", "get", "serviceaccount", "argocd-manager", "-n", "kube-system")
 	if err != nil {
 		t.Errorf("Expected no error from not finding serviceaccount argocd-manager but got:\n%s", err.Error())
 	}
