@@ -2169,7 +2169,7 @@ func getAppNamesBySelector(ctx context.Context, appIf application.ApplicationSer
 	return appNames, nil
 }
 
-// ResourceDiff tracks the state of a resource when waiting on an application status.
+// ResourceState tracks the state of a resource when waiting on an application status.
 type resourceState struct {
 	Group     string
 	Kind      string
