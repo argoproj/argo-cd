@@ -11,7 +11,6 @@ const (
 	ASKPASS_NONCE_ENV = "ARGOCD_GIT_ASKPASS_NONCE"
 	// AKSPASS_SOCKET_PATH_ENV is the environment variable that is used to pass the socket path to the askpass script
 	AKSPASS_SOCKET_PATH_ENV = "ARGOCD_ASK_PASS_SOCK"
-	CommitServerSocketPath  = "/tmp/commit-server-ask-pass.sock"
 )
 
 func init() {
