@@ -27,6 +27,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// https://www.rfc-editor.org/rfc/rfc3986#section-3.2.1
+// https://github.com/shadow-maint/shadow/blob/master/libmisc/chkname.c#L36
+const usernameRegex = `[a-zA-Z0-9_\.][a-zA-Z0-9_\.-]{0,30}[a-zA-Z0-9_\.\$-]?`
+
 const payloadQueueSize = 50000
 
 var errBasicAuthVerificationFailed = errors.New("basic auth verification failed")
@@ -246,7 +250,10 @@ func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 		log.Errorf("Failed to parse repoURL '%s'", webURL)
 		return nil
 	}
-	regexpStr := `(?i)(http://|https://|\w+@|ssh://(\w+@)?)` + urlObj.Hostname() + "(:[0-9]+|)[:/]" + urlObj.Path[1:] + "(\\.git)?"
+	regexEscapedHostname := regexp.QuoteMeta(urlObj.Hostname())
+	regexEscapedPath := regexp.QuoteMeta(urlObj.EscapedPath()[1:])
+	regexpStr := fmt.Sprintf(`(?i)^(http://|https://|%s@|ssh://(%s@)?((alt)?ssh\.)?)%s(:[0-9]+|)[:/]%s(\.git)?$`,
+		usernameRegex, usernameRegex, regexEscapedHostname, regexEscapedPath)
 	repoRegexp, err := regexp.Compile(regexpStr)
 	if err != nil {
 		log.Errorf("Failed to compile regexp for repoURL '%s'", webURL)
@@ -274,7 +281,9 @@ func getPRGeneratorInfo(payload interface{}) *prGeneratorInfo {
 			log.Errorf("Failed to parse repoURL '%s'", apiURL)
 			return nil
 		}
-		regexpStr := `(?i)(http://|https://|\w+@|ssh://(\w+@)?)` + urlObj.Hostname() + "(:[0-9]+|)[:/]"
+		regexEscapedHostname := regexp.QuoteMeta(urlObj.Hostname())
+		regexpStr := fmt.Sprintf(`(?i)^(http://|https://|%s@|ssh://(%s@)?)%s(:[0-9]+|)[:/]$`,
+			usernameRegex, usernameRegex, regexEscapedHostname)
 		apiRegexp, err := regexp.Compile(regexpStr)
 		if err != nil {
 			log.Errorf("Failed to compile regexp for repoURL '%s'", apiURL)

@@ -347,7 +347,7 @@ func getWebUrlRegex(webURL string) (*regexp.Regexp, error) {
 
 	regexEscapedHostname := regexp.QuoteMeta(urlObj.Hostname())
 	regexEscapedPath := regexp.QuoteMeta(urlObj.EscapedPath()[1:])
-	regexpStr := fmt.Sprintf(`(?i)^(http://|https://|%s@|ssh://(%s@)?)%s(:[0-9]+|)[:/]%s(\.git)?$`,
+	regexpStr := fmt.Sprintf(`(?i)^(http://|https://|%s@|ssh://(%s@)?((alt)?ssh\.)?)%s(:[0-9]+|)[:/]%s(\.git)?$`,
 		usernameRegex, usernameRegex, regexEscapedHostname, regexEscapedPath)
 	repoRegexp, err := regexp.Compile(regexpStr)
 	if err != nil {
