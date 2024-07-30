@@ -2,8 +2,13 @@ package commands
 
 import (
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 
 	"github.com/spf13/cobra"
 
@@ -50,8 +55,24 @@ func NewCommand() *cobra.Command {
 			listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", listenHost, listenPort))
 			errors.CheckError(err)
 
+			// Graceful shutdown code adapted from here: https://gist.github.com/embano1/e0bf49d24f1cdd07cffad93097c04f0a
+			sigCh := make(chan os.Signal, 1)
+			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				s := <-sigCh
+				log.Printf("got signal %v, attempting graceful shutdown", s)
+				grpc.GracefulStop()
+				wg.Done()
+			}()
+
+			log.Println("starting grpc server")
 			err = grpc.Serve(listener)
 			errors.CheckError(err)
+			wg.Wait()
+			log.Println("clean shutdown")
+
 			return nil
 		},
 	}
