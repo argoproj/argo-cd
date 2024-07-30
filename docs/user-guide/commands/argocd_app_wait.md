@@ -43,6 +43,7 @@ argocd app wait [APPNAME.. | -l selector] [flags]
       --delete                 Wait for delete
       --health                 Wait for health
   -h, --help                   help for wait
+      --hydrated               Wait for hydration operations
       --operation              Wait for pending operations
   -o, --output string          Output format. One of: json|yaml|wide|tree|tree=detailed (default "wide")
       --resource stringArray   Sync only specific resources as GROUP:KIND:NAME or !GROUP:KIND:NAME. Fields may be blank and '*' can be used. This option may be specified repeatedly
