@@ -68,7 +68,7 @@ func TestPostDeleteHook(t *testing.T) {
 		})
 }
 
-// make sure that that hooks do not appear in "argocd app diff"
+// make sure that hooks do not appear in "argocd app diff"
 func TestHookDiff(t *testing.T) {
 	Given(t).
 		Path("hook").
