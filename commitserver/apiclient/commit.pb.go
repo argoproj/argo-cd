@@ -28,17 +28,22 @@ var _ = math.Inf
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 type ManifestsRequest struct {
-	Repo                 *v1alpha1.Repository `protobuf:"bytes,1,opt,name=repo,proto3" json:"repo,omitempty"`
-	RepoUrl              string               `protobuf:"bytes,2,opt,name=repo_url,json=repoUrl,proto3" json:"repo_url,omitempty"`
-	SyncBranch           string               `protobuf:"bytes,3,opt,name=sync_branch,json=syncBranch,proto3" json:"sync_branch,omitempty"`
-	TargetBranch         string               `protobuf:"bytes,4,opt,name=target_branch,json=targetBranch,proto3" json:"target_branch,omitempty"`
-	DrySha               string               `protobuf:"bytes,5,opt,name=dry_sha,json=drySha,proto3" json:"dry_sha,omitempty"`
-	CommitMessage        string               `protobuf:"bytes,6,opt,name=commit_message,json=commitMessage,proto3" json:"commit_message,omitempty"`
-	CommitTime           string               `protobuf:"bytes,7,opt,name=commit_time,json=commitTime,proto3" json:"commit_time,omitempty"`
-	Paths                []*PathDetails       `protobuf:"bytes,8,rep,name=paths,proto3" json:"paths,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
-	XXX_unrecognized     []byte               `json:"-"`
-	XXX_sizecache        int32                `json:"-"`
+	// Repo contains repository information including, at minimum, the URL of the repository. Generally it will contain
+	// repo credentials.
+	Repo *v1alpha1.Repository `protobuf:"bytes,1,opt,name=repo,proto3" json:"repo,omitempty"`
+	// SyncBranch is the branch Argo CD syncs from, i.e. the hydrated branch.
+	SyncBranch string `protobuf:"bytes,2,opt,name=sync_branch,json=syncBranch,proto3" json:"sync_branch,omitempty"`
+	// TargetBranch is the branch Argo CD is committing to, i.e. the branch that will be updated.
+	TargetBranch string `protobuf:"bytes,3,opt,name=target_branch,json=targetBranch,proto3" json:"target_branch,omitempty"`
+	// DrySha is the commit SHA from the dry branch, i.e. pre-rendered manifest branch.
+	DrySha string `protobuf:"bytes,4,opt,name=dry_sha,json=drySha,proto3" json:"dry_sha,omitempty"`
+	// CommitMessage is the commit message to use when committing changes.
+	CommitMessage string `protobuf:"bytes,5,opt,name=commit_message,json=commitMessage,proto3" json:"commit_message,omitempty"`
+	// Paths contains the paths to write hydrated manifests to, along with the manifests and commands to execute.
+	Paths                []*PathDetails `protobuf:"bytes,6,rep,name=paths,proto3" json:"paths,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
+	XXX_unrecognized     []byte         `json:"-"`
+	XXX_sizecache        int32          `json:"-"`
 }
 
 func (m *ManifestsRequest) Reset()         { *m = ManifestsRequest{} }
@@ -81,13 +86,6 @@ func (m *ManifestsRequest) GetRepo() *v1alpha1.Repository {
 	return nil
 }
 
-func (m *ManifestsRequest) GetRepoUrl() string {
-	if m != nil {
-		return m.RepoUrl
-	}
-	return ""
-}
-
 func (m *ManifestsRequest) GetSyncBranch() string {
 	if m != nil {
 		return m.SyncBranch
@@ -116,13 +114,6 @@ func (m *ManifestsRequest) GetCommitMessage() string {
 	return ""
 }
 
-func (m *ManifestsRequest) GetCommitTime() string {
-	if m != nil {
-		return m.CommitTime
-	}
-	return ""
-}
-
 func (m *ManifestsRequest) GetPaths() []*PathDetails {
 	if m != nil {
 		return m.Paths
@@ -131,13 +122,17 @@ func (m *ManifestsRequest) GetPaths() []*PathDetails {
 }
 
 type PathDetails struct {
-	Path                 string             `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
-	Manifests            []*ManifestDetails `protobuf:"bytes,2,rep,name=manifests,proto3" json:"manifests,omitempty"`
-	Commands             []string           `protobuf:"bytes,3,rep,name=commands,proto3" json:"commands,omitempty"`
-	ReadmeDetails        *ReadmeDetails     `protobuf:"bytes,4,opt,name=readme_details,json=readmeDetails,proto3" json:"readme_details,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
-	XXX_unrecognized     []byte             `json:"-"`
-	XXX_sizecache        int32              `json:"-"`
+	// Path is the path to write the hydrated manifests to.
+	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// Manifests contains the manifests to write to the path.
+	Manifests []*ManifestDetails `protobuf:"bytes,2,rep,name=manifests,proto3" json:"manifests,omitempty"`
+	// Commands contains the commands executed when hydrating the manifests.
+	Commands []string `protobuf:"bytes,3,rep,name=commands,proto3" json:"commands,omitempty"`
+	// ReadmeDetails contains the readme info to write to the path.
+	ReadmeDetails        *ReadmeDetails `protobuf:"bytes,4,opt,name=readme_details,json=readmeDetails,proto3" json:"readme_details,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
+	XXX_unrecognized     []byte         `json:"-"`
+	XXX_sizecache        int32          `json:"-"`
 }
 
 func (m *PathDetails) Reset()         { *m = PathDetails{} }
@@ -201,6 +196,7 @@ func (m *PathDetails) GetReadmeDetails() *ReadmeDetails {
 	return nil
 }
 
+// ManifestDetails contains the manifest hydrated manifests.
 type ManifestDetails struct {
 	Manifest             string   `protobuf:"bytes,1,opt,name=manifest,proto3" json:"manifest,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -248,6 +244,7 @@ func (m *ManifestDetails) GetManifest() string {
 	return ""
 }
 
+// ReadmeDetails contains the readme info to write to the path.
 type ReadmeDetails struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -287,8 +284,8 @@ func (m *ReadmeDetails) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ReadmeDetails proto.InternalMessageInfo
 
+// ManifestsResponse is the response to the ManifestsRequest.
 type ManifestsResponse struct {
-	RequestId            string   `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -327,13 +324,6 @@ func (m *ManifestsResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ManifestsResponse proto.InternalMessageInfo
 
-func (m *ManifestsResponse) GetRequestId() string {
-	if m != nil {
-		return m.RequestId
-	}
-	return ""
-}
-
 func init() {
 	proto.RegisterType((*ManifestsRequest)(nil), "ManifestsRequest")
 	proto.RegisterType((*PathDetails)(nil), "PathDetails")
@@ -345,39 +335,37 @@ func init() {
 func init() { proto.RegisterFile("commitserver/commit/commit.proto", fileDescriptor_cf3a3abbc35e3069) }
 
 var fileDescriptor_cf3a3abbc35e3069 = []byte{
-	// 512 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x53, 0xc1, 0x6e, 0xd3, 0x40,
-	0x10, 0x95, 0x9b, 0x36, 0x4d, 0x26, 0x4d, 0xda, 0xee, 0x05, 0x13, 0x89, 0x10, 0x19, 0x21, 0xe5,
-	0xd2, 0xb5, 0x6a, 0xd4, 0x3b, 0x6a, 0x39, 0x80, 0x44, 0x25, 0xe4, 0xc2, 0x05, 0x21, 0x59, 0x1b,
-	0x7b, 0xb0, 0x97, 0xda, 0xde, 0x65, 0x77, 0x13, 0x29, 0xff, 0xc3, 0xc7, 0x70, 0xe4, 0xc4, 0x19,
-	0xe5, 0x4b, 0x90, 0x77, 0xed, 0x36, 0x2d, 0x07, 0x4e, 0x3b, 0xf3, 0x66, 0xfc, 0xde, 0xe8, 0x79,
-	0x06, 0xe6, 0xa9, 0xa8, 0x2a, 0x6e, 0x34, 0xaa, 0x35, 0xaa, 0xd0, 0x25, 0xed, 0x43, 0xa5, 0x12,
-	0x46, 0x4c, 0xdf, 0xe7, 0xdc, 0x14, 0xab, 0x25, 0x4d, 0x45, 0x15, 0x32, 0x95, 0x0b, 0xa9, 0xc4,
-	0x37, 0x1b, 0x9c, 0xa5, 0x59, 0xb8, 0x8e, 0x42, 0x79, 0x9b, 0x87, 0x4c, 0x72, 0x1d, 0x32, 0x29,
-	0x4b, 0x9e, 0x32, 0xc3, 0x45, 0x1d, 0xae, 0xcf, 0x59, 0x29, 0x0b, 0x76, 0x1e, 0xe6, 0x58, 0xa3,
-	0x62, 0x06, 0x33, 0xc7, 0x16, 0xfc, 0xde, 0x83, 0x93, 0x6b, 0x56, 0xf3, 0xaf, 0xa8, 0x8d, 0x8e,
-	0xf1, 0xfb, 0x0a, 0xb5, 0x21, 0x5f, 0x60, 0x5f, 0xa1, 0x14, 0xbe, 0x37, 0xf7, 0x16, 0xa3, 0xe8,
-	0x2d, 0xbd, 0x57, 0xa4, 0x9d, 0xa2, 0x0d, 0x92, 0x34, 0xa3, 0xeb, 0x88, 0xca, 0xdb, 0x9c, 0x36,
-	0x8a, 0x74, 0x47, 0x91, 0x76, 0x8a, 0x34, 0x46, 0x29, 0x34, 0x37, 0x42, 0x6d, 0x62, 0xcb, 0x4a,
-	0x9e, 0xc2, 0xa0, 0x79, 0x93, 0x95, 0x2a, 0xfd, 0xbd, 0xb9, 0xb7, 0x18, 0xc6, 0x87, 0x4d, 0xfe,
-	0x49, 0x95, 0xe4, 0x39, 0x8c, 0xf4, 0xa6, 0x4e, 0x93, 0xa5, 0x62, 0x75, 0x5a, 0xf8, 0x3d, 0x5b,
-	0x85, 0x06, 0xba, 0xb4, 0x08, 0x79, 0x01, 0x63, 0xc3, 0x54, 0x8e, 0xa6, 0x6b, 0xd9, 0xb7, 0x2d,
-	0x47, 0x0e, 0x6c, 0x9b, 0x9e, 0xc0, 0x61, 0xa6, 0x36, 0x89, 0x2e, 0x98, 0x7f, 0x60, 0xcb, 0xfd,
-	0x4c, 0x6d, 0x6e, 0x0a, 0x46, 0x5e, 0xc2, 0xc4, 0x59, 0x99, 0x54, 0xa8, 0x35, 0xcb, 0xd1, 0xef,
-	0xdb, 0xfa, 0xd8, 0xa1, 0xd7, 0x0e, 0x6c, 0xa6, 0x68, 0xdb, 0x0c, 0xaf, 0xd0, 0x3f, 0x74, 0x53,
-	0x38, 0xe8, 0x23, 0xaf, 0x90, 0x04, 0x70, 0x20, 0x99, 0x29, 0xb4, 0x3f, 0x98, 0xf7, 0x16, 0xa3,
-	0xe8, 0x88, 0x7e, 0x60, 0xa6, 0x78, 0x83, 0x86, 0xf1, 0x52, 0xc7, 0xae, 0x14, 0xfc, 0xf0, 0x60,
-	0xb4, 0x03, 0x13, 0x02, 0xfb, 0x4d, 0xc1, 0x7a, 0x3a, 0x8c, 0x6d, 0x4c, 0x28, 0x0c, 0xab, 0xce,
-	0x7b, 0x7f, 0xcf, 0x72, 0x9d, 0xd0, 0xee, 0x6f, 0x74, 0x7c, 0xf7, 0x2d, 0x64, 0x0a, 0x83, 0x66,
-	0x0a, 0x56, 0x67, 0xda, 0xef, 0xcd, 0x7b, 0x8b, 0x61, 0x7c, 0x97, 0x93, 0x0b, 0x98, 0x28, 0x64,
-	0x59, 0x85, 0x49, 0xe6, 0x3e, 0xb4, 0xd6, 0x8c, 0xa2, 0x09, 0x8d, 0x2d, 0xdc, 0xd1, 0x8d, 0xd5,
-	0x6e, 0x1a, 0x9c, 0xc1, 0xf1, 0x23, 0xc1, 0x46, 0xa5, 0x93, 0x6c, 0xa7, 0xbd, 0xcb, 0x83, 0x63,
-	0x18, 0x3f, 0xa0, 0x0b, 0x22, 0x38, 0xdd, 0x59, 0x1f, 0x2d, 0x45, 0xad, 0x91, 0x3c, 0x03, 0x50,
-	0x6e, 0x95, 0x12, 0x9e, 0xb5, 0x1c, 0xc3, 0x16, 0x79, 0x97, 0x45, 0xaf, 0x61, 0x7c, 0x65, 0xcd,
-	0xbc, 0x41, 0xb5, 0xe6, 0x29, 0x92, 0x10, 0xfa, 0x0e, 0x20, 0xa7, 0xf4, 0xf1, 0x32, 0x4e, 0x09,
-	0xfd, 0x47, 0xe0, 0xf2, 0xea, 0xe7, 0x76, 0xe6, 0xfd, 0xda, 0xce, 0xbc, 0x3f, 0xdb, 0x99, 0xf7,
-	0xf9, 0xe2, 0x3f, 0x17, 0xf1, 0xe0, 0xa4, 0x98, 0xe4, 0x69, 0xc9, 0xb1, 0x36, 0xcb, 0xbe, 0xbd,
-	0x80, 0x57, 0x7f, 0x03, 0x00, 0x00, 0xff, 0xff, 0xe2, 0x80, 0xfd, 0x49, 0x73, 0x03, 0x00, 0x00,
+	// 466 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x52, 0xc1, 0x6e, 0xd3, 0x40,
+	0x10, 0x95, 0x9b, 0x34, 0x90, 0x49, 0x93, 0xb6, 0xcb, 0x01, 0x2b, 0x87, 0x60, 0x19, 0x21, 0xe5,
+	0xd2, 0xb5, 0x6a, 0xd4, 0x3b, 0x6a, 0x39, 0x70, 0xa0, 0x12, 0x72, 0x6f, 0x08, 0xc9, 0x9a, 0xd8,
+	0x83, 0xbd, 0x34, 0xf6, 0x2e, 0xbb, 0x5b, 0x4b, 0xf9, 0x15, 0xce, 0x7c, 0x0c, 0x47, 0x3e, 0x01,
+	0xe5, 0x4b, 0x90, 0xd7, 0x71, 0x9b, 0x96, 0x03, 0x27, 0xcf, 0xbc, 0x19, 0xbf, 0x37, 0xfb, 0xf4,
+	0x20, 0xc8, 0x64, 0x55, 0x09, 0x6b, 0x48, 0x37, 0xa4, 0xa3, 0xae, 0xd9, 0x7d, 0xb8, 0xd2, 0xd2,
+	0xca, 0xf9, 0xc7, 0x42, 0xd8, 0xf2, 0x6e, 0xc5, 0x33, 0x59, 0x45, 0xa8, 0x0b, 0xa9, 0xb4, 0xfc,
+	0xe6, 0x8a, 0xb3, 0x2c, 0x8f, 0x9a, 0x38, 0x52, 0xb7, 0x45, 0x84, 0x4a, 0x98, 0x08, 0x95, 0x5a,
+	0x8b, 0x0c, 0xad, 0x90, 0x75, 0xd4, 0x9c, 0xe3, 0x5a, 0x95, 0x78, 0x1e, 0x15, 0x54, 0x93, 0x46,
+	0x4b, 0x79, 0xc7, 0x16, 0xfe, 0x38, 0x80, 0x93, 0x6b, 0xac, 0xc5, 0x57, 0x32, 0xd6, 0x24, 0xf4,
+	0xfd, 0x8e, 0x8c, 0x65, 0x5f, 0x60, 0xa8, 0x49, 0x49, 0xdf, 0x0b, 0xbc, 0xe5, 0x24, 0xfe, 0xc0,
+	0x1f, 0x14, 0x79, 0xaf, 0xe8, 0x8a, 0x34, 0xcb, 0x79, 0x13, 0x73, 0x75, 0x5b, 0xf0, 0x56, 0x91,
+	0xef, 0x29, 0xf2, 0x5e, 0x91, 0x27, 0xa4, 0xa4, 0x11, 0x56, 0xea, 0x4d, 0xe2, 0x58, 0xd9, 0x2b,
+	0x98, 0x98, 0x4d, 0x9d, 0xa5, 0x2b, 0x8d, 0x75, 0x56, 0xfa, 0x07, 0x81, 0xb7, 0x1c, 0x27, 0xd0,
+	0x42, 0x97, 0x0e, 0x61, 0xaf, 0x61, 0x6a, 0x51, 0x17, 0x64, 0xfb, 0x95, 0x81, 0x5b, 0x39, 0xea,
+	0xc0, 0xdd, 0xd2, 0x4b, 0x78, 0x96, 0xeb, 0x4d, 0x6a, 0x4a, 0xf4, 0x87, 0x6e, 0x3c, 0xca, 0xf5,
+	0xe6, 0xa6, 0x44, 0xf6, 0x06, 0x66, 0x9d, 0x5f, 0x69, 0x45, 0xc6, 0x60, 0x41, 0xfe, 0xa1, 0x9b,
+	0x4f, 0x3b, 0xf4, 0xba, 0x03, 0x59, 0x08, 0x87, 0x0a, 0x6d, 0x69, 0xfc, 0x51, 0x30, 0x58, 0x4e,
+	0xe2, 0x23, 0xfe, 0x09, 0x6d, 0xf9, 0x9e, 0x2c, 0x8a, 0xb5, 0x49, 0xba, 0x51, 0xf8, 0xd3, 0x83,
+	0xc9, 0x1e, 0xcc, 0x18, 0x0c, 0xdb, 0x81, 0xf3, 0x65, 0x9c, 0xb8, 0x9a, 0x71, 0x18, 0x57, 0xbd,
+	0x7f, 0xfe, 0x81, 0xe3, 0x3a, 0xe1, 0xbd, 0xa3, 0x3d, 0xdf, 0xc3, 0x0a, 0x9b, 0xc3, 0xf3, 0xf6,
+	0x10, 0xac, 0x73, 0xe3, 0x0f, 0x82, 0xc1, 0x72, 0x9c, 0xdc, 0xf7, 0xec, 0x02, 0x66, 0x9a, 0x30,
+	0xaf, 0x28, 0xcd, 0xbb, 0x1f, 0xdd, 0xd3, 0x26, 0xf1, 0x8c, 0x27, 0x0e, 0xee, 0xe9, 0xa6, 0x7a,
+	0xbf, 0x0d, 0xcf, 0xe0, 0xf8, 0x89, 0x60, 0xab, 0xd2, 0x4b, 0xee, 0xae, 0xbd, 0xef, 0xc3, 0x63,
+	0x98, 0x3e, 0xa2, 0x0b, 0x5f, 0xc0, 0xe9, 0x5e, 0x04, 0x8c, 0x92, 0xb5, 0xa1, 0xf8, 0x1d, 0x4c,
+	0xaf, 0x9c, 0x61, 0x37, 0xa4, 0x1b, 0x91, 0x11, 0x8b, 0x60, 0xd4, 0x01, 0xec, 0x94, 0x3f, 0x4d,
+	0xcc, 0x9c, 0xf1, 0x7f, 0x18, 0x2e, 0xaf, 0x7e, 0x6d, 0x17, 0xde, 0xef, 0xed, 0xc2, 0xfb, 0xb3,
+	0x5d, 0x78, 0x9f, 0x2f, 0xfe, 0x13, 0xdb, 0x47, 0xb9, 0x47, 0x25, 0xb2, 0xb5, 0xa0, 0xda, 0xae,
+	0x46, 0x2e, 0xa6, 0x6f, 0xff, 0x06, 0x00, 0x00, 0xff, 0xff, 0x88, 0x24, 0x04, 0x4b, 0x18, 0x03,
+	0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -392,6 +380,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type CommitServiceClient interface {
+	// Commit commits hydrated manifests to a repository.
 	Commit(ctx context.Context, in *ManifestsRequest, opts ...grpc.CallOption) (*ManifestsResponse, error)
 }
 
@@ -414,6 +403,7 @@ func (c *commitServiceClient) Commit(ctx context.Context, in *ManifestsRequest, 
 
 // CommitServiceServer is the server API for CommitService service.
 type CommitServiceServer interface {
+	// Commit commits hydrated manifests to a repository.
 	Commit(context.Context, *ManifestsRequest) (*ManifestsResponse, error)
 }
 
@@ -495,48 +485,34 @@ func (m *ManifestsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 				i = encodeVarintCommit(dAtA, i, uint64(size))
 			}
 			i--
-			dAtA[i] = 0x42
+			dAtA[i] = 0x32
 		}
-	}
-	if len(m.CommitTime) > 0 {
-		i -= len(m.CommitTime)
-		copy(dAtA[i:], m.CommitTime)
-		i = encodeVarintCommit(dAtA, i, uint64(len(m.CommitTime)))
-		i--
-		dAtA[i] = 0x3a
 	}
 	if len(m.CommitMessage) > 0 {
 		i -= len(m.CommitMessage)
 		copy(dAtA[i:], m.CommitMessage)
 		i = encodeVarintCommit(dAtA, i, uint64(len(m.CommitMessage)))
 		i--
-		dAtA[i] = 0x32
+		dAtA[i] = 0x2a
 	}
 	if len(m.DrySha) > 0 {
 		i -= len(m.DrySha)
 		copy(dAtA[i:], m.DrySha)
 		i = encodeVarintCommit(dAtA, i, uint64(len(m.DrySha)))
 		i--
-		dAtA[i] = 0x2a
+		dAtA[i] = 0x22
 	}
 	if len(m.TargetBranch) > 0 {
 		i -= len(m.TargetBranch)
 		copy(dAtA[i:], m.TargetBranch)
 		i = encodeVarintCommit(dAtA, i, uint64(len(m.TargetBranch)))
 		i--
-		dAtA[i] = 0x22
+		dAtA[i] = 0x1a
 	}
 	if len(m.SyncBranch) > 0 {
 		i -= len(m.SyncBranch)
 		copy(dAtA[i:], m.SyncBranch)
 		i = encodeVarintCommit(dAtA, i, uint64(len(m.SyncBranch)))
-		i--
-		dAtA[i] = 0x1a
-	}
-	if len(m.RepoUrl) > 0 {
-		i -= len(m.RepoUrl)
-		copy(dAtA[i:], m.RepoUrl)
-		i = encodeVarintCommit(dAtA, i, uint64(len(m.RepoUrl)))
 		i--
 		dAtA[i] = 0x12
 	}
@@ -709,13 +685,6 @@ func (m *ManifestsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
-	if len(m.RequestId) > 0 {
-		i -= len(m.RequestId)
-		copy(dAtA[i:], m.RequestId)
-		i = encodeVarintCommit(dAtA, i, uint64(len(m.RequestId)))
-		i--
-		dAtA[i] = 0xa
-	}
 	return len(dAtA) - i, nil
 }
 
@@ -740,10 +709,6 @@ func (m *ManifestsRequest) Size() (n int) {
 		l = m.Repo.Size()
 		n += 1 + l + sovCommit(uint64(l))
 	}
-	l = len(m.RepoUrl)
-	if l > 0 {
-		n += 1 + l + sovCommit(uint64(l))
-	}
 	l = len(m.SyncBranch)
 	if l > 0 {
 		n += 1 + l + sovCommit(uint64(l))
@@ -757,10 +722,6 @@ func (m *ManifestsRequest) Size() (n int) {
 		n += 1 + l + sovCommit(uint64(l))
 	}
 	l = len(m.CommitMessage)
-	if l > 0 {
-		n += 1 + l + sovCommit(uint64(l))
-	}
-	l = len(m.CommitTime)
 	if l > 0 {
 		n += 1 + l + sovCommit(uint64(l))
 	}
@@ -842,10 +803,6 @@ func (m *ManifestsResponse) Size() (n int) {
 	}
 	var l int
 	_ = l
-	l = len(m.RequestId)
-	if l > 0 {
-		n += 1 + l + sovCommit(uint64(l))
-	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
 	}
@@ -925,38 +882,6 @@ func (m *ManifestsRequest) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field RepoUrl", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowCommit
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthCommit
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthCommit
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.RepoUrl = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 3:
-			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field SyncBranch", wireType)
 			}
 			var stringLen uint64
@@ -987,7 +912,7 @@ func (m *ManifestsRequest) Unmarshal(dAtA []byte) error {
 			}
 			m.SyncBranch = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 4:
+		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field TargetBranch", wireType)
 			}
@@ -1019,7 +944,7 @@ func (m *ManifestsRequest) Unmarshal(dAtA []byte) error {
 			}
 			m.TargetBranch = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 5:
+		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field DrySha", wireType)
 			}
@@ -1051,7 +976,7 @@ func (m *ManifestsRequest) Unmarshal(dAtA []byte) error {
 			}
 			m.DrySha = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 6:
+		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field CommitMessage", wireType)
 			}
@@ -1083,39 +1008,7 @@ func (m *ManifestsRequest) Unmarshal(dAtA []byte) error {
 			}
 			m.CommitMessage = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 7:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field CommitTime", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowCommit
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthCommit
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthCommit
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.CommitTime = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 8:
+		case 6:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Paths", wireType)
 			}
@@ -1519,38 +1412,6 @@ func (m *ManifestsResponse) Unmarshal(dAtA []byte) error {
 			return fmt.Errorf("proto: ManifestsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field RequestId", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowCommit
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthCommit
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthCommit
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.RequestId = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipCommit(dAtA[iNdEx:])

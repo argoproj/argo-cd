@@ -29,7 +29,7 @@ func (s *Service) Commit(ctx context.Context, r *apiclient.ManifestsRequest) (*a
 	s.metricsServer.IncPendingCommitRequest(r.Repo.Repo)
 	defer s.metricsServer.DecPendingCommitRequest(r.Repo.Repo)
 
-	logCtx := log.WithFields(log.Fields{"repo": r.RepoUrl, "branch": r.TargetBranch, "drySHA": r.DrySha})
+	logCtx := log.WithFields(log.Fields{"repo": r.Repo.Repo, "branch": r.TargetBranch, "drySHA": r.DrySha})
 
 	out, err := s.handleCommitRequest(ctx, logCtx, r)
 	if err != nil {
@@ -82,7 +82,7 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 
 	// Write the manifests to the temp dir
 	logCtx.Debugf("Writing manifests")
-	err = WriteForPaths(dirPath, r.RepoUrl, r.DrySha, r.Paths)
+	err = WriteForPaths(dirPath, r.Repo.Repo, r.DrySha, r.Paths)
 	if err != nil {
 		return "", fmt.Errorf("failed to write manifests: %w", err)
 	}
@@ -115,20 +115,20 @@ func (s *Service) initGitClient(ctx context.Context, logCtx *log.Entry, r *apicl
 
 	gitCreds := r.Repo.GetGitCreds(s.gitCredsStore)
 	opts := git.WithEventHandlers(metrics.NewGitClientEventHandlers(s.metricsServer))
-	gitClient, err := git.NewClientExt(r.RepoUrl, dirPath, gitCreds, r.Repo.IsInsecure(), r.Repo.IsLFSEnabled(), r.Repo.Proxy, opts)
+	gitClient, err := git.NewClientExt(r.Repo.Repo, dirPath, gitCreds, r.Repo.IsInsecure(), r.Repo.IsLFSEnabled(), r.Repo.Proxy, opts)
 	if err != nil {
 		cleanupOrLog()
 		return nil, "", nil, fmt.Errorf("failed to create git client: %w", err)
 	}
 
-	logCtx.Debugf("Initializing repo %s", r.RepoUrl)
+	logCtx.Debugf("Initializing repo %s", r.Repo.Repo)
 	err = gitClient.Init()
 	if err != nil {
 		cleanupOrLog()
 		return nil, "", nil, fmt.Errorf("failed to init git client: %w", err)
 	}
 
-	logCtx.Debugf("Fetching repo %s", r.RepoUrl)
+	logCtx.Debugf("Fetching repo %s", r.Repo.Repo)
 	err = gitClient.Fetch("")
 	if err != nil {
 		cleanupOrLog()
@@ -163,9 +163,9 @@ func (s *Service) initGitClient(ctx context.Context, logCtx *log.Entry, r *apicl
 }
 
 type hydratorMetadataFile struct {
-	Commands []string `json:"commands"`
 	RepoURL  string   `json:"repoURL"`
 	DrySHA   string   `json:"drySha"`
+	Commands []string `json:"commands"`
 }
 
 // TODO: make this configurable via ConfigMap.

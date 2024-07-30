@@ -2009,12 +2009,10 @@ func (ctrl *ApplicationController) hydrate(apps []*appv1.Application, refreshTyp
 
 	manifestsRequest := commitclient.ManifestsRequest{
 		Repo:          repo,
-		RepoUrl:       repoURL,
 		SyncBranch:    syncBranch,
 		TargetBranch:  targetBranch,
 		DrySha:        revision,
 		CommitMessage: fmt.Sprintf("[Argo CD Bot] hydrate %s", revision),
-		CommitTime:    time.Now().String(),
 		Paths:         paths,
 	}
 
