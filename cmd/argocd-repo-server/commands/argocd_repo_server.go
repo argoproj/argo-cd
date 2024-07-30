@@ -5,6 +5,10 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -192,8 +196,27 @@ func NewCommand() *cobra.Command {
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
+
+			// Graceful shutdown code adapted from https://gist.github.com/embano1/e0bf49d24f1cdd07cffad93097c04f0a
+			sigCh := make(chan os.Signal, 1)
+			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				s := <-sigCh
+				log.Printf("got signal %v, attempting graceful shutdown", s)
+				grpc.GracefulStop()
+				wg.Done()
+			}()
+
+			log.Println("starting grpc server")
 			err = grpc.Serve(listener)
-			errors.CheckError(err)
+			if err != nil {
+				log.Fatalf("could not serve: %v", err)
+			}
+			wg.Wait()
+			log.Println("clean shutdown")
+
 			return nil
 		},
 	}
