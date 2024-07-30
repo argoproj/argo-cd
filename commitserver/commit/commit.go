@@ -123,18 +123,21 @@ func (s *Service) initGitClient(ctx context.Context, logCtx *log.Entry, r *apicl
 		return nil, "", nil, fmt.Errorf("failed to create git client: %w", err)
 	}
 
+	logCtx.Debugf("Initializing repo %s", r.RepoUrl)
 	err = gitClient.Init()
 	if err != nil {
 		cleanupOrLog()
 		return nil, "", nil, fmt.Errorf("failed to init git client: %w", err)
 	}
 
+	logCtx.Debugf("Fetching repo %s", r.RepoUrl)
 	err = gitClient.Fetch("")
 	if err != nil {
 		cleanupOrLog()
 		return nil, "", nil, fmt.Errorf("failed to clone repo: %w", err)
 	}
 
+	logCtx.Debugf("Getting user info for repo credentials")
 	// TODO: Produce metrics on getting user info, since it'll generally hit APIs. Make sure to label by _which_ API is
 	//       being hit.
 	authorName, authorEmail, err := gitCreds.GetUserInfo(ctx)
@@ -143,6 +146,15 @@ func (s *Service) initGitClient(ctx context.Context, logCtx *log.Entry, r *apicl
 		return nil, "", nil, fmt.Errorf("failed to get github app info: %w", err)
 	}
 
+	if authorName == "" {
+		authorName = "Argo CD"
+	}
+	if authorEmail == "" {
+		logCtx.Warnf("Author email not available, using 'argo-cd@example.com'.")
+		authorEmail = "argo-cd@example.com"
+	}
+
+	logCtx.Debugf("Setting author %s <%s>", authorName, authorEmail)
 	_, err = gitClient.SetAuthor(authorName, authorEmail)
 	if err != nil {
 		cleanupOrLog()

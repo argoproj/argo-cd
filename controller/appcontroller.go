@@ -1936,6 +1936,7 @@ func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool
 			FinishedAt: &finishedAt,
 			Status:     appv1.HydrateOperationPhaseSucceeded,
 			Message:    "",
+			Revision:   revision,
 		}
 		app.Status.SourceHydrator.Revision = revision
 		app.Status.SourceHydrator.HydrateOperation = operation
