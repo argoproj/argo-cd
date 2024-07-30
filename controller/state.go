@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	goSync "sync"
@@ -73,7 +74,7 @@ type managedResource struct {
 type AppStateManager interface {
 	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) (*comparisonResult, error)
 	SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState)
-	GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error)
+	GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, map[string]bool, error)
 }
 
 // comparisonResult holds the state of an application after the reconciliation
@@ -126,51 +127,51 @@ type appStateManager struct {
 // task to the repo-server. It returns the list of generated manifests as unstructured
 // objects. It also returns the full response from all calls to the repo server as the
 // second argument.
-func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, error) {
+func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache, verifySignature bool, proj *v1alpha1.AppProject) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, map[string]bool, error) {
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(context.Background())
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to list Helm repositories: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to list Helm repositories: %w", err)
 	}
 	permittedHelmRepos, err := argo.GetPermittedRepos(proj, helmRepos)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get permitted Helm repositories for project %q: %w", proj.Name, err)
+		return nil, nil, nil, fmt.Errorf("failed to get permitted Helm repositories for project %q: %w", proj.Name, err)
 	}
 
 	ts.AddCheckpoint("repo_ms")
 	helmRepositoryCredentials, err := m.db.GetAllHelmRepositoryCredentials(context.Background())
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get Helm credentials: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to get Helm credentials: %w", err)
 	}
 	permittedHelmCredentials, err := argo.GetPermittedReposCredentials(proj, helmRepositoryCredentials)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get permitted Helm credentials for project %q: %w", proj.Name, err)
+		return nil, nil, nil, fmt.Errorf("failed to get permitted Helm credentials for project %q: %w", proj.Name, err)
 	}
 
 	enabledSourceTypes, err := m.settingsMgr.GetEnabledSourceTypes()
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get enabled source types: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to get enabled source types: %w", err)
 	}
 	ts.AddCheckpoint("plugins_ms")
 
 	kustomizeSettings, err := m.settingsMgr.GetKustomizeSettings()
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get Kustomize settings: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to get Kustomize settings: %w", err)
 	}
 
 	helmOptions, err := m.settingsMgr.GetHelmSettings()
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get Helm settings: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to get Helm settings: %w", err)
 	}
 
 	ts.AddCheckpoint("build_options_ms")
 	serverVersion, apiResources, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get cluster version for cluster %q: %w", app.Spec.Destination.Server, err)
+		return nil, nil, nil, fmt.Errorf("failed to get cluster version for cluster %q: %w", app.Spec.Destination.Server, err)
 	}
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to connect to repo server: %w", err)
+		return nil, nil, nil, fmt.Errorf("failed to connect to repo server: %w", err)
 	}
 	defer io.Close(conn)
 
@@ -180,8 +181,10 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	// Store the map of all sources having ref field into a map for applications with sources field
 	refSources, err := argo.GetRefSources(context.Background(), app.Spec, m.db)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get ref sources: %v", err)
+		return nil, nil, nil, fmt.Errorf("failed to get ref sources: %v", err)
 	}
+
+	manifestsChanges := make(map[string]bool)
 
 	for i, source := range sources {
 		if len(revisions) < len(sources) || revisions[i] == "" {
@@ -190,11 +193,11 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		ts.AddCheckpoint("helm_ms")
 		repo, err := m.db.GetRepository(context.Background(), source.RepoURL)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
+			return nil, nil, nil, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
 		}
 		kustomizeOptions, err := kustomizeSettings.GetOptions(source, m.settingsMgr.GetKustomizeSetNamespaceEnabled())
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get Kustomize options for source %d of %d: %w", i+1, len(sources), err)
+			return nil, nil, nil, fmt.Errorf("failed to get Kustomize options for source %d of %d: %w", i+1, len(sources), err)
 		}
 
 		syncedRevision := app.Status.Sync.Revision
@@ -209,7 +212,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 		if !source.IsHelm() && syncedRevision != "" && ok && val != "" {
 			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
-			_, err = repoClient.UpdateRevisionForPaths(context.Background(), &apiclient.UpdateRevisionForPathsRequest{
+			updateRevisionResponse, err := repoClient.UpdateRevisionForPaths(context.Background(), &apiclient.UpdateRevisionForPathsRequest{
 				Repo:               repo,
 				Revision:           revisions[i],
 				SyncedRevision:     syncedRevision,
@@ -224,8 +227,13 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 				RefSources:         refSources,
 				HasMultipleSources: app.Spec.HasMultipleSources(),
 			})
+
+			// not need to change, if we already found at least one cached revision that has no changes
+			if updateRevisionResponse != nil && os.Getenv("PERSIST_CHANGE_REVISIONS") == "1" {
+				manifestsChanges[syncedRevision] = updateRevisionResponse.Changes
+			}
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
+				return nil, nil, nil, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
 			}
 		}
 
@@ -256,13 +264,13 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			ApplicationMetadata: &app.ObjectMeta,
 		})
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
+			return nil, nil, nil, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
 		}
 
 		targetObj, err := unmarshalManifests(manifestInfo.GetCompiledManifests())
 
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, len(sources), err)
+			return nil, nil, nil, fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, len(sources), err)
 		}
 		targetObjs = append(targetObjs, targetObj...)
 
@@ -276,7 +284,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 	logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 	logCtx.Info("GetRepoObjs stats")
-	return targetObjs, manifestInfos, nil
+	return targetObjs, manifestInfos, manifestsChanges, nil
 }
 
 func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, error) {
@@ -444,6 +452,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	var manifestInfos []*apiclient.ManifestResponse
 	targetNsExists := false
 
+	var manifestChanged map[string]bool
+
 	if len(localManifests) == 0 {
 		// If the length of revisions is not same as the length of sources,
 		// we take the revisions from the sources directly for all the sources.
@@ -454,7 +464,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 
-		targetObjs, manifestInfos, err = m.GetRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project)
+		targetObjs, manifestInfos, manifestChanged, err = m.GetRepoObjs(app, sources, appLabelKey, revisions, noCache, noRevisionCache, verifySignature, project)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			msg := fmt.Sprintf("Failed to load target state: %s", err.Error())
@@ -828,8 +838,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				Sources:           sources,
 				IgnoreDifferences: app.Spec.IgnoreDifferences,
 			},
-			Status:    syncCode,
-			Revisions: manifestRevisions,
+			Status:           syncCode,
+			Revisions:        manifestRevisions,
+			ManifestsChanged: manifestChanged,
 		}
 	} else {
 		syncStatus = v1alpha1.SyncStatus{
@@ -838,8 +849,9 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				Source:            app.Spec.GetSource(),
 				IgnoreDifferences: app.Spec.IgnoreDifferences,
 			},
-			Status:   syncCode,
-			Revision: revision,
+			Status:           syncCode,
+			Revision:         revision,
+			ManifestsChanged: manifestChanged,
 		}
 	}
 
