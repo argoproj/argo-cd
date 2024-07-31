@@ -435,6 +435,30 @@ func TestValidateRepo(t *testing.T) {
 	assert.Equal(t, app.Spec.Destination.Namespace, receivedRequest.Namespace)
 	assert.Equal(t, &source, receivedRequest.ApplicationSource)
 	assert.Equal(t, kustomizeOptions, receivedRequest.KustomizeOptions)
+
+	t.Run("override namespace", func(t *testing.T) {
+		app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{Namespace: "override"}
+		conditions, err = ValidateRepo(context.Background(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
+		require.NoError(t, err)
+		assert.Empty(t, conditions)
+		assert.Equal(t, "override", receivedRequest.Namespace)
+	})
+
+	t.Run("override kube version", func(t *testing.T) {
+		app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{KubeVersion: "v1.17"}
+		conditions, err = ValidateRepo(context.Background(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
+		require.NoError(t, err)
+		assert.Empty(t, conditions)
+		assert.Equal(t, "v1.17", receivedRequest.KubeVersion)
+	})
+
+	t.Run("override API versions", func(t *testing.T) {
+		app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{ApiVersions: []string{"apps/v1"}}
+		conditions, err = ValidateRepo(context.Background(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
+		require.NoError(t, err)
+		assert.Empty(t, conditions)
+		assert.Equal(t, []string{"apps/v1"}, receivedRequest.ApiVersions)
+	})
 }
 
 func TestFormatAppConditions(t *testing.T) {

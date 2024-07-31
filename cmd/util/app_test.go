@@ -65,6 +65,21 @@ func Test_setHelmOpt(t *testing.T) {
 		setHelmOpt(&src, helmOpts{skipCrds: true})
 		assert.True(t, src.Helm.SkipCrds)
 	})
+	t.Run("HelmKubeVersion", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setHelmOpt(&src, helmOpts{kubeVersion: "v1.16.0"})
+		assert.Equal(t, "v1.16.0", src.Helm.KubeVersion)
+	})
+	t.Run("HelmApiVersions", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setHelmOpt(&src, helmOpts{apiVersions: []string{"v1", "v2"}})
+		assert.Equal(t, []string{"v1", "v2"}, src.Helm.ApiVersions)
+	})
+	t.Run("HelmNamespace", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setHelmOpt(&src, helmOpts{namespace: "custom-namespace"})
+		assert.Equal(t, "custom-namespace", src.Helm.Namespace)
+	})
 }
 
 func Test_setKustomizeOpt(t *testing.T) {

@@ -161,9 +161,9 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 
 	ts.AddCheckpoint("build_options_ms")
-	serverVersion, apiResources, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
+	serverVersion, apiVersions, err := m.getServerAndApiVersions(app)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get cluster version for cluster %q: %w", app.Spec.Destination.Server, err)
+		return nil, nil, fmt.Errorf("failed to get server and API versions: %w", err)
 	}
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
@@ -205,6 +205,11 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			}
 		}
 
+		namespace := app.Spec.Destination.Namespace
+		if app.Spec.Source.Helm != nil && app.Spec.Source.Helm.Namespace != "" {
+			namespace = app.Spec.Source.Helm.Namespace
+		}
+
 		val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 		if !source.IsHelm() && syncedRevision != "" && ok && val != "" {
 			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
@@ -215,10 +220,10 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 				Paths:              path.GetAppRefreshPaths(app),
 				AppLabelKey:        appLabelKey,
 				AppName:            app.InstanceName(m.namespace),
-				Namespace:          app.Spec.Destination.Namespace,
+				Namespace:          namespace,
 				ApplicationSource:  &source,
 				KubeVersion:        serverVersion,
-				ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+				ApiVersions:        apiVersions,
 				TrackingMethod:     string(argo.GetTrackingMethod(m.settingsMgr)),
 				RefSources:         refSources,
 				HasMultipleSources: app.Spec.HasMultipleSources(),
@@ -238,11 +243,11 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			NoRevisionCache:    noRevisionCache,
 			AppLabelKey:        appLabelKey,
 			AppName:            app.InstanceName(m.namespace),
-			Namespace:          app.Spec.Destination.Namespace,
+			Namespace:          namespace,
 			ApplicationSource:  &source,
 			KustomizeOptions:   kustomizeOptions,
 			KubeVersion:        serverVersion,
-			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+			ApiVersions:        apiVersions,
 			VerifySignature:    verifySignature,
 			HelmRepoCreds:      permittedHelmCredentials,
 			TrackingMethod:     string(argo.GetTrackingMethod(m.settingsMgr)),
@@ -273,6 +278,33 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 	logCtx.Info("GetRepoObjs stats")
 	return targetObjs, manifestInfos, nil
+}
+
+// getServerAndApiVersions will return the server version and the API versions for the given application. If either the
+// server version or the API versions are not provided in the application spec, we will fetch that value from the
+// cluster.
+func (m *appStateManager) getServerAndApiVersions(app *v1alpha1.Application) (string, []string, error) {
+	var serverVersion string
+	var apiVersions []string
+	if app.Spec.Source.Helm != nil && app.Spec.Source.Helm.KubeVersion != "" {
+		serverVersion = app.Spec.Source.Helm.KubeVersion
+	}
+	if app.Spec.Source.Helm != nil && len(app.Spec.Source.Helm.ApiVersions) > 0 {
+		apiVersions = app.Spec.Source.Helm.ApiVersions
+	}
+	if serverVersion == "" || len(apiVersions) == 0 {
+		serverVersionFromServer, apiResourcesFromServer, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to get cluster version for cluster %q: %w", app.Spec.Destination.Server, err)
+		}
+		if serverVersion == "" {
+			serverVersion = serverVersionFromServer
+		}
+		if len(apiVersions) == 0 {
+			apiVersions = argo.APIResourcesToStrings(apiResourcesFromServer, true)
+		}
+	}
+	return serverVersion, apiVersions, nil
 }
 
 func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, error) {
