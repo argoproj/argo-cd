@@ -207,7 +207,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		}
 
 		namespace := app.Spec.Destination.Namespace
-		if app.Spec.Source.Helm != nil && app.Spec.Source.Helm.Namespace != "" {
+		if source.Helm != nil && source.Helm.Namespace != "" {
 			namespace = app.Spec.Source.Helm.Namespace
 		}
 
