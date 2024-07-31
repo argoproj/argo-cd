@@ -4,7 +4,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	securejoin "github.com/cyphar/filepath-securejoin"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 )
 
 // GetApplicationRootPath returns the common root path among a set of application-related paths for manifest generation.
@@ -45,11 +49,27 @@ func getPaths(q *apiclient.ManifestRequest, appPath, repoPath string) []string {
 		if annotationPath == "" {
 			continue
 		}
+		var err error
+		var path, unsafePath string
+
 		if filepath.IsAbs(annotationPath) {
-			paths = append(paths, filepath.Clean(filepath.Join(repoPath, annotationPath)))
+			unsafePath = filepath.Clean(annotationPath)
 		} else {
-			paths = append(paths, filepath.Clean(filepath.Join(appPath, annotationPath)))
+			appRelPath, err := files.RelativePath(appPath, repoPath)
+			if err != nil {
+				log.Errorf("error building app relative path: %v", err)
+				continue
+			}
+			unsafePath = filepath.Clean(filepath.Join(appRelPath, annotationPath))
 		}
+
+		path, err = securejoin.SecureJoin(repoPath, unsafePath)
+		if err != nil {
+			log.Errorf("error joining repoPath %q and absolute unsafePath %q: %v", repoPath, unsafePath, err)
+			continue
+		}
+
+		paths = append(paths, path)
 	}
 	return paths
 }
