@@ -294,9 +294,6 @@ func getServerAndApiVersions(source *v1alpha1.ApplicationSource, kubeVersionFrom
 	if source.Helm != nil && len(source.Helm.ApiVersions) > 0 {
 		apiVersions = source.Helm.ApiVersions
 	}
-	if serverVersion == "" || len(apiVersions) == 0 {
-
-	}
 	return serverVersion, apiVersions
 }
 
