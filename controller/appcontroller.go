@@ -910,10 +910,8 @@ func (ctrl *ApplicationController) requestAppRefresh(appName string, compareWith
 		}
 		if after != nil {
 			ctrl.appRefreshQueue.AddAfter(key, *after)
-			ctrl.appOperationQueue.AddAfter(key, *after)
 		} else {
 			ctrl.appRefreshQueue.AddRateLimited(key)
-			ctrl.appOperationQueue.AddRateLimited(key)
 		}
 	}
 }
@@ -1548,6 +1546,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		if r := recover(); r != nil {
 			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
 		}
+		// We want to have app operation update happen after the sync, so there's no race condition
+		// and app updates not proceeding. See https://github.com/argoproj/argo-cd/issues/18500.
+		ctrl.appOperationQueue.AddRateLimited(appKey)
 		ctrl.appRefreshQueue.Done(appKey)
 	}()
 	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey.(string))
@@ -2221,7 +2222,6 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				key, err := cache.MetaNamespaceKeyFunc(obj)
 				if err == nil {
 					ctrl.appRefreshQueue.AddRateLimited(key)
-					ctrl.appOperationQueue.AddRateLimited(key)
 				}
 				newApp, newOK := obj.(*appv1.Application)
 				if err == nil && newOK {
@@ -2256,7 +2256,9 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 
 				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
-				ctrl.appOperationQueue.AddRateLimited(key)
+				if !newOK || (delay != nil && *delay != time.Duration(0)) {
+					ctrl.appOperationQueue.AddRateLimited(key)
+				}
 				ctrl.clusterSharding.UpdateApp(newApp)
 			},
 			DeleteFunc: func(obj interface{}) {
