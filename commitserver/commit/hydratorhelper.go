@@ -35,8 +35,8 @@ func WriteForPaths(rootPath string, repoUrl string, drySha string, paths []*apic
 		if err != nil {
 			return fmt.Errorf("failed to construct hydrate path: %w", err)
 		}
-		// TODO: consider switching to securejoin.MkdirAll: https://github.com/cyphar/filepath-securejoin?tab=readme-ov-file#mkdirall
-		err = os.MkdirAll(fullHydratePath, os.ModePerm)
+		mkdirAllProvider := getMkdirAllProvider()
+		err = mkdirAllProvider.MkdirAll(fullHydratePath, os.ModePerm)
 		if err != nil {
 			return fmt.Errorf("failed to create path: %w", err)
 		}
