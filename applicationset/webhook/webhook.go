@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
@@ -27,12 +26,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const payloadQueueSize = 50000
-
 var errBasicAuthVerificationFailed = errors.New("basic auth verification failed")
 
 type WebhookHandler struct {
-	sync.WaitGroup         // for testing
 	namespace              string
 	github                 *github.Webhook
 	gitlab                 *gitlab.Webhook
@@ -40,7 +36,6 @@ type WebhookHandler struct {
 	azuredevopsAuthHandler func(r *http.Request) error
 	client                 client.Client
 	generators             map[string]generators.Generator
-	queue                  chan interface{}
 }
 
 type gitGeneratorInfo struct {
@@ -71,7 +66,7 @@ type prGeneratorGitlabInfo struct {
 	APIHostname string
 }
 
-func NewWebhookHandler(namespace string, webhookParallelism int, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
+func NewWebhookHandler(namespace string, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
 	// register the webhook secrets stored under "argocd-secret" for verifying incoming payloads
 	argocdSettings, err := argocdSettingsMgr.GetSettings()
 	if err != nil {
@@ -99,7 +94,7 @@ func NewWebhookHandler(namespace string, webhookParallelism int, argocdSettingsM
 		return nil
 	}
 
-	webhookHandler := &WebhookHandler{
+	return &WebhookHandler{
 		namespace:              namespace,
 		github:                 githubHandler,
 		gitlab:                 gitlabHandler,
@@ -107,28 +102,7 @@ func NewWebhookHandler(namespace string, webhookParallelism int, argocdSettingsM
 		azuredevopsAuthHandler: azuredevopsAuthHandler,
 		client:                 client,
 		generators:             generators,
-		queue:                  make(chan interface{}, payloadQueueSize),
-	}
-
-	webhookHandler.startWorkerPool(webhookParallelism)
-
-	return webhookHandler, nil
-}
-
-func (h *WebhookHandler) startWorkerPool(webhookParallelism int) {
-	for i := 0; i < webhookParallelism; i++ {
-		h.Add(1)
-		go func() {
-			defer h.Done()
-			for {
-				payload, ok := <-h.queue
-				if !ok {
-					return
-				}
-				h.HandleEvent(payload)
-			}
-		}()
-	}
+	}, nil
 }
 
 func (h *WebhookHandler) HandleEvent(payload interface{}) {
@@ -202,12 +176,7 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	select {
-	case h.queue <- payload:
-	default:
-		log.Info("Queue is full, discarding webhook payload")
-		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
-	}
+	h.HandleEvent(payload)
 }
 
 func parseRevision(ref string) string {

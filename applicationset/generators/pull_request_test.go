@@ -283,6 +283,7 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 	cases := []struct {
 		name           string
 		providerConfig *argoprojiov1alpha1.PullRequestGenerator
+		expectedError  error
 	}{
 		{
 			name: "Error Github",
@@ -291,6 +292,7 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
+			expectedError: &ErrDisallowedSCMProvider{},
 		},
 		{
 			name: "Error Gitlab",
@@ -299,6 +301,7 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
+			expectedError: &ErrDisallowedSCMProvider{},
 		},
 		{
 			name: "Error Gitea",
@@ -307,6 +310,7 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
+			expectedError: &ErrDisallowedSCMProvider{},
 		},
 		{
 			name: "Error Bitbucket",
@@ -315,6 +319,7 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
+			expectedError: &ErrDisallowedSCMProvider{},
 		},
 	}
 
@@ -324,13 +329,13 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			pullRequestGenerator := NewPullRequestGenerator(nil, NewSCMConfig("", []string{
+			pullRequestGenerator := NewPullRequestGenerator(nil, SCMAuthProviders{}, "", []string{
 				"github.myorg.com",
 				"gitlab.myorg.com",
 				"gitea.myorg.com",
 				"bitbucket.myorg.com",
 				"azuredevops.myorg.com",
-			}, true, nil))
+			}, true)
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -346,14 +351,13 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 			_, err := pullRequestGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
 
 			require.Error(t, err, "Must return an error")
-			var expectedError ErrDisallowedSCMProvider
-			assert.ErrorAs(t, err, &expectedError)
+			assert.ErrorAs(t, err, testCaseCopy.expectedError)
 		})
 	}
 }
 
 func TestSCMProviderDisabled_PRGenerator(t *testing.T) {
-	generator := NewPullRequestGenerator(nil, NewSCMConfig("", []string{}, false, nil))
+	generator := NewPullRequestGenerator(nil, SCMAuthProviders{}, "", []string{}, false)
 
 	applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{
