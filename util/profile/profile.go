@@ -15,7 +15,7 @@ func wrapHandler(handler http.HandlerFunc) http.HandlerFunc {
 		if data, err := os.ReadFile(enableProfilerFilePath); err == nil && string(data) == "true" {
 			handler.ServeHTTP(w, r)
 		} else {
-			http.NotFound(w, r)
+			http.Error(w, "Profiler endpoint is not enabled in 'argocd-cmd-params-cm' ConfigMap", http.StatusUnauthorized)
 		}
 	}
 }

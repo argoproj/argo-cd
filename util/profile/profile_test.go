@@ -18,7 +18,7 @@ func TestRegisterProfile_FileIsMissing(t *testing.T) {
 
 	resp, err := http.Get(srv.URL + "/debug/pprof/")
 	require.NoError(t, err)
-	require.Equal(t, http.StatusNotFound, resp.StatusCode)
+	require.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
 func TestRegisterProfile_FileExist(t *testing.T) {
