@@ -49,7 +49,10 @@ argocd app create APPNAME [flags]
       --directory-recurse                          Recurse directory
       --env string                                 Application environment to monitor
   -f, --file string                                Filename or URL to Kubernetes manifests for the app
+      --helm-api-versions stringArray              Helm api-versions (in format [group/]version/kind) to use when running helm template (Can be repeated to set several values: --helm-api-versions traefik.io/v1alpha1/TLSOption --helm-api-versions v1/Service). If not set, use the api-versions from the destination cluster
       --helm-chart string                          Helm Chart name
+      --helm-kube-version string                   Helm kube-version to use when running helm template. If not set, use the kube version from the destination cluster
+      --helm-namespace string                      Helm namespace to use when running helm template. If not set, use app.spec.destination.namespace
       --helm-pass-credentials                      Pass credentials to all domain
       --helm-set stringArray                       Helm set values on the command line (can be repeated to set several values: --helm-set key1=val1 --helm-set key2=val2)
       --helm-set-file stringArray                  Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)
