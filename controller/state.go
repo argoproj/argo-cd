@@ -161,10 +161,11 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 
 	ts.AddCheckpoint("build_options_ms")
-	serverVersion, apiVersions, err := m.getServerAndApiVersions(app)
+	serverVersionFromServer, apiResourcesFromServer, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get server and API versions: %w", err)
+		return nil, nil, fmt.Errorf("failed to get cluster version for cluster %q: %w", app.Spec.Destination.Server, err)
 	}
+	apiVersionsFromServer := argo.APIResourcesToStrings(apiResourcesFromServer, true)
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect to repo server: %w", err)
@@ -209,6 +210,8 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		if app.Spec.Source.Helm != nil && app.Spec.Source.Helm.Namespace != "" {
 			namespace = app.Spec.Source.Helm.Namespace
 		}
+
+		serverVersion, apiVersions := getServerAndApiVersions(&source, serverVersionFromServer, apiVersionsFromServer)
 
 		val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 		if !source.IsHelm() && syncedRevision != "" && ok && val != "" {
@@ -281,30 +284,20 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 }
 
 // getServerAndApiVersions will return the server version and the API versions for the given application. If either the
-// server version or the API versions are not provided in the application spec, we will fetch that value from the
-// cluster.
-func (m *appStateManager) getServerAndApiVersions(app *v1alpha1.Application) (string, []string, error) {
-	var serverVersion string
-	var apiVersions []string
-	if app.Spec.Source.Helm != nil && app.Spec.Source.Helm.KubeVersion != "" {
-		serverVersion = app.Spec.Source.Helm.KubeVersion
+// server version or the API versions are not provided in the application spec, we will use the value from the cluster.
+func getServerAndApiVersions(source *v1alpha1.ApplicationSource, kubeVersionFromServer string, apiVersionsFromServer []string) (string, []string) {
+	serverVersion := kubeVersionFromServer
+	apiVersions := apiVersionsFromServer
+	if source.Helm != nil && source.Helm.KubeVersion != "" {
+		serverVersion = source.Helm.KubeVersion
 	}
-	if app.Spec.Source.Helm != nil && len(app.Spec.Source.Helm.ApiVersions) > 0 {
-		apiVersions = app.Spec.Source.Helm.ApiVersions
+	if source.Helm != nil && len(source.Helm.ApiVersions) > 0 {
+		apiVersions = source.Helm.ApiVersions
 	}
 	if serverVersion == "" || len(apiVersions) == 0 {
-		serverVersionFromServer, apiResourcesFromServer, err := m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to get cluster version for cluster %q: %w", app.Spec.Destination.Server, err)
-		}
-		if serverVersion == "" {
-			serverVersion = serverVersionFromServer
-		}
-		if len(apiVersions) == 0 {
-			apiVersions = argo.APIResourcesToStrings(apiResourcesFromServer, true)
-		}
+
 	}
-	return serverVersion, apiVersions, nil
+	return serverVersion, apiVersions
 }
 
 func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, error) {
