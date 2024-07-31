@@ -329,32 +329,14 @@ func ValidateRepo(
 		})
 		return conditions, nil
 	}
-	var apiVersions []string
-	if app.Spec.Source.Helm != nil && app.Spec.Source.Helm.KubeVersion != "" {
-		cluster.ServerVersion = app.Spec.Source.Helm.KubeVersion
+	config := cluster.RESTConfig()
+	cluster.ServerVersion, err = kubectl.GetServerVersion(config)
+	if err != nil {
+		return nil, fmt.Errorf("error getting k8s server version: %w", err)
 	}
-	if app.Spec.Source.Helm != nil && app.Spec.Source.Helm.ApiVersions != nil {
-		apiVersions = app.Spec.Source.Helm.ApiVersions
-	}
-	if cluster.ServerVersion == "" || len(apiVersions) == 0 {
-		config := cluster.RESTConfig()
-		if cluster.ServerVersion == "" {
-			cluster.ServerVersion, err = kubectl.GetServerVersion(config)
-			if err != nil {
-				return nil, fmt.Errorf("error getting k8s server version: %w", err)
-			}
-		}
-		if len(apiVersions) == 0 {
-			apiGroups, err := kubectl.GetAPIResources(config, true, cache.NewNoopSettings())
-			if err != nil {
-				return nil, fmt.Errorf("error getting API resources: %w", err)
-			}
-			apiVersions = APIResourcesToStrings(apiGroups, true)
-		}
-	}
-	namespace := app.Spec.Destination.Namespace
-	if app.Spec.Source.Helm != nil && app.Spec.Source.Helm.Namespace != "" {
-		namespace = app.Spec.Source.Helm.Namespace
+	apiGroups, err := kubectl.GetAPIResources(config, true, cache.NewNoopSettings())
+	if err != nil {
+		return nil, fmt.Errorf("error getting API resources: %w", err)
 	}
 	enabledSourceTypes, err := settingsMgr.GetEnabledSourceTypes()
 	if err != nil {
@@ -370,8 +352,7 @@ func ValidateRepo(
 		permittedHelmRepos,
 		helmOptions,
 		cluster,
-		apiVersions,
-		namespace,
+		apiGroups,
 		proj,
 		permittedHelmCredentials,
 		enabledSourceTypes,
@@ -392,8 +373,7 @@ func validateRepo(ctx context.Context,
 	permittedHelmRepos []*argoappv1.Repository,
 	helmOptions *argoappv1.HelmOptions,
 	cluster *argoappv1.Cluster,
-	apiVersions []string,
-	namespace string,
+	apiGroups []kube.APIResourceInfo,
 	proj *argoappv1.AppProject,
 	permittedHelmCredentials []*argoappv1.RepoCreds,
 	enabledSourceTypes map[string]bool,
@@ -448,8 +428,7 @@ func validateRepo(ctx context.Context,
 		sources,
 		repoClient,
 		cluster.ServerVersion,
-		apiVersions,
-		namespace,
+		apiGroups,
 		permittedHelmCredentials,
 		enabledSourceTypes,
 		settingsMgr,
@@ -730,9 +709,8 @@ func verifyGenerateManifests(
 	proj *argoappv1.AppProject,
 	sources []argoappv1.ApplicationSource,
 	repoClient apiclient.RepoServerServiceClient,
-	kubeVersion string,
-	apiVersions []string,
-	namespace string,
+	kubeVersionFromServer string,
+	apiResourcesFromServer []kube.APIResourceInfo,
 	repositoryCredentials []*argoappv1.RepoCreds,
 	enableGenerateManifests map[string]bool,
 	settingsMgr *settings.SettingsManager,
@@ -773,6 +751,18 @@ func verifyGenerateManifests(
 			})
 			continue
 		}
+		serverVersion := kubeVersionFromServer
+		if source.Helm != nil && source.Helm.KubeVersion != "" {
+			serverVersion = source.Helm.KubeVersion
+		}
+		apiVersions := APIResourcesToStrings(apiResourcesFromServer, true)
+		if source.Helm != nil && len(source.Helm.ApiVersions) > 0 {
+			apiVersions = source.Helm.ApiVersions
+		}
+		namespace := dest.Namespace
+		if source.Helm != nil && source.Helm.Namespace != "" {
+			namespace = source.Helm.Namespace
+		}
 		req := apiclient.ManifestRequest{
 			Repo: &argoappv1.Repository{
 				Repo:  source.RepoURL,
@@ -786,7 +776,7 @@ func verifyGenerateManifests(
 			Namespace:          namespace,
 			ApplicationSource:  &source,
 			KustomizeOptions:   kustomizeOptions,
-			KubeVersion:        kubeVersion,
+			KubeVersion:        serverVersion,
 			ApiVersions:        apiVersions,
 			HelmOptions:        helmOptions,
 			HelmRepoCreds:      repositoryCredentials,
