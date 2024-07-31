@@ -30,6 +30,8 @@ func TestRegisterProfile_FileExist(t *testing.T) {
 
 	f, err := os.CreateTemp("", "test")
 	require.NoError(t, err)
+	_, err = f.WriteString("true")
+	require.NoError(t, err)
 
 	oldVal := enableProfilerFilePath
 	enableProfilerFilePath = f.Name()

@@ -8,11 +8,11 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/env"
 )
 
-var enableProfilerFilePath = env.StringFromEnv("ARGOCD_ENABLE_PROFILER_FILE_PATH", "/home/argocd/.enable-profiler")
+var enableProfilerFilePath = env.StringFromEnv("ARGOCD_ENABLE_PROFILER_FILE_PATH", "/home/argocd/params/profiler.enabled")
 
 func wrapHandler(handler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if _, err := os.Stat(enableProfilerFilePath); err == nil {
+		if data, err := os.ReadFile(enableProfilerFilePath); err == nil && string(data) == "true" {
 			handler.ServeHTTP(w, r)
 		} else {
 			http.NotFound(w, r)
