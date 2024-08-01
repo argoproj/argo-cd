@@ -4,16 +4,21 @@
 package commit
 
 import (
+	"fmt"
+	"github.com/cyphar/filepath-securejoin"
 	"os"
 )
 
-type DefaultMkdirAllProvider struct{}
+type NonLinuxMkdirAllProvider struct{}
 
-func (p *DefaultMkdirAllProvider) MkdirAll(path string, perm os.FileMode) error {
-	return os.MkdirAll(path, perm)
+func (p *NonLinuxMkdirAllProvider) MkdirAll(root, hydratePath string, mode os.FileMode) (string, error) {
+	fullHydratePath, err := securejoin.SecureJoin(root, hydratePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to construct hydrate path: %w", err)
+	}
+	return fullHydratePath, os.MkdirAll(fullHydratePath, mode)
 }
 
-// getMkdirAllProvider returns the default implementation.
 func getMkdirAllProvider() MkdirAllProvider {
-	return &DefaultMkdirAllProvider{}
+	return &NonLinuxMkdirAllProvider{}
 }

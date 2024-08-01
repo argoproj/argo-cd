@@ -8,7 +8,6 @@ import (
 	"path"
 	"text/template"
 
-	securejoin "github.com/cyphar/filepath-securejoin"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -30,13 +29,10 @@ func WriteForPaths(rootPath string, repoUrl string, drySha string, paths []*apic
 		if hydratePath == "." {
 			hydratePath = ""
 		}
+
 		var fullHydratePath string
-		fullHydratePath, err = securejoin.SecureJoin(rootPath, hydratePath)
-		if err != nil {
-			return fmt.Errorf("failed to construct hydrate path: %w", err)
-		}
 		mkdirAllProvider := getMkdirAllProvider()
-		err = mkdirAllProvider.MkdirAll(fullHydratePath, os.ModePerm)
+		fullHydratePath, err = mkdirAllProvider.MkdirAll(rootPath, hydratePath, os.ModePerm)
 		if err != nil {
 			return fmt.Errorf("failed to create path: %w", err)
 		}
