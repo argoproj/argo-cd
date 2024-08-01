@@ -91,7 +91,7 @@ func TestStringSliceFlagComplex(t *testing.T) {
 	loadOpts(t, "--header='Cookie: foo=bar; z=k,Content-Type: application/json; charset=utf-8,Strict-Transport-Security: max-age=31536000'")
 	strings := GetStringSliceFlag("header", []string{})
 
-	assert.Len(t, strings, 2)
+	assert.Len(t, strings, 3)
 	assert.Equal(t, "Cookie: foo=bar; z=k", strings[0])
 	assert.Equal(t, "Content-Type: application/json; charset=utf-8", strings[1])
 	assert.Equal(t, "Strict-Transport-Security: max-age=31536000", strings[2])
