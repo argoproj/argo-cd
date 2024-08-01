@@ -19,6 +19,11 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
+func TestFails(t *testing.T) {
+	// This should fail CI e2e tests.
+	require.True(t, false)
+}
+
 func TestCreateAndUseAccount(t *testing.T) {
 	ctx := accountFixture.Given(t)
 	ctx.
