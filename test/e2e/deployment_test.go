@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,7 +65,7 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			out, err := RunCli("app", "manifests", ctx.AppName())
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`annotations:
     argocd.argoproj.io/tracking-id: %s:apps/Deployment:%s/nginx-deployment
 `, ctx.AppName(), DeploymentNamespace()))
@@ -89,7 +88,7 @@ func TestDeploymentWithLabelTrackingMode(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			out, err := RunCli("app", "manifests", ctx.AppName())
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`labels:
     app: nginx
     app.kubernetes.io/instance: %s
@@ -112,7 +111,7 @@ func TestDeploymentWithoutTrackingMode(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			out, err := RunCli("app", "manifests", ctx.AppName())
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`labels:
     app: nginx
     app.kubernetes.io/instance: %s
@@ -125,9 +124,11 @@ func TestDeploymentWithoutTrackingMode(t *testing.T) {
 // and
 // B) Multiple users can deploy to the same K8s cluster, using above mechanism (but with different Argo CD Cluster Secrets, and different ServiceAccounts)
 func TestDeployToKubernetesAPIURLWithQueryParameter(t *testing.T) {
+
 	// We test with both a cluster-scoped, and a non-cluster scoped, Argo CD Cluster Secret.
 	clusterScopedParam := []bool{false, true}
 	for _, clusterScoped := range clusterScopedParam {
+
 		EnsureCleanState(t)
 
 		// Simulate two users, each with their own Argo CD cluster secret that can only deploy to their Namespace
@@ -147,7 +148,9 @@ func TestDeployToKubernetesAPIURLWithQueryParameter(t *testing.T) {
 				Expect(SyncStatusIs(SyncStatusCodeSynced)).
 				Expect(HealthIs(health.HealthStatusHealthy))
 		}
+
 	}
+
 }
 
 // This test verifies that Argo CD can:
@@ -155,10 +158,12 @@ func TestDeployToKubernetesAPIURLWithQueryParameter(t *testing.T) {
 // fully enforces user boundary.
 // Our simulated user's ServiceAccounts should not be able to deploy into a namespace that is outside that SA's RBAC.
 func TestArgoCDSupportsMultipleServiceAccountsWithDifferingRBACOnSameCluster(t *testing.T) {
+
 	// We test with both a cluster-scoped, and a non-cluster scoped, Argo CD Cluster Secret.
 	clusterScopedParam := []bool{ /*false,*/ true}
 
 	for _, clusterScoped := range clusterScopedParam {
+
 		EnsureCleanState(t)
 
 		// Simulate two users, each with their own Argo CD cluster secret that can only deploy to their Namespace
@@ -169,6 +174,7 @@ func TestArgoCDSupportsMultipleServiceAccountsWithDifferingRBACOnSameCluster(t *
 		}
 
 		for idx, username := range users {
+
 			// we should use user-a's serviceaccount to deploy to user-b's namespace, and vice versa
 			// - If everything as working as expected, this should fail.
 			otherUser := users[(idx+1)%len(users)]
@@ -191,12 +197,14 @@ func TestArgoCDSupportsMultipleServiceAccountsWithDifferingRBACOnSameCluster(t *
 				consequences.Expect(OperationMessageContains("User \"system:serviceaccount:" + otherUser + ":" + otherUser + "-serviceaccount\" cannot create resource \"deployments\" in API group \"apps\" in the namespace \"" + username + "\""))
 			}
 		}
+
 	}
 }
 
 // generateReadOnlyClusterRoleandBindingForServiceAccount creates a ClusterRole/Binding that allows a ServiceAccount in a given namespace to read all resources on a cluster.
 // - This allows the ServiceAccount to be used within a cluster-scoped Argo CD Cluster Secret
 func generateReadOnlyClusterRoleandBindingForServiceAccount(roleSuffix string, serviceAccountNS string) (rbacv1.ClusterRole, rbacv1.ClusterRoleBinding) {
+
 	clusterRole := rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: E2ETestPrefix + "read-all-" + roleSuffix,
@@ -259,6 +267,7 @@ func buildArgoCDClusterSecret(secretName, secretNamespace, clusterName, clusterS
 // - username = name of Namespace the simulated user is able to deploy to
 // - clusterScopedSecrets = whether the Service Account is namespace-scoped or cluster-scoped.
 func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecrets bool) {
+
 	// Create a new Namespace for our simulated user
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -266,12 +275,12 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 		},
 	}
 	_, err := KubeClientset.CoreV1().Namespaces().Create(context.Background(), &ns, metav1.CreateOptions{})
-	require.NoError(t, err)
+	assert.Nil(t, err)
 
 	// Create a ServiceAccount in that Namespace, which will be used for the Argo CD Cluster SEcret
 	serviceAccountName := username + "-serviceaccount"
 	err = clusterauth.CreateServiceAccount(KubeClientset, serviceAccountName, ns.Name)
-	require.NoError(t, err)
+	assert.Nil(t, err)
 
 	// Create a Role that allows the ServiceAccount to read/write all within the Namespace
 	role := rbacv1.Role{
@@ -286,7 +295,7 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 		}},
 	}
 	_, err = KubeClientset.RbacV1().Roles(role.Namespace).Create(context.Background(), &role, metav1.CreateOptions{})
-	require.NoError(t, err)
+	assert.Nil(t, err)
 
 	// Bind the Role with the ServiceAccount in the Namespace
 	roleBinding := rbacv1.RoleBinding{
@@ -306,11 +315,11 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 		},
 	}
 	_, err = KubeClientset.RbacV1().RoleBindings(roleBinding.Namespace).Create(context.Background(), &roleBinding, metav1.CreateOptions{})
-	require.NoError(t, err)
+	assert.Nil(t, err)
 
 	// Retrieve the bearer token from the ServiceAccount
 	token, err := clusterauth.GetServiceAccountBearerToken(KubeClientset, ns.Name, serviceAccountName, time.Second*60)
-	require.NoError(t, err)
+	assert.Nil(t, err)
 	assert.NotEmpty(t, token)
 
 	// In order to test a cluster-scoped Argo CD Cluster Secret, we may optionally grant the ServiceAccount read-all permissions at cluster scope.
@@ -318,10 +327,11 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 		clusterRole, clusterRoleBinding := generateReadOnlyClusterRoleandBindingForServiceAccount(username, username)
 
 		_, err := KubeClientset.RbacV1().ClusterRoles().Create(context.Background(), &clusterRole, metav1.CreateOptions{})
-		require.NoError(t, err)
+		assert.Nil(t, err)
 
 		_, err = KubeClientset.RbacV1().ClusterRoleBindings().Create(context.Background(), &clusterRoleBinding, metav1.CreateOptions{})
-		require.NoError(t, err)
+		assert.Nil(t, err)
+
 	}
 
 	// Build the Argo CD Cluster Secret by using the service account token, and extracting needed values from kube config
@@ -333,10 +343,10 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 	}
 
 	jsonStringBytes, err := json.Marshal(clusterSecretConfigJSON)
-	require.NoError(t, err)
+	assert.Nil(t, err)
 
 	_, apiURL, err := extractKubeConfigValues()
-	require.NoError(t, err)
+	assert.Nil(t, err)
 
 	clusterResourcesField := ""
 	namespacesField := ""
@@ -354,7 +364,7 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 
 	// Finally, create the Cluster secret in the Argo CD E2E namespace
 	_, err = KubeClientset.CoreV1().Secrets(secret.Namespace).Create(context.Background(), &secret, metav1.CreateOptions{})
-	require.NoError(t, err)
+	assert.Nil(t, err)
 }
 
 // extractKubeConfigValues returns contents of the local environment's kubeconfig, using standard path resolution mechanism.
@@ -363,6 +373,7 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 // - server name (within the kubeconfig)
 // - error
 func extractKubeConfigValues() (string, string, error) {
+
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 
 	config, err := loadingRules.Load()
@@ -384,6 +395,7 @@ func extractKubeConfigValues() (string, string, error) {
 
 	paths := loadingRules.Precedence
 	{
+
 		// For all the kubeconfig paths, look for one that exists
 		for _, path := range paths {
 			_, err = os.Stat(path)
@@ -392,6 +404,7 @@ func extractKubeConfigValues() (string, string, error) {
 				kubeConfigDefault = path
 				break
 			} // Otherwise, continue.
+
 		}
 
 		if kubeConfigDefault == "" {

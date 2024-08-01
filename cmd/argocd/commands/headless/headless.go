@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
 	"github.com/argoproj/argo-cd/v2/common"
@@ -21,11 +20,10 @@ import (
 	"github.com/spf13/pflag"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	cache2 "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/utils/ptr"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -145,8 +143,7 @@ func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.R
 			return
 		}
 		c.repoClientset = repoapiclient.NewRepoServerClientset(fmt.Sprintf("localhost:%d", repoServerPort), 60, repoapiclient.TLSConfiguration{
-			DisableTLS: false, StrictValidation: false,
-		})
+			DisableTLS: false, StrictValidation: false})
 	})
 	if c.err != nil {
 		return nil, nil, c.err
@@ -208,7 +205,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	log.SetLevel(log.ErrorLevel)
 	os.Setenv(v1alpha1.EnvVarFakeInClusterConfig, "true")
 	if address == nil {
-		address = ptr.To("localhost")
+		address = pointer.String("localhost")
 	}
 	if port == nil || *port == 0 {
 		addr := fmt.Sprintf("%s:0", *address)
@@ -233,17 +230,6 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		return fmt.Errorf("error creating kubernetes clientset: %w", err)
 	}
 
-	dynamicClientset, err := dynamic.NewForConfig(restConfig)
-	if err != nil {
-		return fmt.Errorf("error creating kubernetes dynamic clientset: %w", err)
-	}
-
-	controllerClientset, err := client.New(restConfig, client.Options{})
-	if err != nil {
-		return fmt.Errorf("error creating kubernetes controller clientset: %w", err)
-	}
-	controllerClientset = client.NewDryRunClient(controllerClientset)
-
 	namespace, _, err := clientConfig.Namespace()
 	if err != nil {
 		return fmt.Errorf("error getting namespace: %w", err)
@@ -255,21 +241,19 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	}
 	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: compression, redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName}), time.Hour)
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
-		EnableGZip:              false,
-		Namespace:               namespace,
-		ListenPort:              *port,
-		AppClientset:            appClientset,
-		DisableAuth:             true,
-		RedisClient:             redis.NewClient(&redis.Options{Addr: mr.Addr()}),
-		Cache:                   servercache.NewCache(appstateCache, 0, 0, 0),
-		KubeClientset:           kubeClientset,
-		DynamicClientset:        dynamicClientset,
-		KubeControllerClientset: controllerClientset,
-		Insecure:                true,
-		ListenHost:              *address,
-		RepoClientset:           &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName, kubeClientset: kubeClientset},
-		EnableProxyExtension:    false,
-	}, server.ApplicationSetOpts{})
+		EnableGZip:           false,
+		Namespace:            namespace,
+		ListenPort:           *port,
+		AppClientset:         appClientset,
+		DisableAuth:          true,
+		RedisClient:          redis.NewClient(&redis.Options{Addr: mr.Addr()}),
+		Cache:                servercache.NewCache(appstateCache, 0, 0, 0),
+		KubeClientset:        kubeClientset,
+		Insecure:             true,
+		ListenHost:           *address,
+		RepoClientset:        &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName, kubeClientset: kubeClientset},
+		EnableProxyExtension: false,
+	})
 	srv.Init(ctx)
 
 	lns, err := srv.Listen()

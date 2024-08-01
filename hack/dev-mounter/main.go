@@ -33,7 +33,7 @@ func newCommand() *cobra.Command {
 		clientConfig clientcmd.ClientConfig
 		configMaps   []string
 	)
-	command := cobra.Command{
+	var command = cobra.Command{
 		Run: func(cmd *cobra.Command, args []string) {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
@@ -87,7 +87,7 @@ func newCommand() *cobra.Command {
 				// Create or update files that are specified in ConfigMap
 				for name, data := range cm.Data {
 					p := path.Join(destPath, name)
-					err := os.WriteFile(p, []byte(data), 0o644)
+					err := os.WriteFile(p, []byte(data), 0644)
 					if err != nil {
 						log.Warnf("Failed to create file %s: %v", p, err)
 					}

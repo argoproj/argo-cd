@@ -28,7 +28,7 @@ func NewExportCommand() *cobra.Command {
 		clientConfig clientcmd.ClientConfig
 		out          string
 	)
-	command := cobra.Command{
+	var command = cobra.Command{
 		Use:   "export",
 		Short: "Export all Argo CD data to stdout (default) or a file",
 		Run: func(c *cobra.Command, args []string) {
@@ -118,7 +118,7 @@ func NewImportCommand() *cobra.Command {
 		verbose       bool
 		stopOperation bool
 	)
-	command := cobra.Command{
+	var command = cobra.Command{
 		Use:   "import SOURCE",
 		Short: "Import Argo CD data from stdin (specify `-') or a file",
 		Run: func(c *cobra.Command, args []string) {
@@ -230,6 +230,7 @@ func NewImportCommand() *cobra.Command {
 					if !isForbidden {
 						fmt.Printf("%s/%s %s created%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
 					}
+
 				} else if specsEqual(*bakObj, liveObj) && checkAppHasNoNeedToStopOperation(liveObj, stopOperation) {
 					if verbose {
 						fmt.Printf("%s/%s %s unchanged%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)

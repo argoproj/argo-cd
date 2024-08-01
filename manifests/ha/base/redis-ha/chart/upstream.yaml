@@ -1091,7 +1091,7 @@ spec:
               topologyKey: kubernetes.io/hostname
       initContainers:
       - name: config-init
-        image: public.ecr.aws/docker/library/haproxy:2.6.17-alpine
+        image: haproxy:2.6.14-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -1115,7 +1115,7 @@ spec:
           mountPath: /data
       containers:
       - name: haproxy
-        image: public.ecr.aws/docker/library/haproxy:2.6.17-alpine
+        image: haproxy:2.6.14-alpine
         imagePullPolicy: IfNotPresent
         securityContext: 
           allowPrivilegeEscalation: false
@@ -1219,7 +1219,7 @@ spec:
       automountServiceAccountToken: false
       initContainers:
       - name: config-init
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -1258,7 +1258,7 @@ spec:
 
       containers:
       - name: redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         command:
           - redis-server
@@ -1321,7 +1321,7 @@ spec:
               - /bin/sh
               - /readonly-config/trigger-failover-if-master.sh
       - name: sentinel
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         command:
           - redis-sentinel
@@ -1378,7 +1378,7 @@ spec:
           {}
 
       - name: split-brain-fix
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         command:
           - sh
