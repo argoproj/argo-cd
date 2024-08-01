@@ -112,6 +112,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Freshop, Inc](https://www.freshop.com/)
 1. [Future PLC](https://www.futureplc.com/)
 1. [G DATA CyberDefense AG](https://www.gdata-software.com/)
+1. [G-Research](https://www.gresearch.com/teams/open-source-software/)
 1. [Garner](https://www.garnercorp.com)
 1. [Generali Deutschland AG](https://www.generali.de/)
 1. [Gepardec](https://gepardec.com/)
