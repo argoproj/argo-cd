@@ -826,8 +826,12 @@ func TestAppProject_ValidPolicyRules(t *testing.T) {
 		"p, proj:my-proj:my-role, applications, *, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, create, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, update, my-proj/foo, allow",
+		"p, proj:my-proj:my-role, applications, update/*, my-proj/foo, allow",
+		"p, proj:my-proj:my-role, applications, update/*/Pod/*, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, sync, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, delete, my-proj/foo, allow",
+		"p, proj:my-proj:my-role, applications, delete/*, my-proj/foo, allow",
+		"p, proj:my-proj:my-role, applications, delete/*/Pod/*, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, action/*, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, action/apps/Deployment/restart, my-proj/foo, allow",
 	}
@@ -3088,7 +3092,7 @@ func TestOrphanedResourcesMonitorSettings_IsWarn(t *testing.T) {
 	assert.True(t, settings.IsWarn())
 }
 
-func Test_isValidPolicy(t *testing.T) {
+func Test_isValidPolicyObject(t *testing.T) {
 	policyTests := []struct {
 		name    string
 		policy  string
