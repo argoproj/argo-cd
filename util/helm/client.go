@@ -147,7 +147,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, project str
 	}
 	defer helmCmd.Close()
 
-	_, err = helmCmd.Init()
+	_, _, err = helmCmd.Init()
 	if err != nil {
 		return "", nil, err
 	}
@@ -182,7 +182,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, project str
 
 		if c.enableOci {
 			if c.creds.Password != "" && c.creds.Username != "" {
-				_, err = helmCmd.RegistryLogin(c.repoURL, c.creds)
+				_, _, err = helmCmd.RegistryLogin(c.repoURL, c.creds)
 				if err != nil {
 					return "", nil, err
 				}
@@ -283,7 +283,7 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 	// Looks like there is no good way to test access to OCI repo if credentials are not provided
 	// just assume it is accessible
 	if c.creds.Username != "" && c.creds.Password != "" {
-		_, err = helmCmd.RegistryLogin(c.repoURL, c.creds)
+		_, _, err = helmCmd.RegistryLogin(c.repoURL, c.creds)
 		if err != nil {
 			return false, err
 		}

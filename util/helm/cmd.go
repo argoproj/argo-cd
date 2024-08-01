@@ -50,7 +50,7 @@ var redactor = func(text string) string {
 	return regexp.MustCompile("(--username|--password) [^ ]*").ReplaceAllString(text, "$1 ******")
 }
 
-func (c Cmd) run(args ...string) (string, error) {
+func (c Cmd) run(args ...string) (string, string, error) {
 	cmd := exec.Command(c.binaryName, args...)
 	cmd.Dir = c.WorkDir
 	cmd.Env = os.Environ()
@@ -68,17 +68,19 @@ func (c Cmd) run(args ...string) (string, error) {
 
 	cmd.Env = proxy.UpsertEnv(cmd, c.proxy)
 
-	return executil.RunWithRedactor(cmd, redactor)
+	out, err := executil.RunWithRedactor(cmd, redactor)
+	fullCommand := executil.GetCommandArgsToLog(cmd)
+	return out, fullCommand, err
 }
 
-func (c *Cmd) Init() (string, error) {
+func (c *Cmd) Init() (string, string, error) {
 	if c.initSupported {
 		return c.run("init", "--client-only", "--skip-refresh")
 	}
-	return "", nil
+	return "", "", nil
 }
 
-func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
+func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, string, error) {
 	args := []string{"registry", "login"}
 	args = append(args, repo)
 
@@ -97,7 +99,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 	if len(creds.CertData) > 0 {
 		filePath, closer, err := writeToTmp(creds.CertData)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		defer argoio.Close(closer)
 		args = append(args, "--cert-file", filePath)
@@ -106,7 +108,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 	if len(creds.KeyData) > 0 {
 		filePath, closer, err := writeToTmp(creds.KeyData)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		defer argoio.Close(closer)
 		args = append(args, "--key-file", filePath)
@@ -121,14 +123,14 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
 	args := []string{"registry", "logout"}
 	args = append(args, repo)
-
-	return c.run(args...)
+	out, _, err := c.run(args...)
+	return out, err
 }
 
-func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool) (string, error) {
+func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool) (string, string, error) {
 	tmp, err := os.MkdirTemp("", "helm")
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer func() { _ = os.RemoveAll(tmp) }()
 
@@ -153,11 +155,11 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 	if len(opts.CertData) > 0 {
 		certFile, err := os.CreateTemp("", "helm")
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		_, err = certFile.Write(opts.CertData)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		defer certFile.Close()
 		args = append(args, "--cert-file", certFile.Name())
@@ -166,11 +168,11 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 	if len(opts.KeyData) > 0 {
 		keyFile, err := os.CreateTemp("", "helm")
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		_, err = keyFile.Write(opts.KeyData)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		defer keyFile.Close()
 		args = append(args, "--key-file", keyFile.Name())
@@ -248,7 +250,8 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 		args = append(args, "--pass-credentials")
 	}
 
-	return c.run(args...)
+	out, _, err := c.run(args...)
+	return out, err
 }
 
 func (c *Cmd) PullOCI(repo string, chart string, version string, destination string, creds Creds) (string, error) {
@@ -283,19 +286,22 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 	if creds.InsecureSkipVerify && c.insecureSkipVerifySupported {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
-	return c.run(args...)
+	out, _, err := c.run(args...)
+	return out, err
 }
 
-func (c *Cmd) dependencyBuild() (string, error) {
+func (c *Cmd) dependencyBuild() (string, string, error) {
 	return c.run("dependency", "build")
 }
 
 func (c *Cmd) inspectValues(values string) (string, error) {
-	return c.run(c.showCommand, "values", values)
+	out, _, err := c.run(c.showCommand, "values", values)
+	return out, err
 }
 
 func (c *Cmd) InspectChart() (string, error) {
-	return c.run(c.showCommand, "chart", ".")
+	out, _, err := c.run(c.showCommand, "chart", ".")
+	return out, err
 }
 
 type TemplateOpts struct {
@@ -323,12 +329,12 @@ func cleanSetParameters(val string) string {
 	return re.ReplaceAllString(val, `$1\,`)
 }
 
-func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
+func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, string, error) {
 	if c.HelmVer.getPostTemplateCallback != nil {
 		if callback, err := c.HelmVer.getPostTemplateCallback(filepath.Clean(path.Join(c.WorkDir, chartPath))); err == nil {
 			defer callback()
 		} else {
-			return "", err
+			return "", "", err
 		}
 	}
 
@@ -359,20 +365,21 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
 		args = append(args, "--include-crds")
 	}
 
-	out, err := c.run(args...)
+	out, command, err := c.run(args...)
 	if err != nil {
 		msg := err.Error()
 		if strings.Contains(msg, "--api-versions") {
 			log.Debug(msg)
 			msg = apiVersionsRemover.ReplaceAllString(msg, "<api versions removed> ")
 		}
-		return "", errors.New(msg)
+		return "", command, errors.New(msg)
 	}
-	return out, nil
+	return out, command, nil
 }
 
 func (c *Cmd) Freestyle(args ...string) (string, error) {
-	return c.run(args...)
+	out, _, err := c.run(args...)
+	return out, err
 }
 
 func (c *Cmd) Close() {
