@@ -21,14 +21,14 @@ func TestWriteForPaths(t *testing.T) {
 	paths := []*apiclient.PathDetails{
 		{
 			Path: "path1",
-			Manifests: []*apiclient.ManifestDetails{
+			Manifests: []*apiclient.HydratedManifestDetails{
 				{Manifest: `{"kind":"Pod","apiVersion":"v1"}`},
 			},
 			Commands: []string{"command1", "command2"},
 		},
 		{
 			Path: "path2",
-			Manifests: []*apiclient.ManifestDetails{
+			Manifests: []*apiclient.HydratedManifestDetails{
 				{Manifest: `{"kind":"Service","apiVersion":"v1"}`},
 			},
 			Commands: []string{"command3"},
@@ -121,7 +121,7 @@ func TestWriteReadme(t *testing.T) {
 func TestWriteManifests(t *testing.T) {
 	dir := t.TempDir()
 
-	manifests := []*apiclient.ManifestDetails{
+	manifests := []*apiclient.HydratedManifestDetails{
 		{Manifest: `{"kind":"Pod","apiVersion":"v1"}`},
 	}
 

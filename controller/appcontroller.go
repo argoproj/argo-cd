@@ -1981,13 +1981,13 @@ func (ctrl *ApplicationController) hydrate(apps []*appv1.Application, refreshTyp
 		}
 
 		// Set up a ManifestsRequest
-		manifestDetails := make([]*commitclient.ManifestDetails, len(objs))
+		manifestDetails := make([]*commitclient.HydratedManifestDetails, len(objs))
 		for i, obj := range objs {
 			objJson, err := json.Marshal(obj)
 			if err != nil {
 				return fmt.Errorf("failed to marshal object: %w", err)
 			}
-			manifestDetails[i] = &commitclient.ManifestDetails{Manifest: string(objJson)}
+			manifestDetails[i] = &commitclient.HydratedManifestDetails{Manifest: string(objJson)}
 		}
 
 		paths = append(paths, &commitclient.PathDetails{
@@ -2008,7 +2008,7 @@ func (ctrl *ApplicationController) hydrate(apps []*appv1.Application, refreshTyp
 		}
 	}
 
-	manifestsRequest := commitclient.ManifestsRequest{
+	manifestsRequest := commitclient.CommitHydratedManifestsRequest{
 		Repo:          repo,
 		SyncBranch:    syncBranch,
 		TargetBranch:  targetBranch,
@@ -2022,7 +2022,7 @@ func (ctrl *ApplicationController) hydrate(apps []*appv1.Application, refreshTyp
 		return fmt.Errorf("failed to create commit service: %w", err)
 	}
 	defer closer.Close()
-	_, err = commitService.Commit(context.Background(), &manifestsRequest)
+	_, err = commitService.CommitHydratedManifests(context.Background(), &manifestsRequest)
 	if err != nil {
 		return fmt.Errorf("failed to commit hydrated manifests: %w", err)
 	}

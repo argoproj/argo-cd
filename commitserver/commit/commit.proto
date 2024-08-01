@@ -3,7 +3,7 @@ option go_package = "github.com/argoproj/argo-cd/v2/commitserver/apiclient";
 
 import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
 
-message ManifestsRequest {
+message CommitHydratedManifestsRequest {
   // Repo contains repository information including, at minimum, the URL of the repository. Generally it will contain
   // repo credentials.
   github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
@@ -19,19 +19,21 @@ message ManifestsRequest {
   repeated PathDetails paths = 6;
 }
 
+// PathDetails holds information about hydrated manifests to be written to a particular path in the hydrated manifests
+// commit.
 message PathDetails {
   // Path is the path to write the hydrated manifests to.
   string path = 1;
   // Manifests contains the manifests to write to the path.
-  repeated ManifestDetails manifests = 2;
+  repeated HydratedManifestDetails manifests = 2;
   // Commands contains the commands executed when hydrating the manifests.
   repeated string commands = 3;
   // ReadmeDetails contains the readme info to write to the path.
   ReadmeDetails readme_details = 4;
 }
 
-// ManifestDetails contains the manifest hydrated manifests.
-message ManifestDetails {
+// ManifestDetails contains the hydrated manifests.
+message HydratedManifestDetails {
   string manifest = 1;
 }
 
@@ -40,11 +42,11 @@ message ReadmeDetails {
 }
 
 // ManifestsResponse is the response to the ManifestsRequest.
-message ManifestsResponse {
+message CommitHydratedManifestsResponse {
 }
 
 // CommitService is the service for committing hydrated manifests to a repository.
 service CommitService {
   // Commit commits hydrated manifests to a repository.
-  rpc Commit (ManifestsRequest) returns (ManifestsResponse);
+  rpc CommitHydratedManifests (CommitHydratedManifestsRequest) returns (CommitHydratedManifestsResponse);
 }

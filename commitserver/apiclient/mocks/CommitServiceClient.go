@@ -17,8 +17,8 @@ type CommitServiceClient struct {
 	mock.Mock
 }
 
-// Commit provides a mock function with given fields: ctx, in, opts
-func (_m *CommitServiceClient) Commit(ctx context.Context, in *apiclient.ManifestsRequest, opts ...grpc.CallOption) (*apiclient.ManifestsResponse, error) {
+// CommitHydratedManifests provides a mock function with given fields: ctx, in, opts
+func (_m *CommitServiceClient) CommitHydratedManifests(ctx context.Context, in *apiclient.CommitHydratedManifestsRequest, opts ...grpc.CallOption) (*apiclient.CommitHydratedManifestsResponse, error) {
 	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
@@ -29,23 +29,23 @@ func (_m *CommitServiceClient) Commit(ctx context.Context, in *apiclient.Manifes
 	ret := _m.Called(_ca...)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Commit")
+		panic("no return value specified for CommitHydratedManifests")
 	}
 
-	var r0 *apiclient.ManifestsResponse
+	var r0 *apiclient.CommitHydratedManifestsResponse
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.ManifestsRequest, ...grpc.CallOption) (*apiclient.ManifestsResponse, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.CommitHydratedManifestsRequest, ...grpc.CallOption) (*apiclient.CommitHydratedManifestsResponse, error)); ok {
 		return rf(ctx, in, opts...)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.ManifestsRequest, ...grpc.CallOption) *apiclient.ManifestsResponse); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.CommitHydratedManifestsRequest, ...grpc.CallOption) *apiclient.CommitHydratedManifestsResponse); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*apiclient.ManifestsResponse)
+			r0 = ret.Get(0).(*apiclient.CommitHydratedManifestsResponse)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *apiclient.ManifestsRequest, ...grpc.CallOption) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *apiclient.CommitHydratedManifestsRequest, ...grpc.CallOption) error); ok {
 		r1 = rf(ctx, in, opts...)
 	} else {
 		r1 = ret.Error(1)

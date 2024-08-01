@@ -27,7 +27,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
-type ManifestsRequest struct {
+type CommitHydratedManifestsRequest struct {
 	// Repo contains repository information including, at minimum, the URL of the repository. Generally it will contain
 	// repo credentials.
 	Repo *v1alpha1.Repository `protobuf:"bytes,1,opt,name=repo,proto3" json:"repo,omitempty"`
@@ -46,18 +46,18 @@ type ManifestsRequest struct {
 	XXX_sizecache        int32          `json:"-"`
 }
 
-func (m *ManifestsRequest) Reset()         { *m = ManifestsRequest{} }
-func (m *ManifestsRequest) String() string { return proto.CompactTextString(m) }
-func (*ManifestsRequest) ProtoMessage()    {}
-func (*ManifestsRequest) Descriptor() ([]byte, []int) {
+func (m *CommitHydratedManifestsRequest) Reset()         { *m = CommitHydratedManifestsRequest{} }
+func (m *CommitHydratedManifestsRequest) String() string { return proto.CompactTextString(m) }
+func (*CommitHydratedManifestsRequest) ProtoMessage()    {}
+func (*CommitHydratedManifestsRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_cf3a3abbc35e3069, []int{0}
 }
-func (m *ManifestsRequest) XXX_Unmarshal(b []byte) error {
+func (m *CommitHydratedManifestsRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *ManifestsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *CommitHydratedManifestsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_ManifestsRequest.Marshal(b, m, deterministic)
+		return xxx_messageInfo_CommitHydratedManifestsRequest.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -67,65 +67,67 @@ func (m *ManifestsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, er
 		return b[:n], nil
 	}
 }
-func (m *ManifestsRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ManifestsRequest.Merge(m, src)
+func (m *CommitHydratedManifestsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitHydratedManifestsRequest.Merge(m, src)
 }
-func (m *ManifestsRequest) XXX_Size() int {
+func (m *CommitHydratedManifestsRequest) XXX_Size() int {
 	return m.Size()
 }
-func (m *ManifestsRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_ManifestsRequest.DiscardUnknown(m)
+func (m *CommitHydratedManifestsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_CommitHydratedManifestsRequest.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_ManifestsRequest proto.InternalMessageInfo
+var xxx_messageInfo_CommitHydratedManifestsRequest proto.InternalMessageInfo
 
-func (m *ManifestsRequest) GetRepo() *v1alpha1.Repository {
+func (m *CommitHydratedManifestsRequest) GetRepo() *v1alpha1.Repository {
 	if m != nil {
 		return m.Repo
 	}
 	return nil
 }
 
-func (m *ManifestsRequest) GetSyncBranch() string {
+func (m *CommitHydratedManifestsRequest) GetSyncBranch() string {
 	if m != nil {
 		return m.SyncBranch
 	}
 	return ""
 }
 
-func (m *ManifestsRequest) GetTargetBranch() string {
+func (m *CommitHydratedManifestsRequest) GetTargetBranch() string {
 	if m != nil {
 		return m.TargetBranch
 	}
 	return ""
 }
 
-func (m *ManifestsRequest) GetDrySha() string {
+func (m *CommitHydratedManifestsRequest) GetDrySha() string {
 	if m != nil {
 		return m.DrySha
 	}
 	return ""
 }
 
-func (m *ManifestsRequest) GetCommitMessage() string {
+func (m *CommitHydratedManifestsRequest) GetCommitMessage() string {
 	if m != nil {
 		return m.CommitMessage
 	}
 	return ""
 }
 
-func (m *ManifestsRequest) GetPaths() []*PathDetails {
+func (m *CommitHydratedManifestsRequest) GetPaths() []*PathDetails {
 	if m != nil {
 		return m.Paths
 	}
 	return nil
 }
 
+// PathDetails holds information about hydrated manifests to be written to a particular path in the hydrated manifests
+// commit.
 type PathDetails struct {
 	// Path is the path to write the hydrated manifests to.
 	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
 	// Manifests contains the manifests to write to the path.
-	Manifests []*ManifestDetails `protobuf:"bytes,2,rep,name=manifests,proto3" json:"manifests,omitempty"`
+	Manifests []*HydratedManifestDetails `protobuf:"bytes,2,rep,name=manifests,proto3" json:"manifests,omitempty"`
 	// Commands contains the commands executed when hydrating the manifests.
 	Commands []string `protobuf:"bytes,3,rep,name=commands,proto3" json:"commands,omitempty"`
 	// ReadmeDetails contains the readme info to write to the path.
@@ -175,7 +177,7 @@ func (m *PathDetails) GetPath() string {
 	return ""
 }
 
-func (m *PathDetails) GetManifests() []*ManifestDetails {
+func (m *PathDetails) GetManifests() []*HydratedManifestDetails {
 	if m != nil {
 		return m.Manifests
 	}
@@ -196,26 +198,26 @@ func (m *PathDetails) GetReadmeDetails() *ReadmeDetails {
 	return nil
 }
 
-// ManifestDetails contains the manifest hydrated manifests.
-type ManifestDetails struct {
+// ManifestDetails contains the hydrated manifests.
+type HydratedManifestDetails struct {
 	Manifest             string   `protobuf:"bytes,1,opt,name=manifest,proto3" json:"manifest,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ManifestDetails) Reset()         { *m = ManifestDetails{} }
-func (m *ManifestDetails) String() string { return proto.CompactTextString(m) }
-func (*ManifestDetails) ProtoMessage()    {}
-func (*ManifestDetails) Descriptor() ([]byte, []int) {
+func (m *HydratedManifestDetails) Reset()         { *m = HydratedManifestDetails{} }
+func (m *HydratedManifestDetails) String() string { return proto.CompactTextString(m) }
+func (*HydratedManifestDetails) ProtoMessage()    {}
+func (*HydratedManifestDetails) Descriptor() ([]byte, []int) {
 	return fileDescriptor_cf3a3abbc35e3069, []int{2}
 }
-func (m *ManifestDetails) XXX_Unmarshal(b []byte) error {
+func (m *HydratedManifestDetails) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *ManifestDetails) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *HydratedManifestDetails) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_ManifestDetails.Marshal(b, m, deterministic)
+		return xxx_messageInfo_HydratedManifestDetails.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -225,19 +227,19 @@ func (m *ManifestDetails) XXX_Marshal(b []byte, deterministic bool) ([]byte, err
 		return b[:n], nil
 	}
 }
-func (m *ManifestDetails) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ManifestDetails.Merge(m, src)
+func (m *HydratedManifestDetails) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_HydratedManifestDetails.Merge(m, src)
 }
-func (m *ManifestDetails) XXX_Size() int {
+func (m *HydratedManifestDetails) XXX_Size() int {
 	return m.Size()
 }
-func (m *ManifestDetails) XXX_DiscardUnknown() {
-	xxx_messageInfo_ManifestDetails.DiscardUnknown(m)
+func (m *HydratedManifestDetails) XXX_DiscardUnknown() {
+	xxx_messageInfo_HydratedManifestDetails.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_ManifestDetails proto.InternalMessageInfo
+var xxx_messageInfo_HydratedManifestDetails proto.InternalMessageInfo
 
-func (m *ManifestDetails) GetManifest() string {
+func (m *HydratedManifestDetails) GetManifest() string {
 	if m != nil {
 		return m.Manifest
 	}
@@ -285,24 +287,24 @@ func (m *ReadmeDetails) XXX_DiscardUnknown() {
 var xxx_messageInfo_ReadmeDetails proto.InternalMessageInfo
 
 // ManifestsResponse is the response to the ManifestsRequest.
-type ManifestsResponse struct {
+type CommitHydratedManifestsResponse struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *ManifestsResponse) Reset()         { *m = ManifestsResponse{} }
-func (m *ManifestsResponse) String() string { return proto.CompactTextString(m) }
-func (*ManifestsResponse) ProtoMessage()    {}
-func (*ManifestsResponse) Descriptor() ([]byte, []int) {
+func (m *CommitHydratedManifestsResponse) Reset()         { *m = CommitHydratedManifestsResponse{} }
+func (m *CommitHydratedManifestsResponse) String() string { return proto.CompactTextString(m) }
+func (*CommitHydratedManifestsResponse) ProtoMessage()    {}
+func (*CommitHydratedManifestsResponse) Descriptor() ([]byte, []int) {
 	return fileDescriptor_cf3a3abbc35e3069, []int{4}
 }
-func (m *ManifestsResponse) XXX_Unmarshal(b []byte) error {
+func (m *CommitHydratedManifestsResponse) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *ManifestsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *CommitHydratedManifestsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	if deterministic {
-		return xxx_messageInfo_ManifestsResponse.Marshal(b, m, deterministic)
+		return xxx_messageInfo_CommitHydratedManifestsResponse.Marshal(b, m, deterministic)
 	} else {
 		b = b[:cap(b)]
 		n, err := m.MarshalToSizedBuffer(b)
@@ -312,60 +314,60 @@ func (m *ManifestsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, e
 		return b[:n], nil
 	}
 }
-func (m *ManifestsResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ManifestsResponse.Merge(m, src)
+func (m *CommitHydratedManifestsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_CommitHydratedManifestsResponse.Merge(m, src)
 }
-func (m *ManifestsResponse) XXX_Size() int {
+func (m *CommitHydratedManifestsResponse) XXX_Size() int {
 	return m.Size()
 }
-func (m *ManifestsResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_ManifestsResponse.DiscardUnknown(m)
+func (m *CommitHydratedManifestsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_CommitHydratedManifestsResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_ManifestsResponse proto.InternalMessageInfo
+var xxx_messageInfo_CommitHydratedManifestsResponse proto.InternalMessageInfo
 
 func init() {
-	proto.RegisterType((*ManifestsRequest)(nil), "ManifestsRequest")
+	proto.RegisterType((*CommitHydratedManifestsRequest)(nil), "CommitHydratedManifestsRequest")
 	proto.RegisterType((*PathDetails)(nil), "PathDetails")
-	proto.RegisterType((*ManifestDetails)(nil), "ManifestDetails")
+	proto.RegisterType((*HydratedManifestDetails)(nil), "HydratedManifestDetails")
 	proto.RegisterType((*ReadmeDetails)(nil), "ReadmeDetails")
-	proto.RegisterType((*ManifestsResponse)(nil), "ManifestsResponse")
+	proto.RegisterType((*CommitHydratedManifestsResponse)(nil), "CommitHydratedManifestsResponse")
 }
 
 func init() { proto.RegisterFile("commitserver/commit/commit.proto", fileDescriptor_cf3a3abbc35e3069) }
 
 var fileDescriptor_cf3a3abbc35e3069 = []byte{
-	// 466 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x52, 0xc1, 0x6e, 0xd3, 0x40,
-	0x10, 0x95, 0x9b, 0x34, 0x90, 0x49, 0x93, 0xb6, 0xcb, 0x01, 0x2b, 0x87, 0x60, 0x19, 0x21, 0xe5,
-	0xd2, 0xb5, 0x6a, 0xd4, 0x3b, 0x6a, 0x39, 0x70, 0xa0, 0x12, 0x72, 0x6f, 0x08, 0xc9, 0x9a, 0xd8,
-	0x83, 0xbd, 0x34, 0xf6, 0x2e, 0xbb, 0x5b, 0x4b, 0xf9, 0x15, 0xce, 0x7c, 0x0c, 0x47, 0x3e, 0x01,
-	0xe5, 0x4b, 0x90, 0xd7, 0x71, 0x9b, 0x96, 0x03, 0x27, 0xcf, 0xbc, 0x19, 0xbf, 0x37, 0xfb, 0xf4,
-	0x20, 0xc8, 0x64, 0x55, 0x09, 0x6b, 0x48, 0x37, 0xa4, 0xa3, 0xae, 0xd9, 0x7d, 0xb8, 0xd2, 0xd2,
-	0xca, 0xf9, 0xc7, 0x42, 0xd8, 0xf2, 0x6e, 0xc5, 0x33, 0x59, 0x45, 0xa8, 0x0b, 0xa9, 0xb4, 0xfc,
-	0xe6, 0x8a, 0xb3, 0x2c, 0x8f, 0x9a, 0x38, 0x52, 0xb7, 0x45, 0x84, 0x4a, 0x98, 0x08, 0x95, 0x5a,
-	0x8b, 0x0c, 0xad, 0x90, 0x75, 0xd4, 0x9c, 0xe3, 0x5a, 0x95, 0x78, 0x1e, 0x15, 0x54, 0x93, 0x46,
-	0x4b, 0x79, 0xc7, 0x16, 0xfe, 0x38, 0x80, 0x93, 0x6b, 0xac, 0xc5, 0x57, 0x32, 0xd6, 0x24, 0xf4,
-	0xfd, 0x8e, 0x8c, 0x65, 0x5f, 0x60, 0xa8, 0x49, 0x49, 0xdf, 0x0b, 0xbc, 0xe5, 0x24, 0xfe, 0xc0,
-	0x1f, 0x14, 0x79, 0xaf, 0xe8, 0x8a, 0x34, 0xcb, 0x79, 0x13, 0x73, 0x75, 0x5b, 0xf0, 0x56, 0x91,
-	0xef, 0x29, 0xf2, 0x5e, 0x91, 0x27, 0xa4, 0xa4, 0x11, 0x56, 0xea, 0x4d, 0xe2, 0x58, 0xd9, 0x2b,
-	0x98, 0x98, 0x4d, 0x9d, 0xa5, 0x2b, 0x8d, 0x75, 0x56, 0xfa, 0x07, 0x81, 0xb7, 0x1c, 0x27, 0xd0,
-	0x42, 0x97, 0x0e, 0x61, 0xaf, 0x61, 0x6a, 0x51, 0x17, 0x64, 0xfb, 0x95, 0x81, 0x5b, 0x39, 0xea,
-	0xc0, 0xdd, 0xd2, 0x4b, 0x78, 0x96, 0xeb, 0x4d, 0x6a, 0x4a, 0xf4, 0x87, 0x6e, 0x3c, 0xca, 0xf5,
-	0xe6, 0xa6, 0x44, 0xf6, 0x06, 0x66, 0x9d, 0x5f, 0x69, 0x45, 0xc6, 0x60, 0x41, 0xfe, 0xa1, 0x9b,
-	0x4f, 0x3b, 0xf4, 0xba, 0x03, 0x59, 0x08, 0x87, 0x0a, 0x6d, 0x69, 0xfc, 0x51, 0x30, 0x58, 0x4e,
-	0xe2, 0x23, 0xfe, 0x09, 0x6d, 0xf9, 0x9e, 0x2c, 0x8a, 0xb5, 0x49, 0xba, 0x51, 0xf8, 0xd3, 0x83,
-	0xc9, 0x1e, 0xcc, 0x18, 0x0c, 0xdb, 0x81, 0xf3, 0x65, 0x9c, 0xb8, 0x9a, 0x71, 0x18, 0x57, 0xbd,
-	0x7f, 0xfe, 0x81, 0xe3, 0x3a, 0xe1, 0xbd, 0xa3, 0x3d, 0xdf, 0xc3, 0x0a, 0x9b, 0xc3, 0xf3, 0xf6,
-	0x10, 0xac, 0x73, 0xe3, 0x0f, 0x82, 0xc1, 0x72, 0x9c, 0xdc, 0xf7, 0xec, 0x02, 0x66, 0x9a, 0x30,
-	0xaf, 0x28, 0xcd, 0xbb, 0x1f, 0xdd, 0xd3, 0x26, 0xf1, 0x8c, 0x27, 0x0e, 0xee, 0xe9, 0xa6, 0x7a,
-	0xbf, 0x0d, 0xcf, 0xe0, 0xf8, 0x89, 0x60, 0xab, 0xd2, 0x4b, 0xee, 0xae, 0xbd, 0xef, 0xc3, 0x63,
-	0x98, 0x3e, 0xa2, 0x0b, 0x5f, 0xc0, 0xe9, 0x5e, 0x04, 0x8c, 0x92, 0xb5, 0xa1, 0xf8, 0x1d, 0x4c,
-	0xaf, 0x9c, 0x61, 0x37, 0xa4, 0x1b, 0x91, 0x11, 0x8b, 0x60, 0xd4, 0x01, 0xec, 0x94, 0x3f, 0x4d,
-	0xcc, 0x9c, 0xf1, 0x7f, 0x18, 0x2e, 0xaf, 0x7e, 0x6d, 0x17, 0xde, 0xef, 0xed, 0xc2, 0xfb, 0xb3,
-	0x5d, 0x78, 0x9f, 0x2f, 0xfe, 0x13, 0xdb, 0x47, 0xb9, 0x47, 0x25, 0xb2, 0xb5, 0xa0, 0xda, 0xae,
-	0x46, 0x2e, 0xa6, 0x6f, 0xff, 0x06, 0x00, 0x00, 0xff, 0xff, 0x88, 0x24, 0x04, 0x4b, 0x18, 0x03,
-	0x00, 0x00,
+	// 474 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x53, 0xc1, 0x6e, 0xd3, 0x40,
+	0x10, 0x95, 0x9b, 0x34, 0x90, 0x4d, 0x1d, 0xa4, 0xbd, 0xc4, 0xca, 0x21, 0x31, 0x46, 0x48, 0xb9,
+	0xb0, 0x56, 0x8d, 0xc2, 0x07, 0xb4, 0x1c, 0x7a, 0xa0, 0x12, 0x72, 0x6f, 0xa8, 0x92, 0x35, 0xb1,
+	0x07, 0x7b, 0x69, 0xec, 0x5d, 0x76, 0xb7, 0x96, 0xfc, 0x47, 0x1c, 0xf8, 0x10, 0x8e, 0x7c, 0x02,
+	0xca, 0x97, 0x20, 0xaf, 0xe3, 0x36, 0x45, 0x0a, 0x3d, 0x79, 0xe6, 0xbd, 0xb7, 0xef, 0xad, 0x47,
+	0xb3, 0xc4, 0x4f, 0x45, 0x59, 0x72, 0xa3, 0x51, 0xd5, 0xa8, 0xc2, 0xae, 0xd9, 0x7f, 0x98, 0x54,
+	0xc2, 0x88, 0xf9, 0xa7, 0x9c, 0x9b, 0xe2, 0x7e, 0xc3, 0x52, 0x51, 0x86, 0xa0, 0x72, 0x21, 0x95,
+	0xf8, 0x66, 0x8b, 0x77, 0x69, 0x16, 0xd6, 0x51, 0x28, 0xef, 0xf2, 0x10, 0x24, 0xd7, 0x21, 0x48,
+	0xb9, 0xe5, 0x29, 0x18, 0x2e, 0xaa, 0xb0, 0x3e, 0x87, 0xad, 0x2c, 0xe0, 0x3c, 0xcc, 0xb1, 0x42,
+	0x05, 0x06, 0xb3, 0xce, 0x2d, 0xf8, 0x71, 0x42, 0x16, 0x97, 0xd6, 0xfe, 0xaa, 0xc9, 0x2c, 0x71,
+	0x0d, 0x15, 0xff, 0x8a, 0xda, 0xe8, 0x18, 0xbf, 0xdf, 0xa3, 0x36, 0xf4, 0x96, 0x0c, 0x15, 0x4a,
+	0xe1, 0x39, 0xbe, 0xb3, 0x9a, 0x44, 0x57, 0xec, 0x31, 0x9f, 0xf5, 0xf9, 0xb6, 0x48, 0xd2, 0x8c,
+	0xd5, 0x11, 0x93, 0x77, 0x39, 0x6b, 0xf3, 0xd9, 0x41, 0x3e, 0xeb, 0xf3, 0x59, 0x8c, 0x52, 0x68,
+	0x6e, 0x84, 0x6a, 0x62, 0xeb, 0x4a, 0x97, 0x64, 0xa2, 0x9b, 0x2a, 0x4d, 0x36, 0x0a, 0xaa, 0xb4,
+	0xf0, 0x4e, 0x7c, 0x67, 0x35, 0x8e, 0x49, 0x0b, 0x5d, 0x58, 0x84, 0xbe, 0x21, 0xae, 0x01, 0x95,
+	0xa3, 0xe9, 0x25, 0x03, 0x2b, 0x39, 0xeb, 0xc0, 0xbd, 0x68, 0x46, 0x5e, 0x64, 0xaa, 0x49, 0x74,
+	0x01, 0xde, 0xd0, 0xd2, 0xa3, 0x4c, 0x35, 0x37, 0x05, 0xd0, 0xb7, 0x64, 0xda, 0x4d, 0x2f, 0x29,
+	0x51, 0x6b, 0xc8, 0xd1, 0x3b, 0xb5, 0xbc, 0xdb, 0xa1, 0xd7, 0x1d, 0x48, 0x03, 0x72, 0x2a, 0xc1,
+	0x14, 0xda, 0x1b, 0xf9, 0x83, 0xd5, 0x24, 0x3a, 0x63, 0x9f, 0xc1, 0x14, 0x1f, 0xd1, 0x00, 0xdf,
+	0xea, 0xb8, 0xa3, 0x82, 0x9f, 0x0e, 0x99, 0x1c, 0xc0, 0x94, 0x92, 0x61, 0x4b, 0xd8, 0xb9, 0x8c,
+	0x63, 0x5b, 0xd3, 0x0f, 0x64, 0x5c, 0xf6, 0xf3, 0xf3, 0x4e, 0xac, 0x97, 0xc7, 0xfe, 0x9d, 0x6c,
+	0xef, 0xfb, 0x28, 0xa5, 0x73, 0xf2, 0xb2, 0xbd, 0x10, 0x54, 0x99, 0xf6, 0x06, 0xfe, 0x60, 0x35,
+	0x8e, 0x1f, 0x7a, 0xba, 0x26, 0x53, 0x85, 0x90, 0x95, 0x98, 0x64, 0xdd, 0x41, 0xfb, 0x8b, 0x93,
+	0x68, 0xca, 0x62, 0x0b, 0xf7, 0x76, 0xae, 0x3a, 0x6c, 0x83, 0x35, 0x99, 0x1d, 0x09, 0x6e, 0xd3,
+	0xfa, 0xe8, 0xfd, 0xed, 0x1f, 0xfa, 0xe0, 0x15, 0x71, 0x9f, 0xd8, 0x06, 0xaf, 0xc9, 0xf2, 0xe8,
+	0x82, 0x68, 0x29, 0x2a, 0x8d, 0x51, 0x49, 0xdc, 0x4e, 0x72, 0x83, 0xaa, 0xe6, 0x29, 0xd2, 0x5b,
+	0x32, 0x3b, 0x72, 0x86, 0x2e, 0xd9, 0xff, 0xd7, 0x6d, 0xee, 0xb3, 0x67, 0xe2, 0x2e, 0x2e, 0x7f,
+	0xed, 0x16, 0xce, 0xef, 0xdd, 0xc2, 0xf9, 0xb3, 0x5b, 0x38, 0x5f, 0xd6, 0xcf, 0xbc, 0x87, 0x27,
+	0x0f, 0x0a, 0x24, 0x4f, 0xb7, 0x1c, 0x2b, 0xb3, 0x19, 0xd9, 0xfd, 0x7f, 0xff, 0x37, 0x00, 0x00,
+	0xff, 0xff, 0x1b, 0xe7, 0x2a, 0xbd, 0x71, 0x03, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -381,7 +383,7 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type CommitServiceClient interface {
 	// Commit commits hydrated manifests to a repository.
-	Commit(ctx context.Context, in *ManifestsRequest, opts ...grpc.CallOption) (*ManifestsResponse, error)
+	CommitHydratedManifests(ctx context.Context, in *CommitHydratedManifestsRequest, opts ...grpc.CallOption) (*CommitHydratedManifestsResponse, error)
 }
 
 type commitServiceClient struct {
@@ -392,9 +394,9 @@ func NewCommitServiceClient(cc *grpc.ClientConn) CommitServiceClient {
 	return &commitServiceClient{cc}
 }
 
-func (c *commitServiceClient) Commit(ctx context.Context, in *ManifestsRequest, opts ...grpc.CallOption) (*ManifestsResponse, error) {
-	out := new(ManifestsResponse)
-	err := c.cc.Invoke(ctx, "/CommitService/Commit", in, out, opts...)
+func (c *commitServiceClient) CommitHydratedManifests(ctx context.Context, in *CommitHydratedManifestsRequest, opts ...grpc.CallOption) (*CommitHydratedManifestsResponse, error) {
+	out := new(CommitHydratedManifestsResponse)
+	err := c.cc.Invoke(ctx, "/CommitService/CommitHydratedManifests", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -404,35 +406,35 @@ func (c *commitServiceClient) Commit(ctx context.Context, in *ManifestsRequest, 
 // CommitServiceServer is the server API for CommitService service.
 type CommitServiceServer interface {
 	// Commit commits hydrated manifests to a repository.
-	Commit(context.Context, *ManifestsRequest) (*ManifestsResponse, error)
+	CommitHydratedManifests(context.Context, *CommitHydratedManifestsRequest) (*CommitHydratedManifestsResponse, error)
 }
 
 // UnimplementedCommitServiceServer can be embedded to have forward compatible implementations.
 type UnimplementedCommitServiceServer struct {
 }
 
-func (*UnimplementedCommitServiceServer) Commit(ctx context.Context, req *ManifestsRequest) (*ManifestsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Commit not implemented")
+func (*UnimplementedCommitServiceServer) CommitHydratedManifests(ctx context.Context, req *CommitHydratedManifestsRequest) (*CommitHydratedManifestsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CommitHydratedManifests not implemented")
 }
 
 func RegisterCommitServiceServer(s *grpc.Server, srv CommitServiceServer) {
 	s.RegisterService(&_CommitService_serviceDesc, srv)
 }
 
-func _CommitService_Commit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ManifestsRequest)
+func _CommitService_CommitHydratedManifests_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CommitHydratedManifestsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(CommitServiceServer).Commit(ctx, in)
+		return srv.(CommitServiceServer).CommitHydratedManifests(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/CommitService/Commit",
+		FullMethod: "/CommitService/CommitHydratedManifests",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CommitServiceServer).Commit(ctx, req.(*ManifestsRequest))
+		return srv.(CommitServiceServer).CommitHydratedManifests(ctx, req.(*CommitHydratedManifestsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -442,15 +444,15 @@ var _CommitService_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*CommitServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Commit",
-			Handler:    _CommitService_Commit_Handler,
+			MethodName: "CommitHydratedManifests",
+			Handler:    _CommitService_CommitHydratedManifests_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "commitserver/commit/commit.proto",
 }
 
-func (m *ManifestsRequest) Marshal() (dAtA []byte, err error) {
+func (m *CommitHydratedManifestsRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -460,12 +462,12 @@ func (m *ManifestsRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ManifestsRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *CommitHydratedManifestsRequest) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *ManifestsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *CommitHydratedManifestsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -600,7 +602,7 @@ func (m *PathDetails) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *ManifestDetails) Marshal() (dAtA []byte, err error) {
+func (m *HydratedManifestDetails) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -610,12 +612,12 @@ func (m *ManifestDetails) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ManifestDetails) MarshalTo(dAtA []byte) (int, error) {
+func (m *HydratedManifestDetails) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *ManifestDetails) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *HydratedManifestDetails) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -661,7 +663,7 @@ func (m *ReadmeDetails) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *ManifestsResponse) Marshal() (dAtA []byte, err error) {
+func (m *CommitHydratedManifestsResponse) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -671,12 +673,12 @@ func (m *ManifestsResponse) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *ManifestsResponse) MarshalTo(dAtA []byte) (int, error) {
+func (m *CommitHydratedManifestsResponse) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *ManifestsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *CommitHydratedManifestsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -699,7 +701,7 @@ func encodeVarintCommit(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	return base
 }
-func (m *ManifestsRequest) Size() (n int) {
+func (m *CommitHydratedManifestsRequest) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -769,7 +771,7 @@ func (m *PathDetails) Size() (n int) {
 	return n
 }
 
-func (m *ManifestDetails) Size() (n int) {
+func (m *HydratedManifestDetails) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -797,7 +799,7 @@ func (m *ReadmeDetails) Size() (n int) {
 	return n
 }
 
-func (m *ManifestsResponse) Size() (n int) {
+func (m *CommitHydratedManifestsResponse) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -815,7 +817,7 @@ func sovCommit(x uint64) (n int) {
 func sozCommit(x uint64) (n int) {
 	return sovCommit(uint64((x << 1) ^ uint64((int64(x) >> 63))))
 }
-func (m *ManifestsRequest) Unmarshal(dAtA []byte) error {
+func (m *CommitHydratedManifestsRequest) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -838,10 +840,10 @@ func (m *ManifestsRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ManifestsRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: CommitHydratedManifestsRequest: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ManifestsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: CommitHydratedManifestsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1154,7 +1156,7 @@ func (m *PathDetails) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Manifests = append(m.Manifests, &ManifestDetails{})
+			m.Manifests = append(m.Manifests, &HydratedManifestDetails{})
 			if err := m.Manifests[len(m.Manifests)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -1249,7 +1251,7 @@ func (m *PathDetails) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ManifestDetails) Unmarshal(dAtA []byte) error {
+func (m *HydratedManifestDetails) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1272,10 +1274,10 @@ func (m *ManifestDetails) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ManifestDetails: wiretype end group for non-group")
+			return fmt.Errorf("proto: HydratedManifestDetails: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ManifestDetails: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: HydratedManifestDetails: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1383,7 +1385,7 @@ func (m *ReadmeDetails) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *ManifestsResponse) Unmarshal(dAtA []byte) error {
+func (m *CommitHydratedManifestsResponse) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -1406,10 +1408,10 @@ func (m *ManifestsResponse) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: ManifestsResponse: wiretype end group for non-group")
+			return fmt.Errorf("proto: CommitHydratedManifestsResponse: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ManifestsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: CommitHydratedManifestsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		default:

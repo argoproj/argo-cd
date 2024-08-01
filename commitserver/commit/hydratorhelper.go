@@ -109,7 +109,7 @@ func writeReadme(dirPath string, metadata hydratorMetadataFile) error {
 
 // writeManifests writes the manifests to the manifest.yaml file, truncating the file if it exists and appending the
 // manifests in the order they are provided.
-func writeManifests(dirPath string, manifests []*apiclient.ManifestDetails) error {
+func writeManifests(dirPath string, manifests []*apiclient.HydratedManifestDetails) error {
 	// If the file exists, truncate it.
 	// No need to use SecureJoin here, as the path is already sanitized.
 	manifestPath := path.Join(dirPath, "manifest.yaml")
