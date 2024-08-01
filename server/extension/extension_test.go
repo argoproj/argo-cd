@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/server/extension"
@@ -56,7 +56,7 @@ func TestValidateHeaders(t *testing.T) {
 		rr, err := extension.ValidateHeaders(r)
 
 		// then
-		require.Error(t, err)
+		assert.Error(t, err)
 		assert.Nil(t, rr)
 	})
 	t.Run("will return error if application header is missing", func(t *testing.T) {
@@ -71,7 +71,7 @@ func TestValidateHeaders(t *testing.T) {
 		rr, err := extension.ValidateHeaders(r)
 
 		// then
-		require.Error(t, err)
+		assert.Error(t, err)
 		assert.Nil(t, rr)
 	})
 	t.Run("will return error if project header is missing", func(t *testing.T) {
@@ -86,7 +86,7 @@ func TestValidateHeaders(t *testing.T) {
 		rr, err := extension.ValidateHeaders(r)
 
 		// then
-		require.Error(t, err)
+		assert.Error(t, err)
 		assert.Nil(t, rr)
 	})
 	t.Run("will return error if invalid namespace", func(t *testing.T) {
@@ -102,7 +102,7 @@ func TestValidateHeaders(t *testing.T) {
 		rr, err := extension.ValidateHeaders(r)
 
 		// then
-		require.Error(t, err)
+		assert.Error(t, err)
 		assert.Nil(t, rr)
 	})
 	t.Run("will return error if invalid app name", func(t *testing.T) {
@@ -118,7 +118,7 @@ func TestValidateHeaders(t *testing.T) {
 		rr, err := extension.ValidateHeaders(r)
 
 		// then
-		require.Error(t, err)
+		assert.Error(t, err)
 		assert.Nil(t, rr)
 	})
 	t.Run("will return error if invalid project name", func(t *testing.T) {
@@ -134,7 +134,7 @@ func TestValidateHeaders(t *testing.T) {
 		rr, err := extension.ValidateHeaders(r)
 
 		// then
-		require.Error(t, err)
+		assert.Error(t, err)
 		assert.Nil(t, rr)
 	})
 }
@@ -150,7 +150,7 @@ func TestRegisterExtensions(t *testing.T) {
 
 		logger, _ := test.NewNullLogger()
 		logEntry := logger.WithContext(context.Background())
-		m := extension.NewManager(logEntry, settMock, nil, nil, nil, nil)
+		m := extension.NewManager(logEntry, settMock, nil, nil, nil)
 
 		return &fixture{
 			settingsGetterMock: settMock,
@@ -167,8 +167,7 @@ func TestRegisterExtensions(t *testing.T) {
 		f.settingsGetterMock.On("Get", mock.Anything).Return(settings, nil)
 		expectedProxyRegistries := []string{
 			"external-backend",
-			"some-backend",
-		}
+			"some-backend"}
 
 		// when
 		err := f.manager.RegisterExtensions()
@@ -180,6 +179,7 @@ func TestRegisterExtensions(t *testing.T) {
 			assert.True(t, found)
 			assert.NotNil(t, proxyRegistry)
 		}
+
 	})
 	t.Run("will return error if extension config is invalid", func(t *testing.T) {
 		// given
@@ -231,7 +231,7 @@ func TestRegisterExtensions(t *testing.T) {
 				err := f.manager.RegisterExtensions()
 
 				// then
-				require.Error(t, err, "expected error in test %s but got nil", tc.name)
+				assert.Error(t, err, fmt.Sprintf("expected error in test %s but got nil", tc.name))
 			})
 		}
 	})
@@ -249,10 +249,6 @@ func TestCallExtension(t *testing.T) {
 	}
 	defaultProjectName := "project-name"
 
-	usernameFn := func(context.Context) string {
-		return "loggedinUser"
-	}
-
 	setup := func() *fixture {
 		appMock := &mocks.ApplicationGetter{}
 		settMock := &mocks.SettingsGetter{}
@@ -262,7 +258,7 @@ func TestCallExtension(t *testing.T) {
 
 		logger, _ := test.NewNullLogger()
 		logEntry := logger.WithContext(context.Background())
-		m := extension.NewManager(logEntry, settMock, appMock, projMock, rbacMock, usernameFn)
+		m := extension.NewManager(logEntry, settMock, appMock, projMock, rbacMock)
 		m.AddMetricsRegistry(metricsMock)
 
 		mux := http.NewServeMux()
@@ -379,6 +375,7 @@ func TestCallExtension(t *testing.T) {
 			}
 			fmt.Fprintln(w, response)
 		}))
+
 	}
 	newExtensionRequest := func(t *testing.T, method, url string) *http.Request {
 		t.Helper()
@@ -441,7 +438,6 @@ func TestCallExtension(t *testing.T) {
 		assert.Equal(t, backendResponse, actual)
 		assert.Equal(t, clusterURL, resp.Header.Get(extension.HeaderArgoCDTargetClusterURL))
 		assert.Equal(t, "Bearer some-bearer-token", resp.Header.Get("Authorization"))
-		assert.Equal(t, "loggedinUser", resp.Header.Get(extension.HeaderArgoCDUsername))
 
 		// waitgroup is necessary to make sure assertions aren't executed before
 		// the goroutine initiated by extension.CallExtension concludes which would
@@ -786,7 +782,6 @@ extensions:
     connectionTimeout: 2s
 `
 }
-
 func getExtensionConfigNoName() string {
 	return `
 extensions:
@@ -795,7 +790,6 @@ extensions:
     - url: https://httpbin.org
 `
 }
-
 func getExtensionConfigInvalidName() string {
 	return `
 extensions:

@@ -19,7 +19,7 @@ func gitErrToGRPC(err error) error {
 	if err == nil {
 		return err
 	}
-	errMsg := err.Error()
+	var errMsg = err.Error()
 	if grpcStatus := UnwrapGRPCStatus(err); grpcStatus != nil {
 		errMsg = grpcStatus.Message()
 	}

@@ -62,21 +62,21 @@ var (
 		append(descAppDefaultLabels, "autosync_enabled", "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation"),
 		nil,
 	)
-	// Deprecated
+	// DEPRECATED
 	descAppCreated = prometheus.NewDesc(
 		"argocd_app_created_time",
 		"Creation time in unix timestamp for an application.",
 		descAppDefaultLabels,
 		nil,
 	)
-	// Deprecated: superseded by sync_status label in argocd_app_info
+	// DEPRECATED: superseded by sync_status label in argocd_app_info
 	descAppSyncStatusCode = prometheus.NewDesc(
 		"argocd_app_sync_status",
 		"The application current sync status.",
 		append(descAppDefaultLabels, "sync_status"),
 		nil,
 	)
-	// Deprecated: superseded by health_status label in argocd_app_info
+	// DEPRECATED: superseded by health_status label in argocd_app_info
 	descAppHealthStatus = prometheus.NewDesc(
 		"argocd_app_health_status",
 		"The application current health status.",
@@ -113,7 +113,7 @@ var (
 	reconcileHistogram = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "argocd_app_reconcile",
-			Help: "Application reconciliation performance in seconds.",
+			Help: "Application reconciliation performance.",
 			// Buckets chosen after observing a ~2100ms mean reconcile time
 			Buckets: []float64{0.25, .5, 1, 2, 4, 8, 16},
 		},
@@ -209,7 +209,7 @@ var invalidPromLabelChars = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 func normalizeLabels(prefix string, appLabels []string) []string {
 	results := []string{}
 	for _, label := range appLabels {
-		// prometheus labels don't accept dash in their name
+		//prometheus labels don't accept dash in their name
 		curr := invalidPromLabelChars.ReplaceAllString(label, "_")
 		result := fmt.Sprintf("%s_%s", prefix, curr)
 		results = append(results, result)

@@ -2,12 +2,12 @@ package e2e
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/argoproj/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -28,13 +28,13 @@ func TestCreateAndUseAccount(t *testing.T) {
 		Then().
 		And(func(account *account.Account, err error) {
 			assert.Equal(t, account.Name, ctx.GetName())
-			assert.Equal(t, []string{"login"}, account.Capabilities)
+			assert.Equal(t, account.Capabilities, []string{"login"})
 		}).
 		When().
 		Login().
 		Then().
 		CurrentUser(func(user *session.GetUserInfoResponse, err error) {
-			assert.True(t, user.LoggedIn)
+			assert.Equal(t, user.LoggedIn, true)
 			assert.Equal(t, user.Username, ctx.GetName())
 		})
 }
@@ -49,7 +49,7 @@ func TestCanIGetLogsAllowNoSwitch(t *testing.T) {
 		CanIGetLogs().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, output, "yes")
+			assert.True(t, strings.Contains(output, "yes"))
 		})
 }
 
@@ -64,7 +64,7 @@ func TestCanIGetLogsDenySwitchOn(t *testing.T) {
 		CanIGetLogs().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, output, "no")
+			assert.True(t, strings.Contains(output, "no"))
 		})
 }
 
@@ -92,7 +92,7 @@ func TestCanIGetLogsAllowSwitchOn(t *testing.T) {
 		CanIGetLogs().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, output, "yes")
+			assert.True(t, strings.Contains(output, "yes"))
 		})
 }
 
@@ -107,7 +107,7 @@ func TestCanIGetLogsAllowSwitchOff(t *testing.T) {
 		CanIGetLogs().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, output, "yes")
+			assert.True(t, strings.Contains(output, "yes"))
 		})
 }
 
@@ -142,9 +142,9 @@ test   true     login, apiKey`, output)
 	defer io.Close(closer)
 
 	info, err := client.GetUserInfo(context.Background(), &session.GetUserInfoRequest{})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
-	assert.Equal(t, "test", info.Username)
+	assert.Equal(t, info.Username, "test")
 }
 
 func TestLoginBadCredentials(t *testing.T) {
@@ -161,7 +161,9 @@ func TestLoginBadCredentials(t *testing.T) {
 
 	for _, r := range requests {
 		_, err := sessionClient.Create(context.Background(), &r)
-		require.Error(t, err)
+		if !assert.Error(t, err) {
+			return
+		}
 		errStatus, ok := status.FromError(err)
 		if !assert.True(t, ok) {
 			return

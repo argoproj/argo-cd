@@ -1,6 +1,7 @@
 import {DropDownMenu, ErrorNotification, NotificationType} from 'argo-ui';
 import {Tooltip, Toolbar} from 'argo-ui';
 import * as React from 'react';
+import {RouteComponentProps} from 'react-router-dom';
 import {clusterName, ConnectionStateIcon, DataLoader, EmptyState, Page} from '../../../shared/components';
 import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -45,7 +46,7 @@ const CustomTopBar = (props: {toolbar?: Toolbar | Observable<Toolbar>}) => {
     );
 };
 
-export const ClustersList = () => {
+export const ClustersList = (props: RouteComponentProps<{}>) => {
     const clustersLoaderRef = React.useRef<DataLoader>();
     return (
         <Consumer>

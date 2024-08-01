@@ -23,7 +23,7 @@ import (
 )
 
 func newTestTerminalSession(w http.ResponseWriter, r *http.Request) terminalSession {
-	upgrader := websocket.Upgrader{}
+	var upgrader = websocket.Upgrader{}
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return terminalSession{}
@@ -64,6 +64,7 @@ func reconnect(w http.ResponseWriter, r *http.Request) {
 }
 
 func TestReconnect(t *testing.T) {
+
 	s := httptest.NewServer(http.HandlerFunc(reconnect))
 	defer s.Close()
 
@@ -71,7 +72,7 @@ func TestReconnect(t *testing.T) {
 
 	// Connect to the server
 	ws, _, err := websocket.DefaultDialer.Dial(u, nil)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	defer ws.Close()
 
@@ -81,8 +82,9 @@ func TestReconnect(t *testing.T) {
 
 	err = json.Unmarshal(p, &message)
 
-	require.NoError(t, err)
-	assert.Equal(t, ReconnectMessage, message.Data)
+	assert.NoError(t, err)
+	assert.Equal(t, message.Data, ReconnectMessage)
+
 }
 
 func TestValidateWithAdminPermissions(t *testing.T) {

@@ -18,7 +18,8 @@ import (
 var tenSec = int64(10)
 
 func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
-	externalNamespace := string(utils.ArgoCDExternalNamespace)
+
+	var externalNamespace = string(utils.ArgoCDExternalNamespace)
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
@@ -64,10 +65,9 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 		StatusUpdatePlacementDecision("my-placementdecision", clusterList).
 		CreateNamespace(externalNamespace).
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace).
-		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-cluster-generator",
-			},
+		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+			Name: "simple-cluster-generator",
+		},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -128,6 +128,7 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 }
 
 func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
+
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
@@ -170,10 +171,9 @@ func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
 		CreatePlacementDecisionConfigMap("my-configmap").
 		CreatePlacementDecision("my-placementdecision").
 		StatusUpdatePlacementDecision("my-placementdecision", clusterList).
-		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-cluster-generator",
-			},
+		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+			Name: "simple-cluster-generator",
+		},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -230,6 +230,7 @@ func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
 }
 
 func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
+
 	expectedAppTemplate := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
@@ -281,10 +282,9 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 		CreatePlacementDecisionConfigMap("my-configmap").
 		CreatePlacementDecision("my-placementdecision").
 		StatusUpdatePlacementDecision("my-placementdecision", clusterList).
-		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-cluster-generator",
-			},
+		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+			Name: "simple-cluster-generator",
+		},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -325,6 +325,7 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 }
 
 func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.T) {
+
 	expectedAppTemplate := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
@@ -377,10 +378,9 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 		CreatePlacementDecisionConfigMap("my-configmap").
 		CreatePlacementDecision("my-placementdecision").
 		StatusUpdatePlacementDecision("my-placementdecision", clusterList).
-		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-cluster-generator",
-			},
+		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+			Name: "simple-cluster-generator",
+		},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -422,6 +422,7 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 }
 
 func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *testing.T) {
+
 	expectedAppTemplate := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
@@ -481,10 +482,9 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *te
 		CreatePlacementDecisionConfigMap("my-configmap").
 		CreatePlacementDecision("my-placementdecision").
 		StatusUpdatePlacementDecision("my-placementdecision", clusterList).
-		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-cluster-generator",
-			},
+		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
+			Name: "simple-cluster-generator",
+		},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},

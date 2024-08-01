@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -27,7 +25,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	"github.com/argoproj/argo-cd/v2/controller/sharding"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
@@ -130,7 +127,7 @@ func TestHandleAddEvent_ClusterExcluded(t *testing.T) {
 		Config: appv1.ClusterConfig{Username: "bar"},
 	})
 
-	assert.Empty(t, clustersCache.clusters)
+	assert.Len(t, clustersCache.clusters, 0)
 }
 
 func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
@@ -592,8 +589,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1_x,
 			Health: &health.HealthStatus{
-				Status: health.HealthStatusHealthy,
-			},
+				Status: health.HealthStatusHealthy},
 		}, &ResourceInfo{
 			manifestHash: hash3_x,
 			Health:       nil,
@@ -655,80 +651,4 @@ func TestSkipResourceUpdate(t *testing.T) {
 			},
 		}))
 	})
-}
-
-func TestShouldHashManifest(t *testing.T) {
-	tests := []struct {
-		name        string
-		appName     string
-		gvk         schema.GroupVersionKind
-		un          *unstructured.Unstructured
-		annotations map[string]string
-		want        bool
-	}{
-		{
-			name:    "appName not empty gvk matches",
-			appName: "MyApp",
-			gvk:     schema.GroupVersionKind{Group: application.Group, Kind: application.ApplicationKind},
-			un:      &unstructured.Unstructured{},
-			want:    true,
-		},
-		{
-			name:    "appName empty",
-			appName: "",
-			gvk:     schema.GroupVersionKind{Group: application.Group, Kind: application.ApplicationKind},
-			un:      &unstructured.Unstructured{},
-			want:    true,
-		},
-		{
-			name:    "appName empty group not match",
-			appName: "",
-			gvk:     schema.GroupVersionKind{Group: "group1", Kind: application.ApplicationKind},
-			un:      &unstructured.Unstructured{},
-			want:    false,
-		},
-		{
-			name:    "appName empty kind not match",
-			appName: "",
-			gvk:     schema.GroupVersionKind{Group: application.Group, Kind: "kind1"},
-			un:      &unstructured.Unstructured{},
-			want:    false,
-		},
-		{
-			name:        "argocd.argoproj.io/ignore-resource-updates=true",
-			appName:     "",
-			gvk:         schema.GroupVersionKind{Group: application.Group, Kind: "kind1"},
-			un:          &unstructured.Unstructured{},
-			annotations: map[string]string{"argocd.argoproj.io/ignore-resource-updates": "true"},
-			want:        true,
-		},
-		{
-			name:        "argocd.argoproj.io/ignore-resource-updates=invalid",
-			appName:     "",
-			gvk:         schema.GroupVersionKind{Group: application.Group, Kind: "kind1"},
-			un:          &unstructured.Unstructured{},
-			annotations: map[string]string{"argocd.argoproj.io/ignore-resource-updates": "invalid"},
-			want:        false,
-		},
-		{
-			name:        "argocd.argoproj.io/ignore-resource-updates=false",
-			appName:     "",
-			gvk:         schema.GroupVersionKind{Group: application.Group, Kind: "kind1"},
-			un:          &unstructured.Unstructured{},
-			annotations: map[string]string{"argocd.argoproj.io/ignore-resource-updates": "false"},
-			want:        false,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			if test.annotations != nil {
-				test.un.SetAnnotations(test.annotations)
-			}
-			got := shouldHashManifest(test.appName, test.gvk, test.un)
-			if test.want != got {
-				t.Fatalf("test=%v want %v got %v", test.name, test.want, got)
-			}
-		})
-	}
 }

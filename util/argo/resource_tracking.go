@@ -21,11 +21,9 @@ const (
 	TrackingMethodAnnotationAndLabel v1alpha1.TrackingMethod = "annotation+label"
 )
 
-var (
-	WrongResourceTrackingFormat = fmt.Errorf("wrong resource tracking format, should be <application-name>:<group>/<kind>:<namespace>/<name>")
-	LabelMaxLength              = 63
-	OkEndPattern                = regexp.MustCompile("[a-zA-Z0-9]$")
-)
+var WrongResourceTrackingFormat = fmt.Errorf("wrong resource tracking format, should be <application-name>:<group>/<kind>:<namespace>/<name>")
+var LabelMaxLength = 63
+var OkEndPattern = regexp.MustCompile("[a-zA-Z0-9]$")
 
 // ResourceTracking defines methods which allow setup and retrieve tracking information to resource
 type ResourceTracking interface {
@@ -46,7 +44,8 @@ type AppInstanceValue struct {
 	Name            string
 }
 
-type resourceTracking struct{}
+type resourceTracking struct {
+}
 
 func NewResourceTracking() ResourceTracking {
 	return &resourceTracking{}

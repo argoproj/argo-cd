@@ -93,7 +93,7 @@ data:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: argocd-notifications-secret
+  name: argo-cd-notification-secret
 type: Opaque
 data:
   pagerduty-key-my-service: <pd-integration-key>
