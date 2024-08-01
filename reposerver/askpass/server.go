@@ -95,7 +95,7 @@ func (s *server) getCreds(id string) (*Creds, bool) {
 // Environ returns the environment variables that should be set when invoking git.
 func (s *server) Environ(id string) []string {
 	return []string{
-		fmt.Sprintf("GIT_ASKPASS=%s", "argocd"),
+		"GIT_ASKPASS=argocd",
 		fmt.Sprintf("%s=%s", ASKPASS_NONCE_ENV, id),
 		"GIT_TERMINAL_PROMPT=0",
 		"ARGOCD_BINARY_NAME=argocd-git-ask-pass",
