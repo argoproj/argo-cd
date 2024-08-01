@@ -1537,6 +1537,25 @@ rootCA: "invalid"`},
 	}
 }
 
+func TestGetResourceOverrideConfigMap(t *testing.T) {
+	kubeClient := fake.NewSimpleClientset(
+		&v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDResourceOverrideConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string]string{},
+		},
+	)
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	argoCDResourceOverrideCM, err := settingsManager.getResourceOverrideConfigMap()
+	assert.NoError(t, err)
+	assert.NotNil(t, argoCDResourceOverrideCM.Data)
+}
+
 func Test_OAuth2AllowedAudiences(t *testing.T) {
 	testCases := []struct {
 		name     string
