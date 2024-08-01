@@ -73,7 +73,7 @@ func Test_setHelmOpt(t *testing.T) {
 	t.Run("HelmApiVersions", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setHelmOpt(&src, helmOpts{apiVersions: []string{"v1", "v2"}})
-		assert.Equal(t, []string{"v1", "v2"}, src.Helm.ApiVersions)
+		assert.Equal(t, []string{"v1", "v2"}, src.Helm.APIVersions)
 	})
 	t.Run("HelmNamespace", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}

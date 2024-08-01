@@ -383,7 +383,7 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 		src.Helm.KubeVersion = opts.kubeVersion
 	}
 	if len(opts.apiVersions) > 0 {
-		src.Helm.ApiVersions = opts.apiVersions
+		src.Helm.APIVersions = opts.apiVersions
 	}
 	if opts.namespace != "" {
 		src.Helm.Namespace = opts.namespace

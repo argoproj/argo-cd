@@ -756,8 +756,8 @@ func verifyGenerateManifests(
 			serverVersion = source.Helm.KubeVersion
 		}
 		apiVersions := APIResourcesToStrings(apiResourcesFromServer, true)
-		if source.Helm != nil && len(source.Helm.ApiVersions) > 0 {
-			apiVersions = source.Helm.ApiVersions
+		if source.Helm != nil && len(source.Helm.APIVersions) > 0 {
+			apiVersions = source.Helm.APIVersions
 		}
 		namespace := dest.Namespace
 		if source.Helm != nil && source.Helm.Namespace != "" {

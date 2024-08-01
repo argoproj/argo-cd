@@ -453,7 +453,7 @@ func TestValidateRepo(t *testing.T) {
 	})
 
 	t.Run("override API versions", func(t *testing.T) {
-		app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{ApiVersions: []string{"apps/v1"}}
+		app.Spec.Source.Helm = &argoappv1.ApplicationSourceHelm{APIVersions: []string{"apps/v1"}}
 		conditions, err = ValidateRepo(context.Background(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
 		require.NoError(t, err)
 		assert.Empty(t, conditions)

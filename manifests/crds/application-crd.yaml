@@ -235,7 +235,7 @@ spec:
                         properties:
                           apiVersions:
                             description: |-
-                              ApiVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                              APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
                               Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                             items:
                               type: string
@@ -588,7 +588,7 @@ spec:
                           properties:
                             apiVersions:
                               description: |-
-                                ApiVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
                                 Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                               items:
                                 type: string
@@ -1060,7 +1060,7 @@ spec:
                     properties:
                       apiVersions:
                         description: |-
-                          ApiVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                          APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
                           Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                         items:
                           type: string
@@ -1403,7 +1403,7 @@ spec:
                       properties:
                         apiVersions:
                           description: |-
-                            ApiVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                            APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
                             Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                           items:
                             type: string
@@ -1912,7 +1912,7 @@ spec:
                           properties:
                             apiVersions:
                               description: |-
-                                ApiVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
                                 Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                               items:
                                 type: string
@@ -2267,7 +2267,7 @@ spec:
                             properties:
                               apiVersions:
                                 description: |-
-                                  ApiVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                  APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
                                   Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                                 items:
                                   type: string
@@ -2765,7 +2765,7 @@ spec:
                                 properties:
                                   apiVersions:
                                     description: |-
-                                      ApiVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                      APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
                                       Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                                     items:
                                       type: string
@@ -3139,7 +3139,7 @@ spec:
                                   properties:
                                     apiVersions:
                                       description: |-
-                                        ApiVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                        APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
                                         Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                                       items:
                                         type: string
@@ -3636,7 +3636,7 @@ spec:
                             properties:
                               apiVersions:
                                 description: |-
-                                  ApiVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                  APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
                                   Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                                 items:
                                   type: string
@@ -4001,7 +4001,7 @@ spec:
                               properties:
                                 apiVersions:
                                   description: |-
-                                    ApiVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                    APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
                                     Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                                   items:
                                     type: string
@@ -4518,7 +4518,7 @@ spec:
                             properties:
                               apiVersions:
                                 description: |-
-                                  ApiVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                  APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
                                   Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                                 items:
                                   type: string
@@ -4883,7 +4883,7 @@ spec:
                               properties:
                                 apiVersions:
                                   description: |-
-                                    ApiVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                    APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
                                     Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                                   items:
                                     type: string
