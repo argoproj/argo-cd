@@ -72,6 +72,8 @@ data:
   # Diff calculation will be done by running a server side apply dryrun (when
   # diff cache is unavailable).
   controller.diff.server.side: "false"
+  # Enables profile endpoint on the internal metrics port
+  controller.profile.enabled: "false"
 
   ## Server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
@@ -93,6 +95,8 @@ data:
   # Semicolon-separated list of content types allowed on non-GET requests. Set an empty string to allow all. Be aware
   # that allowing content types besides application/json may make your API more vulnerable to CSRF attacks.
   server.api.content.types: "application/json"
+  # Number of webhook requests processed concurrently (default 50)
+  server.webhook.parallelism.limit: "50"
 
   # Set the logging format. One of: text|json (default "text")
   server.log.format: "text"
@@ -134,6 +138,8 @@ data:
   server.default.cache.expiration: "24h0m0s"
   # Enable the experimental proxy extension feature
   server.enable.proxy.extension: "false"
+  # Enables profile endpoint on the internal metrics port
+  server.profile.enabled: "false"
 
   ## Repo-server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
@@ -188,8 +194,21 @@ data:
   ## ApplicationSet Controller Properties
   # Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.
   applicationsetcontroller.enable.leader.election: "false"
-  # "Modify how application is synced between the generator and the cluster. Default is 'sync' (create & update & delete), options: 'create-only', 'create-update' (no deletion), 'create-delete' (no update)"
-  applicationsetcontroller.policy: "sync"
+  # "Modify how application is synced between the generator and the cluster. Default is '' (empty), which means AppSets
+  # will default to the 'sync' policy (create & update & delete). Explicitly setting the value prevents AppSet-level
+  # policy overrides unless overrides are explicitly enabled (see option below). Explicit options are:
+  # 'create-only', 'create-update' (no deletion), 'create-delete' (no update)"
+  applicationsetcontroller.policy: ""
+  # If applicationsetcontroller.policy is empty, this flag has no effect. If applicationsetcontroller.policy is set,
+  # this flag controls whether the policy set in the controller can be overridden by the ApplicationSet resource
+  # (i.e. the spec.syncPlicy.applicationSync field). Set it to "true" to allow overrides. "" or "false" will disable
+  # overrides. (default "")
+  applicationsetcontroller.enable.policy.override: ""
+  # Max concurrent reconciliation limit for the controller (default 10)
+  applicationsetcontroller.concurrent.reconciliations.max: "10"
+  # Enable new globbing in Git files generator (default "false")
+  # See https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Generators-Git-File-Globbing/
+  applicationsetcontroller.enable.new.git.file.globbing: "false"
   # Print debug logs. Takes precedence over loglevel
   applicationsetcontroller.debug: "false"
   # Set the logging format. One of: text|json (default "text")
@@ -213,6 +232,8 @@ data:
   applicationsetcontroller.allowed.scm.providers: "https://git.example.com/,https://gitlab.example.com/"
   # To disable SCM providers entirely (i.e. disable the SCM and PR generators), set this to "false". Default is "true".
   applicationsetcontroller.enable.scm.providers: "false"
+  # Number of webhook requests processed concurrently (default 50)
+  applicationsetcontroller.webhook.parallelism.limit: "50"
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")

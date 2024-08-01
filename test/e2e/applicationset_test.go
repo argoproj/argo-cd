@@ -522,101 +522,6 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewMetadata}))
 }
 
-func TestCreateApplicationDespiteParamsError(t *testing.T) {
-	expectedErrorMessage := `failed to execute go template {{.cluster}}-guestbook: template: :1:2: executing "" at <.cluster>: map has no entry for key "cluster"`
-	expectedConditionsParamsError := []v1alpha1.ApplicationSetCondition{
-		{
-			Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
-			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonRenderTemplateParamsError,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
-		},
-		{
-			Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-			Message: expectedErrorMessage,
-			Reason:  v1alpha1.ApplicationSetReasonRenderTemplateParamsError,
-		},
-	}
-	expectedApp := argov1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "my-cluster-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-		},
-		Spec: argov1alpha1.ApplicationSpec{
-			Project: "default",
-			Source: &argov1alpha1.ApplicationSource{
-				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-				TargetRevision: "HEAD",
-				Path:           "guestbook",
-			},
-			Destination: argov1alpha1.ApplicationDestination{
-				Server:    "https://kubernetes.default.svc",
-				Namespace: "guestbook",
-			},
-		},
-	}
-
-	Given(t).
-		// Create a ListGenerator-based ApplicationSet
-		When().Create(v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "simple-list-generator",
-		},
-		Spec: v1alpha1.ApplicationSetSpec{
-			GoTemplate:        true,
-			GoTemplateOptions: []string{"missingkey=error"},
-			Template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook"},
-				Spec: argov1alpha1.ApplicationSpec{
-					Project: "default",
-					Source: &argov1alpha1.ApplicationSource{
-						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-						TargetRevision: "HEAD",
-						Path:           "guestbook",
-					},
-					Destination: argov1alpha1.ApplicationDestination{
-						Server:    "{{.url}}",
-						Namespace: "guestbook",
-					},
-				},
-			},
-			Generators: []v1alpha1.ApplicationSetGenerator{
-				{
-					List: &v1alpha1.ListGenerator{
-						Elements: []apiextensionsv1.JSON{
-							{
-								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
-							},
-							{
-								Raw: []byte(`{"invalidCluster": "invalid-cluster","url": "https://kubernetes.default.svc"}`),
-							},
-						},
-					},
-				},
-			},
-		},
-	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
-
-		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions("simple-list-generator", expectedConditionsParamsError)).
-
-		// Delete the ApplicationSet, and verify it deletes the Applications
-		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedApp}))
-}
-
 func TestRenderHelmValuesObject(t *testing.T) {
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
@@ -2761,6 +2666,7 @@ func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request
 			_, err := io.WriteString(w, `[
   {
     "number": 1,
+    "title": "title1",
     "labels": [
       {
         "name": "preview"
@@ -2773,7 +2679,10 @@ func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request
     "head": {
       "ref": "pull-request",
       "sha": "824a5c987fdfb2b0629e9dbf5f31636c69ba4772"
-    }
+    },
+	"user": {
+	  "login": "testName"
+	}
   }
 ]`)
 			if err != nil {

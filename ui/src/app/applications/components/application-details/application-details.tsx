@@ -192,7 +192,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 )
             );
 
-        const getContentForChart = (aRevision: string, aSourceIndex: number, aVersionId: number, indx: number, aSource: models.ApplicationSource, sourceHeader?: JSX.Element) => {
+        const getContentForChart = (
+            aRevision: string,
+            aSourceIndex: number | null,
+            aVersionId: number | null,
+            indx: number,
+            aSource: models.ApplicationSource,
+            sourceHeader?: JSX.Element
+        ) => {
             const showChartNonMetadataInfo = (aRevision: string, aRepoUrl: string) => {
                 return (
                     <>
@@ -366,9 +373,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             return <>{cont}</>;
         } else if (application.spec.source) {
             if (source.chart) {
-                cont.push(getContentForChart(revision, 0, 0, 0, source));
+                cont.push(getContentForChart(revision, null, null, 0, source));
             } else {
-                cont.push(getContentForNonChart(revision, 0, getAppCurrentVersion(application), 0, source));
+                cont.push(getContentForNonChart(revision, null, getAppCurrentVersion(application), 0, source));
             }
             return <>{cont}</>;
         } else {
@@ -393,7 +400,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                         loadingRenderer={() => <Page title='Application Details'>Loading...</Page>}
                         input={this.props.match.params.name}
                         load={name =>
-                            combineLatest([this.loadAppInfo(name, this.appNamespace), services.viewPreferences.getPreferences(), q]).pipe(
+                            combineLatest([this.loadAppInfo(name, this.props.match.params.appnamespace), services.viewPreferences.getPreferences(), q]).pipe(
                                 map(items => {
                                     const application = items[0].application;
                                     const pref = items[1].appDetails;

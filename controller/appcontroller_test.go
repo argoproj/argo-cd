@@ -193,14 +193,16 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 	mockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything).Return(response, nil)
 	mockStateCache.On("IterateResources", mock.Anything, mock.Anything).Return(nil)
 	mockStateCache.On("GetClusterCache", mock.Anything).Return(&clusterCacheMock, nil)
-	mockStateCache.On("IterateHierarchy", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		key := args[1].(kube.ResourceKey)
+	mockStateCache.On("IterateHierarchyV2", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		keys := args[1].([]kube.ResourceKey)
 		action := args[2].(func(child v1alpha1.ResourceNode, appName string) bool)
-		appName := ""
-		if res, ok := data.namespacedResources[key]; ok {
-			appName = res.AppName
+		for _, key := range keys {
+			appName := ""
+			if res, ok := data.namespacedResources[key]; ok {
+				appName = res.AppName
+			}
+			_ = action(v1alpha1.ResourceNode{ResourceRef: v1alpha1.ResourceRef{Kind: key.Kind, Group: key.Group, Namespace: key.Namespace, Name: key.Name}}, appName)
 		}
-		_ = action(v1alpha1.ResourceNode{ResourceRef: v1alpha1.ResourceRef{Kind: key.Kind, Group: key.Group, Namespace: key.Namespace, Name: key.Name}}, appName)
 	}).Return(nil)
 	return ctrl
 }
@@ -374,8 +376,8 @@ data:
 
 var fakePostDeleteHook = `
 {
-  "apiVersion": "v1",
-  "kind": "Pod",
+  "apiVersion": "batch/v1",
+  "kind": "Job",
   "metadata": {
     "name": "post-delete-hook",
     "namespace": "default",
@@ -388,19 +390,90 @@ var fakePostDeleteHook = `
     }
   },
   "spec": {
-    "containers": [
-      {
-        "name": "post-delete-hook",
-        "image": "busybox",
-        "restartPolicy": "Never",
-        "command": [
-          "/bin/sh",
-          "-c",
-          "sleep 5 && echo hello from the post-delete-hook pod"
-        ]
+    "template": {
+      "metadata": {
+        "name": "post-delete-hook"
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "post-delete-hook",
+            "image": "busybox",
+            "command": [
+              "/bin/sh",
+              "-c",
+              "sleep 5 && echo hello from the post-delete-hook job"
+            ]
+          }
+        ],
+        "restartPolicy": "Never"
       }
-    ]
+    }
   }
+}
+`
+
+var fakeServiceAccount = `
+{
+  "apiVersion": "v1",
+  "kind": "ServiceAccount",
+  "metadata": {
+    "name": "hook-serviceaccount",
+    "namespace": "default",
+    "annotations": {
+      "argocd.argoproj.io/hook": "PostDelete",
+      "argocd.argoproj.io/hook-delete-policy": "BeforeHookCreation,HookSucceeded"
+    }
+  }
+}
+`
+
+var fakeRole = `
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1",
+  "kind": "Role",
+  "metadata": {
+    "name": "hook-role",
+    "namespace": "default",
+    "annotations": {
+      "argocd.argoproj.io/hook": "PostDelete",
+      "argocd.argoproj.io/hook-delete-policy": "BeforeHookCreation,HookSucceeded"
+    }
+  },
+  "rules": [
+    {
+      "apiGroups": [""],
+      "resources": ["secrets"],
+      "verbs": ["get", "delete", "list"]
+    }
+  ]
+}
+`
+
+var fakeRoleBinding = `
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1",
+  "kind": "RoleBinding",
+  "metadata": {
+    "name": "hook-rolebinding",
+    "namespace": "default",
+    "annotations": {
+      "argocd.argoproj.io/hook": "PostDelete",
+      "argocd.argoproj.io/hook-delete-policy": "BeforeHookCreation,HookSucceeded"
+    }
+  },
+  "roleRef": {
+    "apiGroup": "rbac.authorization.k8s.io",
+    "kind": "Role",
+    "name": "hook-role"
+  },
+  "subjects": [
+    {
+      "kind": "ServiceAccount",
+      "name": "hook-serviceaccount",
+      "namespace": "default"
+    }
+  ]
 }
 `
 
@@ -439,12 +512,39 @@ func newFakeCM() map[string]interface{} {
 }
 
 func newFakePostDeleteHook() map[string]interface{} {
-	var cm map[string]interface{}
-	err := yaml.Unmarshal([]byte(fakePostDeleteHook), &cm)
+	var hook map[string]interface{}
+	err := yaml.Unmarshal([]byte(fakePostDeleteHook), &hook)
 	if err != nil {
 		panic(err)
 	}
-	return cm
+	return hook
+}
+
+func newFakeRoleBinding() map[string]interface{} {
+	var roleBinding map[string]interface{}
+	err := yaml.Unmarshal([]byte(fakeRoleBinding), &roleBinding)
+	if err != nil {
+		panic(err)
+	}
+	return roleBinding
+}
+
+func newFakeRole() map[string]interface{} {
+	var role map[string]interface{}
+	err := yaml.Unmarshal([]byte(fakeRole), &role)
+	if err != nil {
+		panic(err)
+	}
+	return role
+}
+
+func newFakeServiceAccount() map[string]interface{} {
+	var serviceAccount map[string]interface{}
+	err := yaml.Unmarshal([]byte(fakeServiceAccount), &serviceAccount)
+	if err != nil {
+		panic(err)
+	}
+	return serviceAccount
 }
 
 func TestAutoSync(t *testing.T) {
@@ -721,7 +821,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 
 	// Ensure any stray resources irregularly labeled with instance label of app are not deleted upon deleting,
 	// when app project restriction is in place
-	t.Run("ProjectRestrictionEnforced", func(*testing.T) {
+	t.Run("ProjectRestrictionEnforced", func(t *testing.T) {
 		restrictedProj := v1alpha1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "restricted",
@@ -882,7 +982,13 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		app.SetPostDeleteFinalizer()
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 		liveHook := &unstructured.Unstructured{Object: newFakePostDeleteHook()}
-		require.NoError(t, unstructured.SetNestedField(liveHook.Object, "Succeeded", "status", "phase"))
+		conditions := []interface{}{
+			map[string]interface{}{
+				"type":   "Complete",
+				"status": "True",
+			},
+		}
+		require.NoError(t, unstructured.SetNestedField(liveHook.Object, conditions, "status", "conditions"))
 		ctrl := newFakeController(&fakeData{
 			manifestResponses: []*apiclient.ManifestResponse{{
 				Manifests: []string{fakePostDeleteHook},
@@ -916,15 +1022,27 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		app := newFakeApp()
 		app.SetPostDeleteFinalizer("cleanup")
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		liveRoleBinding := &unstructured.Unstructured{Object: newFakeRoleBinding()}
+		liveRole := &unstructured.Unstructured{Object: newFakeRole()}
+		liveServiceAccount := &unstructured.Unstructured{Object: newFakeServiceAccount()}
 		liveHook := &unstructured.Unstructured{Object: newFakePostDeleteHook()}
-		require.NoError(t, unstructured.SetNestedField(liveHook.Object, "Succeeded", "status", "phase"))
+		conditions := []interface{}{
+			map[string]interface{}{
+				"type":   "Complete",
+				"status": "True",
+			},
+		}
+		require.NoError(t, unstructured.SetNestedField(liveHook.Object, conditions, "status", "conditions"))
 		ctrl := newFakeController(&fakeData{
 			manifestResponses: []*apiclient.ManifestResponse{{
-				Manifests: []string{fakePostDeleteHook},
+				Manifests: []string{fakeRoleBinding, fakeRole, fakeServiceAccount, fakePostDeleteHook},
 			}},
 			apps: []runtime.Object{app, &defaultProj},
 			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
-				kube.GetResourceKey(liveHook): liveHook,
+				kube.GetResourceKey(liveRoleBinding):    liveRoleBinding,
+				kube.GetResourceKey(liveRole):           liveRole,
+				kube.GetResourceKey(liveServiceAccount): liveServiceAccount,
+				kube.GetResourceKey(liveHook):           liveHook,
 			},
 		}, nil)
 
@@ -943,9 +1061,14 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
-		// post-delete hook is deleted
-		require.Len(t, ctrl.kubectl.(*MockKubectl).DeletedResources, 1)
-		require.Equal(t, "post-delete-hook", ctrl.kubectl.(*MockKubectl).DeletedResources[0].Name)
+		// post-delete hooks are deleted
+		require.Len(t, ctrl.kubectl.(*MockKubectl).DeletedResources, 4)
+		deletedResources := []string{}
+		for _, res := range ctrl.kubectl.(*MockKubectl).DeletedResources {
+			deletedResources = append(deletedResources, res.Name)
+		}
+		expectedNames := []string{"hook-rolebinding", "hook-role", "hook-serviceaccount", "post-delete-hook"}
+		require.ElementsMatch(t, expectedNames, deletedResources, "Deleted resources should match expected names")
 		// finalizer is not removed
 		assert.False(t, patched)
 	})

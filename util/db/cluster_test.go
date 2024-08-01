@@ -279,7 +279,7 @@ func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster,
 	}
 
 	go func() {
-		require.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
+		assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
 			doNext(nil, cluster)
 		}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
 			doNext(oldCluster, newCluster)

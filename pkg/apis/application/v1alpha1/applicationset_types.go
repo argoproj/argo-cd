@@ -35,6 +35,12 @@ type SecretRef struct {
 	Key        string `json:"key" protobuf:"bytes,2,opt,name=key"`
 }
 
+// Utility struct for a reference to a configmap key.
+type ConfigMapKeyRef struct {
+	ConfigMapName string `json:"configMapName" protobuf:"bytes,1,opt,name=configMapName"`
+	Key           string `json:"key" protobuf:"bytes,2,opt,name=key"`
+}
+
 // ApplicationSet is a set of Application resources
 // +genclient
 // +genclient:noStatus
@@ -498,6 +504,8 @@ type SCMProviderGeneratorGitlab struct {
 	IncludeSharedProjects *bool `json:"includeSharedProjects,omitempty" protobuf:"varint,7,opt,name=includeSharedProjects"`
 	// Filter repos list based on Gitlab Topic.
 	Topic string `json:"topic,omitempty" protobuf:"bytes,8,opt,name=topic"`
+	// ConfigMap key holding the trusted certificates
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,9,opt,name=caRef"`
 }
 
 func (s *SCMProviderGeneratorGitlab) WillIncludeSharedProjects() bool {
@@ -526,6 +534,12 @@ type SCMProviderGeneratorBitbucketServer struct {
 	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,3,opt,name=basicAuth"`
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,4,opt,name=allBranches"`
+	// Credentials for AccessToken (Bearer auth)
+	BearerToken *BearerTokenBitbucket `json:"bearerToken,omitempty" protobuf:"bytes,5,opt,name=bearerToken"`
+	// Allow self-signed TLS / Certificates; default: false
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
+	// ConfigMap key holding the trusted certificates
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,7,opt,name=caRef"`
 }
 
 // SCMProviderGeneratorAzureDevOps defines connection info specific to Azure DevOps.
@@ -677,6 +691,8 @@ type PullRequestGeneratorGitLab struct {
 	PullRequestState string `json:"pullRequestState,omitempty" protobuf:"bytes,5,rep,name=pullRequestState"`
 	// Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
+	// ConfigMap key holding the trusted certificates
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,7,opt,name=caRef"`
 }
 
 // PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.
@@ -689,6 +705,12 @@ type PullRequestGeneratorBitbucketServer struct {
 	API string `json:"api" protobuf:"bytes,3,opt,name=api"`
 	// Credentials for Basic auth
 	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,4,opt,name=basicAuth"`
+	// Credentials for AccessToken (Bearer auth)
+	BearerToken *BearerTokenBitbucket `json:"bearerToken,omitempty" protobuf:"bytes,5,opt,name=bearerToken"`
+	// Allow self-signed TLS / Certificates; default: false
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
+	// ConfigMap key holding the trusted certificates
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,7,opt,name=caRef"`
 }
 
 // PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.
@@ -703,6 +725,12 @@ type PullRequestGeneratorBitbucket struct {
 	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,4,opt,name=basicAuth"`
 	// Credentials for AppToken (Bearer auth)
 	BearerToken *BearerTokenBitbucketCloud `json:"bearerToken,omitempty" protobuf:"bytes,5,opt,name=bearerToken"`
+}
+
+// BearerTokenBitbucket defines the Bearer token for BitBucket AppToken auth.
+type BearerTokenBitbucket struct {
+	// Password (or personal access token) reference.
+	TokenRef *SecretRef `json:"tokenRef" protobuf:"bytes,1,opt,name=tokenRef"`
 }
 
 // BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.

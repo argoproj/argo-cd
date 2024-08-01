@@ -1875,6 +1875,58 @@ func TestGetMinRequeueAfter(t *testing.T) {
 	assert.Equal(t, time.Duration(1)*time.Second, got)
 }
 
+func TestRequeueGeneratorFails(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+	err = v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "name",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{{
+				PullRequest: &v1alpha1.PullRequestGenerator{},
+			}},
+		},
+	}
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+
+	generator := v1alpha1.ApplicationSetGenerator{
+		PullRequest: &v1alpha1.PullRequestGenerator{},
+	}
+
+	generatorMock := mocks.Generator{}
+	generatorMock.On("GetTemplate", &generator).
+		Return(&v1alpha1.ApplicationSetTemplate{})
+	generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
+		Return([]map[string]interface{}{}, fmt.Errorf("Simulated error generating params that could be related to an external service/API call"))
+
+	r := ApplicationSetReconciler{
+		Client:   client,
+		Scheme:   scheme,
+		Recorder: record.NewFakeRecorder(0),
+		Cache:    &fakeCache{},
+		Generators: map[string]generators.Generator{
+			"PullRequest": &generatorMock,
+		},
+	}
+
+	req := ctrl.Request{
+		NamespacedName: types.NamespacedName{
+			Namespace: "argocd",
+			Name:      "name",
+		},
+	}
+
+	res, err := r.Reconcile(context.Background(), req)
+	require.Error(t, err)
+	assert.Equal(t, ReconcileRequeueOnValidationError, res.RequeueAfter)
+}
+
 func TestValidateGeneratedApplications(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
@@ -2205,90 +2257,6 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	// make sure bad app was not created
 	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "bad-project"}, &app)
 	require.Error(t, err)
-}
-
-func TestReconcilerCreateAppsRecoveringRenderError(t *testing.T) {
-	scheme := runtime.NewScheme()
-	err := v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
-	err = v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
-
-	project := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
-	}
-	appSet := v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "name",
-			Namespace: "argocd",
-		},
-		Spec: v1alpha1.ApplicationSetSpec{
-			GoTemplate: true,
-			Generators: []v1alpha1.ApplicationSetGenerator{
-				{
-					List: &v1alpha1.ListGenerator{
-						Elements: []apiextensionsv1.JSON{{
-							Raw: []byte(`{"name": "very-good-app"}`),
-						}, {
-							Raw: []byte(`{"name": "bad-app"}`),
-						}},
-					},
-				},
-			},
-			Template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
-					Name:      "{{ index (splitList \"-\" .name ) 2 }}",
-					Namespace: "argocd",
-				},
-				Spec: v1alpha1.ApplicationSpec{
-					Source:      &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
-					Project:     "default",
-					Destination: v1alpha1.ApplicationDestination{Server: "https://kubernetes.default.svc"},
-				},
-			},
-		},
-	}
-
-	kubeclientset := kubefake.NewSimpleClientset()
-	argoDBMock := dbmocks.ArgoDB{}
-	argoObjs := []runtime.Object{&project}
-
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-
-	r := ApplicationSetReconciler{
-		Client:   client,
-		Scheme:   scheme,
-		Renderer: &utils.Render{},
-		Recorder: record.NewFakeRecorder(1),
-		Cache:    &fakeCache{},
-		Generators: map[string]generators.Generator{
-			"List": generators.NewListGenerator(),
-		},
-		ArgoDB:           &argoDBMock,
-		ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
-		KubeClientset:    kubeclientset,
-		Policy:           v1alpha1.ApplicationsSyncPolicySync,
-		ArgoCDNamespace:  "argocd",
-	}
-
-	req := ctrl.Request{
-		NamespacedName: types.NamespacedName{
-			Namespace: "argocd",
-			Name:      "name",
-		},
-	}
-
-	// Verify that on generatorsError, no error is returned, but the object is requeued
-	res, err := r.Reconcile(context.Background(), req)
-	require.NoError(t, err)
-	assert.Equal(t, ReconcileRequeueOnValidationError, res.RequeueAfter)
-
-	var app v1alpha1.Application
-
-	// make sure good app got created
-	err = r.Client.Get(context.TODO(), crtclient.ObjectKey{Namespace: "argocd", Name: "app"}, &app)
-	require.NoError(t, err)
-	assert.Equal(t, "app", app.Name)
 }
 
 func TestSetApplicationSetStatusCondition(t *testing.T) {
@@ -4414,6 +4382,58 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			},
 		},
 		{
+			name: "handles an outdated list of statuses with a healthy application, setting required variables",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type:        "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Message:     "Application resource is already Healthy, updating status from Waiting to Healthy.",
+							Status:      "Healthy",
+							Step:        "1",
+						},
+					},
+				},
+			},
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app1",
+					},
+					Status: v1alpha1.ApplicationStatus{
+						Health: v1alpha1.HealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						OperationState: &v1alpha1.OperationState{
+							Phase: common.OperationSucceeded,
+						},
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeSynced,
+						},
+					},
+				},
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "Application resource is already Healthy, updating status from Waiting to Healthy.",
+					Status:          "Healthy",
+					Step:            "1",
+					TargetRevisions: []string{},
+				},
+			},
+		},
+		{
 			name: "progresses an OutOfSync RollingSync application to waiting",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -4502,10 +4522,11 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				Status: v1alpha1.ApplicationSetStatus{
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
 						{
-							Application: "app1",
-							Message:     "",
-							Status:      "Pending",
-							Step:        "1",
+							Application:     "app1",
+							Message:         "",
+							Status:          "Pending",
+							Step:            "1",
+							TargetRevisions: []string{"Next"},
 						},
 					},
 				},
@@ -4524,15 +4545,16 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
-					Application: "app1",
-					Message:     "Application resource became Progressing, updating status from Pending to Progressing.",
-					Status:      "Progressing",
-					Step:        "1",
+					Application:     "app1",
+					Message:         "Application resource became Progressing, updating status from Pending to Progressing.",
+					Status:          "Progressing",
+					Step:            "1",
+					TargetRevisions: []string{"Next"},
 				},
 			},
 		},
 		{
-			name: "progresses a pending syncing application to progressing",
+			name: "progresses a pending synced application to progressing",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -4547,10 +4569,11 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				Status: v1alpha1.ApplicationSetStatus{
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
 						{
-							Application: "app1",
-							Message:     "",
-							Status:      "Pending",
-							Step:        "1",
+							Application:     "app1",
+							Message:         "",
+							Status:          "Pending",
+							Step:            "1",
+							TargetRevisions: []string{"Current"},
 						},
 					},
 				},
@@ -4575,10 +4598,11 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
-					Application: "app1",
-					Message:     "Application resource became Progressing, updating status from Pending to Progressing.",
-					Status:      "Progressing",
-					Step:        "1",
+					Application:     "app1",
+					Message:         "Application resource became Progressing, updating status from Pending to Progressing.",
+					Status:          "Progressing",
+					Step:            "1",
+					TargetRevisions: []string{"Current"},
 				},
 			},
 		},
@@ -4598,10 +4622,11 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				Status: v1alpha1.ApplicationSetStatus{
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
 						{
-							Application: "app1",
-							Message:     "",
-							Status:      "Progressing",
-							Step:        "1",
+							Application:     "app1",
+							Message:         "",
+							Status:          "Progressing",
+							Step:            "1",
+							TargetRevisions: []string{"Next"},
 						},
 					},
 				},
@@ -4626,10 +4651,11 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
-					Application: "app1",
-					Message:     "Application resource became Healthy, updating status from Progressing to Healthy.",
-					Status:      "Healthy",
-					Step:        "1",
+					Application:     "app1",
+					Message:         "Application resource became Healthy, updating status from Progressing to Healthy.",
+					Status:          "Healthy",
+					Step:            "1",
+					TargetRevisions: []string{"Next"},
 				},
 			},
 		},
@@ -4649,10 +4675,11 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				Status: v1alpha1.ApplicationSetStatus{
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
 						{
-							Application: "app1",
-							Message:     "",
-							Status:      "Waiting",
-							Step:        "1",
+							Application:     "app1",
+							Message:         "",
+							Status:          "Waiting",
+							Step:            "1",
+							TargetRevisions: []string{"Current"},
 						},
 					},
 				},
@@ -4677,10 +4704,11 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
-					Application: "app1",
-					Message:     "Application resource is already Healthy, updating status from Waiting to Healthy.",
-					Status:      "Healthy",
-					Step:        "1",
+					Application:     "app1",
+					Message:         "Application resource is already Healthy, updating status from Waiting to Healthy.",
+					Status:          "Healthy",
+					Step:            "1",
+					TargetRevisions: []string{"Current"},
 				},
 			},
 		},
@@ -4956,16 +4984,18 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				Status: v1alpha1.ApplicationSetStatus{
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
 						{
-							Application: "app1",
-							Message:     "Application has pending changes, setting status to Waiting.",
-							Status:      "Waiting",
-							Step:        "1",
+							Application:     "app1",
+							Message:         "Application has pending changes, setting status to Waiting.",
+							Status:          "Waiting",
+							Step:            "1",
+							TargetRevisions: []string{"Current"},
 						},
 						{
-							Application: "app2",
-							Message:     "Application has pending changes, setting status to Waiting.",
-							Status:      "Waiting",
-							Step:        "1",
+							Application:     "app2",
+							Message:         "Application has pending changes, setting status to Waiting.",
+							Status:          "Waiting",
+							Step:            "1",
+							TargetRevisions: []string{"Current"},
 						},
 					},
 				},
@@ -4990,10 +5020,11 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
-					Application: "app1",
-					Message:     "Application resource is already Healthy, updating status from Waiting to Healthy.",
-					Status:      "Healthy",
-					Step:        "1",
+					Application:     "app1",
+					Message:         "Application resource is already Healthy, updating status from Waiting to Healthy.",
+					Status:          "Healthy",
+					Step:            "1",
+					TargetRevisions: []string{"Current"},
 				},
 			},
 		},
@@ -5155,9 +5186,10 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				Status: v1alpha1.ApplicationSetStatus{
 					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
 						{
-							Application: "app1",
-							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting.",
-							Status:      "Waiting",
+							Application:     "app1",
+							Message:         "Application is out of date with the current AppSet generation, setting status to Waiting.",
+							Status:          "Waiting",
+							TargetRevisions: []string{"Next"},
 						},
 					},
 				},
@@ -5175,6 +5207,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing.",
 					Status:             "Pending",
 					Step:               "1",
+					TargetRevisions:    []string{"Next"},
 				},
 			},
 		},
@@ -6178,6 +6211,77 @@ func TestOwnsHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ownsHandler = getOwnsHandlerPredicates(tt.args.enableProgressiveSyncs)
 			assert.Equalf(t, tt.want, ownsHandler.UpdateFunc(tt.args.e), "UpdateFunc(%v)", tt.args.e)
+		})
+	}
+}
+
+func TestMigrateStatus(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	err = v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	for _, tc := range []struct {
+		name           string
+		appset         v1alpha1.ApplicationSet
+		expectedStatus v1alpha1.ApplicationSetStatus
+	}{
+		{
+			name: "status without applicationstatus target revisions set will default to empty list",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "test",
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{},
+					},
+				},
+			},
+			expectedStatus: v1alpha1.ApplicationSetStatus{
+				ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+					{
+						TargetRevisions: []string{},
+					},
+				},
+			},
+		},
+		{
+			name: "status with applicationstatus target revisions set will do nothing",
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test",
+					Namespace: "test",
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							TargetRevisions: []string{"Current"},
+						},
+					},
+				},
+			},
+			expectedStatus: v1alpha1.ApplicationSetStatus{
+				ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+					{
+						TargetRevisions: []string{"Current"},
+					},
+				},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			client := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&tc.appset).WithObjects(&tc.appset).Build()
+			r := ApplicationSetReconciler{
+				Client: client,
+			}
+
+			err := r.migrateStatus(context.Background(), &tc.appset)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedStatus, tc.appset.Status)
 		})
 	}
 }

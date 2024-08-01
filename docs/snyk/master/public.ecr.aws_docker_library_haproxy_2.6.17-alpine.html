@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="3 known vulnerabilities found in 22 vulnerable dependency paths.">
+  <meta name="description" content="4 known vulnerabilities found in 32 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">June 16th 2024, 12:16:25 am (UTC+00:00)</p>
+                <p class="timestamp">July 28th 2024, 12:17:44 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -466,8 +466,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>3</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>22 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>4</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>32 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>18</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -879,6 +879,234 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-ALPINE320-OPENSSL-7218988">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2024-5535</h2>
+            <div class="card__section">
+        
+                <div class="label label--low">
+                    <span class="label__text">low severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.20
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine and openssl/libcrypto3@3.3.0-r2
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.0-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20240524.005458
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.0-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.4-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.0-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r28
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.0-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        ca-certificates/ca-certificates@20240226-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.0-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20240524.005458
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.0-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.0-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.0-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20240524.005458
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.0-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.4-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.0-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@2.6.17-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r28
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.0-r2
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.20</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: Calling the OpenSSL API function SSL_select_next_proto with an
+        empty supported client protocols buffer may cause a crash or memory contents to
+        be sent to the peer.</p>
+        <p>Impact summary: A buffer overread can have a range of potential consequences
+        such as unexpected application beahviour or a crash. In particular this issue
+        could result in up to 255 bytes of arbitrary private data from memory being sent
+        to the peer leading to a loss of confidentiality. However, only applications
+        that directly call the SSL_select_next_proto function with a 0 length list of
+        supported client protocols are affected by this issue. This would normally never
+        be a valid scenario and is typically not under attacker control but may occur by
+        accident in the case of a configuration or programming error in the calling
+        application.</p>
+        <p>The OpenSSL API function SSL_select_next_proto is typically used by TLS
+        applications that support ALPN (Application Layer Protocol Negotiation) or NPN
+        (Next Protocol Negotiation). NPN is older, was never standardised and
+        is deprecated in favour of ALPN. We believe that ALPN is significantly more
+        widely deployed than NPN. The SSL_select_next_proto function accepts a list of
+        protocols from the server and a list of protocols from the client and returns
+        the first protocol that appears in the server list that also appears in the
+        client list. In the case of no overlap between the two lists it returns the
+        first item in the client list. In either case it will signal whether an overlap
+        between the two lists was found. In the case where SSL_select_next_proto is
+        called with a zero length client list it fails to notice this condition and
+        returns the memory immediately following the client list pointer (and reports
+        that there was no overlap in the lists).</p>
+        <p>This function is typically called from a server side application callback for
+        ALPN or a client side application callback for NPN. In the case of ALPN the list
+        of protocols supplied by the client is guaranteed by libssl to never be zero in
+        length. The list of server protocols comes from the application and should never
+        normally be expected to be of zero length. In this case if the
+        SSL_select_next_proto function has been called as expected (with the list
+        supplied by the client passed in the client/client_len parameters), then the
+        application will not be vulnerable to this issue. If the application has
+        accidentally been configured with a zero length server list, and has
+        accidentally passed that zero length server list in the client/client_len
+        parameters, and has additionally failed to correctly handle a &#34;no overlap&#34;
+        response (which would normally result in a handshake failure in ALPN) then it
+        will be vulnerable to this problem.</p>
+        <p>In the case of NPN, the protocol permits the client to opportunistically select
+        a protocol when there is no overlap. OpenSSL returns the first client protocol
+        in the no overlap case in support of this. The list of client protocols comes
+        from the application and should never normally be expected to be of zero length.
+        However if the SSL_select_next_proto function is accidentally called with a
+        client_len of 0 then an invalid memory pointer will be returned instead. If the
+        application uses this output as the opportunistic protocol then the loss of
+        confidentiality will occur.</p>
+        <p>This issue has been assessed as Low severity because applications are most
+        likely to be vulnerable if they are using NPN instead of ALPN - but NPN is not
+        widely used. It also requires an application configuration or programming error.
+        Finally, this issue would not typically be under attacker control making active
+        exploitation unlikely.</p>
+        <p>The FIPS modules in 3.3, 3.2, 3.1 and 3.0 are not affected by this issue.</p>
+        <p>Due to the low severity of this issue we are not issuing new releases of
+        OpenSSL at this time. The fix will be included in the next releases when they
+        become available.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.20</code> <code>openssl</code> to version 3.3.1-r1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/4ada436a1946cbb24db5ab4ca082b69c1bc10f37">https://github.com/openssl/openssl/commit/4ada436a1946cbb24db5ab4ca082b69c1bc10f37</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/99fb785a5f85315b95288921a321a935ea29a51e">https://github.com/openssl/openssl/commit/99fb785a5f85315b95288921a321a935ea29a51e</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/cf6f91f6121f4db167405db2f0de410a456f260c">https://github.com/openssl/openssl/commit/cf6f91f6121f4db167405db2f0de410a456f260c</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/e86ac436f0bd54d4517745483e2315650fae7b2c">https://github.com/openssl/openssl/commit/e86ac436f0bd54d4517745483e2315650fae7b2c</a></li>
+        <li><a href="https://github.openssl.org/openssl/extended-releases/commit/9947251413065a05189a63c9b7a6c1d4e224c21c">https://github.openssl.org/openssl/extended-releases/commit/9947251413065a05189a63c9b7a6c1d4e224c21c</a></li>
+        <li><a href="https://github.openssl.org/openssl/extended-releases/commit/b78ec0824da857223486660177d3b1f255c65d87">https://github.openssl.org/openssl/extended-releases/commit/b78ec0824da857223486660177d3b1f255c65d87</a></li>
+        <li><a href="https://www.openssl.org/news/secadv/20240627.txt">https://www.openssl.org/news/secadv/20240627.txt</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2024/06/27/1">http://www.openwall.com/lists/oss-security/2024/06/27/1</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2024/06/28/4">http://www.openwall.com/lists/oss-security/2024/06/28/4</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20240712-0005/">https://security.netapp.com/advisory/ntap-20240712-0005/</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE320-OPENSSL-7413532">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->

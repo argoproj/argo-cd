@@ -5436,6 +5436,33 @@ spec:
                                         - passwordRef
                                         - username
                                         type: object
+                                      bearerToken:
+                                        properties:
+                                          tokenRef:
+                                            properties:
+                                              key:
+                                                type: string
+                                              secretName:
+                                                type: string
+                                            required:
+                                            - key
+                                            - secretName
+                                            type: object
+                                        required:
+                                        - tokenRef
+                                        type: object
+                                      caRef:
+                                        properties:
+                                          configMapName:
+                                            type: string
+                                          key:
+                                            type: string
+                                        required:
+                                        - configMapName
+                                        - key
+                                        type: object
+                                      insecure:
+                                        type: boolean
                                       project:
                                         type: string
                                       repo:
@@ -5511,6 +5538,16 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      caRef:
+                                        properties:
+                                          configMapName:
+                                            type: string
+                                          key:
+                                            type: string
+                                        required:
+                                        - configMapName
+                                        - key
+                                        type: object
                                       insecure:
                                         type: boolean
                                       labels:
@@ -6191,6 +6228,33 @@ spec:
                                         - passwordRef
                                         - username
                                         type: object
+                                      bearerToken:
+                                        properties:
+                                          tokenRef:
+                                            properties:
+                                              key:
+                                                type: string
+                                              secretName:
+                                                type: string
+                                            required:
+                                            - key
+                                            - secretName
+                                            type: object
+                                        required:
+                                        - tokenRef
+                                        type: object
+                                      caRef:
+                                        properties:
+                                          configMapName:
+                                            type: string
+                                          key:
+                                            type: string
+                                        required:
+                                        - configMapName
+                                        - key
+                                        type: object
+                                      insecure:
+                                        type: boolean
                                       project:
                                         type: string
                                     required:
@@ -6271,6 +6335,16 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
+                                      caRef:
+                                        properties:
+                                          configMapName:
+                                            type: string
+                                          key:
+                                            type: string
+                                        required:
+                                        - configMapName
+                                        - key
+                                        type: object
                                       group:
                                         type: string
                                       includeSharedProjects:
@@ -10496,6 +10570,33 @@ spec:
                                         - passwordRef
                                         - username
                                         type: object
+                                      bearerToken:
+                                        properties:
+                                          tokenRef:
+                                            properties:
+                                              key:
+                                                type: string
+                                              secretName:
+                                                type: string
+                                            required:
+                                            - key
+                                            - secretName
+                                            type: object
+                                        required:
+                                        - tokenRef
+                                        type: object
+                                      caRef:
+                                        properties:
+                                          configMapName:
+                                            type: string
+                                          key:
+                                            type: string
+                                        required:
+                                        - configMapName
+                                        - key
+                                        type: object
+                                      insecure:
+                                        type: boolean
                                       project:
                                         type: string
                                       repo:
@@ -10571,6 +10672,16 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      caRef:
+                                        properties:
+                                          configMapName:
+                                            type: string
+                                          key:
+                                            type: string
+                                        required:
+                                        - configMapName
+                                        - key
+                                        type: object
                                       insecure:
                                         type: boolean
                                       labels:
@@ -11251,6 +11362,33 @@ spec:
                                         - passwordRef
                                         - username
                                         type: object
+                                      bearerToken:
+                                        properties:
+                                          tokenRef:
+                                            properties:
+                                              key:
+                                                type: string
+                                              secretName:
+                                                type: string
+                                            required:
+                                            - key
+                                            - secretName
+                                            type: object
+                                        required:
+                                        - tokenRef
+                                        type: object
+                                      caRef:
+                                        properties:
+                                          configMapName:
+                                            type: string
+                                          key:
+                                            type: string
+                                        required:
+                                        - configMapName
+                                        - key
+                                        type: object
+                                      insecure:
+                                        type: boolean
                                       project:
                                         type: string
                                     required:
@@ -11331,6 +11469,16 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
+                                      caRef:
+                                        properties:
+                                          configMapName:
+                                            type: string
+                                          key:
+                                            type: string
+                                        required:
+                                        - configMapName
+                                        - key
+                                        type: object
                                       group:
                                         type: string
                                       includeSharedProjects:
@@ -13197,6 +13345,33 @@ spec:
                               - passwordRef
                               - username
                               type: object
+                            bearerToken:
+                              properties:
+                                tokenRef:
+                                  properties:
+                                    key:
+                                      type: string
+                                    secretName:
+                                      type: string
+                                  required:
+                                  - key
+                                  - secretName
+                                  type: object
+                              required:
+                              - tokenRef
+                              type: object
+                            caRef:
+                              properties:
+                                configMapName:
+                                  type: string
+                                key:
+                                  type: string
+                              required:
+                              - configMapName
+                              - key
+                              type: object
+                            insecure:
+                              type: boolean
                             project:
                               type: string
                             repo:
@@ -13272,6 +13447,16 @@ spec:
                           properties:
                             api:
                               type: string
+                            caRef:
+                              properties:
+                                configMapName:
+                                  type: string
+                                key:
+                                  type: string
+                              required:
+                              - configMapName
+                              - key
+                              type: object
                             insecure:
                               type: boolean
                             labels:
@@ -13952,6 +14137,33 @@ spec:
                               - passwordRef
                               - username
                               type: object
+                            bearerToken:
+                              properties:
+                                tokenRef:
+                                  properties:
+                                    key:
+                                      type: string
+                                    secretName:
+                                      type: string
+                                  required:
+                                  - key
+                                  - secretName
+                                  type: object
+                              required:
+                              - tokenRef
+                              type: object
+                            caRef:
+                              properties:
+                                configMapName:
+                                  type: string
+                                key:
+                                  type: string
+                              required:
+                              - configMapName
+                              - key
+                              type: object
+                            insecure:
+                              type: boolean
                             project:
                               type: string
                           required:
@@ -14032,6 +14244,16 @@ spec:
                               type: boolean
                             api:
                               type: string
+                            caRef:
+                              properties:
+                                configMapName:
+                                  type: string
+                                key:
+                                  type: string
+                              required:
+                              - configMapName
+                              - key
+                              type: object
                             group:
                               type: string
                             includeSharedProjects:

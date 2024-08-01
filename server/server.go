@@ -228,6 +228,7 @@ type ArgoCDServerOpts struct {
 	ContentSecurityPolicy   string
 	ApplicationNamespaces   []string
 	EnableProxyExtension    bool
+	WebhookParallelism      int
 }
 
 type ApplicationSetOpts struct {
@@ -325,7 +326,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	sg := extension.NewDefaultSettingsGetter(settingsMgr)
 	ag := extension.NewDefaultApplicationGetter(appLister)
 	pg := extension.NewDefaultProjectGetter(projLister, dbInstance)
-	em := extension.NewManager(logger, sg, ag, pg, enf)
+	em := extension.NewManager(logger, sg, ag, pg, enf, util_session.Username)
 
 	a := &ArgoCDServer{
 		ArgoCDServerOpts:   opts,
@@ -646,6 +647,7 @@ func (a *ArgoCDServer) watchSettings() {
 	a.settingsMgr.Subscribe(updateCh)
 
 	prevURL := a.settings.URL
+	prevAdditionalURLs := a.settings.AdditionalURLs
 	prevOIDCConfig := a.settings.OIDCConfig()
 	prevDexCfgBytes, err := dexutil.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
 	errorsutil.CheckError(err)
@@ -675,6 +677,10 @@ func (a *ArgoCDServer) watchSettings() {
 		}
 		if prevURL != a.settings.URL {
 			log.Infof("url modified. restarting")
+			break
+		}
+		if !reflect.DeepEqual(prevAdditionalURLs, a.settings.AdditionalURLs) {
+			log.Infof("additionalURLs modified. restarting")
 			break
 		}
 		if prevGitHubSecret != a.settings.WebhookGitHubSecret {
@@ -1072,7 +1078,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.ArgoCDServerOpts.ApplicationNamespaces, a.AppClientset, a.settings, a.settingsMgr, a.RepoServerCache, a.Cache, argoDB)
+	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.ArgoCDServerOpts.ApplicationNamespaces, a.ArgoCDServerOpts.WebhookParallelism, a.AppClientset, a.settings, a.settingsMgr, a.RepoServerCache, a.Cache, argoDB, a.settingsMgr.GetMaxWebhookPayloadSize())
 
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 

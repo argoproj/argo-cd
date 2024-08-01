@@ -128,23 +128,26 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, nil
 	}
 
+	if err := r.migrateStatus(ctx, &applicationSetInfo); err != nil {
+		logCtx.Errorf("failed to migrate status subresource %v", err)
+		return ctrl.Result{}, err
+	}
+
 	// Log a warning if there are unrecognized generators
 	_ = utils.CheckInvalidGenerators(&applicationSetInfo)
 	// desiredApplications is the main list of all expected Applications from all generators in this appset.
-	desiredApplications, applicationSetReason, generatorsErr := template.GenerateApplications(logCtx, applicationSetInfo, r.Generators, r.Renderer, r.Client)
-	if generatorsErr != nil {
+	desiredApplications, applicationSetReason, err := template.GenerateApplications(logCtx, applicationSetInfo, r.Generators, r.Renderer, r.Client)
+	if err != nil {
 		_ = r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
 			argov1alpha1.ApplicationSetCondition{
 				Type:    argov1alpha1.ApplicationSetConditionErrorOccurred,
-				Message: generatorsErr.Error(),
+				Message: err.Error(),
 				Reason:  string(applicationSetReason),
 				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 			}, parametersGenerated,
 		)
-		if len(desiredApplications) < 1 {
-			return ctrl.Result{}, generatorsErr
-		}
+		return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, err
 	}
 
 	parametersGenerated = true
@@ -322,7 +325,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	requeueAfter := r.getMinRequeueAfter(&applicationSetInfo)
 
-	if len(validateErrors) == 0 && generatorsErr == nil {
+	if len(validateErrors) == 0 {
 		if err := r.setApplicationSetStatusCondition(ctx,
 			&applicationSetInfo,
 			argov1alpha1.ApplicationSetCondition{
@@ -841,14 +844,14 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 func (r *ApplicationSetReconciler) removeOwnerReferencesOnDeleteAppSet(ctx context.Context, applicationSet argov1alpha1.ApplicationSet) error {
 	applications, err := r.getCurrentApplications(ctx, applicationSet)
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting current applications for ApplicationSet: %w", err)
 	}
 
 	for _, app := range applications {
 		app.SetOwnerReferences([]metav1.OwnerReference{})
 		err := r.Client.Update(ctx, &app)
 		if err != nil {
-			return err
+			return fmt.Errorf("error updating application: %w", err)
 		}
 	}
 
@@ -1069,6 +1072,13 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 		} else {
 			// we have an existing AppStatus
 			currentAppStatus = applicationSet.Status.ApplicationStatus[idx]
+
+			// upgrade any existing AppStatus that might have been set by an older argo-cd version
+			// note: currentAppStatus.TargetRevisions may be set to empty list earlier during migrations,
+			// to prevent other usage of r.Client.Status().Update to fail before reaching here.
+			if currentAppStatus.TargetRevisions == nil || len(currentAppStatus.TargetRevisions) == 0 {
+				currentAppStatus.TargetRevisions = app.Status.GetRevisions()
+			}
 		}
 
 		appOutdated := false
@@ -1264,6 +1274,27 @@ func findApplicationStatusIndex(appStatuses []argov1alpha1.ApplicationSetApplica
 		}
 	}
 	return -1
+}
+
+// migrateStatus run migrations on the status subresource of ApplicationSet early during the run of ApplicationSetReconciler.Reconcile
+// this handles any defaulting of values - which would otherwise cause the references to r.Client.Status().Update to fail given missing required fields.
+func (r *ApplicationSetReconciler) migrateStatus(ctx context.Context, appset *argov1alpha1.ApplicationSet) error {
+	update := false
+	if statusList := appset.Status.ApplicationStatus; statusList != nil {
+		for idx := range statusList {
+			if statusList[idx].TargetRevisions == nil {
+				statusList[idx].TargetRevisions = []string{}
+				update = true
+			}
+		}
+	}
+
+	if update {
+		if err := r.Client.Status().Update(ctx, appset); err != nil {
+			return fmt.Errorf("unable to set application set status: %w", err)
+		}
+	}
+	return nil
 }
 
 func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, apps []argov1alpha1.Application) error {

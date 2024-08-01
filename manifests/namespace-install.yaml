@@ -138,6 +138,8 @@ rules:
   - appprojects
   verbs:
   - get
+  - list
+  - watch
 - apiGroups:
   - argoproj.io
   resources:
@@ -803,6 +805,12 @@ spec:
               key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.webhook.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-applicationset-controller
@@ -897,7 +905,7 @@ spec:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.38.0
+        image: ghcr.io/dexidp/dex:v2.40.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -1735,6 +1743,12 @@ spec:
               key: server.api.content.types
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              key: server.webhook.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING
           valueFrom:
             configMapKeyRef:
@@ -1800,6 +1814,8 @@ spec:
           name: plugins-home
         - mountPath: /tmp
           name: tmp
+        - mountPath: /home/argocd/params
+          name: argocd-cmd-params-cm
       serviceAccountName: argocd-server
       volumes:
       - emptyDir: {}
@@ -1832,6 +1848,13 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-dex-server-tls
+      - configMap:
+          items:
+          - key: server.profile.enabled
+            path: profiler.enabled
+          name: argocd-cmd-params-cm
+          optional: true
+        name: argocd-cmd-params-cm
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -2083,6 +2106,8 @@ spec:
           name: argocd-repo-server-tls
         - mountPath: /home/argocd
           name: argocd-home
+        - mountPath: /home/argocd/params
+          name: argocd-cmd-params-cm
         workingDir: /home/argocd
       serviceAccountName: argocd-application-controller
       volumes:
@@ -2099,6 +2124,13 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
+      - configMap:
+          items:
+          - key: controller.profile.enabled
+            path: profiler.enabled
+          name: argocd-cmd-params-cm
+          optional: true
+        name: argocd-cmd-params-cm
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

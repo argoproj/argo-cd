@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:7.2.5@sha256:e422889e156ebea83856b6ff973bfe0c86bce867d80def228044eeecf925592b as redis
+FROM docker.io/library/redis:7.2.5@sha256:5a82749600e03e4c4208276283f1f39d2dfde31700582c5a0b3e4ab48a2ddf7e as redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
@@ -6,13 +6,13 @@ FROM docker.io/library/redis:7.2.5@sha256:e422889e156ebea83856b6ff973bfe0c86bce8
 RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 
 # Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
-FROM docker.io/library/node:22.3.0@sha256:5e4044ff6001d06e7748e35bfa4f80c73cf5f5a7360a1b782995e038a01b0585 as node
+FROM docker.io/library/node:22.5.1@sha256:86915971d2ce1548842315fcce7cda0da59319a4dab6b9fc0827e762ef04683a as node
 
-FROM docker.io/library/golang:1.22.4@sha256:c2010b9c2342431a24a2e64e33d9eb2e484af49e72c820e200d332d214d5e61f as golang
+FROM docker.io/library/golang:1.23rc1@sha256:a7c0d04150f3c9bf69582f3f0dd324473e22355982dfb654294a9b6be862655c as golang
 
-FROM docker.io/library/registry:2.8@sha256:4fac7a8257b1d7a86599043fcc181dfbdf9c8f57e337db763ac94b0e67c6cfb5 as registry
+FROM docker.io/library/registry:2.8@sha256:79b29591e1601a73f03fcd413e655b72b9abfae5a23f1ad2e883d4942fbb4351 as registry
 
-FROM docker.io/bitnami/kubectl:1.30@sha256:e704ebf9f6974d506d2dbff33dea28b6e996887e60c4ab298c78e10a3d81e249 as kubectl
+FROM docker.io/bitnami/kubectl:1.30@sha256:dc190b7c6b87ba74eabff4e1e78758eed95ebb97b5a186bbdaf2b43625f9a62a as kubectl
 
 FROM docker.io/library/ubuntu:24.04@sha256:3f85b7caad41a95462cf5b787d8a04604c8262cdcdf9a472b8c52ef83375fe15
 
@@ -93,7 +93,8 @@ COPY ./test/container/entrypoint.sh /usr/local/bin
 ARG UID
 
 # Prepare user configuration & build environments
-RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
+RUN userdel -r ubuntu && \
+	useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user && \
     mkdir -p /home/user/.kube && \
     mkdir -p /home/user/.cache && \

@@ -262,6 +262,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: server.api.content.types
                   optional: true
+            - name: ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.webhook.parallelism.limit
+                  optional: true
             - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING
               valueFrom:
                 configMapKeyRef:
@@ -299,6 +305,8 @@ spec:
               name: plugins-home
             - mountPath: /tmp
               name: tmp
+            - name: argocd-cmd-params-cm
+              mountPath: /home/argocd/params
           ports:
             - containerPort: 8080
             - containerPort: 8083
@@ -355,6 +363,13 @@ spec:
                 path: tls.crt
               - key: ca.crt
                 path: ca.crt
+        - name: argocd-cmd-params-cm
+          configMap:
+            optional: true
+            name: argocd-cmd-params-cm
+            items:
+            - key: server.profile.enabled
+              path: profiler.enabled
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

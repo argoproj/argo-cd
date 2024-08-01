@@ -340,13 +340,17 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             title: 'URLs',
             view: (
                 <React.Fragment>
-                    {urls
-                        .map(item => item.split('|'))
-                        .map((parts, i) => (
-                            <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='__blank'>
-                                {parts[0]} &nbsp;
-                            </a>
-                        ))}
+                    <div className='application-summary__links-rows'>
+                        {urls
+                            .map(item => item.split('|'))
+                            .map((parts, i) => (
+                                <div className='application-summary__links-row'>
+                                    <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='_blank'>
+                                        {parts[0]} &nbsp;
+                                    </a>
+                                </div>
+                            ))}
+                    </div>
                 </React.Fragment>
             )
         });

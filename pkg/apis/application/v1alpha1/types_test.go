@@ -7,7 +7,6 @@ import (
 	"os"
 	"path"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -443,7 +442,7 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 		return nil, errors.New("some error")
 	})
 	require.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "could not retrieve project clusters"))
+	assert.Contains(t, err.Error(), "could not retrieve project clusters")
 }
 
 func TestAppProject_IsGroupKindPermitted(t *testing.T) {

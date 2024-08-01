@@ -323,3 +323,46 @@ You can config your secret provider to generate Kubernetes secret accordingly.
 Doing a hard refresh (ignoring the cached error) can overcome transient issues. But if there's an ongoing reason manifest generation is failing, a hard refresh will not help.
 
 Instead, try searching the repo-server logs for the app name in order to identify the error that is causing manifest generation to fail.
+
+## How do I fix `field not declared in schema`?
+
+For certain features, Argo CD relies on a static (hard-coded) set of schemas for built-in Kubernetes resource types.
+
+If your manifests use fields which are not present in the hard-coded schemas, you may get an error like `field not 
+declared in schema`.
+
+The schema version is based on the Kubernetes libraries version that Argo CD is built against. To find the Kubernetes 
+version for a given Argo CD version, navigate to this page, where `X.Y.Z` is the Argo CD version:
+
+```
+https://github.com/argoproj/argo-cd/blob/vX.Y.Z/go.mod
+```
+
+Then find the Kubernetes version in the `go.mod` file. For example, for Argo CD v2.11.4, the Kubernetes libraries 
+version is v0.26.11
+
+```
+	k8s.io/api => k8s.io/api v0.26.11
+```
+
+### How do I fix the issue?
+
+To completely resolve the issue, upgrade to an Argo CD version which contains a static schema supporting all the needed
+fields.
+
+### How do I work around the issue?
+
+As mentioned above, only certain Argo CD features rely on the static schema: 1) `ignoreDifferences` with 
+`managedFieldManagers`, 2) server-side apply _without_ server-side diff, and 3) server-side diff _with_ mutation 
+webhooks. 
+
+If you can avoid using these features, you can avoid triggering the error. The options are as follows:
+
+1. **Disable `ignoreDifferences` which have `managedFieldsManagers`**: see [diffing docs](user-guide/diffing.md) for
+   details about that feature. Removing this config could cause undesired diffing behavior.
+2. **Disable server-side apply**: see [server-side apply docs](user-guide/sync-options.md#server-side-apply) for details about that
+   feature. Disabling server-side apply may have undesired effects on sync behavior. Note that you can bypass this issue 
+   if you use server-side diff and [exclude mutation webhooks from the diff](user-guide/diff-strategies.md#mutation-webhooks).
+   Excluding mutation webhooks from the diff could cause undesired diffing behavior.
+3. **Disable mutation webhooks when using server-side diff**: see [server-side diff docs](user-guide/diff-strategies.md#mutation-webhooks)
+   for details about that feature. Disabling mutation webhooks may have undesired effects on sync behavior.

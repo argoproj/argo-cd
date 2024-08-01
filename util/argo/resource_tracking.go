@@ -149,6 +149,7 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		if err != nil {
 			return fmt.Errorf("failed to set app instance label: %w", err)
 		}
+		return nil
 	case TrackingMethodAnnotation:
 		return setAppInstanceAnnotation()
 	case TrackingMethodAnnotationAndLabel:
@@ -171,13 +172,14 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		if err != nil {
 			return fmt.Errorf("failed to set app instance label: %w", err)
 		}
+		return nil
 	default:
 		err := argokube.SetAppInstanceLabel(un, key, val)
 		if err != nil {
 			return fmt.Errorf("failed to set app instance label: %w", err)
 		}
+		return nil
 	}
-	return nil
 }
 
 // BuildAppInstanceValue build resource tracking id in format <application-name>;<group>/<kind>/<namespace>/<name>

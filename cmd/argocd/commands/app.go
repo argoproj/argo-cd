@@ -776,8 +776,6 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				}
 			}
 
-			// sourcePosition startes with 1, thus, it needs to be decreased by 1 to find the correct index in the list of sources
-			sourcePosition = sourcePosition - 1
 			visited := cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts, sourcePosition)
 			if visited == 0 {
 				log.Error("Please set at least one option to update")
@@ -2169,7 +2167,7 @@ func getAppNamesBySelector(ctx context.Context, appIf application.ApplicationSer
 	return appNames, nil
 }
 
-// ResourceDiff tracks the state of a resource when waiting on an application status.
+// ResourceState tracks the state of a resource when waiting on an application status.
 type resourceState struct {
 	Group     string
 	Kind      string
@@ -2361,6 +2359,10 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	// time when the sync status lags behind when an operation completes
 	refresh := false
 
+	// printSummary controls whether we print the app summary table, OperationState, and ResourceState
+	// We don't want to print these when output type is json or yaml, as the output would become unparsable.
+	printSummary := output != "json" && output != "yaml"
+
 	appRealName, appNs := argo.ParseFromQualifiedName(appName, "")
 
 	printFinalStatus := func(app *argoappv1.Application) *argoappv1.Application {
@@ -2377,11 +2379,13 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			_ = conn.Close()
 		}
 
-		fmt.Println()
-		printAppSummaryTable(app, appURL(ctx, acdClient, appName), nil)
-		fmt.Println()
-		if watch.operation {
-			printOperationResult(app.Status.OperationState)
+		if printSummary {
+			fmt.Println()
+			printAppSummaryTable(app, appURL(ctx, acdClient, appName), nil)
+			fmt.Println()
+			if watch.operation {
+				printOperationResult(app.Status.OperationState)
+			}
 		}
 
 		switch output {
@@ -2396,13 +2400,13 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 				_ = w.Flush()
 			}
 		case "tree":
-			mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
+			mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appRealName, appNs)
 			if len(mapUidToNode) > 0 {
 				fmt.Println()
 				printTreeView(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
 			}
 		case "tree=detailed":
-			mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
+			mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appRealName, appNs)
 			if len(mapUidToNode) > 0 {
 				fmt.Println()
 				printTreeViewDetailed(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
@@ -2421,17 +2425,26 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
-			fmt.Println()
-			fmt.Println("This is the state of the app after `wait` timed out:")
+
+			if printSummary {
+				fmt.Println()
+				fmt.Println("This is the state of the app after `wait` timed out:")
+			}
+
 			printFinalStatus(app)
 			cancel()
-			fmt.Println()
-			fmt.Println("The command timed out waiting for the conditions to be met.")
+
+			if printSummary {
+				fmt.Println()
+				fmt.Println("The command timed out waiting for the conditions to be met.")
+			}
 		})
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, waitFormatString, "TIMESTAMP", "GROUP", "KIND", "NAMESPACE", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
+	if printSummary {
+		_, _ = fmt.Fprintf(w, waitFormatString, "TIMESTAMP", "GROUP", "KIND", "NAMESPACE", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
+	}
 
 	prevStates := make(map[string]*resourceState)
 	conn, appClient := acdClient.NewApplicationClientOrDie()
@@ -2515,7 +2528,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 				prevStates[stateKey] = newState
 				doPrint = true
 			}
-			if doPrint {
+			if doPrint && printSummary {
 				_, _ = fmt.Fprintf(w, waitFormatString, prevStates[stateKey].FormatItems()...)
 			}
 		}

@@ -56,6 +56,11 @@ type reactorDef struct {
 }
 
 func NewMockHandler(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
+	defaultMaxPayloadSize := int64(1) * 1024 * 1024 * 1024
+	return NewMockHandlerWithPayloadLimit(reactor, applicationNamespaces, defaultMaxPayloadSize, objects...)
+}
+
+func NewMockHandlerWithPayloadLimit(reactor *reactorDef, applicationNamespaces []string, maxPayloadSize int64, objects ...runtime.Object) *ArgoCDWebhookHandler {
 	appClientset := appclientset.NewSimpleClientset(objects...)
 	if reactor != nil {
 		defaultReactor := appClientset.ReactionChain[0]
@@ -67,12 +72,12 @@ func NewMockHandler(reactor *reactorDef, applicationNamespaces []string, objects
 	}
 	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
 
-	return NewHandler("argocd", applicationNamespaces, appClientset, &settings.ArgoCDSettings{}, &fakeSettingsSrc{}, cache.NewCache(
+	return NewHandler("argocd", applicationNamespaces, 10, appClientset, &settings.ArgoCDSettings{}, &fakeSettingsSrc{}, cache.NewCache(
 		cacheClient,
 		1*time.Minute,
 		1*time.Minute,
 		10*time.Second,
-	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute, time.Minute), &mocks.ArgoDB{})
+	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute, time.Minute), &mocks.ArgoDB{}, maxPayloadSize)
 }
 
 func TestGitHubCommitEvent(t *testing.T) {
@@ -85,6 +90,8 @@ func TestGitHubCommitEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://github.com/jessesuen/test-repo, revision: master, touchedHead: true"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
@@ -101,6 +108,8 @@ func TestAzureDevOpsCommitEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://dev.azure.com/alexander0053/alex-test/_git/alex-test, revision: master, touchedHead: true"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
@@ -156,6 +165,8 @@ func TestGitHubCommitEvent_MultiSource_Refresh(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Requested app 'app-to-refresh' refresh"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
@@ -237,6 +248,8 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	logMessages := make([]string, 0, len(hook.Entries))
@@ -269,6 +282,8 @@ func TestGitHubTagEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://github.com/jessesuen/test-repo, revision: v1.0, touchedHead: false"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
@@ -285,6 +300,8 @@ func TestGitHubPingEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Ignoring webhook event"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
@@ -301,6 +318,8 @@ func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResultSsh := "Received push event repo: ssh://git@bitbucketserver:7999/myproject/test-repo.git, revision: master, touchedHead: true"
 	assert.Equal(t, expectedLogResultSsh, hook.AllEntries()[len(hook.AllEntries())-2].Message)
@@ -317,6 +336,8 @@ func TestBitbucketServerRepositoryDiagnosticPingEvent(t *testing.T) {
 	req.Header.Set("X-Event-Key", "diagnostics:ping")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Ignoring webhook event"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
@@ -333,6 +354,8 @@ func TestGogsPushEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: http://gogs-server/john/repo-test, revision: master, touchedHead: true"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
@@ -349,6 +372,8 @@ func TestGitLabPushEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://gitlab/group/name, revision: master, touchedHead: true"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
@@ -365,6 +390,8 @@ func TestGitLabSystemEvent(t *testing.T) {
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://gitlab/group/name, revision: master, touchedHead: true"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
@@ -378,6 +405,8 @@ func TestInvalidMethod(t *testing.T) {
 	req.Header.Set("X-GitHub-Event", "push")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 	expectedLogResult := "Webhook processing failed: invalid HTTP Method"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
@@ -392,8 +421,10 @@ func TestInvalidEvent(t *testing.T) {
 	req.Header.Set("X-GitHub-Event", "push")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	expectedLogResult := "Webhook processing failed: error parsing payload"
+	expectedLogResult := "Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under 1024 MB) and ensure it is valid JSON"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
 	hook.Reset()
@@ -406,6 +437,8 @@ func TestUnknownEvent(t *testing.T) {
 	req.Header.Set("X-Unknown-Event", "push")
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assert.Equal(t, "Unknown webhook event\n", w.Body.String())
 	hook.Reset()
@@ -603,4 +636,23 @@ func Test_getWebUrlRegex(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGitHubCommitEventMaxPayloadSize(t *testing.T) {
+	hook := test.NewGlobal()
+	maxPayloadSize := int64(100)
+	h := NewMockHandlerWithPayloadLimit(nil, []string{}, maxPayloadSize)
+	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
+	req.Header.Set("X-GitHub-Event", "push")
+	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
+	require.NoError(t, err)
+	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	expectedLogResult := "Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under 0 MB) and ensure it is valid JSON"
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
+	hook.Reset()
 }

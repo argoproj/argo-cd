@@ -54,3 +54,30 @@ func TestRunWithExecRunOpts(t *testing.T) {
 	_, err := RunWithExecRunOpts(exec.Command("sh", "-c", "trap 'trap - 15 && echo captured && exit' 15 && sleep 2"), opts)
 	assert.Contains(t, err.Error(), "failed timeout after 200ms")
 }
+
+func Test_getCommandArgsToLog(t *testing.T) {
+	testCases := []struct {
+		name     string
+		args     []string
+		expected string
+	}{
+		{
+			name:     "no spaces",
+			args:     []string{"sh", "-c", "cat"},
+			expected: "sh -c cat",
+		},
+		{
+			name:     "spaces",
+			args:     []string{"sh", "-c", `echo "hello world"`},
+			expected: `sh -c "echo \"hello world\""`,
+		},
+	}
+
+	for _, tc := range testCases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tcc.expected, GetCommandArgsToLog(exec.Command(tcc.args[0], tcc.args[1:]...)))
+		})
+	}
+}

@@ -9,8 +9,6 @@ import (
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
-//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=Generator
-
 // Generator defines the interface implemented by all ApplicationSet generators.
 type Generator interface {
 	// GenerateParams interprets the ApplicationSet and generates all relevant parameters for the application template.

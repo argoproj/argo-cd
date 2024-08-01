@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -340,7 +341,7 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 
 	res, err := service.GenerateManifest(context.Background(), &q)
 	require.NoError(t, err)
-	assert.Positive(t, len(res.Manifests))
+	assert.NotEmpty(t, res.Manifests)
 	mockCache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets:    2,
 		ExternalGets:    2,
@@ -610,6 +611,7 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 	err = os.WriteFile("./testdata/oob-symlink/values.yaml", []byte("foo: bar"), 0o644)
 	require.NoError(t, err)
 	spec := argoappv1.ApplicationSpec{
+		Project: "default",
 		Sources: []argoappv1.ApplicationSource{
 			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &argoappv1.ApplicationSourceHelm{
 				// Reference `ref` but do not use the oob symlink. The mere existence of the link should be enough to
@@ -2224,6 +2226,72 @@ func TestGenerateManifestWithAnnotatedTagsAndMultiSourceApp(t *testing.T) {
 
 	if response.Revision != annotatedGitTaghash {
 		t.Errorf("returned SHA %s is different from expected annotated tag %s", response.Revision, annotatedGitTaghash)
+	}
+}
+
+func TestGenerateMultiSourceHelmWithFileParameter(t *testing.T) {
+	expectedFileContent, err := os.ReadFile("../../util/helm/testdata/external/external-secret.txt")
+	require.NoError(t, err)
+
+	service := newService(t, "../../util/helm/testdata")
+
+	testCases := []struct {
+		name            string
+		refSources      map[string]*argoappv1.RefTarget
+		expectedContent string
+		expectedErr     bool
+	}{{
+		name: "Successfully resolve multi-source ref for helm set-file",
+		refSources: map[string]*argoappv1.RefTarget{
+			"$global": {
+				TargetRevision: "HEAD",
+			},
+		},
+		expectedContent: string(expectedFileContent),
+		expectedErr:     false,
+	}, {
+		name:            "Failed to resolve multi-source ref for helm set-file",
+		refSources:      map[string]*argoappv1.RefTarget{},
+		expectedContent: "DOES-NOT-EXIST",
+		expectedErr:     true,
+	}}
+
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			manifestRequest := &apiclient.ManifestRequest{
+				Repo: &argoappv1.Repository{},
+				ApplicationSource: &argoappv1.ApplicationSource{
+					Ref:            "$global",
+					Path:           "./redis",
+					TargetRevision: "HEAD",
+					Helm: &argoappv1.ApplicationSourceHelm{
+						ValueFiles: []string{"$global/redis/values-production.yaml"},
+						FileParameters: []argoappv1.HelmFileParameter{{
+							Name: "passwordContent",
+							Path: "$global/external/external-secret.txt",
+						}},
+					},
+				},
+				HasMultipleSources: true,
+				NoCache:            true,
+				RefSources:         tc.refSources,
+			}
+
+			res, err := service.GenerateManifest(context.Background(), manifestRequest)
+
+			if !tc.expectedErr {
+				require.NoError(t, err)
+
+				// Check that any of the manifests contains the secret
+				idx := slices.IndexFunc(res.Manifests, func(content string) bool {
+					return strings.Contains(content, tc.expectedContent)
+				})
+				assert.GreaterOrEqual(t, idx, 0, "No manifest contains the value set with the helm fileParameters")
+			} else {
+				assert.Error(t, err)
+			}
+		})
 	}
 }
 
