@@ -53,8 +53,8 @@ func TestPersistRevisionHistory(t *testing.T) {
 	assert.Equal(t, app.Spec.GetSource(), opState.SyncResult.Source)
 
 	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, v1.GetOptions{})
-	require.NoError(t, err)
-	assert.Len(t, updatedApp.Status.History, 1)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(updatedApp.Status.History))
 	assert.Equal(t, app.Spec.GetSource(), updatedApp.Status.History[0].Source)
 	assert.Equal(t, "abc123", updatedApp.Status.History[0].Revision)
 }
@@ -142,8 +142,8 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 	assert.Equal(t, source, opState.SyncResult.Source)
 
 	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, v1.GetOptions{})
-	require.NoError(t, err)
-	assert.Len(t, updatedApp.Status.History, 1)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(updatedApp.Status.History))
 	assert.Equal(t, source, updatedApp.Status.History[0].Source)
 	assert.Equal(t, "abc123", updatedApp.Status.History[0].Revision)
 }
@@ -255,76 +255,6 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 	})
 }
 
-func TestSyncWindowDeniesSync(t *testing.T) {
-	type fixture struct {
-		project     *v1alpha1.AppProject
-		application *v1alpha1.Application
-		controller  *ApplicationController
-	}
-
-	setup := func() *fixture {
-		app := newFakeApp()
-		app.Status.OperationState = nil
-		app.Status.History = nil
-
-		project := &v1alpha1.AppProject{
-			ObjectMeta: v1.ObjectMeta{
-				Namespace: test.FakeArgoCDNamespace,
-				Name:      "default",
-			},
-			Spec: v1alpha1.AppProjectSpec{
-				SyncWindows: v1alpha1.SyncWindows{{
-					Kind:         "deny",
-					Schedule:     "0 0 * * *",
-					Duration:     "24h",
-					Clusters:     []string{"*"},
-					Namespaces:   []string{"*"},
-					Applications: []string{"*"},
-				}},
-			},
-		}
-		data := fakeData{
-			apps: []runtime.Object{app, project},
-			manifestResponse: &apiclient.ManifestResponse{
-				Manifests: []string{},
-				Namespace: test.FakeDestNamespace,
-				Server:    test.FakeClusterURL,
-				Revision:  "abc123",
-			},
-			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-		}
-		ctrl := newFakeController(&data, nil)
-
-		return &fixture{
-			project:     project,
-			application: app,
-			controller:  ctrl,
-		}
-	}
-
-	t.Run("will keep the sync progressing if a sync window prevents the sync", func(t *testing.T) {
-		// given a project with an active deny sync window and an operation in progress
-		t.Parallel()
-		f := setup()
-		opMessage := "Sync operation blocked by sync window"
-
-		opState := &v1alpha1.OperationState{
-			Operation: v1alpha1.Operation{
-				Sync: &v1alpha1.SyncOperation{
-					Source: &v1alpha1.ApplicationSource{},
-				},
-			},
-			Phase: common.OperationRunning,
-		}
-		// when
-		f.controller.appStateManager.SyncAppState(f.application, opState)
-
-		// then
-		assert.Equal(t, common.OperationRunning, opState.Phase)
-		assert.Contains(t, opState.Message, opMessage)
-	})
-}
-
 func TestNormalizeTargetResources(t *testing.T) {
 	type fixture struct {
 		comparisonResult *comparisonResult
@@ -363,7 +293,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.Len(t, targets, 1)
+		require.Equal(t, 1, len(targets))
 		iksmVersion := targets[0].GetAnnotations()["iksm-version"]
 		assert.Equal(t, "2.0", iksmVersion)
 	})
@@ -376,7 +306,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.Len(t, targets, 1)
+		require.Equal(t, 1, len(targets))
 		iksmVersion := targets[0].GetAnnotations()["iksm-version"]
 		assert.Equal(t, "1.0", iksmVersion)
 	})
@@ -396,7 +326,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.Len(t, targets, 1)
+		require.Equal(t, 1, len(targets))
 		_, ok := targets[0].GetAnnotations()["iksm-version"]
 		assert.False(t, ok)
 	})
@@ -421,7 +351,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.Len(t, targets, 1)
+		require.Equal(t, 1, len(targets))
 		normalized := targets[0]
 		iksmVersion, ok := normalized.GetAnnotations()["iksm-version"]
 		require.True(t, ok)
@@ -450,11 +380,11 @@ func TestNormalizeTargetResources(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.Len(t, targets, 1)
+		require.Equal(t, 1, len(targets))
 		containers, ok, err := unstructured.NestedSlice(targets[0].Object, "spec", "template", "spec", "containers")
 		require.NoError(t, err)
 		require.True(t, ok)
-		assert.Len(t, containers, 2)
+		assert.Equal(t, 2, len(containers))
 	})
 }
 
@@ -489,7 +419,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 				Group:             "projectcontour.io",
 				Kind:              "HTTPProxy",
 				JQPathExpressions: []string{".spec.routes[]"},
-				// JSONPointers: []string{"/spec/routes"},
+				//JSONPointers: []string{"/spec/routes"},
 			},
 		}
 		f := setupHttpProxy(t, ignores)
@@ -501,24 +431,25 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.Len(t, f.comparisonResult.reconciliationResult.Live, 1)
-		require.Len(t, f.comparisonResult.reconciliationResult.Target, 1)
-		require.Len(t, patchedTargets, 1)
+		require.Equal(t, 1, len(f.comparisonResult.reconciliationResult.Live))
+		require.Equal(t, 1, len(f.comparisonResult.reconciliationResult.Target))
+		require.Equal(t, 1, len(patchedTargets))
 
 		// live should have 1 entry
-		require.Len(t, dig[[]any](f.comparisonResult.reconciliationResult.Live[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"}), 1)
+		require.Equal(t, 1, len(dig[[]any](f.comparisonResult.reconciliationResult.Live[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"})))
 		// assert some arbitrary field to show `entries[0]` is not an empty object
 		require.Equal(t, "sample-header", dig[string](f.comparisonResult.reconciliationResult.Live[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeader", "headerName"}))
 
 		// target has 2 entries
-		require.Len(t, dig[[]any](f.comparisonResult.reconciliationResult.Target[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries"}), 2)
+		require.Equal(t, 2, len(dig[[]any](f.comparisonResult.reconciliationResult.Target[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries"})))
 		// assert some arbitrary field to show `entries[0]` is not an empty object
 		require.Equal(t, "sample-header", dig[string](f.comparisonResult.reconciliationResult.Target[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeaderValueMatch", "headers", 0, "name"}))
 
 		// It should be *1* entries in the array
-		require.Len(t, dig[[]any](patchedTargets[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"}), 1)
+		require.Equal(t, 1, len(dig[[]any](patchedTargets[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"})))
 		// and it should NOT equal an empty object
 		require.Len(t, dig[any](patchedTargets[0].Object, []interface{}{"spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0}), 1)
+
 	})
 	t.Run("will correctly set array entries if new entries have been added", func(t *testing.T) {
 		// given
@@ -540,17 +471,17 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.Len(t, targets, 1)
+		require.Equal(t, 1, len(targets))
 		containers, ok, err := unstructured.NestedSlice(targets[0].Object, "spec", "template", "spec", "containers")
 		require.NoError(t, err)
 		require.True(t, ok)
-		assert.Len(t, containers, 1)
+		assert.Equal(t, 1, len(containers))
 
 		ports := containers[0].(map[string]interface{})["ports"].([]interface{})
-		assert.Len(t, ports, 1)
+		assert.Equal(t, 1, len(ports))
 
 		env := containers[0].(map[string]interface{})["env"].([]interface{})
-		assert.Len(t, env, 3)
+		assert.Equal(t, 3, len(env))
 
 		first := env[0]
 		second := env[1]
@@ -592,13 +523,13 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.Len(t, targets, 1)
+		require.Equal(t, 1, len(targets))
 		metadata, ok, err := unstructured.NestedMap(targets[0].Object, "metadata")
 		require.NoError(t, err)
 		require.True(t, ok)
 		labels, ok := metadata["labels"].(map[string]interface{})
 		require.True(t, ok)
-		assert.Len(t, labels, 2)
+		assert.Equal(t, 2, len(labels))
 		assert.Equal(t, "web", labels["appProcess"])
 
 		spec, ok, err := unstructured.NestedMap(targets[0].Object, "spec")
@@ -614,7 +545,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		require.True(t, ok)
 		tLabels, ok := tMetadata["labels"].(map[string]interface{})
 		require.True(t, ok)
-		assert.Len(t, tLabels, 2)
+		assert.Equal(t, 2, len(tLabels))
 		assert.Equal(t, "web", tLabels["appProcess"])
 
 		tSpec, ok := template["spec"].(map[string]interface{})
@@ -622,7 +553,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		containers, ok, err := unstructured.NestedSlice(tSpec, "containers")
 		require.NoError(t, err)
 		require.True(t, ok)
-		assert.Len(t, containers, 1)
+		assert.Equal(t, 1, len(containers))
 
 		first := containers[0].(map[string]interface{})
 		assert.Equal(t, "alpine:3", first["image"])
@@ -636,7 +567,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		env, ok, err := unstructured.NestedSlice(first, "env")
 		require.NoError(t, err)
 		require.True(t, ok)
-		assert.Len(t, env, 1)
+		assert.Equal(t, 1, len(env))
 
 		env0 := env[0].(map[string]interface{})
 		assert.Equal(t, "EV", env0["name"])

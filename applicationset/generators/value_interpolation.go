@@ -12,6 +12,7 @@ func appendTemplatedValues(values map[string]string, params map[string]interface
 
 	for key, value := range values {
 		result, err := replaceTemplatedString(value, params, useGoTemplate, goTemplateOptions)
+
 		if err != nil {
 			return fmt.Errorf("failed to replace templated string: %w", err)
 		}

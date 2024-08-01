@@ -22,8 +22,12 @@ This will create a new namespace, `argocd`, where Argo CD services and applicati
     The installation manifests include `ClusterRoleBinding` resources that reference `argocd` namespace. If you are installing Argo CD into a different
     namespace then make sure to update the namespace reference.
 
-!!! tip
-    If you are not interested in UI, SSO, and multi-cluster features, then you can install only the [core](operator-manual/core.md#installing) Argo CD components.
+If you are not interested in UI, SSO, multi-cluster features then you can install [core](operator-manual/installation.md#core) Argo CD components only:
+
+```bash
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/core-install.yaml
+```
 
 This default installation will have a self-signed certificate and cannot be accessed without a bit of extra work.
 Do one of:
@@ -31,12 +35,6 @@ Do one of:
 * Follow the [instructions to configure a certificate](operator-manual/tls.md) (and ensure that the client OS trusts it).
 * Configure the client OS to trust the self signed certificate.
 * Use the --insecure flag on all Argo CD CLI operations in this guide.
-
-!!! note 
-    Default namespace for `kubectl` config must be set to `argocd`.
-    This is only needed for the following commands since the previous commands have -n argocd already:
-    `kubectl config set-context --current --namespace=argocd`
-    
 
 Use `argocd login --core` to [configure](./user-guide/commands/argocd_login.md) CLI access and skip steps 3-5.
 
@@ -217,12 +215,6 @@ events, and assessed health status.
 
 ### Syncing via UI
 
-On the Applications page, click on *Sync* button of the guestbook application:
-
 ![guestbook app](assets/guestbook-app.png)
-
-A panel will be opened and then, click on *Synchronize* button.
-
-You can see more details by clicking at the guestbook application:
-
 ![view app](assets/guestbook-tree.png)
+

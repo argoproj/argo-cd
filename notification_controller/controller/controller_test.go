@@ -5,16 +5,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
-
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func TestIsAppSyncStatusRefreshed(t *testing.T) {
@@ -134,7 +132,7 @@ func TestInit(t *testing.T) {
 
 		err = nc.Init(ctx)
 
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}
 }
 
@@ -170,7 +168,7 @@ func TestInitTimeout(t *testing.T) {
 	err = nc.Init(ctx)
 
 	// Expect an error & add assertion for the error message
-	require.Error(t, err)
+	assert.Error(t, err)
 	assert.Equal(t, "Timed out waiting for caches to sync", err.Error())
 }
 

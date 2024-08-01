@@ -7,7 +7,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"math/big"
 	"net/url"
@@ -104,8 +103,6 @@ type ArgoCDSettings struct {
 	InClusterEnabled bool `json:"inClusterEnabled"`
 	// ServerRBACLogEnforceEnable temporary var indicates whether rbac will be enforced on logs
 	ServerRBACLogEnforceEnable bool `json:"serverRBACLogEnforceEnable"`
-	// MaxPodLogsToRender the maximum number of pod logs to render
-	MaxPodLogsToRender int64 `json:"maxPodLogsToRender"`
 	// ExecEnabled indicates whether the UI exec feature is enabled
 	ExecEnabled bool `json:"execEnabled"`
 	// ExecShells restricts which shells are allowed for `exec` and in which order they are tried
@@ -172,7 +169,6 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		LogoutURL:                o.LogoutURL,
 		RootCA:                   o.RootCA,
 		EnablePKCEAuthentication: o.EnablePKCEAuthentication,
-		DomainHint:               o.DomainHint,
 	}
 }
 
@@ -190,7 +186,6 @@ type OIDCConfig struct {
 	LogoutURL                string                 `json:"logoutURL,omitempty"`
 	RootCA                   string                 `json:"rootCA,omitempty"`
 	EnablePKCEAuthentication bool                   `json:"enablePKCEAuthentication,omitempty"`
-	DomainHint               string                 `json:"domainHint,omitempty"`
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
@@ -434,6 +429,8 @@ const (
 	settingsWebhookAzureDevOpsUsernameKey = "webhook.azuredevops.username"
 	// settingsWebhookAzureDevOpsPasswordKey is the key for Azure DevOps webhook password
 	settingsWebhookAzureDevOpsPasswordKey = "webhook.azuredevops.password"
+	// settingsWebhookMaxPayloadSize is the key for the maximum payload size for webhooks in MB
+	settingsWebhookMaxPayloadSizeMB = "webhook.maxPayloadSizeMB"
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
 	// settingsResourceTrackingMethodKey is the key to configure tracking method for application resources
@@ -448,10 +445,6 @@ const (
 	resourceIgnoreResourceUpdatesEnabledKey = "resource.ignoreResourceUpdatesEnabled"
 	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
 	resourceCustomLabelsKey = "resource.customLabels"
-	// resourceIncludeEventLabelKeys is the key to labels to be added onto Application k8s events if present on an Application or it's AppProject. Supports wildcard.
-	resourceIncludeEventLabelKeys = "resource.includeEventLabelKeys"
-	// resourceExcludeEventLabelKeys is the key to labels to be excluded from adding onto Application's k8s events. Supports wildcard.
-	resourceExcludeEventLabelKeys = "resource.excludeEventLabelKeys"
 	// kustomizeBuildOptionsKey is a string of kustomize build parameters
 	kustomizeBuildOptionsKey = "kustomize.buildOptions"
 	// kustomizeVersionKeyPrefix is a kustomize version key prefix
@@ -494,8 +487,6 @@ const (
 	inClusterEnabledKey = "cluster.inClusterEnabled"
 	// settingsServerRBACLogEnforceEnable is the key to configure whether logs RBAC enforcement is enabled
 	settingsServerRBACLogEnforceEnableKey = "server.rbac.log.enforce.enable"
-	// MaxPodLogsToRender the maximum number of pod logs to render
-	settingsMaxPodLogsToRender = "server.maxPodLogsToRender"
 	// helmValuesFileSchemesKey is the key to configure the list of supported helm values file schemas
 	helmValuesFileSchemesKey = "helm.valuesFileSchemes"
 	// execEnabledKey is the key to configure whether the UI exec feature is enabled
@@ -515,6 +506,11 @@ const (
 	RespectRBAC            = "resource.respectRBAC"
 	RespectRBACValueStrict = "strict"
 	RespectRBACValueNormal = "normal"
+)
+
+const (
+	// default max webhook payload size is 1GB
+	defaultMaxWebhookPayloadSize = int64(1) * 1024 * 1024 * 1024
 )
 
 var sourceTypeToEnableGenerationKey = map[v1alpha1.ApplicationSourceType]string{
@@ -761,11 +757,6 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 	if label == "" {
 		return common.LabelKeyAppInstance, nil
 	}
-	// return new label key if user is still using legacy key
-	if label == common.LabelKeyLegacyApplicationName {
-		log.Warnf("deprecated legacy application instance tracking key(%v) is present in configmap, new key(%v) will be used automatically", common.LabelKeyLegacyApplicationName, common.LabelKeyAppInstance)
-		return common.LabelKeyAppInstance, nil
-	}
 	return label, nil
 }
 
@@ -800,19 +791,6 @@ func (mgr *SettingsManager) GetServerRBACLogEnforceEnable() (bool, error) {
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACLogEnforceEnableKey])
-}
-
-func (mgr *SettingsManager) GetMaxPodLogsToRender() (int64, error) {
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return 10, err
-	}
-
-	if argoCDCM.Data[settingsMaxPodLogsToRender] == "" {
-		return 10, nil
-	}
-
-	return strconv.ParseInt(argoCDCM.Data[settingsMaxPodLogsToRender], 10, 64)
 }
 
 func (mgr *SettingsManager) GetDeepLinks(deeplinkType string) ([]DeepLink, error) {
@@ -1076,7 +1054,7 @@ func (mgr *SettingsManager) GetResourceCompareOptions() (ArgoCDDiffOptions, erro
 func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get argo-cd config map: %w", err)
+		return nil, fmt.Errorf("failed to get argo-cd config map: %v", err)
 	}
 	helmOptions := &v1alpha1.HelmOptions{}
 	if value, ok := argoCDCM.Data[helmValuesFileSchemesKey]; ok {
@@ -1169,6 +1147,7 @@ func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error)
 }
 
 func (mgr *SettingsManager) GetRepositories() ([]Repository, error) {
+
 	mgr.mutex.Lock()
 	reposCache := mgr.reposCache
 	mgr.mutex.Unlock()
@@ -1228,6 +1207,7 @@ func (mgr *SettingsManager) SaveRepositoryCredentials(creds []RepositoryCredenti
 }
 
 func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepositoryCredentials, error) {
+
 	mgr.mutex.Lock()
 	repoCredsCache := mgr.repoCredsCache
 	mgr.mutex.Unlock()
@@ -1399,6 +1379,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 					tryNotify()
 				}
 			}
+
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldMeta, oldOk := oldObj.(metav1.Common)
@@ -1481,13 +1462,6 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	if settings.PasswordPattern == "" {
 		settings.PasswordPattern = common.PasswordPatten
 	}
-	if maxPodLogsToRenderStr, ok := argoCDCM.Data[settingsMaxPodLogsToRender]; ok {
-		if val, err := strconv.ParseInt(maxPodLogsToRenderStr, 10, 64); err != nil {
-			log.Warnf("Failed to parse '%s' key: %v", settingsMaxPodLogsToRender, err)
-		} else {
-			settings.MaxPodLogsToRender = val
-		}
-	}
 	settings.InClusterEnabled = argoCDCM.Data[inClusterEnabledKey] != "false"
 	settings.ExecEnabled = argoCDCM.Data[execEnabledKey] == "true"
 	execShells := argoCDCM.Data[execShellsKey]
@@ -1509,7 +1483,7 @@ func validateExternalURL(u string) error {
 	}
 	URL, err := url.Parse(u)
 	if err != nil {
-		return fmt.Errorf("Failed to parse URL: %w", err)
+		return fmt.Errorf("Failed to parse URL: %v", err)
 	}
 	if URL.Scheme != "http" && URL.Scheme != "https" {
 		return fmt.Errorf("URL must include http or https protocol")
@@ -1525,6 +1499,27 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 		settings.ServerSignature = secretKey
 	} else {
 		errs = append(errs, &incompleteSettingsError{message: "server.secretkey is missing"})
+	}
+	if githubWebhookSecret := argoCDSecret.Data[settingsWebhookGitHubSecretKey]; len(githubWebhookSecret) > 0 {
+		settings.WebhookGitHubSecret = string(githubWebhookSecret)
+	}
+	if gitlabWebhookSecret := argoCDSecret.Data[settingsWebhookGitLabSecretKey]; len(gitlabWebhookSecret) > 0 {
+		settings.WebhookGitLabSecret = string(gitlabWebhookSecret)
+	}
+	if bitbucketWebhookUUID := argoCDSecret.Data[settingsWebhookBitbucketUUIDKey]; len(bitbucketWebhookUUID) > 0 {
+		settings.WebhookBitbucketUUID = string(bitbucketWebhookUUID)
+	}
+	if bitbucketserverWebhookSecret := argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey]; len(bitbucketserverWebhookSecret) > 0 {
+		settings.WebhookBitbucketServerSecret = string(bitbucketserverWebhookSecret)
+	}
+	if gogsWebhookSecret := argoCDSecret.Data[settingsWebhookGogsSecretKey]; len(gogsWebhookSecret) > 0 {
+		settings.WebhookGogsSecret = string(gogsWebhookSecret)
+	}
+	if azureDevOpsUsername := argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey]; len(azureDevOpsUsername) > 0 {
+		settings.WebhookAzureDevOpsUsername = string(azureDevOpsUsername)
+	}
+	if azureDevOpsPassword := argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey]; len(azureDevOpsPassword) > 0 {
+		settings.WebhookAzureDevOpsPassword = string(azureDevOpsPassword)
 	}
 
 	// The TLS certificate may be externally managed. We try to load it from an
@@ -1565,15 +1560,6 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	if len(errs) > 0 {
 		return errs[0]
 	}
-
-	settings.WebhookGitHubSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGitHubSecretKey]), settings.Secrets)
-	settings.WebhookGitLabSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGitLabSecretKey]), settings.Secrets)
-	settings.WebhookBitbucketUUID = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookBitbucketUUIDKey]), settings.Secrets)
-	settings.WebhookBitbucketServerSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey]), settings.Secrets)
-	settings.WebhookGogsSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGogsSecretKey]), settings.Secrets)
-	settings.WebhookAzureDevOpsUsername = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey]), settings.Secrets)
-	settings.WebhookAzureDevOpsPassword = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey]), settings.Secrets)
-
 	return nil
 }
 
@@ -1632,6 +1618,7 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		}
 		return nil
 	})
+
 	if err != nil {
 		return err
 	}
@@ -1737,6 +1724,7 @@ func (mgr *SettingsManager) SaveGPGPublicKeyData(ctx context.Context, gpgPublicK
 	}
 
 	return mgr.ResyncInformers()
+
 }
 
 type SettingsManagerOpts func(mgs *SettingsManager)
@@ -1749,6 +1737,7 @@ func WithRepoOrClusterChangedHandler(handler func()) SettingsManagerOpts {
 
 // NewSettingsManager generates a new SettingsManager pointer and returns it
 func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string, opts ...SettingsManagerOpts) *SettingsManager {
+
 	mgr := &SettingsManager{
 		ctx:       ctx,
 		clientset: clientset,
@@ -2047,8 +2036,8 @@ func (mgr *SettingsManager) notifySubscribers(newSettings *ArgoCDSettings) {
 }
 
 func isIncompleteSettingsError(err error) bool {
-	var incompleteSettingsErr *incompleteSettingsError
-	return errors.As(err, &incompleteSettingsErr)
+	_, ok := err.(*incompleteSettingsError)
+	return ok
 }
 
 // InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
@@ -2217,7 +2206,7 @@ func (mgr *SettingsManager) GetNamespace() string {
 func (mgr *SettingsManager) GetResourceCustomLabels() ([]string, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return []string{}, fmt.Errorf("failed getting configmap: %w", err)
+		return []string{}, fmt.Errorf("failed getting configmap: %v", err)
 	}
 	labels := argoCDCM.Data[resourceCustomLabelsKey]
 	if labels != "" {
@@ -2226,34 +2215,21 @@ func (mgr *SettingsManager) GetResourceCustomLabels() ([]string, error) {
 	return []string{}, nil
 }
 
-func (mgr *SettingsManager) GetIncludeEventLabelKeys() []string {
-	labelKeys := []string{}
+func (mgr *SettingsManager) GetMaxWebhookPayloadSize() int64 {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		log.Error(fmt.Errorf("failed getting configmap: %w", err))
-		return labelKeys
+		return defaultMaxWebhookPayloadSize
 	}
-	if value, ok := argoCDCM.Data[resourceIncludeEventLabelKeys]; ok {
-		if value != "" {
-			value = strings.ReplaceAll(value, " ", "")
-			labelKeys = strings.Split(value, ",")
-		}
-	}
-	return labelKeys
-}
 
-func (mgr *SettingsManager) GetExcludeEventLabelKeys() []string {
-	labelKeys := []string{}
-	argoCDCM, err := mgr.getConfigMap()
+	if argoCDCM.Data[settingsWebhookMaxPayloadSizeMB] == "" {
+		return defaultMaxWebhookPayloadSize
+	}
+
+	maxPayloadSizeMB, err := strconv.ParseInt(argoCDCM.Data[settingsWebhookMaxPayloadSizeMB], 10, 64)
 	if err != nil {
-		log.Error(fmt.Errorf("failed getting configmap: %w", err))
-		return labelKeys
+		log.Warnf("Failed to parse '%s' key: %v", settingsWebhookMaxPayloadSizeMB, err)
+		return defaultMaxWebhookPayloadSize
 	}
-	if value, ok := argoCDCM.Data[resourceExcludeEventLabelKeys]; ok {
-		if value != "" {
-			value = strings.ReplaceAll(value, " ", "")
-			labelKeys = strings.Split(value, ",")
-		}
-	}
-	return labelKeys
+
+	return maxPayloadSizeMB * 1024 * 1024
 }

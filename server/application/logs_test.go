@@ -53,6 +53,7 @@ func TestParseLogsStream_ParsingError(t *testing.T) {
 }
 
 func TestMergeLogStreams(t *testing.T) {
+
 	first := make(chan logEntry)
 	go func() {
 		parseLogsStream("first", io.NopCloser(strings.NewReader(`2021-02-09T00:00:01Z 1

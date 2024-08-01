@@ -15,12 +15,12 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTls b
 	}
 	redirectURL, err := argocdSettings.RedirectURL()
 	if err != nil {
-		return nil, fmt.Errorf("failed to infer redirect url from config: %w", err)
+		return nil, fmt.Errorf("failed to infer redirect url from config: %v", err)
 	}
 	var dexCfg map[string]interface{}
 	err = yaml.Unmarshal([]byte(argocdSettings.DexConfig), &dexCfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal dex.config from configmap: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal dex.config from configmap: %v", err)
 	}
 	dexCfg["issuer"] = argocdSettings.IssuerURL()
 	dexCfg["storage"] = map[string]interface{}{

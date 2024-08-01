@@ -1,11 +1,9 @@
 package e2e
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -40,7 +38,7 @@ func TestMultiSourceAppCreation(t *testing.T) {
 		And(func(_ *Application) {
 			// app should be listed
 			output, err := RunCli("app", "list")
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			assert.Contains(t, output, Name())
 		}).
 		Expect(Success("")).
@@ -75,7 +73,6 @@ func TestMultiSourceAppWithHelmExternalValueFiles(t *testing.T) {
 			},
 		},
 	}}
-	fmt.Printf("sources: %v\n", sources)
 	ctx := Given(t)
 	ctx.
 		Sources(sources).
@@ -95,7 +92,7 @@ func TestMultiSourceAppWithHelmExternalValueFiles(t *testing.T) {
 		And(func(_ *Application) {
 			// app should be listed
 			output, err := RunCli("app", "list")
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			assert.Contains(t, output, Name())
 		}).
 		Expect(Success("")).
@@ -143,7 +140,7 @@ func TestMultiSourceAppWithSourceOverride(t *testing.T) {
 		And(func(_ *Application) {
 			// app should be listed
 			output, err := RunCli("app", "list")
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			assert.Contains(t, output, Name())
 		}).
 		Expect(Success("")).
@@ -163,7 +160,7 @@ func TestMultiSourceAppWithSourceOverride(t *testing.T) {
 
 			// check if label was added to the pod to make sure resource was taken from the later source
 			output, err := Run("", "kubectl", "describe", "pods", "pod-1", "-n", DeploymentNamespace())
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			assert.Contains(t, output, "foo=bar")
 		})
 }

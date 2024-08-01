@@ -127,7 +127,7 @@ func TestHandleAddEvent_ClusterExcluded(t *testing.T) {
 		Config: appv1.ClusterConfig{Username: "bar"},
 	})
 
-	assert.Empty(t, clustersCache.clusters)
+	assert.Len(t, clustersCache.clusters, 0)
 }
 
 func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
@@ -589,8 +589,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1_x,
 			Health: &health.HealthStatus{
-				Status: health.HealthStatusHealthy,
-			},
+				Status: health.HealthStatusHealthy},
 		}, &ResourceInfo{
 			manifestHash: hash3_x,
 			Health:       nil,

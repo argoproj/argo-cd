@@ -23,7 +23,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 		password string
 		ssoPort  int
 	)
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:   "relogin",
 		Short: "Refresh an expired authenticate token",
 		Long:  "Refresh an expired authenticate token",

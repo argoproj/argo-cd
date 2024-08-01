@@ -140,21 +140,9 @@ export const ApplicationsTable = (props: {
                                                         </button>
                                                     )}
                                                     items={[
-                                                        {
-                                                            title: 'Sync',
-                                                            iconClassName: 'fa fa-fw fa-sync',
-                                                            action: () => props.syncApplication(app.metadata.name, app.metadata.namespace)
-                                                        },
-                                                        {
-                                                            title: 'Refresh',
-                                                            iconClassName: 'fa fa-fw fa-redo',
-                                                            action: () => props.refreshApplication(app.metadata.name, app.metadata.namespace)
-                                                        },
-                                                        {
-                                                            title: 'Delete',
-                                                            iconClassName: 'fa fa-fw fa-times-circle',
-                                                            action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)
-                                                        }
+                                                        {title: 'Sync', action: () => props.syncApplication(app.metadata.name, app.metadata.namespace)},
+                                                        {title: 'Refresh', action: () => props.refreshApplication(app.metadata.name, app.metadata.namespace)},
+                                                        {title: 'Delete', action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)}
                                                     ]}
                                                 />
                                             </div>
