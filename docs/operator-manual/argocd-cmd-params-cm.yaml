@@ -75,6 +75,10 @@ data:
   # Enables profile endpoint on the internal metrics port
   controller.profile.enabled: "false"
 
+  # controller.manifest.generation.path can be used to overwrite the default path (within the application-controller container) used to store the temporary files which are passed to kubectl code via gitops-engine. These temporary files are security sensitive resources, such as generated kubernetes manifests, or cluster credentials.
+	# Due to security sensitivity, by default '/dev/shm' is used. However, 'controller.manifest.generation.path' allows this value to be customized, for example, using '/tmp' to overcome the limited disk space of '/dev/shm'.
+  controller.manifest.generation.path: "/dev/shm"
+
   ## Server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
   server.listen.address: "0.0.0.0"

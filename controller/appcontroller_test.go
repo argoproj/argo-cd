@@ -47,6 +47,7 @@ import (
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 )
 
 type namespacedResource struct {
@@ -163,6 +164,7 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		false,
 		false,
 		normalizers.IgnoreNormalizerOpts{},
+		argoio.TempPathUseDevShmIfAvailable(),
 	)
 	db := &dbmocks.ArgoDB{}
 	db.On("GetApplicationControllerReplicas").Return(1)
