@@ -3,12 +3,10 @@
 
 package commit
 
-type LinuxMkdirAllProvider struct{}
+import (
+	"github.com/cyphar/filepath-securejoin"
+)
 
-func (p *LinuxMkdirAllProvider) MkdirAll(root, unsafePath string, mode os.FileMode) (string, error) {
+func SecureMkdirAll(root, unsafePath string, mode os.FileMode) (string, error) {
 	return "", securejoin.MkdirAll(root, unsafePath, mode)
-}
-
-func getMkdirAllProvider() MkdirAllProvider {
-	return &LinuxMkdirAllProvider{}
 }
