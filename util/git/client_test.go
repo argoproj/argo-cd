@@ -607,3 +607,50 @@ func Test_nativeGitClient_RemoveContents(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "total 0", strings.TrimSpace(string(ls)))
 }
+
+func Test_nativeGitClient_CommitAndPush(t *testing.T) {
+	tempDir, err := _createEmptyGitRepo()
+	require.NoError(t, err)
+
+	// config receive.denyCurrentBranch updateInstead
+	// because local git init make a non-bare repository which cannot be pushed normally
+	err = runCmd(tempDir, "git", "config", "--local", "receive.denyCurrentBranch", "updateInstead")
+	require.NoError(t, err)
+
+	// get branch
+	gitCurrentBranch, err := outputCmd(tempDir, "git", "rev-parse", "--abbrev-ref", "HEAD")
+	require.NoError(t, err)
+	branch := strings.TrimSpace(string(gitCurrentBranch))
+
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	out, err := client.SetAuthor("test", "test@example.com")
+	require.NoError(t, err, "error output: ", out)
+
+	err = client.Fetch(branch)
+	require.NoError(t, err)
+
+	out, err = client.Checkout(branch, false)
+	require.NoError(t, err, "error output: ", out)
+
+	// make a file then commit and push
+	err = runCmd(client.Root(), "touch", "README.md")
+	require.NoError(t, err)
+
+	out, err = client.CommitAndPush(branch, "docs: README")
+	require.NoError(t, err, "error output: %s", out)
+
+	// get current commit hash of the cloned repository
+	expectedCommitHash, err := client.CommitSHA()
+	require.NoError(t, err)
+
+	// get origin repository's current commit hash
+	gitCurrentCommitHash, err := outputCmd(tempDir, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	actualCommitHash := strings.TrimSpace(string(gitCurrentCommitHash))
+	require.Equal(t, expectedCommitHash, actualCommitHash)
+}
