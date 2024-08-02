@@ -3,6 +3,8 @@
 package mocks
 
 import (
+	"context"
+
 	v1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -13,7 +15,7 @@ type ApplicationGetter struct {
 }
 
 // Get provides a mock function with given fields: ns, name
-func (_m *ApplicationGetter) Get(ns string, name string) (*v1alpha1.Application, error) {
+func (_m *ApplicationGetter) Get(ctx context.Context,ns string, name string) (*v1alpha1.Application, error) {
 	ret := _m.Called(ns, name)
 
 	if len(ret) == 0 {
