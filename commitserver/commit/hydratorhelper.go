@@ -31,8 +31,7 @@ func WriteForPaths(rootPath string, repoUrl string, drySha string, paths []*apic
 		}
 
 		var fullHydratePath string
-		mkdirAllProvider := getMkdirAllProvider()
-		fullHydratePath, err = mkdirAllProvider.MkdirAll(rootPath, hydratePath, os.ModePerm)
+		fullHydratePath, err = SecureMkdirAll(rootPath, hydratePath, os.ModePerm)
 		if err != nil {
 			return fmt.Errorf("failed to create path: %w", err)
 		}
