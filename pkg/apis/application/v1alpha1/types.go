@@ -1519,8 +1519,7 @@ type SyncStatus struct {
 	// Status is the sync state of the comparison
 	Status SyncStatusCode `json:"status" protobuf:"bytes,1,opt,name=status,casttype=SyncStatusCode"`
 	// ComparedTo contains information about what has been compared
-	// +patchStrategy=replace
-	ComparedTo ComparedTo `json:"comparedTo,omitempty" protobuf:"bytes,2,opt,name=comparedTo" patchStrategy:"replace"`
+	ComparedTo ComparedTo `json:"comparedTo,omitempty" protobuf:"bytes,2,opt,name=comparedTo"`
 	// Revision contains information about the revision the comparison has been performed to
 	Revision string `json:"revision,omitempty" protobuf:"bytes,3,opt,name=revision"`
 	// Revisions contains information about the revisions of multiple sources the comparison has been performed to
@@ -2073,6 +2072,8 @@ var validActions = map[string]bool{
 
 var validActionPatterns = []*regexp.Regexp{
 	regexp.MustCompile("action/.*"),
+	regexp.MustCompile("update/.*"),
+	regexp.MustCompile("delete/.*"),
 }
 
 func isValidAction(action string) bool {

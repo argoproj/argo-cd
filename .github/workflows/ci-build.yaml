@@ -31,7 +31,7 @@ jobs:
       docs: ${{ steps.filter.outputs.docs_any_changed }}
     steps:
       - uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
-      - uses: tj-actions/changed-files@6b2903bdce6310cfbddd87c418f253cf29b2dec9 # v44.5.6
+      - uses: tj-actions/changed-files@c65cd883420fd2eb864698a825fc4162dd94482c # v44.5.7
         id: filter
         with:
           # Any file which is not under docs/, ui/ or is not a markdown file is counted as a backend file
@@ -108,7 +108,7 @@ jobs:
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@a4f60bb28d35aeee14e6880718e0c85ff1882e64 # v6.0.1
+        uses: golangci/golangci-lint-action@aaa42aa0628b4ae2578232a66b541047968fac86 # v6.1.0
         with:
           version: v1.58.2
           args: --verbose
@@ -364,11 +364,12 @@ jobs:
           name: test-results
           path: test-results
       - name: combine-go-coverage
-        # We generate coverage reports for all Argo CD components, but only the applicationset-controller report
-        # contains coverage data. The other components currently don't shut down gracefully, so no coverage data is
-        # produced. Once those components are fixed, we can add references to their coverage output directories.
+        # We generate coverage reports for all Argo CD components, but only the applicationset-controller and
+        # repo-server report contain coverage data. The other components currently don't shut down gracefully, so no
+        # coverage data is produced. Once those components are fixed, we can add references to their coverage output
+        # directories.
         run: |
-          go tool covdata percent -i=test-results,e2e-code-coverage/applicationset-controller -o test-results/full-coverage.out
+          go tool covdata percent -i=test-results,e2e-code-coverage/applicationset-controller,e2e-code-coverage/repo-server -o test-results/full-coverage.out
       - name: Upload code coverage information to codecov.io
         uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673 # v4.5.0
         with:
