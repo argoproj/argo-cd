@@ -549,7 +549,7 @@ ID          ISSUED-AT                                  EXPIRES-AT
 			fmt.Printf(printRoleFmtStr, "Role Name:", roleName)
 			fmt.Printf(printRoleFmtStr, "Description:", role.Description)
 			fmt.Printf("Policies:\n")
-			fmt.Printf("%s\n", proj.ProjectPoliciesString())
+			fmt.Printf("%s\n", proj.GetRolePolicies(role))
 			fmt.Printf("JWT Tokens:\n")
 			// TODO(jessesuen): print groups
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
