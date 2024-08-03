@@ -20,11 +20,12 @@ type GitlabProvider struct {
 	includeSubgroups      bool
 	includeSharedProjects bool
 	topic                 string
+	includeArchivedRepos  bool
 }
 
 var _ SCMProviderService = &GitlabProvider{}
 
-func NewGitlabProvider(ctx context.Context, organization string, token string, url string, allBranches, includeSubgroups, includeSharedProjects, insecure bool, scmRootCAPath, topic string, caCerts []byte) (*GitlabProvider, error) {
+func NewGitlabProvider(ctx context.Context, organization string, token string, url string, allBranches, includeSubgroups, includeSharedProjects, includeArchivedRepos, insecure bool, scmRootCAPath, topic string, caCerts []byte) (*GitlabProvider, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITLAB_TOKEN")
@@ -51,10 +52,11 @@ func NewGitlabProvider(ctx context.Context, organization string, token string, u
 		}
 	}
 
-	return &GitlabProvider{client: client, organization: organization, allBranches: allBranches, includeSubgroups: includeSubgroups, includeSharedProjects: includeSharedProjects, topic: topic}, nil
+	return &GitlabProvider{client: client, organization: organization, allBranches: allBranches, includeSubgroups: includeSubgroups, includeSharedProjects: includeSharedProjects, includeArchivedRepos: includeArchivedRepos, topic: topic}, nil
 }
 
 func (g *GitlabProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
+
 	repos := []*Repository{}
 	branches, err := g.listBranches(ctx, repo)
 	if err != nil {
@@ -76,11 +78,13 @@ func (g *GitlabProvider) GetBranches(ctx context.Context, repo *Repository) ([]*
 }
 
 func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
+
 	opt := &gitlab.ListGroupProjectsOptions{
 		ListOptions:      gitlab.ListOptions{PerPage: 100},
 		IncludeSubGroups: &g.includeSubgroups,
 		WithShared:       &g.includeSharedProjects,
 		Topic:            &g.topic,
+		Archived:         &g.includeArchivedRepos,
 	}
 
 	repos := []*Repository{}
@@ -116,6 +120,7 @@ func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 				Branch:       gitlabRepo.DefaultBranch,
 				Labels:       repoLabels,
 				RepositoryId: gitlabRepo.ID,
+				Archived:     gitlabRepo.Archived,
 			})
 		}
 		if resp.CurrentPage >= resp.TotalPages {

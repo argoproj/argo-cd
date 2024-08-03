@@ -44,12 +44,9 @@ func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]
 			outFilter.FilterType = FilterTypeBranch
 		}
 
-		if filter.IncludeArchivedRepos {
-			outFilter.IncludeArchivedRepos = true
+		if outFilter.FilterType == FilterTypeUndefined {
 			outFilter.FilterType = FilterTypeRepo
-		} else {
-			outFilter.IncludeArchivedRepos = false
-			outFilter.FilterType = FilterTypeRepo
+			outFilter.IncludeArchivedRepos = filter.IncludeArchivedRepos
 		}
 
 		outFilters = append(outFilters, outFilter)
