@@ -1,7 +1,6 @@
 package v1alpha1
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -2816,27 +2815,22 @@ func (source *ApplicationSource) Equals(other *ApplicationSource) bool {
 	if !source.Plugin.Equals(other.Plugin) {
 		return false
 	}
+	// helm source can't be compared directly because raw value sometime
+	// get html escaped and creating a diff
+	if source.Helm != nil && other.Helm != nil {
+		if source.Helm.ValuesString() != other.Helm.ValuesString() {
+			return false
+		}
+	}
 	// reflect.DeepEqual works fine for the other fields. Since the plugin fields are equal, set them to null so they're
 	// not considered in the DeepEqual comparison.
 	sourceCopy := source.DeepCopy()
 	otherCopy := other.DeepCopy()
 	sourceCopy.Plugin = nil
 	otherCopy.Plugin = nil
-	sourceCopy.htmlEscape()
-	otherCopy.htmlEscape()
+	sourceCopy.Helm = nil
+	otherCopy.Helm = nil
 	return reflect.DeepEqual(sourceCopy, otherCopy)
-}
-
-func (source *ApplicationSource) htmlEscape() {
-	if source.Helm != nil {
-		if source.Helm.ValuesObject != nil {
-			if source.Helm.ValuesObject.Raw != nil {
-				var buf bytes.Buffer
-				json.HTMLEscape(&buf, source.Helm.ValuesObject.Raw)
-				source.Helm.ValuesObject.Raw = buf.Bytes()
-			}
-		}
-	}
 }
 
 // ExplicitType returns the type (e.g. Helm, Kustomize, etc) of the application. If either none or multiple types are defined, returns an error.
