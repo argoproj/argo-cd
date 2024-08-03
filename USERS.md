@@ -258,6 +258,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [PostFinance](https://github.com/postfinance)
 1. [Preferred Networks](https://preferred.jp/en/)
 1. [Previder BV](https://previder.nl)
+1. [Priceline](https://priceline.com)
 1. [Procore](https://www.procore.com)
 1. [Productboard](https://www.productboard.com/)
 1. [Prudential](https://prudential.com.sg)
