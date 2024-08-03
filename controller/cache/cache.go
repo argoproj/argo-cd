@@ -105,6 +105,12 @@ var (
 	clusterCacheRetryUseBackoff bool = false
 )
 
+// Constants for EndpointSlices
+const (
+	serviceDiscoveryGroup             = "discovery.k8s.io"
+	serviceDiscoveryEndpointSliceKind = "EndpointSlice"
+)
+
 func init() {
 	clusterCacheResyncDuration = env.ParseDurationFromEnv(EnvClusterCacheResyncDuration, clusterCacheResyncDuration, 0, math.MaxInt64)
 	clusterCacheWatchResyncDuration = env.ParseDurationFromEnv(EnvClusterCacheWatchResyncDuration, clusterCacheWatchResyncDuration, 0, math.MaxInt64)
@@ -338,6 +344,7 @@ func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clusterc
 
 var ignoredRefreshResources = map[string]bool{
 	"/" + kube.EndpointsKind: true,
+	serviceDiscoveryGroup + "/" + serviceDiscoveryEndpointSliceKind: true,
 }
 
 // skipAppRequeuing checks if the object is an API type which we want to skip requeuing against.
