@@ -304,6 +304,63 @@ func TestRepositoryServer(t *testing.T) {
 		assert.Equal(t, repo.Repo, url)
 	})
 
+	t.Run("Test_Get_FromAliasWith@", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+
+		alias := "@test"
+		db := &dbmocks.ArgoDB{}
+		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{&fakeRepo, &fakeRepo}, nil)
+		db.On("GetRepository", context.TODO(), fakeRepo.Repo, fakeRepo.Project).Return(&appsv1.Repository{Repo: fakeRepo.Repo}, nil)
+		db.On("RepositoryExists", context.TODO(), fakeRepo.Repo, fakeRepo.Project).Return(true, nil)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
+		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
+			Repo: alias,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, repo.Repo, fakeRepo.Repo)
+	})
+
+	t.Run("Test_Get_FromAliasWithAlias:", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+
+		alias := "alias:test"
+		db := &dbmocks.ArgoDB{}
+		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{&fakeRepo, &fakeRepo}, nil)
+		db.On("GetRepository", context.TODO(), fakeRepo.Repo, fakeRepo.Project).Return(&appsv1.Repository{Repo: fakeRepo.Repo}, nil)
+		db.On("RepositoryExists", context.TODO(), fakeRepo.Repo, fakeRepo.Project).Return(true, nil)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
+		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
+			Repo: alias,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, repo.Repo, fakeRepo.Repo)
+	})
+
+	t.Run("Test_Get_FromAliasNotFoundShouldReturnError", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+
+		alias := "alias:test-not-found"
+		db := &dbmocks.ArgoDB{}
+		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{&fakeRepo, &fakeRepo}, nil)
+		db.On("GetRepository", context.TODO(), fakeRepo.Repo, fakeRepo.Project).Return(&appsv1.Repository{Repo: fakeRepo.Repo}, nil)
+		db.On("RepositoryExists", context.TODO(), fakeRepo.Repo, fakeRepo.Project).Return(true, nil)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
+		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
+			Repo: alias,
+		})
+		require.Error(t, err, "rpc error: code = NotFound desc = repo 'test-not-found' not found")
+		assert.Nil(t, repo)
+	})
+
 	t.Run("Test_GetInherited", func(t *testing.T) {
 		repoServerClient := mocks.RepoServerServiceClient{}
 		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
@@ -903,6 +960,13 @@ func newEnforcer(kubeclientset *fake.Clientset) *rbac.Enforcer {
 }
 
 func TestGetRepository(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset(&argocdCM, &argocdSecret)
+	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace)
+	enforcer := newEnforcer(kubeclientset)
+	appLister, projInformer := newAppAndProjLister(defaultProj)
+	repoServerClient := mocks.RepoServerServiceClient{}
+	repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+
 	type args struct {
 		ctx              context.Context
 		listRepositories func(context.Context, *repository.RepoQuery) (*appsv1.RepositoryList, error)
@@ -1005,7 +1069,7 @@ func TestGetRepository(t *testing.T) {
 				},
 			},
 			want:  nil,
-			error: errors.New(`repository not found for url "foobar" and project "foobar"`),
+			error: status.Error(codes.PermissionDenied, "permission denied"),
 		},
 		{
 			name: "non-empty project + matching repo with a matching project",
@@ -1046,12 +1110,17 @@ func TestGetRepository(t *testing.T) {
 				},
 			},
 			want:  nil,
-			error: errors.New(`repository not found for url "foobar" and project "foobar"`),
+			error: status.Error(codes.PermissionDenied, "permission denied"),
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getRepository(tt.args.ctx, tt.args.listRepositories, tt.args.q)
+			db := &dbmocks.ArgoDB{}
+			db.On("GetRepository", context.TODO(), tt.args.q.Repo, tt.args.q.AppProject).Return(tt.want, tt.error)
+			s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
+
+			got, err := s.getRepository(tt.args.ctx, tt.args.listRepositories, tt.args.q)
 			assert.Equal(t, tt.error, err)
 			assert.Equalf(t, tt.want, got, "getRepository(%v, %v) = %v", tt.args.ctx, tt.args.q, got)
 		})

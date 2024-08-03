@@ -55,6 +55,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/gpg"
 	"github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/helm"
+	helmAlias "github.com/argoproj/argo-cd/v2/util/helm"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
@@ -294,6 +295,8 @@ func (s *Service) runRepoOperation(
 	settings operationSettings,
 	hasMultipleSources bool,
 	refSources map[string]*v1alpha1.RefTarget,
+	helmRepos []*v1alpha1.Repository,
+	helmRepoCreds []*v1alpha1.RepoCreds,
 ) error {
 	if sanitizer, ok := grpc.SanitizerFromContext(ctx); ok {
 		// make sure a randomized path replaced with '.' in the error message
@@ -307,7 +310,7 @@ func (s *Service) runRepoOperation(
 	revision = textutils.FirstNonEmpty(revision, source.TargetRevision)
 	unresolvedRevision := revision
 	if source.IsHelm() {
-		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart, settings.noCache || settings.noRevisionCache)
+		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart, settings.noCache || settings.noRevisionCache, helmRepos, helmRepoCreds)
 		if err != nil {
 			return err
 		}
@@ -565,7 +568,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	}
 
 	settings := operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache, noRevisionCache: q.NoRevisionCache, allowConcurrent: q.ApplicationSource.AllowsConcurrentProcessing()}
-	err = s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature, cacheFn, operation, settings, q.HasMultipleSources, q.RefSources)
+	err = s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.VerifySignature, cacheFn, operation, settings, q.HasMultipleSources, q.RefSources, q.Repos, q.HelmRepoCreds)
 
 	// if the tarDoneCh message is sent it means that the manifest
 	// generation is being managed by the cmp-server. In this case
@@ -978,18 +981,31 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 			reposByName[repo.Name] = repo
 		}
 	}
+	return toHelmRepo(retrieveRepoCredentials(dependencies, repositories, reposByName, reposByUrl, helmRepoCreds)), nil
+}
 
-	repos := make([]helm.HelmRepository, 0)
-	for _, dep := range dependencies {
+func toHelmRepo(repos []*v1alpha1.Repository) []helm.HelmRepository {
+	helmRepos := make([]helm.HelmRepository, 0)
+	for _, repo := range repos {
+		helmRepos = append(helmRepos, helm.HelmRepository{Name: repo.Name, Repo: repo.Repo, Creds: repo.GetHelmCreds(), EnableOci: repo.EnableOCI})
+	}
+	return helmRepos
+}
+
+func retrieveRepoCredentials(reposToComplete []*v1alpha1.Repository, completedRepos []*v1alpha1.Repository, reposByName map[string]*v1alpha1.Repository, reposByUrl map[string]*v1alpha1.Repository,
+	helmRepoCreds []*v1alpha1.RepoCreds,
+) []*v1alpha1.Repository {
+	repos := make([]*v1alpha1.Repository, 0)
+	for _, rep := range reposToComplete {
 		// find matching repo credentials by URL or name
-		repo, ok := reposByUrl[dep.Repo]
-		if !ok && dep.Name != "" {
-			repo, ok = reposByName[dep.Name]
+		repo, ok := reposByUrl[rep.Repo]
+		if !ok && rep.Name != "" {
+			repo, ok = reposByName[rep.Name]
 		}
 		if !ok {
 			// if no matching repo credentials found, use the repo creds from the credential list
-			repo = &v1alpha1.Repository{Repo: dep.Repo, Name: dep.Name, EnableOCI: dep.EnableOCI}
-			if repositoryCredential := getRepoCredential(helmRepoCreds, dep.Repo); repositoryCredential != nil {
+			repo = &v1alpha1.Repository{Repo: rep.Repo, Name: rep.Name, EnableOCI: rep.EnableOCI}
+			if repositoryCredential := getRepoCredential(helmRepoCreds, rep.Repo); repositoryCredential != nil {
 				repo.EnableOCI = repositoryCredential.EnableOCI
 				repo.Password = repositoryCredential.Password
 				repo.Username = repositoryCredential.Username
@@ -999,10 +1015,10 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 			} else if repo.EnableOCI {
 				// finally if repo is OCI and no credentials found, use the first OCI credential matching by hostname
 				// see https://github.com/argoproj/argo-cd/issues/14636
-				for _, cred := range repositories {
+				for _, cred := range completedRepos {
 					// if the repo is OCI, don't match the repository URL exactly, but only as a dependent repository prefix just like in the getRepoCredential function
 					// see https://github.com/argoproj/argo-cd/issues/12436
-					if _, err := url.Parse("oci://" + dep.Repo); err == nil && cred.EnableOCI && strings.HasPrefix(dep.Repo, cred.Repo) {
+					if _, err := url.Parse("oci://" + rep.Repo); err == nil && cred.EnableOCI && strings.HasPrefix(rep.Repo, cred.Repo) {
 						repo.Username = cred.Username
 						repo.Password = cred.Password
 						break
@@ -1010,9 +1026,21 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 				}
 			}
 		}
-		repos = append(repos, helm.HelmRepository{Name: repo.Name, Repo: repo.Repo, Creds: repo.GetHelmCreds(), EnableOci: repo.EnableOCI})
+		// Only add it once in the list
+		if !isRepoInRepoList(repo, repos) {
+			repos = append(repos, repo)
+		}
 	}
-	return repos, nil
+	return repos
+}
+
+func isRepoInRepoList(repo *v1alpha1.Repository, repos []*v1alpha1.Repository) bool {
+	for _, r := range repos {
+		if r.Repo == repo.Repo {
+			return true
+		}
+	}
+	return false
 }
 
 type dependencies struct {
@@ -1036,13 +1064,10 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 	}
 
 	for _, r := range d.Dependencies {
-		if strings.HasPrefix(r.Repository, "@") {
+		alias := helmAlias.GetRepoNameFromAlias(r.Repository)
+		if alias != "" {
 			repos = append(repos, &v1alpha1.Repository{
-				Name: r.Repository[1:],
-			})
-		} else if strings.HasPrefix(r.Repository, "alias:") {
-			repos = append(repos, &v1alpha1.Repository{
-				Name: strings.TrimPrefix(r.Repository, "alias:"),
+				Name: alias,
 			})
 		} else if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
 			repo := &v1alpha1.Repository{
@@ -2029,7 +2054,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	}
 
 	settings := operationSettings{allowConcurrent: q.Source.AllowsConcurrentProcessing(), noCache: q.NoCache, noRevisionCache: q.NoCache || q.NoRevisionCache}
-	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, cacheFn, operation, settings, len(q.RefSources) > 0, q.RefSources)
+	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, false, cacheFn, operation, settings, len(q.RefSources) > 0, q.RefSources, nil, nil)
 
 	return res, err
 }
@@ -2314,7 +2339,7 @@ func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.Repo
 			log.Warnf("revision metadata cache error %s/%s/%s: %v", q.Repo.Repo, q.Name, q.Revision, err)
 		}
 	}
-	helmClient, revision, err := s.newHelmClientResolveRevision(q.Repo, q.Revision, q.Name, true)
+	helmClient, revision, err := s.newHelmClientResolveRevision(q.Repo, q.Revision, q.Name, true, q.Repos, q.HelmRepoCreds)
 	if err != nil {
 		return nil, fmt.Errorf("helm client error: %w", err)
 	}
@@ -2375,9 +2400,31 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 	return gitClient, commitSHA, nil
 }
 
-func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, noRevisionCache bool) (helm.Client, string, error) {
-	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
-	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), enableOCI, repo.Proxy, helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths))
+func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, noRevisionCache bool, repositories []*v1alpha1.Repository, helmRepoCreds []*v1alpha1.RepoCreds) (helm.Client, string, error) {
+	var completedRepo *v1alpha1.Repository
+	reposByName := make(map[string]*v1alpha1.Repository)
+	reposByUrl := make(map[string]*v1alpha1.Repository)
+	for _, repo := range repositories {
+		reposByUrl[repo.Repo] = repo
+		if repo.Name != "" {
+			reposByName[repo.Name] = repo
+		}
+	}
+	alias := helmAlias.GetRepoNameFromAlias(repo.Repo)
+	if alias != "" {
+		repo.Repo = ""
+		repo.Name = alias
+		completedRepo = retrieveRepoCredentials([]*v1alpha1.Repository{repo}, []*v1alpha1.Repository{}, reposByName, reposByUrl, helmRepoCreds)[0]
+		if completedRepo.Repo == "" {
+			// URL could not be resolved from list of repo added
+			return nil, "", fmt.Errorf("repo %s not found, please add it to the repository list", repo.Name)
+		}
+	} else {
+		completedRepo = repo
+	}
+
+	enableOCI := completedRepo.EnableOCI || helm.IsHelmOciRepo(completedRepo.Repo)
+	helmClient := s.newHelmClient(completedRepo.Repo, completedRepo.GetHelmCreds(), enableOCI, completedRepo.Proxy, helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths))
 	if helm.IsVersion(revision) {
 		return helmClient, revision, nil
 	}
@@ -2547,7 +2594,7 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 	var revision string
 	source := app.Spec.GetSourcePtrByIndex(int(q.SourceIndex))
 	if source.IsHelm() {
-		_, revision, err := s.newHelmClientResolveRevision(repo, ambiguousRevision, source.Chart, true)
+		_, revision, err := s.newHelmClientResolveRevision(repo, ambiguousRevision, source.Chart, true, q.Repos, q.HelmRepoCreds)
 		if err != nil {
 			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 		}

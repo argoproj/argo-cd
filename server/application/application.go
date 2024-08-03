@@ -1518,7 +1518,7 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 
 // RevisionChartDetails returns the helm chart metadata, as fetched from the reposerver
 func (s *Server) RevisionChartDetails(ctx context.Context, q *application.RevisionMetadataQuery) (*appv1.ChartDetails, error) {
-	a, _, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
+	a, proj, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if err != nil {
 		return nil, err
 	}
@@ -1540,11 +1540,25 @@ func (s *Server) RevisionChartDetails(ctx context.Context, q *application.Revisi
 		return nil, fmt.Errorf("error creating repo server client: %w", err)
 	}
 	defer ioutil.Close(conn)
-	return repoClient.GetRevisionChartDetails(ctx, &apiclient.RepoServerRevisionChartDetailsRequest{
-		Repo:     repo,
-		Name:     source.Chart,
-		Revision: q.GetRevision(),
+
+	var chartDetails *appv1.ChartDetails
+	err = s.queryRepoServer(ctx, proj, func(
+		client apiclient.RepoServerServiceClient, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, enableGenerateManifests map[string]bool,
+	) error {
+		chartDetails, err = repoClient.GetRevisionChartDetails(ctx, &apiclient.RepoServerRevisionChartDetailsRequest{
+			Repo:          repo,
+			Name:          source.Chart,
+			Revision:      q.GetRevision(),
+			Repos:         helmRepos,
+			HelmRepoCreds: helmCreds,
+		})
+
+		return err
 	})
+	if err != nil {
+		return nil, fmt.Errorf("error resolving chart details revision: %w", err)
+	}
+	return chartDetails, nil
 }
 
 // getAppSourceBySourceIndexAndVersionId returns the source for a specific source index and version ID. Source index and
@@ -2249,11 +2263,25 @@ func (s *Server) resolveRevision(ctx context.Context, app *appv1.Application, sy
 		}
 	}
 
-	resolveRevisionResponse, err := repoClient.ResolveRevision(ctx, &apiclient.ResolveRevisionRequest{
-		Repo:              repo,
-		App:               app,
-		AmbiguousRevision: ambiguousRevision,
-		SourceIndex:       int64(sourceIndex),
+	_, proj, err := s.getApplicationEnforceRBACInformer(ctx, rbacpolicy.ActionGet, app.Spec.GetProject(), app.GetNamespace(), app.GetName())
+	if err != nil {
+		return "", "", err
+	}
+
+	var resolveRevisionResponse *apiclient.ResolveRevisionResponse
+	err = s.queryRepoServer(ctx, proj, func(
+		client apiclient.RepoServerServiceClient, helmRepos []*appv1.Repository, helmCreds []*appv1.RepoCreds, helmOptions *appv1.HelmOptions, enableGenerateManifests map[string]bool,
+	) error {
+		resolveRevisionResponse, err = repoClient.ResolveRevision(ctx, &apiclient.ResolveRevisionRequest{
+			Repo:              repo,
+			App:               app,
+			AmbiguousRevision: ambiguousRevision,
+			SourceIndex:       int64(sourceIndex),
+			Repos:             helmRepos,
+			HelmRepoCreds:     helmCreds,
+		})
+
+		return err
 	})
 	if err != nil {
 		return "", "", fmt.Errorf("error resolving repo revision: %w", err)

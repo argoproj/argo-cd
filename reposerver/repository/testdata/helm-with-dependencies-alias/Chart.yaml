@@ -5,3 +5,7 @@ dependencies:
   - name: helm
     repository: "alias:custom-repo-alias"
     version: v1.0.0
+  - name: helm-2
+    repository: "@custom-repo-alias"
+    version: v1.0.0
+

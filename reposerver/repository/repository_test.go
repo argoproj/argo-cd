@@ -592,9 +592,106 @@ func TestHelmChartReferencingExternalValues_InvalidRefs(t *testing.T) {
 		Repo: &argoappv1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
 		ProjectSourceRepos: []string{"*"},
 	}
-	response, err = service.GenerateManifest(context.Background(), request)
+	_, err = service.GenerateManifest(context.Background(), request)
 	require.Error(t, err)
-	assert.Nil(t, response)
+}
+
+func TestHelmChartFromRepoAlias(t *testing.T) {
+	service := newService(t, ".")
+	spec := argoappv1.ApplicationSpec{
+		Sources: []argoappv1.ApplicationSource{
+			{
+				RepoURL:        "@custom-repo",
+				Chart:          "my-chart",
+				TargetRevision: "1.1.0",
+			},
+		},
+	}
+	request := &apiclient.ManifestRequest{
+		Repo: &argoappv1.Repository{
+			Repo: "@custom-repo",
+		},
+		Repos: []*argoappv1.Repository{
+			{
+				Name: "custom-repo",
+				Repo: "https://helm.example.com",
+			},
+		},
+		ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: make(map[string]*argoappv1.RefTarget), HasMultipleSources: true, ProjectName: "something",
+		ProjectSourceRepos: []string{"*"},
+		HelmRepoCreds: []*argoappv1.RepoCreds{
+			{URL: "https://helm.example.com", Username: "test", Password: "test", EnableOCI: true},
+		},
+	}
+	response, err := service.GenerateManifest(context.Background(), request)
+	require.NoError(t, err)
+	assert.NotNil(t, response)
+	assert.Equal(t, &apiclient.ManifestResponse{
+		Manifests:  []string{"{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}"},
+		Namespace:  "",
+		Server:     "",
+		Revision:   "1.1.0",
+		SourceType: "Helm",
+	}, response)
+}
+
+func TestHelmChartFromRepoAliasWithOtherSyntax(t *testing.T) {
+	service := newService(t, ".")
+	spec := argoappv1.ApplicationSpec{
+		Sources: []argoappv1.ApplicationSource{
+			{
+				RepoURL:        "alias:custom-repo",
+				Chart:          "my-chart",
+				TargetRevision: "1.1.0",
+			},
+		},
+	}
+	request := &apiclient.ManifestRequest{
+		Repo: &argoappv1.Repository{
+			Repo: "alias:custom-repo",
+		},
+		Repos: []*argoappv1.Repository{
+			{
+				Name: "custom-repo",
+				Repo: "https://helm.example.com",
+			},
+		},
+		ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: make(map[string]*argoappv1.RefTarget), HasMultipleSources: true, ProjectName: "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+	response, err := service.GenerateManifest(context.Background(), request)
+	require.NoError(t, err)
+	require.NotNil(t, response)
+	require.Equal(t, &apiclient.ManifestResponse{
+		Manifests:  []string{"{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}"},
+		Namespace:  "",
+		Server:     "",
+		Revision:   "1.1.0",
+		SourceType: "Helm",
+	}, response)
+}
+
+func TestHelmChartFromRepoAliasWithoutRepositoryAdded(t *testing.T) {
+	service := newService(t, ".")
+	spec := argoappv1.ApplicationSpec{
+		Sources: []argoappv1.ApplicationSource{
+			{
+				RepoURL:        "alias:custom-repo",
+				Chart:          "my-chart",
+				TargetRevision: "1.1.0",
+			},
+		},
+	}
+	request := &apiclient.ManifestRequest{
+		Repo: &argoappv1.Repository{
+			Repo: "alias:custom-repo",
+		},
+		ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: make(map[string]*argoappv1.RefTarget), HasMultipleSources: true, ProjectName: "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+	response, err := service.GenerateManifest(context.Background(), request)
+	require.Error(t, err, "repo custom-repo not found, please add it to the repository list")
+	require.Nil(t, response)
 }
 
 func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
@@ -1828,11 +1925,11 @@ func TestService_newHelmClientResolveRevision(t *testing.T) {
 	service := newService(t, ".")
 
 	t.Run("EmptyRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&argoappv1.Repository{}, "", "", true)
+		_, _, err := service.newHelmClientResolveRevision(&argoappv1.Repository{}, "", "", true, []*v1alpha1.Repository{}, []*argoappv1.RepoCreds{})
 		assert.EqualError(t, err, "invalid revision '': improper constraint: ")
 	})
 	t.Run("InvalidRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&argoappv1.Repository{}, "???", "", true)
+		_, _, err := service.newHelmClientResolveRevision(&argoappv1.Repository{}, "???", "", true, []*v1alpha1.Repository{}, []*argoappv1.RepoCreds{})
 		assert.EqualError(t, err, "invalid revision '???': improper constraint: ???", true)
 	})
 }

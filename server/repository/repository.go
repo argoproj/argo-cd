@@ -28,6 +28,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/git"
+	helmAlias "github.com/argoproj/argo-cd/v2/util/helm"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -128,7 +129,7 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 
 // Get return the requested configured repository by URL and the state of its connections.
 func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
-	repo, err := getRepository(ctx, s.ListRepositories, q)
+	repo, err := s.getRepoFromAlias(ctx, q.Repo, q.ForceRefresh, q.GetAppProject())
 	if err != nil {
 		return nil, err
 	}
@@ -138,12 +139,12 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 	}
 
 	// getRepo does not return an error for unconfigured repositories, so we are checking here
-	exists, err := s.db.RepositoryExists(ctx, q.Repo, repo.Project)
+	exists, err := s.db.RepositoryExists(ctx, repo.Repo, repo.Project)
 	if err != nil {
 		return nil, err
 	}
 	if !exists {
-		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", q.Repo)
+		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", repo.Repo)
 	}
 
 	// For backwards compatibility, if we have no repo type set assume a default
@@ -218,7 +219,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 }
 
 func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.Refs, error) {
-	repo, err := s.getRepo(ctx, q.Repo, q.GetAppProject())
+	repo, err := s.getRepoFromAlias(ctx, q.Repo, q.ForceRefresh, q.GetAppProject())
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +242,7 @@ func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*api
 // ListApps performs discovery of a git repository for potential sources of applications. Used
 // as a convenience to the UI for auto-complete.
 func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (*repositorypkg.RepoAppsResponse, error) {
-	repo, err := s.getRepo(ctx, q.Repo, q.GetAppProject())
+	repo, err := s.getRepoFromAlias(ctx, q.Repo, false, q.GetAppProject())
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +261,7 @@ func (s *Server) ListApps(ctx context.Context, q *repositorypkg.RepoAppsQuery) (
 		return nil, errPermissionDenied
 	}
 	// Also ensure the repo is actually allowed in the project in question
-	if err := s.isRepoPermittedInProject(ctx, q.Repo, q.AppProject); err != nil {
+	if err := s.isRepoPermittedInProject(ctx, repo.Repo, q.AppProject); err != nil {
 		return nil, err
 	}
 
@@ -292,7 +293,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if q.Source == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
-	repo, err := s.getRepo(ctx, q.Source.RepoURL, q.GetAppProject())
+	repo, err := s.getRepoFromAlias(ctx, q.Source.RepoURL, false, q.GetAppProject())
 	if err != nil {
 		return nil, err
 	}
@@ -324,7 +325,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		}
 	}
 	// Ensure the repo is actually allowed in the project in question
-	if err := s.isRepoPermittedInProject(ctx, q.Source.RepoURL, q.AppProject); err != nil {
+	if err := s.isRepoPermittedInProject(ctx, repo.Repo, q.AppProject); err != nil {
 		return nil, err
 	}
 
@@ -372,7 +373,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 
 // GetHelmCharts returns list of helm charts in the specified repository
 func (s *Server) GetHelmCharts(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.HelmChartsResponse, error) {
-	repo, err := s.getRepo(ctx, q.Repo, q.GetAppProject())
+	repo, err := s.getRepoFromAlias(ctx, q.Repo, q.ForceRefresh, q.GetAppProject())
 	if err != nil {
 		return nil, err
 	}
@@ -385,6 +386,28 @@ func (s *Server) GetHelmCharts(ctx context.Context, q *repositorypkg.RepoQuery) 
 	}
 	defer io.Close(conn)
 	return repoClient.GetHelmCharts(ctx, &apiclient.HelmChartsRequest{Repo: repo})
+}
+
+// getRepoFromAlias returns the corresponding repo URL if an alias is provided, or the original URL if not
+func (s *Server) getRepoFromAlias(ctx context.Context, repo string, forceRefresh bool, project string) (*appsv1.Repository, error) {
+	alias := helmAlias.GetRepoNameFromAlias(repo)
+	if alias != "" {
+		return s.findRepositoryByName(ctx, alias, forceRefresh)
+	}
+	return s.getRepo(ctx, repo, project)
+}
+
+func (s *Server) findRepositoryByName(ctx context.Context, repoName string, forceRefresh bool) (*appsv1.Repository, error) {
+	repos, err := s.ListRepositories(ctx, &repositorypkg.RepoQuery{ForceRefresh: forceRefresh})
+	if err != nil {
+		return nil, err
+	}
+	for _, repo := range repos.Items {
+		if repo.Name == repoName {
+			return repo, nil
+		}
+	}
+	return nil, status.Errorf(codes.NotFound, "repository with name '%s' not found", repoName)
 }
 
 // Create creates a repository or repository credential set
@@ -488,7 +511,7 @@ func (s *Server) Delete(ctx context.Context, q *repositorypkg.RepoQuery) (*repos
 
 // DeleteRepository removes a repository from the configuration
 func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuery) (*repositorypkg.RepoResponse, error) {
-	repo, err := getRepository(ctx, s.ListRepositories, q)
+	repo, err := s.getRepository(ctx, s.ListRepositories, q)
 	if err != nil {
 		return nil, err
 	}
@@ -509,16 +532,21 @@ func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuer
 // getRepository fetches a single repository which the user has access to. If only one repository can be found which
 // matches the same URL, that will be returned (this is for backward compatibility reasons). If multiple repositories
 // are matched, a repository is only returned if it matches the app project of the incoming request.
-func getRepository(ctx context.Context, listRepositories func(context.Context, *repositorypkg.RepoQuery) (*v1alpha1.RepositoryList, error), q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
+func (s *Server) getRepository(ctx context.Context, listRepositories func(context.Context, *repositorypkg.RepoQuery) (*v1alpha1.RepositoryList, error), q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
 	repositories, err := listRepositories(ctx, q)
 	if err != nil {
 		return nil, err
 	}
 
+	repo, err := s.getRepoFromAlias(ctx, q.Repo, q.ForceRefresh, q.GetAppProject())
+	if err != nil {
+		return nil, err
+	}
+
 	var foundRepos []*v1alpha1.Repository
-	for _, repo := range repositories.Items {
-		if git.SameURL(repo.Repo, q.Repo) {
-			foundRepos = append(foundRepos, repo)
+	for _, repoFromList := range repositories.Items {
+		if git.SameURL(repo.Repo, repo.Repo) {
+			foundRepos = append(foundRepos, repoFromList)
 		}
 	}
 

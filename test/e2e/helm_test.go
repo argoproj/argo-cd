@@ -617,3 +617,55 @@ func TestTemplatesHelmOCIWithDependencies(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
+
+func TestHelmRepoFromAliasWithAtSyntax(t *testing.T) {
+	SkipOnEnv(t, "HELM")
+	Given(t).
+		CustomCACertAdded().
+		HelmRepoAdded("custom-repo").
+		RepoURLType(RepoURLTypeHelmAlias).
+		Chart("helm").
+		Revision("1.0.0").
+		When().
+		CreateApp().
+		Then().
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+func TestHelmRepoFromAliasWithAliasSyntax(t *testing.T) {
+	SkipOnEnv(t, "HELM")
+	Given(t).
+		CustomCACertAdded().
+		HelmRepoAdded("custom-repo").
+		RepoURLType(RepoURLTypeHelmOtherAlias).
+		Chart("helm").
+		Revision("1.0.0").
+		When().
+		CreateApp().
+		Then().
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+func TestHelmRepoFromAliasWithSyntaxShouldFailWhenRepoIsNotAdded(t *testing.T) {
+	SkipOnEnv(t, "HELM")
+	Given(t).
+		CustomCACertAdded().
+		RepoURLType(RepoURLTypeHelmAlias).
+		Chart("helm").
+		Revision("1.0.0").
+		When().
+		IgnoreErrors().
+		CreateApp().
+		Then().
+		Expect(Error("", "repo custom-repo not found, please add it to the repository list"))
+}

@@ -115,12 +115,16 @@ const (
 	RepoURLTypeHelm                 = "helm"
 	RepoURLTypeHelmParent           = "helm-par"
 	RepoURLTypeHelmOCI              = "helm-oci"
+	RepoURLTypeHelmAlias            = "helm-alias"
+	RepoURLTypeHelmOtherAlias       = "helm-other-alias"
 	GitUsername                     = "admin"
 	GitPassword                     = "password"
 	GithubAppID                     = "2978632978"
 	GithubAppInstallationID         = "7893789433789"
 	GpgGoodKeyID                    = "D56C4FCA57A46444"
 	HelmOCIRegistryURL              = "localhost:5000/myrepo"
+	HelmRepoAlias                   = "@custom-repo"
+	HelmRepoOtherAlias              = "alias:custom-repo"
 )
 
 // TestNamespace returns the namespace where Argo CD E2E test instance will be
@@ -326,6 +330,10 @@ func RepoURL(urlType RepoURLType) string {
 		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo")
 	case RepoURLTypeHelmOCI:
 		return HelmOCIRegistryURL
+	case RepoURLTypeHelmAlias:
+		return HelmRepoAlias
+	case RepoURLTypeHelmOtherAlias:
+		return HelmRepoOtherAlias
 	default:
 		return GetEnvWithDefault(EnvRepoURLDefault, fmt.Sprintf("file://%s", repoDirectory()))
 	}
