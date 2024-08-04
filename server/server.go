@@ -1542,7 +1542,7 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc
 	return handler(ctx, req)
 }
 
-// allowedNamespacesAsString returns a string containing comma-separated list
+// allowedApplicationNamespacesAsString returns a string containing comma-separated list
 // of allowed application namespaces
 func (a *ArgoCDServer) allowedApplicationNamespacesAsString() string {
 	ns := a.Namespace
