@@ -1,22 +1,21 @@
 //go:build linux
-// +build linux
 
 package commit
 
 import (
-	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSecureMkdirAllLinux(t *testing.T) {
 	root := t.TempDir()
 
-	// hydratePath
-	hydratePath := "test/dir"
-	fullHydratePath, err := SecureMkdirAll(root, hydratePath, os.ModePerm)
+	unsafePath := "test/dir"
+	fullPath, err := SecureMkdirAll(root, unsafePath, os.ModePerm)
 	require.NoError(t, err)
 
-	expectedPath := path.Join(root, hydratePath)
-	require.Equal(t, expectedPath, fullHydratePath)
+	expectedPath := path.Join(root, unsafePath)
+	require.Equal(t, expectedPath, fullPath)
 }
