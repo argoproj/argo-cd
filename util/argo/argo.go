@@ -334,7 +334,7 @@ func ValidateRepo(
 	if err != nil {
 		return nil, fmt.Errorf("error getting k8s server version: %w", err)
 	}
-	apiGroups, err := kubectl.GetAPIResources(config, true, cache.NewNoopSettings())
+	apiGroups, err := kubectl.GetAPIResources(config, false, cache.NewNoopSettings())
 	if err != nil {
 		return nil, fmt.Errorf("error getting API resources: %w", err)
 	}
@@ -428,7 +428,7 @@ func validateRepo(ctx context.Context,
 		sources,
 		repoClient,
 		cluster.ServerVersion,
-		apiGroups,
+		APIResourcesToStrings(apiGroups, true),
 		permittedHelmCredentials,
 		enabledSourceTypes,
 		settingsMgr,
@@ -709,8 +709,8 @@ func verifyGenerateManifests(
 	proj *argoappv1.AppProject,
 	sources []argoappv1.ApplicationSource,
 	repoClient apiclient.RepoServerServiceClient,
-	kubeVersionFromServer string,
-	apiResourcesFromServer []kube.APIResourceInfo,
+	kubeVersion string,
+	apiVersions []string,
 	repositoryCredentials []*argoappv1.RepoCreds,
 	enableGenerateManifests map[string]bool,
 	settingsMgr *settings.SettingsManager,
@@ -751,18 +751,6 @@ func verifyGenerateManifests(
 			})
 			continue
 		}
-		serverVersion := kubeVersionFromServer
-		if source.Helm != nil && source.Helm.KubeVersion != "" {
-			serverVersion = source.Helm.KubeVersion
-		}
-		apiVersions := APIResourcesToStrings(apiResourcesFromServer, true)
-		if source.Helm != nil && len(source.Helm.APIVersions) > 0 {
-			apiVersions = source.Helm.APIVersions
-		}
-		namespace := dest.Namespace
-		if source.Helm != nil && source.Helm.Namespace != "" {
-			namespace = source.Helm.Namespace
-		}
 		req := apiclient.ManifestRequest{
 			Repo: &argoappv1.Repository{
 				Repo:  source.RepoURL,
@@ -773,10 +761,10 @@ func verifyGenerateManifests(
 			Repos:              helmRepos,
 			Revision:           source.TargetRevision,
 			AppName:            name,
-			Namespace:          namespace,
+			Namespace:          dest.Namespace,
 			ApplicationSource:  &source,
 			KustomizeOptions:   kustomizeOptions,
-			KubeVersion:        serverVersion,
+			KubeVersion:        kubeVersion,
 			ApiVersions:        apiVersions,
 			HelmOptions:        helmOptions,
 			HelmRepoCreds:      repositoryCredentials,
