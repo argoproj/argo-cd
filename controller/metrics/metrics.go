@@ -60,6 +60,7 @@ var (
 
 	descAppLabels     *prometheus.Desc
 	descAppConditions *prometheus.Desc
+	descClusterLabels *prometheus.Desc
 
 	descAppInfo = prometheus.NewDesc(
 		"argocd_app_info",
@@ -246,8 +247,8 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	}, nil
 }
 
-func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo) {
-	collector := &clusterCollector{infoSource: source}
+func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo, clusters argoappv1.ClusterList, clusterLabels []string) {
+	collector := &clusterCollector{infoSource: source, clusters: clusters, clusterLabels: clusterLabels}
 	go collector.Run(ctx)
 	m.registry.MustRegister(collector)
 }
