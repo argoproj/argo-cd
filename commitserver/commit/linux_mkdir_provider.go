@@ -10,7 +10,7 @@ import (
 )
 
 func SecureMkdirAll(root, unsafePath string, mode os.FileMode) (string, error) {
-	err := securejoin.MkdirAll(root, unsafePath, mode)
+	err := securejoin.MkdirAll(root, unsafePath, int(mode))
 	if err != nil {
 		return "", fmt.Errorf("failed to make directory: %w", err)
 	}
