@@ -3386,18 +3386,25 @@ func TestGetCAPath(t *testing.T) {
 		"https://foo.example.com",
 		"oci://foo.example.com",
 		"foo.example.com",
+		"foo.example.com/charts",
+		"https://foo.example.com:5000",
+		"foo.example.com:5000",
+		"foo.example.com:5000/charts",
+		"ssh://foo.example.com",
 	}
 	invalidpath := []string{
 		"https://bar.example.com",
 		"oci://bar.example.com",
 		"bar.example.com",
-		"ssh://foo.example.com",
-		"git@example.com:organization/reponame.git",
+		"ssh://bar.example.com",
+		"git@foo.example.com:organization/reponame.git",
+		"ssh://git@foo.example.com:organization/reponame.git",
 		"/some/invalid/thing",
 		"../another/invalid/thing",
 		"./also/invalid",
 		"$invalid/as/well",
 		"..",
+		"://invalid",
 	}
 
 	for _, str := range validcert {
