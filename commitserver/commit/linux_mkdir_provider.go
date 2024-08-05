@@ -4,6 +4,7 @@ package commit
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/cyphar/filepath-securejoin"
 )
