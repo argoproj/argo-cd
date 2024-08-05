@@ -4,14 +4,14 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMakeSecureTempDir(t *testing.T) {
 	tempDir, cleanup, err := makeSecureTempDir()	
-	
-	if err != nil {
-		t.Fatalf("Failed to create secure temporary directory: %v", err)
-	}
+
+	require.NoError(t, err)
 	defer cleanup()
 
 	// Verify that the temporary directory exists
