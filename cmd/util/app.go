@@ -48,9 +48,9 @@ type AppOptions struct {
 	helmVersion                     string
 	helmPassCredentials             bool
 	helmSkipCrds                    bool
+	helmNamespace                   string
 	helmKubeVersion                 string
 	helmApiVersions                 []string
-	helmNamespace                   string
 	project                         string
 	syncPolicy                      string
 	syncOptions                     []string
@@ -109,9 +109,9 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringArrayVar(&opts.helmSetStrings, "helm-set-string", []string{}, "Helm set STRING values on the command line (can be repeated to set several values: --helm-set-string key1=val1 --helm-set-string key2=val2)")
 	command.Flags().StringArrayVar(&opts.helmSetFiles, "helm-set-file", []string{}, "Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)")
 	command.Flags().BoolVar(&opts.helmSkipCrds, "helm-skip-crds", false, "Skip helm crd installation step")
+	command.Flags().StringVar(&opts.helmNamespace, "helm-namespace", "", "Helm namespace to use when running helm template. If not set, use app.spec.destination.namespace")
 	command.Flags().StringVar(&opts.helmKubeVersion, "helm-kube-version", "", "Helm kube-version to use when running helm template. If not set, use the kube version from the destination cluster")
 	command.Flags().StringArrayVar(&opts.helmApiVersions, "helm-api-versions", []string{}, "Helm api-versions (in format [group/]version/kind) to use when running helm template (Can be repeated to set several values: --helm-api-versions traefik.io/v1alpha1/TLSOption --helm-api-versions v1/Service). If not set, use the api-versions from the destination cluster")
-	command.Flags().StringVar(&opts.helmNamespace, "helm-namespace", "", "Helm namespace to use when running helm template. If not set, use app.spec.destination.namespace")
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: manual (aliases of manual: none), automated (aliases of automated: auto, automatic))")
 	command.Flags().StringArrayVar(&opts.syncOptions, "sync-option", []string{}, "Add or remove a sync option, e.g add `Prune=false`. Remove using `!` prefix, e.g. `!Prune=false`")
@@ -296,6 +296,12 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	if opts.namespace != "" {
 		src.Kustomize.Namespace = opts.namespace
 	}
+	if opts.kubeVersion != "" {
+		src.Kustomize.KubeVersion = opts.kubeVersion
+	}
+	if len(opts.apiVersions) > 0 {
+		src.Kustomize.APIVersions = opts.apiVersions
+	}
 	if opts.commonLabels != nil {
 		src.Kustomize.CommonLabels = opts.commonLabels
 	}
@@ -310,12 +316,6 @@ func setKustomizeOpt(src *argoappv1.ApplicationSource, opts kustomizeOpts) {
 	}
 	if opts.forceCommonAnnotations {
 		src.Kustomize.ForceCommonAnnotations = opts.forceCommonAnnotations
-	}
-	if opts.kubeVersion != "" {
-		src.Kustomize.KubeVersion = opts.kubeVersion
-	}
-	if len(opts.apiVersions) > 0 {
-		src.Kustomize.APIVersions = opts.apiVersions
 	}
 	for _, image := range opts.images {
 		src.Kustomize.MergeImage(argoappv1.KustomizeImage(image))
@@ -358,9 +358,9 @@ type helmOpts struct {
 	helmSetFiles            []string
 	passCredentials         bool
 	skipCrds                bool
+	namespace               string
 	kubeVersion             string
 	apiVersions             []string
-	namespace               string
 }
 
 func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
@@ -391,14 +391,14 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	if opts.skipCrds {
 		src.Helm.SkipCrds = opts.skipCrds
 	}
+	if opts.namespace != "" {
+		src.Helm.Namespace = opts.namespace
+	}
 	if opts.kubeVersion != "" {
 		src.Helm.KubeVersion = opts.kubeVersion
 	}
 	if len(opts.apiVersions) > 0 {
 		src.Helm.APIVersions = opts.apiVersions
-	}
-	if opts.namespace != "" {
-		src.Helm.Namespace = opts.namespace
 	}
 	for _, text := range opts.helmSets {
 		p, err := argoappv1.NewHelmParameter(text, false)
@@ -658,12 +658,12 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			setHelmOpt(source, helmOpts{helmSetFiles: appOpts.helmSetFiles})
 		case "helm-skip-crds":
 			setHelmOpt(source, helmOpts{skipCrds: appOpts.helmSkipCrds})
+		case "helm-namespace":
+			setHelmOpt(source, helmOpts{namespace: appOpts.helmNamespace})
 		case "helm-kube-version":
 			setHelmOpt(source, helmOpts{kubeVersion: appOpts.helmKubeVersion})
 		case "helm-api-versions":
 			setHelmOpt(source, helmOpts{apiVersions: appOpts.helmApiVersions})
-		case "helm-namespace":
-			setHelmOpt(source, helmOpts{namespace: appOpts.helmNamespace})
 		case "directory-recurse":
 			if source.Directory != nil {
 				source.Directory.Recurse = appOpts.directoryRecurse

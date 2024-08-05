@@ -1835,6 +1835,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 							Ref:         ref("k8s.io/apimachinery/pkg/runtime.RawExtension"),
 						},
 					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespace is an optional namespace to template with. If left empty, defaults to the app's destination namespace.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"kubeVersion": {
 						SchemaProps: spec.SchemaProps{
 							Description: "KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD uses the Kubernetes version of the target cluster.",
@@ -1855,13 +1862,6 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceHelm(ref common.Refer
 									},
 								},
 							},
-						},
-					},
-					"namespace": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Namespace is an optional namespace to template with. If left empty, defaults to the app's destination namespace.",
-							Type:        []string{"string"},
-							Format:      "",
 						},
 					},
 				},
