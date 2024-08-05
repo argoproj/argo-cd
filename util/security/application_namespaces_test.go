@@ -49,6 +49,20 @@ func Test_IsNamespaceEnabled(t *testing.T) {
 			[]string{"allowed"},
 			false,
 		},
+		{
+			"match everything but specified word: fail",
+			"disallowed",
+			"argocd",
+			[]string{"/^((?!disallowed).)*$/"},
+			false,
+		},
+		{
+			"match everything but specified word: pass",
+			"allowed",
+			"argocd",
+			[]string{"/^((?!disallowed).)*$/"},
+			true,
+		},
 	}
 
 	for _, tc := range testCases {
