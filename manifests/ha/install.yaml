@@ -329,6 +329,13 @@ spec:
                       kustomize:
                         description: Kustomize holds kustomize specific options
                         properties:
+                          apiVersions:
+                            description: |-
+                              APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                              Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                            items:
+                              type: string
+                            type: array
                           commonAnnotations:
                             additionalProperties:
                               type: string
@@ -368,6 +375,11 @@ spec:
                                 definition in the format [old_image_name=]<image_name>:<image_tag>
                               type: string
                             type: array
+                          kubeVersion:
+                            description: |-
+                              KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                              uses the Kubernetes version of the target cluster.
+                            type: string
                           labelWithoutSelector:
                             description: LabelWithoutSelector specifies whether to
                               apply common labels to resource selectors or not
@@ -683,6 +695,13 @@ spec:
                         kustomize:
                           description: Kustomize holds kustomize specific options
                           properties:
+                            apiVersions:
+                              description: |-
+                                APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                              items:
+                                type: string
+                              type: array
                             commonAnnotations:
                               additionalProperties:
                                 type: string
@@ -724,6 +743,11 @@ spec:
                                   image definition in the format [old_image_name=]<image_name>:<image_tag>
                                 type: string
                               type: array
+                            kubeVersion:
+                              description: |-
+                                KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                uses the Kubernetes version of the target cluster.
+                              type: string
                             labelWithoutSelector:
                               description: LabelWithoutSelector specifies whether
                                 to apply common labels to resource selectors or not
@@ -1152,6 +1176,13 @@ spec:
                   kustomize:
                     description: Kustomize holds kustomize specific options
                     properties:
+                      apiVersions:
+                        description: |-
+                          APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                          Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                        items:
+                          type: string
+                        type: array
                       commonAnnotations:
                         additionalProperties:
                           type: string
@@ -1190,6 +1221,11 @@ spec:
                             definition in the format [old_image_name=]<image_name>:<image_tag>
                           type: string
                         type: array
+                      kubeVersion:
+                        description: |-
+                          KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                          uses the Kubernetes version of the target cluster.
+                        type: string
                       labelWithoutSelector:
                         description: LabelWithoutSelector specifies whether to apply
                           common labels to resource selectors or not
@@ -1497,6 +1533,13 @@ spec:
                     kustomize:
                       description: Kustomize holds kustomize specific options
                       properties:
+                        apiVersions:
+                          description: |-
+                            APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                            Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                          items:
+                            type: string
+                          type: array
                         commonAnnotations:
                           additionalProperties:
                             type: string
@@ -1536,6 +1579,11 @@ spec:
                               definition in the format [old_image_name=]<image_name>:<image_tag>
                             type: string
                           type: array
+                        kubeVersion:
+                          description: |-
+                            KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                            uses the Kubernetes version of the target cluster.
+                          type: string
                         labelWithoutSelector:
                           description: LabelWithoutSelector specifies whether to apply
                             common labels to resource selectors or not
@@ -2007,6 +2055,13 @@ spec:
                         kustomize:
                           description: Kustomize holds kustomize specific options
                           properties:
+                            apiVersions:
+                              description: |-
+                                APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                              items:
+                                type: string
+                              type: array
                             commonAnnotations:
                               additionalProperties:
                                 type: string
@@ -2048,6 +2103,11 @@ spec:
                                   image definition in the format [old_image_name=]<image_name>:<image_tag>
                                 type: string
                               type: array
+                            kubeVersion:
+                              description: |-
+                                KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                uses the Kubernetes version of the target cluster.
+                              type: string
                             labelWithoutSelector:
                               description: LabelWithoutSelector specifies whether
                                 to apply common labels to resource selectors or not
@@ -2365,6 +2425,13 @@ spec:
                           kustomize:
                             description: Kustomize holds kustomize specific options
                             properties:
+                              apiVersions:
+                                description: |-
+                                  APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                  Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                items:
+                                  type: string
+                                type: array
                               commonAnnotations:
                                 additionalProperties:
                                   type: string
@@ -2406,6 +2473,11 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
+                              kubeVersion:
+                                description: |-
+                                  KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                  uses the Kubernetes version of the target cluster.
+                                type: string
                               labelWithoutSelector:
                                 description: LabelWithoutSelector specifies whether
                                   to apply common labels to resource selectors or
@@ -2867,6 +2939,13 @@ spec:
                               kustomize:
                                 description: Kustomize holds kustomize specific options
                                 properties:
+                                  apiVersions:
+                                    description: |-
+                                      APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                      Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                    items:
+                                      type: string
+                                    type: array
                                   commonAnnotations:
                                     additionalProperties:
                                       type: string
@@ -2909,6 +2988,11 @@ spec:
                                         image definition in the format [old_image_name=]<image_name>:<image_tag>
                                       type: string
                                     type: array
+                                  kubeVersion:
+                                    description: |-
+                                      KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                      uses the Kubernetes version of the target cluster.
+                                    type: string
                                   labelWithoutSelector:
                                     description: LabelWithoutSelector specifies whether
                                       to apply common labels to resource selectors
@@ -3243,6 +3327,13 @@ spec:
                                   description: Kustomize holds kustomize specific
                                     options
                                   properties:
+                                    apiVersions:
+                                      description: |-
+                                        APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                        Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                      items:
+                                        type: string
+                                      type: array
                                     commonAnnotations:
                                       additionalProperties:
                                         type: string
@@ -3286,6 +3377,11 @@ spec:
                                           image definition in the format [old_image_name=]<image_name>:<image_tag>
                                         type: string
                                       type: array
+                                    kubeVersion:
+                                      description: |-
+                                        KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                        uses the Kubernetes version of the target cluster.
+                                      type: string
                                     labelWithoutSelector:
                                       description: LabelWithoutSelector specifies
                                         whether to apply common labels to resource
@@ -3734,6 +3830,13 @@ spec:
                           kustomize:
                             description: Kustomize holds kustomize specific options
                             properties:
+                              apiVersions:
+                                description: |-
+                                  APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                  Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                items:
+                                  type: string
+                                type: array
                               commonAnnotations:
                                 additionalProperties:
                                   type: string
@@ -3775,6 +3878,11 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
+                              kubeVersion:
+                                description: |-
+                                  KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                  uses the Kubernetes version of the target cluster.
+                                type: string
                               labelWithoutSelector:
                                 description: LabelWithoutSelector specifies whether
                                   to apply common labels to resource selectors or
@@ -4103,6 +4211,13 @@ spec:
                             kustomize:
                               description: Kustomize holds kustomize specific options
                               properties:
+                                apiVersions:
+                                  description: |-
+                                    APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                    Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                  items:
+                                    type: string
+                                  type: array
                                 commonAnnotations:
                                   additionalProperties:
                                     type: string
@@ -4145,6 +4260,11 @@ spec:
                                       image definition in the format [old_image_name=]<image_name>:<image_tag>
                                     type: string
                                   type: array
+                                kubeVersion:
+                                  description: |-
+                                    KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                    uses the Kubernetes version of the target cluster.
+                                  type: string
                                 labelWithoutSelector:
                                   description: LabelWithoutSelector specifies whether
                                     to apply common labels to resource selectors or
@@ -4616,6 +4736,13 @@ spec:
                           kustomize:
                             description: Kustomize holds kustomize specific options
                             properties:
+                              apiVersions:
+                                description: |-
+                                  APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                  Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                items:
+                                  type: string
+                                type: array
                               commonAnnotations:
                                 additionalProperties:
                                   type: string
@@ -4657,6 +4784,11 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
+                              kubeVersion:
+                                description: |-
+                                  KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                  uses the Kubernetes version of the target cluster.
+                                type: string
                               labelWithoutSelector:
                                 description: LabelWithoutSelector specifies whether
                                   to apply common labels to resource selectors or
@@ -4985,6 +5117,13 @@ spec:
                             kustomize:
                               description: Kustomize holds kustomize specific options
                               properties:
+                                apiVersions:
+                                  description: |-
+                                    APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                    Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                  items:
+                                    type: string
+                                  type: array
                                 commonAnnotations:
                                   additionalProperties:
                                     type: string
@@ -5027,6 +5166,11 @@ spec:
                                       image definition in the format [old_image_name=]<image_name>:<image_tag>
                                     type: string
                                   type: array
+                                kubeVersion:
+                                  description: |-
+                                    KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                    uses the Kubernetes version of the target cluster.
+                                  type: string
                                 labelWithoutSelector:
                                   description: LabelWithoutSelector specifies whether
                                     to apply common labels to resource selectors or
@@ -5447,6 +5591,10 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
+                                        apiVersions:
+                                          items:
+                                            type: string
+                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -5469,6 +5617,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        kubeVersion:
+                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -5671,6 +5821,10 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
+                                          apiVersions:
+                                            items:
+                                              type: string
+                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -5693,6 +5847,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          kubeVersion:
+                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -6055,6 +6211,10 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
+                                        apiVersions:
+                                          items:
+                                            type: string
+                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -6077,6 +6237,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        kubeVersion:
+                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -6279,6 +6441,10 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
+                                          apiVersions:
+                                            items:
+                                              type: string
+                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -6301,6 +6467,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          kubeVersion:
+                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -6666,6 +6834,10 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
+                                        apiVersions:
+                                          items:
+                                            type: string
+                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -6688,6 +6860,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        kubeVersion:
+                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -6890,6 +7064,10 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
+                                          apiVersions:
+                                            items:
+                                              type: string
+                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -6912,6 +7090,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          kubeVersion:
+                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -7257,6 +7437,10 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
+                                        apiVersions:
+                                          items:
+                                            type: string
+                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -7279,6 +7463,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        kubeVersion:
+                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -7481,6 +7667,10 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
+                                          apiVersions:
+                                            items:
+                                              type: string
+                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -7503,6 +7693,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          kubeVersion:
+                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -7871,6 +8063,10 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -7893,6 +8089,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  kubeVersion:
+                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -8095,6 +8293,10 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -8117,6 +8319,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    kubeVersion:
+                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -8479,6 +8683,10 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -8501,6 +8709,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  kubeVersion:
+                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -8703,6 +8913,10 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -8725,6 +8939,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    kubeVersion:
+                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -9090,6 +9306,10 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -9112,6 +9332,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  kubeVersion:
+                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -9314,6 +9536,10 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -9336,6 +9562,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    kubeVersion:
+                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -9681,6 +9909,10 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -9703,6 +9935,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  kubeVersion:
+                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -9905,6 +10139,10 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -9927,6 +10165,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    kubeVersion:
+                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -10280,6 +10520,10 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -10302,6 +10546,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  kubeVersion:
+                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -10504,6 +10750,10 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -10526,6 +10776,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    kubeVersion:
+                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -11098,6 +11350,10 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -11120,6 +11376,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  kubeVersion:
+                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -11322,6 +11580,10 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -11344,6 +11606,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    kubeVersion:
+                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -11911,6 +12175,10 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -11933,6 +12201,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  kubeVersion:
+                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -12135,6 +12405,10 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -12157,6 +12431,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    kubeVersion:
+                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -12517,6 +12793,10 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
+                                        apiVersions:
+                                          items:
+                                            type: string
+                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -12539,6 +12819,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        kubeVersion:
+                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -12741,6 +13023,10 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
+                                          apiVersions:
+                                            items:
+                                              type: string
+                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -12763,6 +13049,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          kubeVersion:
+                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -13133,6 +13421,10 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -13155,6 +13447,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  kubeVersion:
+                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -13357,6 +13651,10 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -13379,6 +13677,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    kubeVersion:
+                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -13741,6 +14041,10 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -13763,6 +14067,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  kubeVersion:
+                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -13965,6 +14271,10 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -13987,6 +14297,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    kubeVersion:
+                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -14352,6 +14664,10 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -14374,6 +14690,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  kubeVersion:
+                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -14576,6 +14894,10 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -14598,6 +14920,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    kubeVersion:
+                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -14943,6 +15267,10 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -14965,6 +15293,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  kubeVersion:
+                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -15167,6 +15497,10 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -15189,6 +15523,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    kubeVersion:
+                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -15542,6 +15878,10 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -15564,6 +15904,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  kubeVersion:
+                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -15766,6 +16108,10 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -15788,6 +16134,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    kubeVersion:
+                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -16360,6 +16708,10 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -16382,6 +16734,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  kubeVersion:
+                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -16584,6 +16938,10 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -16606,6 +16964,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    kubeVersion:
+                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -17173,6 +17533,10 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
+                                                  apiVersions:
+                                                    items:
+                                                      type: string
+                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -17195,6 +17559,8 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
+                                                  kubeVersion:
+                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -17397,6 +17763,10 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
+                                                    apiVersions:
+                                                      items:
+                                                        type: string
+                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -17419,6 +17789,8 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
+                                                    kubeVersion:
+                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -17783,6 +18155,10 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
+                                        apiVersions:
+                                          items:
+                                            type: string
+                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -17805,6 +18181,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        kubeVersion:
+                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -18007,6 +18385,10 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
+                                          apiVersions:
+                                            items:
+                                              type: string
+                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -18029,6 +18411,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          kubeVersion:
+                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -18381,6 +18765,10 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
+                                        apiVersions:
+                                          items:
+                                            type: string
+                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -18403,6 +18791,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        kubeVersion:
+                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -18605,6 +18995,10 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
+                                          apiVersions:
+                                            items:
+                                              type: string
+                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -18627,6 +19021,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          kubeVersion:
+                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -19199,6 +19595,10 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
+                                        apiVersions:
+                                          items:
+                                            type: string
+                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -19221,6 +19621,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        kubeVersion:
+                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -19423,6 +19825,10 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
+                                          apiVersions:
+                                            items:
+                                              type: string
+                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -19445,6 +19851,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          kubeVersion:
+                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -20012,6 +20420,10 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
+                                        apiVersions:
+                                          items:
+                                            type: string
+                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -20034,6 +20446,8 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                        kubeVersion:
+                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -20236,6 +20650,10 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
+                                          apiVersions:
+                                            items:
+                                              type: string
+                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -20258,6 +20676,8 @@ spec:
                                             items:
                                               type: string
                                             type: array
+                                          kubeVersion:
+                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -20693,6 +21113,10 @@ spec:
                             type: object
                           kustomize:
                             properties:
+                              apiVersions:
+                                items:
+                                  type: string
+                                type: array
                               commonAnnotations:
                                 additionalProperties:
                                   type: string
@@ -20715,6 +21139,8 @@ spec:
                                 items:
                                   type: string
                                 type: array
+                              kubeVersion:
+                                type: string
                               labelWithoutSelector:
                                 type: boolean
                               namePrefix:
@@ -20917,6 +21343,10 @@ spec:
                               type: object
                             kustomize:
                               properties:
+                                apiVersions:
+                                  items:
+                                    type: string
+                                  type: array
                                 commonAnnotations:
                                   additionalProperties:
                                     type: string
@@ -20939,6 +21369,8 @@ spec:
                                   items:
                                     type: string
                                   type: array
+                                kubeVersion:
+                                  type: string
                                 labelWithoutSelector:
                                   type: boolean
                                 namePrefix:
