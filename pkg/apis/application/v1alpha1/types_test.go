@@ -10,10 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
 
 	argocdcommon "github.com/argoproj/argo-cd/v2/common"
@@ -826,8 +823,12 @@ func TestAppProject_ValidPolicyRules(t *testing.T) {
 		"p, proj:my-proj:my-role, applications, *, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, create, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, update, my-proj/foo, allow",
+		"p, proj:my-proj:my-role, applications, update/*, my-proj/foo, allow",
+		"p, proj:my-proj:my-role, applications, update/*/Pod/*, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, sync, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, delete, my-proj/foo, allow",
+		"p, proj:my-proj:my-role, applications, delete/*, my-proj/foo, allow",
+		"p, proj:my-proj:my-role, applications, delete/*/Pod/*, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, action/*, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, action/apps/Deployment/restart, my-proj/foo, allow",
 	}
@@ -3088,7 +3089,7 @@ func TestOrphanedResourcesMonitorSettings_IsWarn(t *testing.T) {
 	assert.True(t, settings.IsWarn())
 }
 
-func Test_isValidPolicy(t *testing.T) {
+func Test_isValidPolicyObject(t *testing.T) {
 	policyTests := []struct {
 		name    string
 		policy  string
@@ -3732,36 +3733,4 @@ func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
 			assert.Equal(t, tc.expected, actual)
 		})
 	}
-}
-
-func TestHelmValuesObjectHasReplaceStrategy(t *testing.T) {
-	app := Application{
-		Status: ApplicationStatus{Sync: SyncStatus{ComparedTo: ComparedTo{
-			Source: ApplicationSource{
-				Helm: &ApplicationSourceHelm{
-					ValuesObject: &runtime.RawExtension{
-						Object: &unstructured.Unstructured{Object: map[string]interface{}{"key": []string{"value"}}},
-					},
-				},
-			},
-		}}},
-	}
-
-	appModified := Application{
-		Status: ApplicationStatus{Sync: SyncStatus{ComparedTo: ComparedTo{
-			Source: ApplicationSource{
-				Helm: &ApplicationSourceHelm{
-					ValuesObject: &runtime.RawExtension{
-						Object: &unstructured.Unstructured{Object: map[string]interface{}{"key": []string{"value-modified1"}}},
-					},
-				},
-			},
-		}}},
-	}
-
-	patch, _, err := diff.CreateTwoWayMergePatch(
-		app,
-		appModified, Application{})
-	require.NoError(t, err)
-	assert.Equal(t, `{"status":{"sync":{"comparedTo":{"destination":{},"source":{"helm":{"valuesObject":{"key":["value-modified1"]}},"repoURL":""}}}}}`, string(patch))
 }

@@ -1324,7 +1324,7 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 	return nil
 }
 
-// setApplicationSetApplicationStatus updates the ApplicationSet's status field
+// setAppSetApplicationStatus updates the ApplicationSet's status field
 // with any new/changed Application statuses.
 func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applicationStatuses []argov1alpha1.ApplicationSetApplicationStatus) error {
 	needToUpdateStatus := false

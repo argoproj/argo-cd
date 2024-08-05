@@ -2278,7 +2278,6 @@ message SyncStatus {
   optional string status = 1;
 
   // ComparedTo contains information about what has been compared
-  // +patchStrategy=replace
   optional ComparedTo comparedTo = 2;
 
   // Revision contains information about the revision the comparison has been performed to

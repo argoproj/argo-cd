@@ -143,14 +143,28 @@ func ResourceSyncStatusWithNamespaceIs(kind, resource, namespace string, expecte
 
 func ResourceHealthIs(kind, resource string, expected health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
-		actual := c.resource(kind, resource, "").Health.Status
+		var actual health.HealthStatusCode
+		resourceHealth := c.resource(kind, resource, "").Health
+		if resourceHealth != nil {
+			actual = resourceHealth.Status
+		} else {
+			// Some resources like ConfigMap may not have health status when they are okay
+			actual = health.HealthStatusHealthy
+		}
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' health should be %s, is %s", kind, resource, expected, actual))
 	}
 }
 
 func ResourceHealthWithNamespaceIs(kind, resource, namespace string, expected health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
-		actual := c.resource(kind, resource, namespace).Health.Status
+		var actual health.HealthStatusCode
+		resourceHealth := c.resource(kind, resource, namespace).Health
+		if resourceHealth != nil {
+			actual = resourceHealth.Status
+		} else {
+			// Some resources like ConfigMap may not have health status when they are okay
+			actual = health.HealthStatusHealthy
+		}
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' health should be %s, is %s", kind, resource, expected, actual))
 	}
 }

@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="27 known vulnerabilities found in 62 vulnerable dependency paths.">
+  <meta name="description" content="26 known vulnerabilities found in 61 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">July 28th 2024, 12:17:39 am (UTC+00:00)</p>
+                <p class="timestamp">August 4th 2024, 12:17:05 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -469,8 +469,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>27</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>62 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>26</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>61 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>841</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -2484,120 +2484,6 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-ALPINE320-OPENSSL-7413532">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">Denial of Service (DoS)</h2>
-            <div class="card__section">
-        
-                <div class="label label--low">
-                    <span class="label__text">low severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: ghcr.io/dexidp/dex:v2.40.0/hairyhenderson/gomplate/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            k8s.io/client-go/util/jsonpath
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/hairyhenderson/gomplate/v3@* and k8s.io/client-go/util/jsonpath@v0.24.1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/hairyhenderson/gomplate/v3@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        k8s.io/client-go/util/jsonpath@v0.24.1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://pkg.go.dev/k8s.io/client-go/util/jsonpath?tab=doc">k8s.io/client-go/util/jsonpath</a> is a Go client for Kubernetes.</p>
-        <p>Affected versions of this package are vulnerable to Denial of Service (DoS). A user able to create CRDs could create a malicious CRD such that listing CRs will cause enormous amounts of CPU usage on the API server.</p>
-        <h3 id="poc">PoC</h3>
-        <ol>
-        <li></li>
-        </ol>
-        <pre><code>kubectl create -f - &lt;&lt;EOF
-        apiVersion: apiextensions.k8s.io/v1beta1
-        kind: CustomResourceDefinition
-        metadata:
-          name: foos.example.com
-        spec:
-          group: example.com
-          scope: Namespaced
-          names:
-            plural: foos
-            singular: foo
-            kind: Foo
-          version: v1
-          additionalPrinterColumns:
-          - name: FOO
-            type: string
-            JSONPath: ........................................................................................................................................................................................................
-        EOF
-        </code></pre>
-        <ol start="2">
-        <li></li>
-        </ol>
-        <pre><code>kubectl create -f - &lt;&lt;EOF
-        apiVersion: example.com/v1
-        kind: Foo
-        metadata:
-          name: foo-cr
-        spec:
-          foo:
-            bar:
-              baz:
-                qux: data
-        EOF
-        </code></pre>
-        <ol start="3">
-        <li><code>kubectl get foo</code></li>
-        </ol>
-        <p>The API server CPU usage significantly increases</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>k8s.io/client-go/util/jsonpath</code> to version 1.20.0-alpha.1 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/kubernetes/client-go/commit/2221ace3738ccc30c6613e5b5fbaaefb3148458c">GitHub Commit</a></li>
-        <li><a href="https://github.com/kubernetes/kubernetes/pull/93408/commits/8c702254938c40a48b2e3db78fcc944ca50fdc65">GitHub Commit</a></li>
-        <li><a href="https://github.com/kubernetes/kubernetes/issues/93400">GitHub Issue</a></li>
-        <li><a href="https://github.com/kubernetes/kubernetes/pull/93408">GitHub PR</a></li>
-        <li><a href="https://hackerone.com/reports/882923">HackerOne Report</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-K8SIOCLIENTGOUTILJSONPATH-7540854">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->

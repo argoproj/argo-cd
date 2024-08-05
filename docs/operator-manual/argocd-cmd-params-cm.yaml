@@ -72,6 +72,8 @@ data:
   # Diff calculation will be done by running a server side apply dryrun (when
   # diff cache is unavailable).
   controller.diff.server.side: "false"
+  # Enables profile endpoint on the internal metrics port
+  controller.profile.enabled: "false"
 
   ## Server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
@@ -136,6 +138,8 @@ data:
   server.default.cache.expiration: "24h0m0s"
   # Enable the experimental proxy extension feature
   server.enable.proxy.extension: "false"
+  # Enables profile endpoint on the internal metrics port
+  server.profile.enabled: "false"
 
   ## Repo-server properties
   # Listen on given address for incoming connections (default "0.0.0.0")

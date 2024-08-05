@@ -7860,11 +7860,6 @@ func schema_pkg_apis_application_v1alpha1_SyncStatus(ref common.ReferenceCallbac
 						},
 					},
 					"comparedTo": {
-						VendorExtensible: spec.VendorExtensible{
-							Extensions: spec.Extensions{
-								"x-kubernetes-patch-strategy": "replace",
-							},
-						},
 						SchemaProps: spec.SchemaProps{
 							Description: "ComparedTo contains information about what has been compared",
 							Default:     map[string]interface{}{},
