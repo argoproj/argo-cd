@@ -564,3 +564,11 @@ Disabling certificate verification might make sense if:
 
 If either of those two applies, then you can disable OIDC provider certificate verification by setting
 `oidc.tls.insecure.skip.verify` to `"true"` in the `argocd-cm` ConfigMap.
+
+
+
+## General User Management
+### Configuring the user name
+Argo CD uses a specify claim from the OIDC provider to determine the user name.
+The following environment variables can be used to configure the claim name:
+* `ARGOCD_DEFAULT_LOGIN_FIELD`: The claim name to use for the user name. Defaults to `name`.
