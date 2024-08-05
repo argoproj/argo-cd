@@ -79,7 +79,7 @@
     "@types/js-yaml": "^4.0.9",
     "@types/lodash-es": "^4.17.6",
     "@types/minimatch": "^3.0.3",
-    "@types/node": "20.6.3",
+    "@types/node": "20.14.12",
     "@types/prop-types": "^15.7.5",
     "@types/react": "^16.8.5",
     "@types/react-autocomplete": "^1.8.10",
@@ -124,6 +124,6 @@
     "webpack": "^5.84.1",
     "webpack-cli": "^4.9.2",
     "webpack-dev-server": "^4.7.4",
-    "yarn": "^1.22.21"
+    "yarn": "^1.22.22"
   }
 }

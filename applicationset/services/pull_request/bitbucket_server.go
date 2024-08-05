@@ -88,6 +88,7 @@ func (b *BitbucketService) List(_ context.Context) ([]*PullRequest, error) {
 				TargetBranch: pull.ToRef.DisplayID,
 				HeadSHA:      pull.FromRef.LatestCommit, // This is not defined in the official docs, but works in practice
 				Labels:       []string{},                // Not supported by library
+				Author:       pull.Author.User.Name,
 			})
 		}
 

@@ -15,3 +15,7 @@ tests:
     status: Degraded
     message: "Pipeline Failed"
   inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for Pipeline status"
+  inputPath: testdata/progressing-reason.yaml

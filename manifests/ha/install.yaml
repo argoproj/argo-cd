@@ -23897,6 +23897,8 @@ spec:
           name: plugins-home
         - mountPath: /tmp
           name: tmp
+        - mountPath: /home/argocd/params
+          name: argocd-cmd-params-cm
       serviceAccountName: argocd-server
       volumes:
       - emptyDir: {}
@@ -23929,6 +23931,13 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-dex-server-tls
+      - configMap:
+          items:
+          - key: server.profile.enabled
+            path: profiler.enabled
+          name: argocd-cmd-params-cm
+          optional: true
+        name: argocd-cmd-params-cm
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -24180,6 +24189,8 @@ spec:
           name: argocd-repo-server-tls
         - mountPath: /home/argocd
           name: argocd-home
+        - mountPath: /home/argocd/params
+          name: argocd-cmd-params-cm
         workingDir: /home/argocd
       serviceAccountName: argocd-application-controller
       volumes:
@@ -24196,6 +24207,13 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
+      - configMap:
+          items:
+          - key: controller.profile.enabled
+            path: profiler.enabled
+          name: argocd-cmd-params-cm
+          optional: true
+        name: argocd-cmd-params-cm
 ---
 apiVersion: apps/v1
 kind: StatefulSet

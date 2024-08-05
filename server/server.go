@@ -647,6 +647,7 @@ func (a *ArgoCDServer) watchSettings() {
 	a.settingsMgr.Subscribe(updateCh)
 
 	prevURL := a.settings.URL
+	prevAdditionalURLs := a.settings.AdditionalURLs
 	prevOIDCConfig := a.settings.OIDCConfig()
 	prevDexCfgBytes, err := dexutil.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
 	errorsutil.CheckError(err)
@@ -676,6 +677,10 @@ func (a *ArgoCDServer) watchSettings() {
 		}
 		if prevURL != a.settings.URL {
 			log.Infof("url modified. restarting")
+			break
+		}
+		if !reflect.DeepEqual(prevAdditionalURLs, a.settings.AdditionalURLs) {
+			log.Infof("additionalURLs modified. restarting")
 			break
 		}
 		if prevGitHubSecret != a.settings.WebhookGitHubSecret {
@@ -1537,7 +1542,7 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc
 	return handler(ctx, req)
 }
 
-// allowedNamespacesAsString returns a string containing comma-separated list
+// allowedApplicationNamespacesAsString returns a string containing comma-separated list
 // of allowed application namespaces
 func (a *ArgoCDServer) allowedApplicationNamespacesAsString() string {
 	ns := a.Namespace
