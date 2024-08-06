@@ -8,14 +8,14 @@
 
 ## Introduction
 
-As of version 2.10, Argo CD supports syncing `Application` resources using the same service account used for its control plane operations. This feature enables users to decouple service account used for application sync from the service account used for control plane operations.
+Argo CD supports syncing `Application` resources using the same service account used for its control plane operations. This feature enables users to decouple service account used for application sync from the service account used for control plane operations.
 
-Application syncs in Argo CD have the same privileges as the Argo CD control plane. As a consequence, in a multi-tenant setup, the Argo CD control plane privileges needs to match the tenant that needs the highest privileges. As an example, if an Argo CD instance has 10 Applications and only one of them requires admin privileges, then the Argo CD control plane must have admin privileges in order to be able to sync that one Application. Argo CD provides a multi-tenancy model to restrict what each Application can do using `AppProjects`, even though the control plane has higher privileges, however that creates a large attack surface since if Argo CD is compromised, attackers would have cluster-admin access to the cluster.
+By default, application syncs in Argo CD have the same privileges as the Argo CD control plane. As a consequence, in a multi-tenant setup, the Argo CD control plane privileges needs to match the tenant that needs the highest privileges. As an example, if an Argo CD instance has 10 Applications and only one of them requires admin privileges, then the Argo CD control plane must have admin privileges in order to be able to sync that one Application. Argo CD provides a multi-tenancy model to restrict what each Application can do using `AppProjects`, even though the control plane has higher privileges, however that creates a large attack surface since if Argo CD is compromised, attackers will gain cluster-admin access to the cluster.
 
 Some manual steps will need to be performed by the Argo CD administrator in order to enable this feature. 
 
 !!! note
-    This feature is considered beta as of now. Some of the implementation details may change over the course of time until it is promoted to a stable status. We will be happy if early adopters use this feature and provide us with bug reports and feedback.
+    This feature is considered alpha as of now. Some of the implementation details may change over the course of time until it is promoted to a stable status. We will be happy if early adopters use this feature and provide us with bug reports and feedback.
 
 ### What is Impersonation
 
@@ -23,15 +23,14 @@ Impersonation is a feature in Kubernetes and enabled in the `kubectl` CLI client
 
 Impersonation requests first authenticate as the requesting user, then switch to the impersonated user info.
 
-```shell
-kubectl --as <user-to-impersonate> ...
-kubectl --as <user-to-impersonate> --as-group <group-to-impersonate> ...
-```
 ## Prerequisites
-- In a multi team/multi tenant environment, an application team is typically granted access to a namespace to self-manage their Applications in a declarative way. 
-- The tenant namespace and the service account to be used for creating the resources in that namespace is created.
-- Create a Role to manage kubernetes resources in the tenant namespace
-- Create a RoleBinding to map the service account to the role created in the previous step.
+- In a multi-team/multi-tenant environment, a team/tenant is typically granted access to a target namespace to self-manage their kubernetes resources in a declarative way.
+A typical tenant onboarding process looks like below:
+1. The platform admin creates a tenant namespace and the service account to be used for creating the resources in that namespace is created.
+2. The platform admin creates one or more Role(s) to manage kubernetes resources in the tenant namespace
+3. The platform admin creates one or more RoleBinding(s) to map the service account to the role(s) created in previous steps.
+4. The platform admin configures ArgoCD to support apps-in-any-namespace feature, so that tenants can self-service their Argo applications in their respective tenant namespaces.
+5. If apps-in-any-namespace feature is not used, then the platform admin can provide access to manage ArgoCD Applications in the ArgoCD control plane namespace.
 
 ## Implementation details
 
@@ -39,13 +38,9 @@ kubectl --as <user-to-impersonate> --as-group <group-to-impersonate> ...
 
 In order for an application to use a different service account for the application sync operation, the following steps needs to be performed:
 
-1. The impersonation feature flag should be enabled by setting the value of key `application.sync.impersonation.enabled` to `true` in the `argocd-cm` ConfigMap as below:
-```yaml
-data:
-  application.sync.impersonation.enabled: true
-```
+1. The impersonation feature flag should be enabled. [Enable application sync with impersonation feature](#Enable application sync with impersonation feature)
 
-2. The `AppProject` referenced by the `.spec.project` field of the `Application` must have the `DestinationServiceAccounts` mapping the destination server and namespace to a service account to be used for the sync operation.
+2. The `AppProject` referenced by the `.spec.project` field of the `Application` must have the `DestinationServiceAccounts` mapping the destination server and namespace to a service account to be used for the sync operation.[Configuring destination service accounts](#Configuring destination service accounts)
 
 `DestinationServiceAccounts` associated to a `AppProject` can be created and managed, either declaratively or through the Argo CD API (e.g. using the CLI, the web UI, the REST API, etc).
 
@@ -56,14 +51,32 @@ In order to enable this feature, the Argo CD administrator must reconfigure the 
 
 ```yaml
 data:
-  application.sync.impersonation.enabled: true
+  application.sync.impersonation.enabled: "true"
 ```
-  
+
+### Disable application sync with impersonation feature
+
+In order to disable this feature, the Argo CD administrator must reconfigure the `application.sync.impersonation.enabled` settings in the `argocd-cm` ConfigMap as below:
+
+```yaml
+data:
+  application.sync.impersonation.enabled: "false"
+```
+
+!!! note
+    This feature is disabled by default.
+
 ## Configuring destination service accounts
 
-### Declaratively
+Destination service accounts can be added in the `AppProject` object under `.spec.destinationServiceAccounts`. Specify the target destination `server` and `namespace` and provide the service account to be used for the sync operation using `defaultServiceAccount` field. Applications that refer this `AppProject` will use the corresponding service account configured for its destination.
 
-For declaratively configuring destination service accounts, in the `AppProject`, add a section `.spec.destinationServiceAccounts`. Specify the target destination `server` and `namespace` and the provide the service account to be used for the sync operation using `defaultServiceAccount` field. Applications that refer this `AppProject` would use the corresponding service account configured for its destination. If there are multiple matches, then the first valid match would be considered.
+During the application sync operation, the controller loops through the available `destinationServiceAccounts` in the mapped `AppProject` and tries to find a matching candidate. If there are multiple matches of destination server and namespace combination, then the first valid match will be considered. If there are no matches, then a default service account set using the setting `application.sync.global.defaultServiceAccount`. If a global default service account is not set, then an error is reported during the sync operation.
+
+It is possible to specify service accounts along with its namespace. eg: `tenant1-ns:guestbook-deployer`. If no namespace is provided for the service account, then the Application's `spec.destination.namespace` will be used. If no namespace is provided for the service account and the optional `spec.destination.namespace` field is not provided in the `Application`, then the Application's namespace will be used.
+
+### Declarative Configuration
+
+For declaratively configuring destination service accounts, create an yaml file for the `AppProject` as below and apply the changes using `kubectl apply` command.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -95,7 +108,7 @@ spec:
 
 ### Using the CLI
 
-You can use all existing Argo CD CLI commands for adding destination service account
+Destination service accounts can be added to an `AppProject` using the ArgoCD CLI.
 
 For example, to add a destination service account for `in-cluster` and `guestbook` namespace, you can use the following CLI command:
 
@@ -111,4 +124,4 @@ argocd proj remove-destination-service-account my-project https://kubernetes.def
 
 ### Using the UI
 
-Similar to the CLI, you can add destination service account when creating an `AppProject` from the UI
+Similar to the CLI, you can add destination service account when creating or updating an `AppProject` from the UI
