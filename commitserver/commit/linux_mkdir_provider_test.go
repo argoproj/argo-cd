@@ -4,6 +4,7 @@ package commit
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -16,6 +17,6 @@ func TestSecureMkdirAllLinux(t *testing.T) {
 	fullPath, err := SecureMkdirAll(root, unsafePath, os.ModePerm)
 	require.NoError(t, err)
 
-	expectedPath := path.Join(root, unsafePath)
+	expectedPath := filepath.Join(root, unsafePath)
 	require.Equal(t, expectedPath, fullPath)
 }
