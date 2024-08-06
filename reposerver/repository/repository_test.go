@@ -134,6 +134,7 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 		paths.On("Add", mock.Anything, mock.Anything).Return(root, nil)
 		paths.On("GetPath", mock.Anything).Return(root, nil)
 		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
+		paths.On("GetPaths").Return(map[string]string{"fake-nonce": root})
 	}, root)
 }
 
@@ -495,6 +496,7 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
+		Commands:   []string{"helm template . --name-template  --include-crds"},
 	}, response)
 	mockCache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 1,
@@ -532,6 +534,7 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
+		Commands:   []string{"helm template . --name-template  --values ./testdata/my-chart/my-chart-values.yaml --include-crds"},
 	}, response)
 }
 
@@ -1249,6 +1252,7 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
+		Commands:   []string{"helm template . --name-template  --values ./testdata/my-chart/my-chart-values.yaml --include-crds"},
 	}, response)
 }
 
