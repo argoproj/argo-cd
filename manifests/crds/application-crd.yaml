@@ -234,9 +234,9 @@ spec:
                         description: Helm holds helm specific options
                         properties:
                           apiVersions:
-                            description: APIVersions is a list of Kubernetes API versions
-                              to use for templating. If not set, defaults to the server's
-                              preferred API versions.
+                            description: |-
+                              APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                              Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                             items:
                               type: string
                             type: array
@@ -262,13 +262,14 @@ spec:
                               not appending them to helm template --values
                             type: boolean
                           kubeVersion:
-                            description: KubeVersions is the Kubernetes version to
-                              use for templating. If not set, defaults to the server's
-                              current Kubernetes version.
+                            description: |-
+                              KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                              uses the Kubernetes version of the target cluster.
                             type: string
                           namespace:
-                            description: Namespace is the namespace scope to use.
-                              If omitted it will use the application name
+                            description: Namespace is an optional namespace to template
+                              with. If left empty, defaults to the app's destination
+                              namespace.
                             type: string
                           parameters:
                             description: Parameters is a list of Helm parameters which
@@ -327,6 +328,13 @@ spec:
                       kustomize:
                         description: Kustomize holds kustomize specific options
                         properties:
+                          apiVersions:
+                            description: |-
+                              APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                              Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                            items:
+                              type: string
+                            type: array
                           commonAnnotations:
                             additionalProperties:
                               type: string
@@ -366,6 +374,11 @@ spec:
                                 definition in the format [old_image_name=]<image_name>:<image_tag>
                               type: string
                             type: array
+                          kubeVersion:
+                            description: |-
+                              KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                              uses the Kubernetes version of the target cluster.
+                            type: string
                           labelWithoutSelector:
                             description: LabelWithoutSelector specifies whether to
                               apply common labels to resource selectors or not
@@ -586,9 +599,9 @@ spec:
                           description: Helm holds helm specific options
                           properties:
                             apiVersions:
-                              description: APIVersions is a list of Kubernetes API
-                                versions to use for templating. If not set, defaults
-                                to the server's preferred API versions.
+                              description: |-
+                                APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                               items:
                                 type: string
                               type: array
@@ -614,13 +627,14 @@ spec:
                                 by not appending them to helm template --values
                               type: boolean
                             kubeVersion:
-                              description: KubeVersions is the Kubernetes version
-                                to use for templating. If not set, defaults to the
-                                server's current Kubernetes version.
+                              description: |-
+                                KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                uses the Kubernetes version of the target cluster.
                               type: string
                             namespace:
-                              description: Namespace is the namespace scope to use.
-                                If omitted it will use the application name
+                              description: Namespace is an optional namespace to template
+                                with. If left empty, defaults to the app's destination
+                                namespace.
                               type: string
                             parameters:
                               description: Parameters is a list of Helm parameters
@@ -680,6 +694,13 @@ spec:
                         kustomize:
                           description: Kustomize holds kustomize specific options
                           properties:
+                            apiVersions:
+                              description: |-
+                                APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                              items:
+                                type: string
+                              type: array
                             commonAnnotations:
                               additionalProperties:
                                 type: string
@@ -721,6 +742,11 @@ spec:
                                   image definition in the format [old_image_name=]<image_name>:<image_tag>
                                 type: string
                               type: array
+                            kubeVersion:
+                              description: |-
+                                KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                uses the Kubernetes version of the target cluster.
+                              type: string
                             labelWithoutSelector:
                               description: LabelWithoutSelector specifies whether
                                 to apply common labels to resource selectors or not
@@ -1057,9 +1083,9 @@ spec:
                     description: Helm holds helm specific options
                     properties:
                       apiVersions:
-                        description: APIVersions is a list of Kubernetes API versions
-                          to use for templating. If not set, defaults to the server's
-                          preferred API versions.
+                        description: |-
+                          APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                          Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                         items:
                           type: string
                         type: array
@@ -1085,13 +1111,13 @@ spec:
                           appending them to helm template --values
                         type: boolean
                       kubeVersion:
-                        description: KubeVersions is the Kubernetes version to use
-                          for templating. If not set, defaults to the server's current
-                          Kubernetes version.
+                        description: |-
+                          KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                          uses the Kubernetes version of the target cluster.
                         type: string
                       namespace:
-                        description: Namespace is the namespace scope to use. If omitted
-                          it will use the application name
+                        description: Namespace is an optional namespace to template
+                          with. If left empty, defaults to the app's destination namespace.
                         type: string
                       parameters:
                         description: Parameters is a list of Helm parameters which
@@ -1149,6 +1175,13 @@ spec:
                   kustomize:
                     description: Kustomize holds kustomize specific options
                     properties:
+                      apiVersions:
+                        description: |-
+                          APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                          Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                        items:
+                          type: string
+                        type: array
                       commonAnnotations:
                         additionalProperties:
                           type: string
@@ -1187,6 +1220,11 @@ spec:
                             definition in the format [old_image_name=]<image_name>:<image_tag>
                           type: string
                         type: array
+                      kubeVersion:
+                        description: |-
+                          KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                          uses the Kubernetes version of the target cluster.
+                        type: string
                       labelWithoutSelector:
                         description: LabelWithoutSelector specifies whether to apply
                           common labels to resource selectors or not
@@ -1445,9 +1483,9 @@ spec:
                       description: Helm holds helm specific options
                       properties:
                         apiVersions:
-                          description: APIVersions is a list of Kubernetes API versions
-                            to use for templating. If not set, defaults to the server's
-                            preferred API versions.
+                          description: |-
+                            APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                            Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                           items:
                             type: string
                           type: array
@@ -1473,13 +1511,14 @@ spec:
                             appending them to helm template --values
                           type: boolean
                         kubeVersion:
-                          description: KubeVersions is the Kubernetes version to use
-                            for templating. If not set, defaults to the server's current
-                            Kubernetes version.
+                          description: |-
+                            KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                            uses the Kubernetes version of the target cluster.
                           type: string
                         namespace:
-                          description: Namespace is the namespace scope to use. If
-                            omitted it will use the application name
+                          description: Namespace is an optional namespace to template
+                            with. If left empty, defaults to the app's destination
+                            namespace.
                           type: string
                         parameters:
                           description: Parameters is a list of Helm parameters which
@@ -1538,6 +1577,13 @@ spec:
                     kustomize:
                       description: Kustomize holds kustomize specific options
                       properties:
+                        apiVersions:
+                          description: |-
+                            APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                            Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                          items:
+                            type: string
+                          type: array
                         commonAnnotations:
                           additionalProperties:
                             type: string
@@ -1577,6 +1623,11 @@ spec:
                               definition in the format [old_image_name=]<image_name>:<image_tag>
                             type: string
                           type: array
+                        kubeVersion:
+                          description: |-
+                            KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                            uses the Kubernetes version of the target cluster.
+                          type: string
                         labelWithoutSelector:
                           description: LabelWithoutSelector specifies whether to apply
                             common labels to resource selectors or not
@@ -1953,9 +2004,9 @@ spec:
                           description: Helm holds helm specific options
                           properties:
                             apiVersions:
-                              description: APIVersions is a list of Kubernetes API
-                                versions to use for templating. If not set, defaults
-                                to the server's preferred API versions.
+                              description: |-
+                                APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                               items:
                                 type: string
                               type: array
@@ -1981,13 +2032,14 @@ spec:
                                 by not appending them to helm template --values
                               type: boolean
                             kubeVersion:
-                              description: KubeVersions is the Kubernetes version
-                                to use for templating. If not set, defaults to the
-                                server's current Kubernetes version.
+                              description: |-
+                                KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                uses the Kubernetes version of the target cluster.
                               type: string
                             namespace:
-                              description: Namespace is the namespace scope to use.
-                                If omitted it will use the application name
+                              description: Namespace is an optional namespace to template
+                                with. If left empty, defaults to the app's destination
+                                namespace.
                               type: string
                             parameters:
                               description: Parameters is a list of Helm parameters
@@ -2047,6 +2099,13 @@ spec:
                         kustomize:
                           description: Kustomize holds kustomize specific options
                           properties:
+                            apiVersions:
+                              description: |-
+                                APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                              items:
+                                type: string
+                              type: array
                             commonAnnotations:
                               additionalProperties:
                                 type: string
@@ -2088,6 +2147,11 @@ spec:
                                   image definition in the format [old_image_name=]<image_name>:<image_tag>
                                 type: string
                               type: array
+                            kubeVersion:
+                              description: |-
+                                KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                uses the Kubernetes version of the target cluster.
+                              type: string
                             labelWithoutSelector:
                               description: LabelWithoutSelector specifies whether
                                 to apply common labels to resource selectors or not
@@ -2307,9 +2371,9 @@ spec:
                             description: Helm holds helm specific options
                             properties:
                               apiVersions:
-                                description: APIVersions is a list of Kubernetes API
-                                  versions to use for templating. If not set, defaults
-                                  to the server's preferred API versions.
+                                description: |-
+                                  APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                  Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                                 items:
                                   type: string
                                 type: array
@@ -2336,13 +2400,14 @@ spec:
                                   locally by not appending them to helm template --values
                                 type: boolean
                               kubeVersion:
-                                description: KubeVersions is the Kubernetes version
-                                  to use for templating. If not set, defaults to the
-                                  server's current Kubernetes version.
+                                description: |-
+                                  KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                  uses the Kubernetes version of the target cluster.
                                 type: string
                               namespace:
-                                description: Namespace is the namespace scope to use.
-                                  If omitted it will use the application name
+                                description: Namespace is an optional namespace to
+                                  template with. If left empty, defaults to the app's
+                                  destination namespace.
                                 type: string
                               parameters:
                                 description: Parameters is a list of Helm parameters
@@ -2404,6 +2469,13 @@ spec:
                           kustomize:
                             description: Kustomize holds kustomize specific options
                             properties:
+                              apiVersions:
+                                description: |-
+                                  APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                  Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                items:
+                                  type: string
+                                type: array
                               commonAnnotations:
                                 additionalProperties:
                                   type: string
@@ -2445,6 +2517,11 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
+                              kubeVersion:
+                                description: |-
+                                  KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                  uses the Kubernetes version of the target cluster.
+                                type: string
                               labelWithoutSelector:
                                 description: LabelWithoutSelector specifies whether
                                   to apply common labels to resource selectors or
@@ -2804,9 +2881,9 @@ spec:
                                 description: Helm holds helm specific options
                                 properties:
                                   apiVersions:
-                                    description: APIVersions is a list of Kubernetes
-                                      API versions to use for templating. If not set,
-                                      defaults to the server's preferred API versions.
+                                    description: |-
+                                      APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                      Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                                     items:
                                       type: string
                                     type: array
@@ -2835,14 +2912,14 @@ spec:
                                       template --values
                                     type: boolean
                                   kubeVersion:
-                                    description: KubeVersions is the Kubernetes version
-                                      to use for templating. If not set, defaults
-                                      to the server's current Kubernetes version.
+                                    description: |-
+                                      KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                      uses the Kubernetes version of the target cluster.
                                     type: string
                                   namespace:
-                                    description: Namespace is the namespace scope
-                                      to use. If omitted it will use the application
-                                      name
+                                    description: Namespace is an optional namespace
+                                      to template with. If left empty, defaults to
+                                      the app's destination namespace.
                                     type: string
                                   parameters:
                                     description: Parameters is a list of Helm parameters
@@ -2906,6 +2983,13 @@ spec:
                               kustomize:
                                 description: Kustomize holds kustomize specific options
                                 properties:
+                                  apiVersions:
+                                    description: |-
+                                      APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                      Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                    items:
+                                      type: string
+                                    type: array
                                   commonAnnotations:
                                     additionalProperties:
                                       type: string
@@ -2948,6 +3032,11 @@ spec:
                                         image definition in the format [old_image_name=]<image_name>:<image_tag>
                                       type: string
                                     type: array
+                                  kubeVersion:
+                                    description: |-
+                                      KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                      uses the Kubernetes version of the target cluster.
+                                    type: string
                                   labelWithoutSelector:
                                     description: LabelWithoutSelector specifies whether
                                       to apply common labels to resource selectors
@@ -3178,10 +3267,9 @@ spec:
                                   description: Helm holds helm specific options
                                   properties:
                                     apiVersions:
-                                      description: APIVersions is a list of Kubernetes
-                                        API versions to use for templating. If not
-                                        set, defaults to the server's preferred API
-                                        versions.
+                                      description: |-
+                                        APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                        Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                                       items:
                                         type: string
                                       type: array
@@ -3210,15 +3298,14 @@ spec:
                                         to helm template --values
                                       type: boolean
                                     kubeVersion:
-                                      description: KubeVersions is the Kubernetes
-                                        version to use for templating. If not set,
-                                        defaults to the server's current Kubernetes
-                                        version.
+                                      description: |-
+                                        KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                        uses the Kubernetes version of the target cluster.
                                       type: string
                                     namespace:
-                                      description: Namespace is the namespace scope
-                                        to use. If omitted it will use the application
-                                        name
+                                      description: Namespace is an optional namespace
+                                        to template with. If left empty, defaults
+                                        to the app's destination namespace.
                                       type: string
                                     parameters:
                                       description: Parameters is a list of Helm parameters
@@ -3284,6 +3371,13 @@ spec:
                                   description: Kustomize holds kustomize specific
                                     options
                                   properties:
+                                    apiVersions:
+                                      description: |-
+                                        APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                        Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                      items:
+                                        type: string
+                                      type: array
                                     commonAnnotations:
                                       additionalProperties:
                                         type: string
@@ -3327,6 +3421,11 @@ spec:
                                           image definition in the format [old_image_name=]<image_name>:<image_tag>
                                         type: string
                                       type: array
+                                    kubeVersion:
+                                      description: |-
+                                        KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                        uses the Kubernetes version of the target cluster.
+                                      type: string
                                     labelWithoutSelector:
                                       description: LabelWithoutSelector specifies
                                         whether to apply common labels to resource
@@ -3677,9 +3776,9 @@ spec:
                             description: Helm holds helm specific options
                             properties:
                               apiVersions:
-                                description: APIVersions is a list of Kubernetes API
-                                  versions to use for templating. If not set, defaults
-                                  to the server's preferred API versions.
+                                description: |-
+                                  APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                  Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                                 items:
                                   type: string
                                 type: array
@@ -3706,13 +3805,14 @@ spec:
                                   locally by not appending them to helm template --values
                                 type: boolean
                               kubeVersion:
-                                description: KubeVersions is the Kubernetes version
-                                  to use for templating. If not set, defaults to the
-                                  server's current Kubernetes version.
+                                description: |-
+                                  KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                  uses the Kubernetes version of the target cluster.
                                 type: string
                               namespace:
-                                description: Namespace is the namespace scope to use.
-                                  If omitted it will use the application name
+                                description: Namespace is an optional namespace to
+                                  template with. If left empty, defaults to the app's
+                                  destination namespace.
                                 type: string
                               parameters:
                                 description: Parameters is a list of Helm parameters
@@ -3774,6 +3874,13 @@ spec:
                           kustomize:
                             description: Kustomize holds kustomize specific options
                             properties:
+                              apiVersions:
+                                description: |-
+                                  APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                  Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                items:
+                                  type: string
+                                type: array
                               commonAnnotations:
                                 additionalProperties:
                                   type: string
@@ -3815,6 +3922,11 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
+                              kubeVersion:
+                                description: |-
+                                  KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                  uses the Kubernetes version of the target cluster.
+                                type: string
                               labelWithoutSelector:
                                 description: LabelWithoutSelector specifies whether
                                   to apply common labels to resource selectors or
@@ -4041,9 +4153,9 @@ spec:
                               description: Helm holds helm specific options
                               properties:
                                 apiVersions:
-                                  description: APIVersions is a list of Kubernetes
-                                    API versions to use for templating. If not set,
-                                    defaults to the server's preferred API versions.
+                                  description: |-
+                                    APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                    Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                                   items:
                                     type: string
                                   type: array
@@ -4072,13 +4184,14 @@ spec:
                                     --values
                                   type: boolean
                                 kubeVersion:
-                                  description: KubeVersions is the Kubernetes version
-                                    to use for templating. If not set, defaults to
-                                    the server's current Kubernetes version.
+                                  description: |-
+                                    KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                    uses the Kubernetes version of the target cluster.
                                   type: string
                                 namespace:
-                                  description: Namespace is the namespace scope to
-                                    use. If omitted it will use the application name
+                                  description: Namespace is an optional namespace
+                                    to template with. If left empty, defaults to the
+                                    app's destination namespace.
                                   type: string
                                 parameters:
                                   description: Parameters is a list of Helm parameters
@@ -4142,6 +4255,13 @@ spec:
                             kustomize:
                               description: Kustomize holds kustomize specific options
                               properties:
+                                apiVersions:
+                                  description: |-
+                                    APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                    Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                  items:
+                                    type: string
+                                  type: array
                                 commonAnnotations:
                                   additionalProperties:
                                     type: string
@@ -4184,6 +4304,11 @@ spec:
                                       image definition in the format [old_image_name=]<image_name>:<image_tag>
                                     type: string
                                   type: array
+                                kubeVersion:
+                                  description: |-
+                                    KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                    uses the Kubernetes version of the target cluster.
+                                  type: string
                                 labelWithoutSelector:
                                   description: LabelWithoutSelector specifies whether
                                     to apply common labels to resource selectors or
@@ -4610,9 +4735,9 @@ spec:
                             description: Helm holds helm specific options
                             properties:
                               apiVersions:
-                                description: APIVersions is a list of Kubernetes API
-                                  versions to use for templating. If not set, defaults
-                                  to the server's preferred API versions.
+                                description: |-
+                                  APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                  Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                                 items:
                                   type: string
                                 type: array
@@ -4639,13 +4764,14 @@ spec:
                                   locally by not appending them to helm template --values
                                 type: boolean
                               kubeVersion:
-                                description: KubeVersions is the Kubernetes version
-                                  to use for templating. If not set, defaults to the
-                                  server's current Kubernetes version.
+                                description: |-
+                                  KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                  uses the Kubernetes version of the target cluster.
                                 type: string
                               namespace:
-                                description: Namespace is the namespace scope to use.
-                                  If omitted it will use the application name
+                                description: Namespace is an optional namespace to
+                                  template with. If left empty, defaults to the app's
+                                  destination namespace.
                                 type: string
                               parameters:
                                 description: Parameters is a list of Helm parameters
@@ -4707,6 +4833,13 @@ spec:
                           kustomize:
                             description: Kustomize holds kustomize specific options
                             properties:
+                              apiVersions:
+                                description: |-
+                                  APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                  Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                items:
+                                  type: string
+                                type: array
                               commonAnnotations:
                                 additionalProperties:
                                   type: string
@@ -4748,6 +4881,11 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
+                              kubeVersion:
+                                description: |-
+                                  KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                  uses the Kubernetes version of the target cluster.
+                                type: string
                               labelWithoutSelector:
                                 description: LabelWithoutSelector specifies whether
                                   to apply common labels to resource selectors or
@@ -4974,9 +5112,9 @@ spec:
                               description: Helm holds helm specific options
                               properties:
                                 apiVersions:
-                                  description: APIVersions is a list of Kubernetes
-                                    API versions to use for templating. If not set,
-                                    defaults to the server's preferred API versions.
+                                  description: |-
+                                    APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                    Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
                                   items:
                                     type: string
                                   type: array
@@ -5005,13 +5143,14 @@ spec:
                                     --values
                                   type: boolean
                                 kubeVersion:
-                                  description: KubeVersions is the Kubernetes version
-                                    to use for templating. If not set, defaults to
-                                    the server's current Kubernetes version.
+                                  description: |-
+                                    KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                    uses the Kubernetes version of the target cluster.
                                   type: string
                                 namespace:
-                                  description: Namespace is the namespace scope to
-                                    use. If omitted it will use the application name
+                                  description: Namespace is an optional namespace
+                                    to template with. If left empty, defaults to the
+                                    app's destination namespace.
                                   type: string
                                 parameters:
                                   description: Parameters is a list of Helm parameters
@@ -5075,6 +5214,13 @@ spec:
                             kustomize:
                               description: Kustomize holds kustomize specific options
                               properties:
+                                apiVersions:
+                                  description: |-
+                                    APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                    Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                  items:
+                                    type: string
+                                  type: array
                                 commonAnnotations:
                                   additionalProperties:
                                     type: string
@@ -5117,6 +5263,11 @@ spec:
                                       image definition in the format [old_image_name=]<image_name>:<image_tag>
                                     type: string
                                   type: array
+                                kubeVersion:
+                                  description: |-
+                                    KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                    uses the Kubernetes version of the target cluster.
+                                  type: string
                                 labelWithoutSelector:
                                   description: LabelWithoutSelector specifies whether
                                     to apply common labels to resource selectors or

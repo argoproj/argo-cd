@@ -91,20 +91,20 @@ spec:
       version: v2
 
       # You can specify the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD uses
-      # the Kubernetes version of the target cluster.
+      # the Kubernetes version of the target cluster. The value must be semver formatted. Do not prefix with `v`.
       # This field is useful primarily when using sourceHydrator, which requires the Kubernetes version to be set
       # explicitly in .argocd-source.yaml.
-      kubeVersion: v1.30
+      kubeVersion: 1.30.0
 
-      # You can specify the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD uses
-      # the API versions of the target cluster. The format is [group/]version/kind.
+      # You can specify the Kubernetes resource API versions to pass to Helm when templating manifests. By default, Argo
+      # CD uses the API versions of the target cluster. The format is [group/]version/kind.
       # This field is useful primarily when using sourceHydrator, which requires the API versions to be set explicitly
       # in .argocd-source.yaml.
       apiVersions:
         - traefik.io/v1alpha1/TLSOption
         - v1/Service
 
-      # Optional namespace to template with. If left empty, defaults to the app name.
+      # Optional namespace to template with. If left empty, defaults to the app's destination namespace.
       namespace: custom-namespace
 
     # kustomize specific config
@@ -140,6 +140,20 @@ spec:
               path: /spec/template/spec/nodeSelector/
               value:
                 env: "pro"
+
+      # You can specify the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD uses
+      # the Kubernetes version of the target cluster. The value must be semver formatted. Do not prefix with `v`.
+      # This field is useful primarily when using sourceHydrator, which requires the Kubernetes version to be set
+      # explicitly in .argocd-source.yaml.
+      kubeVersion: 1.30.0
+
+      # You can specify the Kubernetes resource API versions to pass to Helm when templating manifests. By default, Argo
+      # CD uses the API versions of the target cluster. The format is [group/]version/kind.
+      # This field is useful primarily when using sourceHydrator, which requires the API versions to be set explicitly
+      # in .argocd-source.yaml.
+      apiVersions:
+        - traefik.io/v1alpha1/TLSOption
+        - v1/Service
 
     # directory
     directory:

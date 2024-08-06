@@ -1120,29 +1120,11 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	// templating, thus, we just use the name part of the identifier.
 	appName, _ := argo.ParseInstanceName(q.AppName, "")
 
-	// If the API versions are not set in the application source, use the ones from the request.
-	var apiVersions []string
-	if q.ApplicationSource.Helm != nil {
-		apiVersions = q.ApplicationSource.Helm.ApiVersions
-	}
-	if len(apiVersions) == 0 {
-		apiVersions = q.ApiVersions
-	}
-
-	// If the Kube version is not set in the application source, use the one from the request.
-	kubeVersion := ""
-	if q.ApplicationSource.Helm != nil {
-		kubeVersion = q.ApplicationSource.Helm.KubeVersion
-	}
-	if kubeVersion == "" {
-		kubeVersion = q.KubeVersion
-	}
-
 	templateOpts := &helm.TemplateOpts{
 		Name:        appName,
-		Namespace:   q.Namespace,
-		KubeVersion: text.SemVer(kubeVersion),
-		APIVersions: apiVersions,
+		Namespace:   q.ApplicationSource.GetNamespaceOrDefault(q.Namespace),
+		KubeVersion: text.SemVer(q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion)),
+		APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
 		Set:         map[string]string{},
 		SetString:   map[string]string{},
 		SetFile:     map[string]pathutil.ResolvedFilePath{},
@@ -1475,8 +1457,8 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		}
 		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary)
 		targetObjs, _, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
-			KubeVersion: text.SemVer(q.KubeVersion),
-			APIVersions: q.ApiVersions,
+			KubeVersion: text.SemVer(q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion)),
+			APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
 		})
 	case v1alpha1.ApplicationSourceTypePlugin:
 		pluginName := ""

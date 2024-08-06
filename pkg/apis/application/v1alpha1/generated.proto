@@ -490,14 +490,16 @@ message ApplicationSourceHelm {
   // +kubebuilder:pruning:PreserveUnknownFields
   optional k8s.io.apimachinery.pkg.runtime.RawExtension valuesObject = 10;
 
-  // KubeVersions is the Kubernetes version to use for templating. If not set, defaults to the server's current Kubernetes version.
-  optional string kubeVersion = 11;
+  // Namespace is an optional namespace to template with. If left empty, defaults to the app's destination namespace.
+  optional string namespace = 11;
 
-  // APIVersions is a list of Kubernetes API versions to use for templating. If not set, defaults to the server's preferred API versions.
-  repeated string apiVersions = 12;
+  // KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+  // uses the Kubernetes version of the target cluster.
+  optional string kubeVersion = 12;
 
-  // Namespace is the namespace scope to use. If omitted it will use the application name
-  optional string namespace = 13;
+  // APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+  // Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+  repeated string apiVersions = 13;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
@@ -555,6 +557,14 @@ message ApplicationSourceKustomize {
 
   // LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
   optional bool labelWithoutSelector = 14;
+
+  // KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+  // uses the Kubernetes version of the target cluster.
+  optional string kubeVersion = 15;
+
+  // APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+  // Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+  repeated string apiVersions = 16;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
@@ -2358,7 +2368,6 @@ message SyncStatus {
   optional string status = 1;
 
   // ComparedTo contains information about what has been compared
-  // +patchStrategy=replace
   optional ComparedTo comparedTo = 2;
 
   // Revision contains information about the revision the comparison has been performed to
