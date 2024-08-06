@@ -24,7 +24,7 @@ argocd repocreds add REPOURL [flags]
   argocd repocreds add https://ghe.example.com/repos/ --github-app-id 1 --github-app-installation-id 2 --github-app-private-key-path test.private-key.pem --github-app-enterprise-base-url https://ghe.example.com/api/v3
 
   # Add credentials with helm oci registry so that these oci registry urls do not need to be added as repos individually.
-  argocd repocreds add localhost:5000/myrepo --enable-oci --type helm 
+  argocd repocreds add localhost:5000/myrepo --enable-oci --type helm
 
   # Add credentials with GCP credentials for all repositories under https://source.developers.google.com/p/my-google-cloud-project/r/
   argocd repocreds add https://source.developers.google.com/p/my-google-cloud-project/r/ --gcp-service-account-key-path service-account-key.json
@@ -49,6 +49,7 @@ argocd repocreds add REPOURL [flags]
       --type string                             type of the repository, "git" or "helm" (default "git")
       --upsert                                  Override an existing repository with the same name even if the spec differs
       --username string                         username to the repository
+      --proxy-url string                        If provided, this URL will be used to connect via proxy
 ```
 
 ### Options inherited from parent commands
@@ -81,5 +82,4 @@ argocd repocreds add REPOURL [flags]
 
 ### SEE ALSO
 
-* [argocd repocreds](argocd_repocreds.md)	 - Manage repository connection parameters
-
+- [argocd repocreds](argocd_repocreds.md) - Manage repository connection parameters
