@@ -146,7 +146,7 @@ spec:
       apiVersions:
         - traefik.io/v1alpha1/TLSOption
         - v1/Service
-        -
+
     # directory
     directory:
       recurse: true
