@@ -4,6 +4,9 @@
 
 .applications-list {
     padding: 1em;
+    @media screen and (max-width: 1180px) {
+        padding: 60px 1em 1em 1em;
+    }
     @media screen and (max-width: 1024px) {
         padding: 0;
     }
