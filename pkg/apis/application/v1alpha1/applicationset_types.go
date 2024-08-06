@@ -589,6 +589,8 @@ type SCMProviderGeneratorFilter struct {
 	LabelMatch *string `json:"labelMatch,omitempty" protobuf:"bytes,4,opt,name=labelMatch"`
 	// A regex which must match the branch name.
 	BranchMatch *string `json:"branchMatch,omitempty" protobuf:"bytes,5,opt,name=branchMatch"`
+	// Include archived repos.
+	IncludeArchivedRepos bool `json:"includeArchivedRepos,omitempty" protobuf:"varint,6,opt,name=includeArchivedRepos"`
 }
 
 // PullRequestGenerator defines a generator that scrapes a PullRequest API to find candidate pull requests.

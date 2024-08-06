@@ -410,6 +410,7 @@ spec:
 * `pathsDoNotExist`: An array of paths within the repository that must not exist. Can be a file or directory.
 * `labelMatch`: A regexp matched against repository labels. If any label matches, the repository is included.
 * `branchMatch`: A regexp matched against branch names.
+* `includeArchivedRepos`: Include repositories that are archived.
 
 ## Template
 

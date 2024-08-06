@@ -122,6 +122,35 @@ func TestFilterPathDoesntExists(t *testing.T) {
 	assert.Len(t, repos, 2)
 }
 
+func TestRepoArchivedFilter(t *testing.T) {
+	provider := &MockProvider{
+		Repos: []*Repository{
+			{
+				Repository: "one",
+				Archived:   true,
+			},
+			{
+				Repository: "two",
+				Archived:   false,
+			},
+			{
+				Repository: "three",
+				Archived:   true,
+			},
+		},
+	}
+
+	filters := []argoprojiov1alpha1.SCMProviderGeneratorFilter{
+		{
+			IncludeArchivedRepos: false,
+		},
+	}
+	repos, err := ListRepos(context.Background(), provider, filters, "")
+	require.NoError(t, err)
+	assert.Len(t, repos, 1)
+	assert.Equal(t, "two", repos[0].Repository)
+}
+
 func TestFilterRepoMatchBadRegexp(t *testing.T) {
 	provider := &MockProvider{
 		Repos: []*Repository{
