@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cyphar/filepath-securejoin"
+	securejoin "github.com/cyphar/filepath-securejoin"
 )
 
 func SecureMkdirAll(root, unsafePath string, mode os.FileMode) (string, error) {
