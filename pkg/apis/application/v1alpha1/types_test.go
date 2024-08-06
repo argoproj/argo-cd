@@ -1291,14 +1291,14 @@ func TestApplicationSource_Equals(t *testing.T) {
 		src1 := ApplicationSource{
 			Helm: &ApplicationSourceHelm{
 				ValuesObject: &runtime.RawExtension{
-					Raw: []byte(`{"Test":"test&<>  "}`),
+					Raw: []byte(`{"Test":"testvalue&<>  "}`),
 				},
 			},
 		}
 		src2 := ApplicationSource{
 			Helm: &ApplicationSourceHelm{
 				ValuesObject: &runtime.RawExtension{
-					Raw: []byte(`{"Test":"test\u0026\u003c\u003e\u2028\u2029"}`),
+					Raw: []byte(`{"Test":"testvalue\u0026\u003c\u003e\u2028\u2029"}`),
 				},
 			},
 		}
