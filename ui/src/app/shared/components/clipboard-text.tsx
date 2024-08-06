@@ -13,14 +13,14 @@ export const ClipboardText = ({text}: {text: string}) => {
         <>
             {text}
             &nbsp; &nbsp;
-            <Tooltip content={justClicked ? 'Copied!' : 'Copy to clipboard'}>
+            <Tooltip content={justClicked ? 'Copied!' : 'Copy to clipboard'} hideOnClick={false}>
                 <a>
                     <i
                         className={'fa fa-clipboard'}
                         onClick={() => {
                             setJustClicked(true);
                             navigator.clipboard.writeText(text);
-                            setInterval(() => setJustClicked(false), 2000);
+                            setInterval(() => setJustClicked(false), 3000);
                         }}
                     />
                 </a>
