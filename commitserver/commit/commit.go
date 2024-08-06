@@ -3,6 +3,8 @@ package commit
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
+	"os"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -101,13 +103,13 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 // the repository is cloned, a cleanup function that should be called when the directory is no longer needed, and an error
 // if one occurred.
 func (s *Service) initGitClient(ctx context.Context, logCtx *log.Entry, r *apiclient.CommitHydratedManifestsRequest) (git.Client, string, func(), error) {
-	dirPath, cleanup, err := makeSecureTempDir()
+	dirPath, err := files.CreateTempDir("/tmp/_commit-service")
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("failed to create temp dir: %w", err)
 	}
 	// Call cleanupOrLog in this function if an error occurs to ensure the temp dir is cleaned up.
 	cleanupOrLog := func() {
-		err := cleanup()
+		err := os.RemoveAll(dirPath)
 		if err != nil {
 			logCtx.WithError(err).Error("failed to cleanup temp dir")
 		}
