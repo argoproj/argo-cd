@@ -1,39 +1,34 @@
 package commit
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMakeSecureTempDir(t *testing.T) {
-	tempDir, cleanup, err := makeSecureTempDir()	
-
+	tempDir, cleanup, err := makeSecureTempDir()
+	if cleanup != nil {
+		t.Cleanup(func() {
+			err := cleanup()
+			require.NoError(t, err)
+		})
+	}
 	require.NoError(t, err)
-	defer cleanup()
 
 	// Verify that the temporary directory exists
-	if _, err := os.Stat(tempDir); os.IsNotExist(err) {
-		t.Errorf("Temporary directory does not exist: %s", tempDir)
-	}
+	_, err = os.Stat(tempDir)
+	require.NoError(t, err)
 
 	// Verify that the temporary directory is a directory
 	fileInfo, err := os.Stat(tempDir)
-	if err != nil {
-		t.Fatalf("Failed to get file info for temporary directory: %v", err)
-	}
-	if !fileInfo.IsDir() {
-		t.Errorf("Temporary directory is not a directory: %s", tempDir)
-	}
+	require.NoError(t, err)
+	assert.True(t, fileInfo.IsDir())
 
 	// Verify that the temporary directory is empty
-	files, err := ioutil.ReadDir(tempDir)
-	if err != nil {
-		t.Fatalf("Failed to read directory: %v", err)
-	}
-	if len(files) != 0 {
-		t.Errorf("Temporary directory is not empty: %s", tempDir)
-	}
+	files, err := os.ReadDir(tempDir)
+	require.NoError(t, err)
+	assert.Empty(t, files)
 }
