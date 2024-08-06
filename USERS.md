@@ -43,6 +43,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [BioBox Analytics](https://biobox.io)
 1. [BMW Group](https://www.bmwgroup.com/)
 1. [Boozt](https://www.booztgroup.com/)
+1. [Bosch](https://www.bosch.com/)
 1. [Boticario](https://www.boticario.com.br/)
 1. [Broker Consulting, a.s.](https://www.bcas.cz/en/)
 1. [Bulder Bank](https://bulderbank.no)
