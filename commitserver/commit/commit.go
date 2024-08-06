@@ -3,7 +3,6 @@ package commit
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"os"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/commitserver/metrics"
 	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 )
 
 type Service struct {
