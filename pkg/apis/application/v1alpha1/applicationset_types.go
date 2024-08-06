@@ -675,6 +675,8 @@ type PullRequestGeneratorGithub struct {
 	AppSecretName string `json:"appSecretName,omitempty" protobuf:"bytes,5,opt,name=appSecretName"`
 	// Labels is used to filter the PRs that you want to target
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
+	// Pull request state
+	PullRequestState string `json:"pullRequestState,omitempty" protobuf:"bytes,7,opt,name=pullRequestState"`
 }
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.

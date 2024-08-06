@@ -10,15 +10,16 @@ import (
 )
 
 type GithubService struct {
-	client *github.Client
-	owner  string
-	repo   string
-	labels []string
+	client           *github.Client
+	owner            string
+	repo             string
+	labels           []string
+	pullRequestState string
 }
 
 var _ PullRequestService = (*GithubService)(nil)
 
-func NewGithubService(ctx context.Context, token, url, owner, repo string, labels []string) (PullRequestService, error) {
+func NewGithubService(ctx context.Context, token, url, owner, repo string, labels []string, pullRequestState string) (PullRequestService, error) {
 	var ts oauth2.TokenSource
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
@@ -41,10 +42,11 @@ func NewGithubService(ctx context.Context, token, url, owner, repo string, label
 		}
 	}
 	return &GithubService{
-		client: client,
-		owner:  owner,
-		repo:   repo,
-		labels: labels,
+		client:           client,
+		owner:            owner,
+		repo:             repo,
+		labels:           labels,
+		pullRequestState: pullRequestState,
 	}, nil
 }
 
@@ -53,6 +55,9 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 		ListOptions: github.ListOptions{
 			PerPage: 100,
 		},
+	}
+	if g.pullRequestState != "" {
+		opts.State = g.pullRequestState
 	}
 	pullRequests := []*PullRequest{}
 	for {

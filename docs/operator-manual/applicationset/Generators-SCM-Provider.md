@@ -50,6 +50,8 @@ spec:
           key: token
         # (optional) use a GitHub App to access the API instead of a PAT.
         appSecretName: gh-app-repo-creds
+        # (optional) pull request state (open, closed, all), default: open.
+        pullRequestState: open
   template:
   # ...
 ```
@@ -59,7 +61,7 @@ spec:
 * `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
 * `tokenRef`: A `Secret` name and key containing the GitHub access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
 * `appSecretName`: A `Secret` name containing a GitHub App secret in [repo-creds format][repo-creds].
-
+* `pullRequestState`: The state of the pull requests to include in the results. Can be `open`, `closed`, or `all`. Defaults to `open`.
 [repo-creds]: ../declarative-setup.md#repository-credentials
 
 For label filtering, the repository topics are used.

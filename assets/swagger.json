@@ -8103,6 +8103,10 @@
           "description": "GitHub org or user to scan. Required.",
           "type": "string"
         },
+        "pullRequestState": {
+          "type": "string",
+          "title": "Pull request state"
+        },
         "repo": {
           "description": "GitHub repo name to scan. Required.",
           "type": "string"
