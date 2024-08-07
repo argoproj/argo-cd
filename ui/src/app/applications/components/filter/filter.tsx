@@ -52,11 +52,20 @@ export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) 
     );
 };
 
-export const FiltersGroup = (props: {children?: React.ReactNode; content: React.ReactNode; appliedFilter?: string[]; onClearFilter?: () => void; collapsed?: boolean}) => {
+export const FiltersGroup = (props: {
+    children?: React.ReactNode;
+    content: React.ReactNode;
+    appliedFilter?: string[];
+    hideOldRevisions?: boolean;
+    onClearFilter?: () => void;
+    collapsed?: boolean;
+}) => {
+    const filtered = props.appliedFilter?.length > 0 || props.hideOldRevisions;
+
     return (
         !props.collapsed && (
             <div className='filters-group'>
-                {props.appliedFilter?.length > 0 && props.onClearFilter && (
+                {filtered && props.onClearFilter && (
                     <div className='filters-group__header'>
                         <button onClick={() => props.onClearFilter()} className='argo-button argo-button--base argo-button--sm'>
                             <i className='fa fa-times-circle' /> CLEAR ALL
