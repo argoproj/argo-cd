@@ -191,31 +191,33 @@ func (c *RepoServerConfig) CreateRepoServer(ctx context.Context) error {
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", c.listenHost, c.listenPort))
 	errors.CheckError(err)
 
-			healthz.ServeHealthCheck(http.DefaultServeMux, func(r *http.Request) error {
-				if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
-					// connect to itself to make sure repo server is able to serve connection
-					// used by liveness probe to auto restart repo server
-					// see https://github.com/argoproj/argo-cd/issues/5110 for more information
-					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", c.listenPort), 60, &apiclient.TLSConfiguration{DisableTLS: c.disableTLS})
-					if err != nil {
-						return err
-					}
-					defer ioutil.Close(conn)
-					client := grpc_health_v1.NewHealthClient(conn)
-					res, err := client.Check(r.Context(), &grpc_health_v1.HealthCheckRequest{})
-					if err != nil {
-						return err
-					}
-					if res.Status != grpc_health_v1.HealthCheckResponse_SERVING {
-						return fmt.Errorf("grpc health check status is '%v'", res.Status)
-					}
-					return nil
-				}
-				return nil
-			})
-			http.Handle("/metrics", metricsServer.GetHandler())
-			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf("%s:%d", c.metricsHost, c.metricsPort), nil)) }()
-			go func() { errors.CheckError(askPassServer.Run()) }()
+	healthz.ServeHealthCheck(http.DefaultServeMux, func(r *http.Request) error {
+		if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
+			// connect to itself to make sure repo server is able to serve connection
+			// used by liveness probe to auto restart repo server
+			// see https://github.com/argoproj/argo-cd/issues/5110 for more information
+			conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", c.listenPort), 60, &apiclient.TLSConfiguration{DisableTLS: c.disableTLS})
+			if err != nil {
+				return err
+			}
+			defer ioutil.Close(conn)
+			client := grpc_health_v1.NewHealthClient(conn)
+			res, err := client.Check(r.Context(), &grpc_health_v1.HealthCheckRequest{})
+			if err != nil {
+				return err
+			}
+			if res.Status != grpc_health_v1.HealthCheckResponse_SERVING {
+				return fmt.Errorf("grpc health check status is '%v'", res.Status)
+			}
+			return nil
+		}
+		return nil
+	})
+	http.Handle("/metrics", metricsServer.GetHandler())
+	go func() {
+		errors.CheckError(http.ListenAndServe(fmt.Sprintf("%s:%d", c.metricsHost, c.metricsPort), nil))
+	}()
+	go func() { errors.CheckError(askPassServer.Run()) }()
 
 	if gpg.IsGPGEnabled() {
 		log.Infof("Initializing GnuPG keyring at %s", common.GetGnuPGHomePath())
@@ -260,7 +262,7 @@ func (c *RepoServerConfig) CreateRepoServer(ctx context.Context) error {
 
 func NewCommand() *cobra.Command {
 	var config *RepoServerConfig
-	var command = cobra.Command{
+	command := cobra.Command{
 		Use:               cliName,
 		Short:             "Run ArgoCD Repository Server",
 		Long:              "ArgoCD Repository Server is an internal service which maintains a local cache of the Git repository holding the application manifests, and is responsible for generating and returning the Kubernetes manifests.  This command runs Repository Server in the foreground.  It can be configured by following options.",

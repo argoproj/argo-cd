@@ -10,9 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/tls"
-
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -157,7 +154,6 @@ func (c *ApplicationSetControllerConfig) CreateApplicationSetController(ctx cont
 
 	ctrl.SetLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()))
 	config.UserAgent = fmt.Sprintf("argocd-applicationset-controller/%s (%s)", vers.Version, vers.Platform)
-
 
 	policyObj, exists := utils.Policies[c.policy]
 	if !exists {
