@@ -207,6 +207,26 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 	return git.NopCreds{}
 }
 
+// GetCredentialType returns the type of the credentials used for the repository
+func (repo *Repository) GetCredentialType() string {
+	if repo == nil {
+		return ""
+	}
+	if repo.Password != "" {
+		return "https"
+	}
+	if repo.SSHPrivateKey != "" {
+		return "ssh"
+	}
+	if repo.GithubAppPrivateKey != "" && repo.GithubAppId != 0 && repo.GithubAppInstallationId != 0 {
+		return "github-app"
+	}
+	if repo.GCPServiceAccountKey != "" {
+		return "cloud-source-repositories"
+	}
+	return ""
+}
+
 // GetHelmCreds returns the credentials from a repository configuration used to authenticate at a Helm repository
 func (repo *Repository) GetHelmCreds() helm.Creds {
 	return helm.Creds{

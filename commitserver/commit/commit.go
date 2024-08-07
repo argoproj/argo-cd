@@ -138,9 +138,9 @@ func (s *Service) initGitClient(ctx context.Context, logCtx *log.Entry, r *apicl
 	}
 
 	logCtx.Debugf("Getting user info for repo credentials")
-	// TODO: Produce metrics on getting user info, since it'll generally hit APIs. Make sure to label by _which_ API is
-	//       being hit.
+	startTime := time.Now()
 	authorName, authorEmail, err := gitCreds.GetUserInfo(ctx)
+	s.metricsServer.ObserveUserInfoRequestDuration(r.Repo.Repo, r.Repo.GetCredentialType(), time.Since(startTime))
 	if err != nil {
 		cleanupOrLog()
 		return nil, "", nil, fmt.Errorf("failed to get github app info: %w", err)
