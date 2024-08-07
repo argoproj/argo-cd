@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
@@ -20,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
+	secutil "github.com/argoproj/argo-cd/v2/util/security"
 )
 
 // NewExportCommand defines a new command for exporting Kubernetes and Argo CD resources.
@@ -27,6 +29,7 @@ func NewExportCommand() *cobra.Command {
 	var (
 		clientConfig clientcmd.ClientConfig
 		out          string
+		applicationNamespaces string
 	)
 	command := cobra.Command{
 		Use:   "export",
@@ -58,34 +61,48 @@ func NewExportCommand() *cobra.Command {
 			acdClients := newArgoCDClientsets(config, namespace)
 			acdConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDConfigMapName, v1.GetOptions{})
 			errors.CheckError(err)
-			export(writer, *acdConfigMap)
+			export(writer, *acdConfigMap, namespace)
 			acdRBACConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDRBACConfigMapName, v1.GetOptions{})
 			errors.CheckError(err)
-			export(writer, *acdRBACConfigMap)
+			export(writer, *acdRBACConfigMap, namespace)
 			acdKnownHostsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDKnownHostsConfigMapName, v1.GetOptions{})
 			errors.CheckError(err)
-			export(writer, *acdKnownHostsConfigMap)
+			export(writer, *acdKnownHostsConfigMap, namespace)
 			acdTLSCertsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDTLSCertsConfigMapName, v1.GetOptions{})
 			errors.CheckError(err)
-			export(writer, *acdTLSCertsConfigMap)
+			export(writer, *acdTLSCertsConfigMap, namespace)
 
 			referencedSecrets := getReferencedSecrets(*acdConfigMap)
 			secrets, err := acdClients.secrets.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, secret := range secrets.Items {
 				if isArgoCDSecret(referencedSecrets, secret) {
-					export(writer, secret)
+					export(writer, secret,namespace)
 				}
 			}
 			projects, err := acdClients.projects.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, proj := range projects.Items {
-				export(writer, proj)
+				export(writer, proj,namespace)
 			}
+
+			additionalApplicationNamespaces := []string{}
+
+			if applicationNamespaces != "" {
+				additionalApplicationNamespaces = strings.Split(strings.ReplaceAll(applicationNamespaces, " ", ""), ",")
+			} else {
+				acdCmdParamsCM, err := acdClients.configMaps.Get(ctx, common.ArgoCDCmdParamsConfigMapName, v1.GetOptions{})
+				errors.CheckError(err)
+				additionalApplicationNamespaces = getNamespacesFromCmdParams("application.namespaces", *acdCmdParamsCM)
+			}
+
 			applications, err := acdClients.applications.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, app := range applications.Items {
-				export(writer, app)
+				// Export application only if it is in one of the enabled namespaces
+				if secutil.IsNamespaceEnabled(app.GetNamespace(), namespace, additionalApplicationNamespaces) {
+					export(writer, app, namespace)
+				}
 			}
 			applicationSets, err := acdClients.applicationSets.List(ctx, v1.ListOptions{})
 			if err != nil && !apierr.IsNotFound(err) {
@@ -97,7 +114,7 @@ func NewExportCommand() *cobra.Command {
 			}
 			if applicationSets != nil {
 				for _, appSet := range applicationSets.Items {
-					export(writer, appSet)
+					export(writer, appSet, namespace)
 				}
 			}
 		},
@@ -105,6 +122,7 @@ func NewExportCommand() *cobra.Command {
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().StringVarP(&out, "out", "o", "-", "Output to the specified file instead of stdout")
+	command.Flags().StringVar(&applicationNamespaces, "application-namespaces", "", fmt.Sprintf("Comma separated list of applications to export applications from.\nIf not provided value from 'application.namespaces' in %s will be used,if it's not defined only applications from Argo CD namespace will be exported", common.ArgoCDCmdParamsConfigMapName))
 
 	return &command
 }
@@ -320,13 +338,17 @@ func checkAppHasNoNeedToStopOperation(liveObj unstructured.Unstructured, stopOpe
 }
 
 // export writes the unstructured object and removes extraneous cruft from output before writing
-func export(w io.Writer, un unstructured.Unstructured) {
+func export(w io.Writer, un unstructured.Unstructured, argocdNamespace string) {
 	name := un.GetName()
 	finalizers := un.GetFinalizers()
 	apiVersion := un.GetAPIVersion()
 	kind := un.GetKind()
 	labels := un.GetLabels()
 	annotations := un.GetAnnotations()
+	namespace := argocdNamespace
+	if un.GetNamespace() != argocdNamespace {
+		namespace = un.GetNamespace()
+	}
 	unstructured.RemoveNestedField(un.Object, "metadata")
 	un.SetName(name)
 	un.SetFinalizers(finalizers)
@@ -334,6 +356,9 @@ func export(w io.Writer, un unstructured.Unstructured) {
 	un.SetKind(kind)
 	un.SetLabels(labels)
 	un.SetAnnotations(annotations)
+	if namespace != argocdNamespace {
+		un.SetNamespace(namespace)
+	}
 	data, err := yaml.Marshal(un.Object)
 	errors.CheckError(err)
 	_, err = w.Write(data)

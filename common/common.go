@@ -46,6 +46,7 @@ const (
 	ArgoCDGPGKeysConfigMapName  = "argocd-gpg-keys-cm"
 	// ArgoCDAppControllerShardConfigMapName contains the application controller to shard mapping
 	ArgoCDAppControllerShardConfigMapName = "argocd-app-controller-shard-cm"
+	ArgoCDCmdParamsConfigMapName = "argocd-cmd-params-cm"
 )
 
 // Some default configurables

@@ -2,6 +2,7 @@ package admin
 
 import (
 	"reflect"
+	"strings"
 
 	"github.com/spf13/cobra"
 	apiv1 "k8s.io/api/core/v1"
@@ -85,9 +86,10 @@ func newArgoCDClientsets(config *rest.Config, namespace string) *argoCDClientset
 	return &argoCDClientsets{
 		configMaps:      dynamicIf.Resource(configMapResource).Namespace(namespace),
 		secrets:         dynamicIf.Resource(secretResource).Namespace(namespace),
-		applications:    dynamicIf.Resource(applicationsResource).Namespace(namespace),
+		// To support applications and application sets in any namespace we will watch all namespaces and filter them afterwards
+		applications:    dynamicIf.Resource(applicationsResource).Namespace(""),
 		projects:        dynamicIf.Resource(appprojectsResource).Namespace(namespace),
-		applicationSets: dynamicIf.Resource(appplicationSetResource).Namespace(namespace),
+		applicationSets: dynamicIf.Resource(appplicationSetResource).Namespace(""),
 	}
 }
 
@@ -249,4 +251,18 @@ func redactor(dirtyString string) string {
 	data, err := yaml.Marshal(config)
 	errors.CheckError(err)
 	return string(data)
+}
+
+// Get application or applicationset namespaces from cmd params
+func getNamespacesFromCmdParams(key string, un unstructured.Unstructured) []string {
+
+	var cm apiv1.ConfigMap
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
+	errors.CheckError(err)
+	// Referenced repository secrets
+	if strNamespaces, ok := cm.Data[key]; ok {
+		return (strings.Split(strings.ReplaceAll(strNamespaces, " ", ""), ","))
+	} else {
+		return []string{}
+	}
 }
