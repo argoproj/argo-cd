@@ -116,11 +116,11 @@ var (
 	apiServerPort             string
 	repoServerPort            string
 	mappedSSHPort             string // port 2222
-	mappedHelmHttpPort        string // port 9080
 	mappedGitNoAuthPort       string // port 9081
 	MappedHttpsAuthPort       string // port 9443
 	mappedHttpsClientAuthPort string // port 9444
-	MappedOCIRegistryPort     string
+	MappedOCIRegistryPort     string // port 5000
+	mappedHelmHttpPort        string // port 9080
 )
 
 type RepoURLType string
@@ -298,7 +298,9 @@ func init() {
 
 func randomPort() string {
 	l, err := net.Listen("tcp", ":0")
-	defer l.Close()
+	defer func() {
+		CheckError(l.Close())
+	}()
 	CheckError(err)
 	port := l.Addr().(*net.TCPAddr).Port
 	return strconv.FormatInt(int64(port), 10)
@@ -830,10 +832,10 @@ func replaceInFile(path string, replacements map[string]string) error {
 
 	output := string(input)
 	for k, v := range replacements {
-		output = strings.Replace(output, k, v, -1)
+		output = strings.ReplaceAll(output, k, v)
 	}
 
-	return os.WriteFile(path, []byte(output), 0666)
+	return os.WriteFile(path, []byte(output), 0o666)
 }
 
 func EnsureCleanState(t *testing.T, opts ...TestOption) {
