@@ -41,7 +41,7 @@ func AddCustomCACert() {
 func AddCustomSSHKnownHostsKeys() {
 	source := os.Getenv("ARGOCD_E2E_SSH_KNOWN_HOSTS")
 	if source == "" {
-		source = "../fixture/testrepos/ssh_known_hosts"
+		source = fixture.TmpDir + "/ssh_known_hosts"
 	}
 	knownHostsPath, err := filepath.Abs(source)
 	errors.CheckError(err)

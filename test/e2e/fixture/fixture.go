@@ -661,7 +661,7 @@ func initTestContainers(ctx context.Context) {
 					"UID": &currentUser.Uid,
 				},
 			},
-			ExposedPorts: []string{"2222:2222/tcp", "9080:9080/tcp", "9081/tcp", "9443/tcp", "9444/tcp"},
+			ExposedPorts: []string{"2222/tcp", "9080:9080/tcp", "9081/tcp", "9443/tcp", "9444/tcp"},
 			Cmd:          []string{"goreman", "start"},
 			LogConsumerCfg: &testcontainers.LogConsumerConfig{
 				Opts:      []testcontainers.LogProductionOption{testcontainers.WithLogProductionTimeout(10 * time.Second)},
@@ -681,15 +681,15 @@ func initTestContainers(ctx context.Context) {
 	})
 	CheckError(err)
 
-	// TODO: Make this a dynamically mapped port
-	mappedSSHPort = "2222"
+	port, _ := e2eServer.MappedPort(ctx, "2222")
+	mappedSSHPort = port.Port()
 
 	// TODO: Make this a dynamically mapped port
 	mappedHelmHttpPort = "9080"
 	// port, _ := e2eServer.MappedPort(ctx, "9080")
 	// mappedHelmHttpPort = port.Port()
 
-	port, _ := e2eServer.MappedPort(ctx, "9081")
+	port, _ = e2eServer.MappedPort(ctx, "9081")
 	mappedGitNoAuthPort = port.Port()
 
 	port, _ = e2eServer.MappedPort(ctx, "9443")
@@ -943,21 +943,28 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	FailOnErr(Run(RepoDirectory(), "chmod", "777", "."))
 	FailOnErr(Run(RepoDirectory(), "git", "init", "-b", "master"))
 
-	err = filepath.Walk(RepoDirectory(), func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() && strings.HasSuffix(path, ".yaml") {
-			errors.CheckError(replaceInFile(path, map[string]string{
-				//	"9080": mappedHelmHttpPort,
-				"5000": MappedOCIRegistryPort,
-				"9443": MappedHttpsAuthPort,
-				"9444": mappedHttpsClientAuthPort,
-			}))
-		}
-		return nil
-	})
-	CheckError(err)
+	FailOnErr(Run(".", "cp", "../fixture/testrepos/ssh_known_hosts", TmpDir+"/ssh_known_hosts"))
+
+	if IsRunningTestContainers() {
+		CheckError(replaceInFile(TmpDir+"/ssh_known_hosts", map[string]string{
+			"2222": mappedSSHPort,
+		}))
+
+		CheckError(filepath.Walk(RepoDirectory(), func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if !info.IsDir() && strings.HasSuffix(path, ".yaml") {
+				CheckError(replaceInFile(path, map[string]string{
+					//	"9080": mappedHelmHttpPort,
+					"5000": MappedOCIRegistryPort,
+					"9443": MappedHttpsAuthPort,
+					"9444": mappedHttpsClientAuthPort,
+				}))
+			}
+			return nil
+		}))
+	}
 
 	FailOnErr(Run(RepoDirectory(), "git", "add", "."))
 	FailOnErr(Run(RepoDirectory(), "git", "commit", "-q", "-m", "initial commit"))
