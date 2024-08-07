@@ -959,6 +959,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			if !info.IsDir() && strings.HasSuffix(path, ".yaml") {
 				CheckError(replaceInFile(path, map[string]string{
 					//	"9080": mappedHelmHttpPort,
+					"2222": mappedSSHPort,
 					"5000": MappedOCIRegistryPort,
 					"9443": MappedHttpsAuthPort,
 					"9444": mappedHttpsClientAuthPort,
