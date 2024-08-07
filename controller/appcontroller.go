@@ -1961,10 +1961,14 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS
 		}
 	} else {
 		manifestsChangedMap := app.Status.Sync.ManifestsChanged
-		if os.Getenv("PERSIST_CHANGE_REVISIONS") != "1" || manifestsChangedMap[commitSHA] {
+		manifestChanged, ok := manifestsChangedMap[commitSHA]
+		// If record not exists, we need to do sync
+		if os.Getenv("PERSIST_CHANGE_REVISIONS") != "1" || !ok || manifestChanged {
 			if app.Status.OperationState.SyncResult.Revision != commitSHA {
 				return false, ""
 			}
+		} else {
+			log.Debugf("Skipping auto-sync: commitSHA %s has no changes", commitSHA)
 		}
 	}
 

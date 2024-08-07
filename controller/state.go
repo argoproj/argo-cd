@@ -231,6 +231,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			// not need to change, if we already found at least one cached revision that has no changes
 			if updateRevisionResponse != nil && os.Getenv("PERSIST_CHANGE_REVISIONS") == "1" {
 				manifestsChanges[syncedRevision] = updateRevisionResponse.Changes
+				log.WithField("application", app.Name).Debugf("Persisting revision %s with changes exists %t", syncedRevision, updateRevisionResponse.Changes)
 			}
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
