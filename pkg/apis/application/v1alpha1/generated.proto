@@ -489,6 +489,17 @@ message ApplicationSourceHelm {
   // ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
   // +kubebuilder:pruning:PreserveUnknownFields
   optional k8s.io.apimachinery.pkg.runtime.RawExtension valuesObject = 10;
+
+  // Namespace is an optional namespace to template with. If left empty, defaults to the app's destination namespace.
+  optional string namespace = 11;
+
+  // KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+  // uses the Kubernetes version of the target cluster.
+  optional string kubeVersion = 12;
+
+  // APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+  // Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+  repeated string apiVersions = 13;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
@@ -546,6 +557,14 @@ message ApplicationSourceKustomize {
 
   // LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
   optional bool labelWithoutSelector = 14;
+
+  // KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+  // uses the Kubernetes version of the target cluster.
+  optional string kubeVersion = 15;
+
+  // APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+  // Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+  repeated string apiVersions = 16;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins

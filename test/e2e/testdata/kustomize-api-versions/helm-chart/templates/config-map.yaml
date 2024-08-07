@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-map
+data:
+  apiVersions: |
+    {{.Capabilities.APIVersions}}

@@ -1117,9 +1117,9 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 	templateOpts := &helm.TemplateOpts{
 		Name:        appName,
-		Namespace:   q.Namespace,
-		KubeVersion: text.SemVer(q.KubeVersion),
-		APIVersions: q.ApiVersions,
+		Namespace:   q.ApplicationSource.GetNamespaceOrDefault(q.Namespace),
+		KubeVersion: text.SemVer(q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion)),
+		APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
 		Set:         map[string]string{},
 		SetString:   map[string]string{},
 		SetFile:     map[string]pathutil.ResolvedFilePath{},
@@ -1417,8 +1417,8 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		}
 		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary)
 		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
-			KubeVersion: text.SemVer(q.KubeVersion),
-			APIVersions: q.ApiVersions,
+			KubeVersion: text.SemVer(q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion)),
+			APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
 		})
 	case v1alpha1.ApplicationSourceTypePlugin:
 		pluginName := ""

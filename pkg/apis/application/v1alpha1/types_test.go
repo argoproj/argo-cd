@@ -883,6 +883,153 @@ func TestAppSourceEquality(t *testing.T) {
 	assert.False(t, left.Equals(right))
 }
 
+func TestAppSource_GetKubeVersionOrDefault(t *testing.T) {
+	defaultKV := "999.999.999"
+	cases := []struct {
+		name   string
+		source *ApplicationSource
+		expect string
+	}{
+		{
+			"nil source returns default",
+			nil,
+			defaultKV,
+		},
+		{
+			"source without Helm or Kustomize returns default",
+			&ApplicationSource{},
+			defaultKV,
+		},
+		{
+			"source with empty Helm returns default",
+			&ApplicationSource{Helm: &ApplicationSourceHelm{}},
+			defaultKV,
+		},
+		{
+			"source with empty Kustomize returns default",
+			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{}},
+			defaultKV,
+		},
+		{
+			"source with Helm override returns override",
+			&ApplicationSource{Helm: &ApplicationSourceHelm{KubeVersion: "1.2.3"}},
+			"1.2.3",
+		},
+		{
+			"source with Kustomize override returns override",
+			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{KubeVersion: "1.2.3"}},
+			"1.2.3",
+		},
+	}
+
+	for _, tc := range cases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			kv := tcc.source.GetKubeVersionOrDefault(defaultKV)
+			assert.Equal(t, tcc.expect, kv)
+		})
+	}
+}
+
+func TestAppSource_GetAPIVersionsOrDefault(t *testing.T) {
+	defaultAPIVersions := []string{"v1", "v2"}
+	cases := []struct {
+		name   string
+		source *ApplicationSource
+		expect []string
+	}{
+		{
+			"nil source returns default",
+			nil,
+			defaultAPIVersions,
+		},
+		{
+			"source without Helm or Kustomize returns default",
+			&ApplicationSource{},
+			defaultAPIVersions,
+		},
+		{
+			"source with empty Helm returns default",
+			&ApplicationSource{Helm: &ApplicationSourceHelm{}},
+			defaultAPIVersions,
+		},
+		{
+			"source with empty Kustomize returns default",
+			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{}},
+			defaultAPIVersions,
+		},
+		{
+			"source with Helm override returns override",
+			&ApplicationSource{Helm: &ApplicationSourceHelm{APIVersions: []string{"v3", "v4"}}},
+			[]string{"v3", "v4"},
+		},
+		{
+			"source with Kustomize override returns override",
+			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{APIVersions: []string{"v3", "v4"}}},
+			[]string{"v3", "v4"},
+		},
+	}
+
+	for _, tc := range cases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			kv := tcc.source.GetAPIVersionsOrDefault(defaultAPIVersions)
+			assert.Equal(t, tcc.expect, kv)
+		})
+	}
+}
+
+func TestAppSource_GetNamespaceOrDefault(t *testing.T) {
+	defaultNS := "default"
+	cases := []struct {
+		name   string
+		source *ApplicationSource
+		expect string
+	}{
+		{
+			"nil source returns default",
+			nil,
+			defaultNS,
+		},
+		{
+			"source without Helm or Kustomize returns default",
+			&ApplicationSource{},
+			defaultNS,
+		},
+		{
+			"source with empty Helm returns default",
+			&ApplicationSource{Helm: &ApplicationSourceHelm{}},
+			defaultNS,
+		},
+		{
+			"source with empty Kustomize returns default",
+			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{}},
+			defaultNS,
+		},
+		{
+			"source with Helm override returns override",
+			&ApplicationSource{Helm: &ApplicationSourceHelm{Namespace: "not-default"}},
+			"not-default",
+		},
+		{
+			"source with Kustomize override returns override",
+			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{Namespace: "not-default"}},
+			"not-default",
+		},
+	}
+
+	for _, tc := range cases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			kv := tcc.source.GetNamespaceOrDefault(defaultNS)
+			assert.Equal(t, tcc.expect, kv)
+		})
+	}
+}
+
 func TestAppDestinationEquality(t *testing.T) {
 	left := &ApplicationDestination{
 		Server:    "https://kubernetes.default.svc",
