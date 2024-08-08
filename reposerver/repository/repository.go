@@ -1162,7 +1162,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			if err != nil {
 				return nil, nil, fmt.Errorf("error writing helm values file: %w", err)
 			}
-			templateOpts.Values = append(templateOpts.Values, pathutil.ResolvedFilePath(p))
+			templateOpts.ExtraValues = pathutil.ResolvedFilePath(p)
 		}
 
 		for _, p := range appHelm.Parameters {
@@ -1277,18 +1277,21 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 	redactedCommands := make([]string, len(commands))
 	for i, c := range commands {
-		redactedCommands[i] = redactPaths(c, gitRepoPaths)
+		redactedCommands[i] = redactPaths(c, gitRepoPaths, templateOpts.ExtraValues)
 	}
 
 	return objs, redactedCommands, err
 }
 
-func redactPaths(s string, paths io.TempPaths) string {
+func redactPaths(s string, paths io.TempPaths, extraValuesPath pathutil.ResolvedFilePath) string {
 	if paths == nil {
 		return s
 	}
 	for _, p := range paths.GetPaths() {
 		s = strings.ReplaceAll(s, p, ".")
+	}
+	if extraValuesPath != "" {
+		s = strings.ReplaceAll(s, string(extraValuesPath), "<temp file with override values>")
 	}
 	return s
 }

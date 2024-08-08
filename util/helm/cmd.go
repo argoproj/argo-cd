@@ -313,6 +313,9 @@ type TemplateOpts struct {
 	SetString   map[string]string
 	SetFile     map[string]pathutil.ResolvedFilePath
 	Values      []pathutil.ResolvedFilePath
+	// ExtraValues is the randomly-generated path to the temporary values file holding the contents of
+	// spec.source.helm.values/valuesObject.
+	ExtraValues pathutil.ResolvedFilePath
 	SkipCrds    bool
 }
 
@@ -357,6 +360,9 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, string, er
 	}
 	for _, val := range opts.Values {
 		args = append(args, "--values", string(val))
+	}
+	if opts.ExtraValues != "" {
+		args = append(args, "--values", string(opts.ExtraValues))
 	}
 	for _, v := range opts.APIVersions {
 		args = append(args, "--api-versions", v)

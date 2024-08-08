@@ -4116,3 +4116,60 @@ func TestVerifyCommitSignature(t *testing.T) {
 		require.NoError(t, err)
 	})
 }
+
+func Test_GenerateManifests_Commands(t *testing.T) {
+	service := newService(t, "testdata/my-chart")
+
+	q := apiclient.ManifestRequest{
+		AppName:     "test-app",
+		Namespace:   "test-namespace",
+		KubeVersion: "1.2.3",
+		ApiVersions: []string{"v1/Test", "v2/Test"},
+		Repo:        &argoappv1.Repository{},
+		ApplicationSource: &argoappv1.ApplicationSource{
+			Path: ".",
+			Helm: &argoappv1.ApplicationSourceHelm{
+				FileParameters: []argoappv1.HelmFileParameter{
+					{
+						Name: "test-file-param-name",
+						Path: "test-file-param.yaml",
+					},
+				},
+				Parameters: []argoappv1.HelmParameter{
+					{
+						Name:        "test-param-name",
+						Value:       "test-value",
+						ForceString: true,
+					},
+				},
+				PassCredentials: true,
+				SkipCrds:        true,
+				ValueFiles: []string{
+					"my-chart-values.yaml",
+				},
+				Values: "test: values",
+			},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+
+	res, err := service.GenerateManifest(context.Background(), &q)
+
+	require.NoError(t, err)
+	assert.Equal(t, []string{"helm template . --name-template test-app --namespace test-namespace --kube-version 1.2.3 --set-string test-param-name=test-value --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with override values> --api-versions v1/Test --api-versions v2/Test"}, res.Commands)
+
+	t.Run("overrides", func(t *testing.T) {
+		// These can be set explicitly instead of using inferred values. Make sure the overrides apply.
+		q.ApplicationSource.Helm.APIVersions = []string{"v3", "v4"}
+		q.ApplicationSource.Helm.KubeVersion = "5.6.7"
+		q.ApplicationSource.Helm.Namespace = "different-namespace"
+		q.ApplicationSource.Helm.ReleaseName = "different-release-name"
+
+		res, err = service.GenerateManifest(context.Background(), &q)
+
+		require.NoError(t, err)
+		assert.Equal(t, []string{"helm template . --name-template different-release-name --namespace different-namespace --kube-version 5.6.7 --set-string test-param-name=test-value --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with override values> --api-versions v3 --api-versions v4"}, res.Commands)
+
+	})
+}
