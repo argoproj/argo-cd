@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"html"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strings"
 	"sync"
@@ -20,6 +19,8 @@ import (
 	gogsclient "github.com/gogits/go-gogs-client"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/v2/util/regex"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -37,10 +38,6 @@ type settingsSource interface {
 	GetAppInstanceLabelKey() (string, error)
 	GetTrackingMethod() (string, error)
 }
-
-// https://www.rfc-editor.org/rfc/rfc3986#section-3.2.1
-// https://github.com/shadow-maint/shadow/blob/master/libmisc/chkname.c#L36
-const usernameRegex = `[a-zA-Z0-9_\.][a-zA-Z0-9_\.-]{0,30}[a-zA-Z0-9_\.\$-]?`
 
 const payloadQueueSize = 50000
 
@@ -294,7 +291,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 	}
 
 	for _, webURL := range webURLs {
-		repoRegexp, err := getWebUrlRegex(webURL)
+		repoRegexp, err := regex.BuildWebhookRegExp(webURL)
 		if err != nil {
 			log.Warnf("Failed to get repoRegexp: %s", err)
 			continue
@@ -321,26 +318,6 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 			}
 		}
 	}
-}
-
-// getWebUrlRegex compiles a regex that will match any targetRevision referring to the same repo as the given webURL.
-// webURL is expected to be a URL from an SCM webhook payload pointing to the web page for the repo.
-func getWebUrlRegex(webURL string) (*regexp.Regexp, error) {
-	urlObj, err := url.Parse(webURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse repoURL '%s'", webURL)
-	}
-
-	regexEscapedHostname := regexp.QuoteMeta(urlObj.Hostname())
-	regexEscapedPath := regexp.QuoteMeta(urlObj.EscapedPath()[1:])
-	regexpStr := fmt.Sprintf(`(?i)^(http://|https://|%s@|ssh://(%s@)?)%s(:[0-9]+|)[:/]%s(\.git)?$`,
-		usernameRegex, usernameRegex, regexEscapedHostname, regexEscapedPath)
-	repoRegexp, err := regexp.Compile(regexpStr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to compile regexp for repoURL '%s'", webURL)
-	}
-
-	return repoRegexp, nil
 }
 
 func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string) error {

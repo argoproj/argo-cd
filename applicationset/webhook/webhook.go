@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/regex"
 	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
@@ -221,15 +222,10 @@ func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 	}
 
 	log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, revision, touchedHead)
-	urlObj, err := url.Parse(webURL)
+
+	repoRegexp, err := regex.BuildWebhookRegExp(webURL)
 	if err != nil {
-		log.Errorf("Failed to parse repoURL '%s'", webURL)
-		return nil
-	}
-	regexpStr := `(?i)(http://|https://|\w+@|ssh://(\w+@)?)` + urlObj.Hostname() + "(:[0-9]+|)[:/]" + urlObj.Path[1:] + "(\\.git)?"
-	repoRegexp, err := regexp.Compile(regexpStr)
-	if err != nil {
-		log.Errorf("Failed to compile regexp for repoURL '%s'", webURL)
+		log.Warnf("Failed to get repoRegexp: %s", err)
 		return nil
 	}
 
