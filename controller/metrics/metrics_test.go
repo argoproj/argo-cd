@@ -116,6 +116,41 @@ status:
     status: Degraded
 `
 
+const fakeApp4 = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app-4
+  namespace: argocd
+  labels:
+    team-name: my-team
+    team-bu: bu-id
+    argoproj.io/cluster: test-cluster
+spec:
+  destination:
+    namespace: dummy-namespace
+    server: https://localhost:6443
+  project: important-project
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+status:
+  sync:
+    status: OutOfSync
+  health:
+    status: Degraded
+  conditions:
+  - lastTransitionTime: "2024-08-07T12:25:40Z"
+    message: Application has 1 orphaned resources
+    type: OrphanedResourceWarning
+  - lastTransitionTime: "2024-08-07T12:25:40Z"
+    message: Resource Pod standalone-pod is excluded in the settings
+    type: ExcludedResourceWarning
+  - lastTransitionTime: "2024-08-07T12:25:40Z"
+    message: Resource Endpoint raw-endpoint is excluded in the settings
+    type: ExcludedResourceWarning
+`
+
 const fakeDefaultApp = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -179,7 +214,7 @@ func newFakeLister(fakeAppYAMLs ...string) (context.CancelFunc, applister.Applic
 
 func testApp(t *testing.T, fakeAppYAMLs []string, expectedResponse string) {
 	t.Helper()
-	testMetricServer(t, fakeAppYAMLs, expectedResponse, []string{})
+	testMetricServer(t, fakeAppYAMLs, expectedResponse, []string{}, []string{})
 }
 
 type fakeClusterInfo struct {
@@ -194,15 +229,17 @@ type TestMetricServerConfig struct {
 	FakeAppYAMLs     []string
 	ExpectedResponse string
 	AppLabels        []string
+	AppConditions    []string
 	ClustersInfo     []gitopsCache.ClusterInfo
 }
 
-func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse string, appLabels []string) {
+func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse string, appLabels []string, appConditions []string) {
 	t.Helper()
 	cfg := TestMetricServerConfig{
 		FakeAppYAMLs:     fakeAppYAMLs,
 		ExpectedResponse: expectedResponse,
 		AppLabels:        appLabels,
+		AppConditions:    appConditions,
 		ClustersInfo:     []gitopsCache.ClusterInfo{},
 	}
 	runTest(t, cfg)
@@ -212,7 +249,7 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 	t.Helper()
 	cancel, appLister := newFakeLister(cfg.FakeAppYAMLs...)
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels, cfg.AppConditions)
 	require.NoError(t, err)
 
 	if len(cfg.ClustersInfo) > 0 {
@@ -303,7 +340,61 @@ argocd_app_labels{label_non_existing="",name="my-app-3",namespace="argocd",proje
 	for _, c := range cases {
 		c := c
 		t.Run(c.description, func(t *testing.T) {
-			testMetricServer(t, c.applications, c.responseContains, c.metricLabels)
+			testMetricServer(t, c.applications, c.responseContains, c.metricLabels, []string{})
+		})
+	}
+}
+
+func TestMetricConditions(t *testing.T) {
+	type testCases struct {
+		testCombination
+		description      string
+		metricConditions []string
+	}
+	cases := []testCases{
+		{
+			description:      "metric will only output OrphanedResourceWarning",
+			metricConditions: []string{"OrphanedResourceWarning"},
+			testCombination: testCombination{
+				applications: []string{fakeApp4},
+				responseContains: `
+# HELP argocd_app_condition Report application conditions.
+# TYPE argocd_app_condition gauge
+argocd_app_condition{condition="OrphanedResourceWarning",name="my-app-4",namespace="argocd",project="important-project"} 1
+`,
+			},
+		},
+		{
+			description:      "metric will only output ExcludedResourceWarning",
+			metricConditions: []string{"ExcludedResourceWarning"},
+			testCombination: testCombination{
+				applications: []string{fakeApp4},
+				responseContains: `
+# HELP argocd_app_condition Report application conditions.
+# TYPE argocd_app_condition gauge
+argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespace="argocd",project="important-project"} 2
+`,
+			},
+		},
+		{
+			description:      "metric will only output both OrphanedResourceWarning and ExcludedResourceWarning",
+			metricConditions: []string{"ExcludedResourceWarning", "OrphanedResourceWarning"},
+			testCombination: testCombination{
+				applications: []string{fakeApp4},
+				responseContains: `
+# HELP argocd_app_condition Report application conditions.
+# TYPE argocd_app_condition gauge
+argocd_app_condition{condition="OrphanedResourceWarning",name="my-app-4",namespace="argocd",project="important-project"} 1
+argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespace="argocd",project="important-project"} 2
+`,
+			},
+		},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run(c.description, func(t *testing.T) {
+			testMetricServer(t, c.applications, c.responseContains, []string{}, c.metricConditions)
 		})
 	}
 }
@@ -335,7 +426,7 @@ argocd_app_sync_status{name="my-app",namespace="argocd",project="important-proje
 func TestMetricsSyncCounter(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
 	require.NoError(t, err)
 
 	appSyncTotal := `
@@ -387,7 +478,7 @@ func assertMetricsNotPrinted(t *testing.T, expectedLines, body string) {
 func TestReconcileMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
 	require.NoError(t, err)
 
 	appReconcileMetrics := `
@@ -420,7 +511,7 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 func TestMetricsReset(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
 	require.NoError(t, err)
 
 	appSyncTotal := `
@@ -457,7 +548,7 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 func TestWorkqueueMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
 	require.NoError(t, err)
 
 	expectedMetrics := `
@@ -492,7 +583,7 @@ workqueue_unfinished_work_seconds{controller="test",name="test"}
 func TestGoMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
 	require.NoError(t, err)
 
 	expectedMetrics := `
