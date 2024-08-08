@@ -21,7 +21,6 @@ import (
 
 // A thin wrapper around the "helm" command, adding logging and error translation.
 type Cmd struct {
-	HelmVer
 	helmHome  string
 	WorkDir   string
 	IsLocal   bool
@@ -33,17 +32,17 @@ func NewCmd(workDir string, version string, proxy string) (*Cmd, error) {
 	switch version {
 	// If v3 is specified (or by default, if no value is specified) then use v3
 	case "", "v3":
-		return NewCmdWithVersion(workDir, HelmV3, false, proxy)
+		return NewCmdWithVersion(workDir, false, proxy)
 	}
 	return nil, fmt.Errorf("helm chart version '%s' is not supported", version)
 }
 
-func NewCmdWithVersion(workDir string, version HelmVer, isHelmOci bool, proxy string) (*Cmd, error) {
+func NewCmdWithVersion(workDir string, isHelmOci bool, proxy string) (*Cmd, error) {
 	tmpDir, err := os.MkdirTemp("", "helm")
 	if err != nil {
 		return nil, err
 	}
-	return &Cmd{WorkDir: workDir, helmHome: tmpDir, HelmVer: version, IsHelmOci: isHelmOci, proxy: proxy}, err
+	return &Cmd{WorkDir: workDir, helmHome: tmpDir, IsHelmOci: isHelmOci, proxy: proxy}, err
 }
 
 var redactor = func(text string) string {
@@ -51,7 +50,7 @@ var redactor = func(text string) string {
 }
 
 func (c Cmd) run(args ...string) (string, error) {
-	cmd := exec.Command(c.binaryName, args...)
+	cmd := exec.Command("helm", args...)
 	cmd.Dir = c.WorkDir
 	cmd.Env = os.Environ()
 	if !c.IsLocal {
@@ -69,13 +68,6 @@ func (c Cmd) run(args ...string) (string, error) {
 	cmd.Env = proxy.UpsertEnv(cmd, c.proxy)
 
 	return executil.RunWithRedactor(cmd, redactor)
-}
-
-func (c *Cmd) Init() (string, error) {
-	if c.initSupported {
-		return c.run("init", "--client-only", "--skip-refresh")
-	}
-	return "", nil
 }
 
 func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
@@ -146,7 +138,7 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 		args = append(args, "--ca-file", opts.CAPath)
 	}
 
-	if opts.InsecureSkipVerify && c.insecureSkipVerifySupported {
+	if opts.InsecureSkipVerify {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
 
@@ -176,7 +168,7 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 		args = append(args, "--key-file", keyFile.Name())
 	}
 
-	if c.helmPassCredentialsSupported && passCredentials {
+	if passCredentials {
 		args = append(args, "--pass-credentials")
 	}
 
@@ -209,7 +201,7 @@ func writeToTmp(data []byte) (string, argoio.Closer, error) {
 }
 
 func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, passCredentials bool) (string, error) {
-	args := []string{c.pullCommand, "--destination", destination}
+	args := []string{"pull", "--destination", destination}
 	if version != "" {
 		args = append(args, "--version", version)
 	}
@@ -219,7 +211,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 	if creds.Password != "" {
 		args = append(args, "--password", creds.Password)
 	}
-	if creds.InsecureSkipVerify && c.insecureSkipVerifySupported {
+	if creds.InsecureSkipVerify {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
 
@@ -244,7 +236,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 		defer argoio.Close(closer)
 		args = append(args, "--key-file", filePath)
 	}
-	if passCredentials && c.helmPassCredentialsSupported {
+	if passCredentials {
 		args = append(args, "--pass-credentials")
 	}
 
@@ -280,7 +272,7 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 		args = append(args, "--key-file", filePath)
 	}
 
-	if creds.InsecureSkipVerify && c.insecureSkipVerifySupported {
+	if creds.InsecureSkipVerify {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
 	return c.run(args...)
@@ -291,11 +283,11 @@ func (c *Cmd) dependencyBuild() (string, error) {
 }
 
 func (c *Cmd) inspectValues(values string) (string, error) {
-	return c.run(c.showCommand, "values", values)
+	return c.run("show", "values", values)
 }
 
 func (c *Cmd) InspectChart() (string, error) {
-	return c.run(c.showCommand, "chart", ".")
+	return c.run("show", "chart", ".")
 }
 
 type TemplateOpts struct {
@@ -324,20 +316,18 @@ func cleanSetParameters(val string) string {
 }
 
 func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
-	if c.HelmVer.getPostTemplateCallback != nil {
-		if callback, err := c.HelmVer.getPostTemplateCallback(filepath.Clean(path.Join(c.WorkDir, chartPath))); err == nil {
-			defer callback()
-		} else {
-			return "", err
-		}
+	if callback, err := cleanupChartLockFile(filepath.Clean(path.Join(c.WorkDir, chartPath))); err == nil {
+		defer callback()
+	} else {
+		return "", err
 	}
 
-	args := []string{"template", chartPath, c.templateNameArg, opts.Name}
+	args := []string{"template", chartPath, "--name-template", opts.Name}
 
 	if opts.Namespace != "" {
 		args = append(args, "--namespace", opts.Namespace)
 	}
-	if opts.KubeVersion != "" && c.kubeVersionSupported {
+	if opts.KubeVersion != "" {
 		args = append(args, "--kube-version", opts.KubeVersion)
 	}
 	for key, val := range opts.Set {
@@ -355,7 +345,7 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
 	for _, v := range opts.APIVersions {
 		args = append(args, "--api-versions", v)
 	}
-	if c.HelmVer.includeCrds && !opts.SkipCrds {
+	if !opts.SkipCrds {
 		args = append(args, "--include-crds")
 	}
 
@@ -369,6 +359,26 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, error) {
 		return "", errors.New(msg)
 	}
 	return out, nil
+}
+
+// Workaround for Helm3 behavior (see https://github.com/helm/helm/issues/6870).
+// The `helm template` command generates Chart.lock after which `helm dependency build` does not work
+// As workaround removing lock file unless it exists before running helm template
+func cleanupChartLockFile(chartPath string) (func(), error) {
+	exists := true
+	lockPath := path.Join(chartPath, "Chart.lock")
+	if _, err := os.Stat(lockPath); err != nil {
+		if os.IsNotExist(err) {
+			exists = false
+		} else {
+			return nil, err
+		}
+	}
+	return func() {
+		if !exists {
+			_ = os.Remove(lockPath)
+		}
+	}, nil
 }
 
 func (c *Cmd) Freestyle(args ...string) (string, error) {

@@ -15,7 +15,7 @@ func Test_cmd_redactor(t *testing.T) {
 }
 
 func TestCmd_template_kubeVersion(t *testing.T) {
-	cmd, err := NewCmdWithVersion(".", HelmV3, false, "")
+	cmd, err := NewCmdWithVersion(".", false, "")
 	require.NoError(t, err)
 	s, err := cmd.template("testdata/redis", &TemplateOpts{
 		KubeVersion: "1.14",
@@ -25,7 +25,7 @@ func TestCmd_template_kubeVersion(t *testing.T) {
 }
 
 func TestCmd_template_noApiVersionsInError(t *testing.T) {
-	cmd, err := NewCmdWithVersion(".", HelmV3, false, "")
+	cmd, err := NewCmdWithVersion(".", false, "")
 	require.NoError(t, err)
 	_, err = cmd.template("testdata/chart-does-not-exist", &TemplateOpts{
 		KubeVersion: "1.14",
@@ -34,18 +34,6 @@ func TestCmd_template_noApiVersionsInError(t *testing.T) {
 	require.Error(t, err)
 	assert.NotContains(t, err.Error(), "--api-version")
 	assert.ErrorContains(t, err, "<api versions removed> ")
-}
-
-func TestNewCmd_helmV3(t *testing.T) {
-	cmd, err := NewCmd(".", "v3", "")
-	require.NoError(t, err)
-	assert.Equal(t, "helm", cmd.HelmVer.binaryName)
-}
-
-func TestNewCmd_helmDefaultVersion(t *testing.T) {
-	cmd, err := NewCmd(".", "", "")
-	require.NoError(t, err)
-	assert.Equal(t, "helm", cmd.HelmVer.binaryName)
 }
 
 func TestNewCmd_helmInvalidVersion(t *testing.T) {
