@@ -1940,7 +1940,7 @@ func TestAlreadyAttemptSync(t *testing.T) {
 
 		app.Status.Sync.ManifestsChanged = manifestChangedMap
 
-		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false)
+		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, nil)
 		assert.False(t, attempted)
 	})
 
@@ -1953,7 +1953,7 @@ func TestAlreadyAttemptSync(t *testing.T) {
 
 		app.Status.Sync.ManifestsChanged = manifestChangedMap
 
-		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false)
+		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, manifestChangedMap)
 		assert.True(t, attempted)
 	})
 
@@ -1964,7 +1964,7 @@ func TestAlreadyAttemptSync(t *testing.T) {
 
 		app.Status.Sync.ManifestsChanged = manifestChangedMap
 
-		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false)
+		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, nil)
 		assert.False(t, attempted)
 	})
 
@@ -1977,7 +1977,7 @@ func TestAlreadyAttemptSync(t *testing.T) {
 
 		app.Status.Sync.ManifestsChanged = manifestChangedMap
 
-		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false)
+		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, manifestChangedMap)
 		assert.False(t, attempted)
 	})
 
@@ -1985,7 +1985,7 @@ func TestAlreadyAttemptSync(t *testing.T) {
 
 		_ = os.Setenv("PERSIST_CHANGE_REVISIONS", "1")
 		
-		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false)
+		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, nil)
 		assert.False(t, attempted)
 	})
 
@@ -1998,7 +1998,7 @@ func TestAlreadyAttemptSync(t *testing.T) {
 
 		app.Status.Sync.ManifestsChanged = manifestChangedMap
 
-		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false)
+		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, manifestChangedMap)
 		assert.True(t, attempted)
 	})
 }
