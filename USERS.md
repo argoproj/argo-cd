@@ -276,6 +276,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Redpill Linpro](https://www.redpill-linpro.com/)
 1. [Reenigne Cloud](https://reenigne.ca)
 1. [reev.com](https://www.reev.com/)
+1. [Relex Solutions](https://www.relexsolutions.com/)
 1. [RightRev](https://rightrev.com/)
 1. [Rijkswaterstaat](https://www.rijkswaterstaat.nl/en)
 1. [Rise](https://www.risecard.eu/)
