@@ -203,7 +203,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	}
 	// Override server address if specified in env or CLI flag
 	c.ServerAddr = env.StringFromEnv(EnvArgoCDServer, c.ServerAddr)
-	if opts.PortForward || opts.PortForwardNamespace != "" {
+	if opts.PortForward {
 		if opts.KubeOverrides == nil {
 			opts.KubeOverrides = &clientcmd.ConfigOverrides{}
 		}
