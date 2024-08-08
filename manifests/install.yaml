@@ -22318,6 +22318,8 @@ rules:
   - appprojects
   verbs:
   - get
+  - list
+  - watch
 - apiGroups:
   - ""
   resources:
