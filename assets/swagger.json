@@ -9172,9 +9172,6 @@
     "v1alpha1SourceHydratorStatus": {
       "type": "object",
       "properties": {
-        "drySource": {
-          "$ref": "#/definitions/v1alpha1DrySource"
-        },
         "hydrateOperation": {
           "$ref": "#/definitions/v1alpha1HydrateOperation"
         },

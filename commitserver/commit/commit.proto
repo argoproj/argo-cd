@@ -28,17 +28,11 @@ message PathDetails {
   repeated HydratedManifestDetails manifests = 2;
   // Commands contains the commands executed when hydrating the manifests.
   repeated string commands = 3;
-  // ReadmeDetails contains the readme info to write to the path.
-  ReadmeDetails readme_details = 4;
 }
 
 // ManifestDetails contains the hydrated manifests.
 message HydratedManifestDetails {
   string manifest = 1;
-}
-
-// ReadmeDetails contains the readme info to write to the path.
-message ReadmeDetails {
 }
 
 // ManifestsResponse is the response to the ManifestsRequest.

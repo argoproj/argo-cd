@@ -1120,12 +1120,10 @@ type ApplicationStatus struct {
 }
 
 type SourceHydratorStatus struct {
-	// DrySource holds the dry source configuration as of the most recent reconciliation
-	DrySource DrySource `json:"drySource,omitempty" protobuf:"bytes,1,opt,name=drySource"`
 	// Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation
-	Revision string `json:"revision,omitempty" protobuf:"bytes,2,opt,name=revision"`
+	Revision string `json:"revision,omitempty" protobuf:"bytes,1,opt,name=revision"`
 	// HydrateOperation holds the status of the hydrate operation
-	HydrateOperation *HydrateOperation `json:"hydrateOperation,omitempty" protobuf:"bytes,3,opt,name=hydrateOperation"`
+	HydrateOperation *HydrateOperation `json:"hydrateOperation,omitempty" protobuf:"bytes,2,opt,name=hydrateOperation"`
 }
 
 type HydrateOperation struct {

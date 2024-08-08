@@ -7740,13 +7740,6 @@ func schema_pkg_apis_application_v1alpha1_SourceHydratorStatus(ref common.Refere
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
-					"drySource": {
-						SchemaProps: spec.SchemaProps{
-							Description: "DrySource holds the dry source configuration as of the most recent reconciliation",
-							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DrySource"),
-						},
-					},
 					"revision": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation",
@@ -7764,7 +7757,7 @@ func schema_pkg_apis_application_v1alpha1_SourceHydratorStatus(ref common.Refere
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.DrySource", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HydrateOperation"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HydrateOperation"},
 	}
 }
 

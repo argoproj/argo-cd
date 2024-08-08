@@ -4522,21 +4522,6 @@ spec:
                 description: SourceHydrator stores information about the current state
                   of source hydration
                 properties:
-                  drySource:
-                    description: DrySource holds the dry source configuration as of
-                      the most recent reconciliation
-                    properties:
-                      path:
-                        type: string
-                      repoURL:
-                        type: string
-                      targetRevision:
-                        type: string
-                    required:
-                    - path
-                    - repoURL
-                    - targetRevision
-                    type: object
                   hydrateOperation:
                     description: HydrateOperation holds the status of the hydrate
                       operation

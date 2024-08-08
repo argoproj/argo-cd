@@ -2248,14 +2248,11 @@ message SourceHydrator {
 }
 
 message SourceHydratorStatus {
-  // DrySource holds the dry source configuration as of the most recent reconciliation
-  optional DrySource drySource = 1;
-
   // Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation
-  optional string revision = 2;
+  optional string revision = 1;
 
   // HydrateOperation holds the status of the hydrate operation
-  optional HydrateOperation hydrateOperation = 3;
+  optional HydrateOperation hydrateOperation = 2;
 }
 
 // SyncOperation contains details about a sync operation.
