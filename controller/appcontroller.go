@@ -1962,13 +1962,16 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS
 	} else {
 		manifestsChangedMap := app.Status.Sync.ManifestsChanged
 		manifestChanged, ok := manifestsChangedMap[commitSHA]
+		featureFlagDisabled := os.Getenv("PERSIST_CHANGE_REVISIONS") != "1"
 		// If record not exists, we need to do sync
-		if os.Getenv("PERSIST_CHANGE_REVISIONS") != "1" || !ok || manifestChanged {
+		if featureFlagDisabled || !ok || manifestChanged {
+			log.WithField("application", app.Name).Infof("Executing compare of syncResult.Revision and commitSha because of feature flag disabled or manifest changed: %v", commitSHA)
+			log.WithField("application", app.Name).Infof("Executing compare of syncResult.Revision and commitSha with context, map: %v, flag: %t, record exists: %t", manifestsChangedMap, featureFlagDisabled, ok)
 			if app.Status.OperationState.SyncResult.Revision != commitSHA {
 				return false, ""
 			}
 		} else {
-			log.Debugf("Skipping auto-sync: commitSHA %s has no changes", commitSHA)
+			log.WithField("application", app.Name).Debugf("Skipping auto-sync: commitSHA %s has no changes", commitSHA)
 		}
 	}
 
@@ -1991,7 +1994,11 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS
 		specSource.TargetRevision = ""
 		syncResSource := app.Status.OperationState.SyncResult.Source.DeepCopy()
 		syncResSource.TargetRevision = ""
-		return reflect.DeepEqual(app.Spec.GetSource(), app.Status.OperationState.SyncResult.Source), app.Status.OperationState.Phase
+		equalSource, phase := reflect.DeepEqual(app.Spec.GetSource(), app.Status.OperationState.SyncResult.Source), app.Status.OperationState.Phase
+		if !equalSource {
+			log.WithField("application", app.Name).Infof("spec.source and syncResult.source are different")
+		}
+		return equalSource, phase
 	}
 }
 
