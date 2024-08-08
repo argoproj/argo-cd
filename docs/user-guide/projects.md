@@ -125,7 +125,7 @@ argocd app set guestbook-default --project myproject
 
 Projects include a feature called roles that can be used to determine who and what can be done applications associated with the project. As an example, it can be used to give a CI pipeline a restricted set of permissions allowing sync operations on a single app (but not change its source or destination).
 
-Projects can have multiple roles, and those roles can have different access granted to them. These permissions are called policies, and they are stored within the role as a list of policy strings. A role's policy can only grant access to that role and are limited to applications within the role's project. However, the policies have an option for granting wildcard access to any application within a project.
+Projects can have multiple roles, and those roles can have different access granted to them. These permissions are called policies which follows the same [RBAC pattern used in Argo CD configuration](../operator-manual/rbac.md). They are stored within the role as a list of policy strings. A role's policy can only grant access to that role. Users are associated with roles based on the groups list. Consider the hipotetical AppProject definition below:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -144,6 +144,15 @@ spec:
   ...
 ```
 
+Argo CD will use the policies defined in the AppProject roles while authorizing users actions. To determine which role a given users is associated with, it will dynamically create groups based on the role name in runtime. The project definition above will generate the following Casbin RBAC rules:
+
+```
+    p, proj:sample-test-project:some-role, applications, *, *, allow
+    g, some-user, proj:sample-test-project:some-role
+```
+
+_Note 1_: It is very important that policy roles follow the pattern `proj:<project-name>:<role-name>` or they won't be effective during the Argo CD authorization process.
+_Note 2_: The example above used `applications` as the resource for the policy definition. However all resources (`applicationsets`, `repositories`, etc) can be defined as AppProject policies. See the [RBAC documentation](../operator-manual/rbac.md) for more information about the possible resources.
 
 In order to create roles in a project and add policies to a role, a user will need permission to update a project.  The following commands can be used to manage a role.
 
