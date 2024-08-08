@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- ttyd-ingress.yaml
+- ttyd-service.yaml
+- ttyd-deployment.yaml
+
+patches:
+- path: ttyd-ingress-patch.json
+  target:
+    kind: Ingress
+    name: ttyd-ingress
+- path: ttyd-service-patch.json
+  target:
+    kind: Service
+    name: ttyd
+- path: ttyd-deployment-patch.json
+  target:
+    kind: Deployment
+    name: ttyd

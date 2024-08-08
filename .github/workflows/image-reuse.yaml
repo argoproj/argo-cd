@@ -14,6 +14,9 @@ on:
       docker_image_name:
         required: false
         type: string
+      bunnyshell_cr_image_name:
+        required: false
+        type: string
       platforms:
         required: true
         type: string
@@ -84,7 +87,8 @@ jobs:
           IMAGE_TAGS=$(for str in \
             ${{ inputs.quay_image_name }} \
             ${{ inputs.ghcr_image_name }} \
-            ${{ inputs.docker_image_name}}; do
+            ${{ inputs.docker_image_name }} \
+            ${{ inputs.bunnyshell_cr_image_name }}; do
             echo -n "${str}",;done | sed 's/,$//')
 
           echo $IMAGE_TAGS
@@ -95,13 +99,28 @@ jobs:
           TAGS=$(for tag in \
             ${{ inputs.quay_image_name }} \
             ${{ inputs.ghcr_image_name }} \
-            ${{ inputs.docker_image_name}}; do
+            ${{ inputs.docker_image_name }} \
+            ${{ inputs.bunnyshell_cr_image_name }}; do
             echo -n "${tag}" | awk -F ":" '{print $1}' -;done)
           
             echo $TAGS
             echo 'SIGNING_TAGS<<EOF' >> $GITHUB_ENV
             echo $TAGS >> $GITHUB_ENV
             echo 'EOF' >> $GITHUB_ENV
+
+      - name: Write bunnyshell data artifacts
+        if: ${{ !inputs.push }}
+        run: |
+          set -e
+
+          mkdir -p  .bunnyshell-tmp/artifact
+
+          cp "${{ github.event_path }}" .bunnyshell-tmp/artifact/event.json
+          cat << EOF > .bunnyshell-tmp/artifact/data.json
+          {
+            "image_name": "${{ inputs.bunnyshell_cr_image_name }}"
+          }
+          EOF
 
       - name: Login to Quay.io
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
@@ -150,6 +169,7 @@ jobs:
           push: ${{ inputs.push }}
           tags: ${{ env.TAGS }}
           target: ${{ inputs.target }}
+          outputs: ${{ inputs.push && '' || 'type=docker,dest=.bunnyshell-tmp/artifact/image.tar' }}
           provenance: false
           sbom: false
           build-args: |
@@ -157,6 +177,13 @@ jobs:
             GIT_COMMIT=${{env.GIT_COMMIT}}
             BUILD_DATE=${{env.BUILD_DATE}}
             GIT_TREE_STATE=${{env.GIT_TREE_STATE}}
+
+      - name: Upload bunnyshell artifact
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+        if: ${{ !inputs.push }}
+        with:
+          name: bunnyshell
+          path: .bunnyshell-tmp/artifact/
 
       - name: Sign container images
         run: |

@@ -51,6 +51,7 @@ jobs:
     if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name != 'push' }}
     uses: ./.github/workflows/image-reuse.yaml
     with:
+      bunnyshell_cr_image_name: 904643107945.dkr.ecr.eu-west-1.amazonaws.com/bns-v4nq2e_argoproj-argocd:${{ needs.set-vars.outputs.image-tag }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       go-version: 1.22
       platforms: ${{ needs.set-vars.outputs.platforms }}
