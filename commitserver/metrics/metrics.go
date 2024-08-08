@@ -15,6 +15,7 @@ type Server struct {
 	gitRequestCounter          *prometheus.CounterVec
 	gitRequestHistogram        *prometheus.HistogramVec
 	commitRequestHistogram     *prometheus.HistogramVec
+	userInfoRequestHistogram   *prometheus.HistogramVec
 	commitRequestCounter       *prometheus.CounterVec
 }
 
@@ -77,6 +78,16 @@ func NewMetricsServer() *Server {
 	)
 	registry.MustRegister(commitRequestHistogram)
 
+	userInfoRequestHistogram := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "argocd_commitserver_userinfo_request_duration_seconds",
+			Help:    "Userinfo request duration seconds.",
+			Buckets: []float64{0.1, 0.25, .5, 1, 2, 4, 10, 20},
+		},
+		[]string{"repo", "credential_type"},
+	)
+	registry.MustRegister(userInfoRequestHistogram)
+
 	commitRequestCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_commitserver_commit_request_total",
@@ -92,6 +103,7 @@ func NewMetricsServer() *Server {
 		gitRequestCounter:          gitRequestCounter,
 		gitRequestHistogram:        gitRequestHistogram,
 		commitRequestHistogram:     commitRequestHistogram,
+		userInfoRequestHistogram:   userInfoRequestHistogram,
 		commitRequestCounter:       commitRequestCounter,
 	}
 }
@@ -119,6 +131,10 @@ func (m *Server) ObserveGitRequestDuration(repo string, requestType GitRequestTy
 
 func (m *Server) ObserveCommitRequestDuration(repo string, rt CommitResponseType, duration time.Duration) {
 	m.commitRequestHistogram.WithLabelValues(repo, string(rt)).Observe(duration.Seconds())
+}
+
+func (m *Server) ObserveUserInfoRequestDuration(repo string, credentialType string, duration time.Duration) {
+	m.userInfoRequestHistogram.WithLabelValues(repo, credentialType).Observe(duration.Seconds())
 }
 
 func (m *Server) IncCommitRequest(repo string, rt CommitResponseType) {
