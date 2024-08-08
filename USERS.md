@@ -215,6 +215,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [New Relic](https://newrelic.com/)
 1. [Nextbasket](https://nextbasket.com)
 1. [Nextdoor](https://nextdoor.com/)
+1. [Next Fit Sistemas](https://nextfit.com.br/)
 1. [Nikkei](https://www.nikkei.co.jp/nikkeiinfo/en/)
 1. [Nitro](https://gonitro.com)
 1. [NYCU, CS IT Center](https://it.cs.nycu.edu.tw)
