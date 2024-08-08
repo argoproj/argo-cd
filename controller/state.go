@@ -490,11 +490,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		// empty out manifestInfoMap
 		manifestInfos = make([]*apiclient.ManifestResponse, 0)
 	}
-	var sourceCommands [][]string
-	for _, info := range manifestInfos {
-		sourceCommands = append(sourceCommands, info.Commands)
-	}
-	logCtx.WithField("commands", sourceCommands).Debugf("Got manifests with hydration commands")
 	ts.AddCheckpoint("git_ms")
 
 	var infoProvider kubeutil.ResourceInfoProvider
