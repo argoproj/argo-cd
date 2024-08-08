@@ -89,6 +89,8 @@ func GetDistributionFunction(clusters clusterAccessor, apps appAccessor, shardin
 		distributionFunction = RoundRobinDistributionFunction(clusters, replicasCount)
 	case common.LegacyShardingAlgorithm:
 		distributionFunction = LegacyDistributionFunction(replicasCount)
+	case common.LegacyURLShardingAlgorithm:
+		distributionFunction = LegacyDistributionByURLFunction(replicasCount)
 	case common.ConsistentHashingWithBoundedLoadsAlgorithm:
 		distributionFunction = ConsistentHashingWithBoundedLoadsDistributionFunction(clusters, apps, replicasCount)
 	default:
@@ -126,6 +128,35 @@ func LegacyDistributionFunction(replicas int) DistributionFunction {
 			_, _ = h.Write([]byte(id))
 			shard := int32(h.Sum32() % uint32(replicas))
 			log.Debugf("Cluster with id=%s will be processed by shard %d", id, shard)
+			return int(shard)
+		}
+	}
+}
+
+// LegacyDistributionByURLFunction is the same as LegacyDistributionFunction except
+// it will ensure that clusters with the same server URL will return the same shard
+func LegacyDistributionByURLFunction(replicas int) DistributionFunction {
+	return func(c *v1alpha1.Cluster) int {
+		if replicas == 0 {
+			log.Debugf("Replicas count is : %d, returning -1", replicas)
+			return -1
+		}
+		if c == nil {
+			log.Debug("In-cluster: returning 0")
+			return 0
+		}
+		if c.Shard != nil && int(*c.Shard) < replicas {
+			return int(*c.Shard)
+		}
+		server := c.Server
+		log.Debugf("Calculating cluster shard for cluster id=%s and server=%s", c.ID, server)
+		if server == "" {
+			return 0
+		} else {
+			h := fnv.New32a()
+			_, _ = h.Write([]byte(server))
+			shard := int32(h.Sum32() % uint32(replicas))
+			log.Debugf("Cluster with id=%s and server=%s will be processed by shard %d", c.ID, server, shard)
 			return int(shard)
 		}
 	}
