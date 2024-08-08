@@ -116,6 +116,38 @@ status:
     status: Degraded
 `
 
+const fakeApp4 = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app-4
+  namespace: argocd
+  labels:
+    team-name: my-team
+    team-bu: bu-id
+    argoproj.io/cluster: test-cluster
+spec:
+  destination:
+    namespace: dummy-namespace
+    server: https://localhost:6443
+  project: important-project
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+status:
+  sync:
+    status: OutOfSync
+  health:
+    status: Degraded
+  conditions:
+  - lastTransitionTime: "2024-08-07T12:25:40Z"
+    message: Application has 1 orphaned resources
+    type: OrphanedResourceWarning
+  - lastTransitionTime: "2024-08-07T12:25:40Z"
+    message: Resource Pod standalone-pod is excluded in the settings
+    type: ExcludedResourceWarning
+`
+
 const fakeDefaultApp = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -256,6 +288,15 @@ argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_se
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
 argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="default",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+`,
+		},
+		{
+			applications: []string{fakeApp4},
+			responseContains: `
+# HELP argocd_app_condition Report application conditions.
+# TYPE argocd_app_condition gauge
+argocd_app_condition{condition="OrphanedResourceWarning",name="my-app-4",namespace="argocd",project="important-project"} 1
+argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespace="argocd",project="important-project"} 1
 `,
 		},
 	}

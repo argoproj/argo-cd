@@ -62,6 +62,12 @@ var (
 		append(descAppDefaultLabels, "autosync_enabled", "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation"),
 		nil,
 	)
+	descAppConditions = prometheus.NewDesc(
+		"argocd_app_condition",
+		"Report application conditions.",
+		append(descAppDefaultLabels, "condition"),
+		nil,
+	)
 	// Deprecated
 	descAppCreated = prometheus.NewDesc(
 		"argocd_app_created_time",
@@ -334,6 +340,7 @@ func (c *appCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- descAppLabels
 	}
 	ch <- descAppInfo
+	ch <- descAppConditions
 	ch <- descAppSyncStatusCode
 	ch <- descAppHealthStatus
 }
@@ -395,6 +402,10 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 			labelValues = append(labelValues, value)
 		}
 		addGauge(descAppLabels, 1, labelValues...)
+	}
+
+	for _, condition := range app.Status.Conditions {
+		addGauge(descAppConditions, 1, condition.Type)
 	}
 
 	// Deprecated controller metrics
