@@ -8149,6 +8149,9 @@
           "type": "string",
           "title": "SCM-Manager Instance URL with context path. Required"
         },
+        "caRef": {
+          "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
+        },
         "insecure": {
           "description": "Allow insecure tls, for self-signed certificates; default: false.",
           "type": "boolean"
@@ -9114,6 +9117,9 @@
         "api": {
           "description": "The SCM-Manager URL to talk to. For example https://scm-manager.org/scm.",
           "type": "string"
+        },
+        "caRef": {
+          "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
         },
         "insecure": {
           "type": "boolean",

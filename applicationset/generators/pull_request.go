@@ -211,7 +211,17 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %v", err)
 		}
-		return pullrequest.NewScmManagerService(ctx, token, providerConfig.API, providerConfig.Namespace, providerConfig.Name, providerConfig.Insecure)
+
+		var caCerts []byte
+		var prErr error
+		if providerConfig.CARef != nil {
+			caCerts, prErr = utils.GetConfigMapData(ctx, g.client, providerConfig.CARef, applicationSetInfo.Namespace)
+			if prErr != nil {
+				return nil, fmt.Errorf("error fetching CA certificates from ConfigMap: %w", prErr)
+			}
+		}
+
+		return pullrequest.NewScmManagerService(ctx, token, providerConfig.API, providerConfig.Namespace, providerConfig.Name, providerConfig.Insecure, g.scmRootCAPath, caCerts)
 	}
 	return nil, fmt.Errorf("no Pull Request provider implementation configured")
 }

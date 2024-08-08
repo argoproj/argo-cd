@@ -1565,6 +1565,9 @@ message PullRequestGeneratorScmManager {
 
   // Allow insecure tls, for self-signed certificates; default: false.
   optional bool insecure = 5;
+
+  // ConfigMap key holding the trusted certificates
+  optional ConfigMapKeyRef caRef = 7;
 }
 
 message RefTarget {
@@ -2217,6 +2220,9 @@ message SCMProviderGeneratorScmManager {
 
   // Allow self-signed TLS / Certificates; default: false
   optional bool insecure = 4;
+
+  // ConfigMap key holding the trusted certificates
+  optional ConfigMapKeyRef caRef = 9;
 }
 
 // Utility struct for a reference to a secret key.

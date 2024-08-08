@@ -18,13 +18,13 @@ type ScmManagerProvider struct {
 
 var _ SCMProviderService = &ScmManagerProvider{}
 
-func NewScmManagerProvider(ctx context.Context, token, url string, allBranches, insecure bool, scmRootCAPath string) (*ScmManagerProvider, error) {
+func NewScmManagerProvider(ctx context.Context, token, url string, allBranches, insecure bool, scmRootCAPath string, caCerts []byte) (*ScmManagerProvider, error) {
 	if token == "" {
 		token = os.Getenv("SCMM_TOKEN")
 	}
 	httpClient := &http.Client{}
 	tr := http.DefaultTransport.(*http.Transport).Clone()
-	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure)
+	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure, caCerts)
 	httpClient.Transport = tr
 
 	client, err := scmm.NewClient(url, token)

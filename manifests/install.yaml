@@ -11178,6 +11178,16 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      caRef:
+                                        properties:
+                                          configMapName:
+                                            type: string
+                                          key:
+                                            type: string
+                                        required:
+                                        - configMapName
+                                        - key
+                                        type: object
                                       insecure:
                                         type: boolean
                                       name:
@@ -12030,6 +12040,16 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
+                                      caRef:
+                                        properties:
+                                          configMapName:
+                                            type: string
+                                          key:
+                                            type: string
+                                        required:
+                                        - configMapName
+                                        - key
+                                        type: object
                                       insecure:
                                         type: boolean
                                       tokenRef:
@@ -16582,6 +16602,16 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      caRef:
+                                        properties:
+                                          configMapName:
+                                            type: string
+                                          key:
+                                            type: string
+                                        required:
+                                        - configMapName
+                                        - key
+                                        type: object
                                       insecure:
                                         type: boolean
                                       name:
@@ -17434,6 +17464,16 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
+                                      caRef:
+                                        properties:
+                                          configMapName:
+                                            type: string
+                                          key:
+                                            type: string
+                                        required:
+                                        - configMapName
+                                        - key
+                                        type: object
                                       insecure:
                                         type: boolean
                                       tokenRef:
@@ -19515,6 +19555,16 @@ spec:
                           properties:
                             api:
                               type: string
+                            caRef:
+                              properties:
+                                configMapName:
+                                  type: string
+                                key:
+                                  type: string
+                              required:
+                              - configMapName
+                              - key
+                              type: object
                             insecure:
                               type: boolean
                             name:
@@ -20367,6 +20417,16 @@ spec:
                               type: boolean
                             api:
                               type: string
+                            caRef:
+                              properties:
+                                configMapName:
+                                  type: string
+                                key:
+                                  type: string
+                              required:
+                              - configMapName
+                              - key
+                              type: object
                             insecure:
                               type: boolean
                             tokenRef:

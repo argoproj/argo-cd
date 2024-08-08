@@ -2,9 +2,8 @@ package pull_request
 
 import (
 	"context"
-	"crypto/tls"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"net/http"
-	"net/http/cookiejar"
 	"os"
 	"strconv"
 
@@ -19,24 +18,21 @@ type ScmManagerService struct {
 
 var _ PullRequestService = (*ScmManagerService)(nil)
 
-func NewScmManagerService(ctx context.Context, token, url, namespace, name string, insecure bool) (PullRequestService, error) {
+func NewScmManagerService(ctx context.Context, token, url, namespace, name string, insecure bool, scmRootCAPath string, caCerts []byte) (PullRequestService, error) {
 	if token == "" {
 		token = os.Getenv("SCMM_TOKEN")
 	}
-	httpClient := &http.Client{}
-	if insecure {
-		cookieJar, _ := cookiejar.New(nil)
 
-		httpClient = &http.Client{
-			Jar: cookieJar,
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			}}
-	}
+	httpClient := &http.Client{}
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure, caCerts)
+	httpClient.Transport = tr
+
 	client, err := scmm.NewClient(url, token)
 	if err != nil {
 		return nil, err
 	}
+
 	client.SetHttpClient(httpClient)
 	return &ScmManagerService{
 		client:    client,

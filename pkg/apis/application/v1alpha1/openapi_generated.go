@@ -5571,12 +5571,18 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorScmManager(ref com
 							Format:      "",
 						},
 					},
+					"caRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigMap key holding the trusted certificates",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef"),
+						},
+					},
 				},
 				Required: []string{"namespace", "name", "api"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
 	}
 }
 
@@ -7623,12 +7629,18 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorScmManager(ref com
 							Format:      "",
 						},
 					},
+					"caRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigMap key holding the trusted certificates",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef"),
+						},
+					},
 				},
 				Required: []string{"api"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
 	}
 }
 
