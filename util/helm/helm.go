@@ -32,7 +32,7 @@ type HelmRepository struct {
 // Helm provides wrapper functionality around the `helm` command.
 type Helm interface {
 	// Template returns a list of unstructured objects from a `helm template` command
-	Template(opts *TemplateOpts) (string, error)
+	Template(opts *TemplateOpts) (string, string, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
 	GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
@@ -66,12 +66,12 @@ func IsMissingDependencyErr(err error) bool {
 		strings.Contains(err.Error(), "found in Chart.yaml, but missing in charts/ directory")
 }
 
-func (h *helm) Template(templateOpts *TemplateOpts) (string, error) {
-	out, err := h.cmd.template(".", templateOpts)
+func (h *helm) Template(templateOpts *TemplateOpts) (string, string, error) {
+	out, command, err := h.cmd.template(".", templateOpts)
 	if err != nil {
-		return "", err
+		return "", command, err
 	}
-	return out, nil
+	return out, command, nil
 }
 
 func (h *helm) DependencyBuild() error {

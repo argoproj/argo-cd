@@ -17,7 +17,7 @@ import (
 )
 
 func template(h Helm, opts *TemplateOpts) ([]*unstructured.Unstructured, error) {
-	out, err := h.Template(opts)
+	out, _, err := h.Template(opts)
 	if err != nil {
 		return nil, err
 	}
