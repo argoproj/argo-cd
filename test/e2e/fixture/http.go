@@ -32,7 +32,7 @@ func DoHttpRequest(method string, path string, data ...byte) (*http.Response, er
 
 	httpClient := &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: IsRemote()},
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: IsRemote() || IsRunningTestContainers()},
 		},
 	}
 
