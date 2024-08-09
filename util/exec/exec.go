@@ -66,6 +66,11 @@ func RunWithExecRunOpts(cmd *exec.Cmd, opts ExecRunOpts) (string, error) {
 func GetCommandArgsToLog(cmd *exec.Cmd) string {
 	var argsToLog []string
 	for _, arg := range cmd.Args {
+		if arg == "" {
+			argsToLog = append(argsToLog, `""`)
+			continue
+		}
+
 		containsSpace := false
 		for _, r := range arg {
 			if unicode.IsSpace(r) {
