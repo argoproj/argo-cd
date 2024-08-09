@@ -194,7 +194,9 @@ type TestMetricServerConfig struct {
 	FakeAppYAMLs     []string
 	ExpectedResponse string
 	AppLabels        []string
+	ClusterLabels    []string
 	ClustersInfo     []gitopsCache.ClusterInfo
+	Clusters         argoappv1.ClusterList
 }
 
 func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse string, appLabels []string) {
@@ -203,7 +205,9 @@ func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse stri
 		FakeAppYAMLs:     fakeAppYAMLs,
 		ExpectedResponse: expectedResponse,
 		AppLabels:        appLabels,
+		ClusterLabels:    []string{},
 		ClustersInfo:     []gitopsCache.ClusterInfo{},
+		Clusters:         argoappv1.ClusterList{},
 	}
 	runTest(t, cfg)
 }
@@ -218,8 +222,10 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 	if len(cfg.ClustersInfo) > 0 {
 		ci := &fakeClusterInfo{clustersInfo: cfg.ClustersInfo}
 		collector := &clusterCollector{
-			infoSource: ci,
-			info:       ci.GetClustersInfo(),
+			infoSource:    ci,
+			info:          ci.GetClustersInfo(),
+			clusters:      cfg.Clusters,
+			clusterLabels: cfg.ClusterLabels,
 		}
 		metricsServ.registry.MustRegister(collector)
 	}

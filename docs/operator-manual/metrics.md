@@ -60,6 +60,30 @@ argocd_app_labels{label_business_unit="bu-id-1",label_team_name="my-team",name="
 argocd_app_labels{label_business_unit="bu-id-2",label_team_name="another-team",name="my-app-3",namespace="argocd",project="important-project"} 1
 ```
 
+### Exposing Cluster labels as Prometheus metrics
+
+As the Cluster labels are specific to each company, this feature is disabled by default. To enable it, add the
+`--metrics-cluster-labels` flag to the Argo CD application controller.
+
+The example below will expose the Argo CD Application labels `team-name` and `environment` to Prometheus:
+
+    containers:
+    - command:
+      - argocd-application-controller
+      - --metrics-cluster-labels
+      - team-name
+      - --metrics-cluster-labels
+      - environment
+
+In this case, the metric would look like:
+
+```
+# TYPE argocd_app_labels gauge
+argocd_cluster_labels{label_environment="dev",label_team_name="team1",name="cluster1",server="server1"} 1
+argocd_cluster_labels{label_environment="staging",label_team_name="team2",name="cluster2",server="server2"} 1
+argocd_cluster_labels{label_environment="production",label_team_name="team3",name="cluster3",server="server3"} 1
+```
+
 ## API Server Metrics
 Metrics about API Server API request and response activity (request totals, response codes, etc...).
 Scraped at the `argocd-server-metrics:8083/metrics` endpoint.

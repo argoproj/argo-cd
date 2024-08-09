@@ -54,7 +54,8 @@ const (
 var (
 	descAppDefaultLabels = []string{"namespace", "name", "project"}
 
-	descAppLabels *prometheus.Desc
+	descAppLabels     *prometheus.Desc
+	descClusterLabels *prometheus.Desc
 
 	descAppInfo = prometheus.NewDesc(
 		"argocd_app_info",
@@ -217,8 +218,8 @@ func normalizeLabels(prefix string, appLabels []string) []string {
 	return results
 }
 
-func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo) {
-	collector := &clusterCollector{infoSource: source}
+func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo, clusters argoappv1.ClusterList, clusterLabels []string) {
+	collector := &clusterCollector{infoSource: source, clusters: clusters, clusterLabels: clusterLabels}
 	go collector.Run(ctx)
 	m.registry.MustRegister(collector)
 }
