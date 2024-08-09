@@ -4192,6 +4192,7 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 			err := os.Remove("testdata/helm-with-local-dependency/Chart.lock")
 			require.NoError(t, err)
 			err = os.RemoveAll("testdata/helm-with-local-dependency/charts")
+			require.NoError(t, err)
 		})
 
 		service := newService(t, "testdata/helm-with-local-dependency")
