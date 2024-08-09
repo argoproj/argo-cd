@@ -5051,7 +5051,7 @@
       "properties": {
         "commands": {
           "type": "array",
-          "title": "commands is the list of commands used to hydrate the manifests",
+          "title": "Commands is the list of commands used to hydrate the manifests",
           "items": {
             "type": "string"
           }

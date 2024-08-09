@@ -692,7 +692,7 @@ type ManifestResponse struct {
 	SourceType string `protobuf:"bytes,6,opt,name=sourceType,proto3" json:"sourceType,omitempty"`
 	// Raw response of git verify-commit operation (always the empty string for Helm)
 	VerifyResult string `protobuf:"bytes,7,opt,name=verifyResult,proto3" json:"verifyResult,omitempty"`
-	// commands is the list of commands used to hydrate the manifests
+	// Commands is the list of commands used to hydrate the manifests
 	Commands             []string `protobuf:"bytes,8,rep,name=commands,proto3" json:"commands,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`

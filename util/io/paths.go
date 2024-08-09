@@ -18,7 +18,7 @@ type TempPaths interface {
 type RandomizedTempPaths struct {
 	root  string
 	paths map[string]string
-	lock  sync.Mutex
+	lock  sync.RWMutex
 }
 
 func NewRandomizedTempPaths(root string) *RandomizedTempPaths {
@@ -52,8 +52,8 @@ func (p *RandomizedTempPaths) GetPath(key string) (string, error) {
 
 // GetPathIfExists gets a path for the given key if it exists. Otherwise, returns an empty string.
 func (p *RandomizedTempPaths) GetPathIfExists(key string) string {
-	p.lock.Lock()
-	defer p.lock.Unlock()
+	p.lock.RLock()
+	defer p.lock.RUnlock()
 	if val, ok := p.paths[key]; ok {
 		return val
 	}
@@ -62,8 +62,8 @@ func (p *RandomizedTempPaths) GetPathIfExists(key string) string {
 
 // GetPaths gets a copy of the map of paths.
 func (p *RandomizedTempPaths) GetPaths() map[string]string {
-	p.lock.Lock()
-	defer p.lock.Unlock()
+	p.lock.RLock()
+	defer p.lock.RUnlock()
 	paths := map[string]string{}
 	for k, v := range p.paths {
 		paths[k] = v

@@ -34,9 +34,9 @@ type Helm interface {
 	// Template returns a list of unstructured objects from a `helm template` command and the full command that was run
 	Template(opts *TemplateOpts) (string, string, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
-	GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, string, error)
+	GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
-	DependencyBuild() ([]string, error)
+	DependencyBuild() error
 	// Dispose deletes temp resources
 	Dispose()
 }
@@ -74,45 +74,37 @@ func (h *helm) Template(templateOpts *TemplateOpts) (string, string, error) {
 	return out, command, nil
 }
 
-func (h *helm) DependencyBuild() ([]string, error) {
+func (h *helm) DependencyBuild() error {
 	isHelmOci := h.cmd.IsHelmOci
 	defer func() {
 		h.cmd.IsHelmOci = isHelmOci
 	}()
 
-	var commands []string
 	for i := range h.repos {
 		repo := h.repos[i]
 		if repo.EnableOci {
 			h.cmd.IsHelmOci = true
 			if repo.Creds.Username != "" && repo.Creds.Password != "" {
-				_, command, err := h.cmd.RegistryLogin(repo.Repo, repo.Creds)
-				commands = append(commands, command)
+				_, err := h.cmd.RegistryLogin(repo.Repo, repo.Creds)
 
 				defer func() {
-					_, _, _ = h.cmd.RegistryLogout(repo.Repo, repo.Creds)
+					_, _ = h.cmd.RegistryLogout(repo.Repo, repo.Creds)
 				}()
 
 				if err != nil {
-					return []string{}, err
+					return err
 				}
 			}
 		} else {
-			_, command, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds, h.passCredentials)
-			commands = append(commands, command)
-
+			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds, h.passCredentials)
 			if err != nil {
-				return []string{}, err
+				return err
 			}
 		}
 	}
 	h.repos = nil
-	_, command, err := h.cmd.dependencyBuild()
-	if err != nil {
-		return []string{}, err
-	}
-	commands = append(commands, command)
-	return commands, nil
+	_, err := h.cmd.dependencyBuild()
+	return err
 }
 
 func (h *helm) Dispose() {
@@ -136,15 +128,13 @@ func Version(shortForm bool) (string, error) {
 	return strings.TrimSpace(version), nil
 }
 
-func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, string, error) {
+func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error) {
 	var values []string
-	var command string
 	// Don't load values.yaml if it's an out-of-bounds link.
 	if _, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, "values.yaml", []string{}); err == nil {
-		var out string
-		out, command, err = h.cmd.inspectValues(".")
+		out, err := h.cmd.inspectValues(".")
 		if err != nil {
-			return nil, "", err
+			return nil, err
 		}
 		values = append(values, out)
 	} else {
@@ -169,7 +159,7 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 			fileValues, err = os.ReadFile(file)
 		}
 		if err != nil {
-			return nil, "", fmt.Errorf("failed to read value file %s: %w", file, err)
+			return nil, fmt.Errorf("failed to read value file %s: %w", file, err)
 		}
 		values = append(values, string(fileValues))
 	}
@@ -178,12 +168,12 @@ func (h *helm) GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, r
 	for _, file := range values {
 		values := map[string]interface{}{}
 		if err := yaml.Unmarshal([]byte(file), &values); err != nil {
-			return nil, "", fmt.Errorf("failed to parse values: %w", err)
+			return nil, fmt.Errorf("failed to parse values: %w", err)
 		}
 		flatVals(values, output)
 	}
 
-	return output, command, nil
+	return output, nil
 }
 
 func flatVals(input interface{}, output map[string]string, prefixes ...string) {

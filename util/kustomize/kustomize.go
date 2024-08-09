@@ -135,22 +135,20 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		if opts.NamePrefix != "" {
 			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "nameprefix", "--", opts.NamePrefix)
 			cmd.Dir = k.path
+			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			fullCommand := executil.GetCommandArgsToLog(cmd)
-			commands = append(commands, fullCommand)
 		}
 		if opts.NameSuffix != "" {
 			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namesuffix", "--", opts.NameSuffix)
 			cmd.Dir = k.path
+			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			fullCommand := executil.GetCommandArgsToLog(cmd)
-			commands = append(commands, fullCommand)
 		}
 		if len(opts.Images) > 0 {
 			// set image postgres=eu.gcr.io/my-project/postgres:latest my-app=my-registry/my-app@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d3
@@ -163,12 +161,11 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
+			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			fullCommand := executil.GetCommandArgsToLog(cmd)
-			commands = append(commands, fullCommand)
 		}
 
 		if len(opts.Replicas) > 0 {
@@ -185,12 +182,11 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 
 			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
+			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			fullCommand := executil.GetCommandArgsToLog(cmd)
-			commands = append(commands, fullCommand)
 		}
 
 		if len(opts.CommonLabels) > 0 {
@@ -208,12 +204,11 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(commonLabels)...)...)
 			cmd.Dir = k.path
+			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			fullCommand := executil.GetCommandArgsToLog(cmd)
-			commands = append(commands, fullCommand)
 		}
 
 		if len(opts.CommonAnnotations) > 0 {
@@ -233,23 +228,21 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(commonAnnotations)...)...)
 			cmd.Dir = k.path
+			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			fullCommand := executil.GetCommandArgsToLog(cmd)
-			commands = append(commands, fullCommand)
 		}
 
 		if opts.Namespace != "" {
 			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namespace", "--", opts.Namespace)
 			cmd.Dir = k.path
+			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			fullCommand := executil.GetCommandArgsToLog(cmd)
-			commands = append(commands, fullCommand)
 		}
 
 		if len(opts.Patches) > 0 {
@@ -298,7 +291,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("failed to write kustomization.yaml with updated 'patches' field: %w", err)
 			}
-			commands = append(commands, "# kustomization.yaml updated with patches. There is no `kustomize edit` command for this, so you will need to copy the patches into kustomization.yaml manually.")
+			commands = append(commands, "# kustomization.yaml updated with patches. There is no `kustomize edit` command for adding patches. In order to generate the manifests in your local environment, you will need to copy the patches into kustomization.yaml manually.")
 		}
 
 		if len(opts.Components) > 0 {
@@ -314,12 +307,11 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
 			cmd.Env = env
+			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
 				return nil, nil, nil, err
 			}
-			fullCommand := executil.GetCommandArgsToLog(cmd)
-			commands = append(commands, fullCommand)
 		}
 	}
 
@@ -332,12 +324,11 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 	cmd.Env = env
 	cmd.Dir = k.repoRoot
+	commands = append(commands, executil.GetCommandArgsToLog(cmd))
 	out, err := executil.Run(cmd)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	fullCommand := executil.GetCommandArgsToLog(cmd)
-	commands = append(commands, fullCommand)
 
 	objs, err := kube.SplitYAML([]byte(out))
 	if err != nil {

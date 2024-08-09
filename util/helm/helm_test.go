@@ -85,7 +85,7 @@ func TestHelmGetParams(t *testing.T) {
 	require.NoError(t, err)
 	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", false)
 	require.NoError(t, err)
-	params, _, err := h.GetParameters(nil, repoRootAbs, repoRootAbs)
+	params, err := h.GetParameters(nil, repoRootAbs, repoRootAbs)
 	require.NoError(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
@@ -100,7 +100,7 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 	require.NoError(t, err)
 	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
-	params, _, err := h.GetParameters([]path.ResolvedFilePath{valuesPath}, repoRootAbs, repoRootAbs)
+	params, err := h.GetParameters([]path.ResolvedFilePath{valuesPath}, repoRootAbs, repoRootAbs)
 	require.NoError(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
@@ -117,7 +117,7 @@ func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 	require.NoError(t, err)
 	valuesProductionPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
-	params, _, err := h.GetParameters([]path.ResolvedFilePath{valuesMissingPath, valuesProductionPath}, repoRootAbs, repoRootAbs)
+	params, err := h.GetParameters([]path.ResolvedFilePath{valuesMissingPath, valuesProductionPath}, repoRootAbs, repoRootAbs)
 	require.NoError(t, err)
 
 	slaveCountParam := params["cluster.slaveCount"]
