@@ -440,6 +440,7 @@ type SCMProviderGenerator struct {
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values        map[string]string                  `json:"values,omitempty" protobuf:"bytes,11,name=values"`
 	AWSCodeCommit *SCMProviderGeneratorAWSCodeCommit `json:"awsCodeCommit,omitempty" protobuf:"bytes,12,opt,name=awsCodeCommit"`
+	ScmManager    *SCMProviderGeneratorScmManager    `json:"scmManager,omitempty" protobuf:"bytes,13,opt,name=scmManager"`
 	// If you add a new SCM provider, update CustomApiUrl below.
 }
 
@@ -454,6 +455,8 @@ func (g *SCMProviderGenerator) CustomApiUrl() string {
 		return g.BitbucketServer.API
 	} else if g.AzureDevOps != nil {
 		return g.AzureDevOps.API
+	} else if g.ScmManager != nil {
+		return g.ScmManager.API
 	}
 	return ""
 }
@@ -470,6 +473,20 @@ type SCMProviderGeneratorGitea struct {
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,4,opt,name=allBranches"`
 	// Allow self-signed TLS / Certificates; default: false
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+}
+
+// SCMProviderGeneratorScmManager defines a connection info specific to Scm-Manager.
+type SCMProviderGeneratorScmManager struct {
+	// The SCM-Manager URL to talk to. For example https://scm-manager.org/scm.
+	API string `json:"api" protobuf:"bytes,1,opt,name=api"`
+	// Authentication token reference.
+	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,2,opt,name=tokenRef"`
+	// Scan all branches instead of just the default branch.
+	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,3,opt,name=allBranches"`
+	// Allow self-signed TLS / Certificates; default: false
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,4,opt,name=insecure"`
+	// ConfigMap key holding the trusted certificates
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,9,opt,name=caRef"`
 }
 
 // SCMProviderGeneratorGithub defines connection info specific to GitHub.
@@ -606,6 +623,7 @@ type PullRequestGenerator struct {
 	Bitbucket           *PullRequestGeneratorBitbucket `json:"bitbucket,omitempty" protobuf:"bytes,8,opt,name=bitbucket"`
 	// Additional provider to use and config for it.
 	AzureDevOps *PullRequestGeneratorAzureDevOps `json:"azuredevops,omitempty" protobuf:"bytes,9,opt,name=azuredevops"`
+	ScmManager  *PullRequestGeneratorScmManager  `json:"scmManager,omitempty" protobuf:"bytes,10,opt,name=scmManager"`
 	// If you add a new SCM provider, update CustomApiUrl below.
 }
 
@@ -628,6 +646,9 @@ func (p *PullRequestGenerator) CustomApiUrl() string {
 	if p.AzureDevOps != nil {
 		return p.AzureDevOps.API
 	}
+	if p.ScmManager != nil {
+		return p.ScmManager.API
+	}
 	return ""
 }
 
@@ -643,6 +664,22 @@ type PullRequestGeneratorGitea struct {
 	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,4,opt,name=tokenRef"`
 	// Allow insecure tls, for self-signed certificates; default: false.
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+}
+
+// PullRequestGenerator defines connection info specific to SCM-Manager.
+type PullRequestGeneratorScmManager struct {
+	// SCM-Manager namespace. Required.
+	Namespace string `json:"namespace" protobuf:"bytes,1,opt,name=namespace"`
+	// SCM-Manager repo name to scan. Required.
+	Name string `json:"name" protobuf:"bytes,2,opt,name=name"`
+	// SCM-Manager Instance URL with context path. Required
+	API string `json:"api" protobuf:"bytes,3,opt,name=api"`
+	// Authentication token reference.
+	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,4,opt,name=tokenRef"`
+	// Allow insecure tls, for self-signed certificates; default: false.
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+	// ConfigMap key holding the trusted certificates
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,7,opt,name=caRef"`
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
