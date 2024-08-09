@@ -8,6 +8,7 @@ import (
 	"fmt"
 	goio "io"
 	"io/fs"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"os"
 	"os/exec"
 	"path"
@@ -4141,9 +4142,15 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 					},
 					Parameters: []argoappv1.HelmParameter{
 						{
-							Name:        "test-param-name",
-							Value:       "test-value",
+							Name: "test-param-name",
+							// Use build env var to test substitution.
+							Value:       "test-value-$ARGOCD_APP_NAME",
 							ForceString: true,
+						},
+						{
+							Name: "test-param-bool-name",
+							// Use build env var to test substitution.
+							Value: "false",
 						},
 					},
 					PassCredentials: true,
@@ -4161,7 +4168,7 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 		res, err := service.GenerateManifest(context.Background(), &q)
 
 		require.NoError(t, err)
-		assert.Equal(t, []string{"helm template . --name-template test-app --namespace test-namespace --kube-version 1.2.3 --set-string test-param-name=test-value --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with override values> --api-versions v1/Test --api-versions v2/Test"}, res.Commands)
+		assert.Equal(t, []string{"helm template . --name-template test-app --namespace test-namespace --kube-version 1.2.3 --set test-param-bool-name=false --set-string test-param-name=test-value-test-app --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with override values> --api-versions v1/Test --api-versions v2/Test"}, res.Commands)
 
 		t.Run("with overrides", func(t *testing.T) {
 			// These can be set explicitly instead of using inferred values. Make sure the overrides apply.
@@ -4173,7 +4180,7 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 			res, err = service.GenerateManifest(context.Background(), &q)
 
 			require.NoError(t, err)
-			assert.Equal(t, []string{"helm template . --name-template different-release-name --namespace different-namespace --kube-version 5.6.7 --set-string test-param-name=test-value --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with override values> --api-versions v3 --api-versions v4"}, res.Commands)
+			assert.Equal(t, []string{"helm template . --name-template different-release-name --namespace different-namespace --kube-version 5.6.7 --set test-param-bool-name=false --set-string test-param-name=test-value-test-app --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with override values> --api-versions v3 --api-versions v4"}, res.Commands)
 		})
 	})
 
@@ -4204,5 +4211,91 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.Equal(t, []string{"helm template . --name-template test-app --namespace test-namespace --include-crds"}, res.Commands)
+	})
+
+	t.Run("kustomize", func(t *testing.T) {
+		// Write test files to a temp dir, because the test mutates kustomization.yaml in place.
+		tempDir := t.TempDir()
+		err := os.WriteFile(path.Join(tempDir, "kustomization.yaml"), []byte(`
+resources:
+- guestbook.yaml
+`), os.FileMode(0o600))
+		require.NoError(t, err)
+		err = os.WriteFile(path.Join(tempDir, "guestbook.yaml"), []byte(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guestbook-ui
+`), os.FileMode(0o400))
+		require.NoError(t, err)
+		err = os.Mkdir(path.Join(tempDir, "component"), os.FileMode(0o700))
+		require.NoError(t, err)
+		err = os.WriteFile(path.Join(tempDir, "component", "kustomization.yaml"), []byte(`
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+images:
+- name: old
+  newName: new
+`), os.FileMode(0o400))
+		require.NoError(t, err)
+
+		service := newService(t, tempDir)
+
+		// Fill the manifest request with as many parameters affecting Helm commands as possible.
+		q := apiclient.ManifestRequest{
+			AppName:     "test-app",
+			Namespace:   "test-namespace",
+			KubeVersion: "1.2.3",
+			ApiVersions: []string{"v1/Test", "v2/Test"},
+			Repo:        &argoappv1.Repository{},
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: ".",
+				Kustomize: &argoappv1.ApplicationSourceKustomize{
+					APIVersions: []string{"v1", "v2"},
+					CommonAnnotations: map[string]string{
+						// Use build env var to test substitution.
+						"test": "annotation-$ARGOCD_APP_NAME",
+					},
+					CommonAnnotationsEnvsubst: true,
+					CommonLabels: map[string]string{
+						"test": "label",
+					},
+					Components:             []string{"component"},
+					ForceCommonAnnotations: true,
+					ForceCommonLabels:      true,
+					Images: argoappv1.KustomizeImages{
+						"image=override",
+					},
+					KubeVersion:          "5.6.7",
+					LabelWithoutSelector: true,
+					NamePrefix:           "test-prefix",
+					NameSuffix:           "test-suffix",
+					Namespace:            "override-namespace",
+					Replicas: argoappv1.KustomizeReplicas{
+						{
+							Name:  "guestbook-ui",
+							Count: intstr.Parse("1337"),
+						},
+					},
+				},
+			},
+			ProjectName:        "something",
+			ProjectSourceRepos: []string{"*"},
+		}
+
+		res, err := service.GenerateManifest(context.Background(), &q)
+
+		require.NoError(t, err)
+		assert.Equal(t, []string{
+			"kustomize edit set nameprefix -- test-prefix",
+			"kustomize edit set namesuffix -- test-suffix",
+			"kustomize edit set image image=override",
+			"kustomize edit set replicas guestbook-ui=1337",
+			"kustomize edit add label --force --without-selector test:label",
+			"kustomize edit add annotation --force test:annotation-test-app",
+			"kustomize edit set namespace -- override-namespace",
+			"kustomize edit add component component",
+			"kustomize build .",
+		}, res.Commands)
 	})
 }
