@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -80,6 +81,8 @@ func NewProjectCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewProjectRemoveOrphanedIgnoreCommand(clientOpts))
 	command.AddCommand(NewProjectAddSourceNamespace(clientOpts))
 	command.AddCommand(NewProjectRemoveSourceNamespace(clientOpts))
+	command.AddCommand(NewProjectAddDestinationServiceAccountCommand(clientOpts))
+	command.AddCommand(NewProjectRemoveDestinationServiceAccountCommand(clientOpts))
 	return command
 }
 
@@ -799,7 +802,7 @@ func printProjectNames(projects []v1alpha1.AppProject) {
 // Print table of project info
 func printProjectTable(projects []v1alpha1.AppProject) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tSIGNATURE-KEYS\tORPHANED-RESOURCES\n")
+	fmt.Fprintf(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tSIGNATURE-KEYS\tORPHANED-RESOURCES\tDESTINATION-SERVICE-ACCOUNTS\n")
 	for _, p := range projects {
 		printProjectLine(w, &p)
 	}
@@ -855,7 +858,7 @@ func formatOrphanedResources(p *v1alpha1.AppProject) string {
 }
 
 func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
-	var destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys string
+	var destinations, destinationServiceAccounts, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys string
 	switch len(p.Spec.Destinations) {
 	case 0:
 		destinations = "<none>"
@@ -863,6 +866,14 @@ func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
 		destinations = fmt.Sprintf("%s,%s", p.Spec.Destinations[0].Server, p.Spec.Destinations[0].Namespace)
 	default:
 		destinations = fmt.Sprintf("%d destinations", len(p.Spec.Destinations))
+	}
+	switch len(p.Spec.DestinationServiceAccounts) {
+	case 0:
+		destinationServiceAccounts = "<none>"
+	case 1:
+		destinationServiceAccounts = fmt.Sprintf("%s,%s,%s", p.Spec.DestinationServiceAccounts[0].Server, p.Spec.DestinationServiceAccounts[0].Namespace, p.Spec.DestinationServiceAccounts[0].DefaultServiceAccount)
+	default:
+		destinationServiceAccounts = fmt.Sprintf("%d destinationServiceAccounts", len(p.Spec.DestinationServiceAccounts))
 	}
 	switch len(p.Spec.SourceRepos) {
 	case 0:
@@ -892,7 +903,7 @@ func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
 	default:
 		signatureKeys = fmt.Sprintf("%d key(s)", len(p.Spec.SignatureKeys))
 	}
-	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys, formatOrphanedResources(p))
+	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys, formatOrphanedResources(p), destinationServiceAccounts)
 }
 
 func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Repository, scopedClusters []*v1alpha1.Cluster) {
@@ -1080,5 +1091,124 @@ func NewProjectEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			})
 		},
 	}
+	return command
+}
+
+// NewProjectAddDestinationServiceAccountCommand returns a new instance of an `argocd proj add-destination-service-account` command
+func NewProjectAddDestinationServiceAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var serviceAccountNamespace string
+
+	buildApplicationDestinationServiceAccount := func(destination string, namespace string, serviceAccount string, serviceAccountNamespace string) v1alpha1.ApplicationDestinationServiceAccount {
+		if serviceAccountNamespace != "" {
+			return v1alpha1.ApplicationDestinationServiceAccount{
+				Server:                destination,
+				Namespace:             namespace,
+				DefaultServiceAccount: fmt.Sprintf("%s:%s", serviceAccountNamespace, serviceAccount),
+			}
+		} else {
+			return v1alpha1.ApplicationDestinationServiceAccount{
+				Server:                destination,
+				Namespace:             namespace,
+				DefaultServiceAccount: serviceAccount,
+			}
+		}
+	}
+
+	command := &cobra.Command{
+		Use:   "add-destination-service-account PROJECT SERVER NAMESPACE SERVICE_ACCOUNT",
+		Short: "Add project destination's default service account",
+		Example: templates.Examples(`
+			# Add project destination service account (SERVICE_ACCOUNT) for a server URL (SERVER) in the specified namespace (NAMESPACE) on the project with name PROJECT
+			argocd proj add-destination-service-account PROJECT SERVER NAMESPACE SERVICE_ACCOUNT
+
+			# Add project destination service account (SERVICE_ACCOUNT) from a different namespace
+			argocd proj add-destination PROJECT SERVER NAMESPACE SERVICE_ACCOUNT --service-account-namespace <service_account_namespace>
+		`),
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			if len(args) != 4 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			server := args[1]
+			namespace := args[2]
+			serviceAccount := args[3]
+
+			if strings.Contains(serviceAccountNamespace, "*") {
+				log.Fatal("service-account-namespace for DestinationServiceAccount must not contain wildcards")
+			}
+
+			if strings.Contains(serviceAccount, "*") {
+				log.Fatal("ServiceAccount for DestinationServiceAccount must not contain wildcards")
+			}
+
+			destinationServiceAccount := buildApplicationDestinationServiceAccount(server, namespace, serviceAccount, serviceAccountNamespace)
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			defer argoio.Close(conn)
+
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			for _, dest := range proj.Spec.DestinationServiceAccounts {
+				dstServerExist := destinationServiceAccount.Server != "" && dest.Server == destinationServiceAccount.Server
+				dstServiceAccountExist := destinationServiceAccount.DefaultServiceAccount != "" && dest.DefaultServiceAccount == destinationServiceAccount.DefaultServiceAccount
+				if dest.Namespace == destinationServiceAccount.Namespace && dstServerExist && dstServiceAccountExist {
+					log.Fatal("Specified destination service account is already defined in project")
+				}
+			}
+			proj.Spec.DestinationServiceAccounts = append(proj.Spec.DestinationServiceAccounts, destinationServiceAccount)
+			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+			errors.CheckError(err)
+		},
+	}
+	command.Flags().StringVar(&serviceAccountNamespace, "service-account-namespace", "", "Use service-account-namespace as namespace where the service account is present")
+	return command
+}
+
+// NewProjectRemoveDestinationCommand returns a new instance of an `argocd proj remove-destination-service-account` command
+func NewProjectRemoveDestinationServiceAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "remove-destination-service-account PROJECT SERVER NAMESPACE SERVICE_ACCOUNT",
+		Short: "Remove default destination service account from the project",
+		Example: templates.Examples(`
+			# Remove the destination service account (SERVICE_ACCOUNT) from the specified destination (SERVER and NAMESPACE combination) on the project with name PROJECT
+			argocd proj remove-destination-service-account PROJECT SERVER NAMESPACE SERVICE_ACCOUNT
+		`),
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			if len(args) != 4 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			projName := args[0]
+			server := args[1]
+			namespace := args[2]
+			serviceAccount := args[3]
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			defer argoio.Close(conn)
+
+			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
+			errors.CheckError(err)
+
+			originalLength := len(proj.Spec.DestinationServiceAccounts)
+			proj.Spec.DestinationServiceAccounts = slices.DeleteFunc(proj.Spec.DestinationServiceAccounts,
+				func(destServiceAccount v1alpha1.ApplicationDestinationServiceAccount) bool {
+					return destServiceAccount.Namespace == namespace &&
+						destServiceAccount.Server == server &&
+						destServiceAccount.DefaultServiceAccount == serviceAccount
+				},
+			)
+			if originalLength != len(proj.Spec.DestinationServiceAccounts) {
+				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+				errors.CheckError(err)
+			} else {
+				log.Fatal("Specified destination service account does not exist in project")
+			}
+		},
+	}
+
 	return command
 }

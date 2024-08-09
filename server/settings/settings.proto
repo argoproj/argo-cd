@@ -42,6 +42,7 @@ message Settings {
     bool execEnabled = 22;
     string controllerNamespace = 23;
     bool appsInAnyNamespaceEnabled = 24;
+    bool impersonationEnabled = 25;
 }
 
 message GoogleAnalyticsConfig {
