@@ -1,0 +1,79 @@
+{
+    "eventKey": "pr:opened",
+    "date": "2023-08-15T10:45:00+0000",
+    "actor": {
+      "nickname": "john_doe",
+      "display_name": "John Doe",
+      "account_id": "5a7b32f7c1d2e3f4",
+      "links": {
+        "self": {
+          "href": "https://bitbucket.org/john_doe/"
+        }
+      }
+    },
+    "repository": {
+      "full_name": "john_doe/my-repo",
+      "name": "my-repo",
+      "links": {
+        "self": {
+          "href": "https://your-bitbucket-server/john_doe/my-repo"
+        }
+      }
+    },
+    "pullrequest": {
+      "id": 123,
+      "title": "Add new feature",
+      "description": "This pull request adds a new feature.",
+      "state": "OPEN",
+      "author": {
+        "username": "john_doe",
+        "displayName": "John Doe",
+        "accountId": "5a7b32f7c1d2e3f4",
+        "links": {
+          "self": {
+            "href": "https://your-bitbucket-server/john_doe/"
+          }
+        }
+      },
+      "links": {
+        "self": {
+          "href": "https://your-bitbucket-server/john_doe/my-repo/pull-requests/123"
+        }
+      },
+      "fromRef": {
+      "repository": {
+        "slug": "my-repo",
+        "name": "My Repository",
+        "project": {
+          "key": "PROJ",
+          "name": "my-project",
+          "links": {
+            "self": [
+              {
+                "href": "https://your-bitbucket-server.com/projects/PROJ"
+              }
+            ]
+          }
+        },
+        "links": {
+          "clone": [
+            {
+              "href":"ssh://git@your-bitbucket-server.com/projects/PROJ/repos/my-repo.git",
+              "name":"ssh"
+           },
+           {
+              "href":"https://your-bitbucket-server.com/projects/PROJ/repos/my-repo.git",
+              "name":"http"
+           }
+          ],
+          "self": [
+            {
+              "href": "https://your-bitbucket-server.com/projects/PROJ/repos/my-repo/browse"
+            }
+          ]
+        }
+      }
+    }
+    }
+  }
+  
