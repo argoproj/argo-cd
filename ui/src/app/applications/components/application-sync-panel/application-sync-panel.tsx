@@ -86,11 +86,28 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 }
                                 const replace = params.syncOptions?.findIndex((opt: string) => opt === 'Replace=true') > -1;
                                 if (replace) {
-                                    const confirmed = await ctx.popup.confirm('Synchronize using replace?', () => (
-                                        <div>
-                                            <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} /> {REPLACE_WARNING} Are you sure you want to continue?
-                                        </div>
-                                    ));
+                                    let confirmed = false;
+                                    await ctx.popup.prompt(
+                                        'Warning: Synchronize using replace',
+                                        api => (
+                                            <div>
+                                                <p>{REPLACE_WARNING} Are you sure you want to continue?</p>
+                                                <div style={{display: 'none'}}>
+                                                    <FormField label='' formApi={api} field='none' component={Text} />
+                                                </div>
+                                            </div>
+                                        ),
+                                        {
+                                            validate: null,
+                                            submit: async (_vals, _, close) => {
+                                                confirmed = true;
+                                                close();
+                                            }
+                                        },
+                                        {name: 'argo-icon-warning', color: 'warning'},
+                                        'yellow'
+                                    );
+
                                     if (!confirmed) {
                                         setPending(false);
                                         return;

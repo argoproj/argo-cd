@@ -161,16 +161,22 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
 );
 
 function filterApps(applications: models.Application[], pref: AppsListPreferences, search: string): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
-    applications = applications.map(app => {
+    applications = applications.map(application => {
         let isAppOfAppsPattern = false;
-        for (const resource of app.status.resources) {
-            if (resource.kind === 'Application') {
+        const childApps = [];
+        for (const resource of application.status.resources) {
+            if (resource.kind.toLocaleLowerCase() === 'application') {
                 isAppOfAppsPattern = true;
-                break;
+                childApps.push(resource.name);
+                const indexOfChild = applications.findIndex(app => app.metadata.name === resource.name);
+                if (indexOfChild > -1) {
+                    applications[indexOfChild].parentApp = application.metadata.name;
+                }
             }
         }
-        return {...app, isAppOfAppsPattern};
+        return {...application, isAppOfAppsPattern, childApps};
     });
+
     const filterResults = getFilterResults(applications, pref);
     return {
         filterResults,
