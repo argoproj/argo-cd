@@ -141,16 +141,11 @@ func untarChart(tempDir string, cachedChartPath string, manifestMaxExtractedSize
 
 func (c *nativeHelmChart) ExtractChart(chart string, version string, project string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error) {
 	// always use Helm V3 since we don't have chart content to determine correct Helm version
-	helmCmd, err := NewCmdWithVersion("", HelmV3, c.enableOci, c.proxy)
+	helmCmd, err := NewCmdWithVersion("", c.enableOci, c.proxy)
 	if err != nil {
 		return "", nil, err
 	}
 	defer helmCmd.Close()
-
-	_, err = helmCmd.Init()
-	if err != nil {
-		return "", nil, err
-	}
 
 	// throw away temp directory that stores extracted chart and should be deleted as soon as no longer needed by returned closer
 	tempDir, err := files.CreateTempDir(os.TempDir())
@@ -274,7 +269,7 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 	}
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 
-	helmCmd, err := NewCmdWithVersion(tmpDir, HelmV3, c.enableOci, c.proxy)
+	helmCmd, err := NewCmdWithVersion(tmpDir, c.enableOci, c.proxy)
 	if err != nil {
 		return false, err
 	}
