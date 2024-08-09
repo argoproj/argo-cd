@@ -162,8 +162,8 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                     <div className='argo-table-list'>
                         <div className='argo-table-list__head'>
                             <div className='row'>
-                                <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>KIND</div>
-                                <div className='columns large-2 show-for-large'>NAMESPACE</div>
+                                <div className='columns large-2 show-for-large application-operation-state__icons_container_padding'>KIND</div>
+                                <div className='columns large-1 show-for-large'>NAMESPACE</div>
                                 <div className='columns large-2 small-2'>NAME</div>
                                 <div className='columns large-1 small-2'>STATUS</div>
                                 <div className='columns large-1 show-for-large'>HOOK</div>
@@ -174,16 +174,18 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                             filtered.map((resource, i) => (
                                 <div className='argo-table-list__row' key={i}>
                                     <div className='row'>
-                                        <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>
+                                        <div className='columns large-2 show-for-large application-operation-state__icons_container_padding'>
                                             <div className='application-operation-state__icons_container'>
                                                 {resource.hookType && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                                             </div>
-                                            <span title={getKind(resource)}>{getKind(resource)}</span>
+                                            <span className='application-operation-state__table-row-line-break' title={getKind(resource)}>
+                                                {getKind(resource)}
+                                            </span>
                                         </div>
-                                        <div className='columns large-2 show-for-large' title={resource.namespace}>
+                                        <div className='columns large-1 show-for-large' title={resource.namespace}>
                                             {resource.namespace}
                                         </div>
-                                        <div className='columns large-2 small-2' title={resource.name}>
+                                        <div className='columns large-2 small-2 application-operation-state__table-row-line-break' title={resource.name}>
                                             {resource.name}
                                         </div>
                                         <div className='columns large-1 small-2' title={getStatus(resource)}>
