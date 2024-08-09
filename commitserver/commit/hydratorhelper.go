@@ -108,14 +108,8 @@ func writeManifests(dirPath string, manifests []*apiclient.HydratedManifestDetai
 	// If the file exists, truncate it.
 	// No need to use SecureJoin here, as the path is already sanitized.
 	manifestPath := path.Join(dirPath, "manifest.yaml")
-	if _, err := os.Stat(manifestPath); err == nil {
-		err = os.Truncate(manifestPath, 0)
-		if err != nil {
-			return fmt.Errorf("failed to empty manifest file: %w", err)
-		}
-	}
 
-	file, err := os.OpenFile(manifestPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.ModePerm)
+	file, err := os.OpenFile(manifestPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
 	if err != nil {
 		return fmt.Errorf("failed to open manifest file: %w", err)
 	}
@@ -125,6 +119,7 @@ func writeManifests(dirPath string, manifests []*apiclient.HydratedManifestDetai
 			log.WithError(err).Error("failed to close file")
 		}
 	}()
+
 	for _, m := range manifests {
 		obj := &unstructured.Unstructured{}
 		err = json.Unmarshal([]byte(m.Manifest), obj)
@@ -135,14 +130,19 @@ func writeManifests(dirPath string, manifests []*apiclient.HydratedManifestDetai
 		buf := bytes.Buffer{}
 		enc := yaml.NewEncoder(&buf)
 		enc.SetIndent(2)
+
+		defer func() {
+			if cerr := enc.Close(); cerr != nil {
+				log.WithError(cerr).Error("failed to close yaml encoder")
+			}
+		}()
+
 		err = enc.Encode(&obj.Object)
 		if err != nil {
 			return fmt.Errorf("failed to encode manifest: %w", err)
 		}
+
 		mYaml := buf.Bytes()
-		if err != nil {
-			return fmt.Errorf("failed to marshal manifest: %w", err)
-		}
 		mYaml = append(mYaml, []byte("\n---\n\n")...)
 		// Write the yaml to manifest.yaml
 		_, err = file.Write(mYaml)
@@ -150,5 +150,6 @@ func writeManifests(dirPath string, manifests []*apiclient.HydratedManifestDetai
 			return fmt.Errorf("failed to write manifest: %w", err)
 		}
 	}
+
 	return nil
 }
