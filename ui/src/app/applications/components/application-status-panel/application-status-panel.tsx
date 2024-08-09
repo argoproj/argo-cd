@@ -5,8 +5,20 @@ import {Revision} from '../../../shared/components/revision';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppDefaultSource, getAppDefaultSyncRevisionExtra, getAppOperationState} from '../utils';
-import {getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage, getAppDefaultSyncRevision, getAppDefaultOperationSyncRevision} from '../utils';
+import {
+    ApplicationSyncWindowStatusIcon,
+    ComparisonStatusIcon,
+    getAppDefaultSource,
+    getAppDefaultSyncRevisionExtra,
+    getAppOperationState,
+    HydrateOperationPhaseIcon,
+    getAppDefaultOperationSyncRevision,
+    getConditionCategory,
+    HealthStatusIcon,
+    OperationState,
+    syncStatusMessage,
+    getAppDefaultSyncRevision
+} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 import * as utils from '../utils';
 
@@ -64,6 +76,8 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
         showOperation = null;
     }
 
+    console.log(application);
+
     const statusExtensions = services.extensions.getStatusPanelExtensions();
 
     const revision = getAppDefaultSyncRevision(application);
@@ -112,7 +126,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                         application.status.sync &&
                         (hasMultipleSources
                             ? application.status.sync.revisions && application.status.sync.revisions[0] && application.spec.sources && !application.spec.sources[0].chart
-                            : application.status.sync.revision && !application.spec.source.chart) && (
+                            : application.status.sync.revision && !application.spec.source?.chart) && (
                             <div className='application-status-panel__item-name'>
                                 <RevisionMetadataPanel
                                     appName={application.metadata.name}
@@ -160,7 +174,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                             <RevisionMetadataPanel
                                 appName={application.metadata.name}
                                 appNamespace={application.metadata.namespace}
-                                type={source.chart && 'helm'}
+                                type={source?.chart && 'helm'}
                                 revision={operationStateRevision}
                                 versionId={utils.getAppCurrentVersion(application)}
                             />
@@ -188,6 +202,19 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                             </a>
                         )}
                     </div>
+                </div>
+            )}
+            {application.status?.sourceHydrator?.hydrateOperation && (
+                <div className='application-status-panel__item'>
+                    {sectionLabel({title: 'SOURCE HYDRATOR'})}
+                    <div className='application-status-panel__item-value'>
+                        <HydrateOperationPhaseIcon operationState={application.status.sourceHydrator.hydrateOperation} />
+                        &nbsp;
+                        {application.status.sourceHydrator.hydrateOperation.status}
+                    </div>
+                    {application.status.sourceHydrator.hydrateOperation.message && (
+                        <div className='application-status-panel__item-name'>{application.status.sourceHydrator.hydrateOperation.message}</div>
+                    )}
                 </div>
             )}
             <DataLoader

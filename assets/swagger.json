@@ -5049,6 +5049,13 @@
     "repositoryManifestResponse": {
       "type": "object",
       "properties": {
+        "commands": {
+          "type": "array",
+          "title": "commands is the list of commands used to hydrate the manifests",
+          "items": {
+            "type": "string"
+          }
+        },
         "manifests": {
           "type": "array",
           "items": {
@@ -6740,6 +6747,9 @@
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         },
+        "sourceHydrator": {
+          "$ref": "#/definitions/v1alpha1SourceHydrator"
+        },
         "sources": {
           "type": "array",
           "title": "Sources is a reference to the location of the application's manifests or chart",
@@ -6796,6 +6806,9 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceStatus"
           }
+        },
+        "sourceHydrator": {
+          "$ref": "#/definitions/v1alpha1SourceHydratorStatus"
         },
         "sourceType": {
           "type": "string",
@@ -7207,6 +7220,21 @@
         }
       }
     },
+    "v1alpha1DrySource": {
+      "description": "DrySource specifies a location for dry \"don't repeat yourself\" manifest source information.",
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "repoURL": {
+          "type": "string"
+        },
+        "targetRevision": {
+          "type": "string"
+        }
+      }
+    },
     "v1alpha1DuckTypeGenerator": {
       "description": "DuckType defines a generator to match against clusters registered with ArgoCD.",
       "type": "object",
@@ -7454,6 +7482,38 @@
           "format": "int64"
         },
         "resourceName": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1HydrateOperation": {
+      "type": "object",
+      "properties": {
+        "finishedAt": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message contains a message describing the current status of the hydrate operation"
+        },
+        "revision": {
+          "type": "string",
+          "title": "Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation"
+        },
+        "startedAt": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "status": {
+          "type": "string",
+          "title": "Status indicates the status of the hydrate operation"
+        }
+      }
+    },
+    "v1alpha1HydrateTo": {
+      "description": "HydrateTo specifies a location to which hydrated manifests should be pushed as a \"staging area\" before being moved to\nthe SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.",
+      "type": "object",
+      "properties": {
+        "targetBranch": {
           "type": "string"
         }
       }
@@ -9094,6 +9154,33 @@
         }
       }
     },
+    "v1alpha1SourceHydrator": {
+      "description": "SourceHydrator specifies a dry \"don't repeat yourself\" source for manifests, a sync source from which to sync\nhydrated manifests, and an optional hydrateTo location to act as a \"staging\" aread for hydrated manifests.",
+      "type": "object",
+      "properties": {
+        "drySource": {
+          "$ref": "#/definitions/v1alpha1DrySource"
+        },
+        "hydrateTo": {
+          "$ref": "#/definitions/v1alpha1HydrateTo"
+        },
+        "syncSource": {
+          "$ref": "#/definitions/v1alpha1SyncSource"
+        }
+      }
+    },
+    "v1alpha1SourceHydratorStatus": {
+      "type": "object",
+      "properties": {
+        "hydrateOperation": {
+          "$ref": "#/definitions/v1alpha1HydrateOperation"
+        },
+        "revision": {
+          "type": "string",
+          "title": "Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation"
+        }
+      }
+    },
     "v1alpha1SyncOperation": {
       "description": "SyncOperation contains details about a sync operation.",
       "type": "object",
@@ -9245,6 +9332,18 @@
         "selfHeal": {
           "type": "boolean",
           "title": "SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)"
+        }
+      }
+    },
+    "v1alpha1SyncSource": {
+      "description": "SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the\nassociated DrySource config in the SourceHydrator.",
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "targetBranch": {
+          "type": "string"
         }
       }
     },

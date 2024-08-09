@@ -417,6 +417,13 @@ func validateRepo(ctx context.Context,
 	if err != nil {
 		return nil, fmt.Errorf("error getting ref sources: %w", err)
 	}
+
+	// If using the source hydrator, check the dry source instead of the sync source, since the sync source branch may
+	// not exist yet.
+	if app.Spec.SourceHydrator != nil {
+		sources = []argoappv1.ApplicationSource{app.Spec.SourceHydrator.GetDrySource()}
+	}
+
 	conditions = append(conditions, verifyGenerateManifests(
 		ctx,
 		db,

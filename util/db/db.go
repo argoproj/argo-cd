@@ -81,6 +81,9 @@ type ArgoDB interface {
 	// GetAllHelmRepositoryCredentials gets all repo credentials
 	GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appv1.RepoCreds, error)
 
+	// GetHydratorCredentials gets repo credentials specific to the hydrator for given URL
+	GetHydratorCredentials(ctx context.Context, repoURL string) (*appv1.Repository, error)
+
 	// ListHelmRepositories lists repositories
 	ListHelmRepositories(ctx context.Context) ([]*appv1.Repository, error)
 

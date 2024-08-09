@@ -60,6 +60,26 @@ func (_m *TempPaths) GetPathIfExists(key string) string {
 	return r0
 }
 
+// GetPaths provides a mock function with given fields:
+func (_m *TempPaths) GetPaths() map[string]string {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetPaths")
+	}
+
+	var r0 map[string]string
+	if rf, ok := ret.Get(0).(func() map[string]string); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]string)
+		}
+	}
+
+	return r0
+}
+
 // NewTempPaths creates a new instance of TempPaths. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewTempPaths(t interface {

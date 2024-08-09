@@ -202,6 +202,27 @@ export interface ApplicationSource {
     ref?: string;
 }
 
+export interface SourceHydrator {
+    drySource: DrySource;
+    syncSource: SyncSource;
+    hydrateTo?: HydrateTo;
+}
+
+export interface DrySource {
+    repoURL: string;
+    targetRevision: string;
+    path: string;
+}
+
+export interface SyncSource {
+    targetBranch: string;
+    path: string;
+}
+
+export interface HydrateTo {
+    targetBranch: string;
+}
+
 export interface ApplicationSourceHelm {
     valueFiles: string[];
     values?: string;
@@ -273,6 +294,7 @@ export interface ApplicationSpec {
     project: string;
     source: ApplicationSource;
     sources: ApplicationSource[];
+    sourceHydrator?: SourceHydrator;
     destination: ApplicationDestination;
     syncPolicy?: SyncPolicy;
     ignoreDifferences?: ResourceIgnoreDifferences[];
@@ -432,7 +454,29 @@ export interface ApplicationStatus {
     health: HealthStatus;
     operationState?: OperationState;
     summary?: ApplicationSummary;
+    sourceHydrator?: SourceHydratorStatus;
 }
+
+export interface SourceHydratorStatus {
+    drySource: DrySource;
+    revision: string;
+    hydrateOperation?: HydrateOperation;
+}
+
+export interface HydrateOperation {
+    startedAt: models.Time;
+    finishedAt?: models.Time;
+    status: HydrateOperationPhase;
+    message: string;
+}
+
+export type HydrateOperationPhase = 'Running' | 'Failed' | 'Succeeded';
+
+export const HydrateOperationPhases = {
+    Running: 'Running' as OperationPhase,
+    Failed: 'Failed' as OperationPhase,
+    Succeeded: 'Succeeded' as OperationPhase
+};
 
 export interface JwtTokens {
     items: JwtToken[];

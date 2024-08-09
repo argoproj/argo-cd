@@ -223,6 +223,29 @@ export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
     return <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{color}} />;
 };
 
+export const HydrateOperationPhaseIcon = ({operationState}: {operationState?: appModels.HydrateOperation}) => {
+    if (operationState === undefined) {
+        return <React.Fragment />;
+    }
+    let className = '';
+    let color = '';
+    switch (operationState.status) {
+        case appModels.HydrateOperationPhases.Succeeded:
+            className = 'fa fa-check-circle';
+            color = COLORS.operation.success;
+            break;
+        case appModels.HydrateOperationPhases.Failed:
+            className = 'fa fa-times-circle';
+            color = COLORS.operation.failed;
+            break;
+        default:
+            className = 'fa fa-circle-notch fa-spin';
+            color = COLORS.operation.running;
+            break;
+    }
+    return <i title={operationState.status} qe-id='utils-operations-status-title' className={className} style={{color}} />;
+};
+
 export const ComparisonStatusIcon = ({
     status,
     resource,
@@ -1106,7 +1129,7 @@ export function getAppDefaultSource(app?: appModels.Application) {
     if (!app) {
         return null;
     }
-    return app.spec.sources && app.spec.sources.length > 0 ? app.spec.sources[0] : app.spec.source;
+    return getAppSpecDefaultSource(app.spec);
 }
 
 // getAppDefaultSyncRevision gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
@@ -1165,6 +1188,13 @@ export function getAppDefaultOperationSyncRevisionExtra(app?: appModels.Applicat
 }
 
 export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {
+    if (spec.sourceHydrator) {
+        return {
+            repoURL: spec.sourceHydrator.drySource.repoURL,
+            targetRevision: spec.sourceHydrator.syncSource.targetBranch,
+            path: spec.sourceHydrator.syncSource.path
+        };
+    }
     return spec.sources && spec.sources.length > 0 ? spec.sources[0] : spec.source;
 }
 

@@ -33,6 +33,7 @@
 - [notification.toolkit.fluxcd.io/Receiver/reconcile](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/notification.toolkit.fluxcd.io/Receiver/actions/reconcile/action.lua)
 - [notification.toolkit.fluxcd.io/Receiver/resume](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/notification.toolkit.fluxcd.io/Receiver/actions/resume/action.lua)
 - [notification.toolkit.fluxcd.io/Receiver/suspend](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/notification.toolkit.fluxcd.io/Receiver/actions/suspend/action.lua)
+- [promoter.argoproj.io/PullRequest/merge](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/promoter.argoproj.io/PullRequest/actions/merge/action.lua)
 - [source.toolkit.fluxcd.io/Bucket/reconcile](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/source.toolkit.fluxcd.io/Bucket/actions/reconcile/action.lua)
 - [source.toolkit.fluxcd.io/Bucket/resume](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/source.toolkit.fluxcd.io/Bucket/actions/resume/action.lua)
 - [source.toolkit.fluxcd.io/Bucket/suspend](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/source.toolkit.fluxcd.io/Bucket/actions/suspend/action.lua)
