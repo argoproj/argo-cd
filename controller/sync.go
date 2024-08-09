@@ -216,11 +216,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	rawConfig := clst.RawRestConfig()
 	restConfig := metrics.AddMetricsTransportWrapper(m.metricsServer, app, clst.RESTConfig())
 
-	if m.settingsMgr.IsImpersonationEnabled() {
-		setImpersonationConfig(rawConfig, app, proj)
-		setImpersonationConfig(restConfig, app, proj)
-	}
-
 	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
 	if err != nil {
 		state.Phase = common.OperationError
@@ -291,6 +286,24 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
+
+	if m.settingsMgr.IsImpersonationEnabled() {
+		logEntry.Info("application sync using impersonation feature is enabled")
+		serviceAccountToImpersonate, err := deriveServiceAccountName(proj, app)
+		if err != nil {
+			state.Phase = common.OperationError
+			state.Message = fmt.Sprintf("failed to find a matching service account to impersonate: %v", err)
+			return
+		}
+		logEntry.Infof("service account to be used for impersonation: %s", serviceAccountToImpersonate)
+		// set the impersonation headers.
+		rawConfig.Impersonate = rest.ImpersonationConfig{
+			UserName: serviceAccountToImpersonate,
+		}
+		restConfig.Impersonate = rest.ImpersonationConfig{
+			UserName: serviceAccountToImpersonate,
+		}
+	}
 
 	opts := []sync.SyncOpt{
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
@@ -545,26 +558,14 @@ func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject
 	return !window.CanSync(isManual)
 }
 
-const (
-	impersonateUserNameFormat = "system:serviceaccount:%s"
-	defaultServiceAccountName = "default"
-)
-
-// setImpersonationConfig sets the impersonation config if the feature is enabled via environment variable explicitly.
-func setImpersonationConfig(cfg *rest.Config, app *v1alpha1.Application, proj *v1alpha1.AppProject) {
-	serviceAccountName := deriveServiceAccountName(proj, app)
-	cfg.Impersonate = rest.ImpersonationConfig{
-		UserName: fmt.Sprintf(impersonateUserNameFormat, serviceAccountName),
-	}
-}
-
-// deriveServiceAccountName determines the service account to be used for impersonation for the application sync operation.
-func deriveServiceAccountName(project *v1alpha1.AppProject, application *v1alpha1.Application) string {
+// deriveServiceAccountName determines the service account to be used for impersonation for the sync operation.
+// The returned service account will be fully qualified including namespace and the service account name in the format system:serviceaccount:<namespace>:<service_account>
+func deriveServiceAccountName(project *v1alpha1.AppProject, application *v1alpha1.Application) (string, error) {
 	// spec.Destination.Namespace is optional. If not specified, use the Application's
 	// namespace
-	serviceAccountNamespace := application.Namespace
-	if application.Spec.Destination.Namespace != "" {
-		serviceAccountNamespace = application.Spec.Destination.Namespace
+	serviceAccountNamespace := application.Spec.Destination.Namespace
+	if serviceAccountNamespace == "" {
+		serviceAccountNamespace = application.Namespace
 	}
 	// Loop through the destinationServiceAccounts and see if there is any destination that is a candidate.
 	// if so, return the service account specified for that destination.
@@ -573,14 +574,14 @@ func deriveServiceAccountName(project *v1alpha1.AppProject, application *v1alpha
 		dstNamespaceMatched := glob.Match(item.Namespace, application.Spec.Destination.Namespace)
 		if dstServerMatched && dstNamespaceMatched {
 			if strings.Contains(item.DefaultServiceAccount, ":") {
-				// service account is fully qualified with the namespace.
-				return item.DefaultServiceAccount
+				// service account is specified along with its namespace.
+				return fmt.Sprintf("system:serviceaccount:%s", item.DefaultServiceAccount), nil
 			} else {
-				// service account needs to be prefixed by its namespace
-				return fmt.Sprintf("%s:%s", serviceAccountNamespace, item.DefaultServiceAccount)
+				// service account needs to be prefixed with a namespace
+				return fmt.Sprintf("system:serviceaccount:%s:%s", serviceAccountNamespace, item.DefaultServiceAccount), nil
 			}
 		}
 	}
 	// if there is no match found in the AppProject.Spec.DestinationServiceAccounts, use the default service account of the destination namespace.
-	return fmt.Sprintf("%s:%s", serviceAccountNamespace, defaultServiceAccountName)
+	return "", fmt.Errorf("no matching service account found for destination %v in target namespace %s", application.Spec.Destination, serviceAccountNamespace)
 }

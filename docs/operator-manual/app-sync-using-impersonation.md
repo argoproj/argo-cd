@@ -24,13 +24,14 @@ Impersonation is a feature in Kubernetes and enabled in the `kubectl` CLI client
 Impersonation requests first authenticate as the requesting user, then switch to the impersonated user info.
 
 ## Prerequisites
-- In a multi-team/multi-tenant environment, a team/tenant is typically granted access to a target namespace to self-manage their kubernetes resources in a declarative way.
+
+In a multi-team/multi-tenant environment, a team/tenant is typically granted access to a target namespace to self-manage their kubernetes resources in a declarative way.
 A typical tenant onboarding process looks like below:
 1. The platform admin creates a tenant namespace and the service account to be used for creating the resources in that namespace is created.
 2. The platform admin creates one or more Role(s) to manage kubernetes resources in the tenant namespace
 3. The platform admin creates one or more RoleBinding(s) to map the service account to the role(s) created in previous steps.
 4. The platform admin configures ArgoCD to support apps-in-any-namespace feature, so that tenants can self-service their Argo applications in their respective tenant namespaces.
-5. If apps-in-any-namespace feature is not used, then the platform admin can provide access to manage ArgoCD Applications in the ArgoCD control plane namespace.
+5. If apps-in-any-namespace feature is not used, then the platform admin can provide access to tenants to manage ArgoCD Applications in the ArgoCD control plane namespace.
 
 ## Implementation details
 
@@ -38,11 +39,9 @@ A typical tenant onboarding process looks like below:
 
 In order for an application to use a different service account for the application sync operation, the following steps needs to be performed:
 
-1. The impersonation feature flag should be enabled. [Enable application sync with impersonation feature](#Enable application sync with impersonation feature)
+1. The impersonation feature flag should be enabled. Please refer the steps provided in [Enable application sync with impersonation feature](#enable-application-sync-with-impersonation-feature)
 
-2. The `AppProject` referenced by the `.spec.project` field of the `Application` must have the `DestinationServiceAccounts` mapping the destination server and namespace to a service account to be used for the sync operation.[Configuring destination service accounts](#Configuring destination service accounts)
-
-`DestinationServiceAccounts` associated to a `AppProject` can be created and managed, either declaratively or through the Argo CD API (e.g. using the CLI, the web UI, the REST API, etc).
+2. The `AppProject` referenced by the `.spec.project` field of the `Application` must have the `DestinationServiceAccounts` mapping the destination server and namespace to a service account to be used for the sync operation. Please refer the steps provided in [Configuring destination service accounts](#configuring-destination-service-accounts)
 
 
 ### Enable application sync with impersonation feature
@@ -68,13 +67,15 @@ data:
 
 ## Configuring destination service accounts
 
-Destination service accounts can be added in the `AppProject` object under `.spec.destinationServiceAccounts`. Specify the target destination `server` and `namespace` and provide the service account to be used for the sync operation using `defaultServiceAccount` field. Applications that refer this `AppProject` will use the corresponding service account configured for its destination.
+Destination service accounts can be added to the `AppProject` under `.spec.destinationServiceAccounts`. Specify the target destination `server` and `namespace` and provide the service account to be used for the sync operation using `defaultServiceAccount` field. Applications that refer this `AppProject` will use the corresponding service account configured for its destination.
 
-During the application sync operation, the controller loops through the available `destinationServiceAccounts` in the mapped `AppProject` and tries to find a matching candidate. If there are multiple matches of destination server and namespace combination, then the first valid match will be considered. If there are no matches, then a default service account set using the setting `application.sync.global.defaultServiceAccount`. If a global default service account is not set, then an error is reported during the sync operation.
+During the application sync operation, the controller loops through the available `destinationServiceAccounts` in the mapped `AppProject` and tries to find a matching candidate. If there are multiple matches for a destination server and namespace combination, then the first valid match will be considered. If there are no matches, then an error is reported during the sync operation. In order to avoid such sync errors, it is highly recommended that a valid service account may be configured as a catch-all configuration, for all target destinations and kept in lowest order of priority.
 
-It is possible to specify service accounts along with its namespace. eg: `tenant1-ns:guestbook-deployer`. If no namespace is provided for the service account, then the Application's `spec.destination.namespace` will be used. If no namespace is provided for the service account and the optional `spec.destination.namespace` field is not provided in the `Application`, then the Application's namespace will be used.
+It is possible to specify service accounts along with its namespace. eg: `tenant1-ns:guestbook-deployer`. If no namespace is provided for the service account, then the Application's `spec.destination.namespace` will be used. If no namespace is provided for the service account and the optional `spec.destination.namespace` field is also not provided in the `Application`, then the Application's namespace will be used.
 
-### Declarative Configuration
+`DestinationServiceAccounts` associated to a `AppProject` can be created and managed, either declaratively or through the Argo CD API (e.g. using the CLI, the web UI, the REST API, etc).
+
+### Using declarative yaml
 
 For declaratively configuring destination service accounts, create an yaml file for the `AppProject` as below and apply the changes using `kubectl apply` command.
 
@@ -101,7 +102,7 @@ spec:
     - server: https://kubernetes.default.svc
       namespace: guestbook-stage
       defaultServiceAccount: guestbook-stage-deployer
-    - server: https://kubernetes.default.svc
+    - server: https://kubernetes.default.svc # catch-all configuration
       namespace: '*'
       defaultServiceAccount: default
 ```
