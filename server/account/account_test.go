@@ -358,3 +358,59 @@ func TestCanI_GetLogsAllowSwitchOff(t *testing.T) {
 	require.NoError(t, err)
 	assert.EqualValues(t, "yes", resp.Value)
 }
+
+const (
+	fakeConfigMapName = "fake-cm"
+	fakeNamespace     = "fake-ns"
+)
+
+func fakeConfigMap() *v1.ConfigMap {
+	cm := v1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "ConfigMap",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fakeConfigMapName,
+			Namespace: fakeNamespace,
+		},
+		Data: make(map[string]string),
+	}
+	return &cm
+}
+
+func TestCanI_ApplicationWildcard(t *testing.T) {
+
+	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
+	enf := rbac.NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+	policy := `
+p, role:foo, applications, get, */*, allow
+g, deployer, role:foo
+`
+	_ = enf.SetUserPolicy(policy)
+	accountServer := Server{
+		enf: enf,
+	}
+
+	ctx := context.Background()
+	// nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", "deployer")
+
+	t.Run("ExistingPermissionWithWildcard", func(t *testing.T) {
+		resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "applications", Action: "get", Subresource: "*"})
+		assert.NoError(t, err)
+		assert.EqualValues(t, "yes", resp.Value)
+	})
+
+	t.Run("ExistingPermissionWithSlashedWildcard", func(t *testing.T) {
+		resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "applications", Action: "get", Subresource: "*/*"})
+		assert.NoError(t, err)
+		assert.EqualValues(t, "yes", resp.Value)
+	})
+
+	t.Run("NonExistingPermission", func(t *testing.T) {
+		resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "applications", Action: "create", Subresource: "*"})
+		assert.NoError(t, err)
+		assert.EqualValues(t, "no", resp.Value)
+	})
+}
