@@ -49,6 +49,7 @@ type Context struct {
 	drySourcePath          string
 	syncSourceBranch       string
 	syncSourcePath         string
+	hydrateToBranch        string
 }
 
 type ContextArgs struct {
@@ -256,6 +257,11 @@ func (c *Context) SyncSourceBranch(branch string) *Context {
 
 func (c *Context) SyncSourcePath(path string) *Context {
 	c.syncSourcePath = path
+	return c
+}
+
+func (c *Context) HydrateToBranch(branch string) *Context {
+	c.hydrateToBranch = branch
 	return c
 }
 

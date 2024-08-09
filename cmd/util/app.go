@@ -90,6 +90,7 @@ type AppOptions struct {
 	drySourcePath                   string
 	syncSourceBranch                string
 	syncSourcePath                  string
+	hydrateToBranch                 string
 }
 
 func AddAppFlags(command *cobra.Command, opts *AppOptions) {
@@ -102,6 +103,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.drySourcePath, "dry-source-path", "", "Path in repository to the app directory for the dry source")
 	command.Flags().StringVar(&opts.syncSourceBranch, "sync-source-branch", "", "The branch from which the app will sync")
 	command.Flags().StringVar(&opts.syncSourcePath, "sync-source-path", "", "The path in the repository from which the app will sync")
+	command.Flags().StringVar(&opts.hydrateToBranch, "hydrate-to-branch", "", "The branch to hydrate the app to")
 	command.Flags().IntVar(&opts.revisionHistoryLimit, "revision-history-limit", argoappv1.RevisionHistoryLimit, "How many items to keep in revision history")
 	command.Flags().StringVar(&opts.destServer, "dest-server", "", "K8s cluster URL (e.g. https://kubernetes.default.svc)")
 	command.Flags().StringVar(&opts.destName, "dest-name", "", "K8s cluster Name (e.g. minikube)")
@@ -159,11 +161,11 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 
 // HasHydratorConfig returns true if the app options have hydrator configuration.
 func (a *AppOptions) HasHydratorConfig() bool {
-	return a.drySourcePath != "" || a.drySourceRevision != "" || a.syncSourceBranch != "" || a.syncSourcePath != ""
+	return a.drySourcePath != "" || a.drySourceRevision != "" || a.syncSourceBranch != "" || a.syncSourcePath != "" || a.hydrateToBranch != ""
 }
 
 func (a *AppOptions) HydratorFromConfig() *argoappv1.SourceHydrator {
-	return &argoappv1.SourceHydrator{
+	h := &argoappv1.SourceHydrator{
 		DrySource: argoappv1.DrySource{
 			RepoURL:        a.repoURL,
 			Path:           a.drySourcePath,
@@ -174,6 +176,12 @@ func (a *AppOptions) HydratorFromConfig() *argoappv1.SourceHydrator {
 			Path:         a.syncSourcePath,
 		},
 	}
+	if a.hydrateToBranch != "" {
+		h.HydrateTo = &argoappv1.HydrateTo{
+			TargetBranch: a.hydrateToBranch,
+		}
+	}
+	return h
 }
 
 func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions, sourcePosition int) int {

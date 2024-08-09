@@ -250,6 +250,10 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 		args = append(args, "--sync-source-path", a.context.syncSourcePath)
 	}
 
+	if a.context.hydrateToBranch != "" {
+		args = append(args, "--hydrate-to-branch", a.context.hydrateToBranch)
+	}
+
 	if a.context.chart != "" {
 		args = append(args, "--helm-chart", a.context.chart)
 	}

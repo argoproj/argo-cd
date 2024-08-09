@@ -25,6 +25,28 @@ func TestSimpleHydrator(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
+func TestHydrateTo(t *testing.T) {
+	Given(t).
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("guestbook").
+		SyncSourceBranch("env/test").
+		HydrateToBranch("env/test-next").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Then().
+		Given().
+		// Async so we don't fail immediately on the error
+		Async(true).
+		When().
+		Sync().
+		Wait("--operation").
+		Then().
+		// Fails because we hydrated to env/test-next but not to env/test.
+		Expect(OperationPhaseIs(OperationError))
+}
+
 // TODO: write tests
-//       - If I configure `hydrateTo` on the app, the hydration operation should succeed, but the app should fail to sync because the syncSource branch doesn't exist.
 //       - If I change the destination path on one of the apps, the app should be rehydrated, and a new commit should be created.
