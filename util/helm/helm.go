@@ -82,16 +82,12 @@ func (h *helm) DependencyBuild() error {
 		h.cmd.IsHelmOci = isHelmOci
 	}()
 
-	var commands []string
 	for i := range h.repos {
 		repo := h.repos[i]
 		if repo.EnableOci {
 			h.cmd.IsHelmOci = true
 			if repo.Creds.Username != "" && repo.Creds.Password != "" {
-				_, command, err := h.cmd.RegistryLogin(repo.Repo, repo.Creds)
-				if command != "" {
-					commands = append(commands, command)
-				}
+				_, err := h.cmd.RegistryLogin(repo.Repo, repo.Creds)
 
 				defer func() {
 					_, _ = h.cmd.RegistryLogout(repo.Repo, repo.Creds)
@@ -102,20 +98,14 @@ func (h *helm) DependencyBuild() error {
 				}
 			}
 		} else {
-			_, command, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds, h.passCredentials)
-			if command != "" {
-				commands = append(commands, command)
-			}
+			_, err := h.cmd.RepoAdd(repo.Name, repo.Repo, repo.Creds, h.passCredentials)
 			if err != nil {
 				return err
 			}
 		}
 	}
 	h.repos = nil
-	_, command, err := h.cmd.dependencyBuild()
-	if command != "" {
-		commands = append(commands, command)
-	}
+	_, err := h.cmd.dependencyBuild()
 	return err
 }
 

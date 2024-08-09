@@ -81,7 +81,7 @@ func (c *Cmd) Init() (string, error) {
 	return "", nil
 }
 
-func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, string, error) {
+func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 	args := []string{"registry", "login"}
 	args = append(args, repo)
 
@@ -100,7 +100,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, string, error) {
 	if len(creds.CertData) > 0 {
 		filePath, closer, err := writeToTmp(creds.CertData)
 		if err != nil {
-			return "", "", err
+			return "", err
 		}
 		defer argoio.Close(closer)
 		args = append(args, "--cert-file", filePath)
@@ -109,7 +109,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, string, error) {
 	if len(creds.KeyData) > 0 {
 		filePath, closer, err := writeToTmp(creds.KeyData)
 		if err != nil {
-			return "", "", err
+			return "", err
 		}
 		defer argoio.Close(closer)
 		args = append(args, "--key-file", filePath)
@@ -118,7 +118,8 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, string, error) {
 	if creds.InsecureSkipVerify {
 		args = append(args, "--insecure")
 	}
-	return c.run(args...)
+	out, _, err := c.run(args...)
+	return out, err
 }
 
 func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
@@ -128,10 +129,10 @@ func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
 	return out, err
 }
 
-func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool) (string, string, error) {
+func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool) (string, error) {
 	tmp, err := os.MkdirTemp("", "helm")
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
 	defer func() { _ = os.RemoveAll(tmp) }()
 
@@ -156,11 +157,11 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 	if len(opts.CertData) > 0 {
 		certFile, err := os.CreateTemp("", "helm")
 		if err != nil {
-			return "", "", err
+			return "", err
 		}
 		_, err = certFile.Write(opts.CertData)
 		if err != nil {
-			return "", "", err
+			return "", err
 		}
 		defer certFile.Close()
 		args = append(args, "--cert-file", certFile.Name())
@@ -169,11 +170,11 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 	if len(opts.KeyData) > 0 {
 		keyFile, err := os.CreateTemp("", "helm")
 		if err != nil {
-			return "", "", err
+			return "", err
 		}
 		_, err = keyFile.Write(opts.KeyData)
 		if err != nil {
-			return "", "", err
+			return "", err
 		}
 		defer keyFile.Close()
 		args = append(args, "--key-file", keyFile.Name())
@@ -185,7 +186,8 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 
 	args = append(args, name, url)
 
-	return c.run(args...)
+	out, _, err := c.run(args...)
+	return out, err
 }
 
 func writeToTmp(data []byte) (string, argoio.Closer, error) {
@@ -291,8 +293,9 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 	return out, err
 }
 
-func (c *Cmd) dependencyBuild() (string, string, error) {
-	return c.run("dependency", "build")
+func (c *Cmd) dependencyBuild() (string, error) {
+	out, _, err := c.run("dependency", "build")
+	return out, err
 }
 
 func (c *Cmd) inspectValues(values string) (string, error) {
