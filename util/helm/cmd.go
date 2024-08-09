@@ -73,11 +73,12 @@ func (c Cmd) run(args ...string) (string, string, error) {
 	return out, fullCommand, err
 }
 
-func (c *Cmd) Init() (string, string, error) {
+func (c *Cmd) Init() (string, error) {
 	if c.initSupported {
-		return c.run("init", "--client-only", "--skip-refresh")
+		out, _, err := c.run("init", "--client-only", "--skip-refresh")
+		return out, err
 	}
-	return "", "", nil
+	return "", nil
 }
 
 func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, string, error) {

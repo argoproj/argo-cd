@@ -36,9 +36,9 @@ type Helm interface {
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
 	GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
-	DependencyBuild() ([]string, error)
+	DependencyBuild() error
 	// Init runs `helm init --client-only`
-	Init() (string, error)
+	Init() error
 	// Dispose deletes temp resources
 	Dispose()
 }
@@ -76,7 +76,7 @@ func (h *helm) Template(templateOpts *TemplateOpts) (string, string, error) {
 	return out, command, nil
 }
 
-func (h *helm) DependencyBuild() ([]string, error) {
+func (h *helm) DependencyBuild() error {
 	isHelmOci := h.cmd.IsHelmOci
 	defer func() {
 		h.cmd.IsHelmOci = isHelmOci
@@ -98,7 +98,7 @@ func (h *helm) DependencyBuild() ([]string, error) {
 				}()
 
 				if err != nil {
-					return commands, err
+					return err
 				}
 			}
 		} else {
@@ -107,7 +107,7 @@ func (h *helm) DependencyBuild() ([]string, error) {
 				commands = append(commands, command)
 			}
 			if err != nil {
-				return commands, err
+				return err
 			}
 		}
 	}
@@ -116,12 +116,12 @@ func (h *helm) DependencyBuild() ([]string, error) {
 	if command != "" {
 		commands = append(commands, command)
 	}
-	return commands, err
+	return err
 }
 
-func (h *helm) Init() (string, error) {
-	command, _, err := h.cmd.Init()
-	return command, err
+func (h *helm) Init() error {
+	_, err := h.cmd.Init()
+	return err
 }
 
 func (h *helm) Dispose() {

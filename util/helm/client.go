@@ -147,7 +147,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, project str
 	}
 	defer helmCmd.Close()
 
-	_, _, err = helmCmd.Init()
+	_, err = helmCmd.Init()
 	if err != nil {
 		return "", nil, err
 	}
