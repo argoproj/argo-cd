@@ -38,6 +38,8 @@ message ManifestRequest {
     repeated string projectSourceRepos = 24;
     // This is used to surface "source not permitted" errors for Helm repositories
     string projectName = 25;
+    // argocd.argoproj.io/manifest-generate-paths annotation value of the Application to allow optimize which resources propagated to cmpserver
+    string AnnotationManifestGeneratePaths = 26;
 }
 
 message ManifestRequestWithFiles {
