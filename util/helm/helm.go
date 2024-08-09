@@ -37,8 +37,6 @@ type Helm interface {
 	GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
 	DependencyBuild() error
-	// Init runs `helm init --client-only`
-	Init() error
 	// Dispose deletes temp resources
 	Dispose()
 }
@@ -106,11 +104,6 @@ func (h *helm) DependencyBuild() error {
 	}
 	h.repos = nil
 	_, err := h.cmd.dependencyBuild()
-	return err
-}
-
-func (h *helm) Init() error {
-	_, err := h.cmd.Init()
 	return err
 }
 
