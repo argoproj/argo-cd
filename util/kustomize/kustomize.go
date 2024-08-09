@@ -138,7 +138,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
-				return nil, nil, commands, err
+				return nil, nil, nil, err
 			}
 		}
 		if opts.NameSuffix != "" {
@@ -147,7 +147,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
-				return nil, nil, commands, err
+				return nil, nil, nil, err
 			}
 		}
 		if len(opts.Images) > 0 {
@@ -164,7 +164,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
-				return nil, nil, commands, err
+				return nil, nil, nil, err
 			}
 		}
 
@@ -185,7 +185,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
-				return nil, nil, commands, err
+				return nil, nil, nil, err
 			}
 		}
 
@@ -207,7 +207,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
-				return nil, nil, commands, err
+				return nil, nil, nil, err
 			}
 		}
 
@@ -231,7 +231,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
-				return nil, nil, commands, err
+				return nil, nil, nil, err
 			}
 		}
 
@@ -241,7 +241,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
-				return nil, nil, commands, err
+				return nil, nil, nil, err
 			}
 		}
 
@@ -249,23 +249,23 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			kustomizationPath := filepath.Join(k.path, "kustomization.yaml")
 			b, err := os.ReadFile(kustomizationPath)
 			if err != nil {
-				return nil, nil, commands, fmt.Errorf("failed to load kustomization.yaml: %w", err)
+				return nil, nil, nil, fmt.Errorf("failed to load kustomization.yaml: %w", err)
 			}
 			var kustomization interface{}
 			err = yaml.Unmarshal(b, &kustomization)
 			if err != nil {
-				return nil, nil, commands, fmt.Errorf("failed to unmarshal kustomization.yaml: %w", err)
+				return nil, nil, nil, fmt.Errorf("failed to unmarshal kustomization.yaml: %w", err)
 			}
 			kMap, ok := kustomization.(map[string]interface{})
 			if !ok {
-				return nil, nil, commands, fmt.Errorf("expected kustomization.yaml to be type map[string]interface{}, but got %T", kMap)
+				return nil, nil, nil, fmt.Errorf("expected kustomization.yaml to be type map[string]interface{}, but got %T", kMap)
 			}
 			patches, ok := kMap["patches"]
 			if ok {
 				// The kustomization.yaml already had a patches field, so we need to append to it.
 				patchesList, ok := patches.([]interface{})
 				if !ok {
-					return nil, nil, commands, fmt.Errorf("expected 'patches' field in kustomization.yaml to be []interface{}, but got %T", patches)
+					return nil, nil, nil, fmt.Errorf("expected 'patches' field in kustomization.yaml to be []interface{}, but got %T", patches)
 				}
 				// Since the patches from the Application manifest are typed, we need to convert them to a type which
 				// can be appended to the existing list.
@@ -281,15 +281,15 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 			updatedKustomization, err := yaml.Marshal(kMap)
 			if err != nil {
-				return nil, nil, commands, fmt.Errorf("failed to marshal kustomization.yaml after adding patches: %w", err)
+				return nil, nil, nil, fmt.Errorf("failed to marshal kustomization.yaml after adding patches: %w", err)
 			}
 			kustomizationFileInfo, err := os.Stat(kustomizationPath)
 			if err != nil {
-				return nil, nil, commands, fmt.Errorf("failed to stat kustomization.yaml: %w", err)
+				return nil, nil, nil, fmt.Errorf("failed to stat kustomization.yaml: %w", err)
 			}
 			err = os.WriteFile(kustomizationPath, updatedKustomization, kustomizationFileInfo.Mode())
 			if err != nil {
-				return nil, nil, commands, fmt.Errorf("failed to write kustomization.yaml with updated 'patches' field: %w", err)
+				return nil, nil, nil, fmt.Errorf("failed to write kustomization.yaml with updated 'patches' field: %w", err)
 			}
 			commands = append(commands, "# kustomization.yaml updated with patches. There is no `kustomize edit` command for this, so you will need to copy the patches into kustomization.yaml manually.")
 		}
@@ -298,7 +298,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			// components only supported in kustomize >= v3.7.0
 			// https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md
 			if getSemverSafe().LessThan(semver.MustParse("v3.7.0")) {
-				return nil, nil, commands, fmt.Errorf("kustomize components require kustomize v3.7.0 and above")
+				return nil, nil, nil, fmt.Errorf("kustomize components require kustomize v3.7.0 and above")
 			}
 
 			// add components
@@ -310,7 +310,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
-				return nil, nil, commands, err
+				return nil, nil, nil, err
 			}
 		}
 	}
@@ -327,7 +327,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	commands = append(commands, executil.GetCommandArgsToLog(cmd))
 	out, err := executil.Run(cmd)
 	if err != nil {
-		return nil, nil, commands, err
+		return nil, nil, nil, err
 	}
 
 	objs, err := kube.SplitYAML([]byte(out))
