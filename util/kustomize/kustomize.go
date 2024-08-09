@@ -291,7 +291,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("failed to write kustomization.yaml with updated 'patches' field: %w", err)
 			}
-			commands = append(commands, "# kustomization.yaml updated with patches. There is no `kustomize edit` command for this, so you will need to copy the patches into kustomization.yaml manually.")
+			commands = append(commands, "# kustomization.yaml updated with patches. There is no `kustomize edit` command for adding patches. In order to generate the manifests in your local environment, you will need to copy the patches into kustomization.yaml manually.")
 		}
 
 		if len(opts.Components) > 0 {

@@ -1262,6 +1262,9 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	return objs, redactedCommand, err
 }
 
+// redactPaths removes temp repo paths, since those paths are randomized (and therefore not helpful for the user) and
+// sensitive (so not suitable for logging). It also replaces the path of the randomly-named values file which is used
+// to hold the `spec.source.helm.values` or `valuesObject` contents.
 func redactPaths(s string, paths io.TempPaths, extraValuesPath pathutil.ResolvedFilePath) string {
 	if paths == nil {
 		return s
@@ -1270,7 +1273,8 @@ func redactPaths(s string, paths io.TempPaths, extraValuesPath pathutil.Resolved
 		s = strings.ReplaceAll(s, p, ".")
 	}
 	if extraValuesPath != "" {
-		s = strings.ReplaceAll(s, string(extraValuesPath), "<temp file with override values>")
+		// Replace with a placeholder so that the user knows what this values file was for.
+		s = strings.ReplaceAll(s, string(extraValuesPath), "<temp file with values from source.helm.values/valuesObject>")
 	}
 	return s
 }
