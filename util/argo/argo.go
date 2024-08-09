@@ -254,6 +254,37 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 	return nil, err
 }
 
+// HydrateApp do same logic in RefreshApp.
+// (*ApplicationController).processAppRefreshQueueItem has hydrate logic.
+// For now use that, but @TODO have to separate refresh and refresh-hydrator.
+func HydrateApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType) (*argoappv1.Application, error) {
+	metadata := map[string]interface{}{
+		"metadata": map[string]interface{}{
+			"annotations": map[string]string{
+				argoappv1.AnnotationKeyRefresh: string(refreshType),
+			},
+		},
+	}
+	var err error
+	patch, err := json.Marshal(metadata)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling metadata: %w", err)
+	}
+	for attempt := 0; attempt < 5; attempt++ {
+		app, err := appIf.Patch(context.Background(), name, types.MergePatchType, patch, metav1.PatchOptions{})
+		if err != nil {
+			if !apierr.IsConflict(err) {
+				return nil, fmt.Errorf("error patching annotations in application %q: %w", name, err)
+			}
+		} else {
+			log.Infof("Requested app '%s' refresh", name)
+			return app, nil
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	return nil, err
+}
+
 func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerServiceClient, repo *argoappv1.Repository, isHelm bool, isHelmOci bool) error {
 	repo = repo.DeepCopy()
 	if isHelm {

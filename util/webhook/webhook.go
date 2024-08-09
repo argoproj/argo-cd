@@ -300,6 +300,21 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 			continue
 		}
 		for _, app := range filteredApps {
+			drySource := app.Spec.GetHydratorDrySource()
+			if sourceRevisionHasChanged(drySource, revision, touchedHead) && sourceUsesURL(drySource, webURL, repoRegexp) {
+				refreshPaths := path.GetAppRefreshPaths(&app)
+				if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
+					namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
+					_, err = argo.HydrateApp(namespacedAppInterface, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
+					if err != nil {
+						log.Warnf("Failed to hydrate app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
+						continue
+					}
+					// No need to refresh if hydrator dry source match.
+					continue
+				}
+			}
+
 			for _, source := range app.Spec.GetSources() {
 				if sourceRevisionHasChanged(source, revision, touchedHead) && sourceUsesURL(source, webURL, repoRegexp) {
 					refreshPaths := path.GetAppRefreshPaths(&app)
