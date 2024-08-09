@@ -218,35 +218,3 @@ func specsEqual(left, right unstructured.Unstructured) bool {
 	}
 	return false
 }
-
-func iterateStringFields(obj interface{}, callback func(name string, val string) string) {
-	if mapField, ok := obj.(map[string]interface{}); ok {
-		for field, val := range mapField {
-			if strVal, ok := val.(string); ok {
-				mapField[field] = callback(field, strVal)
-			} else {
-				iterateStringFields(val, callback)
-			}
-		}
-	} else if arrayField, ok := obj.([]interface{}); ok {
-		for i := range arrayField {
-			iterateStringFields(arrayField[i], callback)
-		}
-	}
-}
-
-func redactor(dirtyString string) string {
-	config := make(map[string]interface{})
-	err := yaml.Unmarshal([]byte(dirtyString), &config)
-	errors.CheckError(err)
-	iterateStringFields(config, func(name string, val string) string {
-		if name == "clientSecret" || name == "secret" || name == "bindPW" {
-			return "********"
-		} else {
-			return val
-		}
-	})
-	data, err := yaml.Marshal(config)
-	errors.CheckError(err)
-	return string(data)
-}
