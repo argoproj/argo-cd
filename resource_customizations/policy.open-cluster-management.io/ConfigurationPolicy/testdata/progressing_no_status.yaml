@@ -1,0 +1,25 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: ConfigurationPolicy
+metadata:
+  name: policy-namespace
+  generation: 2
+  namespace: local-cluster
+spec:
+  object-templates:
+    - complianceType: musthave
+      objectDefinition:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: argo-example
+      recreateOption: None
+    - complianceType: musthave
+      objectDefinition:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: argo-example-2
+      recreateOption: None
+  pruneObjectBehavior: None
+  remediationAction: inform
+  severity: low

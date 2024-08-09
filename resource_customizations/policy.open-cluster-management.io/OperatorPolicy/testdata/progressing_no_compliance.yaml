@@ -1,0 +1,61 @@
+apiVersion: policy.open-cluster-management.io/v1beta1
+kind: OperatorPolicy
+metadata:
+  name: install-argocd
+  generation: 2
+  namespace: local-cluster
+spec:
+  complianceConfig:
+    catalogSourceUnhealthy: Compliant
+    deploymentsUnavailable: NonCompliant
+    upgradesAvailable: Compliant
+  complianceType: musthave
+  remediationAction: enforce
+  removalBehavior:
+    clusterServiceVersions: Delete
+    customResourceDefinitions: Keep
+    operatorGroups: DeleteIfUnused
+    subscriptions: Delete
+  severity: high
+  subscription:
+    channel: alpha
+    name: argocd-operator
+    source: community-operators
+    sourceNamespace: openshift-marketplace
+  upgradeApproval: Automatic
+  versions: []
+status:
+  compliant: Compliant
+  conditions:
+    - lastTransitionTime: '2024-07-29T15:20:48Z'
+      message: CatalogSource was found
+      reason: CatalogSourcesFound
+      status: 'False'
+      type: CatalogSourcesUnhealthy
+    - lastTransitionTime: '2024-07-29T15:47:45Z'
+      message: the Subscription matches what is required by the policy
+      reason: SubscriptionMatches
+      status: 'True'
+      type: SubscriptionCompliant
+  observedGeneration: 2
+  relatedObjects:
+    - compliant: Compliant
+      object:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        metadata:
+          name: community-operators
+          namespace: openshift-marketplace
+      reason: Resource found as expected
+    - compliant: Compliant
+      object:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: Subscription
+        metadata:
+          name: argocd-operator
+          namespace: openshift-operators
+      properties:
+        createdByPolicy: true
+        uid: f3e6d8a7-eb73-4b29-b804-bf4609d2f7fb
+      reason: Resource found as expected
+  resolvedSubscriptionLabel: argocd-operator.openshift-operators

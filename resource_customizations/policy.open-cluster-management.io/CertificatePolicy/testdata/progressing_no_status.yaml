@@ -1,0 +1,15 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: CertificatePolicy
+metadata:
+  name: policy-certificate
+  namespace: local-cluster
+spec:
+  minimumDuration: 300h
+  namespaceSelector:
+    exclude:
+      - kube-*
+    include:
+      - default
+      - cert-manager-operator
+  remediationAction: inform
+  severity: low
