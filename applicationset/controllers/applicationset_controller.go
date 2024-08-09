@@ -97,6 +97,7 @@ type ApplicationSetReconciler struct {
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets/status,verbs=get;update;patch
 
 func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	startReconcile := time.Now()
 	logCtx := log.WithField("applicationset", req.NamespacedName)
 
 	var applicationSetInfo argov1alpha1.ApplicationSet
@@ -342,7 +343,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		requeueAfter = ReconcileRequeueOnValidationError
 	}
 
-	logCtx.WithField("requeueAfter", requeueAfter).Info("end reconcile")
+	logCtx.WithField("requeueAfter", requeueAfter).Info("end reconcile in ", time.Since(startReconcile))
 
 	return ctrl.Result{
 		RequeueAfter: requeueAfter,
@@ -456,6 +457,7 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Context, desiredApplications []argov1alpha1.Application, applicationSetInfo argov1alpha1.ApplicationSet) (map[int]error, error) {
 	errorsByIndex := map[int]error{}
 	namesSet := map[string]bool{}
+	appProject := &argov1alpha1.AppProject{}
 	for i, app := range desiredApplications {
 		if !namesSet[app.Name] {
 			namesSet[app.Name] = true
@@ -463,7 +465,8 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 			errorsByIndex[i] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSetInfo.Name, app.Name)
 			continue
 		}
-		_, err := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(r.ArgoCDNamespace).Get(ctx, app.Spec.GetProject(), metav1.GetOptions{})
+
+		err := r.Client.Get(ctx, types.NamespacedName{Name: app.Spec.Project, Namespace: r.ArgoCDNamespace}, appProject)
 		if err != nil {
 			if apierr.IsNotFound(err) {
 				errorsByIndex[i] = fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
