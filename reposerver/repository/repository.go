@@ -1215,10 +1215,6 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	}
 
 	defer h.Dispose()
-	err = h.Init()
-	if err != nil {
-		return nil, fmt.Errorf("error initializing helm app: %w", err)
-	}
 
 	out, err := h.Template(templateOpts)
 	if err != nil {
@@ -2082,10 +2078,6 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 		return err
 	}
 	defer h.Dispose()
-	err = h.Init()
-	if err != nil {
-		return err
-	}
 
 	if resolvedValuesPath, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, "values.yaml", []string{}); err == nil {
 		if err := loadFileIntoIfExists(resolvedValuesPath, &res.Helm.Values); err != nil {
@@ -2323,7 +2315,7 @@ func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.Repo
 		return nil, fmt.Errorf("error extracting chart: %w", err)
 	}
 	defer io.Close(closer)
-	helmCmd, err := helm.NewCmdWithVersion(chartPath, helm.HelmV3, q.Repo.EnableOCI, q.Repo.Proxy)
+	helmCmd, err := helm.NewCmdWithVersion(chartPath, q.Repo.EnableOCI, q.Repo.Proxy)
 	if err != nil {
 		return nil, fmt.Errorf("error creating helm cmd: %w", err)
 	}
