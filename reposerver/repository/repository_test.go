@@ -8,7 +8,6 @@ import (
 	"fmt"
 	goio "io"
 	"io/fs"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"os"
 	"os/exec"
 	"path"
@@ -23,6 +22,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 
