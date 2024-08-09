@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/bradleyfalzon/ghinstallation/v2"
-	"github.com/google/go-github/v35/github"
+	"github.com/google/go-github/v63/github"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services/github_app_auth"
 )
@@ -26,7 +26,7 @@ func Client(g github_app_auth.Authentication, url string) (*github.Client, error
 	} else {
 		rt.BaseURL = url
 		httpClient := http.Client{Transport: rt}
-		client, err = github.NewEnterpriseClient(url, url, &httpClient)
+		client, err = github.NewClient(&httpClient).WithEnterpriseURLs(url, url)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create github enterprise client: %w", err)
 		}

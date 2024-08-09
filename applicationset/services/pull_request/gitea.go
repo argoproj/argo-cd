@@ -62,6 +62,7 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 			TargetBranch: pr.Base.Ref,
 			HeadSHA:      pr.Head.Sha,
 			Labels:       getGiteaPRLabelNames(pr.Labels),
+			Author:       pr.Poster.UserName,
 		})
 	}
 	return list, nil

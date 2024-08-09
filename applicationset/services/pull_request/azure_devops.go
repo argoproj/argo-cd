@@ -99,6 +99,7 @@ func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
 				Branch:  strings.Replace(*pr.SourceRefName, "refs/heads/", "", 1),
 				HeadSHA: *pr.LastMergeSourceCommit.CommitId,
 				Labels:  azureDevOpsLabels,
+				Author:  strings.Split(*pr.CreatedBy.UniqueName, "@")[0], // Get the part before the @ in the email-address
 			})
 		}
 	}

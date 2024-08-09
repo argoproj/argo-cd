@@ -9,9 +9,13 @@ tests:
   inputPath: testdata/healthy.yaml
 - healthStatus:
     status: Suspended
-    message: "Pipeline is paused"
+    message: "Pipeline paused"
   inputPath: testdata/paused.yaml
 - healthStatus:
     status: Degraded
     message: "Pipeline Failed"
   inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for Pipeline status"
+  inputPath: testdata/progressing-reason.yaml

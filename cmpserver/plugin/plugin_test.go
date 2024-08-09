@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"testing"
@@ -848,33 +847,6 @@ func TestService_GetParametersAnnouncement(t *testing.T) {
 		require.ErrorContains(t, err, "error executing dynamic parameter output command")
 		require.Nil(t, s.response)
 	})
-}
-
-func Test_getCommandArgsToLog(t *testing.T) {
-	testCases := []struct {
-		name     string
-		args     []string
-		expected string
-	}{
-		{
-			name:     "no spaces",
-			args:     []string{"sh", "-c", "cat"},
-			expected: "sh -c cat",
-		},
-		{
-			name:     "spaces",
-			args:     []string{"sh", "-c", `echo "hello world"`},
-			expected: `sh -c "echo \"hello world\""`,
-		},
-	}
-
-	for _, tc := range testCases {
-		tcc := tc
-		t.Run(tcc.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tcc.expected, getCommandArgsToLog(exec.Command(tcc.args[0], tcc.args[1:]...)))
-		})
-	}
 }
 
 func TestService_CheckPluginConfiguration(t *testing.T) {

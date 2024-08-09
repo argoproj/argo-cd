@@ -56,7 +56,7 @@ status:
       status: 'True'
       type: ChildResourcesHealthy
     - lastTransitionTime: '2024-07-12T21:14:17Z'
-      message: ''
+      message: Pipeline paused
       observedGeneration: 1
       reason: Paused
       status: 'True'

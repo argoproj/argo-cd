@@ -2674,7 +2674,7 @@ func (s *Server) isNamespaceEnabled(namespace string) bool {
 	return security.IsNamespaceEnabled(namespace, s.ns, s.enabledNamespaces)
 }
 
-// getProjectFromApplicationQuery gets the project names from a query. If the legacy "project" field was specified, use
+// getProjectsFromApplicationQuery gets the project names from a query. If the legacy "project" field was specified, use
 // that. Otherwise, use the newer "projects" field.
 func getProjectsFromApplicationQuery(q application.ApplicationQuery) []string {
 	if q.Project != nil {

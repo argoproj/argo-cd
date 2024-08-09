@@ -260,6 +260,7 @@ func TestGiteaList(t *testing.T) {
 	assert.Equal(t, "test", prs[0].Branch)
 	assert.Equal(t, "main", prs[0].TargetBranch)
 	assert.Equal(t, "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f", prs[0].HeadSHA)
+	assert.Equal(t, "graytshirt", prs[0].Author)
 }
 
 func TestGetGiteaPRLabelNames(t *testing.T) {

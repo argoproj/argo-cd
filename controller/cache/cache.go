@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os/exec"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -67,6 +68,10 @@ const (
 
 	// EnvClusterCacheRetryUseBackoff is the env variable to control whether to use a backoff strategy with the retry during cluster cache sync
 	EnvClusterCacheRetryUseBackoff = "ARGOCD_CLUSTER_CACHE_RETRY_USE_BACKOFF"
+
+	// AnnotationIgnoreResourceUpdates when set to true on an untracked resource,
+	// argo will apply `ignoreResourceUpdates` configuration on it.
+	AnnotationIgnoreResourceUpdates = "argocd.argoproj.io/ignore-resource-updates"
 )
 
 // GitOps engine cluster cache tuning options
@@ -353,13 +358,30 @@ func skipResourceUpdate(oldInfo, newInfo *ResourceInfo) bool {
 // shouldHashManifest validates if the API resource needs to be hashed.
 // If there's an app name from resource tracking, or if this is itself an app, we should generate a hash.
 // Otherwise, the hashing should be skipped to save CPU time.
-func shouldHashManifest(appName string, gvk schema.GroupVersionKind) bool {
-	// Only hash if the resource belongs to an app.
+func shouldHashManifest(appName string, gvk schema.GroupVersionKind, un *unstructured.Unstructured) bool {
+	// Only hash if the resource belongs to an app OR argocd.argoproj.io/ignore-resource-updates is present and set to true
 	// Best      - Only hash for resources that are part of an app or their dependencies
 	// (current) - Only hash for resources that are part of an app + all apps that might be from an ApplicationSet
 	// Orphan    - If orphan is enabled, hash should be made on all resource of that namespace and a config to disable it
 	// Worst     - Hash all resources watched by Argo
-	return appName != "" || (gvk.Group == application.Group && gvk.Kind == application.ApplicationKind)
+	isTrackedResource := appName != "" || (gvk.Group == application.Group && gvk.Kind == application.ApplicationKind)
+
+	// If the resource is not a tracked resource, we will look up argocd.argoproj.io/ignore-resource-updates and decide
+	// whether we generate hash or not.
+	// If argocd.argoproj.io/ignore-resource-updates is presented and is true, return true
+	// Else return false
+	if !isTrackedResource {
+		if val, ok := un.GetAnnotations()[AnnotationIgnoreResourceUpdates]; ok {
+			applyResourcesUpdate, err := strconv.ParseBool(val)
+			if err != nil {
+				applyResourcesUpdate = false
+			}
+			return applyResourcesUpdate
+		}
+		return false
+	}
+
+	return isTrackedResource
 }
 
 // isRetryableError is a helper method to see whether an error
@@ -508,7 +530,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 
 			gvk := un.GroupVersionKind()
 
-			if cacheSettings.ignoreResourceUpdatesEnabled && shouldHashManifest(appName, gvk) {
+			if cacheSettings.ignoreResourceUpdatesEnabled && shouldHashManifest(appName, gvk, un) {
 				hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides, c.ignoreNormalizerOpts)
 				if err != nil {
 					log.Errorf("Failed to generate manifest hash: %v", err)

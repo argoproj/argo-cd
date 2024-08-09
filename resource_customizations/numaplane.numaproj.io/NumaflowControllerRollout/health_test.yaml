@@ -11,3 +11,7 @@ tests:
     status: Degraded
     message: "no controller definition found for version degraded"
   inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for NumaflowController status"
+  inputPath: testdata/progressing-reason.yaml

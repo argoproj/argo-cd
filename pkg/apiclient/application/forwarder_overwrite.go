@@ -119,7 +119,7 @@ func init() {
 			if container := req.URL.Query().Get("container"); len(container) > 0 && kube.IsValidResourceName(container) {
 				fileName = container
 			}
-			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s.txt"`, fileName))
+			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s.log"`, fileName))
 			for {
 				msg, err := recv()
 				if err != nil {

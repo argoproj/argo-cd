@@ -1115,7 +1115,7 @@ func TestNormalizeApplication(t *testing.T) {
 		normalized := false
 		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			if patchAction, ok := action.(kubetesting.PatchAction); ok {
-				if string(patchAction.GetPatch()) == `{"spec":{"project":"default"},"status":{"sync":{"comparedTo":{"destination":{},"source":{"repoURL":""}}}}}` {
+				if string(patchAction.GetPatch()) == `{"spec":{"project":"default"}}` {
 					normalized = true
 				}
 			}
@@ -2071,4 +2071,66 @@ func TestAddControllerNamespace(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, test.FakeArgoCDNamespace, updatedApp.Status.ControllerNamespace)
 	})
+}
+
+func TestHelmValuesObjectHasReplaceStrategy(t *testing.T) {
+	app := v1alpha1.Application{
+		Status: v1alpha1.ApplicationStatus{Sync: v1alpha1.SyncStatus{ComparedTo: v1alpha1.ComparedTo{
+			Source: v1alpha1.ApplicationSource{
+				Helm: &v1alpha1.ApplicationSourceHelm{
+					ValuesObject: &runtime.RawExtension{
+						Object: &unstructured.Unstructured{Object: map[string]interface{}{"key": []string{"value"}}},
+					},
+				},
+			},
+		}}},
+	}
+
+	appModified := v1alpha1.Application{
+		Status: v1alpha1.ApplicationStatus{Sync: v1alpha1.SyncStatus{ComparedTo: v1alpha1.ComparedTo{
+			Source: v1alpha1.ApplicationSource{
+				Helm: &v1alpha1.ApplicationSourceHelm{
+					ValuesObject: &runtime.RawExtension{
+						Object: &unstructured.Unstructured{Object: map[string]interface{}{"key": []string{"value-modified1"}}},
+					},
+				},
+			},
+		}}},
+	}
+
+	patch, _, err := createMergePatch(
+		app,
+		appModified)
+	require.NoError(t, err)
+	assert.Equal(t, `{"status":{"sync":{"comparedTo":{"source":{"helm":{"valuesObject":{"key":["value-modified1"]}}}}}}}`, string(patch))
+}
+
+func TestAppStatusIsReplaced(t *testing.T) {
+	original := &v1alpha1.ApplicationStatus{Sync: v1alpha1.SyncStatus{
+		ComparedTo: v1alpha1.ComparedTo{
+			Destination: v1alpha1.ApplicationDestination{
+				Server: "https://mycluster",
+			},
+		},
+	}}
+
+	updated := &v1alpha1.ApplicationStatus{Sync: v1alpha1.SyncStatus{
+		ComparedTo: v1alpha1.ComparedTo{
+			Destination: v1alpha1.ApplicationDestination{
+				Name: "mycluster",
+			},
+		},
+	}}
+
+	patchData, ok, err := createMergePatch(original, updated)
+
+	require.NoError(t, err)
+	require.True(t, ok)
+	patchObj := map[string]interface{}{}
+	require.NoError(t, json.Unmarshal(patchData, &patchObj))
+
+	val, has, err := unstructured.NestedFieldNoCopy(patchObj, "sync", "comparedTo", "destination", "server")
+	require.NoError(t, err)
+	require.True(t, has)
+	require.Nil(t, val)
 }

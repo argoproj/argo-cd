@@ -24,6 +24,7 @@ func TestFilterBranchMatchBadRegexp(t *testing.T) {
 				Branch:       "branch1",
 				TargetBranch: "master",
 				HeadSHA:      "089d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name1",
 			},
 		},
 		nil,
@@ -47,6 +48,7 @@ func TestFilterBranchMatch(t *testing.T) {
 				Branch:       "one",
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name1",
 			},
 			{
 				Number:       2,
@@ -54,6 +56,7 @@ func TestFilterBranchMatch(t *testing.T) {
 				Branch:       "two",
 				TargetBranch: "master",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name2",
 			},
 			{
 				Number:       3,
@@ -61,6 +64,7 @@ func TestFilterBranchMatch(t *testing.T) {
 				Branch:       "three",
 				TargetBranch: "master",
 				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name3",
 			},
 			{
 				Number:       4,
@@ -68,6 +72,7 @@ func TestFilterBranchMatch(t *testing.T) {
 				Branch:       "four",
 				TargetBranch: "master",
 				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name4",
 			},
 		},
 		nil,
@@ -93,6 +98,7 @@ func TestFilterTargetBranchMatch(t *testing.T) {
 				Branch:       "one",
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name1",
 			},
 			{
 				Number:       2,
@@ -100,6 +106,7 @@ func TestFilterTargetBranchMatch(t *testing.T) {
 				Branch:       "two",
 				TargetBranch: "branch1",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name2",
 			},
 			{
 				Number:       3,
@@ -107,6 +114,7 @@ func TestFilterTargetBranchMatch(t *testing.T) {
 				Branch:       "three",
 				TargetBranch: "branch2",
 				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name3",
 			},
 			{
 				Number:       4,
@@ -114,6 +122,7 @@ func TestFilterTargetBranchMatch(t *testing.T) {
 				Branch:       "four",
 				TargetBranch: "branch3",
 				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name4",
 			},
 		},
 		nil,
@@ -139,6 +148,7 @@ func TestMultiFilterOr(t *testing.T) {
 				Branch:       "one",
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name1",
 			},
 			{
 				Number:       2,
@@ -146,6 +156,7 @@ func TestMultiFilterOr(t *testing.T) {
 				Branch:       "two",
 				TargetBranch: "master",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name2",
 			},
 			{
 				Number:       3,
@@ -153,6 +164,7 @@ func TestMultiFilterOr(t *testing.T) {
 				Branch:       "three",
 				TargetBranch: "master",
 				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name3",
 			},
 			{
 				Number:       4,
@@ -160,6 +172,7 @@ func TestMultiFilterOr(t *testing.T) {
 				Branch:       "four",
 				TargetBranch: "master",
 				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name4",
 			},
 		},
 		nil,
@@ -190,6 +203,7 @@ func TestMultiFilterOrWithTargetBranchFilter(t *testing.T) {
 				Branch:       "one",
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name1",
 			},
 			{
 				Number:       2,
@@ -197,6 +211,7 @@ func TestMultiFilterOrWithTargetBranchFilter(t *testing.T) {
 				Branch:       "two",
 				TargetBranch: "branch1",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name2",
 			},
 			{
 				Number:       3,
@@ -204,6 +219,7 @@ func TestMultiFilterOrWithTargetBranchFilter(t *testing.T) {
 				Branch:       "three",
 				TargetBranch: "branch2",
 				HeadSHA:      "389d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name3",
 			},
 			{
 				Number:       4,
@@ -211,6 +227,7 @@ func TestMultiFilterOrWithTargetBranchFilter(t *testing.T) {
 				Branch:       "four",
 				TargetBranch: "branch3",
 				HeadSHA:      "489d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name4",
 			},
 		},
 		nil,
@@ -242,6 +259,7 @@ func TestNoFilters(t *testing.T) {
 				Branch:       "one",
 				TargetBranch: "master",
 				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name1",
 			},
 			{
 				Number:       2,
@@ -249,6 +267,7 @@ func TestNoFilters(t *testing.T) {
 				Branch:       "two",
 				TargetBranch: "master",
 				HeadSHA:      "289d92cbf9ff857a39e6feccd32798ca700fb958",
+				Author:       "name2",
 			},
 		},
 		nil,

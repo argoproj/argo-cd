@@ -5,6 +5,14 @@ Argo CD allows operators to define custom actions which users can perform on spe
 
 Operators can add actions to custom resources in form of a Lua script and expand those capabilities.
 
+## Built-in Actions
+
+The following are actions that are built-in to Argo CD. Each action name links to its Lua script definition:
+
+{!docs/operator-manual/resource_actions_builtin.md!}
+
+See the [RBAC documentation](rbac.md#the-action-action) for information on how to control access to these actions.
+
 ## Custom Resource Actions
 
 Argo CD supports custom resource actions written in [Lua](https://www.lua.org/). This is useful if you:

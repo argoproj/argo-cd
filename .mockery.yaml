@@ -12,6 +12,12 @@ packages:
   github.com/argoproj/argo-cd/v2/applicationset/services:
     interfaces:
       Repos:
+  github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider:
+    config:
+      dir: "applicationset/services/scm_provider/aws_codecommit/mocks"
+    interfaces:
+      AWSCodeCommitClient:
+      AWSTaggingClient:
   github.com/microsoft/azure-devops-go-api/azuredevops/git:
     config:
       dir: "applicationset/services/scm_provider/azure_devops/git/mocks"
@@ -26,6 +32,17 @@ packages:
   github.com/argoproj/argo-cd/v2/reposerver/apiclient:
     interfaces:
       RepoServerServiceClient:
+      RepoServerService_GenerateManifestWithFilesClient:
+  github.com/argoproj/argo-cd/v2/server/application:
+    interfaces:
+      Broadcaster:
+  github.com/argoproj/argo-cd/v2/server/extension:
+    interfaces:
+      ApplicationGetter:
+      ExtensionMetricsRegistry:
+      ProjectGetter:
+      RbacEnforcer:
+      SettingsGetter:
   github.com/argoproj/argo-cd/v2/util/db:
     interfaces:
       ArgoDB:
@@ -35,6 +52,9 @@ packages:
   github.com/argoproj/argo-cd/v2/util/helm:
     interfaces:
       Client:
+  github.com/argoproj/argo-cd/v2/util/io:
+    interfaces:
+      TempPaths:
   github.com/argoproj/argo-cd/v2/util/notification/argocd:
     interfaces:
       Service:

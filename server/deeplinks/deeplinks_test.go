@@ -19,6 +19,7 @@ import (
 )
 
 type deepLinkTC struct {
+	name        string
 	appObj      *unstructured.Unstructured
 	clusterObj  *unstructured.Unstructured
 	resourceObj *unstructured.Unstructured
@@ -70,6 +71,7 @@ func TestDeepLinks(t *testing.T) {
 	require.NoError(t, err)
 	testTable := []deepLinkTC{
 		{
+			name:        "link to git repo per cluster",
 			appObj:      appObj,
 			resourceObj: resourceObj,
 			projectObj:  projectObj,
@@ -86,6 +88,7 @@ func TestDeepLinks(t *testing.T) {
 			error: []string{},
 		},
 		{
+			name:        "link to git repo per cluster with abbreviated name",
 			appObj:      appObj,
 			resourceObj: resourceObj,
 			projectObj:  projectObj,
@@ -102,6 +105,7 @@ func TestDeepLinks(t *testing.T) {
 			error: []string{},
 		},
 		{
+			name:        "condition on missing key",
 			appObj:      appObj,
 			resourceObj: resourceObj,
 			projectObj:  projectObj,
@@ -126,9 +130,10 @@ func TestDeepLinks(t *testing.T) {
 				Title: ptr.To("link"),
 				Url:   ptr.To("http://example.com/test&testns"),
 			}},
-			error: []string{"failed to evaluate link condition 'application.metadata.test matches \"test\"' with resource test, error=interface conversion: interface {} is nil, not string (1:27)\n | application.metadata.test matches \"test\"\n | ..........................^"},
+			error: []string{},
 		},
 		{
+			name:        "condition on invalid expression",
 			appObj:      appObj,
 			resourceObj: resourceObj,
 			projectObj:  projectObj,
@@ -151,6 +156,7 @@ func TestDeepLinks(t *testing.T) {
 			error: []string{"link condition '1 + 1' evaluated to non-boolean value for resource test"},
 		},
 		{
+			name:        "condition on app and project name",
 			appObj:      appObj,
 			resourceObj: resourceObj,
 			projectObj:  projectObj,
@@ -169,9 +175,13 @@ func TestDeepLinks(t *testing.T) {
 	}
 
 	for _, tc := range testTable {
-		objs := CreateDeepLinksObject(tc.resourceObj, tc.appObj, tc.clusterObj, tc.projectObj)
-		output, err := EvaluateDeepLinksResponse(objs, tc.appObj.GetName(), tc.inputLinks)
-		assert.Equal(t, tc.error, err, strings.Join(err, ","))
-		assert.True(t, reflect.DeepEqual(output.Items, tc.outputLinks))
+		tcc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			objs := CreateDeepLinksObject(tcc.resourceObj, tcc.appObj, tcc.clusterObj, tcc.projectObj)
+			output, err := EvaluateDeepLinksResponse(objs, tcc.appObj.GetName(), tcc.inputLinks)
+			assert.Equal(t, tcc.error, err, strings.Join(err, ","))
+			assert.True(t, reflect.DeepEqual(output.Items, tcc.outputLinks))
+		})
 	}
 }

@@ -2,6 +2,7 @@ package askpass
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"sync"
@@ -22,14 +23,16 @@ type Server interface {
 }
 
 type server struct {
-	lock  sync.Mutex
-	creds map[string]Creds
+	lock       sync.Mutex
+	creds      map[string]Creds
+	socketPath string
 }
 
 // NewServer returns a new server
-func NewServer() *server {
+func NewServer(socketPath string) *server {
 	return &server{
-		creds: make(map[string]Creds),
+		creds:      make(map[string]Creds),
+		socketPath: socketPath,
 	}
 }
 
@@ -58,8 +61,8 @@ func (s *server) Start(path string) (io.Closer, error) {
 	return io.NewCloser(listener.Close), nil
 }
 
-func (s *server) Run(path string) error {
-	_, err := s.Start(path)
+func (s *server) Run() error {
+	_, err := s.Start(s.socketPath)
 	return err
 }
 
@@ -87,4 +90,15 @@ func (s *server) getCreds(id string) (*Creds, bool) {
 	defer s.lock.Unlock()
 	creds, ok := s.creds[id]
 	return &creds, ok
+}
+
+// Environ returns the environment variables that should be set when invoking git.
+func (s *server) Environ(id string) []string {
+	return []string{
+		"GIT_ASKPASS=argocd",
+		fmt.Sprintf("%s=%s", ASKPASS_NONCE_ENV, id),
+		"GIT_TERMINAL_PROMPT=0",
+		"ARGOCD_BINARY_NAME=argocd-git-ask-pass",
+		fmt.Sprintf("%s=%s", AKSPASS_SOCKET_PATH_ENV, s.socketPath),
+	}
 }

@@ -12,6 +12,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	logutils "github.com/argoproj/argo-cd/v2/util/log"
 	"github.com/argoproj/argo-cd/v2/util/tls"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/controllers"
@@ -94,6 +95,8 @@ func NewCommand() *cobra.Command {
 
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
+
+			ctrl.SetLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()))
 
 			restConfig, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
