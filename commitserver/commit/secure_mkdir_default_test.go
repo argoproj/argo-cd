@@ -5,6 +5,8 @@ package commit
 import (
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,4 +22,48 @@ func TestSecureMkdirAllDefault(t *testing.T) {
 
 	expectedPath := path.Join(root, unsafePath)
 	assert.Equal(t, expectedPath, fullPath)
+}
+
+func TestSecureMkdirAllWithExistingDir(t *testing.T) {
+	root := t.TempDir()
+	unsafePath := "existing/dir"
+
+	fullPath, err := SecureMkdirAll(root, unsafePath, os.ModePerm)
+	require.NoError(t, err)
+
+	newPath, err := SecureMkdirAll(root, unsafePath, os.ModePerm)
+	require.NoError(t, err)
+	assert.Equal(t, fullPath, newPath)
+}
+
+func TestSecureMkdirAllWithFile(t *testing.T) {
+	root := t.TempDir()
+	unsafePath := "file.txt"
+
+	filePath := filepath.Join(root, unsafePath)
+	err := os.WriteFile(filePath, []byte("test"), os.ModePerm)
+	require.NoError(t, err)
+
+	_, err = SecureMkdirAll(root, unsafePath, os.ModePerm)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create directory")
+}
+
+func TestSecureMkdirAllDotDotPath(t *testing.T) {
+	root := t.TempDir()
+	unsafePath := "../outside"
+
+	fullPath, err := SecureMkdirAll(root, unsafePath, os.ModePerm)
+	require.NoError(t, err)
+
+	expectedPath := filepath.Join(root, "outside")
+	assert.Equal(t, expectedPath, fullPath)
+
+	info, err := os.Stat(fullPath)
+	require.NoError(t, err)
+	assert.True(t, info.IsDir())
+
+	relPath, err := filepath.Rel(root, fullPath)
+	require.NoError(t, err)
+	assert.False(t, strings.HasPrefix(relPath, ".."))
 }
