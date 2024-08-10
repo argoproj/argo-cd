@@ -206,8 +206,6 @@ func NewCommand() *cobra.Command {
 
 			go appController.Run(ctx, statusProcessors, operationProcessors, &wg)
 
-			// Wait forever
-			// select {}
 			wg.Wait()
 			log.Println("clean shutdown")
 
