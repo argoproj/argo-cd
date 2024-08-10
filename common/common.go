@@ -170,7 +170,7 @@ const (
 	LabelKeyAutoLabelClusterInfo = "argocd.argoproj.io/auto-label-cluster-info"
 	// LabelKeyLegacyApplicationName is the legacy label (v0.10 and below) and is superseded by 'app.kubernetes.io/instance'
 	LabelKeyLegacyApplicationName = "applications.argoproj.io/app-name"
-	// LabelKeySecretType contains the type of argocd secret (currently: 'cluster', 'repository', 'repo-config' or 'repo-creds')
+	// LabelKeySecretType contains the type of argocd secret (currently: 'cluster', 'repository', 'repo-config' or 'repo-creds' or 'repo-write-creds')
 	LabelKeySecretType = "argocd.argoproj.io/secret-type"
 	// LabelKeyClusterKubernetesVersion contains the kubernetes version of the cluster secret if it has been enabled
 	LabelKeyClusterKubernetesVersion = "argocd.argoproj.io/kubernetes-version"
@@ -180,6 +180,8 @@ const (
 	LabelValueSecretTypeRepository = "repository"
 	// LabelValueSecretTypeRepoCreds indicates a secret type of repository credentials
 	LabelValueSecretTypeRepoCreds = "repo-creds"
+	// LabelValueSecretTypeRepoWriteCreds indicates a secret type of repository write credentials
+	LabelValueSecretTypeRepoWriteCreds = "repo-write-creds"
 	// LabelValueSecretTypeRepositoryWrite indicates a secret type of repository credentials for writing
 	LabelValueSecretTypeRepositoryWrite = "repository-write"
 
