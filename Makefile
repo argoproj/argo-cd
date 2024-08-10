@@ -233,9 +233,12 @@ clientgen:
 clidocsgen:
 	go run tools/cmd-docs/main.go
 
+.PHONY: actionsdocsgen
+actionsdocsgen:
+	hack/generate-actions-list.sh
 
 .PHONY: codegen-local
-codegen-local: mod-vendor-local mockgen gogen protogen clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
+codegen-local: mod-vendor-local mockgen gogen protogen clientgen openapigen clidocsgen actionsdocsgen manifests-local notification-docs notification-catalog
 	rm -rf vendor/
 
 .PHONY: codegen-local-fast
