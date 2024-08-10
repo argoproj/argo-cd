@@ -209,6 +209,8 @@ func NewCommand() *cobra.Command {
 			// Wait forever
 			// select {}
 			wg.Wait()
+
+			return nil
 		},
 	}
 
