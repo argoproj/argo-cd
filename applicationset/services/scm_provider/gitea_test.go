@@ -100,17 +100,96 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 					"mirror_interval": "",
 					"mirror_updated": "0001-01-01T00:00:00Z",
 					"repo_transfer": null
-				}]`)
+				},
+				{
+					"id": 21619,
+					"owner": {
+						"id": 31480,
+						"login": "test-argocd",
+						"full_name": "",
+						"email": "",
+						"avatar_url": "https://gitea.com/avatars/22d1b1d3f61abf95951c4a958731d848",
+						"language": "",
+						"is_admin": false,
+						"last_login": "0001-01-01T00:00:00Z",
+						"created": "2022-04-06T02:28:06+08:00",
+						"restricted": false,
+						"active": false,
+						"prohibit_login": false,
+						"location": "",
+						"website": "",
+						"description": "",
+						"visibility": "public",
+						"followers_count": 0,
+						"following_count": 0,
+						"starred_repos_count": 0,
+						"username": "test-argocd"
+					},
+					"name": "another-repo",
+					"full_name": "test-argocd/another-repo",
+					"description": "",
+					"empty": false,
+					"private": false,
+					"fork": false,
+					"template": false,
+					"parent": null,
+					"mirror": false,
+					"size": 28,
+					"language": "",
+					"languages_url": "https://gitea.com/api/v1/repos/test-argocd/another-repo/languages",
+					"html_url": "https://gitea.com/test-argocd/another-repo",
+					"ssh_url": "git@gitea.com:test-argocd/another-repo.git",
+					"clone_url": "https://gitea.com/test-argocd/another-repo.git",
+					"original_url": "",
+					"website": "",
+					"stars_count": 0,
+					"forks_count": 0,
+					"watchers_count": 1,
+					"open_issues_count": 0,
+					"open_pr_counter": 1,
+					"release_counter": 0,
+					"default_branch": "main",
+					"archived": true,
+					"created_at": "2022-04-06T02:32:09+08:00",
+					"updated_at": "2022-04-06T02:33:12+08:00",
+					"permissions": {
+						"admin": false,
+						"push": false,
+						"pull": true
+					},
+					"has_issues": true,
+					"internal_tracker": {
+						"enable_time_tracker": true,
+						"allow_only_contributors_to_track_time": true,
+						"enable_issue_dependencies": true
+					},
+					"has_wiki": true,
+					"has_pull_requests": true,
+					"has_projects": true,
+					"ignore_whitespace_conflicts": false,
+					"allow_merge_commits": true,
+					"allow_rebase": true,
+					"allow_rebase_explicit": true,
+					"allow_squash_merge": true,
+					"default_merge_style": "merge",
+					"avatar_url": "",
+					"internal": false,
+					"mirror_interval": "",
+					"mirror_updated": "0001-01-01T00:00:00Z",
+					"repo_transfer": null
+				}
+					
+				]`)
 			if err != nil {
 				t.Fail()
 			}
-		case "/api/v1/repos/test-argocd/pr-test/branches/main":
+		case "/api/v1/repos/test-argocd/another-repo/branches/main":
 			_, err := io.WriteString(w, `{
 				"name": "main",
 				"commit": {
-					"id": "72687815ccba81ef014a96201cc2e846a68789d8",
+					"id": "1fa33898cf84e89836863e3a5e76eee45777b4b0",
 					"message": "initial commit\n",
-					"url": "https://gitea.com/test-argocd/pr-test/commit/72687815ccba81ef014a96201cc2e846a68789d8",
+					"url": "https://gitea.com/test-argocd/pr-test/commit/1fa33898cf84e89836863e3a5e76eee45777b4b0",
 					"author": {
 						"name": "Dan Molik",
 						"email": "dan@danmolik.com",
@@ -144,13 +223,13 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
-		case "/api/v1/repos/test-argocd/pr-test/branches?limit=0&page=1":
-			_, err := io.WriteString(w, `[{
-				"name": "main",
+		case "/api/v1/repos/test-argocd/pr-test/branches/test":
+			_, err := io.WriteString(w, `{
+				"name": "test",
 				"commit": {
-					"id": "72687815ccba81ef014a96201cc2e846a68789d8",
+					"id": "28c3b329933f6fefd9b55225535123bbffec5a46",
 					"message": "initial commit\n",
-					"url": "https://gitea.com/test-argocd/pr-test/commit/72687815ccba81ef014a96201cc2e846a68789d8",
+					"url": "https://gitea.com/test-argocd/pr-test/commit/28c3b329933f6fefd9b55225535123bbffec5a46",
 					"author": {
 						"name": "Dan Molik",
 						"email": "dan@danmolik.com",
@@ -180,12 +259,209 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 				"user_can_push": false,
 				"user_can_merge": false,
 				"effective_branch_protection_name": ""
-			}, {
+			}`)
+			if err != nil {
+				t.Fail()
+			}
+		case "/api/v1/repos/test-argocd/another-repo/branches/test":
+			_, err := io.WriteString(w, `{
 				"name": "test",
 				"commit": {
-					"id": "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f",
+					"id": "32cdcf613b259a9439ceabd4d1745d43f163ea70",
+					"message": "initial commit\n",
+					"url": "https://gitea.com/test-argocd/another-repo/commit/32cdcf613b259a9439ceabd4d1745d43f163ea70",
+					"author": {
+						"name": "Dan Molik",
+						"email": "dan@danmolik.com",
+						"username": "graytshirt"
+					},
+					"committer": {
+						"name": "Dan Molik",
+						"email": "dan@danmolik.com",
+						"username": "graytshirt"
+					},
+					"verification": {
+						"verified": false,
+						"reason": "gpg.error.no_gpg_keys_found",
+						"signature": "-----BEGIN PGP SIGNATURE-----\n\niQEzBAABCAAdFiEEXYAkwEBRpXzXgHFWlgCr7m50zBMFAmJMiqUACgkQlgCr7m50\nzBPSmQgAiVVEIxC42tuks4iGFNURrtYvypZAEIc+hJgt2kBpmdCrAphYPeAj+Wtr\n9KT7dDscCZIba2wx39HEXO2S7wNCXESvAzrA8rdfbXjR4L2miZ1urfBkEoqK5i/F\noblWGuAyjurX4KPa2ARROd0H4AXxt6gNAXaFPgZO+xXCyNKZfad/lkEP1AiPRknD\nvTTMbEkIzFHK9iVwZ9DORGpfF1wnLzxWmMfhYatZnBgFNnoeJNtFhCJo05rHBgqc\nqVZWXt1iF7nysBoXSzyx1ZAsmBr/Qerkuj0nonh0aPVa6NKJsdmeJyPX4zXXoi6E\ne/jpxX2UQJkpFezg3IjUpvE5FvIiYg==\n=3Af2\n-----END PGP SIGNATURE-----\n",
+						"signer": null,
+						"payload": "tree 64d47c7fc6e31dcf00654223ec4ab749dd0a464e\nauthor Dan Molik \u003cdan@danmolik.com\u003e 1649183391 -0400\ncommitter Dan Molik \u003cdan@danmolik.com\u003e 1649183391 -0400\n\ninitial commit\n"
+					},
+					"timestamp": "2022-04-05T14:29:51-04:00",
+					"added": null,
+					"removed": null,
+					"modified": null
+				},
+				"protected": false,
+				"required_approvals": 0,
+				"enable_status_check": false,
+				"status_check_contexts": [],
+				"user_can_push": false,
+				"user_can_merge": false,
+				"effective_branch_protection_name": ""
+			}`)
+			if err != nil {
+				t.Fail()
+			}
+		case "/api/v1/repos/test-argocd/pr-test/branches/main":
+			_, err := io.WriteString(w, `{
+				"name": "main",
+				"commit": {
+					"id": "75f6fceff80f6aaf12b65a2cf6a89190b866625b",
+					"message": "initial commit\n",
+					"url": "https://gitea.com/test-argocd/pr-test/commit/75f6fceff80f6aaf12b65a2cf6a89190b866625b",
+					"author": {
+						"name": "Dan Molik",
+						"email": "dan@danmolik.com",
+						"username": "graytshirt"
+					},
+					"committer": {
+						"name": "Dan Molik",
+						"email": "dan@danmolik.com",
+						"username": "graytshirt"
+					},
+					"verification": {
+						"verified": false,
+						"reason": "gpg.error.no_gpg_keys_found",
+						"signature": "-----BEGIN PGP SIGNATURE-----\n\niQEzBAABCAAdFiEEXYAkwEBRpXzXgHFWlgCr7m50zBMFAmJMiqUACgkQlgCr7m50\nzBPSmQgAiVVEIxC42tuks4iGFNURrtYvypZAEIc+hJgt2kBpmdCrAphYPeAj+Wtr\n9KT7dDscCZIba2wx39HEXO2S7wNCXESvAzrA8rdfbXjR4L2miZ1urfBkEoqK5i/F\noblWGuAyjurX4KPa2ARROd0H4AXxt6gNAXaFPgZO+xXCyNKZfad/lkEP1AiPRknD\nvTTMbEkIzFHK9iVwZ9DORGpfF1wnLzxWmMfhYatZnBgFNnoeJNtFhCJo05rHBgqc\nqVZWXt1iF7nysBoXSzyx1ZAsmBr/Qerkuj0nonh0aPVa6NKJsdmeJyPX4zXXoi6E\ne/jpxX2UQJkpFezg3IjUpvE5FvIiYg==\n=3Af2\n-----END PGP SIGNATURE-----\n",
+						"signer": null,
+						"payload": "tree 64d47c7fc6e31dcf00654223ec4ab749dd0a464e\nauthor Dan Molik \u003cdan@danmolik.com\u003e 1649183391 -0400\ncommitter Dan Molik \u003cdan@danmolik.com\u003e 1649183391 -0400\n\ninitial commit\n"
+					},
+					"timestamp": "2022-04-05T14:29:51-04:00",
+					"added": null,
+					"removed": null,
+					"modified": null
+				},
+				"protected": false,
+				"required_approvals": 0,
+				"enable_status_check": false,
+				"status_check_contexts": [],
+				"user_can_push": false,
+				"user_can_merge": false,
+				"effective_branch_protection_name": ""
+			}`)
+			if err != nil {
+				t.Fail()
+			}
+		case "/api/v1/repos/test-argocd/another-repo/branches?limit=0&page=1":
+			_, err := io.WriteString(w, `[{
+				"name": "main",
+				"commit": {
+					"id": "1fa33898cf84e89836863e3a5e76eee45777b4b0",
+					"message": "initial commit\n",
+					"url": "https://gitea.com/test-argocd/pr-test/commit/1fa33898cf84e89836863e3a5e76eee45777b4b0",
+					"author": {
+						"name": "Dan Molik",
+						"email": "dan@danmolik.com",
+						"username": "graytshirt"
+					},
+					"committer": {
+						"name": "Dan Molik",
+						"email": "dan@danmolik.com",
+						"username": "graytshirt"
+					},
+					"verification": {
+						"verified": false,
+						"reason": "gpg.error.no_gpg_keys_found",
+						"signature": "-----BEGIN PGP SIGNATURE-----\n\niQEzBAABCAAdFiEEXYAkwEBRpXzXgHFWlgCr7m50zBMFAmJMiqUACgkQlgCr7m50\nzBPSmQgAiVVEIxC42tuks4iGFNURrtYvypZAEIc+hJgt2kBpmdCrAphYPeAj+Wtr\n9KT7dDscCZIba2wx39HEXO2S7wNCXESvAzrA8rdfbXjR4L2miZ1urfBkEoqK5i/F\noblWGuAyjurX4KPa2ARROd0H4AXxt6gNAXaFPgZO+xXCyNKZfad/lkEP1AiPRknD\nvTTMbEkIzFHK9iVwZ9DORGpfF1wnLzxWmMfhYatZnBgFNnoeJNtFhCJo05rHBgqc\nqVZWXt1iF7nysBoXSzyx1ZAsmBr/Qerkuj0nonh0aPVa6NKJsdmeJyPX4zXXoi6E\ne/jpxX2UQJkpFezg3IjUpvE5FvIiYg==\n=3Af2\n-----END PGP SIGNATURE-----\n",
+						"signer": null,
+						"payload": "tree 64d47c7fc6e31dcf00654223ec4ab749dd0a464e\nauthor Dan Molik \u003cdan@danmolik.com\u003e 1649183391 -0400\ncommitter Dan Molik \u003cdan@danmolik.com\u003e 1649183391 -0400\n\ninitial commit\n"
+					},
+					"timestamp": "2022-04-05T14:29:51-04:00",
+					"added": null,
+					"removed": null,
+					"modified": null
+				},
+				"protected": false,
+				"required_approvals": 0,
+				"enable_status_check": false,
+				"status_check_contexts": [],
+				"user_can_push": false,
+				"user_can_merge": false,
+				"effective_branch_protection_name": ""
+			}, 
+			{
+				"name": "test",
+				"commit": {
+					"id": "32cdcf613b259a9439ceabd4d1745d43f163ea70",
 					"message": "add an empty file\n",
-					"url": "https://gitea.com/test-argocd/pr-test/commit/7bbaf62d92ddfafd9cc8b340c619abaec32bc09f",
+					"url": "https://gitea.com/test-argocd/pr-test/commit/32cdcf613b259a9439ceabd4d1745d43f163ea70",
+					"author": {
+						"name": "Dan Molik",
+						"email": "dan@danmolik.com",
+						"username": "graytshirt"
+					},
+					"committer": {
+						"name": "Dan Molik",
+						"email": "dan@danmolik.com",
+						"username": "graytshirt"
+					},
+					"verification": {
+						"verified": false,
+						"reason": "gpg.error.no_gpg_keys_found",
+						"signature": "-----BEGIN PGP SIGNATURE-----\n\niQEzBAABCAAdFiEEXYAkwEBRpXzXgHFWlgCr7m50zBMFAmJMiugACgkQlgCr7m50\nzBN+7wgAkCHD3KfX3Ffkqv2qPwqgHNYM1bA6Hmffzhv0YeD9jWCI3tp0JulP4iFZ\ncQ7jqx9xP9tCQMSFCaijLRHaE6Js1xrVtf0OKRkbpdlvkyrIM3sQhqyQgAsISrDG\nLzSqeoQQjglzeWESYh2Tjn1CgqQNKjI6LLepSwvF1pIeV4pJpJobaEbIfTgStdzM\nWEk8o0I+EZaYqK0C0vU9N0LK/LR/jnlaHsb4OUjvk+S7lRjZwBkrsg7P/QsqtCVd\nw5nkxDiCx1J58zKMnQ7ZinJEK9A5WYdnMYc6aBn7ARgZrblXPPBkkKUhEv3ZSPeW\nKv9i4GQy838xkVSTFkHNj1+a5o6zEA==\n=JiFw\n-----END PGP SIGNATURE-----\n",
+						"signer": null,
+						"payload": "tree cdddf3e1d6a8a7e6899a044d0e1bc73bf798e2f5\nparent 72687815ccba81ef014a96201cc2e846a68789d8\nauthor Dan Molik \u003cdan@danmolik.com\u003e 1649183458 -0400\ncommitter Dan Molik \u003cdan@danmolik.com\u003e 1649183458 -0400\n\nadd an empty file\n"
+					},
+					"timestamp": "2022-04-05T14:30:58-04:00",
+					"added": null,
+					"removed": null,
+					"modified": null
+				},
+				"protected": false,
+				"required_approvals": 0,
+				"enable_status_check": false,
+				"status_check_contexts": [],
+				"user_can_push": false,
+				"user_can_merge": false,
+				"effective_branch_protection_name": ""
+			}]`)
+			if err != nil {
+				t.Fail()
+			}
+		case "/api/v1/repos/test-argocd/pr-test/branches?limit=0&page=1":
+			_, err := io.WriteString(w, `[{
+				"name": "main",
+				"commit": {
+					"id": "75f6fceff80f6aaf12b65a2cf6a89190b866625b",
+					"message": "initial commit\n",
+					"url": "https://gitea.com/test-argocd/pr-test/commit/75f6fceff80f6aaf12b65a2cf6a89190b866625b",
+					"author": {
+						"name": "Dan Molik",
+						"email": "dan@danmolik.com",
+						"username": "graytshirt"
+					},
+					"committer": {
+						"name": "Dan Molik",
+						"email": "dan@danmolik.com",
+						"username": "graytshirt"
+					},
+					"verification": {
+						"verified": false,
+						"reason": "gpg.error.no_gpg_keys_found",
+						"signature": "-----BEGIN PGP SIGNATURE-----\n\niQEzBAABCAAdFiEEXYAkwEBRpXzXgHFWlgCr7m50zBMFAmJMiqUACgkQlgCr7m50\nzBPSmQgAiVVEIxC42tuks4iGFNURrtYvypZAEIc+hJgt2kBpmdCrAphYPeAj+Wtr\n9KT7dDscCZIba2wx39HEXO2S7wNCXESvAzrA8rdfbXjR4L2miZ1urfBkEoqK5i/F\noblWGuAyjurX4KPa2ARROd0H4AXxt6gNAXaFPgZO+xXCyNKZfad/lkEP1AiPRknD\nvTTMbEkIzFHK9iVwZ9DORGpfF1wnLzxWmMfhYatZnBgFNnoeJNtFhCJo05rHBgqc\nqVZWXt1iF7nysBoXSzyx1ZAsmBr/Qerkuj0nonh0aPVa6NKJsdmeJyPX4zXXoi6E\ne/jpxX2UQJkpFezg3IjUpvE5FvIiYg==\n=3Af2\n-----END PGP SIGNATURE-----\n",
+						"signer": null,
+						"payload": "tree 64d47c7fc6e31dcf00654223ec4ab749dd0a464e\nauthor Dan Molik \u003cdan@danmolik.com\u003e 1649183391 -0400\ncommitter Dan Molik \u003cdan@danmolik.com\u003e 1649183391 -0400\n\ninitial commit\n"
+					},
+					"timestamp": "2022-04-05T14:29:51-04:00",
+					"added": null,
+					"removed": null,
+					"modified": null
+				},
+				"protected": false,
+				"required_approvals": 0,
+				"enable_status_check": false,
+				"status_check_contexts": [],
+				"user_can_push": false,
+				"user_can_merge": false,
+				"effective_branch_protection_name": ""
+			},
+			{
+				"name": "test",
+				"commit": {
+					"id": "28c3b329933f6fefd9b55225535123bbffec5a46",
+					"message": "add an empty file\n",
+					"url": "https://gitea.com/test-argocd/pr-test/commit/28c3b329933f6fefd9b55225535123bbffec5a46",
 					"author": {
 						"name": "Dan Molik",
 						"email": "dan@danmolik.com",
@@ -261,40 +537,308 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 
 func TestGiteaListRepos(t *testing.T) {
 	cases := []struct {
-		name, proto, url                        string
+		name, proto                             string
 		hasError, allBranches, includeSubgroups bool
 		branches                                []string
+		expectedRepos                           []*Repository
 		filters                                 []v1alpha1.SCMProviderGeneratorFilter
 	}{
 		{
 			name:        "blank protocol",
 			allBranches: false,
-			url:         "git@gitea.com:test-argocd/pr-test.git",
 			branches:    []string{"main"},
+			expectedRepos: []*Repository{
+				{
+					Organization: "test-argocd",
+					Repository:   "pr-test",
+					Branch:       "main",
+					URL:          "git@gitea.com:test-argocd/pr-test.git",
+					Archived:     false,
+					SHA:          "75f6fceff80f6aaf12b65a2cf6a89190b866625b",
+					RepositoryId: 21618,
+					Labels:       []string{},
+				},
+				{
+					Organization: "test-argocd",
+					Repository:   "another-repo",
+					Branch:       "main",
+					URL:          "git@gitea.com:test-argocd/another-repo.git",
+					Archived:     true,
+					SHA:          "1fa33898cf84e89836863e3a5e76eee45777b4b0",
+					RepositoryId: 21619,
+					Labels:       []string{},
+				},
+			},
+			filters: []v1alpha1.SCMProviderGeneratorFilter{
+				{
+					IncludeArchivedRepos: true,
+				},
+			},
 		},
 		{
 			name:        "ssh protocol",
 			allBranches: false,
 			proto:       "ssh",
-			url:         "git@gitea.com:test-argocd/pr-test.git",
+			expectedRepos: []*Repository{
+				{
+					Organization: "test-argocd",
+					Repository:   "pr-test",
+					Branch:       "main",
+					URL:          "git@gitea.com:test-argocd/pr-test.git",
+					Archived:     false,
+					SHA:          "75f6fceff80f6aaf12b65a2cf6a89190b866625b",
+					RepositoryId: 21618,
+					Labels:       []string{},
+				},
+				{
+					Organization: "test-argocd",
+					Repository:   "another-repo",
+					Branch:       "main",
+					URL:          "git@gitea.com:test-argocd/another-repo.git",
+					Archived:     true,
+					SHA:          "1fa33898cf84e89836863e3a5e76eee45777b4b0",
+					RepositoryId: 21619,
+					Labels:       []string{},
+				},
+			},
+			filters: []v1alpha1.SCMProviderGeneratorFilter{
+				{
+					IncludeArchivedRepos: true,
+				},
+			},
 		},
 		{
 			name:        "https protocol",
 			allBranches: false,
 			proto:       "https",
-			url:         "https://gitea.com/test-argocd/pr-test",
+			expectedRepos: []*Repository{
+				{
+					Organization: "test-argocd",
+					Repository:   "pr-test",
+					Branch:       "main",
+					URL:          "https://gitea.com/test-argocd/pr-test",
+					Archived:     false,
+					SHA:          "75f6fceff80f6aaf12b65a2cf6a89190b866625b",
+					RepositoryId: 21618,
+					Labels:       []string{},
+				},
+				{
+					Organization: "test-argocd",
+					Repository:   "another-repo",
+					Branch:       "main",
+					URL:          "https://gitea.com/test-argocd/another-repo",
+					Archived:     true,
+					SHA:          "1fa33898cf84e89836863e3a5e76eee45777b4b0",
+					RepositoryId: 21619,
+					Labels:       []string{},
+				},
+			},
+
+			filters: []v1alpha1.SCMProviderGeneratorFilter{
+				{
+					IncludeArchivedRepos: true,
+				},
+			},
 		},
 		{
-			name:        "other protocol",
-			allBranches: false,
-			proto:       "other",
-			hasError:    true,
+			name:          "other protocol",
+			allBranches:   false,
+			proto:         "other",
+			hasError:      true,
+			expectedRepos: []*Repository{},
+			filters: []v1alpha1.SCMProviderGeneratorFilter{
+				{
+					IncludeArchivedRepos: true,
+				},
+			},
+		},
+		{
+			name:        "all branches including archived repos",
+			allBranches: true,
+			expectedRepos: []*Repository{
+				{
+					Organization: "test-argocd",
+					Repository:   "pr-test",
+					Branch:       "main",
+					URL:          "git@gitea.com:test-argocd/pr-test.git",
+					Archived:     false,
+					SHA:          "75f6fceff80f6aaf12b65a2cf6a89190b866625b",
+					Labels:       []string{},
+					RepositoryId: 21618,
+				},
+				{
+					Organization: "test-argocd",
+					Repository:   "another-repo",
+					Branch:       "main",
+					URL:          "git@gitea.com:test-argocd/another-repo.git",
+					Archived:     true,
+					SHA:          "1fa33898cf84e89836863e3a5e76eee45777b4b0",
+					Labels:       []string{},
+					RepositoryId: 21619,
+				},
+				{
+					Organization: "test-argocd",
+					Repository:   "pr-test",
+					Branch:       "test",
+					URL:          "git@gitea.com:test-argocd/pr-test.git",
+					Archived:     false,
+					SHA:          "28c3b329933f6fefd9b55225535123bbffec5a46",
+					Labels:       []string{},
+					RepositoryId: 21618,
+				},
+				{
+					Organization: "test-argocd",
+					Repository:   "another-repo",
+					Branch:       "test",
+					URL:          "git@gitea.com:test-argocd/another-repo.git",
+					Archived:     true,
+					SHA:          "32cdcf613b259a9439ceabd4d1745d43f163ea70",
+					Labels:       []string{},
+					RepositoryId: 21619,
+				},
+			},
+			filters: []v1alpha1.SCMProviderGeneratorFilter{
+				{
+					IncludeArchivedRepos: true,
+				},
+			},
 		},
 		{
 			name:        "all branches",
 			allBranches: true,
-			url:         "git@gitea.com:test-argocd/pr-test.git",
+			expectedRepos: []*Repository{
+				{
+					Organization: "test-argocd",
+					Repository:   "pr-test",
+					Branch:       "main",
+					URL:          "git@gitea.com:test-argocd/pr-test.git",
+					Archived:     false,
+					SHA:          "75f6fceff80f6aaf12b65a2cf6a89190b866625b",
+					Labels:       []string{},
+					RepositoryId: 21618,
+				},
+				{
+					Organization: "test-argocd",
+					Repository:   "another-repo",
+					Branch:       "main",
+					URL:          "git@gitea.com:test-argocd/another-repo.git",
+					Archived:     true,
+					SHA:          "1fa33898cf84e89836863e3a5e76eee45777b4b0",
+					Labels:       []string{},
+					RepositoryId: 21619,
+				},
+				{
+					Organization: "test-argocd",
+					Repository:   "pr-test",
+					Branch:       "test",
+					URL:          "git@gitea.com:test-argocd/pr-test.git",
+					Archived:     false,
+					SHA:          "28c3b329933f6fefd9b55225535123bbffec5a46",
+					Labels:       []string{},
+					RepositoryId: 21618,
+				},
+				{
+					Organization: "test-argocd",
+					Repository:   "another-repo",
+					Branch:       "test",
+					URL:          "git@gitea.com:test-argocd/another-repo.git",
+					Archived:     true,
+					SHA:          "32cdcf613b259a9439ceabd4d1745d43f163ea70",
+					Labels:       []string{},
+					RepositoryId: 21619,
+				},
+			},
+
+			filters: []v1alpha1.SCMProviderGeneratorFilter{
+				{
+					IncludeArchivedRepos: true,
+				},
+			},
+		},
+		{
+			name:        "all branches",
+			allBranches: true,
 			branches:    []string{"main"},
+			expectedRepos: []*Repository{
+				{
+					Organization: "test-argocd",
+					Repository:   "pr-test",
+					Branch:       "main",
+					URL:          "git@gitea.com:test-argocd/pr-test.git",
+					Archived:     false,
+					SHA:          "75f6fceff80f6aaf12b65a2cf6a89190b866625b",
+					Labels:       []string{},
+					RepositoryId: 21618,
+				},
+				{
+					Organization: "test-argocd",
+					Repository:   "another-repo",
+					Branch:       "main",
+					URL:          "git@gitea.com:test-argocd/another-repo.git",
+					Archived:     true,
+					SHA:          "1fa33898cf84e89836863e3a5e76eee45777b4b0",
+					Labels:       []string{},
+					RepositoryId: 21619,
+				},
+				{
+					Organization: "test-argocd",
+					Repository:   "pr-test",
+					Branch:       "test",
+					URL:          "git@gitea.com:test-argocd/pr-test.git",
+					Archived:     false,
+					SHA:          "28c3b329933f6fefd9b55225535123bbffec5a46",
+					Labels:       []string{},
+					RepositoryId: 21618,
+				},
+				{
+					Organization: "test-argocd",
+					Repository:   "another-repo",
+					Branch:       "test",
+					URL:          "git@gitea.com:test-argocd/another-repo.git",
+					Archived:     true,
+					SHA:          "32cdcf613b259a9439ceabd4d1745d43f163ea70",
+					Labels:       []string{},
+					RepositoryId: 21619,
+				},
+			},
+			filters: []v1alpha1.SCMProviderGeneratorFilter{
+				{
+					IncludeArchivedRepos: true,
+				},
+			},
+		},
+		{
+			name:        "all branches with no archived repos",
+			allBranches: true,
+			branches:    []string{"main"},
+			expectedRepos: []*Repository{
+				{
+					Organization: "test-argocd",
+					Repository:   "pr-test",
+					Branch:       "main",
+					URL:          "git@gitea.com:test-argocd/pr-test.git",
+					Archived:     false,
+					SHA:          "75f6fceff80f6aaf12b65a2cf6a89190b866625b",
+					Labels:       []string{},
+					RepositoryId: 21618,
+				},
+				{
+					Organization: "test-argocd",
+					Repository:   "pr-test",
+					Branch:       "test",
+					URL:          "git@gitea.com:test-argocd/pr-test.git",
+					Archived:     false,
+					SHA:          "28c3b329933f6fefd9b55225535123bbffec5a46",
+					Labels:       []string{},
+					RepositoryId: 21618,
+				},
+			},
+
+			filters: []v1alpha1.SCMProviderGeneratorFilter{
+				{
+					IncludeArchivedRepos: false,
+				},
+			},
 		},
 	}
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -305,24 +849,17 @@ func TestGiteaListRepos(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			provider, _ := NewGiteaProvider(context.Background(), "test-argocd", "", ts.URL, c.allBranches, false)
 			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
+
 			if c.hasError {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				// Just check that this one project shows up. Not a great test but better thing nothing?
 				repos := []*Repository{}
-				branches := []string{}
-				for _, r := range rawRepos {
-					if r.Repository == "pr-test" {
-						repos = append(repos, r)
-						branches = append(branches, r.Branch)
-					}
-				}
+
+				repos = append(rawRepos, repos...)
 				assert.NotEmpty(t, repos)
-				assert.Equal(t, c.url, repos[0].URL)
-				for _, b := range c.branches {
-					assert.Contains(t, branches, b)
-				}
+				assert.Len(t, repos, len(c.expectedRepos))
+				assert.ElementsMatch(t, c.expectedRepos, repos)
 			}
 		})
 	}
