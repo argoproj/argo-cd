@@ -828,12 +828,14 @@ func (ctrl *ApplicationController) hideSecretData(app *appv1.Application, compar
 }
 
 // Run starts the Application CRD controller.
-func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int, operationProcessors int) {
+func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int, operationProcessors int, wg *sync.WaitGroup) {
+	wg.Add(1)
 	defer runtime.HandleCrash()
 	defer ctrl.appRefreshQueue.ShutDown()
 	defer ctrl.appComparisonTypeRefreshQueue.ShutDown()
 	defer ctrl.appOperationQueue.ShutDown()
 	defer ctrl.projectRefreshQueue.ShutDown()
+	defer wg.Done()
 
 	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache)
 	ctrl.RegisterClusterSecretUpdater(ctx)

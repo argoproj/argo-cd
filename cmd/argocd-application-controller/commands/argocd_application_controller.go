@@ -204,10 +204,11 @@ func NewCommand() *cobra.Command {
 				wg.Done()
 			}()
 
-			go appController.Run(ctx, statusProcessors, operationProcessors)
+			go appController.Run(ctx, statusProcessors, operationProcessors, &wg)
 
 			// Wait forever
-			select {}
+			// select {}
+			wg.Wait()
 		},
 	}
 
