@@ -5,6 +5,7 @@ package commit
 import (
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,4 +33,17 @@ func TestSecureMkdirAllWithExistingDir(t *testing.T) {
 	newPath, err := SecureMkdirAll(root, unsafePath, os.ModePerm)
 	require.NoError(t, err)
 	assert.Equal(t, fullPath, newPath)
+}
+
+func TestSecureMkdirAllWithFile(t *testing.T) {
+	root := t.TempDir()
+	unsafePath := "file.txt"
+
+	filePath := filepath.Join(root, unsafePath)
+	err := os.WriteFile(filePath, []byte("test"), os.ModePerm)
+	require.NoError(t, err)
+
+	_, err = SecureMkdirAll(root, unsafePath, os.ModePerm)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to create directory")
 }
