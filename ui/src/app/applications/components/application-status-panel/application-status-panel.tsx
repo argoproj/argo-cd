@@ -48,7 +48,6 @@ const sectionHeader = (info: SectionInfo, onClick?: () => any) => {
 
 export const ApplicationStatusPanel = ({application, showDiff, showOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
     const today = new Date();
-
     let daysSinceLastSynchronized = 0;
     const history = application.status.history || [];
     if (history.length > 0) {

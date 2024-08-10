@@ -4,28 +4,32 @@ import * as minimatch from 'minimatch';
 import {Application, ApplicationTree, State} from '../models';
 
 const extensions = {
-    resourceExtentions: new Array<ResourceTabExtension>(),
+    resourceExtensions: new Array<ResourceTabExtension>(),
     systemLevelExtensions: new Array<SystemLevelExtension>(),
     appViewExtensions: new Array<AppViewExtension>(),
-    statusPanelExtensions: new Array<StatusPanelExtension>()
+    statusPanelExtensions: new Array<StatusPanelExtension>(),
+    AppActionMenuExtensions: new Array<AppActionMenuExtension>()
 };
 
 function registerResourceExtension(component: ExtensionComponent, group: string, kind: string, tabTitle: string, opts?: {icon: string}) {
-    extensions.resourceExtentions.push({component, group, kind, title: tabTitle, icon: opts?.icon});
+    extensions.resourceExtensions.push({component, group, kind, title: tabTitle, icon: opts?.icon});
 }
 
-function registerSystemLevelExtension(component: ExtensionComponent, title: string, path: string, icon: string) {
+function registerSystemLevelExtension(component: SystemExtensionComponent, title: string, path: string, icon: string) {
     extensions.systemLevelExtensions.push({component, title, icon, path});
 }
 
-function registerAppViewExtension(component: ExtensionComponent, title: string, icon: string) {
+function registerAppViewExtension(component: AppViewExtensionComponent, title: string, icon: string) {
     extensions.appViewExtensions.push({component, title, icon});
 }
 
-function registerStatusPanelExtension(component: StatusPanelExtensionComponent, title: string, id: string, flyout?: ExtensionComponent) {
+function registerStatusPanelExtension(component: StatusPanelExtensionComponent, title: string, id: string, flyout?: StatusPanelExtensionFlyoutComponent) {
     extensions.statusPanelExtensions.push({component, flyout, title, id});
 }
 
+function registerAppActionMenuPanelExtension(component: StatusPanelExtensionComponent, title: string, id: string, flyout?: AppActionMenuExtensionExtensionFlyoutComponent) {
+    extensions.AppActionMenuExtensions.push({component, flyout, title, id});
+}
 let legacyInitialized = false;
 
 function initLegacyExtensions() {
@@ -68,11 +72,21 @@ export interface StatusPanelExtension {
     id: string;
 }
 
+export interface AppActionMenuExtension {
+    component: AppActionMenuExtensionComponent;
+    flyout: AppActionMenuExtensionExtensionFlyoutComponent;
+    title: string;
+    id: string;
+}
+
 export type ExtensionComponent = React.ComponentType<ExtensionComponentProps>;
 export type SystemExtensionComponent = React.ComponentType;
 export type AppViewExtensionComponent = React.ComponentType<AppViewComponentProps>;
 export type StatusPanelExtensionComponent = React.ComponentType<StatusPanelComponentProps>;
 export type StatusPanelExtensionFlyoutComponent = React.ComponentType<StatusPanelFlyoutProps>;
+export type AppActionMenuExtensionComponent = React.ComponentType<AppActionMenuComponentProps>;
+export type AppActionMenuExtensionExtensionFlyoutComponent = React.ComponentType<AppActionMenuFlyoutProps>;
+
 
 export interface Extension {
     component: ExtensionComponent;
@@ -91,10 +105,18 @@ export interface AppViewComponentProps {
 
 export interface StatusPanelComponentProps {
     application: Application;
-    openFlyout: () => any;
 }
 
 export interface StatusPanelFlyoutProps {
+    application: Application;
+    openFlyout?: () => any;}
+
+export interface AppActionMenuComponentProps {
+    application?: Application;
+    openFlyout?: () => any;
+}
+
+export interface AppActionMenuFlyoutProps {
     application: Application;
     tree: ApplicationTree;
 }
@@ -102,7 +124,7 @@ export interface StatusPanelFlyoutProps {
 export class ExtensionsService {
     public getResourceTabs(group: string, kind: string): ResourceTabExtension[] {
         initLegacyExtensions();
-        const items = extensions.resourceExtentions.filter(extension => minimatch(group, extension.group) && minimatch(kind, extension.kind)).slice();
+        const items = extensions.resourceExtensions.filter(extension => minimatch(group, extension.group) && minimatch(kind, extension.kind)).slice();
         return items.sort((a, b) => a.title.localeCompare(b.title));
     }
 
@@ -117,6 +139,10 @@ export class ExtensionsService {
     public getStatusPanelExtensions(): StatusPanelExtension[] {
         return extensions.statusPanelExtensions.slice();
     }
+
+    public getAppActionMenuExtensions(): AppActionMenuExtension[] {
+        return extensions.AppActionMenuExtensions.slice();
+    }
 }
 
 ((window: any) => {
@@ -126,6 +152,7 @@ export class ExtensionsService {
         registerResourceExtension,
         registerSystemLevelExtension,
         registerAppViewExtension,
-        registerStatusPanelExtension
+        registerStatusPanelExtension,
+        registerAppActionMenuPanelExtension,
     };
 })(window);

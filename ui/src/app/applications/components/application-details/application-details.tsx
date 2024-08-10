@@ -30,7 +30,11 @@ import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './application-details.scss';
-import {AppViewExtension, StatusPanelExtension} from '../../../shared/services/extensions-service';
+import {
+    AppActionMenuExtension,
+    AppViewExtension,
+    StatusPanelExtension
+} from '../../../shared/services/extensions-service';
 
 interface ApplicationDetailsState {
     page: number;
@@ -44,6 +48,10 @@ interface ApplicationDetailsState {
     extensionsMap?: {[key: string]: AppViewExtension};
     statusExtensions?: StatusPanelExtension[];
     statusExtensionsMap?: {[key: string]: StatusPanelExtension};
+    statusExtProps?: any;
+    appActionMenuExtensions?: AppActionMenuExtension[];
+    appActionMenuExtensionsMap?: {[key: string]: AppActionMenuExtension};
+
 }
 
 interface FilterInput {
@@ -94,6 +102,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         statusExtensions.forEach(ext => {
             statusExtensionsMap[ext.id] = ext;
         });
+        const appActionMenuExtensions = services.extensions.getAppActionMenuExtensions();
+        const appActionMenuExtensionsMap: {[key: string]: AppActionMenuExtension} = {};
+        appActionMenuExtensions.forEach(ext => {
+            appActionMenuExtensionsMap[ext.id] = ext;
+        });
         this.state = {
             page: 0,
             groupedResources: [],
@@ -104,7 +117,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             extensions,
             extensionsMap,
             statusExtensions,
-            statusExtensionsMap
+            statusExtensionsMap,
+            appActionMenuExtensions,
+            appActionMenuExtensionsMap,
         };
         if (typeof this.props.match.params.appnamespace === 'undefined') {
             this.appNamespace = '';
@@ -130,6 +145,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         }
     }
 
+
     private getNodeExpansion(node: string): boolean {
         return this.state.collapsedNodes.indexOf(node) < 0;
     }
@@ -154,6 +170,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
     private get selectedExtension() {
         return new URLSearchParams(this.props.history.location.search).get('extension');
     }
+
+
 
     private closeGroupedNodesPanel() {
         this.setState({groupedResources: []});
@@ -568,6 +586,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             });
 
                             const activeExtension = this.state.statusExtensionsMap[this.selectedExtension];
+                            const appActionMenuExt = this.state.appActionMenuExtensionsMap[this.selectedExtension];
+                            const appActionMenuExtMap = services.extensions.getAppActionMenuExtensions();
 
                             return (
                                 <div className={`application-details ${this.props.match.params.name}`}>
@@ -576,62 +596,68 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         useTitleOnly={true}
                                         topBarTitle={this.getPageTitle(pref.view)}
                                         toolbar={{
-                                            breadcrumbs: [
-                                                {title: 'Applications', path: '/applications'},
-                                                {title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />}
-                                            ],
-                                            actionMenu: {items: this.getApplicationActionMenu(application, true)},
-                                            tools: (
-                                                <React.Fragment key='app-list-tools'>
-                                                    <div className='application-details__view-type'>
-                                                        <i
-                                                            className={classNames('fa fa-sitemap', {selected: pref.view === Tree})}
-                                                            title='Tree'
-                                                            onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: Tree});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: Tree}});
-                                                            }}
-                                                        />
-                                                        <i
-                                                            className={classNames('fa fa-th', {selected: pref.view === Pods})}
-                                                            title='Pods'
-                                                            onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: Pods});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: Pods}});
-                                                            }}
-                                                        />
-                                                        <i
-                                                            className={classNames('fa fa-network-wired', {selected: pref.view === Network})}
-                                                            title='Network'
-                                                            onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: Network});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: Network}});
-                                                            }}
-                                                        />
-                                                        <i
-                                                            className={classNames('fa fa-th-list', {selected: pref.view === List})}
-                                                            title='List'
-                                                            onClick={() => {
-                                                                this.appContext.apis.navigation.goto('.', {view: List});
-                                                                services.viewPreferences.updatePreferences({appDetails: {...pref, view: List}});
-                                                            }}
-                                                        />
-                                                        {this.state.extensions &&
-                                                            (this.state.extensions || []).map(ext => (
-                                                                <i
-                                                                    key={ext.title}
-                                                                    className={classNames(`fa ${ext.icon}`, {selected: pref.view === ext.title})}
-                                                                    title={ext.title}
-                                                                    onClick={() => {
-                                                                        this.appContext.apis.navigation.goto('.', {view: ext.title});
-                                                                        services.viewPreferences.updatePreferences({appDetails: {...pref, view: ext.title}});
-                                                                    }}
-                                                                />
-                                                            ))}
-                                                    </div>
-                                                </React.Fragment>
-                                            )
-                                        }}>
+                                        breadcrumbs: [
+                                            {title: 'Applications', path: '/applications'},
+                                            {title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />}
+                                        ],
+                                        actionMenu: {
+                                            items: [
+                                                ...this.getApplicationActionMenu(application, true),
+                                                ...(appActionMenuExtMap ? appActionMenuExtMap.map(ext => this.
+                                                renderActionMenuItem(ext, application)) : [])
+                                            ]
+                                        },
+                                        tools: (
+                                            <React.Fragment key='app-list-tools'>
+                                                <div className='application-details__view-type'>
+                                                    <i
+                                                        className={classNames('fa fa-sitemap', {selected: pref.view === Tree})}
+                                                        title='Tree'
+                                                        onClick={() => {
+                                                            this.appContext.apis.navigation.goto('.', {view: Tree});
+                                                            services.viewPreferences.updatePreferences({appDetails: {...pref, view: Tree}});
+                                                        }}
+                                                    />
+                                                    <i
+                                                        className={classNames('fa fa-th', {selected: pref.view === Pods})}
+                                                        title='Pods'
+                                                        onClick={() => {
+                                                            this.appContext.apis.navigation.goto('.', {view: Pods});
+                                                            services.viewPreferences.updatePreferences({appDetails: {...pref, view: Pods}});
+                                                        }}
+                                                    />
+                                                    <i
+                                                        className={classNames('fa fa-network-wired', {selected: pref.view === Network})}
+                                                        title='Network'
+                                                        onClick={() => {
+                                                            this.appContext.apis.navigation.goto('.', {view: Network});
+                                                            services.viewPreferences.updatePreferences({appDetails: {...pref, view: Network}});
+                                                        }}
+                                                    />
+                                                    <i
+                                                        className={classNames('fa fa-th-list', {selected: pref.view === List})}
+                                                        title='List'
+                                                        onClick={() => {
+                                                            this.appContext.apis.navigation.goto('.', {view: List});
+                                                            services.viewPreferences.updatePreferences({appDetails: {...pref, view: List}});
+                                                        }}
+                                                    />
+                                                    {this.state.extensions &&
+                                                        (this.state.extensions || []).map(ext => (
+                                                            <i
+                                                                key={ext.title}
+                                                                className={classNames(`fa ${ext.icon}`, {selected: pref.view === ext.title})}
+                                                                title={ext.title}
+                                                                onClick={() => {
+                                                                    this.appContext.apis.navigation.goto('.', {view: ext.title});
+                                                                    services.viewPreferences.updatePreferences({appDetails: {...pref, view: ext.title}});
+                                                                }}
+                                                            />
+                                                        ))}
+                                                </div>
+                                            </React.Fragment>
+                                        )
+                                    }}>
                                         <div className='application-details__wrapper'>
                                             <div className='application-details__status-panel'>
                                                 <ApplicationStatusPanel
@@ -743,7 +769,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                             onItemClick={fullName => this.selectNode(fullName)}
                                                             nodeMenu={node =>
                                                                 AppUtils.renderResourceMenu(node, application, tree, this.appContext.apis, this.appChanged, () =>
-                                                                    this.getApplicationActionMenu(application, false)
+                                                                    this.getApplicationActionMenu(application,false)
                                                                 )
                                                             }
                                                             quickStarts={node => AppUtils.renderResourceButtons(node, application, tree, this.appContext.apis, this.appChanged)}
@@ -868,8 +894,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         <SlidingPanel
                                             isShown={this.selectedExtension !== '' && activeExtension != null && activeExtension.flyout != null}
                                             onClose={() => this.setExtensionPanelVisible('')}>
-                                            {this.selectedExtension !== '' && activeExtension && activeExtension.flyout && (
-                                                <activeExtension.flyout application={application} tree={tree} />
+                                            {this.selectedExtension !== ''  && activeExtension?.flyout && (
+                                                <activeExtension.flyout  setProps={this.setStatusPanelProps} application={application} tree={tree} />
+                                            )}
+                                        </SlidingPanel>
+                                        <SlidingPanel
+                                            isShown={this.selectedExtension !== '' && appActionMenuExt != null && appActionMenuExt.flyout != null}
+                                            onClose={() => this.setExtensionPanelVisible('')}>
+                                            {this.selectedExtension !== ''  && appActionMenuExt?.flyout && (
+                                                <appActionMenuExt.flyout   application={application} tree={tree} />
                                             )}
                                         </SlidingPanel>
                                     </Page>
@@ -880,6 +913,16 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 )}
             </ObservableQuery>
         );
+    }
+    private renderActionMenuItem(ext: AppActionMenuExtension, application: appModels.Application): any {
+        const settings =  services.authService.settings();
+        console.log( 'settings', settings)
+
+        return {
+            action: () => this.setExtensionPanelVisible(ext.id),
+            title: <ext.component application={application}/> as React.ReactNode,
+            iconClassName: "",
+        };
     }
 
     private getApplicationActionMenu(app: appModels.Application, needOverlapLabelOnNarrowScreen: boolean) {
@@ -946,7 +989,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                         this.appChanged.next(app);
                     }
                 }
-            }
+            },
+
         ];
     }
 
@@ -1099,6 +1143,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
     }
 
     private setExtensionPanelVisible(selectedExtension = '') {
+        console.log('setExtensionPanelVisible', selectedExtension)
         this.appContext.apis.navigation.goto('.', {extension: selectedExtension}, {replace: true});
     }
 
