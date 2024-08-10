@@ -70,11 +70,35 @@ jobs:
       - name: Set GORELEASER_PREVIOUS_TAG # Workaround, GoReleaser uses 'git-describe' to determine a previous tag. Our tags are created in realease branches.
         run: |
           set -xue
-          if echo ${{ github.ref_name }} | grep -E -- '-rc1+$';then
-            echo "GORELEASER_PREVIOUS_TAG=$(git -c 'versionsort.suffix=-rc' tag --list --sort=version:refname | tail -n 2 | head -n 1)" >> $GITHUB_ENV
+      
+          # Extract the major, minor, and patch versions from the current tag (e.g., v2.13.1 -> 2, 13, 1)
+          CURRENT_TAG=${{ github.ref_name }}
+          MAJOR_VERSION=$(echo $CURRENT_TAG | cut -d'.' -f1 | cut -d'v' -f2)
+          MINOR_VERSION=$(echo $CURRENT_TAG | cut -d'.' -f2)
+          PATCH_VERSION=$(echo $CURRENT_TAG | cut -d'.' -f3 | cut -d'-' -f1)
+      
+          if [ "$PATCH_VERSION" -gt 0 ]; then
+            # If this is a patch release, find the last tag in the same minor version (e.g., v2.13.1 -> v2.13.0)
+            PREVIOUS_TAG=$(git tag --sort=-v:refname | grep -E "^v${MAJOR_VERSION}\.${MINOR_VERSION}\.[0-9]+$" | grep -v "^${CURRENT_TAG}$" | head -n 1)
           else
-            echo "This is not the first release on the branch, Using GoReleaser defaults"
+            # If this is a new minor version release, find the last tag from the previous minor version (e.g., v2.14.0 -> v2.13.x)
+            if [ "$MINOR_VERSION" -gt 0 ]; then
+              PREVIOUS_MINOR_VERSION=$((MINOR_VERSION - 1))
+              PREVIOUS_TAG=$(git tag --sort=-v:refname | grep -E "^v${MAJOR_VERSION}\.${PREVIOUS_MINOR_VERSION}\.[0-9]+$" | head -n 1)
+            fi
           fi
+      
+          # If no previous tag was found, look for the most recent tag in the previous major version
+          if [ -z "$PREVIOUS_TAG" ]; then
+            PREVIOUS_TAG=$(git tag --sort=-v:refname | grep -E "^v[0-9]+\.[0-9]+\.[0-9]+$" | grep -vE "^${CURRENT_TAG}$" | head -n 1)
+          fi
+      
+          # Set the GORELEASER_PREVIOUS_TAG environment variable
+          if [ -n "$PREVIOUS_TAG" ]; then
+            echo "GORELEASER_PREVIOUS_TAG=$PREVIOUS_TAG" >> $GITHUB_ENV
+          else
+            echo "No previous tag found, using GoReleaser defaults."
+          fi 
 
       - name: Setup Golang
         uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
