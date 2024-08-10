@@ -4256,7 +4256,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 				KubeClientset:    kubeclientset,
 			}
 
-			appSyncMap := r.buildAppSyncMap(context.TODO(), cc.appSet, cc.appDependencyList, cc.appMap)
+			appSyncMap := r.buildAppSyncMap(cc.appSet, cc.appDependencyList, cc.appMap)
 			assert.Equal(t, cc.expectedMap, appSyncMap, "expected appSyncMap did not match actual")
 		})
 	}

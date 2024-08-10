@@ -242,7 +242,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	if r.EnableProgressiveSyncs {
 		// trigger appropriate application syncs if RollingSync strategy is enabled
-		if progressiveSyncsStrategyEnabled(&applicationSetInfo, "RollingSync") {
+		if progressiveSyncsRollingSyncStrategyEnabled(&applicationSetInfo) {
 			validApps = r.syncValidApplications(logCtx, &applicationSetInfo, appSyncMap, appMap, validApps)
 		}
 	}
@@ -859,7 +859,7 @@ func (r *ApplicationSetReconciler) performProgressiveSyncs(ctx context.Context, 
 		logCtx.Infof("step %v: %+v", i+1, step)
 	}
 
-	appSyncMap := r.buildAppSyncMap(ctx, appset, appDependencyList, appMap)
+	appSyncMap := r.buildAppSyncMap(appset, appDependencyList, appMap)
 	logCtx.Infof("Application allowed to sync before maxUpdate?: %+v", appSyncMap)
 
 	_, err = r.updateApplicationSetApplicationStatusProgress(ctx, logCtx, &appset, appSyncMap, appStepMap)
@@ -879,7 +879,7 @@ func (r *ApplicationSetReconciler) buildAppDependencyList(logCtx *log.Entry, app
 	}
 
 	steps := []argov1alpha1.ApplicationSetRolloutStep{}
-	if progressiveSyncsStrategyEnabled(&applicationSet, "RollingSync") {
+	if progressiveSyncsRollingSyncStrategyEnabled(&applicationSet) {
 		steps = applicationSet.Spec.Strategy.RollingSync.Steps
 	}
 
@@ -944,7 +944,7 @@ func labelMatchedExpression(logCtx *log.Entry, val string, matchExpression argov
 }
 
 // this map is used to determine which stage of Applications are ready to be updated in the reconciler loop
-func (r *ApplicationSetReconciler) buildAppSyncMap(ctx context.Context, applicationSet argov1alpha1.ApplicationSet, appDependencyList [][]string, appMap map[string]argov1alpha1.Application) map[string]bool {
+func (r *ApplicationSetReconciler) buildAppSyncMap(applicationSet argov1alpha1.ApplicationSet, appDependencyList [][]string, appMap map[string]argov1alpha1.Application) map[string]bool {
 	appSyncMap := map[string]bool{}
 	syncEnabled := true
 
@@ -985,7 +985,7 @@ func (r *ApplicationSetReconciler) buildAppSyncMap(ctx context.Context, applicat
 }
 
 func appSyncEnabledForNextStep(appset *argov1alpha1.ApplicationSet, app argov1alpha1.Application, appStatus argov1alpha1.ApplicationSetApplicationStatus) bool {
-	if progressiveSyncsStrategyEnabled(appset, "RollingSync") {
+	if progressiveSyncsRollingSyncStrategyEnabled(appset) {
 		// we still need to complete the current step if the Application is not yet Healthy or there are still pending Application changes
 		return isApplicationHealthy(app) && appStatus.Status == "Healthy"
 	}
@@ -993,16 +993,8 @@ func appSyncEnabledForNextStep(appset *argov1alpha1.ApplicationSet, app argov1al
 	return true
 }
 
-func progressiveSyncsStrategyEnabled(appset *argov1alpha1.ApplicationSet, strategyType string) bool {
-	if appset.Spec.Strategy == nil || appset.Spec.Strategy.Type != strategyType {
-		return false
-	}
-
-	if strategyType == "RollingSync" && appset.Spec.Strategy.RollingSync == nil {
-		return false
-	}
-
-	return true
+func progressiveSyncsRollingSyncStrategyEnabled(appset *argov1alpha1.ApplicationSet) bool {
+	return appset.Spec.Strategy != nil && appset.Spec.Strategy.RollingSync != nil && appset.Spec.Strategy.Type == "RollingSync"
 }
 
 func isApplicationHealthy(app argov1alpha1.Application) bool {
@@ -1060,7 +1052,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 		}
 
 		appOutdated := false
-		if progressiveSyncsStrategyEnabled(applicationSet, "RollingSync") {
+		if progressiveSyncsRollingSyncStrategyEnabled(applicationSet) {
 			appOutdated = syncStatusString == "OutOfSync"
 		}
 
@@ -1137,7 +1129,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 		totalCountMap := []int{}
 
 		length := 0
-		if progressiveSyncsStrategyEnabled(applicationSet, "RollingSync") {
+		if progressiveSyncsRollingSyncStrategyEnabled(applicationSet) {
 			length = len(applicationSet.Spec.Strategy.RollingSync.Steps)
 		}
 		for s := 0; s < length; s++ {
@@ -1149,7 +1141,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 		for _, appStatus := range applicationSet.Status.ApplicationStatus {
 			totalCountMap[appStepMap[appStatus.Application]] += 1
 
-			if progressiveSyncsStrategyEnabled(applicationSet, "RollingSync") {
+			if progressiveSyncsRollingSyncStrategyEnabled(applicationSet) {
 				if appStatus.Status == "Pending" || appStatus.Status == "Progressing" {
 					updateCountMap[appStepMap[appStatus.Application]] += 1
 				}
@@ -1159,7 +1151,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 		for _, appStatus := range applicationSet.Status.ApplicationStatus {
 			maxUpdateAllowed := true
 			maxUpdate := &intstr.IntOrString{}
-			if progressiveSyncsStrategyEnabled(applicationSet, "RollingSync") {
+			if progressiveSyncsRollingSyncStrategyEnabled(applicationSet) {
 				maxUpdate = applicationSet.Spec.Strategy.RollingSync.Steps[appStepMap[appStatus.Application]].MaxUpdate
 			}
 

@@ -171,7 +171,6 @@ func nestedNullableStringMap(obj map[string]interface{}, fields ...string) (map[
 	}
 	if found && val != nil {
 		m, _, err = unstructured.NestedStringMap(obj, fields...)
-		return m, err
 	}
 	return m, err
 }
