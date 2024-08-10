@@ -1674,17 +1674,19 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 			start := false
 			if app.Status.SourceHydrator.HydrateOperation != nil {
 				if !app.Spec.SourceHydrator.DeepEquals(app.Status.SourceHydrator.HydrateOperation.SourceHydrator) {
+					logCtx.Debug("Source hydrator spec has changed, re-hydrating")
 					start = true
 				} else if app.Status.SourceHydrator.HydrateOperation.Status != appv1.HydrateOperationPhaseSucceeded {
 					if app.Status.SourceHydrator.HydrateOperation.Revision != revision {
+						logCtx.Debug("Dry source revision has changed, re-hydrating")
 						start = true
 					} else if app.Status.SourceHydrator.HydrateOperation.Status == appv1.HydrateOperationPhaseFailed && metav1.Now().Sub(app.Status.SourceHydrator.HydrateOperation.FinishedAt.Time) > 2*time.Minute {
-						start = true
-					} else {
+						logCtx.Debug("Previous hydrate operation failed more than 2 minutes ago, re-hydrating")
 						start = true
 					}
 				}
 			} else {
+				logCtx.Debug("Dry source revision has changed, re-hydrating")
 				start = true
 			}
 
