@@ -1,11 +1,13 @@
 package admin
 
 import (
+	"context"
 	"reflect"
 	"strings"
 
 	"github.com/spf13/cobra"
 	apiv1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -253,16 +255,47 @@ func redactor(dirtyString string) string {
 	return string(data)
 }
 
-// Get application or applicationset namespaces from cmd params
-func getNamespacesFromCmdParams(key string, un unstructured.Unstructured) []string {
+type argocdAdditonalNamespaceGlobs struct {
+	applicationNamespaceGlobs []string
+	applicationsetNamespaceGlobs []string
+}
 
-	var cm apiv1.ConfigMap
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
+// Get additional namespaces from argocd-cmd-params
+func getAdditionalNamespaces(ctx context.Context,argocdClientsets *argoCDClientsets) (*argocdAdditonalNamespaceGlobs) {
+	const (
+		applicationsetNamespacesCmdParamsKey = "applicationsetcontroller.namespaces"
+		applicationNamespacesCmdParamsKey = "application.namespaces"
+	)
+	applicationNamespaces := []string{}
+	applicationsetNamespaces := []string{}
+	un, err := argocdClientsets.configMaps.Get(ctx, common.ArgoCDCmdParamsConfigMapName, v1.GetOptions{})
 	errors.CheckError(err)
-	// Referenced repository secrets
-	if strNamespaces, ok := cm.Data[key]; ok {
-		return (strings.Split(strings.ReplaceAll(strNamespaces, " ", ""), ","))
-	} else {
-		return []string{}
+	var cm apiv1.ConfigMap
+	err = runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
+	errors.CheckError(err)
+
+	namespacesListFromString := func(namespacelist string) []string {
+		lstOfNamespaces := []string{}
+
+		ss := strings.Split(namespacelist, ",")
+
+		for _, s := range ss {
+			lstOfNamespaces = append(lstOfNamespaces,strings.TrimSpace(s))
+		}
+
+		return lstOfNamespaces
+	}
+
+	if strNamespaces, ok := cm.Data[applicationNamespacesCmdParamsKey]; ok {
+		applicationNamespaces = namespacesListFromString(strNamespaces)
+	}
+
+	if strNamespaces, ok := cm.Data[applicationsetNamespacesCmdParamsKey]; ok {
+		applicationsetNamespaces = namespacesListFromString(strNamespaces)
+	}
+
+	return &argocdAdditonalNamespaceGlobs{
+		applicationNamespaceGlobs: applicationNamespaces,
+		applicationsetNamespaceGlobs: applicationsetNamespaces,
 	}
 }
