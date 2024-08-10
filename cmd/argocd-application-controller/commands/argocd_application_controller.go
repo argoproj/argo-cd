@@ -209,6 +209,7 @@ func NewCommand() *cobra.Command {
 			// Wait forever
 			// select {}
 			wg.Wait()
+			log.Println("clean shutdown")
 
 			return nil
 		},
