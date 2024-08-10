@@ -29,6 +29,7 @@ argocd app add-source APPNAME [flags]
       --directory-include string                   Set glob expression used to include files from application source path
       --directory-recurse                          Recurse directory
       --dry-source-path string                     Path in repository to the app directory for the dry source
+      --dry-source-repo string                     Repository URL of the app dry source
       --dry-source-revision string                 Revision of the app dry source
       --env string                                 Application environment to monitor
       --helm-api-versions stringArray              Helm api-versions (in format [group/]version/kind) to use when running helm template (Can be repeated to set several values: --helm-api-versions traefik.io/v1alpha1/TLSOption --helm-api-versions v1/Service). If not set, use the api-versions from the destination cluster
@@ -42,6 +43,7 @@ argocd app add-source APPNAME [flags]
       --helm-skip-crds                             Skip helm crd installation step
       --helm-version string                        Helm version
   -h, --help                                       help for add-source
+      --hydrate-to-branch string                   The branch to hydrate the app to
       --ignore-missing-value-files                 Ignore locally missing valueFiles when setting helm template --values
       --jsonnet-ext-var-code stringArray           Jsonnet ext var
       --jsonnet-ext-var-str stringArray            Jsonnet string ext var

@@ -46,6 +46,7 @@ argocd admin app generate-spec APPNAME [flags]
       --directory-include string                   Set glob expression used to include files from application source path
       --directory-recurse                          Recurse directory
       --dry-source-path string                     Path in repository to the app directory for the dry source
+      --dry-source-repo string                     Repository URL of the app dry source
       --dry-source-revision string                 Revision of the app dry source
       --env string                                 Application environment to monitor
   -f, --file string                                Filename or URL to Kubernetes manifests for the app
@@ -60,6 +61,7 @@ argocd admin app generate-spec APPNAME [flags]
       --helm-skip-crds                             Skip helm crd installation step
       --helm-version string                        Helm version
   -h, --help                                       help for generate-spec
+      --hydrate-to-branch string                   The branch to hydrate the app to
       --ignore-missing-value-files                 Ignore locally missing valueFiles when setting helm template --values
   -i, --inline                                     If set then generated resource is written back to the file specified in --file flag
       --jsonnet-ext-var-code stringArray           Jsonnet ext var

@@ -45,7 +45,17 @@ func TestHydrateTo(t *testing.T) {
 		Wait("--operation").
 		Then().
 		// Fails because we hydrated to env/test-next but not to env/test.
-		Expect(OperationPhaseIs(OperationError))
+		Expect(OperationPhaseIs(OperationError)).
+		When().
+		// Will now hydrate to the sync source branch.
+		AppSet("--hydrate-to-branch", "").
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Wait("--operation").
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
 // TODO: write tests

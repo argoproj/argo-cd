@@ -3997,12 +3997,19 @@ func schema_pkg_apis_application_v1alpha1_HydrateOperation(ref common.ReferenceC
 							Format:      "",
 						},
 					},
+					"sourceHydrator": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SourceHydrator holds the hydrator config used for the hydrate operation",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SourceHydrator"),
+						},
+					},
 				},
 				Required: []string{"status", "message"},
 			},
 		},
 		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SourceHydrator", "k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

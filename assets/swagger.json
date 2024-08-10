@@ -7500,6 +7500,9 @@
           "type": "string",
           "title": "Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation"
         },
+        "sourceHydrator": {
+          "$ref": "#/definitions/v1alpha1SourceHydrator"
+        },
         "startedAt": {
           "$ref": "#/definitions/v1Time"
         },

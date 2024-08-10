@@ -86,6 +86,7 @@ type AppOptions struct {
 	retryBackoffMaxDuration         time.Duration
 	retryBackoffFactor              int64
 	ref                             string
+	drySourceRepo                   string
 	drySourceRevision               string
 	drySourcePath                   string
 	syncSourceBranch                string
@@ -99,6 +100,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.chart, "helm-chart", "", "Helm Chart name")
 	command.Flags().StringVar(&opts.env, "env", "", "Application environment to monitor")
 	command.Flags().StringVar(&opts.revision, "revision", "", "The tracking source branch, tag, commit or Helm chart version the application will sync to")
+	command.Flags().StringVar(&opts.drySourceRepo, "dry-source-repo", "", "Repository URL of the app dry source")
 	command.Flags().StringVar(&opts.drySourceRevision, "dry-source-revision", "", "Revision of the app dry source")
 	command.Flags().StringVar(&opts.drySourcePath, "dry-source-path", "", "Path in repository to the app directory for the dry source")
 	command.Flags().StringVar(&opts.syncSourceBranch, "sync-source-branch", "", "The branch from which the app will sync")
@@ -159,39 +161,16 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.ref, "ref", "", "Ref is reference to another source within sources field")
 }
 
-// HasHydratorConfig returns true if the app options have hydrator configuration.
-func (a *AppOptions) HasHydratorConfig() bool {
-	return a.drySourcePath != "" || a.drySourceRevision != "" || a.syncSourceBranch != "" || a.syncSourcePath != "" || a.hydrateToBranch != ""
-}
-
-func (a *AppOptions) HydratorFromConfig() *argoappv1.SourceHydrator {
-	h := &argoappv1.SourceHydrator{
-		DrySource: argoappv1.DrySource{
-			RepoURL:        a.repoURL,
-			Path:           a.drySourcePath,
-			TargetRevision: a.drySourceRevision,
-		},
-		SyncSource: argoappv1.SyncSource{
-			TargetBranch: a.syncSourceBranch,
-			Path:         a.syncSourcePath,
-		},
-	}
-	if a.hydrateToBranch != "" {
-		h.HydrateTo = &argoappv1.HydrateTo{
-			TargetBranch: a.hydrateToBranch,
-		}
-	}
-	return h
-}
-
 func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions, sourcePosition int) int {
 	visited := 0
 	if flags == nil {
 		return visited
 	}
 
-	if appOpts.HasHydratorConfig() {
-		spec.SourceHydrator = appOpts.HydratorFromConfig()
+	var h *argoappv1.SourceHydrator
+	h, hasHydratorFlag := ConstructSourceHydrator(spec.SourceHydrator, *appOpts, flags)
+	if hasHydratorFlag {
+		spec.SourceHydrator = h
 	} else {
 		source := spec.GetSourcePtrByPosition(sourcePosition)
 		if source == nil {
@@ -769,6 +748,43 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 		}
 	})
 	return source, visited
+}
+
+func ConstructSourceHydrator(h *argoappv1.SourceHydrator, appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.SourceHydrator, bool) {
+	hasHydratorFlag := false
+	ensureNotNil := func(notEmpty bool) {
+		hasHydratorFlag = true
+		if notEmpty && h == nil {
+			h = &argoappv1.SourceHydrator{}
+		}
+	}
+	flags.Visit(func(f *pflag.Flag) {
+		switch f.Name {
+		case "dry-source-repo":
+			ensureNotNil(appOpts.drySourceRepo != "")
+			h.DrySource.RepoURL = appOpts.drySourceRepo
+		case "dry-source-path":
+			ensureNotNil(appOpts.drySourcePath != "")
+			h.DrySource.Path = appOpts.drySourcePath
+		case "dry-source-revision":
+			ensureNotNil(appOpts.drySourceRevision != "")
+			h.DrySource.TargetRevision = appOpts.drySourceRevision
+		case "sync-source-branch":
+			ensureNotNil(appOpts.syncSourceBranch != "")
+			h.SyncSource.TargetBranch = appOpts.syncSourceBranch
+		case "sync-source-path":
+			ensureNotNil(appOpts.syncSourcePath != "")
+			h.SyncSource.Path = appOpts.syncSourcePath
+		case "hydrate-to-branch":
+			ensureNotNil(appOpts.hydrateToBranch != "")
+			if appOpts.hydrateToBranch == "" {
+				h.HydrateTo = nil
+			} else {
+				h.HydrateTo = &argoappv1.HydrateTo{TargetBranch: appOpts.hydrateToBranch}
+			}
+		}
+	})
+	return h, hasHydratorFlag
 }
 
 func mergeLabels(app *argoappv1.Application, labels []string) {

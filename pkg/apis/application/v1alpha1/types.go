@@ -407,6 +407,10 @@ func (s SourceHydrator) GetDrySource() ApplicationSource {
 	}
 }
 
+func (s SourceHydrator) DeepEquals(hydrator SourceHydrator) bool {
+	return s.DrySource == hydrator.DrySource && s.SyncSource == hydrator.SyncSource && s.HydrateTo.DeepEquals(hydrator.HydrateTo)
+}
+
 // DrySource specifies a location for dry "don't repeat yourself" manifest source information.
 type DrySource struct {
 	RepoURL        string `json:"repoURL" protobuf:"bytes,1,name=repoURL"`
@@ -425,6 +429,18 @@ type SyncSource struct {
 // the SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.
 type HydrateTo struct {
 	TargetBranch string `json:"targetBranch" protobuf:"bytes,1,name=targetBranch"`
+}
+
+func (in *HydrateTo) DeepEquals(to *HydrateTo) bool {
+	if in == nil {
+		return to == nil
+	}
+	if to == nil {
+		// We already know in is not nil.
+		return false
+	}
+	// Compare de-referenced structs.
+	return *in == *to
 }
 
 // RefreshType specifies how to refresh the sources of a given application
@@ -1137,6 +1153,8 @@ type HydrateOperation struct {
 	Message string `json:"message" protobuf:"bytes,4,opt,name=message"`
 	// Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation
 	Revision string `json:"revision,omitempty" protobuf:"bytes,5,opt,name=revision"`
+	// SourceHydrator holds the hydrator config used for the hydrate operation
+	SourceHydrator SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,6,opt,name=sourceHydrator"`
 }
 
 type HydrateOperationPhase string
