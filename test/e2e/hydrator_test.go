@@ -58,5 +58,48 @@ func TestHydrateTo(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
+func TestAddingApp(t *testing.T) {
+	// Make sure that if we add another app targeting the same sync branch, it hydrates correctly.
+	Given(t).
+		Name("test-adding-app-1").
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("guestbook-1").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Given().
+		Name("test-adding-app-2").
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("guestbook-2").
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// Clean up the apps manually since we used custom names.
+		When().
+		Delete(true).
+		Then().
+		Expect(DoesNotExist()).
+		Given().
+		Name("test-adding-app-1").
+		When().
+		Delete(true).
+		Then().
+		Expect(DoesNotExist())
+}
+
 // TODO: write tests
 //       - If I change the destination path on one of the apps, the app should be rehydrated, and a new commit should be created.
