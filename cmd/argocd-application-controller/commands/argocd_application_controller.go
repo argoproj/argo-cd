@@ -6,7 +6,6 @@ import (
 	"math"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -195,20 +194,16 @@ func NewCommand() *cobra.Command {
 			// Graceful shutdown code
 			sigCh := make(chan os.Signal, 1)
 			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-			wg := sync.WaitGroup{}
-			wg.Add(1)
 			go func() {
 				s := <-sigCh
 				log.Printf("got signal %v, attempting graceful shutdown", s)
 				cancel()
-				wg.Done()
 			}()
 
-			go appController.Run(ctx, statusProcessors, operationProcessors, &wg)
+			go appController.Run(ctx, statusProcessors, operationProcessors)
 
 			<-ctx.Done()
 
-			wg.Wait()
 			log.Println("clean shutdown")
 
 			return nil
