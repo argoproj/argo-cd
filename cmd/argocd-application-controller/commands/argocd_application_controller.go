@@ -206,6 +206,8 @@ func NewCommand() *cobra.Command {
 
 			go appController.Run(ctx, statusProcessors, operationProcessors, &wg)
 
+			<-ctx.Done()
+
 			wg.Wait()
 			log.Println("clean shutdown")
 
