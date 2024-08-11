@@ -1,7 +1,6 @@
 package kustomize
 
 import (
-	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -363,17 +362,6 @@ func isHelmEnabled(buildOptions string) bool {
 }
 
 var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Kustomization"}
-
-// kustomization is a file that describes a configuration consumable by kustomize.
-func (k *kustomize) findKustomization() (string, error) {
-	for _, file := range KustomizationNames {
-		kustomization := filepath.Join(k.path, file)
-		if _, err := os.Stat(kustomization); err == nil {
-			return kustomization, nil
-		}
-	}
-	return "", errors.New("did not find kustomization in " + k.path)
-}
 
 func IsKustomization(path string) bool {
 	for _, kustomization := range KustomizationNames {

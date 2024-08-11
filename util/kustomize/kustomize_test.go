@@ -141,18 +141,6 @@ func TestFailKustomizeBuild(t *testing.T) {
 	assert.EqualError(t, err, "expected integer value for count. Received: garbage")
 }
 
-func TestFindKustomization(t *testing.T) {
-	testFindKustomization(t, kustomization1, "kustomization.yaml")
-	testFindKustomization(t, kustomization2a, "kustomization.yml")
-	testFindKustomization(t, kustomization2b, "Kustomization")
-}
-
-func testFindKustomization(t *testing.T, set string, expected string) {
-	kustomization, err := (&kustomize{path: "testdata/" + set}).findKustomization()
-	require.NoError(t, err)
-	assert.Equal(t, "testdata/"+set+"/"+expected, kustomization)
-}
-
 func TestIsKustomization(t *testing.T) {
 	assert.True(t, IsKustomization("kustomization.yaml"))
 	assert.True(t, IsKustomization("kustomization.yml"))
