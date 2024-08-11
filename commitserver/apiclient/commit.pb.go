@@ -27,6 +27,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
+// CommitHydratedManifestsRequest is the request to commit hydrated manifests to a repository.
 type CommitHydratedManifestsRequest struct {
 	// Repo contains repository information including, at minimum, the URL of the repository. Generally it will contain
 	// repo credentials.
@@ -191,6 +192,7 @@ func (m *PathDetails) GetCommands() []string {
 
 // ManifestDetails contains the hydrated manifests.
 type HydratedManifestDetails struct {
+	// Manifest is the hydrated manifest as JSON.
 	Manifest             string   `protobuf:"bytes,1,opt,name=manifest,proto3" json:"manifest,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`

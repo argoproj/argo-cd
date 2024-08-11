@@ -3964,7 +3964,8 @@ func schema_pkg_apis_application_v1alpha1_HydrateOperation(ref common.ReferenceC
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "HydrateOperation contains information about the most recent hydrate operation",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"startedAt": {
 						SchemaProps: spec.SchemaProps{
@@ -7757,7 +7758,8 @@ func schema_pkg_apis_application_v1alpha1_SourceHydratorStatus(ref common.Refere
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "SourceHydratorStatus contains information about the current state of source hydration",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"lastSuccessfulOperation": {
 						SchemaProps: spec.SchemaProps{

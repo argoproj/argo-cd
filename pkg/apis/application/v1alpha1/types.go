@@ -1142,6 +1142,7 @@ type ApplicationStatus struct {
 	SourceHydrator SourceHydratorStatus `json:"sourceHydrator,omitempty" protobuf:"bytes,14,opt,name=sourceHydrator"`
 }
 
+// SourceHydratorStatus contains information about the current state of source hydration
 type SourceHydratorStatus struct {
 	// LastSuccessfulOperation holds info about the most recent successful hydration
 	LastSuccessfulOperation *SuccessfulHydrateOperation `json:"lastSuccessfulOperation,omitempty" protobuf:"bytes,1,opt,name=lastSuccessfulOperation"`
@@ -1149,6 +1150,7 @@ type SourceHydratorStatus struct {
 	CurrentOperation *HydrateOperation `json:"currentOperation,omitempty" protobuf:"bytes,2,opt,name=currentOperation"`
 }
 
+// HydrateOperation contains information about the most recent hydrate operation
 type HydrateOperation struct {
 	// StartedAt indicates when the hydrate operation started
 	StartedAt metav1.Time `json:"startedAt,omitempty" protobuf:"bytes,1,opt,name=startedAt"`

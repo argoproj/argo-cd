@@ -1104,6 +1104,7 @@ message HostResourceInfo {
   optional int64 capacity = 4;
 }
 
+// HydrateOperation contains information about the most recent hydrate operation
 message HydrateOperation {
   // StartedAt indicates when the hydrate operation started
   optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 1;
@@ -2257,6 +2258,7 @@ message SourceHydrator {
   optional HydrateTo hydrateTo = 3;
 }
 
+// SourceHydratorStatus contains information about the current state of source hydration
 message SourceHydratorStatus {
   // LastSuccessfulOperation holds info about the most recent successful hydration
   optional SuccessfulHydrateOperation lastSuccessfulOperation = 1;

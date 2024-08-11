@@ -7491,6 +7491,7 @@
     },
     "v1alpha1HydrateOperation": {
       "type": "object",
+      "title": "HydrateOperation contains information about the most recent hydrate operation",
       "properties": {
         "drySHA": {
           "type": "string",
@@ -9182,6 +9183,7 @@
     },
     "v1alpha1SourceHydratorStatus": {
       "type": "object",
+      "title": "SourceHydratorStatus contains information about the current state of source hydration",
       "properties": {
         "currentOperation": {
           "$ref": "#/definitions/v1alpha1HydrateOperation"

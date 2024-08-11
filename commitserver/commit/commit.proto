@@ -3,6 +3,7 @@ option go_package = "github.com/argoproj/argo-cd/v2/commitserver/apiclient";
 
 import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
 
+// CommitHydratedManifestsRequest is the request to commit hydrated manifests to a repository.
 message CommitHydratedManifestsRequest {
   // Repo contains repository information including, at minimum, the URL of the repository. Generally it will contain
   // repo credentials.
@@ -32,6 +33,7 @@ message PathDetails {
 
 // ManifestDetails contains the hydrated manifests.
 message HydratedManifestDetails {
+  // Manifest is the hydrated manifest as JSON.
   string manifest = 1;
 }
 

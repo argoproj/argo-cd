@@ -62,7 +62,6 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 	}
 	defer cleanup()
 
-	// Checkout the sync branch
 	logCtx.Debugf("Checking out sync branch %s", r.SyncBranch)
 	var out string
 	out, err = gitClient.CheckoutOrOrphan(r.SyncBranch, false)
@@ -70,34 +69,31 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 		return out, "", fmt.Errorf("failed to checkout sync branch: %w", err)
 	}
 
-	// Checkout the target branch
 	logCtx.Debugf("Checking out target branch %s", r.TargetBranch)
 	out, err = gitClient.CheckoutOrNew(r.TargetBranch, r.SyncBranch, false)
 	if err != nil {
 		return out, "", fmt.Errorf("failed to checkout target branch: %w", err)
 	}
 
-	// Clear the repo contents using git rm
 	logCtx.Debug("Clearing repo contents")
 	out, err = gitClient.RemoveContents()
 	if err != nil {
 		return out, "", fmt.Errorf("failed to clear repo: %w", err)
 	}
 
-	// Write the manifests to the temp dir
-	logCtx.Debugf("Writing manifests")
+	logCtx.Debug("Writing manifests")
 	err = WriteForPaths(dirPath, r.Repo.Repo, r.DrySha, r.Paths)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}
 
-	// Commit the changes
-	logCtx.Debugf("Committing and pushing changes")
+	logCtx.Debug("Committing and pushing changes")
 	out, err = gitClient.CommitAndPush(r.TargetBranch, r.CommitMessage)
 	if err != nil {
 		return out, "", fmt.Errorf("failed to commit and push: %w", err)
 	}
 
+	logCtx.Debug("Getting commit SHA")
 	sha, err := gitClient.CommitSHA()
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get commit SHA: %w", err)
