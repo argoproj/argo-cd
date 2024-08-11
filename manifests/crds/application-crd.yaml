@@ -4560,7 +4560,7 @@ spec:
                         enum:
                         - Hydrating
                         - Failed
-                        - Committed
+                        - Hydrated
                         type: string
                       sourceHydrator:
                         description: SourceHydrator holds the hydrator config used

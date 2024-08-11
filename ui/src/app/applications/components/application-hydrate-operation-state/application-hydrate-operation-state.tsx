@@ -9,11 +9,10 @@ import * as models from '../../../shared/models';
 import './application-hydrate-operation-state.scss';
 
 interface Props {
-    application: models.Application;
     hydrateOperationState: models.HydrateOperation;
 }
 
-export const ApplicationHydrateOperationState: React.StatelessComponent<Props> = ({hydrateOperationState}) => {
+export const ApplicationHydrateOperationState: React.FunctionComponent<Props> = ({hydrateOperationState}) => {
     const operationAttributes = [
         {title: 'PHASE', value: hydrateOperationState.phase},
         ...(hydrateOperationState.message ? [{title: 'MESSAGE', value: hydrateOperationState.message}] : []),

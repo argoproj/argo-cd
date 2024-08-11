@@ -1179,7 +1179,7 @@ type SuccessfulHydrateOperation struct {
 }
 
 // HydrateOperationPhase indicates the status of a hydrate operation
-// +kubebuilder:validation:Enum=Hydrating;Failed;Committed
+// +kubebuilder:validation:Enum=Hydrating;Failed;Hydrated
 type HydrateOperationPhase string
 
 const (

@@ -796,29 +796,29 @@ export function hydrationStatusMessage(app: appModels.Application) {
         case appModels.HydrateOperationPhases.Hydrating:
             return (
                 <span>
-                    {/*from{' '}*/}
-                    {/*<Revision repoUrl={drySource.repoURL} revision={dryCommit}>*/}
-                    {/*    {drySource.targetRevision + ' (' + dryCommit.substr(0, 7) + ')'}*/}
-                    {/*</Revision>*/}
-                    {/*<br/>*/}
-                    {/*to{' '}*/}
-                    {/*<Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>*/}
-                    {/*    {syncSource.targetRevision}*/}
-                    {/*</Revision>*/}
+                    from{' '}
+                    <Revision repoUrl={drySource.repoURL} revision={dryCommit}>
+                        {drySource.targetRevision + ' (' + dryCommit.substr(0, 7) + ')'}
+                    </Revision>
+                    <br/>
+                    to{' '}
+                    <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
+                        {syncSource.targetRevision}
+                    </Revision>
                 </span>
             );
         case appModels.HydrateOperationPhases.Failed:
             return (
                 <span>
-                    {/*from{' '}*/}
-                    {/*<Revision repoUrl={drySource.repoURL} revision={dryCommit}>*/}
-                    {/*    {drySource.targetRevision + ' (' + dryCommit.substr(0, 7) + ')'}*/}
-                    {/*</Revision>*/}
-                    {/*<br/>*/}
-                    {/*to{' '}*/}
-                    {/*<Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>*/}
-                    {/*    {syncSource.targetRevision}*/}
-                    {/*</Revision>*/}
+                    from{' '}
+                    <Revision repoUrl={drySource.repoURL} revision={dryCommit}>
+                        {drySource.targetRevision + ' (' + dryCommit.substr(0, 7) + ')'}
+                    </Revision>
+                    <br/>
+                    to{' '}
+                    <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
+                        {syncSource.targetRevision}
+                    </Revision>
                 </span>
             );
         default:

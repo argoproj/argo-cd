@@ -104,11 +104,11 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     <div style={{lineHeight: '19.5px', marginBottom: '0.3em'}}>
                         {sectionLabel({
                             title: 'SOURCE HYDRATOR',
-                            helpContent: 'The status of the source hydrator operation'
+                            helpContent: 'The source hydrator reads manifests from git, hydrates (renders) them, and pushes them to a different location in git.'
                         })}
                     </div>
                     <div className='application-status-panel__item-value'>
-                        <a onClick={() => showHydrateOperation && showHydrateOperation()}>
+                        <a className='application-status-panel__item-value__hydrator-link' onClick={() => showHydrateOperation && showHydrateOperation()}>
                             <HydrateOperationPhaseIcon operationState={application.status.sourceHydrator.currentOperation} />
                             &nbsp;
                             {application.status.sourceHydrator.currentOperation.phase}

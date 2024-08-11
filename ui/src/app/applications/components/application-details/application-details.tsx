@@ -856,7 +856,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         <SlidingPanel
                                             isShown={this.showHydrateOperationState && !!hydrateOperationState}
                                             onClose={() => this.setHydrateOperationStatusVisible(false)}>
-                                            {operationState && <ApplicationHydrateOperationState application={application} hydrateOperationState={hydrateOperationState} />}
+                                            {hydrateOperationState && <ApplicationHydrateOperationState hydrateOperationState={hydrateOperationState} />}
                                         </SlidingPanel>
                                         <SlidingPanel isShown={this.showConditions && !!conditions} onClose={() => this.setConditionsStatusVisible(false)}>
                                             {conditions && <ApplicationConditions conditions={conditions} />}
