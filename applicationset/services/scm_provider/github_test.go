@@ -590,7 +590,6 @@ func TestGithubListRepos(t *testing.T) {
 			allBranches: true,
 			proto:       "ssh",
 			expectedRepos: []*Repository{
-
 				{
 					Organization: "argoproj",
 					Repository:   "argo-cd",
