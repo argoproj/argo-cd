@@ -43,6 +43,12 @@ func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]
 			}
 			outFilter.FilterType = FilterTypeBranch
 		}
+
+		if outFilter.FilterType == FilterTypeUndefined {
+			outFilter.FilterType = FilterTypeRepo
+			outFilter.IncludeArchivedRepos = filter.IncludeArchivedRepos
+		}
+
 		outFilters = append(outFilters, outFilter)
 	}
 	return outFilters, nil
@@ -52,11 +58,9 @@ func matchFilter(ctx context.Context, provider SCMProviderService, repo *Reposit
 	if filter.RepositoryMatch != nil && !filter.RepositoryMatch.MatchString(repo.Repository) {
 		return false, nil
 	}
-
 	if filter.BranchMatch != nil && !filter.BranchMatch.MatchString(repo.Branch) {
 		return false, nil
 	}
-
 	if filter.LabelMatch != nil {
 		found := false
 		for _, label := range repo.Labels {
@@ -68,6 +72,10 @@ func matchFilter(ctx context.Context, provider SCMProviderService, repo *Reposit
 		if !found {
 			return false, nil
 		}
+	}
+
+	if !filter.IncludeArchivedRepos && repo.Archived {
+		return false, nil
 	}
 
 	if len(filter.PathsExist) != 0 {
@@ -82,6 +90,7 @@ func matchFilter(ctx context.Context, provider SCMProviderService, repo *Reposit
 			}
 		}
 	}
+
 	if len(filter.PathsDoNotExist) != 0 {
 		for _, path := range filter.PathsDoNotExist {
 			path = strings.TrimRight(path, "/")

@@ -14,6 +14,7 @@ type Repository struct {
 	SHA          string
 	Labels       []string
 	RepositoryId interface{}
+	Archived     bool
 }
 
 type SCMProviderService interface {
@@ -24,12 +25,13 @@ type SCMProviderService interface {
 
 // A compiled version of SCMProviderGeneratorFilter for performance.
 type Filter struct {
-	RepositoryMatch *regexp.Regexp
-	PathsExist      []string
-	PathsDoNotExist []string
-	LabelMatch      *regexp.Regexp
-	BranchMatch     *regexp.Regexp
-	FilterType      FilterType
+	RepositoryMatch      *regexp.Regexp
+	PathsExist           []string
+	PathsDoNotExist      []string
+	LabelMatch           *regexp.Regexp
+	BranchMatch          *regexp.Regexp
+	FilterType           FilterType
+	IncludeArchivedRepos bool
 }
 
 // A convenience type for indicating where to apply a filter

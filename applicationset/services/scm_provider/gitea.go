@@ -64,6 +64,7 @@ func (g *GiteaProvider) GetBranches(ctx context.Context, repo *Repository) ([]*R
 				SHA:          branch.Commit.ID,
 				Labels:       repo.Labels,
 				RepositoryId: repo.RepositoryId,
+				Archived:     repo.Archived,
 			},
 		}, nil
 	}
@@ -82,6 +83,7 @@ func (g *GiteaProvider) GetBranches(ctx context.Context, repo *Repository) ([]*R
 			SHA:          branch.Commit.ID,
 			Labels:       repo.Labels,
 			RepositoryId: repo.RepositoryId,
+			Archived:     repo.Archived,
 		})
 	}
 	return repos, nil
@@ -121,6 +123,7 @@ func (g *GiteaProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]
 			URL:          url,
 			Labels:       labels,
 			RepositoryId: int(repo.ID),
+			Archived:     repo.Archived,
 		})
 	}
 	return repos, nil
