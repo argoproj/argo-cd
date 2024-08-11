@@ -29,6 +29,7 @@ interface Props {
     application: models.Application;
     showDiff?: () => any;
     showOperation?: () => any;
+    showHydrateOperation?: () => any;
     showConditions?: () => any;
     showExtension?: (id: string) => any;
     showMetadataInfo?: (revision: string) => any;
@@ -108,23 +109,19 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                         })}
                     </div>
                     <div className='application-status-panel__item-value'>
-                        <a className='application-status-panel__item-value__hydrator-link'
-                           onClick={() => showHydrateOperation && showHydrateOperation()}>
-                            <HydrateOperationPhaseIcon
-                                operationState={application.status.sourceHydrator.currentOperation}/>
+                        <a className='application-status-panel__item-value__hydrator-link' onClick={() => showHydrateOperation && showHydrateOperation()}>
+                            <HydrateOperationPhaseIcon operationState={application.status.sourceHydrator.currentOperation} />
                             &nbsp;
                             {application.status.sourceHydrator.currentOperation.phase}
                         </a>
-                        <div
-                            className='application-status-panel__item-value__revision show-for-large'>{hydrationStatusMessage(application)}</div>
+                        <div className='application-status-panel__item-value__revision show-for-large'>{hydrationStatusMessage(application)}</div>
                     </div>
                     <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
-                        {application.status.sourceHydrator.currentOperation.phase} <Timestamp
-                        date={application.status.sourceHydrator.currentOperation.finishedAt || application.status.sourceHydrator.currentOperation.startedAt}/>
+                        {application.status.sourceHydrator.currentOperation.phase}{' '}
+                        <Timestamp date={application.status.sourceHydrator.currentOperation.finishedAt || application.status.sourceHydrator.currentOperation.startedAt} />
                     </div>
                     {application.status.sourceHydrator.currentOperation.message && (
-                        <div
-                            className='application-status-panel__item-name'>{application.status.sourceHydrator.currentOperation.message}</div>
+                        <div className='application-status-panel__item-name'>{application.status.sourceHydrator.currentOperation.message}</div>
                     )}
                     <div className='application-status-panel__item-name'>
                         <RevisionMetadataPanel

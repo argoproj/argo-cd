@@ -33,7 +33,7 @@ export const ApplicationHydrateOperationState: React.FunctionComponent<Props> = 
         }
     ];
 
-    if (hydrateOperationState.finishedAt && hydrateOperationState.phase !== 'Running') {
+    if (hydrateOperationState.finishedAt && hydrateOperationState.phase !== 'Hydrating') {
         operationAttributes.push({title: 'FINISHED AT', value: <Timestamp date={hydrateOperationState.finishedAt} />});
     }
     operationAttributes.push({

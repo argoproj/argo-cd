@@ -800,7 +800,7 @@ export function hydrationStatusMessage(app: appModels.Application) {
                     <Revision repoUrl={drySource.repoURL} revision={dryCommit}>
                         {drySource.targetRevision + ' (' + dryCommit.substr(0, 7) + ')'}
                     </Revision>
-                    <br/>
+                    <br />
                     to{' '}
                     <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
                         {syncSource.targetRevision}
@@ -814,7 +814,7 @@ export function hydrationStatusMessage(app: appModels.Application) {
                     <Revision repoUrl={drySource.repoURL} revision={dryCommit}>
                         {drySource.targetRevision + ' (' + dryCommit.substr(0, 7) + ')'}
                     </Revision>
-                    <br/>
+                    <br />
                     to{' '}
                     <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
                         {syncSource.targetRevision}
