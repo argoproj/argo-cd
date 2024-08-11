@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	pathpkg "path"
 
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/xanzy/go-gitlab"
@@ -20,12 +19,11 @@ type GitlabProvider struct {
 	includeSubgroups      bool
 	includeSharedProjects bool
 	topic                 string
-	includeArchivedRepos  bool
 }
 
 var _ SCMProviderService = &GitlabProvider{}
 
-func NewGitlabProvider(ctx context.Context, organization string, token string, url string, allBranches, includeSubgroups, includeSharedProjects, includeArchivedRepos, insecure bool, scmRootCAPath, topic string, caCerts []byte) (*GitlabProvider, error) {
+func NewGitlabProvider(ctx context.Context, organization string, token string, url string, allBranches, includeSubgroups, includeSharedProjects, insecure bool, scmRootCAPath, topic string, caCerts []byte) (*GitlabProvider, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITLAB_TOKEN")
@@ -52,11 +50,10 @@ func NewGitlabProvider(ctx context.Context, organization string, token string, u
 		}
 	}
 
-	return &GitlabProvider{client: client, organization: organization, allBranches: allBranches, includeSubgroups: includeSubgroups, includeSharedProjects: includeSharedProjects, includeArchivedRepos: includeArchivedRepos, topic: topic}, nil
+	return &GitlabProvider{client: client, organization: organization, allBranches: allBranches, includeSubgroups: includeSubgroups, includeSharedProjects: includeSharedProjects, topic: topic}, nil
 }
 
 func (g *GitlabProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
-
 	repos := []*Repository{}
 	branches, err := g.listBranches(ctx, repo)
 	if err != nil {
@@ -78,13 +75,11 @@ func (g *GitlabProvider) GetBranches(ctx context.Context, repo *Repository) ([]*
 }
 
 func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
-
 	opt := &gitlab.ListGroupProjectsOptions{
 		ListOptions:      gitlab.ListOptions{PerPage: 100},
 		IncludeSubGroups: &g.includeSubgroups,
 		WithShared:       &g.includeSharedProjects,
 		Topic:            &g.topic,
-		Archived:         &g.includeArchivedRepos,
 	}
 
 	repos := []*Repository{}
@@ -120,7 +115,6 @@ func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 				Branch:       gitlabRepo.DefaultBranch,
 				Labels:       repoLabels,
 				RepositoryId: gitlabRepo.ID,
-				Archived:     gitlabRepo.Archived,
 			})
 		}
 		if resp.CurrentPage >= resp.TotalPages {
@@ -129,83 +123,4 @@ func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 		opt.Page = resp.NextPage
 	}
 	return repos, nil
-}
-
-func (g *GitlabProvider) RepoHasPath(_ context.Context, repo *Repository, path string) (bool, error) {
-	p, _, err := g.client.Projects.GetProject(repo.Organization+"/"+repo.Repository, nil)
-	if err != nil {
-		return false, err
-	}
-	directories := []string{
-		path,
-		pathpkg.Dir(path),
-	}
-	for _, directory := range directories {
-		options := gitlab.ListTreeOptions{
-			Path: &directory,
-			Ref:  &repo.Branch,
-		}
-		for {
-			treeNode, resp, err := g.client.Repositories.ListTree(p.ID, &options)
-			if err != nil {
-				return false, err
-			}
-			if path == directory {
-				if resp.TotalItems > 0 {
-					return true, nil
-				}
-			}
-			for i := range treeNode {
-				if treeNode[i].Path == path {
-					return true, nil
-				}
-			}
-			if resp.NextPage == 0 {
-				// no future pages
-				break
-			}
-			options.Page = resp.NextPage
-		}
-	}
-	return false, nil
-}
-
-func (g *GitlabProvider) listBranches(_ context.Context, repo *Repository) ([]gitlab.Branch, error) {
-	branches := []gitlab.Branch{}
-	// If we don't specifically want to query for all branches, just use the default branch and call it a day.
-	if !g.allBranches {
-		gitlabBranch, resp, err := g.client.Branches.GetBranch(repo.RepositoryId, repo.Branch, nil)
-		// 404s are not an error here, just a normal false.
-		if resp != nil && resp.StatusCode == http.StatusNotFound {
-			return []gitlab.Branch{}, nil
-		}
-		if err != nil {
-			return nil, err
-		}
-		branches = append(branches, *gitlabBranch)
-		return branches, nil
-	}
-	// Otherwise, scrape the ListBranches API.
-	opt := &gitlab.ListBranchesOptions{
-		ListOptions: gitlab.ListOptions{PerPage: 100},
-	}
-	for {
-		gitlabBranches, resp, err := g.client.Branches.ListBranches(repo.RepositoryId, opt)
-		// 404s are not an error here, just a normal false.
-		if resp != nil && resp.StatusCode == http.StatusNotFound {
-			return []gitlab.Branch{}, nil
-		}
-		if err != nil {
-			return nil, err
-		}
-		for _, gitlabBranch := range gitlabBranches {
-			branches = append(branches, *gitlabBranch)
-		}
-
-		if resp.NextPage == 0 {
-			break
-		}
-		opt.Page = resp.NextPage
-	}
-	return branches, nil
 }
