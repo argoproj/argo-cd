@@ -1,6 +1,6 @@
 import {DataLoader, Tooltip} from 'argo-ui';
 import * as React from 'react';
-import {Timestamp} from '../../../shared/components/timestamp';
+import {Timestamp} from '../../../shared/components';
 import {services} from '../../../shared/services';
 
 export const RevisionMetadataPanel = (props: {appName: string; appNamespace: string; type: string; revision: string; versionId: number}) => {
