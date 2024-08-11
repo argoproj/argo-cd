@@ -735,6 +735,7 @@ func TestGithubGetBranches(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
+	// all branches set to false
 	host, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, false)
 	repo := &Repository{
 		Organization: "argoproj",
@@ -753,6 +754,7 @@ func TestGithubGetBranches(t *testing.T) {
 		Repository:   "applicationset",
 		Branch:       "main",
 	}
+
 	_, err = host.GetBranches(context.Background(), repo2)
 	require.NoError(t, err)
 
@@ -763,6 +765,6 @@ func TestGithubGetBranches(t *testing.T) {
 		require.NoError(t, err)
 	} else {
 		// considering master  branch to  exist.
-		assert.Len(t, repos, 1)
+		assert.Len(t, repos, 2)
 	}
 }
