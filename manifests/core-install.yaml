@@ -1372,10 +1372,16 @@ spec:
                       manifest source lives.
                     properties:
                       path:
+                        description: Path is a directory path within the Git repository
+                          where the manifests are located
                         type: string
                       repoURL:
+                        description: RepoURL is the URL to the git repository that
+                          contains the application manifests
                         type: string
                       targetRevision:
+                        description: TargetRevision defines the revision of the source
+                          to hydrate
                         type: string
                     required:
                     - path
@@ -1388,6 +1394,8 @@ spec:
                       have to move manifests to the SyncSource, e.g. by pull request.
                     properties:
                       targetBranch:
+                        description: TargetBranch is the branch to which hydrated
+                          manifests should be committed
                         type: string
                     required:
                     - targetBranch
@@ -1397,8 +1405,13 @@ spec:
                       from.
                     properties:
                       path:
+                        description: |-
+                          Path is a directory path within the git repository where hydrated manifests should be committed to and synced
+                          from. If hydrateTo is set, this is just the path from which hydrated manifests will be synced.
                         type: string
                       targetBranch:
+                        description: TargetBranch is the branch to which hydrated
+                          manifests should be committed
                         type: string
                     required:
                     - path
@@ -4522,22 +4535,33 @@ spec:
                 description: SourceHydrator stores information about the current state
                   of source hydration
                 properties:
-                  hydrateOperation:
-                    description: HydrateOperation holds the status of the hydrate
+                  currentOperation:
+                    description: CurrentOperation holds the status of the hydrate
                       operation
                     properties:
+                      drySHA:
+                        description: DrySHA holds the resolved revision (sha) of the
+                          dry source as of the most recent reconciliation
+                        type: string
                       finishedAt:
                         description: FinishedAt indicates when the hydrate operation
                           finished
                         format: date-time
                         type: string
+                      hydratedSHA:
+                        description: HydratedSHA holds the resolved revision (sha)
+                          of the hydrated source as of the most recent reconciliation
+                        type: string
                       message:
                         description: Message contains a message describing the current
                           status of the hydrate operation
                         type: string
-                      revision:
-                        description: Revision holds the resolved revision (sha) of
-                          the dry source as of the most recent reconciliation
+                      phase:
+                        description: Phase indicates the status of the hydrate operation
+                        enum:
+                        - Hydrating
+                        - Failed
+                        - Committed
                         type: string
                       sourceHydrator:
                         description: SourceHydrator holds the hydrator config used
@@ -4548,10 +4572,16 @@ spec:
                               repeat yourself" manifest source lives.
                             properties:
                               path:
+                                description: Path is a directory path within the Git
+                                  repository where the manifests are located
                                 type: string
                               repoURL:
+                                description: RepoURL is the URL to the git repository
+                                  that contains the application manifests
                                 type: string
                               targetRevision:
+                                description: TargetRevision defines the revision of
+                                  the source to hydrate
                                 type: string
                             required:
                             - path
@@ -4564,6 +4594,8 @@ spec:
                               have to move manifests to the SyncSource, e.g. by pull request.
                             properties:
                               targetBranch:
+                                description: TargetBranch is the branch to which hydrated
+                                  manifests should be committed
                                 type: string
                             required:
                             - targetBranch
@@ -4573,8 +4605,13 @@ spec:
                               manifests from.
                             properties:
                               path:
+                                description: |-
+                                  Path is a directory path within the git repository where hydrated manifests should be committed to and synced
+                                  from. If hydrateTo is set, this is just the path from which hydrated manifests will be synced.
                                 type: string
                               targetBranch:
+                                description: TargetBranch is the branch to which hydrated
+                                  manifests should be committed
                                 type: string
                             required:
                             - path
@@ -4589,17 +4626,81 @@ spec:
                           started
                         format: date-time
                         type: string
-                      status:
-                        description: Status indicates the status of the hydrate operation
-                        type: string
                     required:
                     - message
-                    - status
+                    - phase
                     type: object
-                  revision:
-                    description: Revision holds the resolved revision (sha) of the
-                      dry source as of the most recent reconciliation
-                    type: string
+                  lastSuccessfulOperation:
+                    description: LastSuccessfulOperation holds info about the most
+                      recent successful hydration
+                    properties:
+                      drySHA:
+                        description: DrySHA holds the resolved revision (sha) of the
+                          dry source as of the most recent reconciliation
+                        type: string
+                      hydratedSHA:
+                        description: HydratedSHA holds the resolved revision (sha)
+                          of the hydrated source as of the most recent reconciliation
+                        type: string
+                      sourceHydrator:
+                        description: SourceHydrator holds the hydrator config used
+                          for the hydrate operation
+                        properties:
+                          drySource:
+                            description: DrySource specifies where the dry "don't
+                              repeat yourself" manifest source lives.
+                            properties:
+                              path:
+                                description: Path is a directory path within the Git
+                                  repository where the manifests are located
+                                type: string
+                              repoURL:
+                                description: RepoURL is the URL to the git repository
+                                  that contains the application manifests
+                                type: string
+                              targetRevision:
+                                description: TargetRevision defines the revision of
+                                  the source to hydrate
+                                type: string
+                            required:
+                            - path
+                            - repoURL
+                            - targetRevision
+                            type: object
+                          hydrateTo:
+                            description: |-
+                              HydrateTo specifies an optional "staging" location to push hydrated manifests to. An external system would then
+                              have to move manifests to the SyncSource, e.g. by pull request.
+                            properties:
+                              targetBranch:
+                                description: TargetBranch is the branch to which hydrated
+                                  manifests should be committed
+                                type: string
+                            required:
+                            - targetBranch
+                            type: object
+                          syncSource:
+                            description: SyncSource specifies where to sync hydrated
+                              manifests from.
+                            properties:
+                              path:
+                                description: |-
+                                  Path is a directory path within the git repository where hydrated manifests should be committed to and synced
+                                  from. If hydrateTo is set, this is just the path from which hydrated manifests will be synced.
+                                type: string
+                              targetBranch:
+                                description: TargetBranch is the branch to which hydrated
+                                  manifests should be committed
+                                type: string
+                            required:
+                            - path
+                            - targetBranch
+                            type: object
+                        required:
+                        - drySource
+                        - syncSource
+                        type: object
+                    type: object
                 type: object
               sourceType:
                 description: SourceType specifies the type of this application

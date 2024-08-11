@@ -7225,13 +7225,16 @@
       "type": "object",
       "properties": {
         "path": {
-          "type": "string"
+          "type": "string",
+          "title": "Path is a directory path within the Git repository where the manifests are located"
         },
         "repoURL": {
-          "type": "string"
+          "type": "string",
+          "title": "RepoURL is the URL to the git repository that contains the application manifests"
         },
         "targetRevision": {
-          "type": "string"
+          "type": "string",
+          "title": "TargetRevision defines the revision of the source to hydrate"
         }
       }
     },
@@ -7489,26 +7492,30 @@
     "v1alpha1HydrateOperation": {
       "type": "object",
       "properties": {
+        "drySHA": {
+          "type": "string",
+          "title": "DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation"
+        },
         "finishedAt": {
           "$ref": "#/definitions/v1Time"
+        },
+        "hydratedSHA": {
+          "type": "string",
+          "title": "HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation"
         },
         "message": {
           "type": "string",
           "title": "Message contains a message describing the current status of the hydrate operation"
         },
-        "revision": {
+        "phase": {
           "type": "string",
-          "title": "Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation"
+          "title": "Phase indicates the status of the hydrate operation"
         },
         "sourceHydrator": {
           "$ref": "#/definitions/v1alpha1SourceHydrator"
         },
         "startedAt": {
           "$ref": "#/definitions/v1Time"
-        },
-        "status": {
-          "type": "string",
-          "title": "Status indicates the status of the hydrate operation"
         }
       }
     },
@@ -7517,7 +7524,8 @@
       "type": "object",
       "properties": {
         "targetBranch": {
-          "type": "string"
+          "type": "string",
+          "title": "TargetBranch is the branch to which hydrated manifests should be committed"
         }
       }
     },
@@ -9175,12 +9183,28 @@
     "v1alpha1SourceHydratorStatus": {
       "type": "object",
       "properties": {
-        "hydrateOperation": {
+        "currentOperation": {
           "$ref": "#/definitions/v1alpha1HydrateOperation"
         },
-        "revision": {
+        "lastSuccessfulOperation": {
+          "$ref": "#/definitions/v1alpha1SuccessfulHydrateOperation"
+        }
+      }
+    },
+    "v1alpha1SuccessfulHydrateOperation": {
+      "type": "object",
+      "title": "SuccessfulHydrateOperation contains information about the most recent successful hydrate operation",
+      "properties": {
+        "drySHA": {
           "type": "string",
-          "title": "Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation"
+          "title": "DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation"
+        },
+        "hydratedSHA": {
+          "type": "string",
+          "title": "HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation"
+        },
+        "sourceHydrator": {
+          "$ref": "#/definitions/v1alpha1SourceHydrator"
         }
       }
     },
@@ -9343,10 +9367,12 @@
       "type": "object",
       "properties": {
         "path": {
+          "description": "Path is a directory path within the git repository where hydrated manifests should be committed to and synced\nfrom. If hydrateTo is set, this is just the path from which hydrated manifests will be synced.",
           "type": "string"
         },
         "targetBranch": {
-          "type": "string"
+          "type": "string",
+          "title": "TargetBranch is the branch to which hydrated manifests should be committed"
         }
       }
     },

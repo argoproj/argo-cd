@@ -162,6 +162,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SignatureKey":                            schema_pkg_apis_application_v1alpha1_SignatureKey(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SourceHydrator":                          schema_pkg_apis_application_v1alpha1_SourceHydrator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SourceHydratorStatus":                    schema_pkg_apis_application_v1alpha1_SourceHydratorStatus(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SuccessfulHydrateOperation":              schema_pkg_apis_application_v1alpha1_SuccessfulHydrateOperation(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperation":                           schema_pkg_apis_application_v1alpha1_SyncOperation(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResource":                   schema_pkg_apis_application_v1alpha1_SyncOperationResource(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperationResult":                     schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref),
@@ -3318,23 +3319,26 @@ func schema_pkg_apis_application_v1alpha1_DrySource(ref common.ReferenceCallback
 				Properties: map[string]spec.Schema{
 					"repoURL": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Description: "RepoURL is the URL to the git repository that contains the application manifests",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"targetRevision": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Description: "TargetRevision defines the revision of the source to hydrate",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"path": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Description: "Path is a directory path within the Git repository where the manifests are located",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
@@ -3974,9 +3978,9 @@ func schema_pkg_apis_application_v1alpha1_HydrateOperation(ref common.ReferenceC
 							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
 						},
 					},
-					"status": {
+					"phase": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Status indicates the status of the hydrate operation",
+							Description: "Phase indicates the status of the hydrate operation",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -3990,9 +3994,16 @@ func schema_pkg_apis_application_v1alpha1_HydrateOperation(ref common.ReferenceC
 							Format:      "",
 						},
 					},
-					"revision": {
+					"drySHA": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation",
+							Description: "DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"hydratedSHA": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -4005,7 +4016,7 @@ func schema_pkg_apis_application_v1alpha1_HydrateOperation(ref common.ReferenceC
 						},
 					},
 				},
-				Required: []string{"status", "message"},
+				Required: []string{"phase", "message"},
 			},
 		},
 		Dependencies: []string{
@@ -4022,9 +4033,10 @@ func schema_pkg_apis_application_v1alpha1_HydrateTo(ref common.ReferenceCallback
 				Properties: map[string]spec.Schema{
 					"targetBranch": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Description: "TargetBranch is the branch to which hydrated manifests should be committed",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
@@ -7747,16 +7759,15 @@ func schema_pkg_apis_application_v1alpha1_SourceHydratorStatus(ref common.Refere
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
-					"revision": {
+					"lastSuccessfulOperation": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation",
-							Type:        []string{"string"},
-							Format:      "",
+							Description: "LastSuccessfulOperation holds info about the most recent successful hydration",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SuccessfulHydrateOperation"),
 						},
 					},
-					"hydrateOperation": {
+					"currentOperation": {
 						SchemaProps: spec.SchemaProps{
-							Description: "HydrateOperation holds the status of the hydrate operation",
+							Description: "CurrentOperation holds the status of the hydrate operation",
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HydrateOperation"),
 						},
 					},
@@ -7764,7 +7775,43 @@ func schema_pkg_apis_application_v1alpha1_SourceHydratorStatus(ref common.Refere
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HydrateOperation"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.HydrateOperation", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SuccessfulHydrateOperation"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_SuccessfulHydrateOperation(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SuccessfulHydrateOperation contains information about the most recent successful hydrate operation",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"drySHA": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"hydratedSHA": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"sourceHydrator": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SourceHydrator holds the hydrator config used for the hydrate operation",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SourceHydrator"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SourceHydrator"},
 	}
 }
 
@@ -8099,16 +8146,18 @@ func schema_pkg_apis_application_v1alpha1_SyncSource(ref common.ReferenceCallbac
 				Properties: map[string]spec.Schema{
 					"targetBranch": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Description: "TargetBranch is the branch to which hydrated manifests should be committed",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"path": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Description: "Path is a directory path within the git repository where hydrated manifests should be committed to and synced from. If hydrateTo is set, this is just the path from which hydrated manifests will be synced.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},

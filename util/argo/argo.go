@@ -231,6 +231,7 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 		"metadata": map[string]interface{}{
 			"annotations": map[string]string{
 				argoappv1.AnnotationKeyRefresh: string(refreshType),
+				argoappv1.AnnotationKeyHydrate: "normal",
 			},
 		},
 	}

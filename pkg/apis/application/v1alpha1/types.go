@@ -413,21 +413,28 @@ func (s SourceHydrator) DeepEquals(hydrator SourceHydrator) bool {
 
 // DrySource specifies a location for dry "don't repeat yourself" manifest source information.
 type DrySource struct {
-	RepoURL        string `json:"repoURL" protobuf:"bytes,1,name=repoURL"`
+	// RepoURL is the URL to the git repository that contains the application manifests
+	RepoURL string `json:"repoURL" protobuf:"bytes,1,name=repoURL"`
+	// TargetRevision defines the revision of the source to hydrate
 	TargetRevision string `json:"targetRevision" protobuf:"bytes,2,name=targetRevision"`
-	Path           string `json:"path" protobuf:"bytes,3,name=path"`
+	// Path is a directory path within the Git repository where the manifests are located
+	Path string `json:"path" protobuf:"bytes,3,name=path"`
 }
 
 // SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
 // associated DrySource config in the SourceHydrator.
 type SyncSource struct {
+	// TargetBranch is the branch to which hydrated manifests should be committed
 	TargetBranch string `json:"targetBranch" protobuf:"bytes,1,name=targetBranch"`
-	Path         string `json:"path" protobuf:"bytes,2,name=path"`
+	// Path is a directory path within the git repository where hydrated manifests should be committed to and synced
+	// from. If hydrateTo is set, this is just the path from which hydrated manifests will be synced.
+	Path string `json:"path" protobuf:"bytes,2,name=path"`
 }
 
 // HydrateTo specifies a location to which hydrated manifests should be pushed as a "staging area" before being moved to
 // the SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.
 type HydrateTo struct {
+	// TargetBranch is the branch to which hydrated manifests should be committed
 	TargetBranch string `json:"targetBranch" protobuf:"bytes,1,name=targetBranch"`
 }
 
@@ -1136,10 +1143,10 @@ type ApplicationStatus struct {
 }
 
 type SourceHydratorStatus struct {
-	// Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation
-	Revision string `json:"revision,omitempty" protobuf:"bytes,1,opt,name=revision"`
-	// HydrateOperation holds the status of the hydrate operation
-	HydrateOperation *HydrateOperation `json:"hydrateOperation,omitempty" protobuf:"bytes,2,opt,name=hydrateOperation"`
+	// LastSuccessfulOperation holds info about the most recent successful hydration
+	LastSuccessfulOperation *SuccessfulHydrateOperation `json:"lastSuccessfulOperation,omitempty" protobuf:"bytes,1,opt,name=lastSuccessfulOperation"`
+	// CurrentOperation holds the status of the hydrate operation
+	CurrentOperation *HydrateOperation `json:"currentOperation,omitempty" protobuf:"bytes,2,opt,name=currentOperation"`
 }
 
 type HydrateOperation struct {
@@ -1147,22 +1154,36 @@ type HydrateOperation struct {
 	StartedAt metav1.Time `json:"startedAt,omitempty" protobuf:"bytes,1,opt,name=startedAt"`
 	// FinishedAt indicates when the hydrate operation finished
 	FinishedAt *metav1.Time `json:"finishedAt,omitempty" protobuf:"bytes,2,opt,name=finishedAt"`
-	// Status indicates the status of the hydrate operation
-	Status HydrateOperationPhase `json:"status" protobuf:"bytes,3,opt,name=status"`
+	// Phase indicates the status of the hydrate operation
+	Phase HydrateOperationPhase `json:"phase" protobuf:"bytes,3,opt,name=phase"`
 	// Message contains a message describing the current status of the hydrate operation
 	Message string `json:"message" protobuf:"bytes,4,opt,name=message"`
-	// Revision holds the resolved revision (sha) of the dry source as of the most recent reconciliation
-	Revision string `json:"revision,omitempty" protobuf:"bytes,5,opt,name=revision"`
+	// DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation
+	DrySHA string `json:"drySHA,omitempty" protobuf:"bytes,5,opt,name=drySHA"`
+	// HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation
+	HydratedSHA string `json:"hydratedSHA,omitempty" protobuf:"bytes,6,opt,name=hydratedSHA"`
 	// SourceHydrator holds the hydrator config used for the hydrate operation
-	SourceHydrator SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,6,opt,name=sourceHydrator"`
+	SourceHydrator SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,7,opt,name=sourceHydrator"`
 }
 
+// SuccessfulHydrateOperation contains information about the most recent successful hydrate operation
+type SuccessfulHydrateOperation struct {
+	// DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation
+	DrySHA string `json:"drySHA,omitempty" protobuf:"bytes,5,opt,name=drySHA"`
+	// HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation
+	HydratedSHA string `json:"hydratedSHA,omitempty" protobuf:"bytes,6,opt,name=hydratedSHA"`
+	// SourceHydrator holds the hydrator config used for the hydrate operation
+	SourceHydrator SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,7,opt,name=sourceHydrator"`
+}
+
+// HydrateOperationPhase indicates the status of a hydrate operation
+// +kubebuilder:validation:Enum=Hydrating;Failed;Committed
 type HydrateOperationPhase string
 
 const (
-	HydrateOperationPhaseRunning   HydrateOperationPhase = "Running"
+	HydrateOperationPhaseHydrating HydrateOperationPhase = "Hydrating"
 	HydrateOperationPhaseFailed    HydrateOperationPhase = "Failed"
-	HydrateOperationPhaseSucceeded HydrateOperationPhase = "Succeeded"
+	HydrateOperationPhaseHydrated  HydrateOperationPhase = "Hydrated"
 )
 
 // GetRevisions will return the current revision associated with the Application.
@@ -2861,6 +2882,22 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 		refreshType = RefreshTypeHard
 	}
 	return refreshType, true
+}
+
+// IsHydrateRequested returns whether hydration has been requested for an application
+func (app *Application) IsHydrateRequested() bool {
+	annotations := app.GetAnnotations()
+	if annotations == nil {
+		return false
+	}
+	typeStr, ok := annotations[AnnotationKeyRefresh]
+	if !ok {
+		return false
+	}
+	if typeStr == "normal" {
+		return true
+	}
+	return false
 }
 
 func (app *Application) HasPostDeleteFinalizer(stage ...string) bool {

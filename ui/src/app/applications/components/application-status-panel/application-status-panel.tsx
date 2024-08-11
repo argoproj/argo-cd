@@ -17,7 +17,8 @@ import {
     HealthStatusIcon,
     OperationState,
     syncStatusMessage,
-    getAppDefaultSyncRevision
+    getAppDefaultSyncRevision,
+    hydrationStatusMessage
 } from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 import * as utils from '../utils';
@@ -58,7 +59,7 @@ const sectionHeader = (info: SectionInfo, onClick?: () => any) => {
     );
 };
 
-export const ApplicationStatusPanel = ({application, showDiff, showOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
+export const ApplicationStatusPanel = ({application, showDiff, showOperation, showHydrateOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
     const today = new Date();
 
     let daysSinceLastSynchronized = 0;
@@ -98,6 +99,36 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                 </div>
                 {application.status.health.message && <div className='application-status-panel__item-name'>{application.status.health.message}</div>}
             </div>
+            {application.spec.sourceHydrator && application.status?.sourceHydrator?.currentOperation && (
+                <div className='application-status-panel__item'>
+                    <div style={{lineHeight: '19.5px', marginBottom: '0.3em'}}>
+                        {sectionLabel({
+                            title: 'SOURCE HYDRATOR',
+                            helpContent: 'The status of the source hydrator operation'
+                        })}
+                    </div>
+                    <div className='application-status-panel__item-value'>
+                        <a onClick={() => showHydrateOperation && showHydrateOperation()}>
+                            <HydrateOperationPhaseIcon operationState={application.status.sourceHydrator.currentOperation} />
+                            &nbsp;
+                            {application.status.sourceHydrator.currentOperation.phase}
+                        </a>
+                        <div className='application-status-panel__item-value__revision show-for-large'>{hydrationStatusMessage(application)}</div>
+                    </div>
+                    {application.status.sourceHydrator.currentOperation.message && (
+                        <div className='application-status-panel__item-name'>{application.status.sourceHydrator.currentOperation.message}</div>
+                    )}
+                    <div className='application-status-panel__item-name'>
+                        <RevisionMetadataPanel
+                            appName={application.metadata.name}
+                            appNamespace={application.metadata.namespace}
+                            type={''}
+                            revision={application.status.sourceHydrator.currentOperation.drySHA}
+                            versionId={utils.getAppCurrentVersion(application)}
+                        />
+                    </div>
+                </div>
+            )}
             <div className='application-status-panel__item'>
                 <React.Fragment>
                     {sectionHeader(
@@ -202,19 +233,6 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                             </a>
                         )}
                     </div>
-                </div>
-            )}
-            {application.status?.sourceHydrator?.hydrateOperation && (
-                <div className='application-status-panel__item'>
-                    {sectionLabel({title: 'SOURCE HYDRATOR'})}
-                    <div className='application-status-panel__item-value'>
-                        <HydrateOperationPhaseIcon operationState={application.status.sourceHydrator.hydrateOperation} />
-                        &nbsp;
-                        {application.status.sourceHydrator.hydrateOperation.status}
-                    </div>
-                    {application.status.sourceHydrator.hydrateOperation.message && (
-                        <div className='application-status-panel__item-name'>{application.status.sourceHydrator.hydrateOperation.message}</div>
-                    )}
                 </div>
             )}
             <DataLoader

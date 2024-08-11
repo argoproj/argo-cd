@@ -33,7 +33,7 @@ func (s *Service) CommitHydratedManifests(ctx context.Context, r *apiclient.Comm
 
 	logCtx := log.WithFields(log.Fields{"repo": r.Repo.Repo, "branch": r.TargetBranch, "drySHA": r.DrySha})
 
-	out, err := s.handleCommitRequest(ctx, logCtx, r)
+	out, sha, err := s.handleCommitRequest(ctx, logCtx, r)
 	if err != nil {
 		logCtx.WithError(err).WithField("output", out).Error("failed to handle commit request")
 		s.metricsServer.IncCommitRequest(r.Repo.Repo, metrics.CommitRequestTypeFailure)
@@ -46,17 +46,19 @@ func (s *Service) CommitHydratedManifests(ctx context.Context, r *apiclient.Comm
 	logCtx.Info("Successfully handled commit request")
 	s.metricsServer.IncCommitRequest(r.Repo.Repo, metrics.CommitRequestTypeSuccess)
 	s.metricsServer.ObserveCommitRequestDuration(r.Repo.Repo, metrics.CommitRequestTypeSuccess, time.Since(startTime))
-	return &apiclient.CommitHydratedManifestsResponse{}, nil
+	return &apiclient.CommitHydratedManifestsResponse{
+		HydratedRevision: sha,
+	}, nil
 }
 
 // handleCommitRequest handles the commit request. It clones the repository, checks out the sync branch, checks out the
 // target branch, clears the repository contents, writes the manifests to the repository, commits the changes, and pushes
 // the changes. It returns the output of the git commands and an error if one occurred.
-func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r *apiclient.CommitHydratedManifestsRequest) (string, error) {
+func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r *apiclient.CommitHydratedManifestsRequest) (string, string, error) {
 	logCtx.Debug("Initiating git client")
 	gitClient, dirPath, cleanup, err := s.initGitClient(ctx, logCtx, r)
 	if err != nil {
-		return "", fmt.Errorf("failed to init git client: %w", err)
+		return "", "", fmt.Errorf("failed to init git client: %w", err)
 	}
 	defer cleanup()
 
@@ -65,38 +67,43 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 	var out string
 	out, err = gitClient.CheckoutOrOrphan(r.SyncBranch, false)
 	if err != nil {
-		return out, fmt.Errorf("failed to checkout sync branch: %w", err)
+		return out, "", fmt.Errorf("failed to checkout sync branch: %w", err)
 	}
 
 	// Checkout the target branch
 	logCtx.Debugf("Checking out target branch %s", r.TargetBranch)
 	out, err = gitClient.CheckoutOrNew(r.TargetBranch, r.SyncBranch, false)
 	if err != nil {
-		return out, fmt.Errorf("failed to checkout target branch: %w", err)
+		return out, "", fmt.Errorf("failed to checkout target branch: %w", err)
 	}
 
 	// Clear the repo contents using git rm
 	logCtx.Debug("Clearing repo contents")
 	out, err = gitClient.RemoveContents()
 	if err != nil {
-		return out, fmt.Errorf("failed to clear repo: %w", err)
+		return out, "", fmt.Errorf("failed to clear repo: %w", err)
 	}
 
 	// Write the manifests to the temp dir
 	logCtx.Debugf("Writing manifests")
 	err = WriteForPaths(dirPath, r.Repo.Repo, r.DrySha, r.Paths)
 	if err != nil {
-		return "", fmt.Errorf("failed to write manifests: %w", err)
+		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}
 
 	// Commit the changes
 	logCtx.Debugf("Committing and pushing changes")
 	out, err = gitClient.CommitAndPush(r.TargetBranch, r.CommitMessage)
 	if err != nil {
-		return out, fmt.Errorf("failed to commit and push: %w", err)
+		return out, "", fmt.Errorf("failed to commit and push: %w", err)
 	}
 
-	return "", nil
+	sha, err := gitClient.CommitSHA()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get commit SHA: %w", err)
+	}
+
+	return "", sha, nil
 }
 
 // initGitClient initializes a git client for the given repository and returns the client, the path to the directory where
