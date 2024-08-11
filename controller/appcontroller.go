@@ -906,14 +906,6 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 		}
 	}, time.Second, ctx.Done())
 
-	//go NewPreviewer(
-	//	&ctrl.appLister,
-	//	&ctrl.appStateManager,
-	//	ctrl.settingsMgr,
-	//	ctrl.getAppProj,
-	//	ctrl.db,
-	//).Run()
-
 	<-ctx.Done()
 }
 
