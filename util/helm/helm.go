@@ -31,7 +31,7 @@ type HelmRepository struct {
 
 // Helm provides wrapper functionality around the `helm` command.
 type Helm interface {
-	// Template returns a list of unstructured objects from a `helm template` command and the full command that was run
+	// Template returns a list of unstructured objects from a `helm template` command
 	Template(opts *TemplateOpts) (string, string, error)
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
 	GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error)
@@ -69,7 +69,7 @@ func IsMissingDependencyErr(err error) bool {
 func (h *helm) Template(templateOpts *TemplateOpts) (string, string, error) {
 	out, command, err := h.cmd.template(".", templateOpts)
 	if err != nil {
-		return "", "", err
+		return "", command, err
 	}
 	return out, command, nil
 }
