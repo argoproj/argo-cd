@@ -6,10 +6,12 @@ import (
 	"regexp"
 	"strings"
 
+	log "github.com/sirupsen/logrus"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/kube"
 	argokube "github.com/argoproj/argo-cd/v2/util/kube"
