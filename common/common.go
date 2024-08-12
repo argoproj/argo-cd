@@ -62,15 +62,19 @@ const (
 	DefaultPortArgoCDMetrics          = 8082
 	DefaultPortArgoCDAPIServerMetrics = 8083
 	DefaultPortRepoServerMetrics      = 8084
+	DefaultPortCommitServer           = 8086
+	DefaultPortCommitServerMetrics    = 8087
 )
 
 // DefaultAddressAPIServer for ArgoCD components
 const (
-	DefaultAddressAdminDashboard    = "localhost"
-	DefaultAddressAPIServer         = "0.0.0.0"
-	DefaultAddressAPIServerMetrics  = "0.0.0.0"
-	DefaultAddressRepoServer        = "0.0.0.0"
-	DefaultAddressRepoServerMetrics = "0.0.0.0"
+	DefaultAddressAdminDashboard      = "localhost"
+	DefaultAddressAPIServer           = "0.0.0.0"
+	DefaultAddressAPIServerMetrics    = "0.0.0.0"
+	DefaultAddressRepoServer          = "0.0.0.0"
+	DefaultAddressRepoServerMetrics   = "0.0.0.0"
+	DefaultAddressCommitServer        = "0.0.0.0"
+	DefaultAddressCommitServerMetrics = "0.0.0.0"
 )
 
 // Default paths on the pod's file system

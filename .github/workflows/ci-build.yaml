@@ -370,11 +370,11 @@ jobs:
           path: test-results
       - name: combine-go-coverage
         # We generate coverage reports for all Argo CD components, but only the applicationset-controller,
-        # app-controller, and repo-server report contain coverage data. The other components currently don't shut down
-        # gracefully, so no coverage data is produced. Once those components are fixed, we can add references to their
-        # coverage output directories.
+        # app-controller, repo-server, and commit-server report contain coverage data. The other components currently
+        # don't shut down gracefully, so no coverage data is produced. Once those components are fixed, we can add
+        # references to their coverage output directories.
         run: |
-          go tool covdata percent -i=test-results,e2e-code-coverage/applicationset-controller,e2e-code-coverage/repo-server,e2e-code-coverage/app-controller -o test-results/full-coverage.out
+          go tool covdata percent -i=test-results,e2e-code-coverage/applicationset-controller,e2e-code-coverage/repo-server,e2e-code-coverage/app-controller,e2e-code-coverage/commit-server -o test-results/full-coverage.out
       - name: Upload code coverage information to codecov.io
         uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4.6.0
         with:
