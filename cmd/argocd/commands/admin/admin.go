@@ -281,7 +281,9 @@ func getAdditionalNamespaces(ctx context.Context, argocdClientsets *argoCDClient
 		ss := strings.Split(namespacelist, ",")
 
 		for _, s := range ss {
-			listOfNamespaces = append(listOfNamespaces, strings.TrimSpace(s))
+			if s != "" {
+				listOfNamespaces = append(listOfNamespaces, strings.TrimSpace(s))
+			}
 		}
 
 		return listOfNamespaces
