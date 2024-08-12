@@ -216,6 +216,20 @@ func (db *db) DeleteRepository(ctx context.Context, repoURL, project string) err
 	return status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
 }
 
+func (db *db) GetWriteRepository(ctx context.Context, repoURL string, project string) (*appsv1.Repository, error) {
+	repository, err := db.repoWriteBackend().GetRepository(ctx, repoURL, project)
+	if err != nil {
+		return repository, fmt.Errorf("unable to get write repository %q: %w", repoURL, err)
+	}
+
+	// TODO: enrich with write credentials.
+	//if err := db.enrichCredsToRepo(ctx, repository); err != nil {
+	//	return repository, fmt.Errorf("unable to enrich write repository %q info with credentials: %w", repoURL, err)
+	//}
+
+	return repository, err
+}
+
 // ListRepositoryCredentials returns a list of URLs that contain repo credential sets
 func (db *db) ListRepositoryCredentials(ctx context.Context) ([]string, error) {
 	// TODO It would be nice to check for duplicates between secret and legacy repositories and make it so that
@@ -356,6 +370,10 @@ func (db *db) enrichCredsToRepos(ctx context.Context, repositories []*appsv1.Rep
 
 func (db *db) repoBackend() repositoryBackend {
 	return &secretsRepositoryBackend{db: db}
+}
+
+func (db *db) repoWriteBackend() repositoryBackend {
+	return &secretsRepositoryBackend{db: db, writeCreds: true}
 }
 
 func (db *db) legacyRepoBackend() repositoryBackend {

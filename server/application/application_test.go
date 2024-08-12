@@ -109,7 +109,7 @@ func fakeResolveRevisionResponseHelm() *apiclient.ResolveRevisionResponse {
 
 func fakeRepoServerClient(isHelm bool) *mocks.RepoServerServiceClient {
 	mockRepoServiceClient := mocks.RepoServerServiceClient{}
-	mockRepoServiceClient.On("ListApps", mock.Anything, mock.Anything).Return(fakeAppList(), nil)
+	mockRepoServiceClient.On("GetProcessableApps", mock.Anything, mock.Anything).Return(fakeAppList(), nil)
 	mockRepoServiceClient.On("GenerateManifest", mock.Anything, mock.Anything).Return(&apiclient.ManifestResponse{}, nil)
 	mockRepoServiceClient.On("GetAppDetails", mock.Anything, mock.Anything).Return(&apiclient.RepoAppDetailsResponse{}, nil)
 	mockRepoServiceClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
