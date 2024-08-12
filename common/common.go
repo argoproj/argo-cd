@@ -178,6 +178,9 @@ const (
 	// AnnotationKeyAppInstance is the Argo CD application name is used as the instance name
 	AnnotationKeyAppInstance = "argocd.argoproj.io/tracking-id"
 
+	// AnnotationAppParent is the name & namespace of the parent application that owns the application
+	AnnotationAppParent = "argocd.argoproj.io/parent-application"
+
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
 	AnnotationCompareOptions = "argocd.argoproj.io/compare-options"
 

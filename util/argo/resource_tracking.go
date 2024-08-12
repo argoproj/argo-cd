@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -31,7 +32,7 @@ var (
 type ResourceTracking interface {
 	GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string
 	GetAppInstance(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) *AppInstanceValue
-	SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) error
+	SetAppInstance(un *unstructured.Unstructured, key, parentAppName, parentAppNamespace string, trackingMethod v1alpha1.TrackingMethod) error
 	BuildAppInstanceValue(value AppInstanceValue) string
 	ParseAppInstanceValue(value string) (*AppInstanceValue, error)
 	Normalize(config, live *unstructured.Unstructured, labelKey, trackingMethod string) error
@@ -138,14 +139,25 @@ func UnstructuredToAppInstanceValue(un *unstructured.Unstructured, appName, name
 }
 
 // SetAppInstance set label/annotation base on tracking method
-func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) error {
+func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, parentAppName, parentAppNamespace string, trackingMethod v1alpha1.TrackingMethod) error {
 	setAppInstanceAnnotation := func() error {
-		appInstanceValue := UnstructuredToAppInstanceValue(un, val, namespace)
+		appInstanceValue := UnstructuredToAppInstanceValue(un, parentAppName, parentAppNamespace)
 		return argokube.SetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance, rt.BuildAppInstanceValue(appInstanceValue))
 	}
+
+	// attach parent annotation to app-of-apps resources
+	groupVersionKind := un.GroupVersionKind()
+	if groupVersionKind.Group == application.Group && groupVersionKind.Kind == application.ApplicationKind {
+		err := argokube.SetAppInstanceAnnotation(un, common.AnnotationAppParent, fmt.Sprintf("%s/%s", parentAppNamespace, parentAppName))
+		if err != nil {
+			log.Warnf("failed to set application parent '%s/%s' for %s: %d", parentAppNamespace, parentAppName, un.GetName(), err)
+		}
+	}
+
+	// attach tracking label to all resources
 	switch trackingMethod {
 	case TrackingMethodLabel:
-		err := argokube.SetAppInstanceLabel(un, key, val)
+		err := argokube.SetAppInstanceLabel(un, key, parentAppName)
 		if err != nil {
 			return fmt.Errorf("failed to set app instance label: %w", err)
 		}
@@ -157,24 +169,24 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		if err != nil {
 			return err
 		}
-		if len(val) > LabelMaxLength {
-			val = val[:LabelMaxLength]
+		if len(parentAppName) > LabelMaxLength {
+			parentAppName = parentAppName[:LabelMaxLength]
 			// Prevent errors if the truncated name ends in a special character.
 			// See https://github.com/argoproj/argo-cd/issues/18237.
-			for !OkEndPattern.MatchString(val) {
-				if len(val) <= 1 {
+			for !OkEndPattern.MatchString(parentAppName) {
+				if len(parentAppName) <= 1 {
 					return errors.New("failed to set app instance label: unable to truncate label to not end with a special character")
 				}
-				val = val[:len(val)-1]
+				parentAppName = parentAppName[:len(parentAppName)-1]
 			}
 		}
-		err = argokube.SetAppInstanceLabel(un, key, val)
+		err = argokube.SetAppInstanceLabel(un, key, parentAppName)
 		if err != nil {
 			return fmt.Errorf("failed to set app instance label: %w", err)
 		}
 		return nil
 	default:
-		err := argokube.SetAppInstanceLabel(un, key, val)
+		err := argokube.SetAppInstanceLabel(un, key, parentAppName)
 		if err != nil {
 			return fmt.Errorf("failed to set app instance label: %w", err)
 		}
