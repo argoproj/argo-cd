@@ -168,7 +168,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 	}
 
 	var h *argoappv1.SourceHydrator
-	h, hasHydratorFlag := ConstructSourceHydrator(spec.SourceHydrator, *appOpts, flags)
+	h, hasHydratorFlag := constructSourceHydrator(spec.SourceHydrator, *appOpts, flags)
 	if hasHydratorFlag {
 		spec.SourceHydrator = h
 	} else {
@@ -750,7 +750,11 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 	return source, visited
 }
 
-func ConstructSourceHydrator(h *argoappv1.SourceHydrator, appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.SourceHydrator, bool) {
+// constructSourceHydrator constructs a source hydrator from the command line flags. It returns the modified source
+// hydrator and a boolean indicating if any hydrator flags were set. We return instead of just modifying the source
+// hydrator in place because the given hydrator `h` might be nil. In that case, we need to create a new source hydrator
+// and return it.
+func constructSourceHydrator(h *argoappv1.SourceHydrator, appOpts AppOptions, flags *pflag.FlagSet) (*argoappv1.SourceHydrator, bool) {
 	hasHydratorFlag := false
 	ensureNotNil := func(notEmpty bool) {
 		hasHydratorFlag = true

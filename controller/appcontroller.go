@@ -1809,24 +1809,26 @@ func (ctrl *ApplicationController) processAppHydrateQueueItem() (processNext boo
 	logCtx.Debug("Processing app hydrate queue item")
 
 	// If we're using a source hydrator, see if the dry source has changed.
-	revision, err := ctrl.appStateManager.ResolveDryRevision(app.Spec.SourceHydrator.DrySource.RepoURL, app.Spec.SourceHydrator.DrySource.TargetRevision)
+	latestRevision, err := ctrl.appStateManager.ResolveDryRevision(app.Spec.SourceHydrator.DrySource.RepoURL, app.Spec.SourceHydrator.DrySource.TargetRevision)
 	if err != nil {
 		logCtx.Errorf("Failed to check whether dry source has changed, skipping: %v", err)
 		return
 	}
 
 	// TODO: don't reuse statusRefreshTimeout. Create a new timeout for hydration.
-	needHydration := ctrl.needHydration(origApp, ctrl.statusRefreshTimeout, revision)
-	if !needHydration {
+	reason := appNeedsHydration(origApp, ctrl.statusRefreshTimeout, latestRevision)
+	if reason == "" {
 		return
 	}
-	if revision == "" {
+	if latestRevision == "" {
 		logCtx.Errorf("Dry source has not been resolved, skipping")
 		return
 	}
 
+	logCtx.WithField("reason", reason).Info("Hydrating app")
+
 	app.Status.SourceHydrator.CurrentOperation = &appv1.HydrateOperation{
-		DrySHA:         revision,
+		DrySHA:         latestRevision,
 		StartedAt:      metav1.Now(),
 		FinishedAt:     nil,
 		Phase:          appv1.HydrateOperationPhaseHydrating,
@@ -2159,40 +2161,32 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	return false, refreshType, compareWith
 }
 
-func (ctrl *ApplicationController) needHydration(app *appv1.Application, statusHydrateTimeout time.Duration, revision string) bool {
-	logCtx := getAppLog(app)
-	var reason string
+// appNeedsHydration answers if application needs manifests hydrated.
+func appNeedsHydration(app *appv1.Application, statusHydrateTimeout time.Duration, latestRevision string) string {
+	if app.Spec.SourceHydrator == nil {
+		return ""
+	}
 
 	var hydratedAt *metav1.Time
 	if app.Status.SourceHydrator.CurrentOperation != nil {
 		hydratedAt = &app.Status.SourceHydrator.CurrentOperation.StartedAt
 	}
 
-	expired := hydratedAt == nil || hydratedAt.Add(statusHydrateTimeout).Before(time.Now().UTC())
-
 	if app.IsHydrateRequested() {
-		reason = "hydrate requested"
+		return "hydrate requested"
 	} else if app.Status.SourceHydrator.CurrentOperation == nil {
-		reason = "no previous hydrate operation"
+		return "no previous hydrate operation"
 	} else if !app.Spec.SourceHydrator.DeepEquals(app.Status.SourceHydrator.CurrentOperation.SourceHydrator) {
-		reason = "spec.sourceHydrator differs"
-	} else if app.Status.SourceHydrator.CurrentOperation.DrySHA != revision {
-		reason = fmt.Sprintf("revision differs. old: %s, new: %s", app.Status.SourceHydrator.CurrentOperation.DrySHA, revision)
+		return "spec.sourceHydrator differs"
+	} else if app.Status.SourceHydrator.CurrentOperation.DrySHA != latestRevision {
+		return "revision differs"
 	} else if app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseFailed && metav1.Now().Sub(app.Status.SourceHydrator.CurrentOperation.FinishedAt.Time) > 2*time.Minute {
-		reason = "previous hydrate operation failed more than 2 minutes ago"
-	} else if expired {
-		hydratedAtStr := "never"
-		if hydratedAt != nil {
-			hydratedAtStr = hydratedAt.String()
-		}
-		reason = fmt.Sprintf("comparison expired, requesting hydration. reconciledAt: %v, expiry: %v", hydratedAtStr, statusHydrateTimeout)
+		return "previous hydrate operation failed more than 2 minutes ago"
+	} else if hydratedAt == nil || hydratedAt.Add(statusHydrateTimeout).Before(time.Now().UTC()) {
+		return "hydration expired"
 	}
 
-	if reason != "" {
-		logCtx.WithField("reason", reason).Info("Hydrating app")
-		return true
-	}
-	return false
+	return ""
 }
 
 // refreshAppConditions validates whether AppProject restrictions are being followed. If not, it adds error conditions
