@@ -475,6 +475,66 @@ func (_m *ArgoDB) GetRepositoryCredentials(ctx context.Context, name string) (*v
 	return r0, r1
 }
 
+// GetWriteCredentials provides a mock function with given fields: ctx, repoURL
+func (_m *ArgoDB) GetWriteCredentials(ctx context.Context, repoURL string) (*v1alpha1.Repository, error) {
+	ret := _m.Called(ctx, repoURL)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetWriteCredentials")
+	}
+
+	var r0 *v1alpha1.Repository
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (*v1alpha1.Repository, error)); ok {
+		return rf(ctx, repoURL)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) *v1alpha1.Repository); ok {
+		r0 = rf(ctx, repoURL)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1alpha1.Repository)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, repoURL)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetWriteRepository provides a mock function with given fields: ctx, url, project
+func (_m *ArgoDB) GetWriteRepository(ctx context.Context, url string, project string) (*v1alpha1.Repository, error) {
+	ret := _m.Called(ctx, url, project)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetWriteRepository")
+	}
+
+	var r0 *v1alpha1.Repository
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (*v1alpha1.Repository, error)); ok {
+		return rf(ctx, url, project)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) *v1alpha1.Repository); ok {
+		r0 = rf(ctx, url, project)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1alpha1.Repository)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, url, project)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // ListClusters provides a mock function with given fields: ctx
 func (_m *ArgoDB) ListClusters(ctx context.Context) (*v1alpha1.ClusterList, error) {
 	ret := _m.Called(ctx)
