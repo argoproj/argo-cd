@@ -1957,11 +1957,18 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		}
 	}
 
+	selfHeal := app.Spec.SyncPolicy.Automated.SelfHeal
+	// Multi-Source Apps with selfHeal disabled should not trigger an autosync if
+	// the last sync revision and the new sync revision is the same.
+	if app.Spec.HasMultipleSources() && !selfHeal && reflect.DeepEqual(app.Status.Sync.Revisions, syncStatus.Revisions) {
+		logCtx.Infof("Skipping auto-sync: selfHeal disabled and sync caused by object update")
+		return nil, 0
+	}
+
 	desiredCommitSHA := syncStatus.Revision
 	desiredCommitSHAsMS := syncStatus.Revisions
 	alreadyAttempted, attemptPhase := alreadyAttemptedSync(app, desiredCommitSHA, desiredCommitSHAsMS, app.Spec.HasMultipleSources())
 	ts.AddCheckpoint("already_attempted_sync_ms")
-	selfHeal := app.Spec.SyncPolicy.Automated.SelfHeal
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
 			Revision:    desiredCommitSHA,
