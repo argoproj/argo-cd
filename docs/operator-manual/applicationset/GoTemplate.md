@@ -100,6 +100,16 @@ possible with Go text templates:
                   - name: throw-away
                     value: "{{end}}"
 
+- Templating the project field when using git generator with signature verification enabled 
+
+        ::yaml
+        apiVersion: argoproj.io/v1alpha1
+        kind: ApplicationSet
+        spec:
+          goTemplate: true
+          template:
+            spec:
+              project: {{.project}}
 
 ## Migration guide
 
