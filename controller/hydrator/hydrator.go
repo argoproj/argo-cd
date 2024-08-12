@@ -266,10 +266,10 @@ func (h *Hydrator) hydrate(logCtx *log.Entry, apps []*appv1.Application, revisio
 			Path:           app.Spec.SourceHydrator.DrySource.Path,
 			TargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
 		}
-		targetRevision := app.Spec.SourceHydrator.DrySource.TargetRevision
+		// targetRevision := app.Spec.SourceHydrator.DrySource.TargetRevision
 
 		// TODO: enable signature verification
-		objs, resp, err := h.dependencies.GetRepoObjs(app, drySource, targetRevision, project)
+		objs, resp, err := h.dependencies.GetRepoObjs(app, drySource, revision, project)
 		if err != nil {
 			return "", fmt.Errorf("failed to get repo objects: %w", err)
 		}
