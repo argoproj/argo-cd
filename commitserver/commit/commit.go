@@ -119,6 +119,7 @@ func (s *Service) initGitClient(ctx context.Context, logCtx *log.Entry, r *apicl
 	}
 
 	gitCreds := r.Repo.GetGitCreds(s.gitCredsStore)
+	logCtx.WithField("credentialType", getCredentialType(r.Repo)).Debug("Creating git client")
 	opts := git.WithEventHandlers(metrics.NewGitClientEventHandlers(s.metricsServer))
 	gitClient, err := git.NewClientExt(r.Repo.Repo, dirPath, gitCreds, r.Repo.IsInsecure(), r.Repo.IsLFSEnabled(), r.Repo.Proxy, opts)
 	if err != nil {
