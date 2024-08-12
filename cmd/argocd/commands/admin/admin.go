@@ -86,8 +86,8 @@ func newArgoCDClientsets(config *rest.Config, namespace string) *argoCDClientset
 	dynamicIf, err := dynamic.NewForConfig(config)
 	errors.CheckError(err)
 	return &argoCDClientsets{
-		configMaps:      dynamicIf.Resource(configMapResource).Namespace(namespace),
-		secrets:         dynamicIf.Resource(secretResource).Namespace(namespace),
+		configMaps: dynamicIf.Resource(configMapResource).Namespace(namespace),
+		secrets:    dynamicIf.Resource(secretResource).Namespace(namespace),
 		// To support applications and application sets in any namespace we will watch all namespaces and filter them afterwards
 		applications:    dynamicIf.Resource(applicationsResource).Namespace(""),
 		projects:        dynamicIf.Resource(appprojectsResource).Namespace(namespace),
@@ -255,17 +255,18 @@ func redactor(dirtyString string) string {
 	return string(data)
 }
 
-type argocdAdditonalNamespaceGlobs struct {
-	applicationNamespaceGlobs []string
-	applicationsetNamespaceGlobs []string
+type argocdAdditonalNamespaces struct {
+	applicationNamespaces    []string
+	applicationsetNamespaces []string
 }
 
+const (
+	applicationsetNamespacesCmdParamsKey = "applicationsetcontroller.namespaces"
+	applicationNamespacesCmdParamsKey    = "application.namespaces"
+)
+
 // Get additional namespaces from argocd-cmd-params
-func getAdditionalNamespaces(ctx context.Context,argocdClientsets *argoCDClientsets) (*argocdAdditonalNamespaceGlobs) {
-	const (
-		applicationsetNamespacesCmdParamsKey = "applicationsetcontroller.namespaces"
-		applicationNamespacesCmdParamsKey = "application.namespaces"
-	)
+func getAdditionalNamespaces(ctx context.Context, argocdClientsets *argoCDClientsets) *argocdAdditonalNamespaces {
 	applicationNamespaces := []string{}
 	applicationsetNamespaces := []string{}
 	un, err := argocdClientsets.configMaps.Get(ctx, common.ArgoCDCmdParamsConfigMapName, v1.GetOptions{})
@@ -275,15 +276,15 @@ func getAdditionalNamespaces(ctx context.Context,argocdClientsets *argoCDClients
 	errors.CheckError(err)
 
 	namespacesListFromString := func(namespacelist string) []string {
-		lstOfNamespaces := []string{}
+		listOfNamespaces := []string{}
 
 		ss := strings.Split(namespacelist, ",")
 
 		for _, s := range ss {
-			lstOfNamespaces = append(lstOfNamespaces,strings.TrimSpace(s))
+			listOfNamespaces = append(listOfNamespaces, strings.TrimSpace(s))
 		}
 
-		return lstOfNamespaces
+		return listOfNamespaces
 	}
 
 	if strNamespaces, ok := cm.Data[applicationNamespacesCmdParamsKey]; ok {
@@ -294,8 +295,8 @@ func getAdditionalNamespaces(ctx context.Context,argocdClientsets *argoCDClients
 		applicationsetNamespaces = namespacesListFromString(strNamespaces)
 	}
 
-	return &argocdAdditonalNamespaceGlobs{
-		applicationNamespaceGlobs: applicationNamespaces,
-		applicationsetNamespaceGlobs: applicationsetNamespaces,
+	return &argocdAdditonalNamespaces{
+		applicationNamespaces:    applicationNamespaces,
+		applicationsetNamespaces: applicationsetNamespaces,
 	}
 }

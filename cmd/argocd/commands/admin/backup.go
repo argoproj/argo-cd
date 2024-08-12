@@ -26,9 +26,9 @@ import (
 // NewExportCommand defines a new command for exporting Kubernetes and Argo CD resources.
 func NewExportCommand() *cobra.Command {
 	var (
-		clientConfig clientcmd.ClientConfig
-		out          string
-		applicationNamespaces []string
+		clientConfig             clientcmd.ClientConfig
+		out                      string
+		applicationNamespaces    []string
 		applicationsetNamespaces []string
 	)
 	command := cobra.Command{
@@ -77,22 +77,22 @@ func NewExportCommand() *cobra.Command {
 			errors.CheckError(err)
 			for _, secret := range secrets.Items {
 				if isArgoCDSecret(referencedSecrets, secret) {
-					export(writer, secret,namespace)
+					export(writer, secret, namespace)
 				}
 			}
 			projects, err := acdClients.projects.List(ctx, v1.ListOptions{})
 			errors.CheckError(err)
 			for _, proj := range projects.Items {
-				export(writer, proj,namespace)
+				export(writer, proj, namespace)
 			}
 
 			additionalNamespaces := getAdditionalNamespaces(ctx, acdClients)
 
 			if len(applicationNamespaces) == 0 {
-				applicationNamespaces = additionalNamespaces.applicationNamespaceGlobs
+				applicationNamespaces = additionalNamespaces.applicationNamespaces
 			}
 			if len(applicationsetNamespaces) == 0 {
-				applicationsetNamespaces = additionalNamespaces.applicationsetNamespaceGlobs
+				applicationsetNamespaces = additionalNamespaces.applicationsetNamespaces
 			}
 
 			applications, err := acdClients.applications.List(ctx, v1.ListOptions{})
@@ -123,20 +123,20 @@ func NewExportCommand() *cobra.Command {
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().StringVarP(&out, "out", "o", "-", "Output to the specified file instead of stdout")
-	command.Flags().StringSliceVarP(&applicationNamespaces, "application-namespaces", "", []string{} , fmt.Sprintf("Comma separated list of namespace globs to export applications from.\nIf not provided value from 'application.namespaces' in %s will be used,if it's not defined only applications from Argo CD namespace will be exported", common.ArgoCDCmdParamsConfigMapName))
-	command.Flags().StringSliceVarP(&applicationsetNamespaces, "applicationset-namespaces", "", []string{} , fmt.Sprintf("Comma separated list of namespace globs to export applicationsets from.\nIf not provided value from 'applicationsetcontroller.namespaces' in %s will be used,if it's not defined only applicationsets from Argo CD namespace will be exported", common.ArgoCDCmdParamsConfigMapName))
+	command.Flags().StringSliceVarP(&applicationNamespaces, "application-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs to export applications from.\nIf not provided value from 'application.namespaces' in %s will be used,if it's not defined only applications from Argo CD namespace will be exported", common.ArgoCDCmdParamsConfigMapName))
+	command.Flags().StringSliceVarP(&applicationsetNamespaces, "applicationset-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs to export applicationsets from.\nIf not provided value from 'applicationsetcontroller.namespaces' in %s will be used,if it's not defined only applicationsets from Argo CD namespace will be exported", common.ArgoCDCmdParamsConfigMapName))
 	return &command
 }
 
 // NewImportCommand defines a new command for exporting Kubernetes and Argo CD resources.
 func NewImportCommand() *cobra.Command {
 	var (
-		clientConfig  clientcmd.ClientConfig
-		prune         bool
-		dryRun        bool
-		verbose       bool
-		stopOperation bool
-		applicationNamespaces []string
+		clientConfig             clientcmd.ClientConfig
+		prune                    bool
+		dryRun                   bool
+		verbose                  bool
+		stopOperation            bool
+		applicationNamespaces    []string
 		applicationsetNamespaces []string
 	)
 	command := cobra.Command{
@@ -172,10 +172,10 @@ func NewImportCommand() *cobra.Command {
 			additionalNamespaces := getAdditionalNamespaces(ctx, acdClients)
 
 			if len(applicationNamespaces) == 0 {
-				applicationNamespaces = additionalNamespaces.applicationNamespaceGlobs
+				applicationNamespaces = additionalNamespaces.applicationNamespaces
 			}
 			if len(applicationsetNamespaces) == 0 {
-				applicationsetNamespaces = additionalNamespaces.applicationsetNamespaceGlobs
+				applicationsetNamespaces = additionalNamespaces.applicationsetNamespaces
 			}
 
 			// pruneObjects tracks live objects and it's current resource version. any remaining
@@ -223,7 +223,7 @@ func NewImportCommand() *cobra.Command {
 			}
 			if applicationSets != nil {
 				for _, appSet := range applicationSets.Items {
-					if (secutil.IsNamespaceEnabled(appSet.GetNamespace(), namespace, applicationsetNamespaces)) {
+					if secutil.IsNamespaceEnabled(appSet.GetNamespace(), namespace, applicationsetNamespaces) {
 						pruneObjects[kube.ResourceKey{Group: application.Group, Kind: application.ApplicationSetKind, Name: appSet.GetName(), Namespace: appSet.GetNamespace()}] = appSet
 					}
 				}
@@ -235,7 +235,7 @@ func NewImportCommand() *cobra.Command {
 			for _, bakObj := range backupObjects {
 				gvk := bakObj.GroupVersionKind()
 				// For objects without namespace, assume they belong in ArgoCD namespace
-				if (bakObj.GetNamespace() == "") {
+				if bakObj.GetNamespace() == "" {
 					bakObj.SetNamespace(namespace)
 				}
 				key := kube.ResourceKey{Group: gvk.Group, Kind: gvk.Kind, Name: bakObj.GetName(), Namespace: bakObj.GetNamespace()}
@@ -283,7 +283,7 @@ func NewImportCommand() *cobra.Command {
 				} else {
 					isForbidden := false
 					if !dryRun {
-						newLive := updateLive(bakObj, &liveObj, stopOperation) // TODO: Check namespace here
+						newLive := updateLive(bakObj, &liveObj, stopOperation)
 						_, err = dynClient.Update(ctx, newLive, v1.UpdateOptions{})
 						if apierr.IsForbidden(err) || apierr.IsNotFound(err) {
 							isForbidden = true
@@ -349,8 +349,8 @@ func NewImportCommand() *cobra.Command {
 	command.Flags().BoolVar(&prune, "prune", false, "Prune secrets, applications and projects which do not appear in the backup")
 	command.Flags().BoolVar(&verbose, "verbose", false, "Verbose output (versus only changed output)")
 	command.Flags().BoolVar(&stopOperation, "stop-operation", false, "Stop any existing operations")
-	command.Flags().StringSliceVarP(&applicationNamespaces, "application-namespaces", "", []string{} , fmt.Sprintf("Comma separated list of namespace globs to which import of applications is allowed.\nIf not provided value from 'application.namespaces' in %s will be used,if it's not defined only applications without an explicit namespace will be imported to the Argo CD namespace", common.ArgoCDCmdParamsConfigMapName))
-	command.Flags().StringSliceVarP(&applicationsetNamespaces, "applicationset-namespaces", "", []string{} , fmt.Sprintf("Comma separated list of namespace globs which import of applicationsets is allowed.\nIf not provided value from 'applicationsetcontroller.namespaces' in %s will be used,if it's not defined only applicationsets without an explicit namespace will be imported to the Argo CD namespace", common.ArgoCDCmdParamsConfigMapName))
+	command.Flags().StringSliceVarP(&applicationNamespaces, "application-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs to which import of applications is allowed.\nIf not provided value from 'application.namespaces' in %s will be used,if it's not defined only applications without an explicit namespace will be imported to the Argo CD namespace", common.ArgoCDCmdParamsConfigMapName))
+	command.Flags().StringSliceVarP(&applicationsetNamespaces, "applicationset-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs which import of applicationsets is allowed.\nIf not provided value from 'applicationsetcontroller.namespaces' in %s will be used,if it's not defined only applicationsets without an explicit namespace will be imported to the Argo CD namespace", common.ArgoCDCmdParamsConfigMapName))
 
 	return &command
 }
@@ -375,10 +375,7 @@ func export(w io.Writer, un unstructured.Unstructured, argocdNamespace string) {
 	kind := un.GetKind()
 	labels := un.GetLabels()
 	annotations := un.GetAnnotations()
-	namespace := argocdNamespace
-	if un.GetNamespace() != argocdNamespace {
-		namespace = un.GetNamespace()
-	}
+	namespace := un.GetNamespace()
 	unstructured.RemoveNestedField(un.Object, "metadata")
 	un.SetName(name)
 	un.SetFinalizers(finalizers)
