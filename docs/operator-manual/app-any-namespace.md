@@ -116,10 +116,7 @@ If an Application in `namespace-two` would set their `.spec.project` to `project
 
 Also, the Argo CD API will enforce these constraints, regardless of the Argo CD RBAC permissions.
 
-The `.spec.sourceNamespaces` field of the `AppProject` is a list that can contain an arbitrary amount of namespaces, each entry supports:
-
-- shell-style wildcard, so that you can allow namespaces with patterns like ```team-one-*```
-- regex, requires wrapping the string in ```/```, example to allow all namespaces except a particular one: ```/^((?!not-allowed).)*$/```.
+The `.spec.sourceNamespaces` field of the `AppProject` is a list that can contain an arbitrary amount of namespaces, and each entry supports shell-style wildcard, so that you can allow namespaces with patterns like `team-one-*`.
 
 !!! warning
     Do not add user controlled namespaces in the `.spec.sourceNamespaces` field of any privileged AppProject like the `default` project. Always make sure that the AppProject follows the principle of granting least required privileges. Never grant access to the `argocd` namespace within the AppProject.
