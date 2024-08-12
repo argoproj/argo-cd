@@ -1,7 +1,6 @@
 package commit
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -120,34 +119,24 @@ func writeManifests(dirPath string, manifests []*apiclient.HydratedManifestDetai
 		}
 	}()
 
+	enc := yaml.NewEncoder(file)
+	defer func() {
+		err := enc.Close()
+		if err != nil {
+			log.WithError(err).Error("failed to close yaml encoder")
+		}
+	}()
+	enc.SetIndent(2)
+
 	for _, m := range manifests {
 		obj := &unstructured.Unstructured{}
 		err = json.Unmarshal([]byte(m.Manifest), obj)
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal manifest: %w", err)
 		}
-		// Marshal the manifests
-		buf := bytes.Buffer{}
-		enc := yaml.NewEncoder(&buf)
-		enc.SetIndent(2)
-
-		defer func() {
-			if cerr := enc.Close(); cerr != nil {
-				log.WithError(cerr).Error("failed to close yaml encoder")
-			}
-		}()
-
 		err = enc.Encode(&obj.Object)
 		if err != nil {
 			return fmt.Errorf("failed to encode manifest: %w", err)
-		}
-
-		mYaml := buf.Bytes()
-		mYaml = append(mYaml, []byte("\n---\n\n")...)
-		// Write the yaml to manifest.yaml
-		_, err = file.Write(mYaml)
-		if err != nil {
-			return fmt.Errorf("failed to write manifest: %w", err)
 		}
 	}
 
