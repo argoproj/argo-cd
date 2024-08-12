@@ -30,7 +30,7 @@ data:
 ```
 
 !!! important
-    After updating the ConfigMap, you must restart the Argo CD controller for the changes to take effect.
+    After updating the ConfigMap, you must restart the Argo CD controller and API server for the changes to take effect.
 
 If you are using one of the `*-install.yaml` manifests to install Argo CD, you can use the 
 `*-install-with-hydrator.yaml` version of that file instead.

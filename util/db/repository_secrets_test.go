@@ -684,7 +684,7 @@ func TestSecretsRepositoryBackend_GetRepoCreds(t *testing.T) {
 
 	repoCred, err := testee.GetRepoCreds(context.TODO(), "git@github.com:argoproj")
 	require.NoError(t, err)
-	assert.NotNil(t, repoCred)
+	require.NotNil(t, repoCred)
 	assert.Equal(t, "git@github.com:argoproj", repoCred.URL)
 	assert.Equal(t, "someUsername", repoCred.Username)
 	assert.Equal(t, "somePassword", repoCred.Password)
