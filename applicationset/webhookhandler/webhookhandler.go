@@ -1,47 +1,36 @@
-package webhook
+package webhookhandler
 
 import (
 	"context"
 	"fmt"
-	"html"
-	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/argoproj/argo-cd/v2/applicationset/generators"
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
+	log "github.com/sirupsen/logrus"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
-	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/argoproj/argo-cd/v2/common"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/generators"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/webhook"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-// https://www.rfc-editor.org/rfc/rfc3986#section-3.2.1
-// https://github.com/shadow-maint/shadow/blob/master/libmisc/chkname.c#L36
-const usernameRegex = `[a-zA-Z0-9_\.][a-zA-Z0-9_\.-]{0,30}[a-zA-Z0-9_\.\$-]?`
-
-const payloadQueueSize = 50000
-
-type WebhookHandler struct {
-	sync.WaitGroup // for testing
-	namespace      string
-	github         *github.Webhook
-	gitlab         *gitlab.Webhook
-	azuredevops    *azuredevops.Webhook
+type ApplicationSetWebhookPayloadHandler struct {
 	client         client.Client
 	generators     map[string]generators.Generator
-	queue          chan interface{}
 }
+
+
 
 type gitGeneratorInfo struct {
 	Revision    string
@@ -71,126 +60,50 @@ type prGeneratorGitlabInfo struct {
 	APIHostname string
 }
 
-func NewWebhookHandler(namespace string, webhookParallelism int, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
-	// register the webhook secrets stored under "argocd-secret" for verifying incoming payloads
-	argocdSettings, err := argocdSettingsMgr.GetSettings()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get argocd settings: %w", err)
-	}
-	githubHandler, err := github.New(github.Options.Secret(argocdSettings.WebhookGitHubSecret))
-	if err != nil {
-		return nil, fmt.Errorf("Unable to init GitHub webhook: %w", err)
-	}
-	gitlabHandler, err := gitlab.New(gitlab.Options.Secret(argocdSettings.WebhookGitLabSecret))
-	if err != nil {
-		return nil, fmt.Errorf("Unable to init GitLab webhook: %w", err)
-	}
-	azuredevopsHandler, err := azuredevops.New(azuredevops.Options.BasicAuth(argocdSettings.WebhookAzureDevOpsUsername, argocdSettings.WebhookAzureDevOpsPassword))
-	if err != nil {
-		return nil, fmt.Errorf("Unable to init Azure DevOps webhook: %w", err)
-	}
-
-	webhookHandler := &WebhookHandler{
-		namespace:   namespace,
-		github:      githubHandler,
-		gitlab:      gitlabHandler,
-		azuredevops: azuredevopsHandler,
-		client:      client,
-		generators:  generators,
-		queue:       make(chan interface{}, payloadQueueSize),
-	}
-
-	webhookHandler.startWorkerPool(webhookParallelism)
-
-	return webhookHandler, nil
-}
-
-func (h *WebhookHandler) startWorkerPool(webhookParallelism int) {
-	for i := 0; i < webhookParallelism; i++ {
-		h.Add(1)
-		go func() {
-			defer h.Done()
-			for {
-				payload, ok := <-h.queue
-				if !ok {
-					return
-				}
-				h.HandleEvent(payload)
-			}
-		}()
-	}
-}
-
-func (h *WebhookHandler) HandleEvent(payload interface{}) {
+func (handler *ApplicationSetWebhookPayloadHandler) HandlePayload(payload interface{}, handlerWebhook *webhook.Webhook) {
 	gitGenInfo := getGitGeneratorInfo(payload)
 	prGenInfo := getPRGeneratorInfo(payload)
+
 	if gitGenInfo == nil && prGenInfo == nil {
 		return
 	}
 
 	appSetList := &v1alpha1.ApplicationSetList{}
-	err := h.client.List(context.Background(), appSetList, &client.ListOptions{})
+	err := handler.client.List(context.Background(), appSetList, &client.ListOptions{})
+
 	if err != nil {
 		log.Errorf("Failed to list applicationsets: %v", err)
+
 		return
 	}
 
 	for _, appSet := range appSetList.Items {
 		shouldRefresh := false
+
 		for _, gen := range appSet.Spec.Generators {
 			// check if the ApplicationSet uses any generator that is relevant to the payload
 			shouldRefresh = shouldRefreshGitGenerator(gen.Git, gitGenInfo) ||
 				shouldRefreshPRGenerator(gen.PullRequest, prGenInfo) ||
 				shouldRefreshPluginGenerator(gen.Plugin) ||
-				h.shouldRefreshMatrixGenerator(gen.Matrix, &appSet, gitGenInfo, prGenInfo) ||
-				h.shouldRefreshMergeGenerator(gen.Merge, &appSet, gitGenInfo, prGenInfo)
+				handler.shouldRefreshMatrixGenerator(gen.Matrix, &appSet, gitGenInfo, prGenInfo) ||
+				handler.shouldRefreshMergeGenerator(gen.Merge, &appSet, gitGenInfo, prGenInfo)
+
 			if shouldRefresh {
 				break
 			}
 		}
+
 		if shouldRefresh {
-			err := refreshApplicationSet(h.client, &appSet)
+			err := refreshApplicationSet(handler.client, &appSet)
+
 			if err != nil {
 				log.Errorf("Failed to refresh ApplicationSet '%s' for controller reprocessing", appSet.Name)
+
 				continue
 			}
+
 			log.Infof("refresh ApplicationSet %v/%v from webhook", appSet.Namespace, appSet.Name)
 		}
-	}
-}
-
-func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
-	var payload interface{}
-	var err error
-
-	switch {
-	case r.Header.Get("X-GitHub-Event") != "":
-		payload, err = h.github.Parse(r, github.PushEvent, github.PullRequestEvent, github.PingEvent)
-	case r.Header.Get("X-Gitlab-Event") != "":
-		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents)
-	case r.Header.Get("X-Vss-Activityid") != "":
-		payload, err = h.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
-	default:
-		log.Debug("Ignoring unknown webhook event")
-		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
-		return
-	}
-
-	if err != nil {
-		log.Infof("Webhook processing failed: %s", err)
-		status := http.StatusBadRequest
-		if r.Method != http.MethodPost {
-			status = http.StatusMethodNotAllowed
-		}
-		http.Error(w, fmt.Sprintf("Webhook processing failed: %s", html.EscapeString(err.Error())), status)
-		return
-	}
-
-	select {
-	case h.queue <- payload:
-	default:
-		log.Info("Queue is full, discarding webhook payload")
-		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
 	}
 }
 
@@ -225,18 +138,11 @@ func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 	}
 
 	log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, revision, touchedHead)
-	urlObj, err := url.Parse(webURL)
+	repoRegexp, err := webhook.GetWebUrlRegex(webURL)
+
 	if err != nil {
-		log.Errorf("Failed to parse repoURL '%s'", webURL)
-		return nil
-	}
-	regexEscapedHostname := regexp.QuoteMeta(urlObj.Hostname())
-	regexEscapedPath := regexp.QuoteMeta(urlObj.EscapedPath()[1:])
-	regexpStr := fmt.Sprintf(`(?i)^(http://|https://|%s@|ssh://(%s@)?((alt)?ssh\.)?)%s(:[0-9]+|)[:/]%s(\.git)?$`,
-		usernameRegex, usernameRegex, regexEscapedHostname, regexEscapedPath)
-	repoRegexp, err := regexp.Compile(regexpStr)
-	if err != nil {
-		log.Errorf("Failed to compile regexp for repoURL '%s'", webURL)
+		log.Errorf("Failed to get repoRegexp: %s", err)
+
 		return nil
 	}
 
@@ -256,19 +162,14 @@ func getPRGeneratorInfo(payload interface{}) *prGeneratorInfo {
 		}
 
 		apiURL := payload.Repository.URL
-		urlObj, err := url.Parse(apiURL)
-		if err != nil {
-			log.Errorf("Failed to parse repoURL '%s'", apiURL)
-			return nil
-		}
-		regexEscapedHostname := regexp.QuoteMeta(urlObj.Hostname())
-		regexpStr := fmt.Sprintf(`(?i)^(http://|https://|%s@|ssh://(%s@)?)%s(:[0-9]+|)[:/]$`,
-			usernameRegex, usernameRegex, regexEscapedHostname)
-		apiRegexp, err := regexp.Compile(regexpStr)
+		apiRegexp, err := webhook.GetApiUrlRegex(apiURL)
+
 		if err != nil {
 			log.Errorf("Failed to compile regexp for repoURL '%s'", apiURL)
+
 			return nil
 		}
+
 		info.Github = &prGeneratorGithubInfo{
 			Repo:      payload.Repository.Name,
 			Owner:     payload.Repository.Owner.Login,
@@ -463,7 +364,7 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 	return false
 }
 
-func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenerator, appSet *v1alpha1.ApplicationSet, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {
+func (handler *ApplicationSetWebhookPayloadHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenerator, appSet *v1alpha1.ApplicationSet, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {
 	if gen == nil {
 		return false
 	}
@@ -492,7 +393,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 		}
 		if nestedMatrix != nil {
 			matrixGenerator0 = nestedMatrix.ToMatrixGenerator()
-			if h.shouldRefreshMatrixGenerator(matrixGenerator0, appSet, gitGenInfo, prGenInfo) {
+			if handler.shouldRefreshMatrixGenerator(matrixGenerator0, appSet, gitGenInfo, prGenInfo) {
 				return true
 			}
 		}
@@ -509,7 +410,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 		}
 		if nestedMerge != nil {
 			mergeGenerator0 = nestedMerge.ToMergeGenerator()
-			if h.shouldRefreshMergeGenerator(mergeGenerator0, appSet, gitGenInfo, prGenInfo) {
+			if handler.shouldRefreshMergeGenerator(mergeGenerator0, appSet, gitGenInfo, prGenInfo) {
 				return true
 			}
 		}
@@ -529,10 +430,10 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 	}
 
 	// Generate params for first child generator
-	relGenerators := generators.GetRelevantGenerators(requestedGenerator0, h.generators)
+	relGenerators := generators.GetRelevantGenerators(requestedGenerator0, handler.generators)
 	params := []map[string]interface{}{}
 	for _, g := range relGenerators {
-		p, err := g.GenerateParams(requestedGenerator0, appSet, h.client)
+		p, err := g.GenerateParams(requestedGenerator0, appSet, handler.client)
 		if err != nil {
 			log.Error(err)
 			return false
@@ -597,8 +498,8 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 			if shouldRefreshGitGenerator(interpolatedGenerator.Git, gitGenInfo) ||
 				shouldRefreshPRGenerator(interpolatedGenerator.PullRequest, prGenInfo) ||
 				shouldRefreshPluginGenerator(interpolatedGenerator.Plugin) ||
-				h.shouldRefreshMatrixGenerator(interpolatedGenerator.Matrix, appSet, gitGenInfo, prGenInfo) ||
-				h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo) {
+				handler.shouldRefreshMatrixGenerator(interpolatedGenerator.Matrix, appSet, gitGenInfo, prGenInfo) ||
+				handler.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo) {
 				return true
 			}
 		}
@@ -608,11 +509,11 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 	return shouldRefreshGitGenerator(requestedGenerator1.Git, gitGenInfo) ||
 		shouldRefreshPRGenerator(requestedGenerator1.PullRequest, prGenInfo) ||
 		shouldRefreshPluginGenerator(requestedGenerator1.Plugin) ||
-		h.shouldRefreshMatrixGenerator(requestedGenerator1.Matrix, appSet, gitGenInfo, prGenInfo) ||
-		h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo)
+		handler.shouldRefreshMatrixGenerator(requestedGenerator1.Matrix, appSet, gitGenInfo, prGenInfo) ||
+		handler.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo)
 }
 
-func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerator, appSet *v1alpha1.ApplicationSet, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {
+func (handler *ApplicationSetWebhookPayloadHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerator, appSet *v1alpha1.ApplicationSet, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {
 	if gen == nil {
 		return false
 	}
@@ -633,7 +534,7 @@ func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerato
 				return false
 			}
 			if nestedMatrix != nil {
-				if h.shouldRefreshMatrixGenerator(nestedMatrix.ToMatrixGenerator(), appSet, gitGenInfo, prGenInfo) {
+				if handler.shouldRefreshMatrixGenerator(nestedMatrix.ToMatrixGenerator(), appSet, gitGenInfo, prGenInfo) {
 					return true
 				}
 			}
@@ -648,7 +549,7 @@ func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerato
 				return false
 			}
 			if nestedMerge != nil {
-				if h.shouldRefreshMergeGenerator(nestedMerge.ToMergeGenerator(), appSet, gitGenInfo, prGenInfo) {
+				if handler.shouldRefreshMergeGenerator(nestedMerge.ToMergeGenerator(), appSet, gitGenInfo, prGenInfo) {
 					return true
 				}
 			}
@@ -671,4 +572,26 @@ func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) err
 		appSet.Annotations[common.AnnotationApplicationSetRefresh] = "true"
 		return c.Patch(context.Background(), appSet, client.Merge)
 	})
+}
+
+func NewWebhook(
+  parallelism       int,
+  maxPayloadSize    int64,
+	argoCdSettings    *settings.ArgoCDSettings,
+  argoCdSettingsMgr *settings.SettingsManager,
+	client         client.Client,
+	generators     map[string]generators.Generator,
+) *webhook.Webhook {
+	payloadHandler := &ApplicationSetWebhookPayloadHandler{
+		client: client,
+		generators: generators,
+	}
+
+	return webhook.NewWebhook(
+		parallelism,
+		maxPayloadSize,
+		argoCdSettings,
+		argoCdSettingsMgr,
+		payloadHandler,
+	)
 }

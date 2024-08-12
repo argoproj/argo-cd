@@ -1,4 +1,4 @@
-package webhook
+package webhookhandler
 
 import (
 	"bytes"
@@ -211,8 +211,8 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithMergeAndNestedGitGenerator("merge-nested-git-github", namespace, "https://github.com/org/repo"),
 			).Build()
 			set := argosettings.NewSettingsManager(context.TODO(), fakeClient, namespace)
-			h, err := NewWebhookHandler(namespace, webhookParallelism, set, fc, mockGenerators())
-			require.NoError(t, err)
+			h := NewWebhook(webhookParallelism, int64(1) * 1024 * 1024 * 1024, &argosettings.ArgoCDSettings{}, set, fc, mockGenerators())
+			//require.NoError(t, err)
 
 			req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 			req.Header.Set(test.headerKey, test.headerValue)
@@ -221,9 +221,8 @@ func TestWebhookHandler(t *testing.T) {
 			req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 			w := httptest.NewRecorder()
 
-			h.Handler(w, req)
-			close(h.queue)
-			h.Wait()
+			h.HandleRequest(w, req)
+			h.CloseAndWait()
 			assert.Equal(t, test.expectedStatusCode, w.Code)
 
 			list := &v1alpha1.ApplicationSetList{}

@@ -18,11 +18,12 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/controllers"
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
-	"github.com/argoproj/argo-cd/v2/applicationset/webhook"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/github_app"
+	"github.com/argoproj/argo-cd/v2/util/webhook"
+	webhookHandler "github.com/argoproj/argo-cd/v2/applicationset/webhookhandler"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -184,15 +185,23 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig)
+			argoSettings, err := argoSettingsMgr.GetSettings()
 
-			// start a webhook server that listens to incoming webhook payloads
-			webhookHandler, err := webhook.NewWebhookHandler(namespace, webhookParallelism, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
 			if err != nil {
-				log.Error(err, "failed to create webhook handler")
+				log.Error(err, "Failed to get argocd settings")
+				os.Exit(1)
 			}
-			if webhookHandler != nil {
-				startWebhookServer(webhookHandler, webhookAddr)
-			}
+
+			appSetWebhook := webhookHandler.NewWebhook(
+				webhookParallelism,
+				argoSettingsMgr.GetMaxWebhookPayloadSize(),
+				argoSettings,
+				argoSettingsMgr,
+				mgr.GetClient(),
+				topLevelGenerators,
+			)
+
+			startWebhookServer(appSetWebhook, webhookAddr)
 
 			if err = (&controllers.ApplicationSetReconciler{
 				Generators:                 topLevelGenerators,
@@ -256,9 +265,10 @@ func NewCommand() *cobra.Command {
 	return &command
 }
 
-func startWebhookServer(webhookHandler *webhook.WebhookHandler, webhookAddr string) {
+type handleRequest func() 
+func startWebhookServer(webhook *webhook.Webhook, webhookAddr string) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/webhook", webhookHandler.Handler)
+	mux.HandleFunc("/api/webhook", webhook.HandleRequest)
 	go func() {
 		log.Info("Starting webhook server")
 		err := http.ListenAndServe(webhookAddr, mux)
