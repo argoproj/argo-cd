@@ -80,6 +80,25 @@ func TestWriteForPaths(t *testing.T) {
 	}
 }
 
+func TestWriteForPaths_invalid_yaml(t *testing.T) {
+	dir := t.TempDir()
+
+	repoUrl := "https://github.com/example/repo"
+	drySha := "abc123"
+	paths := []*apiclient.PathDetails{
+		{
+			Path: "path1",
+			Manifests: []*apiclient.HydratedManifestDetails{
+				{Manifest: `{`}, // Invalid YAML
+			},
+			Commands: []string{"command1", "command2"},
+		},
+	}
+
+	err := WriteForPaths(dir, repoUrl, drySha, paths)
+	require.Error(t, err)
+}
+
 func TestWriteMetadata(t *testing.T) {
 	dir := t.TempDir()
 
