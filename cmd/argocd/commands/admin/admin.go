@@ -88,10 +88,10 @@ func newArgoCDClientsets(config *rest.Config, namespace string) *argoCDClientset
 	return &argoCDClientsets{
 		configMaps: dynamicIf.Resource(configMapResource).Namespace(namespace),
 		secrets:    dynamicIf.Resource(secretResource).Namespace(namespace),
-		// To support applications and application sets in any namespace we will watch all namespaces and filter them afterwards
-		applications:    dynamicIf.Resource(applicationsResource).Namespace(""),
+		// To support applications and applicationsets in any namespace we will watch all namespaces and filter them afterwards
+		applications:    dynamicIf.Resource(applicationsResource),
 		projects:        dynamicIf.Resource(appprojectsResource).Namespace(namespace),
-		applicationSets: dynamicIf.Resource(appplicationSetResource).Namespace(""),
+		applicationSets: dynamicIf.Resource(appplicationSetResource),
 	}
 }
 
