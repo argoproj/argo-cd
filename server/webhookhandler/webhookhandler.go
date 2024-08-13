@@ -28,13 +28,13 @@ import (
 )
 
 type ApplicationWebhookPayloadHandler struct {
-	db           db.ArgoDB
-	ns           string
-	appNs        []string
-	appClientset appClientset.Interface
-	repoCache    *cache.Cache
-	serverCache  *serverCache.Cache
-  argoCdSettingsMgr *settings.SettingsManager
+	db                db.ArgoDB
+	ns                string
+	appNs             []string
+	appClientset      appClientset.Interface
+	repoCache         *cache.Cache
+	serverCache       *serverCache.Cache
+	argoCdSettingsMgr *settings.SettingsManager
 }
 
 type changeInfo struct {
@@ -122,7 +122,7 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 			for _, l := range payload.Repository.Links["clone"].([]interface{}) {
 				link := l.(map[string]interface{})
 
-				if (link["name"] == "http" || link["name"] == "ssh") {
+				if link["name"] == "http" || link["name"] == "ssh" {
 					webURLs = append(webURLs, link["href"].(string))
 				}
 			}
@@ -213,7 +213,6 @@ func (handler *ApplicationWebhookPayloadHandler) HandlePayload(payload interface
 
 	appIf := handler.appClientset.ArgoprojV1alpha1().Applications(nsFilter)
 	apps, err := appIf.List(context.Background(), metav1.ListOptions{})
-
 	if err != nil {
 		log.Warnf("Failed to list applications: %v", err)
 
@@ -221,7 +220,6 @@ func (handler *ApplicationWebhookPayloadHandler) HandlePayload(payload interface
 	}
 
 	trackingMethod, err := handler.argoCdSettingsMgr.GetTrackingMethod()
-
 	if err != nil {
 		log.Warnf("Failed to get trackingMethod: %v", err)
 
@@ -229,7 +227,6 @@ func (handler *ApplicationWebhookPayloadHandler) HandlePayload(payload interface
 	}
 
 	appInstanceLabelKey, err := handler.argoCdSettingsMgr.GetAppInstanceLabelKey()
-
 	if err != nil {
 		log.Warnf("Failed to get appInstanceLabelKey: %v", err)
 
@@ -248,7 +245,6 @@ func (handler *ApplicationWebhookPayloadHandler) HandlePayload(payload interface
 
 	for _, webURL := range webURLs {
 		repoRegexp, err := webhook.GetWebUrlRegex(webURL)
-
 		if err != nil {
 			log.Warnf("Failed to get repoRegexp: %s", err)
 
@@ -263,7 +259,6 @@ func (handler *ApplicationWebhookPayloadHandler) HandlePayload(payload interface
 					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
 						namespacedAppInterface := handler.appClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
 						_, err = argo.RefreshApp(namespacedAppInterface, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
-
 						if err != nil {
 							log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
 
@@ -285,7 +280,6 @@ func (handler *ApplicationWebhookPayloadHandler) HandlePayload(payload interface
 
 func (handler *ApplicationWebhookPayloadHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string) error {
 	err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, handler.db)
-
 	if err != nil {
 		return fmt.Errorf("error validating destination: %w", err)
 	}
@@ -293,7 +287,6 @@ func (handler *ApplicationWebhookPayloadHandler) storePreviouslyCachedManifests(
 	var clusterInfo v1alpha1.ClusterInfo
 
 	err = handler.serverCache.GetClusterInfo(app.Spec.Destination.Server, &clusterInfo)
-
 	if err != nil {
 		return fmt.Errorf("error getting cluster info: %w", err)
 	}
@@ -307,7 +300,6 @@ func (handler *ApplicationWebhookPayloadHandler) storePreviouslyCachedManifests(
 	}
 
 	refSources, err := argo.GetRefSources(context.Background(), sources, app.Spec.Project, handler.db.GetRepository, []string{}, false)
-
 	if err != nil {
 		return fmt.Errorf("error getting ref sources: %w", err)
 	}
@@ -324,24 +316,24 @@ func (handler *ApplicationWebhookPayloadHandler) storePreviouslyCachedManifests(
 }
 
 func NewWebhook(
-  parallelism       int,
-  maxPayloadSize    int64,
-	argoCdSettings    *settings.ArgoCDSettings,
-  argoCdSettingsMgr *settings.SettingsManager,
-	db                db.ArgoDB,
-	ns                string,
-	appNs             []string,
-	appClientset      appClientset.Interface,
-	repoCache         *cache.Cache,
-	serverCache       *serverCache.Cache,
+	parallelism int,
+	maxPayloadSize int64,
+	argoCdSettings *settings.ArgoCDSettings,
+	argoCdSettingsMgr *settings.SettingsManager,
+	db db.ArgoDB,
+	ns string,
+	appNs []string,
+	appClientset appClientset.Interface,
+	repoCache *cache.Cache,
+	serverCache *serverCache.Cache,
 ) (*webhook.Webhook, error) {
 	payloadHandler := &ApplicationWebhookPayloadHandler{
-		db: db,
-		ns: ns,
-		appNs: appNs,
-		appClientset: appClientset,
-		repoCache: repoCache,
-		serverCache: serverCache,
+		db:                db,
+		ns:                ns,
+		appNs:             appNs,
+		appClientset:      appClientset,
+		repoCache:         repoCache,
+		serverCache:       serverCache,
 		argoCdSettingsMgr: argoCdSettingsMgr,
 	}
 
@@ -352,7 +344,6 @@ func NewWebhook(
 		argoCdSettingsMgr,
 		payloadHandler,
 	)
-
 	if err != nil {
 		return nil, err
 	}

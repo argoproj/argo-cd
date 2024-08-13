@@ -99,6 +99,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/session"
 	"github.com/argoproj/argo-cd/v2/server/settings"
 	"github.com/argoproj/argo-cd/v2/server/version"
+	webhookHandler "github.com/argoproj/argo-cd/v2/server/webhookhandler"
 	"github.com/argoproj/argo-cd/v2/ui"
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
@@ -122,7 +123,6 @@ import (
 	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/argo-cd/v2/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/v2/util/tls"
-	webhookHandler "github.com/argoproj/argo-cd/v2/server/webhookhandler"
 )
 
 const (
@@ -1091,7 +1091,6 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		a.RepoServerCache,
 		a.Cache,
 	)
-
 	if err != nil {
 		log.Error(err, "failed to create webhook handler")
 	}

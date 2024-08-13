@@ -27,17 +27,17 @@ type WebhookPayloadHandler interface {
 
 type Webhook struct {
 	sync.WaitGroup
-  parallelism       int
-  maxPayloadSize    int64
-  argoCdSettingsMgr *settings.SettingsManager
-	payloadHandler  WebhookPayloadHandler
-	payloadQueue    chan interface{}
-	gitHub          *gitHub.Webhook
-	gitLab          *gitLab.Webhook
-	bitbucket       *bitbucket.Webhook
-	bitbucketServer *bitbucketServer.Webhook
-	azureDevOps     *azureDevOps.Webhook
-	gogs            *gogs.Webhook
+	parallelism       int
+	maxPayloadSize    int64
+	argoCdSettingsMgr *settings.SettingsManager
+	payloadHandler    WebhookPayloadHandler
+	payloadQueue      chan interface{}
+	gitHub            *gitHub.Webhook
+	gitLab            *gitLab.Webhook
+	bitbucket         *bitbucket.Webhook
+	bitbucketServer   *bitbucketServer.Webhook
+	azureDevOps       *azureDevOps.Webhook
+	gogs              *gogs.Webhook
 }
 
 // https://www.rfc-editor.org/rfc/rfc3986#section-3.2.1
@@ -54,37 +54,31 @@ func NewWebhook(
 	payloadHandler WebhookPayloadHandler,
 ) (*Webhook, error) {
 	gitHubWebhook, err := gitHub.New(gitHub.Options.Secret(argoCdSettings.WebhookGitHubSecret))
-
 	if err != nil {
 		return nil, fmt.Errorf("Unable to init the GitHub webhook: %w", err)
 	}
 
 	gitLabWebhook, err := gitLab.New(gitLab.Options.Secret(argoCdSettings.WebhookGitLabSecret))
-
 	if err != nil {
 		return nil, fmt.Errorf("Unable to init the GitLab webhook: %w", err)
 	}
 
 	bitbucketWebhook, err := bitbucket.New(bitbucket.Options.UUID(argoCdSettings.WebhookBitbucketUUID))
-
 	if err != nil {
 		return nil, fmt.Errorf("Unable to init the Bitbucket webhook: %w", err)
 	}
 
 	bitbucketServerWebhook, err := bitbucketServer.New(bitbucketServer.Options.Secret(argoCdSettings.WebhookBitbucketServerSecret))
-
 	if err != nil {
 		return nil, fmt.Errorf("Unable to init the Bitbucket Server webhook: %w", err)
 	}
 
 	gogsWebhook, err := gogs.New(gogs.Options.Secret(argoCdSettings.WebhookGogsSecret))
-
 	if err != nil {
 		return nil, fmt.Errorf("Unable to init the Gogs webhook: %w", err)
 	}
 
 	azureDevOpsWebhook, err := azureDevOps.New(azureDevOps.Options.BasicAuth(argoCdSettings.WebhookAzureDevOpsUsername, argoCdSettings.WebhookAzureDevOpsPassword))
-
 	if err != nil {
 		return nil, fmt.Errorf("Unable to init the Azure DevOps webhook: %w", err)
 	}
@@ -130,7 +124,6 @@ func (webhook *Webhook) startWorkerPool() {
 
 func getUrlRegex(originalUrl string, includePath bool) (*regexp.Regexp, error) {
 	urlObj, err := url.Parse(originalUrl)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse repoURL '%s'", originalUrl)
 	}
@@ -147,7 +140,6 @@ func getUrlRegex(originalUrl string, includePath bool) (*regexp.Regexp, error) {
 		usernameRegex, usernameRegex, regexEscapedHostname, regexEscapedPath)
 
 	repoRegexp, err := regexp.Compile(regexpStr)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile regexp for repoURL '%s'", originalUrl)
 	}
@@ -223,7 +215,7 @@ func (webhook *Webhook) HandleRequest(writer http.ResponseWriter, request *http.
 	if err != nil {
 		// If the error is due to a large payload, return a more user-friendly error message.
 		if err.Error() == "error parsing payload" {
-			msg := fmt.Sprintf("Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under %v MB) and ensure it is valid JSON", webhook.maxPayloadSize / 1024 / 1024)
+			msg := fmt.Sprintf("Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under %v MB) and ensure it is valid JSON", webhook.maxPayloadSize/1024/1024)
 
 			log.WithField(common.SecurityField, common.SecurityHigh).Warn(msg)
 			http.Error(writer, msg, http.StatusBadRequest)

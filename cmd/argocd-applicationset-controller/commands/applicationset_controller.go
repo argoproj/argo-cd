@@ -18,12 +18,12 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/controllers"
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	webhookHandler "github.com/argoproj/argo-cd/v2/applicationset/webhookhandler"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/github_app"
 	"github.com/argoproj/argo-cd/v2/util/webhook"
-	webhookHandler "github.com/argoproj/argo-cd/v2/applicationset/webhookhandler"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -186,7 +186,6 @@ func NewCommand() *cobra.Command {
 
 			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig)
 			argoSettings, err := argoSettingsMgr.GetSettings()
-
 			if err != nil {
 				log.Error(err, "Failed to get argocd settings")
 				os.Exit(1)
@@ -200,7 +199,6 @@ func NewCommand() *cobra.Command {
 				mgr.GetClient(),
 				topLevelGenerators,
 			)
-
 			if err != nil {
 				log.Error(err, "failed to create webhook handler")
 			}

@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/types"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/go-playground/webhooks/v6/bitbucket"
@@ -21,6 +20,7 @@ import (
 	"github.com/go-playground/webhooks/v6/gitlab"
 	gogsclient "github.com/gogits/go-gogs-client"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 
@@ -43,16 +43,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	webhookUtil "github.com/argoproj/argo-cd/v2/util/webhook"
 )
-
-type fakeSettingsSrc struct{}
-
-func (f fakeSettingsSrc) GetAppInstanceLabelKey() (string, error) {
-	return "mycompany.com/appname", nil
-}
-
-func (f fakeSettingsSrc) GetTrackingMethod() (string, error) {
-	return "", nil
-}
 
 type reactorDef struct {
 	verb     string

@@ -8,29 +8,25 @@ import (
 	"strconv"
 	"strings"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/client-go/util/retry"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/argoproj/argo-cd/v2/common"
-
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/webhook"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v2/util/webhook"
 )
 
 type ApplicationSetWebhookPayloadHandler struct {
-	client         client.Client
-	generators     map[string]generators.Generator
+	client     client.Client
+	generators map[string]generators.Generator
 }
-
-
 
 type gitGeneratorInfo struct {
 	Revision    string
@@ -70,7 +66,6 @@ func (handler *ApplicationSetWebhookPayloadHandler) HandlePayload(payload interf
 
 	appSetList := &v1alpha1.ApplicationSetList{}
 	err := handler.client.List(context.Background(), appSetList, &client.ListOptions{})
-
 	if err != nil {
 		log.Errorf("Failed to list applicationsets: %v", err)
 
@@ -95,7 +90,6 @@ func (handler *ApplicationSetWebhookPayloadHandler) HandlePayload(payload interf
 
 		if shouldRefresh {
 			err := refreshApplicationSet(handler.client, &appSet)
-
 			if err != nil {
 				log.Errorf("Failed to refresh ApplicationSet '%s' for controller reprocessing", appSet.Name)
 
@@ -139,7 +133,6 @@ func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 
 	log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, revision, touchedHead)
 	repoRegexp, err := webhook.GetWebUrlRegex(webURL)
-
 	if err != nil {
 		log.Errorf("Failed to get repoRegexp: %s", err)
 
@@ -163,7 +156,6 @@ func getPRGeneratorInfo(payload interface{}) *prGeneratorInfo {
 
 		apiURL := payload.Repository.URL
 		apiRegexp, err := webhook.GetApiUrlRegex(apiURL)
-
 		if err != nil {
 			log.Errorf("Failed to compile regexp for repoURL '%s'", apiURL)
 
@@ -575,15 +567,15 @@ func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) err
 }
 
 func NewWebhook(
-  parallelism       int,
-  maxPayloadSize    int64,
-	argoCdSettings    *settings.ArgoCDSettings,
-  argoCdSettingsMgr *settings.SettingsManager,
-	client         client.Client,
-	generators     map[string]generators.Generator,
+	parallelism int,
+	maxPayloadSize int64,
+	argoCdSettings *settings.ArgoCDSettings,
+	argoCdSettingsMgr *settings.SettingsManager,
+	client client.Client,
+	generators map[string]generators.Generator,
 ) (*webhook.Webhook, error) {
 	payloadHandler := &ApplicationSetWebhookPayloadHandler{
-		client: client,
+		client:     client,
 		generators: generators,
 	}
 
@@ -594,7 +586,6 @@ func NewWebhook(
 		argoCdSettingsMgr,
 		payloadHandler,
 	)
-
 	if err != nil {
 		return nil, err
 	}
