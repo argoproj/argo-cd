@@ -31,8 +31,8 @@ not possible using Helm repositories.
 
 
 !!!note Limitations
-  ApplicationSet do not support templating of project field while using signature
-  verification.
+  Signature verification is not supported for the templated `project` field when 
+  using the Git generator.
 
 ## Signature verification targets
 

@@ -100,7 +100,7 @@ possible with Go text templates:
                   - name: throw-away
                     value: "{{end}}"
 
-- Templating the project field when using git generator with signature verification enabled 
+- Signature verification is not supported for the templated `project` field when using the Git generator.
 
         ::yaml
         apiVersion: argoproj.io/v1alpha1
@@ -110,6 +110,7 @@ possible with Go text templates:
           template:
             spec:
               project: {{.project}}
+
 
 ## Migration guide
 
