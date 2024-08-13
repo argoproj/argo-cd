@@ -85,24 +85,33 @@ func TestReconnect(t *testing.T) {
 	assert.Equal(t, ReconnectMessage, message.Data)
 }
 
-func TestValidateWithAdminPermissions(t *testing.T) {
-	validate := func(w http.ResponseWriter, r *http.Request) {
+func verifyAndReconnect(t *testing.T, disableAuth bool, role string, expectSuccess bool, claimsEnforcerFunc bool) func(w http.ResponseWriter, r *http.Request) {
+	verifyAndReconnect := func(w http.ResponseWriter, r *http.Request) {
 		enf := newEnforcer()
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
-		enf.SetDefaultRole("role:admin")
+		enf.SetDefaultRole("role:" + role)
 		enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
-			return true
+			return claimsEnforcerFunc
 		})
 		ts := newTestTerminalSession(w, r)
-		ts.enf = enf
+		ts.terminalOpts = &TerminalOptions{enf: enf, disableAuth: disableAuth}
 		ts.appRBACName = "test"
 		// nolint:staticcheck
-		ts.ctx = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"admin"}})
-		_, err := ts.validatePermissions([]byte{})
-		require.NoError(t, err)
-	}
+		ts.ctx = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{role}})
+		_, err := ts.performValidationsAndReconnect([]byte{})
+		if expectSuccess {
+			require.NoError(t, err)
+		} else {
+			require.Error(t, err)
+			assert.Equal(t, permissionDeniedErr.Error(), err.Error())
+		}
 
-	s := httptest.NewServer(http.HandlerFunc(validate))
+	}
+	return verifyAndReconnect
+}
+
+func testServerConnection(t *testing.T, testFunc func(w http.ResponseWriter, r *http.Request)) {
+	s := httptest.NewServer(http.HandlerFunc(testFunc))
 	defer s.Close()
 
 	u := "ws" + strings.TrimPrefix(s.URL, "http")
@@ -114,6 +123,21 @@ func TestValidateWithAdminPermissions(t *testing.T) {
 	defer ws.Close()
 }
 
+func TestVerifyAndReconnectWithAdminPermissionsDisableAuthFalse(t *testing.T) {
+	verifyAndReconnectWithAdminPermissionsDisableAuthFalse := verifyAndReconnect(t, false, "admin", false, true)
+	testServerConnection(t, verifyAndReconnectWithAdminPermissionsDisableAuthFalse)
+}
+
+func TestVerifyAndReconnectWithoutPermissionsDisableAuthFalse(t *testing.T) {
+	verifyAndReconnectWithoutPermissionsDisableAuthFalse := verifyAndReconnect(t, false, "test", true, false)
+	testServerConnection(t, verifyAndReconnectWithoutPermissionsDisableAuthFalse)
+}
+
+func TestVerifyAndReconnectDisableAuthTrue(t *testing.T) {
+	verifyAndReconnectDisableAuthTrue := verifyAndReconnect(t, true, "never-mind", true, false)
+	testServerConnection(t, verifyAndReconnectDisableAuthTrue)
+}
+
 func TestValidateWithoutPermissions(t *testing.T) {
 	validate := func(w http.ResponseWriter, r *http.Request) {
 		enf := newEnforcer()
@@ -123,7 +147,7 @@ func TestValidateWithoutPermissions(t *testing.T) {
 			return false
 		})
 		ts := newTestTerminalSession(w, r)
-		ts.enf = enf
+		ts.terminalOpts = &TerminalOptions{enf: enf}
 		ts.appRBACName = "test"
 		// nolint:staticcheck
 		ts.ctx = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"test"}})
@@ -151,4 +175,72 @@ func TestValidateWithoutPermissions(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "Permission denied", message.Data)
+}
+
+func TestVerifyTokenAndReconnectDisableAuthTrue(t *testing.T) {
+	validate := func(w http.ResponseWriter, r *http.Request) {
+		enf := newEnforcer()
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:test")
+		enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+			return false
+		})
+		ts := newTestTerminalSession(w, r)
+		ts.terminalOpts = &TerminalOptions{enf: enf}
+		ts.appRBACName = "test"
+		// nolint:staticcheck
+		ts.ctx = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"test"}})
+		_, err := ts.validatePermissions([]byte{})
+		require.Error(t, err)
+		assert.Equal(t, permissionDeniedErr.Error(), err.Error())
+	}
+
+	s := httptest.NewServer(http.HandlerFunc(validate))
+	defer s.Close()
+
+	u := "ws" + strings.TrimPrefix(s.URL, "http")
+
+	// Connect to the server
+	ws, _, err := websocket.DefaultDialer.Dial(u, nil)
+	require.NoError(t, err)
+
+	defer ws.Close()
+
+	_, p, _ := ws.ReadMessage()
+
+	var message TerminalMessage
+
+	err = json.Unmarshal(p, &message)
+
+	require.NoError(t, err)
+	assert.Equal(t, "Permission denied", message.Data)
+}
+
+func TestValidateWithAdminPermissions(t *testing.T) {
+	validate := func(w http.ResponseWriter, r *http.Request) {
+		enf := newEnforcer()
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+		enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
+			return true
+		})
+		ts := newTestTerminalSession(w, r)
+		ts.terminalOpts = &TerminalOptions{enf: enf}
+		ts.appRBACName = "test"
+		// nolint:staticcheck
+		ts.ctx = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"admin"}})
+		_, err := ts.validatePermissions([]byte{})
+		require.NoError(t, err)
+	}
+
+	s := httptest.NewServer(http.HandlerFunc(validate))
+	defer s.Close()
+
+	u := "ws" + strings.TrimPrefix(s.URL, "http")
+
+	// Connect to the server
+	ws, _, err := websocket.DefaultDialer.Dial(u, nil)
+	require.NoError(t, err)
+
+	defer ws.Close()
 }
