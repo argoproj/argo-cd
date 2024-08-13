@@ -238,7 +238,7 @@ func (handler *ApplicationWebhookPayloadHandler) HandlePayload(payload interface
 	var filteredApps []v1alpha1.Application
 
 	for _, app := range apps.Items {
-		if app.Namespace == handler.ns || glob.MatchStringInList(handler.appNs, app.Namespace, glob.GLOB) {
+		if app.Namespace == handler.ns || glob.MatchStringInList(handler.appNs, app.Namespace, glob.REGEXP) {
 			filteredApps = append(filteredApps, app)
 		}
 	}
