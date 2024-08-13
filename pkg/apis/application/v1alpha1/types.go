@@ -244,17 +244,6 @@ func (a *ApplicationSpec) GetHydrateToSource() ApplicationSource {
 	return ApplicationSource{}
 }
 
-func (a *ApplicationSpec) GetHydratorDrySource() ApplicationSource {
-	if a.SourceHydrator != nil {
-		return ApplicationSource{
-			RepoURL:        a.SourceHydrator.DrySource.RepoURL,
-			Path:           a.SourceHydrator.DrySource.Path,
-			TargetRevision: a.SourceHydrator.DrySource.TargetRevision,
-		}
-	}
-	return ApplicationSource{}
-}
-
 func (a *ApplicationSpec) GetSources() ApplicationSources {
 	if a.SourceHydrator != nil {
 		return ApplicationSources{a.SourceHydrator.GetSyncSource()}

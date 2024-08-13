@@ -300,16 +300,18 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 			continue
 		}
 		for _, app := range filteredApps {
-			drySource := app.Spec.GetHydratorDrySource()
-			if sourceRevisionHasChanged(drySource, revision, touchedHead) && sourceUsesURL(drySource, webURL, repoRegexp) {
-				refreshPaths := path.GetAppRefreshPaths(&app)
-				if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
-					namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
-					log.Debugf("webhook trigger refresh app to hydrate '%s'", app.ObjectMeta.Name)
-					_, err = argo.RefreshApp(namespacedAppInterface, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
-					if err != nil {
-						log.Warnf("Failed to hydrate app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
-						continue
+			if app.Spec.SourceHydrator != nil {
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				if sourceRevisionHasChanged(drySource, revision, touchedHead) && sourceUsesURL(drySource, webURL, repoRegexp) {
+					refreshPaths := path.GetAppRefreshPaths(&app)
+					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
+						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace)
+						log.Debugf("webhook trigger refresh app to hydrate '%s'", app.ObjectMeta.Name)
+						_, err = argo.RefreshApp(namespacedAppInterface, app.ObjectMeta.Name, v1alpha1.RefreshTypeNormal)
+						if err != nil {
+							log.Warnf("Failed to hydrate app '%s' for controller reprocessing: %v", app.ObjectMeta.Name, err)
+							continue
+						}
 					}
 				}
 			}
