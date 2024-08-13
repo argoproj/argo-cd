@@ -1082,7 +1082,6 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	appWebhook, err := webhookHandler.NewWebhook(
 		a.ArgoCDServerOpts.WebhookParallelism,
 		a.settingsMgr.GetMaxWebhookPayloadSize(),
-		a.settings,
 		a.settingsMgr,
 		argoDB,
 		a.Namespace,

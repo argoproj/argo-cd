@@ -49,10 +49,14 @@ const payloadQueueSize = 50000
 func NewWebhook(
 	parallelism int,
 	maxPayloadSize int64,
-	argoCdSettings *settings.ArgoCDSettings,
 	argoCdSettingsMgr *settings.SettingsManager,
 	payloadHandler WebhookPayloadHandler,
 ) (*Webhook, error) {
+	argoCdSettings, err := argoCdSettingsMgr.GetSettings()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get argocd settings: %w", err)
+	}
+
 	gitHubWebhook, err := gitHub.New(gitHub.Options.Secret(argoCdSettings.WebhookGitHubSecret))
 	if err != nil {
 		return nil, fmt.Errorf("Unable to init the GitHub webhook: %w", err)

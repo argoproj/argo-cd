@@ -570,7 +570,6 @@ func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) err
 func NewWebhook(
 	parallelism int,
 	maxPayloadSize int64,
-	argoCdSettings *settings.ArgoCDSettings,
 	argoCdSettingsMgr *settings.SettingsManager,
 	client client.Client,
 	generators map[string]generators.Generator,
@@ -583,7 +582,6 @@ func NewWebhook(
 	webhook, err := webhook.NewWebhook(
 		parallelism,
 		maxPayloadSize,
-		argoCdSettings,
 		argoCdSettingsMgr,
 		payloadHandler,
 	)

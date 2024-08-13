@@ -74,7 +74,6 @@ func NewMockHandlerWithPayloadLimit(t *testing.T, reactor *reactorDef, applicati
 	webhook, err := NewWebhook(
 		10,
 		maxPayloadSize,
-		&settings.ArgoCDSettings{},
 		settingsMgr,
 		&mocks.ArgoDB{},
 		namespace,
@@ -107,8 +106,7 @@ func TestGitHubCommitEvent(t *testing.T) {
 	h.CloseAndWait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://github.com/jessesuen/test-repo, revision: master, touchedHead: true"
-	actualLogResult := getLogEntry(hook, -3)
-	assert.Equal(t, expectedLogResult, actualLogResult)
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
 }
 
@@ -125,8 +123,7 @@ func TestAzureDevOpsCommitEvent(t *testing.T) {
 	h.CloseAndWait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://dev.azure.com/alexander0053/alex-test/_git/alex-test, revision: master, touchedHead: true"
-	actualLogResult := getLogEntry(hook, -3)
-	assert.Equal(t, expectedLogResult, actualLogResult)
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
 }
 
@@ -182,8 +179,7 @@ func TestGitHubCommitEvent_MultiSource_Refresh(t *testing.T) {
 	h.CloseAndWait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Requested app 'app-to-refresh' refresh"
-	actualLogResult := getLogEntry(hook, -1)
-	assert.Equal(t, expectedLogResult, actualLogResult)
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	assert.True(t, patched)
 	hook.Reset()
 }
@@ -298,8 +294,7 @@ func TestGitHubTagEvent(t *testing.T) {
 	h.CloseAndWait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://github.com/jessesuen/test-repo, revision: v1.0, touchedHead: false"
-	actualLogResult := getLogEntry(hook, -3)
-	assert.Equal(t, expectedLogResult, actualLogResult)
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
 }
 
@@ -316,8 +311,7 @@ func TestGitHubPingEvent(t *testing.T) {
 	h.CloseAndWait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Ignoring webhook event"
-	actualLogResult := getLogEntry(hook, -1)
-	assert.Equal(t, expectedLogResult, actualLogResult)
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
 }
 
@@ -334,11 +328,9 @@ func TestBitbucketServerRepositoryReferenceChangedEvent(t *testing.T) {
 	h.CloseAndWait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResultSsh := "Received push event repo: ssh://git@bitbucketserver:7999/myproject/test-repo.git, revision: master, touchedHead: true"
-	actualLogResultSsh := getLogEntry(hook, -4)
-	assert.Equal(t, expectedLogResultSsh, actualLogResultSsh)
+	assert.Equal(t, expectedLogResultSsh, hook.AllEntries()[len(hook.AllEntries())-2].Message)
 	expectedLogResultHttps := "Received push event repo: https://bitbucketserver/scm/myproject/test-repo.git, revision: master, touchedHead: true"
-	actualLogResultHttps := getLogEntry(hook, -3)
-	assert.Equal(t, expectedLogResultHttps, actualLogResultHttps)
+	assert.Equal(t, expectedLogResultHttps, hook.LastEntry().Message)
 	hook.Reset()
 }
 
@@ -353,8 +345,7 @@ func TestBitbucketServerRepositoryDiagnosticPingEvent(t *testing.T) {
 	h.CloseAndWait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Ignoring webhook event"
-	actualLogResult := getLogEntry(hook, -1)
-	assert.Equal(t, expectedLogResult, actualLogResult)
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
 }
 
@@ -371,8 +362,7 @@ func TestGogsPushEvent(t *testing.T) {
 	h.CloseAndWait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: http://gogs-server/john/repo-test, revision: master, touchedHead: true"
-	actualLogResult := getLogEntry(hook, -3)
-	assert.Equal(t, expectedLogResult, actualLogResult)
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
 }
 
@@ -389,8 +379,7 @@ func TestGitLabPushEvent(t *testing.T) {
 	h.CloseAndWait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://gitlab/group/name, revision: master, touchedHead: true"
-	actualLogResult := getLogEntry(hook, -3)
-	assert.Equal(t, expectedLogResult, actualLogResult)
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
 }
 
@@ -407,8 +396,7 @@ func TestGitLabSystemEvent(t *testing.T) {
 	h.CloseAndWait()
 	assert.Equal(t, http.StatusOK, w.Code)
 	expectedLogResult := "Received push event repo: https://gitlab/group/name, revision: master, touchedHead: true"
-	actualLogResult := getLogEntry(hook, -3)
-	assert.Equal(t, expectedLogResult, actualLogResult)
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
 }
 
@@ -422,8 +410,7 @@ func TestInvalidMethod(t *testing.T) {
 	h.CloseAndWait()
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 	expectedLogResult := "Webhook processing failed: invalid HTTP Method"
-	actualLogResult := getLogEntry(hook, -1)
-	assert.Equal(t, expectedLogResult, actualLogResult)
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
 	hook.Reset()
 }
@@ -438,8 +425,7 @@ func TestInvalidEvent(t *testing.T) {
 	h.CloseAndWait()
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	expectedLogResult := "Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under 1024 MB) and ensure it is valid JSON"
-	actualLogResult := getLogEntry(hook, -1)
-	assert.Equal(t, expectedLogResult, actualLogResult)
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
 	hook.Reset()
 }
@@ -627,20 +613,8 @@ func TestGitHubCommitEventMaxPayloadSize(t *testing.T) {
 	h.CloseAndWait()
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	expectedLogResult := "Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under 0 MB) and ensure it is valid JSON"
-	actualLogResult := getLogEntry(hook, -1)
-	assert.Equal(t, expectedLogResult, actualLogResult)
+	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
-}
-
-func getLogEntry(hook *test.Hook, offset int) string {
-	allEntries := hook.AllEntries()
-	index := offset
-
-	if offset < 0 {
-		index = len(allEntries) + offset
-	}
-
-	return allEntries[index].Message
 }
 
 func newFakeClient(ns string) *kubefake.Clientset {

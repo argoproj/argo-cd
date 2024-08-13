@@ -238,7 +238,7 @@ func (handler *ApplicationWebhookPayloadHandler) HandlePayload(payload interface
 	var filteredApps []v1alpha1.Application
 
 	for _, app := range apps.Items {
-		if app.Namespace == handler.ns || glob.MatchStringInList(handler.appNs, app.Namespace, false) {
+		if app.Namespace == handler.ns || glob.MatchStringInList(handler.appNs, app.Namespace, glob.GLOB) {
 			filteredApps = append(filteredApps, app)
 		}
 	}
@@ -318,7 +318,6 @@ func (handler *ApplicationWebhookPayloadHandler) storePreviouslyCachedManifests(
 func NewWebhook(
 	parallelism int,
 	maxPayloadSize int64,
-	argoCdSettings *settings.ArgoCDSettings,
 	argoCdSettingsMgr *settings.SettingsManager,
 	db db.ArgoDB,
 	ns string,
@@ -340,7 +339,6 @@ func NewWebhook(
 	webhook, err := webhook.NewWebhook(
 		parallelism,
 		maxPayloadSize,
-		argoCdSettings,
 		argoCdSettingsMgr,
 		payloadHandler,
 	)

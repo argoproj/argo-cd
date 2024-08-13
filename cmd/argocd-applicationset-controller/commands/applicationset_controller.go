@@ -185,16 +185,10 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig)
-			argoSettings, err := argoSettingsMgr.GetSettings()
-			if err != nil {
-				log.Error(err, "Failed to get argocd settings")
-				os.Exit(1)
-			}
 
 			appSetWebhook, err := webhookHandler.NewWebhook(
 				webhookParallelism,
 				argoSettingsMgr.GetMaxWebhookPayloadSize(),
-				argoSettings,
 				argoSettingsMgr,
 				mgr.GetClient(),
 				topLevelGenerators,
