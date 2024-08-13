@@ -59,14 +59,13 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 
 	noRevisionCache := appSet.RefreshRequired()
 
-	var project string
 	verifyCommit := false
 
 	// When the project field is templated, the contents of the git repo are required to run the git generator and get the templated value,
 	// but git generator cannot be called without verifying the commit signature.
 	// In this case, we skip the signature verification.
 	if !strings.Contains(appSet.Spec.Template.Spec.Project, "{{") {
-		project = appSet.Spec.Template.Spec.Project
+		project := appSet.Spec.Template.Spec.Project
 		appProject := &argoprojiov1alpha1.AppProject{}
 		if err := client.Get(context.TODO(), types.NamespacedName{Name: project, Namespace: appSet.Namespace}, appProject); err != nil {
 			return nil, fmt.Errorf("error getting project %s: %w", project, err)
