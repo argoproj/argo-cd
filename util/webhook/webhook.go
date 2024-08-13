@@ -52,60 +52,60 @@ func NewWebhook(
 	argoCdSettings *settings.ArgoCDSettings,
 	argoCdSettingsMgr *settings.SettingsManager,
 	payloadHandler WebhookPayloadHandler,
-) *Webhook {
+) (*Webhook, error) {
 	gitHubWebhook, err := gitHub.New(gitHub.Options.Secret(argoCdSettings.WebhookGitHubSecret))
 
 	if err != nil {
-		log.Warnf("Unable to init the GitHub webhook")
+		return nil, fmt.Errorf("Unable to init the GitHub webhook: %w", err)
 	}
 
 	gitLabWebhook, err := gitLab.New(gitLab.Options.Secret(argoCdSettings.WebhookGitLabSecret))
 
 	if err != nil {
-		log.Warnf("Unable to init the GitLab webhook")
+		return nil, fmt.Errorf("Unable to init the GitLab webhook: %w", err)
 	}
 
 	bitbucketWebhook, err := bitbucket.New(bitbucket.Options.UUID(argoCdSettings.WebhookBitbucketUUID))
 
 	if err != nil {
-		log.Warnf("Unable to init the Bitbucket webhook")
+		return nil, fmt.Errorf("Unable to init the Bitbucket webhook: %w", err)
 	}
 
 	bitbucketServerWebhook, err := bitbucketServer.New(bitbucketServer.Options.Secret(argoCdSettings.WebhookBitbucketServerSecret))
 
 	if err != nil {
-		log.Warnf("Unable to init the Bitbucket Server webhook")
+		return nil, fmt.Errorf("Unable to init the Bitbucket Server webhook: %w", err)
 	}
 
 	gogsWebhook, err := gogs.New(gogs.Options.Secret(argoCdSettings.WebhookGogsSecret))
 
 	if err != nil {
-		log.Warnf("Unable to init the Gogs webhook")
+		return nil, fmt.Errorf("Unable to init the Gogs webhook: %w", err)
 	}
 
 	azureDevOpsWebhook, err := azureDevOps.New(azureDevOps.Options.BasicAuth(argoCdSettings.WebhookAzureDevOpsUsername, argoCdSettings.WebhookAzureDevOpsPassword))
 
 	if err != nil {
-		log.Warnf("Unable to init the Azure DevOps webhook")
+		return nil, fmt.Errorf("Unable to init the Azure DevOps webhook: %w", err)
 	}
 
 	webhook := Webhook{
 		parallelism:       parallelism,
 		maxPayloadSize:    maxPayloadSize,
 		argoCdSettingsMgr: argoCdSettingsMgr,
-		payloadHandler:  payloadHandler,
-		payloadQueue:    make(chan interface{}, payloadQueueSize),
-		gitHub:          gitHubWebhook,
-		gitLab:          gitLabWebhook,
-		bitbucket:       bitbucketWebhook,
-		bitbucketServer: bitbucketServerWebhook,
-		azureDevOps:     azureDevOpsWebhook,
-		gogs:            gogsWebhook,
+		payloadHandler:    payloadHandler,
+		payloadQueue:      make(chan interface{}, payloadQueueSize),
+		gitHub:            gitHubWebhook,
+		gitLab:            gitLabWebhook,
+		bitbucket:         bitbucketWebhook,
+		bitbucketServer:   bitbucketServerWebhook,
+		azureDevOps:       azureDevOpsWebhook,
+		gogs:              gogsWebhook,
 	}
 
 	webhook.startWorkerPool()
 
-	return &webhook
+	return &webhook, nil
 }
 
 func (webhook *Webhook) startWorkerPool() {

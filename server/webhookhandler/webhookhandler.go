@@ -334,7 +334,7 @@ func NewWebhook(
 	appClientset      appClientset.Interface,
 	repoCache         *cache.Cache,
 	serverCache       *serverCache.Cache,
-) *webhook.Webhook {
+) (*webhook.Webhook, error) {
 	payloadHandler := &ApplicationWebhookPayloadHandler{
 		db: db,
 		ns: ns,
@@ -345,11 +345,17 @@ func NewWebhook(
 		argoCdSettingsMgr: argoCdSettingsMgr,
 	}
 
-	return webhook.NewWebhook(
+	webhook, err := webhook.NewWebhook(
 		parallelism,
 		maxPayloadSize,
 		argoCdSettings,
 		argoCdSettingsMgr,
 		payloadHandler,
 	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return webhook, nil
 }

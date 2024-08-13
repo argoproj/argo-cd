@@ -1079,7 +1079,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
 
-	appWebhook := webhookHandler.NewWebhook(
+	appWebhook, err := webhookHandler.NewWebhook(
 		a.ArgoCDServerOpts.WebhookParallelism,
 		a.settingsMgr.GetMaxWebhookPayloadSize(),
 		a.settings,
@@ -1092,7 +1092,13 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 		a.Cache,
 	)
 
-	mux.HandleFunc("/api/webhook", appWebhook.HandleRequest)
+	if err != nil {
+		log.Error(err, "failed to create webhook handler")
+	}
+
+	if appWebhook != nil {
+		mux.HandleFunc("/api/webhook", appWebhook.HandleRequest)
+	}
 
 	// Serve cli binaries directly from API server
 	registerDownloadHandlers(mux, "/download")

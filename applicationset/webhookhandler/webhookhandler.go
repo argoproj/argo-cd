@@ -581,17 +581,23 @@ func NewWebhook(
   argoCdSettingsMgr *settings.SettingsManager,
 	client         client.Client,
 	generators     map[string]generators.Generator,
-) *webhook.Webhook {
+) (*webhook.Webhook, error) {
 	payloadHandler := &ApplicationSetWebhookPayloadHandler{
 		client: client,
 		generators: generators,
 	}
 
-	return webhook.NewWebhook(
+	webhook, err := webhook.NewWebhook(
 		parallelism,
 		maxPayloadSize,
 		argoCdSettings,
 		argoCdSettingsMgr,
 		payloadHandler,
 	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return webhook, nil
 }

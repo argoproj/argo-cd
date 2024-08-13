@@ -192,7 +192,7 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			appSetWebhook := webhookHandler.NewWebhook(
+			appSetWebhook, err := webhookHandler.NewWebhook(
 				webhookParallelism,
 				argoSettingsMgr.GetMaxWebhookPayloadSize(),
 				argoSettings,
@@ -201,7 +201,13 @@ func NewCommand() *cobra.Command {
 				topLevelGenerators,
 			)
 
-			startWebhookServer(appSetWebhook, webhookAddr)
+			if err != nil {
+				log.Error(err, "failed to create webhook handler")
+			}
+
+			if appSetWebhook != nil {
+				startWebhookServer(appSetWebhook, webhookAddr)
+			}
 
 			if err = (&controllers.ApplicationSetReconciler{
 				Generators:                 topLevelGenerators,
@@ -265,7 +271,6 @@ func NewCommand() *cobra.Command {
 	return &command
 }
 
-type handleRequest func() 
 func startWebhookServer(webhook *webhook.Webhook, webhookAddr string) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/webhook", webhook.HandleRequest)
