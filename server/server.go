@@ -737,7 +737,7 @@ func (a *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
 			scopes = make([]string, 0)
 			err := yaml.Unmarshal([]byte(scopesStr), &scopes)
 			if err != nil {
-				return err
+				return fmt.Errorf("error unmarshalling scopes: %w", err)
 			}
 		}
 
@@ -950,7 +950,7 @@ func (a *ArgoCDServer) translateGrpcCookieHeader(ctx context.Context, w http.Res
 		token := sessionResp.Token
 		err := a.setTokenCookie(token, w)
 		if err != nil {
-			return err
+			return fmt.Errorf("error setting token cookie from session response: %w", err)
 		}
 	} else if md, ok := runtime.ServerMetadataFromContext(ctx); ok {
 		renewToken := md.HeaderMD[renewTokenKey]
@@ -970,7 +970,7 @@ func (a *ArgoCDServer) setTokenCookie(token string, w http.ResponseWriter) error
 	}
 	cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, token, flags...)
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating cookie metadata: %w", err)
 	}
 	for _, cookie := range cookies {
 		w.Header().Add("Set-Cookie", cookie)
