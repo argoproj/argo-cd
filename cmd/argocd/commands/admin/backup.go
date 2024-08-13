@@ -156,6 +156,8 @@ func NewImportCommand() *cobra.Command {
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 			acdClients := newArgoCDClientsets(config, namespace)
+			client, err := dynamic.NewForConfig(config)
+			errors.CheckError(err)
 
 			var input []byte
 			if in := args[0]; in == "-" {
@@ -244,19 +246,19 @@ func NewImportCommand() *cobra.Command {
 				var dynClient dynamic.ResourceInterface
 				switch bakObj.GetKind() {
 				case "Secret":
-					dynClient = acdClients.secrets
+					dynClient = client.Resource(secretResource).Namespace(bakObj.GetNamespace())
 				case "ConfigMap":
-					dynClient = acdClients.configMaps
+					dynClient = client.Resource(configMapResource).Namespace(bakObj.GetNamespace())
 				case application.AppProjectKind:
-					dynClient = acdClients.projects
+					dynClient = client.Resource(appprojectsResource).Namespace(bakObj.GetNamespace())
 				case application.ApplicationKind:
-					dynClient = acdClients.applications
+					dynClient = client.Resource(applicationsResource).Namespace(bakObj.GetNamespace())
 					// If application is not in one of the allowed namespaces do not import it
 					if !secutil.IsNamespaceEnabled(bakObj.GetNamespace(), namespace, applicationNamespaces) {
 						continue
 					}
 				case application.ApplicationSetKind:
-					dynClient = acdClients.applicationSets
+					dynClient = client.Resource(appplicationSetResource).Namespace(bakObj.GetNamespace())
 					// If applicationset is not in one of the allowed namespaces do not import it
 					if !secutil.IsNamespaceEnabled(bakObj.GetNamespace(), namespace, applicationsetNamespaces) {
 						continue
@@ -274,7 +276,7 @@ func NewImportCommand() *cobra.Command {
 						}
 					}
 					if !isForbidden {
-						fmt.Printf("%s/%s %s created%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
+						fmt.Printf("%s/%s %s in namespace %s created%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace(), dryRunMsg)
 					}
 				} else if specsEqual(*bakObj, liveObj) && checkAppHasNoNeedToStopOperation(liveObj, stopOperation) {
 					if verbose {
@@ -293,7 +295,7 @@ func NewImportCommand() *cobra.Command {
 						}
 					}
 					if !isForbidden {
-						fmt.Printf("%s/%s %s updated%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), dryRunMsg)
+						fmt.Printf("%s/%s %s in namespace %s updated%s\n", gvk.Group, gvk.Kind, bakObj.GetName(), bakObj.GetNamespace(), dryRunMsg)
 					}
 				}
 			}
@@ -304,11 +306,11 @@ func NewImportCommand() *cobra.Command {
 					var dynClient dynamic.ResourceInterface
 					switch key.Kind {
 					case "Secret":
-						dynClient = acdClients.secrets
+						dynClient = client.Resource(secretResource).Namespace(liveObj.GetNamespace())
 					case application.AppProjectKind:
-						dynClient = acdClients.projects
+						dynClient = client.Resource(appprojectsResource).Namespace(liveObj.GetNamespace())
 					case application.ApplicationKind:
-						dynClient = acdClients.applications
+						dynClient = client.Resource(applicationsResource).Namespace(liveObj.GetNamespace())
 						if !dryRun {
 							if finalizers := liveObj.GetFinalizers(); len(finalizers) > 0 {
 								newLive := liveObj.DeepCopy()
@@ -320,7 +322,7 @@ func NewImportCommand() *cobra.Command {
 							}
 						}
 					case application.ApplicationSetKind:
-						dynClient = acdClients.applicationSets
+						dynClient = client.Resource(appplicationSetResource).Namespace(liveObj.GetNamespace())
 					default:
 						log.Fatalf("Unexpected kind '%s' in prune list", key.Kind)
 					}
