@@ -647,6 +647,7 @@ func (a *ArgoCDServer) watchSettings() {
 	a.settingsMgr.Subscribe(updateCh)
 
 	prevURL := a.settings.URL
+	prevAdditionalURLs := a.settings.AdditionalURLs
 	prevOIDCConfig := a.settings.OIDCConfig()
 	prevDexCfgBytes, err := dexutil.GenerateDexConfigYAML(a.settings, a.DexTLSConfig == nil || a.DexTLSConfig.DisableTLS)
 	errorsutil.CheckError(err)
@@ -676,6 +677,10 @@ func (a *ArgoCDServer) watchSettings() {
 		}
 		if prevURL != a.settings.URL {
 			log.Infof("url modified. restarting")
+			break
+		}
+		if !reflect.DeepEqual(prevAdditionalURLs, a.settings.AdditionalURLs) {
+			log.Infof("additionalURLs modified. restarting")
 			break
 		}
 		if prevGitHubSecret != a.settings.WebhookGitHubSecret {
@@ -1073,7 +1078,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.ArgoCDServerOpts.ApplicationNamespaces, a.ArgoCDServerOpts.WebhookParallelism, a.AppClientset, a.settings, a.settingsMgr, a.RepoServerCache, a.Cache, argoDB)
+	acdWebhookHandler := webhook.NewHandler(a.Namespace, a.ArgoCDServerOpts.ApplicationNamespaces, a.ArgoCDServerOpts.WebhookParallelism, a.AppClientset, a.settings, a.settingsMgr, a.RepoServerCache, a.Cache, argoDB, a.settingsMgr.GetMaxWebhookPayloadSize())
 
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
@@ -1537,7 +1542,7 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req interface{}, _ *grpc
 	return handler(ctx, req)
 }
 
-// allowedNamespacesAsString returns a string containing comma-separated list
+// allowedApplicationNamespacesAsString returns a string containing comma-separated list
 // of allowed application namespaces
 func (a *ArgoCDServer) allowedApplicationNamespacesAsString() string {
 	ns := a.Namespace
