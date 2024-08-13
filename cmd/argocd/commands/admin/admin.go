@@ -236,7 +236,8 @@ const (
 // Get additional namespaces from argocd-cmd-params
 func getAdditionalNamespaces(ctx context.Context, argocdClientsets *argoCDClientsets) *argocdAdditonalNamespaces {
 	var applicationNamespaces []string
-	applicationsetNamespaces := []string{}
+	var applicationsetNamespaces []string
+
 	un, err := argocdClientsets.configMaps.Get(ctx, common.ArgoCDCmdParamsConfigMapName, v1.GetOptions{})
 	errors.CheckError(err)
 	var cm apiv1.ConfigMap
@@ -259,10 +260,14 @@ func getAdditionalNamespaces(ctx context.Context, argocdClientsets *argoCDClient
 
 	if strNamespaces, ok := cm.Data[applicationNamespacesCmdParamsKey]; ok {
 		applicationNamespaces = namespacesListFromString(strNamespaces)
+	} else {
+		applicationNamespaces = []string{}
 	}
 
 	if strNamespaces, ok := cm.Data[applicationsetNamespacesCmdParamsKey]; ok {
 		applicationsetNamespaces = namespacesListFromString(strNamespaces)
+	} else {
+		applicationsetNamespaces = []string{}
 	}
 
 	return &argocdAdditonalNamespaces{
