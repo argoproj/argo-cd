@@ -126,22 +126,16 @@ func (webhook *Webhook) startWorkerPool() {
 	}
 }
 
-func getUrlRegex(originalUrl string, includePath bool) (*regexp.Regexp, error) {
+func getUrlRegex(originalUrl string, regexpFormat string) (*regexp.Regexp, error) {
 	urlObj, err := url.Parse(originalUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse repoURL '%s'", originalUrl)
 	}
 
 	regexEscapedHostname := regexp.QuoteMeta(urlObj.Hostname())
-	regexEscapedPath := ""
+	regexEscapedPath := regexp.QuoteMeta(urlObj.EscapedPath()[1:]) + `(\.git)?`
 
-	if includePath {
-		regexEscapedPath = regexp.QuoteMeta(urlObj.EscapedPath()[1:]) + `(\.git)?`
-	}
-
-	regexpStr := fmt.Sprintf(
-		`(?i)^(http://|https://|%s@|ssh://(%s@)?((alt)?ssh\.)?)%s(:[0-9]+|)[:/]%s$`,
-		usernameRegex, usernameRegex, regexEscapedHostname, regexEscapedPath)
+	regexpStr := fmt.Sprintf(regexpFormat, usernameRegex, regexEscapedHostname, regexEscapedPath)
 
 	repoRegexp, err := regexp.Compile(regexpStr)
 	if err != nil {
@@ -151,12 +145,12 @@ func getUrlRegex(originalUrl string, includePath bool) (*regexp.Regexp, error) {
 	return repoRegexp, nil
 }
 
-func GetWebUrlRegex(webURL string) (*regexp.Regexp, error) {
-	return getUrlRegex(webURL, true)
+func GetWebUrlRegex(originalUrl string) (*regexp.Regexp, error) {
+	return getUrlRegex(originalUrl, `(?i)^(https?://|%[1]s@|ssh://(%[1]s@)?((alt)?ssh\.)?)%[2]s(:[0-9]+)?[:/]%[3]s$`)
 }
 
-func GetApiUrlRegex(apiURL string) (*regexp.Regexp, error) {
-	return getUrlRegex(apiURL, false)
+func GetApiUrlRegex(originalUrl string) (*regexp.Regexp, error) {
+	return getUrlRegex(originalUrl, `(?i)^https?://%[2]s(:[0-9]+)?/?$`)
 }
 
 func (webhook *Webhook) HandleRequest(writer http.ResponseWriter, request *http.Request) {

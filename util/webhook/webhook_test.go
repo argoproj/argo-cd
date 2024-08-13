@@ -41,7 +41,33 @@ func Test_GetWebUrlRegex(t *testing.T) {
 			regexp, err := GetWebUrlRegex(testCopy.webURL)
 			require.NoError(t, err)
 			if matches := regexp.MatchString(testCopy.repo); matches != testCopy.shouldMatch {
-				t.Errorf("sourceRevisionHasChanged() = %v, want %v", matches, testCopy.shouldMatch)
+				t.Errorf("regexp.MatchString() = %v, want %v", matches, testCopy.shouldMatch)
+			}
+		})
+	}
+}
+
+func Test_GetApiUrlRegex(t *testing.T) {
+	tests := []struct {
+		shouldMatch bool
+		apiURL      string
+		repo        string
+		name        string
+	}{
+		// Ensure input is regex-escaped.
+		{false, "https://an.example.com/org/repo", "https://an-example.com/", "dots in domain names should not be treated as wildcards"},
+
+		// Standard cases.
+		{true, "https://example.com/org/repo", "https://example.com/", "exact hostname match should match"},
+	}
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+			regexp, err := GetApiUrlRegex(testCopy.apiURL)
+			require.NoError(t, err)
+			if matches := regexp.MatchString(testCopy.repo); matches != testCopy.shouldMatch {
+				t.Errorf("regexp.MatchString() = %v, want %v (%v)", matches, testCopy.shouldMatch, regexp.String())
 			}
 		})
 	}
