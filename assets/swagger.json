@@ -5049,6 +5049,13 @@
     "repositoryManifestResponse": {
       "type": "object",
       "properties": {
+        "commands": {
+          "type": "array",
+          "title": "Commands is the list of commands used to hydrate the manifests",
+          "items": {
+            "type": "string"
+          }
+        },
         "manifests": {
           "type": "array",
           "items": {

@@ -1102,7 +1102,7 @@ func isSourcePermitted(url string, repos []string) bool {
 	return p.IsSourcePermitted(v1alpha1.ApplicationSource{RepoURL: url})
 }
 
-func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]*unstructured.Unstructured, error) {
+func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths io.TempPaths) ([]*unstructured.Unstructured, string, error) {
 	concurrencyAllowed := helmConcurrencyDefault || isConcurrencyAllowed(appPath)
 	if !concurrencyAllowed {
 		manifestGenerateLock.Lock(appPath)
@@ -1138,7 +1138,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 		resolvedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, env, q.GetValuesFileSchemes(), appHelm.ValueFiles, q.RefSources, gitRepoPaths, appHelm.IgnoreMissingValueFiles)
 		if err != nil {
-			return nil, fmt.Errorf("error resolving helm value files: %w", err)
+			return nil, "", fmt.Errorf("error resolving helm value files: %w", err)
 		}
 
 		templateOpts.Values = resolvedValueFiles
@@ -1146,7 +1146,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		if !appHelm.ValuesIsEmpty() {
 			rand, err := uuid.NewRandom()
 			if err != nil {
-				return nil, fmt.Errorf("error generating random filename for Helm values file: %w", err)
+				return nil, "", fmt.Errorf("error generating random filename for Helm values file: %w", err)
 			}
 			p := path.Join(os.TempDir(), rand.String())
 			defer func() {
@@ -1157,9 +1157,9 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			}()
 			err = os.WriteFile(p, appHelm.ValuesYAML(), 0o644)
 			if err != nil {
-				return nil, fmt.Errorf("error writing helm values file: %w", err)
+				return nil, "", fmt.Errorf("error writing helm values file: %w", err)
 			}
-			templateOpts.Values = append(templateOpts.Values, pathutil.ResolvedFilePath(p))
+			templateOpts.ExtraValues = pathutil.ResolvedFilePath(p)
 		}
 
 		for _, p := range appHelm.Parameters {
@@ -1176,12 +1176,12 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 				// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving the source
 				resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, gitRepoPaths, referencedSource.Repo.Project)
 				if err != nil {
-					return nil, fmt.Errorf("error resolving set-file path: %w", err)
+					return nil, "", fmt.Errorf("error resolving set-file path: %w", err)
 				}
 			} else {
 				resolvedPath, _, err = pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(p.Path), q.GetValuesFileSchemes())
 				if err != nil {
-					return nil, fmt.Errorf("error resolving helm value file path: %w", err)
+					return nil, "", fmt.Errorf("error resolving helm value file path: %w", err)
 				}
 			}
 			templateOpts.SetFile[p.Name] = resolvedPath
@@ -1206,24 +1206,20 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 
 	helmRepos, err := getHelmRepos(appPath, q.Repos, q.HelmRepoCreds)
 	if err != nil {
-		return nil, fmt.Errorf("error getting helm repos: %w", err)
+		return nil, "", fmt.Errorf("error getting helm repos: %w", err)
 	}
 
 	h, err := helm.NewHelmApp(appPath, helmRepos, isLocal, version, proxy, passCredentials)
 	if err != nil {
-		return nil, fmt.Errorf("error initializing helm app object: %w", err)
+		return nil, "", fmt.Errorf("error initializing helm app object: %w", err)
 	}
 
 	defer h.Dispose()
-	err = h.Init()
-	if err != nil {
-		return nil, fmt.Errorf("error initializing helm app: %w", err)
-	}
 
-	out, err := h.Template(templateOpts)
+	out, command, err := h.Template(templateOpts)
 	if err != nil {
 		if !helm.IsMissingDependencyErr(err) {
-			return nil, err
+			return nil, "", err
 		}
 
 		if concurrencyAllowed {
@@ -1248,18 +1244,39 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			}
 
 			if len(reposNotPermitted) > 0 {
-				return nil, status.Errorf(codes.PermissionDenied, "helm repos %s are not permitted in project '%s'", strings.Join(reposNotPermitted, ", "), q.ProjectName)
+				return nil, "", status.Errorf(codes.PermissionDenied, "helm repos %s are not permitted in project '%s'", strings.Join(reposNotPermitted, ", "), q.ProjectName)
 			}
 
-			return nil, err
+			return nil, "", err
 		}
 
-		out, err = h.Template(templateOpts)
+		out, command, err = h.Template(templateOpts)
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 	}
-	return kube.SplitYAML([]byte(out))
+	objs, err := kube.SplitYAML([]byte(out))
+
+	redactedCommand := redactPaths(command, gitRepoPaths, templateOpts.ExtraValues)
+
+	return objs, redactedCommand, err
+}
+
+// redactPaths removes temp repo paths, since those paths are randomized (and therefore not helpful for the user) and
+// sensitive (so not suitable for logging). It also replaces the path of the randomly-named values file which is used
+// to hold the `spec.source.helm.values` or `valuesObject` contents.
+func redactPaths(s string, paths io.TempPaths, extraValuesPath pathutil.ResolvedFilePath) string {
+	if paths == nil {
+		return s
+	}
+	for _, p := range paths.GetPaths() {
+		s = strings.ReplaceAll(s, p, ".")
+	}
+	if extraValuesPath != "" {
+		// Replace with a placeholder so that the user knows what this values file was for.
+		s = strings.ReplaceAll(s, string(extraValuesPath), "<temp file with values from source.helm.values/valuesObject>")
+	}
+	return s
 }
 
 func getResolvedValueFiles(
@@ -1407,16 +1424,20 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		repoURL = q.Repo.Repo
 	}
 
+	var commands []string
+
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeHelm:
-		targetObjs, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
+		var command string
+		targetObjs, command, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
+		commands = append(commands, command)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		kustomizeBinary := ""
 		if q.KustomizeOptions != nil {
 			kustomizeBinary = q.KustomizeOptions.BinaryPath
 		}
 		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary)
-		targetObjs, _, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
+		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
 			KubeVersion: text.SemVer(q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion)),
 			APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
 		})
@@ -1485,6 +1506,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	return &apiclient.ManifestResponse{
 		Manifests:  manifests,
 		SourceType: string(appSourceType),
+		Commands:   commands,
 	}, nil
 }
 
@@ -2082,10 +2104,6 @@ func populateHelmAppDetails(res *apiclient.RepoAppDetailsResponse, appPath strin
 		return err
 	}
 	defer h.Dispose()
-	err = h.Init()
-	if err != nil {
-		return err
-	}
 
 	if resolvedValuesPath, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, "values.yaml", []string{}); err == nil {
 		if err := loadFileIntoIfExists(resolvedValuesPath, &res.Helm.Values); err != nil {
@@ -2170,7 +2188,7 @@ func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apicl
 		ApplicationSource: q.Source,
 	}
 	env := newEnv(&fakeManifestRequest, reversion)
-	_, images, err := k.Build(q.Source.Kustomize, q.KustomizeOptions, env, nil)
+	_, images, _, err := k.Build(q.Source.Kustomize, q.KustomizeOptions, env, nil)
 	if err != nil {
 		return err
 	}
@@ -2323,7 +2341,7 @@ func (s *Service) GetRevisionChartDetails(ctx context.Context, q *apiclient.Repo
 		return nil, fmt.Errorf("error extracting chart: %w", err)
 	}
 	defer io.Close(closer)
-	helmCmd, err := helm.NewCmdWithVersion(chartPath, helm.HelmV3, q.Repo.EnableOCI, q.Repo.Proxy)
+	helmCmd, err := helm.NewCmdWithVersion(chartPath, q.Repo.EnableOCI, q.Repo.Proxy)
 	if err != nil {
 		return nil, fmt.Errorf("error creating helm cmd: %w", err)
 	}

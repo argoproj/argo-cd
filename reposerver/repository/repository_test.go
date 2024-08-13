@@ -22,6 +22,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 
@@ -134,6 +135,7 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 		paths.On("Add", mock.Anything, mock.Anything).Return(root, nil)
 		paths.On("GetPath", mock.Anything).Return(root, nil)
 		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
+		paths.On("GetPaths").Return(map[string]string{"fake-nonce": root})
 	}, root)
 }
 
@@ -495,6 +497,7 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
+		Commands:   []string{`helm template . --name-template "" --include-crds`},
 	}, response)
 	mockCache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 1,
@@ -532,6 +535,7 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
+		Commands:   []string{`helm template . --name-template "" --values ./testdata/my-chart/my-chart-values.yaml --include-crds`},
 	}, response)
 }
 
@@ -1249,6 +1253,7 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
+		Commands:   []string{`helm template . --name-template "" --values ./testdata/my-chart/my-chart-values.yaml --include-crds`},
 	}, response)
 }
 
@@ -1582,6 +1587,8 @@ func TestListApps(t *testing.T) {
 		"values-files":                      "Helm",
 		"helm-with-dependencies":            "Helm",
 		"helm-with-dependencies-alias":      "Helm",
+		"helm-with-local-dependency":        "Helm",
+		"simple-chart":                      "Helm",
 	}
 	assert.Equal(t, expectedApps, res.Apps)
 }
@@ -4110,5 +4117,186 @@ func TestVerifyCommitSignature(t *testing.T) {
 		mockGitClient := &gitmocks.Client{}
 		err := verifyCommitSignature(false, mockGitClient, "abcd1234", repo)
 		require.NoError(t, err)
+	})
+}
+
+func Test_GenerateManifests_Commands(t *testing.T) {
+	t.Run("helm", func(t *testing.T) {
+		service := newService(t, "testdata/my-chart")
+
+		// Fill the manifest request with as many parameters affecting Helm commands as possible.
+		q := apiclient.ManifestRequest{
+			AppName:     "test-app",
+			Namespace:   "test-namespace",
+			KubeVersion: "1.2.3",
+			ApiVersions: []string{"v1/Test", "v2/Test"},
+			Repo:        &argoappv1.Repository{},
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: ".",
+				Helm: &argoappv1.ApplicationSourceHelm{
+					FileParameters: []argoappv1.HelmFileParameter{
+						{
+							Name: "test-file-param-name",
+							Path: "test-file-param.yaml",
+						},
+					},
+					Parameters: []argoappv1.HelmParameter{
+						{
+							Name: "test-param-name",
+							// Use build env var to test substitution.
+							Value:       "test-value-$ARGOCD_APP_NAME",
+							ForceString: true,
+						},
+						{
+							Name: "test-param-bool-name",
+							// Use build env var to test substitution.
+							Value: "false",
+						},
+					},
+					PassCredentials: true,
+					SkipCrds:        true,
+					ValueFiles: []string{
+						"my-chart-values.yaml",
+					},
+					Values: "test: values",
+				},
+			},
+			ProjectName:        "something",
+			ProjectSourceRepos: []string{"*"},
+		}
+
+		res, err := service.GenerateManifest(context.Background(), &q)
+
+		require.NoError(t, err)
+		assert.Equal(t, []string{"helm template . --name-template test-app --namespace test-namespace --kube-version 1.2.3 --set test-param-bool-name=false --set-string test-param-name=test-value-test-app --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v1/Test --api-versions v2/Test"}, res.Commands)
+
+		t.Run("with overrides", func(t *testing.T) {
+			// These can be set explicitly instead of using inferred values. Make sure the overrides apply.
+			q.ApplicationSource.Helm.APIVersions = []string{"v3", "v4"}
+			q.ApplicationSource.Helm.KubeVersion = "5.6.7"
+			q.ApplicationSource.Helm.Namespace = "different-namespace"
+			q.ApplicationSource.Helm.ReleaseName = "different-release-name"
+
+			res, err = service.GenerateManifest(context.Background(), &q)
+
+			require.NoError(t, err)
+			assert.Equal(t, []string{"helm template . --name-template different-release-name --namespace different-namespace --kube-version 5.6.7 --set test-param-bool-name=false --set-string test-param-name=test-value-test-app --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v3 --api-versions v4"}, res.Commands)
+		})
+	})
+
+	t.Run("helm with dependencies", func(t *testing.T) {
+		// This test makes sure we still get commands, even if we hit the code path that has to run "helm dependency build."
+		// We don't actually return the "helm dependency build" command, because we expect that the user is able to read
+		// the "helm template" and figure out how to fix it.
+		t.Cleanup(func() {
+			err := os.Remove("testdata/helm-with-local-dependency/Chart.lock")
+			require.NoError(t, err)
+			err = os.RemoveAll("testdata/helm-with-local-dependency/charts")
+			require.NoError(t, err)
+		})
+
+		service := newService(t, "testdata/helm-with-local-dependency")
+
+		q := apiclient.ManifestRequest{
+			AppName:   "test-app",
+			Namespace: "test-namespace",
+			Repo:      &argoappv1.Repository{},
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: ".",
+			},
+			ProjectName:        "something",
+			ProjectSourceRepos: []string{"*"},
+		}
+
+		res, err := service.GenerateManifest(context.Background(), &q)
+
+		require.NoError(t, err)
+		assert.Equal(t, []string{"helm template . --name-template test-app --namespace test-namespace --include-crds"}, res.Commands)
+	})
+
+	t.Run("kustomize", func(t *testing.T) {
+		// Write test files to a temp dir, because the test mutates kustomization.yaml in place.
+		tempDir := t.TempDir()
+		err := os.WriteFile(path.Join(tempDir, "kustomization.yaml"), []byte(`
+resources:
+- guestbook.yaml
+`), os.FileMode(0o600))
+		require.NoError(t, err)
+		err = os.WriteFile(path.Join(tempDir, "guestbook.yaml"), []byte(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: guestbook-ui
+`), os.FileMode(0o400))
+		require.NoError(t, err)
+		err = os.Mkdir(path.Join(tempDir, "component"), os.FileMode(0o700))
+		require.NoError(t, err)
+		err = os.WriteFile(path.Join(tempDir, "component", "kustomization.yaml"), []byte(`
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+images:
+- name: old
+  newName: new
+`), os.FileMode(0o400))
+		require.NoError(t, err)
+
+		service := newService(t, tempDir)
+
+		// Fill the manifest request with as many parameters affecting Helm commands as possible.
+		q := apiclient.ManifestRequest{
+			AppName:     "test-app",
+			Namespace:   "test-namespace",
+			KubeVersion: "1.2.3",
+			ApiVersions: []string{"v1/Test", "v2/Test"},
+			Repo:        &argoappv1.Repository{},
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: ".",
+				Kustomize: &argoappv1.ApplicationSourceKustomize{
+					APIVersions: []string{"v1", "v2"},
+					CommonAnnotations: map[string]string{
+						// Use build env var to test substitution.
+						"test": "annotation-$ARGOCD_APP_NAME",
+					},
+					CommonAnnotationsEnvsubst: true,
+					CommonLabels: map[string]string{
+						"test": "label",
+					},
+					Components:             []string{"component"},
+					ForceCommonAnnotations: true,
+					ForceCommonLabels:      true,
+					Images: argoappv1.KustomizeImages{
+						"image=override",
+					},
+					KubeVersion:          "5.6.7",
+					LabelWithoutSelector: true,
+					NamePrefix:           "test-prefix",
+					NameSuffix:           "test-suffix",
+					Namespace:            "override-namespace",
+					Replicas: argoappv1.KustomizeReplicas{
+						{
+							Name:  "guestbook-ui",
+							Count: intstr.Parse("1337"),
+						},
+					},
+				},
+			},
+			ProjectName:        "something",
+			ProjectSourceRepos: []string{"*"},
+		}
+
+		res, err := service.GenerateManifest(context.Background(), &q)
+
+		require.NoError(t, err)
+		assert.Equal(t, []string{
+			"kustomize edit set nameprefix -- test-prefix",
+			"kustomize edit set namesuffix -- test-suffix",
+			"kustomize edit set image image=override",
+			"kustomize edit set replicas guestbook-ui=1337",
+			"kustomize edit add label --force --without-selector test:label",
+			"kustomize edit add annotation --force test:annotation-test-app",
+			"kustomize edit set namespace -- override-namespace",
+			"kustomize edit add component component",
+			"kustomize build .",
+		}, res.Commands)
 	})
 }

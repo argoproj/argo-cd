@@ -49,3 +49,15 @@ func TestGetPathIfExists(t *testing.T) {
 		assert.NotEmpty(t, path)
 	})
 }
+
+func TestGetPaths_no_race(t *testing.T) {
+	paths := NewRandomizedTempPaths(os.TempDir())
+	go func() {
+		path, err := paths.GetPath("https://localhost/test.txt")
+		require.NoError(t, err)
+		assert.NotEmpty(t, path)
+	}()
+	go func() {
+		paths.GetPaths()
+	}()
+}
