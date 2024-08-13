@@ -235,7 +235,7 @@ const (
 
 // Get additional namespaces from argocd-cmd-params
 func getAdditionalNamespaces(ctx context.Context, argocdClientsets *argoCDClientsets) *argocdAdditonalNamespaces {
-	applicationNamespaces := []string{}
+	var applicationNamespaces []string
 	applicationsetNamespaces := []string{}
 	un, err := argocdClientsets.configMaps.Get(ctx, common.ArgoCDCmdParamsConfigMapName, v1.GetOptions{})
 	errors.CheckError(err)
@@ -243,14 +243,14 @@ func getAdditionalNamespaces(ctx context.Context, argocdClientsets *argoCDClient
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
 	errors.CheckError(err)
 
-	namespacesListFromString := func(namespacelist string) []string {
+	namespacesListFromString := func(namespaces string) []string {
 		listOfNamespaces := []string{}
 
-		ss := strings.Split(namespacelist, ",")
+		ss := strings.Split(namespaces, ",")
 
-		for _, s := range ss {
-			if s != "" {
-				listOfNamespaces = append(listOfNamespaces, strings.TrimSpace(s))
+		for _, namespace := range ss {
+			if namespace != "" {
+				listOfNamespaces = append(listOfNamespaces, strings.TrimSpace(namespace))
 			}
 		}
 
