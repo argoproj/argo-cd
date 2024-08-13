@@ -1019,26 +1019,25 @@ func GetDifferentPathsBetweenStructs(a, b interface{}) ([]string, error) {
 	return difference, nil
 }
 
-// parseName will
-func parseName(appName string, defaultNs string, delim string) (string, string) {
-	var ns string
-	var name string
-	t := strings.SplitN(appName, delim, 2)
+// parseName will split the qualified name into its components, which are separated by the delimiter.
+// If delimiter is not contained in the string qualifiedName then returned namespace is defaultNs.
+func parseName(qualifiedName string, defaultNs string, delim string) (name string, namespace string) {
+	t := strings.SplitN(qualifiedName, delim, 2)
 	if len(t) == 2 {
-		ns = t[0]
+		namespace = t[0]
 		name = t[1]
 	} else {
-		ns = defaultNs
+		namespace = defaultNs
 		name = t[0]
 	}
-	return name, ns
+	return
 }
 
 // ParseAppNamespacedName parses a namespaced name in the format namespace/name
 // and returns the components. If name wasn't namespaced, defaultNs will be
 // returned as namespace component.
-func ParseFromQualifiedName(appName string, defaultNs string) (string, string) {
-	return parseName(appName, defaultNs, "/")
+func ParseFromQualifiedName(qualifiedAppName string, defaultNs string) (appName string, appNamespace string) {
+	return parseName(qualifiedAppName, defaultNs, "/")
 }
 
 // ParseInstanceName parses a namespaced name in the format namespace_name

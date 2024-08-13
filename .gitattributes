@@ -1,0 +1,13 @@
+**/*.pb.go linguist-generated=true
+**/mocks/*.go linguist-generated=true
+assets/swagger.json linguist-generated=true
+docs/operator-manual/resource_actions_builtin.md linguist-generated=true
+docs/operator-manual/server-commands/argocd-*.md linguist-generated=true
+docs/user-guide/commands/argocd_*.md linguist-generated=true
+manifests/core-install.yaml linguist-generated=true
+manifests/crds/*-crd.yaml linguist-generated=true
+manifests/ha/install.yaml linguist-generated=true
+manifests/ha/namespace-install.yaml linguist-generated=true
+manifests/install.yaml linguist-generated=true
+manifests/namespace-install.yaml linguist-generated=true
+pkg/apis/api-rules/violation_exceptions.list linguist-generated=true

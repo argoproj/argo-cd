@@ -84,6 +84,56 @@ func TestSetLabels(t *testing.T) {
 	}
 }
 
+func TestSetLegacyLabels(t *testing.T) {
+	for _, yamlStr := range []string{depWithoutSelector, depWithSelector} {
+		var obj unstructured.Unstructured
+		err := yaml.Unmarshal([]byte(yamlStr), &obj)
+		require.NoError(t, err)
+
+		err = SetAppInstanceLabel(&obj, common.LabelKeyLegacyApplicationName, "my-app")
+		require.NoError(t, err)
+
+		manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
+		require.NoError(t, err)
+		log.Println(string(manifestBytes))
+
+		var depV1Beta1 extv1beta1.Deployment
+		err = json.Unmarshal(manifestBytes, &depV1Beta1)
+		require.NoError(t, err)
+		assert.Len(t, depV1Beta1.Spec.Selector.MatchLabels, 1)
+		assert.Equal(t, "nginx", depV1Beta1.Spec.Selector.MatchLabels["app"])
+		assert.Len(t, depV1Beta1.Spec.Template.Labels, 2)
+		assert.Equal(t, "nginx", depV1Beta1.Spec.Template.Labels["app"])
+		assert.Equal(t, "my-app", depV1Beta1.Spec.Template.Labels[common.LabelKeyLegacyApplicationName])
+	}
+}
+
+func TestSetLegacyJobLabel(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/job.yaml")
+	require.NoError(t, err)
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	require.NoError(t, err)
+	err = SetAppInstanceLabel(&obj, common.LabelKeyLegacyApplicationName, "my-app")
+	require.NoError(t, err)
+
+	manifestBytes, err := json.MarshalIndent(obj.Object, "", "  ")
+	require.NoError(t, err)
+	log.Println(string(manifestBytes))
+
+	job := unstructured.Unstructured{}
+	err = json.Unmarshal(manifestBytes, &job)
+	require.NoError(t, err)
+
+	labels := job.GetLabels()
+	assert.Equal(t, "my-app", labels[common.LabelKeyLegacyApplicationName])
+
+	templateLabels, ok, err := unstructured.NestedMap(job.UnstructuredContent(), "spec", "template", "metadata", "labels")
+	assert.True(t, ok)
+	require.NoError(t, err)
+	assert.Equal(t, "my-app", templateLabels[common.LabelKeyLegacyApplicationName])
+}
+
 func TestSetSvcLabel(t *testing.T) {
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)

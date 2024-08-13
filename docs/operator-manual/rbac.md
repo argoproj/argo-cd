@@ -154,6 +154,8 @@ The `action` action corresponds to either built-in resource customizations defin
 [in the Argo CD repository](https://github.com/argoproj/argo-cd/tree/master/resource_customizations),
 or to [custom resource actions](resource_actions.md#custom-resource-actions) defined by you.
 
+See the [resource actions documentation](resource_actions.md#built-in-actions) for a list of built-in actions.
+
 The `<action>` has the `action/<group>/<kind>/<action-name>` format.
 
 For example, a resource customization path `resource_customizations/extensions/DaemonSet/actions/restart/action.lua`

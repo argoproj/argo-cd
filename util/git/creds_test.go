@@ -43,21 +43,18 @@ func (s *memoryCredsStore) Remove(id string) {
 	delete(s.creds, id)
 }
 
+func (s *memoryCredsStore) Environ(id string) []string {
+	return nil
+}
+
 func TestHTTPSCreds_Environ_no_cert_cleanup(t *testing.T) {
 	store := &memoryCredsStore{creds: make(map[string]cred)}
 	creds := NewHTTPSCreds("", "", "", "", true, "", store, false)
-	closer, env, err := creds.Environ()
+	closer, _, err := creds.Environ()
 	require.NoError(t, err)
-	var nonce string
-	for _, envVar := range env {
-		if strings.HasPrefix(envVar, ASKPASS_NONCE_ENV) {
-			nonce = envVar[len(ASKPASS_NONCE_ENV)+1:]
-			break
-		}
-	}
-	assert.Contains(t, store.creds, nonce)
+	credsLenBefore := len(store.creds)
 	io.Close(closer)
-	assert.NotContains(t, store.creds, nonce)
+	assert.Len(t, store.creds, credsLenBefore-1)
 }
 
 func TestHTTPSCreds_Environ_insecure_true(t *testing.T) {
@@ -385,16 +382,9 @@ func TestGoogleCloudCreds_Environ_cleanup(t *testing.T) {
 		JSON:        []byte(gcpServiceAccountKeyJSON),
 	}, store}
 
-	closer, env, err := googleCloudCreds.Environ()
+	closer, _, err := googleCloudCreds.Environ()
 	require.NoError(t, err)
-	var nonce string
-	for _, envVar := range env {
-		if strings.HasPrefix(envVar, ASKPASS_NONCE_ENV) {
-			nonce = envVar[len(ASKPASS_NONCE_ENV)+1:]
-			break
-		}
-	}
-	assert.Contains(t, store.creds, nonce)
+	credsLenBefore := len(store.creds)
 	io.Close(closer)
-	assert.NotContains(t, store.creds, nonce)
+	assert.Len(t, store.creds, credsLenBefore-1)
 }

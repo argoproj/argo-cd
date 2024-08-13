@@ -186,9 +186,9 @@ func NewApplicationController(
 		kubectl:                           kubectl,
 		applicationClientset:              applicationClientset,
 		repoClientset:                     repoClientset,
-		appRefreshQueue:                   workqueue.NewNamedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), "app_reconciliation_queue"),
-		appOperationQueue:                 workqueue.NewNamedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), "app_operation_processing_queue"),
-		projectRefreshQueue:               workqueue.NewNamedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), "project_reconciliation_queue"),
+		appRefreshQueue:                   workqueue.NewRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.RateLimitingQueueConfig{Name: "app_reconciliation_queue"}),
+		appOperationQueue:                 workqueue.NewRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.RateLimitingQueueConfig{Name: "app_operation_processing_queue"}),
+		projectRefreshQueue:               workqueue.NewRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.RateLimitingQueueConfig{Name: "project_reconciliation_queue"}),
 		appComparisonTypeRefreshQueue:     workqueue.NewRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig)),
 		db:                                db,
 		statusRefreshTimeout:              appResyncPeriod,
@@ -537,6 +537,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 		warnOrphaned = proj.Spec.OrphanedResources.IsWarn()
 	}
 	ts.AddCheckpoint("get_orphaned_resources_ms")
+	managedResourcesKeys := make([]kube.ResourceKey, 0)
 	for i := range managedResources {
 		managedResource := managedResources[i]
 		delete(orphanedNodesMap, kube.NewResourceKey(managedResource.Group, managedResource.Kind, managedResource.Namespace, managedResource.Name))
@@ -562,57 +563,61 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 				},
 			})
 		} else {
-			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, kube.GetResourceKey(live), func(child appv1.ResourceNode, appName string) bool {
-				permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
-					clusters, err := ctrl.db.GetProjectClusters(context.TODO(), project)
-					if err != nil {
-						return nil, fmt.Errorf("failed to get project clusters: %w", err)
-					}
-					return clusters, nil
-				})
-				if !permitted {
-					return false
-				}
-				nodes = append(nodes, child)
-				return true
-			})
-			if err != nil {
-				return nil, fmt.Errorf("failed to iterate resource hierarchy: %w", err)
-			}
+			managedResourcesKeys = append(managedResourcesKeys, kube.GetResourceKey(live))
 		}
+	}
+	err = ctrl.stateCache.IterateHierarchyV2(a.Spec.Destination.Server, managedResourcesKeys, func(child appv1.ResourceNode, appName string) bool {
+		permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
+			clusters, err := ctrl.db.GetProjectClusters(context.TODO(), project)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get project clusters: %w", err)
+			}
+			return clusters, nil
+		})
+		if !permitted {
+			return false
+		}
+		nodes = append(nodes, child)
+		return true
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to iterate resource hierarchy v2: %w", err)
 	}
 	ts.AddCheckpoint("process_managed_resources_ms")
 	orphanedNodes := make([]appv1.ResourceNode, 0)
+	orphanedNodesKeys := make([]kube.ResourceKey, 0)
 	for k := range orphanedNodesMap {
 		if k.Namespace != "" && proj.IsGroupKindPermitted(k.GroupKind(), true) && !isKnownOrphanedResourceExclusion(k, proj) {
-			err := ctrl.stateCache.IterateHierarchy(a.Spec.Destination.Server, k, func(child appv1.ResourceNode, appName string) bool {
-				belongToAnotherApp := false
-				if appName != "" {
-					appKey := ctrl.toAppKey(appName)
-					if _, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey); exists && err == nil {
-						belongToAnotherApp = true
-					}
-				}
-
-				if belongToAnotherApp {
-					return false
-				}
-
-				permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
-					return ctrl.db.GetProjectClusters(context.TODO(), project)
-				})
-
-				if !permitted {
-					return false
-				}
-				orphanedNodes = append(orphanedNodes, child)
-				return true
-			})
-			if err != nil {
-				return nil, err
-			}
+			orphanedNodesKeys = append(orphanedNodesKeys, k)
 		}
 	}
+	err = ctrl.stateCache.IterateHierarchyV2(a.Spec.Destination.Server, orphanedNodesKeys, func(child appv1.ResourceNode, appName string) bool {
+		belongToAnotherApp := false
+		if appName != "" {
+			appKey := ctrl.toAppKey(appName)
+			if _, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey); exists && err == nil {
+				belongToAnotherApp = true
+			}
+		}
+
+		if belongToAnotherApp {
+			return false
+		}
+
+		permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
+			return ctrl.db.GetProjectClusters(context.TODO(), project)
+		})
+
+		if !permitted {
+			return false
+		}
+		orphanedNodes = append(orphanedNodes, child)
+		return true
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	var conditions []appv1.ApplicationCondition
 	if len(orphanedNodes) > 0 && warnOrphaned {
 		conditions = []appv1.ApplicationCondition{{
@@ -905,10 +910,8 @@ func (ctrl *ApplicationController) requestAppRefresh(appName string, compareWith
 		}
 		if after != nil {
 			ctrl.appRefreshQueue.AddAfter(key, *after)
-			ctrl.appOperationQueue.AddAfter(key, *after)
 		} else {
 			ctrl.appRefreshQueue.AddRateLimited(key)
-			ctrl.appOperationQueue.AddRateLimited(key)
 		}
 	}
 }
@@ -1543,6 +1546,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		if r := recover(); r != nil {
 			log.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
 		}
+		// We want to have app operation update happen after the sync, so there's no race condition
+		// and app updates not proceeding. See https://github.com/argoproj/argo-cd/issues/18500.
+		ctrl.appOperationQueue.AddRateLimited(appKey)
 		ctrl.appRefreshQueue.Done(appKey)
 	}()
 	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey.(string))
@@ -1846,6 +1852,22 @@ func (ctrl *ApplicationController) normalizeApplication(orig, app *appv1.Applica
 	}
 }
 
+func createMergePatch(orig, new interface{}) ([]byte, bool, error) {
+	origBytes, err := json.Marshal(orig)
+	if err != nil {
+		return nil, false, err
+	}
+	newBytes, err := json.Marshal(new)
+	if err != nil {
+		return nil, false, err
+	}
+	patch, err := jsonpatch.CreateMergePatch(origBytes, newBytes)
+	if err != nil {
+		return nil, false, err
+	}
+	return patch, string(patch) != "{}", nil
+}
+
 // persistAppStatus persists updates to application status. If no changes were made, it is a no-op
 func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, newStatus *appv1.ApplicationStatus) (patchMs time.Duration) {
 	logCtx := getAppLog(orig)
@@ -1865,9 +1887,9 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		}
 		delete(newAnnotations, appv1.AnnotationKeyRefresh)
 	}
-	patch, modified, err := diff.CreateTwoWayMergePatch(
+	patch, modified, err := createMergePatch(
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
-		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus}, appv1.Application{})
+		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus})
 	if err != nil {
 		logCtx.Errorf("Error constructing app status patch: %v", err)
 		return
@@ -2216,7 +2238,6 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				key, err := cache.MetaNamespaceKeyFunc(obj)
 				if err == nil {
 					ctrl.appRefreshQueue.AddRateLimited(key)
-					ctrl.appOperationQueue.AddRateLimited(key)
 				}
 				newApp, newOK := obj.(*appv1.Application)
 				if err == nil && newOK {
@@ -2251,7 +2272,9 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 				}
 
 				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
-				ctrl.appOperationQueue.AddRateLimited(key)
+				if !newOK || (delay != nil && *delay != time.Duration(0)) {
+					ctrl.appOperationQueue.AddRateLimited(key)
+				}
 				ctrl.clusterSharding.UpdateApp(newApp)
 			},
 			DeleteFunc: func(obj interface{}) {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"regexp"
 	"testing"
 	"time"
 
@@ -770,7 +769,7 @@ func assetSecretDataHidden(t *testing.T, manifest string) {
 	require.NoError(t, err)
 	assert.True(t, hasData)
 	for _, v := range secretData {
-		assert.Regexp(t, regexp.MustCompile(`[*]*`), v)
+		assert.Regexp(t, `[*]*`, v)
 	}
 	var lastAppliedConfigAnnotation string
 	annotations := secret.GetAnnotations()
@@ -2879,4 +2878,47 @@ func TestAnnotationTrackingExtraResources(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+func TestCreateConfigMapsAndWaitForUpdate(t *testing.T) {
+	Given(t).
+		Path("config-map").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		And(func(app *Application) {
+			_, err := RunCli("app", "set", app.Name, "--sync-policy", "automated")
+			require.NoError(t, err)
+		}).
+		When().
+		AddFile("other-configmap.yaml", `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: other-map
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+data:
+  foo2: bar2`).
+		AddFile("yet-another-configmap.yaml", `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: yet-another-map
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+data:
+  foo3: bar3`).
+		PatchFile("kustomization.yaml", `[{"op": "add", "path": "/resources/-", "value": "other-configmap.yaml"}, {"op": "add", "path": "/resources/-", "value": "yet-another-configmap.yaml"}]`).
+		Refresh(RefreshTypeNormal).
+		Wait().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(ResourceHealthWithNamespaceIs("ConfigMap", "other-map", DeploymentNamespace(), health.HealthStatusHealthy)).
+		Expect(ResourceSyncStatusWithNamespaceIs("ConfigMap", "other-map", DeploymentNamespace(), SyncStatusCodeSynced)).
+		Expect(ResourceHealthWithNamespaceIs("ConfigMap", "yet-another-map", DeploymentNamespace(), health.HealthStatusHealthy)).
+		Expect(ResourceSyncStatusWithNamespaceIs("ConfigMap", "yet-another-map", DeploymentNamespace(), SyncStatusCodeSynced))
 }
