@@ -1131,7 +1131,7 @@ func GetAppEventLabels(app *argoappv1.Application, projLister applicationsv1.App
 	// Filter out event labels to include
 	inKeys := settingsManager.GetIncludeEventLabelKeys()
 	for k, v := range labels {
-		found := glob.MatchStringInList(inKeys, k, false)
+		found := glob.MatchStringInList(inKeys, k, glob.GLOB)
 		if found {
 			eventLabels[k] = v
 		}
@@ -1140,7 +1140,7 @@ func GetAppEventLabels(app *argoappv1.Application, projLister applicationsv1.App
 	// Remove excluded event labels
 	exKeys := settingsManager.GetExcludeEventLabelKeys()
 	for k := range eventLabels {
-		found := glob.MatchStringInList(exKeys, k, false)
+		found := glob.MatchStringInList(exKeys, k, glob.GLOB)
 		if found {
 			delete(eventLabels, k)
 		}
