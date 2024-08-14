@@ -9,13 +9,13 @@ message CommitHydratedManifestsRequest {
   // repo credentials.
   github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
   // SyncBranch is the branch Argo CD syncs from, i.e. the hydrated branch.
-  string sync_branch = 2;
+  string syncBranch = 2;
   // TargetBranch is the branch Argo CD is committing to, i.e. the branch that will be updated.
-  string target_branch = 3;
+  string targetBranch = 3;
   // DrySha is the commit SHA from the dry branch, i.e. pre-rendered manifest branch.
-  string dry_sha = 4;
+  string drySha = 4;
   // CommitMessage is the commit message to use when committing changes.
-  string commit_message = 5;
+  string commitMessage = 5;
   // Paths contains the paths to write hydrated manifests to, along with the manifests and commands to execute.
   repeated PathDetails paths = 6;
 }
@@ -33,14 +33,14 @@ message PathDetails {
 
 // ManifestDetails contains the hydrated manifests.
 message HydratedManifestDetails {
-  // Manifest is the hydrated manifest as JSON.
-  string manifest = 1;
+  // ManifestJSON is the hydrated manifest as JSON.
+  string manifestJSON = 1;
 }
 
 // ManifestsResponse is the response to the ManifestsRequest.
 message CommitHydratedManifestsResponse {
-  // HydratedRevision is the revision of the hydrated manifests commit.
-  string hydrated_revision = 1;
+  // HydratedSha is the commit SHA of the hydrated manifests commit.
+  string hydratedSha = 1;
 }
 
 // CommitService is the service for committing hydrated manifests to a repository.

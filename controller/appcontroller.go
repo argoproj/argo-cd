@@ -2051,7 +2051,7 @@ func (ctrl *ApplicationController) hydrate(apps []*appv1.Application, revision s
 			if err != nil {
 				return "", fmt.Errorf("failed to marshal object: %w", err)
 			}
-			manifestDetails[i] = &commitclient.HydratedManifestDetails{Manifest: string(objJson)}
+			manifestDetails[i] = &commitclient.HydratedManifestDetails{ManifestJSON: string(objJson)}
 		}
 
 		paths = append(paths, &commitclient.PathDetails{
@@ -2090,7 +2090,7 @@ func (ctrl *ApplicationController) hydrate(apps []*appv1.Application, revision s
 	if err != nil {
 		return "", fmt.Errorf("failed to commit hydrated manifests: %w", err)
 	}
-	return resp.HydratedRevision, nil
+	return resp.HydratedSha, nil
 }
 
 func resourceStatusKey(res appv1.ResourceStatus) string {

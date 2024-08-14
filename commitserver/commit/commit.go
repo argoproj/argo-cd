@@ -14,40 +14,57 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 )
 
+// Service is the service that handles commit requests.
 type Service struct {
-	gitCredsStore git.CredsStore
-	metricsServer *metrics.Server
+	gitCredsStore     git.CredsStore
+	metricsServer     *metrics.Server
+	repoClientFactory RepoClientFactory
 }
 
+// NewService returns a new instance of the commit service.
 func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *Service {
-	return &Service{gitCredsStore: gitCredsStore, metricsServer: metricsServer}
+	return &Service{
+		gitCredsStore:     gitCredsStore,
+		metricsServer:     metricsServer,
+		repoClientFactory: NewRepoClientFactory(gitCredsStore, metricsServer),
+	}
 }
 
+// CommitHydratedManifests handles a commit request. It clones the repository, checks out the sync branch, checks out
+// the target branch, clears the repository contents, writes the manifests to the repository, commits the changes, and
+// pushes the changes. It returns the hydrated revision SHA and an error if one occurred.
 func (s *Service) CommitHydratedManifests(ctx context.Context, r *apiclient.CommitHydratedManifestsRequest) (*apiclient.CommitHydratedManifestsResponse, error) {
 	// This method is intentionally short. It's a wrapper around handleCommitRequest that adds metrics and logging.
 	// Keep logic here minimal and put most of the logic in handleCommitRequest.
-
 	startTime := time.Now()
-	s.metricsServer.IncPendingCommitRequest(r.Repo.Repo)
-	defer s.metricsServer.DecPendingCommitRequest(r.Repo.Repo)
 
-	logCtx := log.WithFields(log.Fields{"repo": r.Repo.Repo, "branch": r.TargetBranch, "drySHA": r.DrySha})
+	// We validate for a nil repo in handleCommitRequest, but we need to check for a nil repo here to get the repo URL
+	// for metrics.
+	var repoURL string
+	if r.Repo != nil {
+		repoURL = r.Repo.Repo
+	}
+
+	s.metricsServer.IncPendingCommitRequest(repoURL)
+	defer s.metricsServer.DecPendingCommitRequest(repoURL)
+
+	logCtx := log.WithFields(log.Fields{"branch": r.TargetBranch, "drySHA": r.DrySha})
 
 	out, sha, err := s.handleCommitRequest(ctx, logCtx, r)
 	if err != nil {
 		logCtx.WithError(err).WithField("output", out).Error("failed to handle commit request")
-		s.metricsServer.IncCommitRequest(r.Repo.Repo, metrics.CommitRequestTypeFailure)
-		s.metricsServer.ObserveCommitRequestDuration(r.Repo.Repo, metrics.CommitRequestTypeFailure, time.Since(startTime))
+		s.metricsServer.IncCommitRequest(repoURL, metrics.CommitResponseTypeFailure)
+		s.metricsServer.ObserveCommitRequestDuration(repoURL, metrics.CommitResponseTypeFailure, time.Since(startTime))
 
 		// No need to wrap this error, sufficient context is build in handleCommitRequest.
 		return &apiclient.CommitHydratedManifestsResponse{}, err
 	}
 
 	logCtx.Info("Successfully handled commit request")
-	s.metricsServer.IncCommitRequest(r.Repo.Repo, metrics.CommitRequestTypeSuccess)
-	s.metricsServer.ObserveCommitRequestDuration(r.Repo.Repo, metrics.CommitRequestTypeSuccess, time.Since(startTime))
+	s.metricsServer.IncCommitRequest(repoURL, metrics.CommitResponseTypeSuccess)
+	s.metricsServer.ObserveCommitRequestDuration(repoURL, metrics.CommitResponseTypeSuccess, time.Since(startTime))
 	return &apiclient.CommitHydratedManifestsResponse{
-		HydratedRevision: sha,
+		HydratedSha: sha,
 	}, nil
 }
 
@@ -55,6 +72,20 @@ func (s *Service) CommitHydratedManifests(ctx context.Context, r *apiclient.Comm
 // target branch, clears the repository contents, writes the manifests to the repository, commits the changes, and pushes
 // the changes. It returns the output of the git commands and an error if one occurred.
 func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r *apiclient.CommitHydratedManifestsRequest) (string, string, error) {
+	if r.Repo == nil {
+		return "", "", fmt.Errorf("repo is required")
+	}
+	if r.Repo.Repo == "" {
+		return "", "", fmt.Errorf("repo URL is required")
+	}
+	if r.TargetBranch == "" {
+		return "", "", fmt.Errorf("target branch is required")
+	}
+	if r.SyncBranch == "" {
+		return "", "", fmt.Errorf("sync branch is required")
+	}
+
+	logCtx = logCtx.WithField("repo", r.Repo.Repo)
 	logCtx.Debug("Initiating git client")
 	gitClient, dirPath, cleanup, err := s.initGitClient(ctx, logCtx, r)
 	if err != nil {
@@ -118,10 +149,7 @@ func (s *Service) initGitClient(ctx context.Context, logCtx *log.Entry, r *apicl
 		}
 	}
 
-	gitCreds := r.Repo.GetGitCreds(s.gitCredsStore)
-	logCtx.WithField("credentialType", getCredentialType(r.Repo)).Debug("Creating git client")
-	opts := git.WithEventHandlers(metrics.NewGitClientEventHandlers(s.metricsServer))
-	gitClient, err := git.NewClientExt(r.Repo.Repo, dirPath, gitCreds, r.Repo.IsInsecure(), r.Repo.IsLFSEnabled(), r.Repo.Proxy, opts)
+	gitClient, err := s.repoClientFactory.NewClient(r.Repo, dirPath)
 	if err != nil {
 		cleanupOrLog()
 		return nil, "", nil, fmt.Errorf("failed to create git client: %w", err)
@@ -142,6 +170,7 @@ func (s *Service) initGitClient(ctx context.Context, logCtx *log.Entry, r *apicl
 	}
 
 	logCtx.Debugf("Getting user info for repo credentials")
+	gitCreds := r.Repo.GetGitCreds(s.gitCredsStore)
 	startTime := time.Now()
 	authorName, authorEmail, err := gitCreds.GetUserInfo(ctx)
 	s.metricsServer.ObserveUserInfoRequestDuration(r.Repo.Repo, getCredentialType(r.Repo), time.Since(startTime))

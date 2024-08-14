@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
+// NewCommand returns a new instance of an argocd-commit-server command
 func NewCommand() *cobra.Command {
 	var (
 		listenHost  string
@@ -31,6 +32,9 @@ func NewCommand() *cobra.Command {
 		metricsHost string
 	)
 	command := &cobra.Command{
+		Use:   "argocd-commit-server",
+		Short: "Run Argo CD Commit Server",
+		Long:  "Argo CD Commit Server is an internal service which commits and pushes hydrated manifests to git. This command runs Commit Server in the foreground.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			vers := common.GetVersion()
 			vers.LogStartupInfo(

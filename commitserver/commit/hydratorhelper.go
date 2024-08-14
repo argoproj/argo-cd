@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v2/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 )
 
 // WriteForPaths writes the manifests, hydrator.metadata, and README.md files for each path in the provided paths. It
@@ -30,7 +31,7 @@ func WriteForPaths(rootPath string, repoUrl string, drySha string, paths []*apic
 		}
 
 		var fullHydratePath string
-		fullHydratePath, err = SecureMkdirAll(rootPath, hydratePath, os.ModePerm)
+		fullHydratePath, err = files.SecureMkdirAll(rootPath, hydratePath, os.ModePerm)
 		if err != nil {
 			return fmt.Errorf("failed to create path: %w", err)
 		}
@@ -130,7 +131,7 @@ func writeManifests(dirPath string, manifests []*apiclient.HydratedManifestDetai
 
 	for _, m := range manifests {
 		obj := &unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(m.Manifest), obj)
+		err = json.Unmarshal([]byte(m.ManifestJSON), obj)
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal manifest: %w", err)
 		}

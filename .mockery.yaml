@@ -26,6 +26,9 @@ packages:
   github.com/argoproj/argo-cd/v2/applicationset/utils:
     interfaces:
       Renderer:
+  github.com/argoproj/argo-cd/v2/commitserver/commit:
+    interfaces:
+      RepoClientFactory:
   github.com/argoproj/argo-cd/v2/commitserver/apiclient:
     interfaces:
       CommitServiceClient:

@@ -22,14 +22,14 @@ func TestWriteForPaths(t *testing.T) {
 		{
 			Path: "path1",
 			Manifests: []*apiclient.HydratedManifestDetails{
-				{Manifest: `{"kind":"Pod","apiVersion":"v1"}`},
+				{ManifestJSON: `{"kind":"Pod","apiVersion":"v1"}`},
 			},
 			Commands: []string{"command1", "command2"},
 		},
 		{
 			Path: "path2",
 			Manifests: []*apiclient.HydratedManifestDetails{
-				{Manifest: `{"kind":"Service","apiVersion":"v1"}`},
+				{ManifestJSON: `{"kind":"Service","apiVersion":"v1"}`},
 			},
 			Commands: []string{"command3"},
 		},
@@ -89,7 +89,7 @@ func TestWriteForPaths_invalid_yaml(t *testing.T) {
 		{
 			Path: "path1",
 			Manifests: []*apiclient.HydratedManifestDetails{
-				{Manifest: `{`}, // Invalid YAML
+				{ManifestJSON: `{`}, // Invalid YAML
 			},
 			Commands: []string{"command1", "command2"},
 		},
@@ -141,7 +141,7 @@ func TestWriteManifests(t *testing.T) {
 	dir := t.TempDir()
 
 	manifests := []*apiclient.HydratedManifestDetails{
-		{Manifest: `{"kind":"Pod","apiVersion":"v1"}`},
+		{ManifestJSON: `{"kind":"Pod","apiVersion":"v1"}`},
 	}
 
 	err := writeManifests(dir, manifests)

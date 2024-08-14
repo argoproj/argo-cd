@@ -19,6 +19,7 @@ type clientSet struct {
 	address string
 }
 
+// NewCommitServerClient creates new instance of commit server client
 func (c *clientSet) NewCommitServerClient() (io.Closer, CommitServiceClient, error) {
 	conn, err := NewConnection(c.address)
 	if err != nil {
@@ -27,6 +28,7 @@ func (c *clientSet) NewCommitServerClient() (io.Closer, CommitServiceClient, err
 	return conn, NewCommitServiceClient(conn), nil
 }
 
+// NewConnection creates new connection to commit server
 func NewConnection(address string) (*grpc.ClientConn, error) {
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))

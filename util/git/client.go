@@ -82,10 +82,10 @@ type Client interface {
 	IsRevisionPresent(revision string) bool
 	// SetAuthor sets the author name and email in the git configuration.
 	SetAuthor(name, email string) (string, error)
-	// CheckoutOrOrphan checks out the sync branch. If the branch does not exist, it creates an orphan branch.
+	// CheckoutOrOrphan checks out the branch. If the branch does not exist, it creates an orphan branch.
 	CheckoutOrOrphan(branch string, submoduleEnabled bool) (string, error)
-	// CheckoutOrNew checks out the target branch. If the branch does not exist, it creates an empty branch based
-	// on the sync branch.
+	// CheckoutOrNew checks out the given branch. If the branch does not exist, it creates an empty branch based on
+	// the base branch.
 	CheckoutOrNew(branch, base string, submoduleEnabled bool) (string, error)
 	// RemoveContents removes all files from the git repository.
 	RemoveContents() (string, error)

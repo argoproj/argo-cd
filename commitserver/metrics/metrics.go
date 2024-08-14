@@ -9,6 +9,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// Server is a prometheus server which collects application metrics.
 type Server struct {
 	handler                    http.Handler
 	commitPendingRequestsGauge *prometheus.GaugeVec
@@ -19,19 +20,26 @@ type Server struct {
 	commitRequestCounter       *prometheus.CounterVec
 }
 
+// GitRequestType is the type of git request
 type GitRequestType string
 
 const (
+	// GitRequestTypeLsRemote is a request to list remote refs
 	GitRequestTypeLsRemote = "ls-remote"
-	GitRequestTypeFetch    = "fetch"
-	GitRequestTypePush     = "push"
+	// GitRequestTypeFetch is a request to fetch from remote
+	GitRequestTypeFetch = "fetch"
+	// GitRequestTypePush is a request to push to remote
+	GitRequestTypePush = "push"
 )
 
+// CommitResponseType is the type of response for a commit request
 type CommitResponseType string
 
 const (
-	CommitRequestTypeSuccess = "success"
-	CommitRequestTypeFailure = "failure"
+	// CommitResponseTypeSuccess is a successful commit request
+	CommitResponseTypeSuccess = "success"
+	// CommitResponseTypeFailure is a failed commit request
+	CommitResponseTypeFailure = "failure"
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics.
@@ -108,14 +116,17 @@ func NewMetricsServer() *Server {
 	}
 }
 
+// GetHandler returns the http.Handler for the prometheus server
 func (m *Server) GetHandler() http.Handler {
 	return m.handler
 }
 
+// IncPendingCommitRequest increments the pending commit requests gauge
 func (m *Server) IncPendingCommitRequest(repo string) {
 	m.commitPendingRequestsGauge.WithLabelValues(repo).Inc()
 }
 
+// DecPendingCommitRequest decrements the pending commit requests gauge
 func (m *Server) DecPendingCommitRequest(repo string) {
 	m.commitPendingRequestsGauge.WithLabelValues(repo).Dec()
 }
@@ -125,18 +136,22 @@ func (m *Server) IncGitRequest(repo string, requestType GitRequestType) {
 	m.gitRequestCounter.WithLabelValues(repo, string(requestType)).Inc()
 }
 
+// ObserveGitRequestDuration observes the duration of a git request
 func (m *Server) ObserveGitRequestDuration(repo string, requestType GitRequestType, duration time.Duration) {
 	m.gitRequestHistogram.WithLabelValues(repo, string(requestType)).Observe(duration.Seconds())
 }
 
+// ObserveCommitRequestDuration observes the duration of a commit request
 func (m *Server) ObserveCommitRequestDuration(repo string, rt CommitResponseType, duration time.Duration) {
 	m.commitRequestHistogram.WithLabelValues(repo, string(rt)).Observe(duration.Seconds())
 }
 
+// ObserveUserInfoRequestDuration observes the duration of a userinfo request
 func (m *Server) ObserveUserInfoRequestDuration(repo string, credentialType string, duration time.Duration) {
 	m.userInfoRequestHistogram.WithLabelValues(repo, credentialType).Observe(duration.Seconds())
 }
 
+// IncCommitRequest increments the commit request counter
 func (m *Server) IncCommitRequest(repo string, rt CommitResponseType) {
 	m.commitRequestCounter.WithLabelValues(repo, string(rt)).Inc()
 }

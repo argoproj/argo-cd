@@ -99,6 +99,7 @@ func (c NopCreds) Environ() (io.Closer, []string, error) {
 	return NopCloser{}, nil, nil
 }
 
+// GetUserInfo returns empty strings for user info
 func (c NopCreds) GetUserInfo(ctx context.Context) (name string, email string, err error) {
 	return "", "", nil
 }
@@ -150,6 +151,7 @@ func NewHTTPSCreds(username string, password string, clientCertData string, clie
 	}
 }
 
+// GetUserInfo returns the username and email address for the credentials, if they're available.
 func (c HTTPSCreds) GetUserInfo(ctx context.Context) (string, string, error) {
 	// Email not implemented for HTTPS creds.
 	return c.username, "", nil
@@ -260,6 +262,8 @@ func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool
 	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey, store, proxy}
 }
 
+// GetUserInfo returns empty strings for user info.
+// TODO: Implement this method to return the username and email address for the credentials, if they're available.
 func (c SSHCreds) GetUserInfo(ctx context.Context) (string, string, error) {
 	// User info not implemented for SSH creds.
 	return "", "", nil
@@ -433,6 +437,7 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 	}), env, nil
 }
 
+// GetUserInfo returns the username and email address for the credentials, if they're available.
 func (g GitHubAppCreds) GetUserInfo(ctx context.Context) (string, string, error) {
 	// We use the apps transport to get the app slug.
 	appTransport, err := g.getAppTransport()
@@ -573,6 +578,8 @@ func NewGoogleCloudCreds(jsonData string, store CredsStore) GoogleCloudCreds {
 	return GoogleCloudCreds{creds, store}
 }
 
+// GetUserInfo returns the username and email address for the credentials, if they're available.
+// TODO: implement getting email instead of just username.
 func (c GoogleCloudCreds) GetUserInfo(ctx context.Context) (string, string, error) {
 	username, err := c.getUsername()
 	if err != nil {
