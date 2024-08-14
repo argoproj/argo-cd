@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
 	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -1236,10 +1235,6 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 			return nil
 		}
 	}
-}
-
-func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing_StartEventSourceServer) error {
-	return nil
 }
 
 func (s *Server) validateAndNormalizeApp(ctx context.Context, app *appv1.Application, proj *appv1.AppProject, validate bool) error {

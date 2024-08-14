@@ -146,7 +146,6 @@ func (a *EventReporterServer) healthCheck(r *http.Request) error {
 // Init starts informers used by the API server
 func (a *EventReporterServer) Init(ctx context.Context) {
 	go a.appInformer.Run(ctx.Done())
-	go a.featureManager.Watch()
 	svcSet := newEventReporterServiceSet(a)
 	a.serviceSet = svcSet
 }

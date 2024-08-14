@@ -68,7 +68,6 @@ import (
 	applicationsetpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
-	eventspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
 	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
 	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	repocredspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repocreds"
@@ -800,8 +799,6 @@ func (a *ArgoCDServer) newGRPCServer() (*grpc.Server, application.AppResourceTre
 	)))
 	grpcS := grpc.NewServer(sOpts...)
 
-	srv := a.serviceSet.ApplicationService.(*application.Server)
-	eventspkg.RegisterEventingServer(grpcS, srv)
 	versionpkg.RegisterVersionServiceServer(grpcS, a.serviceSet.VersionService)
 	clusterpkg.RegisterClusterServiceServer(grpcS, a.serviceSet.ClusterService)
 	applicationpkg.RegisterApplicationServiceServer(grpcS, a.serviceSet.ApplicationService)
