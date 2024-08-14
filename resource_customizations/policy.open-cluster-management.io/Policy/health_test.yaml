@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Degraded
+      message: 'NonCompliant clusters: local-cluster, managed'
+    inputPath: testdata/degraded_root.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'NonCompliant templates: example-namespace'
+    inputPath: testdata/degraded_replicated.yaml
+  - healthStatus:
+      status: Healthy
+      message: All clusters are compliant
+    inputPath: testdata/healthy_root.yaml
+  - healthStatus:
+      status: Healthy
+      message: All templates are compliant
+    inputPath: testdata/healthy_replicated.yaml

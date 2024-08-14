@@ -1,0 +1,25 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: Waiting for resourcrecordset to be available
+  inputPath: testdata/progressing_creating.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for resourcrecordset to be created
+  inputPath: testdata/progressing_noStatus.yaml
+- healthStatus:
+    status: Degraded
+    message: >-
+      create failed: failed to create the ResourceRecordSet resource:
+      InvalidChangeBatch: [RRSet of type CNAME with DNS name
+      www.crossplane.io. is not permitted as it conflicts with other
+      records with the same DNS name in zone crossplane.io.]
+  inputPath: testdata/degraded_reconcileError.yaml
+- healthStatus:
+    status: Suspended
+    message: ReconcilePaused
+  inputPath: testdata/suspended_reconcilePaused.yaml
+- healthStatus:
+    status: Healthy
+    message: Available
+  inputPath: testdata/healthy.yaml

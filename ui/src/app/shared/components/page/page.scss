@@ -75,10 +75,10 @@
 }
 
 .sb-page-wrapper {
-    padding-left: $sidebar-width - 60px;
+    padding-left: $sidebar-width;
 
     &__sidebar-collapsed {
-        padding-left: $collapsed-sidebar-width - 60px;
+        padding-left: $collapsed-sidebar-width;
         .flex-top-bar {
             left: $collapsed-sidebar-width;
         }

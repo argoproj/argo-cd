@@ -18,6 +18,14 @@ type twoLevelClient struct {
 	externalCache CacheClient
 }
 
+func (c *twoLevelClient) Rename(oldKey string, newKey string, expiration time.Duration) error {
+	err := c.inMemoryCache.Rename(oldKey, newKey, expiration)
+	if err != nil {
+		log.Warnf("Failed to move key '%s' in in-memory cache: %v", oldKey, err)
+	}
+	return c.externalCache.Rename(oldKey, newKey, expiration)
+}
+
 // Set stores the given value in both in-memory and external cache.
 // Skip storing the value in external cache if the same value already exists in memory to avoid requesting external cache.
 func (c *twoLevelClient) Set(item *Item) error {

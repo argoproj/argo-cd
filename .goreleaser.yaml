@@ -1,3 +1,5 @@
+version: 2
+
 project_name: argocd
 
 before:
@@ -114,7 +116,7 @@ changelog:
     exclude:
       - '^test:'
       - '^.*?Bump(\([[:word:]]+\))?.+$'
-      - '^.*?[Bot](\([[:word:]]+\))?.+$'
+      - '^.*?\[Bot\](\([[:word:]]+\))?.+$'
 
 
 # yaml-language-server: $schema=https://goreleaser.com/static/schema.json

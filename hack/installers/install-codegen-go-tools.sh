@@ -26,7 +26,7 @@ mkdir -p $GOBIN
 #go_mod_install github.com/gogo/protobuf/protoc-gen-gogo
 go_mod_install github.com/gogo/protobuf/protoc-gen-gogofast
 
-# protoc-gen-grpc-gateway is used to build <service>.pb.gw.go files from from .proto files
+# protoc-gen-grpc-gateway is used to build <service>.pb.gw.go files from .proto files
 go_mod_install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
 
 # # protoc-gen-swagger is used to build swagger.json
@@ -45,10 +45,13 @@ go_mod_install k8s.io/code-generator/cmd/lister-gen
 go_mod_install k8s.io/kube-openapi/cmd/openapi-gen
 
 # controller-gen is run by ./hack/gen-crd-spec to generate the CRDs
-go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.4.1
+go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.14.0
 
 # swagger cli is used to generate swagger docs
 go install github.com/go-swagger/go-swagger/cmd/swagger@v0.28.0
 
 # goimports is used to auto-format generated code
 go install golang.org/x/tools/cmd/goimports@v0.1.8
+
+# mockery is used to generate mock
+go install github.com/vektra/mockery/v2@v2.43.2

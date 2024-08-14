@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Be careful with tabs vs. spaces in the following expected formats. Indents
@@ -21,6 +22,7 @@ const expectJsonSingle = `{
   "foo": "bar"
 }
 `
+
 const expectYamlList = `one:
   bar: ""
   baz: foo
@@ -78,18 +80,18 @@ func Test_PrintResource(t *testing.T) {
 		err := PrintResource(testResource, "yaml")
 		return err
 	})
-	assert.NoError(t, err)
-	assert.Equal(t, str, expectYamlSingle)
+	require.NoError(t, err)
+	assert.Equal(t, expectYamlSingle, str)
 
 	str, err = captureOutput(func() error {
 		err := PrintResource(testResource, "json")
 		return err
 	})
-	assert.NoError(t, err)
-	assert.Equal(t, str, expectJsonSingle)
+	require.NoError(t, err)
+	assert.Equal(t, expectJsonSingle, str)
 
 	err = PrintResource(testResource, "unknown")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func Test_PrintResourceList(t *testing.T) {
@@ -113,30 +115,30 @@ func Test_PrintResourceList(t *testing.T) {
 		err := PrintResourceList(testResource, "yaml", false)
 		return err
 	})
-	assert.NoError(t, err)
-	assert.Equal(t, str, expectYamlList)
+	require.NoError(t, err)
+	assert.Equal(t, expectYamlList, str)
 
 	str, err = captureOutput(func() error {
 		err := PrintResourceList(testResource, "json", false)
 		return err
 	})
-	assert.NoError(t, err)
-	assert.Equal(t, str, expectJsonList)
+	require.NoError(t, err)
+	assert.Equal(t, expectJsonList, str)
 
 	str, err = captureOutput(func() error {
 		err := PrintResourceList(testResource2, "yaml", true)
 		return err
 	})
-	assert.NoError(t, err)
-	assert.Equal(t, str, expectYamlSingle)
+	require.NoError(t, err)
+	assert.Equal(t, expectYamlSingle, str)
 
 	str, err = captureOutput(func() error {
 		err := PrintResourceList(testResource2, "json", true)
 		return err
 	})
-	assert.NoError(t, err)
-	assert.Equal(t, str, expectJsonSingle)
+	require.NoError(t, err)
+	assert.Equal(t, expectJsonSingle, str)
 
 	err = PrintResourceList(testResource, "unknown", false)
-	assert.Error(t, err)
+	require.Error(t, err)
 }

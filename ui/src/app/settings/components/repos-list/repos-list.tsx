@@ -1,3 +1,4 @@
+/* eslint-disable no-case-declarations */
 import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -286,8 +287,9 @@ export class ReposList extends React.Component<
                                                 <div className='columns small-1' />
                                                 <div className='columns small-1'>TYPE</div>
                                                 <div className='columns small-2'>NAME</div>
-                                                <div className='columns small-5'>REPOSITORY</div>
-                                                <div className='columns small-3'>CONNECTION STATUS</div>
+                                                <div className='columns small-2'>PROJECT</div>
+                                                <div className='columns small-4'>REPOSITORY</div>
+                                                <div className='columns small-2'>CONNECTION STATUS</div>
                                             </div>
                                         </div>
                                         {repos.map(repo => (
@@ -308,14 +310,19 @@ export class ReposList extends React.Component<
                                                             <span>{repo.name}</span>
                                                         </Tooltip>
                                                     </div>
-                                                    <div className='columns small-5'>
+                                                    <div className='columns small-2'>
+                                                        <Tooltip content={repo.project}>
+                                                            <span>{repo.project}</span>
+                                                        </Tooltip>
+                                                    </div>
+                                                    <div className='columns small-4'>
                                                         <Tooltip content={repo.repo}>
                                                             <span>
                                                                 <Repo url={repo.repo} />
                                                             </span>
                                                         </Tooltip>
                                                     </div>
-                                                    <div className='columns small-3'>
+                                                    <div className='columns small-2'>
                                                         <ConnectionStateIcon state={repo.connectionState} /> {repo.connectionState.status}
                                                         <DropDownMenu
                                                             anchor={() => (
@@ -333,7 +340,7 @@ export class ReposList extends React.Component<
                                                                 },
                                                                 {
                                                                     title: 'Disconnect',
-                                                                    action: () => this.disconnectRepo(repo.repo)
+                                                                    action: () => this.disconnectRepo(repo.repo, repo.project)
                                                                 }
                                                             ]}
                                                         />
@@ -846,11 +853,11 @@ export class ReposList extends React.Component<
     }
 
     // Remove a repository from the configuration
-    private async disconnectRepo(repo: string) {
+    private async disconnectRepo(repo: string, project: string) {
         const confirmed = await this.appContext.apis.popup.confirm('Disconnect repository', `Are you sure you want to disconnect '${repo}'?`);
         if (confirmed) {
             try {
-                await services.repos.delete(repo);
+                await services.repos.delete(repo, project || '');
                 this.repoLoader.reload();
             } catch (e) {
                 this.appContext.apis.notifications.show({

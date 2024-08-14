@@ -5,8 +5,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/util/git"
-
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -23,7 +21,7 @@ const (
 )
 
 func NewCommand() *cobra.Command {
-	var command = cobra.Command{
+	command := cobra.Command{
 		Use:               cliName,
 		Short:             "Argo CD git credential helper",
 		DisableAutoGenTag: true,
@@ -33,9 +31,9 @@ func NewCommand() *cobra.Command {
 			if len(os.Args) != 2 {
 				errors.CheckError(fmt.Errorf("expected 1 argument, got %d", len(os.Args)-1))
 			}
-			nonce := os.Getenv(git.ASKPASS_NONCE_ENV)
+			nonce := os.Getenv(askpass.ASKPASS_NONCE_ENV)
 			if nonce == "" {
-				errors.CheckError(fmt.Errorf("%s is not set", git.ASKPASS_NONCE_ENV))
+				errors.CheckError(fmt.Errorf("%s is not set", askpass.ASKPASS_NONCE_ENV))
 			}
 			conn, err := grpc_util.BlockingDial(ctx, "unix", askpass.SocketPath, nil, grpc.WithTransportCredentials(insecure.NewCredentials()))
 			errors.CheckError(err)

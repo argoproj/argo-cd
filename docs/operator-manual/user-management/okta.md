@@ -118,34 +118,81 @@ data:
 
 ## OIDC (without Dex)
 
-!!! warning "Do you want groups for RBAC later?"
-    If you want `groups` scope returned from Okta you need to unfortunately contact support to enable [API Access Management with Okta](https://developer.okta.com/docs/concepts/api-access-management/) or [_just use SAML above!_](#saml-with-dex)
+!!! warning "Okta groups for RBAC"
+    If you want `groups` scope returned from Okta, you will need to enable [API Access Management with Okta](https://developer.okta.com/docs/concepts/api-access-management/). This addon is free, and automatically enabled, on Okta developer edition. However, it's an optional add-on for production environments, with an additional associated cost.
 
-    Next you may need the API Access Management feature, which the support team can enable for your OktaPreview domain for testing, to enable "custom scopes" and a separate endpoint to use instead of the "public" `/oauth2/v1/authorize` API Access Management endpoint. This might be a paid feature if you want OIDC unfortunately. The free alternative I found was SAML.
+    You may alternately add a "groups" scope and claim to the default authorization server, and then filter the claim in the Okta application configuration. It's not clear if this requires the Authorization Server add-on.
+
+    If this is not an option for you, use the [SAML (with Dex)](#saml-with-dex) option above instead.
+
+!!! note
+    These instructions and screenshots are of Okta version 2023.05.2 E. You can find the current version in the Okta website footer.
+
+First, create the OIDC integration:
+
+1. On the `Okta Admin` page, navigate to the Okta Applications at `Applications > Applications.`
+1. Choose `Create App Integration`, and choose `OIDC`, and then `Web Application` in the resulting dialogues.
+    ![Okta OIDC app dialogue](../../assets/okta-create-oidc-app.png)
+1. Update the following:
+    1. `App Integration name` and `Logo` - set these to suit your needs; they'll be displayed in the Okta catalogue.
+    1. `Sign-in redirect URLs`: Add `https://argocd.example.com/auth/callback`; replacing `argocd.example.com` with your ArgoCD web interface URL. Also add `http://localhost:8085/auth/callback` if you would like to be able to login with the CLI.
+    1. `Sign-out redirect URIs`: Add `https://argocd.example.com`; substituting the correct domain name as above. 
+    1. Either assign groups, or choose to skip this step for now.
+    1. Leave the rest of the options as-is, and save the integration.
+    ![Okta app settings](../../assets/okta-app.png)
+1. Copy the `Client ID` and the `Client Secret` from the newly created app; you will need these later.
+
+Next, create a custom Authorization server:
 
 1. On the `Okta Admin` page, navigate to the Okta API Management at `Security > API`.
-    ![Okta API Management](../../assets/api-management.png)
-1. Choose your `default` authorization server.
-1. Click `Scopes > Add Scope`
-    1. Add a scope called `groups`.
-    ![Groups Scope](../../assets/groups-scope.png)
-1. Click `Claims > Add Claim.`
-    1. Add a claim called `groups`
-    1. Choose the matching options you need, one example is:
-        * e.g. to match groups starting with `argocd-` you'd return an `ID Token` using your scope name from step 3 (e.g. `groups`) where the groups name `matches` the `regex` `argocd-.*`
-    ![Groups Claim](../../assets/groups-claim.png)
-1. Edit the `argocd-cm` and configure the `data.oidc.config` section:
+1. Click `Add Authorization Server`, and assign it a name and a description. The `Audience` should match your ArgoCD URL - `https://argocd.example.com`
+1. Click `Scopes > Add Scope`:
+    1. Add a scope called `groups`. Leave the rest of the options as default.
+    ![Groups Scope](../../assets/okta-groups-scope.png)
+1. Click `Claims > Add Claim`:
+    1. Add a claim called `groups`.
+    1. Adjust the `Include in token type` to `ID Token`, `Always`.
+    1. Adjust the `Value type` to `Groups`.
+    1. Add a filter that will match the Okta groups you want passed on to ArgoCD; for example `Regex: argocd-.*`.
+    1. Set `Include in` to `groups` (the scope you created above).
+    ![Groups Claim](../../assets/okta-groups-claim.png)
+1. Click on `Access Policies` > `Add Policy.` This policy will restrict how this authorization server is used.
+    1. Add a name and description.
+    1. Assign the policy to the client (application integration) you created above. The field should auto-complete as you type.
+    1. Create the policy.
+    ![Auth Policy](../../assets/okta-auth-policy.png)
+1. Add a rule to the policy:
+    1. Add a name; `default` is a reasonable name for this rule.
+    1. Fine-tune the settings to suit your organization's security posture. Some ideas:
+        1. uncheck all the grant types except the Authorization Code.
+        1. Adjust the token lifetime to govern how long a session can last.
+        1. Restrict refresh token lifetime, or completely disable it.
+    ![Default rule](../../assets/okta-auth-rule.png)
+1. Finally, click `Back to Authorization Servers`, and copy the `Issuer URI`. You will need this later.
+
+If you haven't yet created Okta groups, and assigned them to the application integration, you should do that now:
+
+1. Go to `Directory > Groups`
+1. For each group you wish to add:
+    1. Click `Add Group`, and choose a meaningful name. It should match the regex or pattern you added to your custom `group` claim.
+    1. Click on the group (refresh the page if the new group didn't show up in the list).
+    1. Assign Okta users to the group.
+    1. Click on `Applications` and assign the OIDC application integration you created to this group.
+    1. Repeat as needed.
+
+Finally, configure ArgoCD itself. Edit the `argocd-cm` configmap:
 
 <!-- markdownlint-disable MD046 -->
 ```yaml
+url: https://argocd.example.com
 oidc.config: |
   name: Okta
-  issuer: https://yourorganization.oktapreview.com
-  clientID: 0oaltaqg3oAIf2NOa0h3
-  clientSecret: ZXF_CfUc-rtwNfzFecGquzdeJ_MxM4sGc8pDT2Tg6t
+  # this is the authorization server URI
+  issuer: https://example.okta.com/oauth2/aus9abcdefgABCDEFGd7
+  clientID: 0oa9abcdefgh123AB5d7
+  clientSecret: ABCDEFG1234567890abcdefg
   requestedScopes: ["openid", "profile", "email", "groups"]
   requestedIDTokenClaims: {"groups": {"essential": true}}
 ```
-<!-- markdownlint-enable MD046 -->
 
-
+You may want to store the `clientSecret` in a Kubernetes secret; see [how to deal with SSO secrets](./index.md/#sensitive-data-and-sso-client-secrets ) for more details.

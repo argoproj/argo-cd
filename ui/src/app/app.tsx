@@ -18,6 +18,7 @@ import {hashCode} from './shared/utils';
 import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 import {AuthSettings} from './shared/models';
+import {PKCEVerification} from './login/components/pkce-verify';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -25,14 +26,15 @@ const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
 export const history = createBrowserHistory({basename: base});
 requests.setBaseHRef(base);
 
-type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean; extension?: boolean}};
+type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}};
 
 const routes: Routes = {
     '/login': {component: login.component as any, noLayout: true},
     '/applications': {component: applications.component},
     '/settings': {component: settings.component},
     '/user-info': {component: userInfo.component},
-    '/help': {component: help.component}
+    '/help': {component: help.component},
+    '/pkce/verify': {component: PKCEVerification, noLayout: true}
 };
 
 interface NavItem {
@@ -96,10 +98,7 @@ requests.onError.subscribe(async err => {
         }
         // Query for basehref and remove trailing /.
         // If basehref is the default `/` it will become an empty string.
-        const basehref = document
-            .querySelector('head > base')
-            .getAttribute('href')
-            .replace(/\/$/, '');
+        const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
         if (isSSO) {
             window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
         } else {
@@ -183,8 +182,7 @@ export class App extends React.Component<
                 </>
             );
             extendedRoutes[extension.path] = {
-                component: component as React.ComponentType<React.ComponentProps<any>>,
-                extension: true
+                component: component as React.ComponentType<React.ComponentProps<any>>
             };
         }
 
@@ -217,7 +215,9 @@ export class App extends React.Component<
                 </Helmet>
                 <PageContext.Provider value={{title: 'Argo CD'}}>
                     <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}}>
-                        {this.state.popupProps && <Popup {...this.state.popupProps} />}
+                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                            {pref => <div className={pref.theme ? 'theme-' + pref.theme : 'theme-light'}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</div>}
+                        </DataLoader>
                         <AuthSettingsCtx.Provider value={this.state.authSettings}>
                             <Router history={history}>
                                 <Switch>
@@ -236,11 +236,7 @@ export class App extends React.Component<
                                                     ) : (
                                                         <DataLoader load={() => services.viewPreferences.getPreferences()}>
                                                             {pref => (
-                                                                <Layout
-                                                                    onVersionClick={() => this.setState({showVersionPanel: true})}
-                                                                    navItems={this.navItems}
-                                                                    pref={pref}
-                                                                    isExtension={route.extension}>
+                                                                <Layout onVersionClick={() => this.setState({showVersionPanel: true})} navItems={this.navItems} pref={pref}>
                                                                     <Banner>
                                                                         <route.component {...routeProps} />
                                                                     </Banner>
