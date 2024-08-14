@@ -40,6 +40,7 @@ Note:
 
 - Referenced clusters must already be defined in Argo CD, for the ApplicationSet controller to use them
 - Only **one** of `name` or `server` may be specified: if both are specified, an error is returned.
+- Signature Verification does not work with the templated `project` field when using git generator.
 
 The `metadata` field of template may also be used to set an Application `name`, or to add labels or annotations to the Application.
 
