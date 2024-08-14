@@ -58,6 +58,9 @@ erroneous deletion. The goal of this proposal is to provide a safety net for cas
 
 ## Proposal
 
+It is proposed to introduce two new sync options for Argo CD applications: `Prune=confirm` and `Delete=confirm`. Options would
+protect resources from accidental deletion during cascading application deletion as well as during sync operations.
+
 ### Introduce `confirm` option for Prune sync option.
 
 Argo CD already supports `argocd.argoproj.io/sync-options: Prune=false` sync option that prevents resource deletion while syncing
@@ -66,6 +69,9 @@ the application. This, however, is not ideal since it prevents implementing full
 In order to improve the situation, we propose to introduce `confirm` option for Prune sync option. When `confirm` option is set, Argo CD should pause the sync operation
 **before deleting any app resources** and wait for the user to confirm the deletion. The confirmation can be done in a very friendly way using Argo CD UI, CLI or API.
 
+* **Sync Operation status**. I suggest not to introduce new sync operation states to avoid disturbing the existing automation around syncing (CI pipelines, scripts etc). 
+  If Argo CD is waiting for the operation state should remain `Progressing`. Once the user confirms the deletion, the operation should resume.
+* **Sync Waves**. The sync wave shuold be "paused" while Argo CD is waiting for the user to confirm the deletion. No difference from waiting for the resource to became healthy.
 
 ### Introduce `confirm` option for Delete sync option.
 
@@ -111,15 +117,23 @@ Once annotation is applied the Argo CD should proceed with the deletion.
 
 The main reason to use the action is that we can reuse existing [RBAC](https://argo-cd.readthedocs.io/en/stable/operator-manual/rbac/) to control who can approve the deletion.
 
-#### UI Convinience to approve all resources
+#### UI/CLI Convinience to approve all resources
 
-The Argo CD UI should provide a convinient way to approve all resources that require manual approval. This way the user can approve all resources with a single click. 
+The Argo CD UI should provide a convinient way to approve resources that require manual approval. The existing user interface will provide a button that allows end user
+execute the `Approve Deletion` action and approve resources one by one. In addition to the single resource approval, the UI should provide a way to approve all resources
+that require manual approval. The new button should execute the `Approve Deletion` action for all resources that require manual approval.
 
+Argo CD CLI would no need changes since existing `argocd app actions run` command allows to execute an action against multiple resources.
 
 #### Require deletion approval notification
 
 The default Argo CD notification catalog should include a trigger and notification template that notifies the user when
 deletion approval is required. The notification template should include a list of resources that require approval.
+
+
+#### Declarative approval
+
+The user should be able to approve resource deletion without using the UI or CLI by manually adding the `argocd.argoproj.io/deletion-approved: true` annotation to the resource.
 
 ### Use cases
 
