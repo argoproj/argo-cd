@@ -1383,3 +1383,112 @@ cluster:
 		})
 	}
 }
+
+func TestGitGenerator_GenerateParams(t *testing.T) {
+	cases := []struct {
+		name               string
+		directories        []argoprojiov1alpha1.GitDirectoryGeneratorItem
+		pathParamPrefix    string
+		repoApps           []string
+		repoPathsError     error
+		repoFileContents   map[string][]byte
+		values             map[string]string
+		expected           []map[string]interface{}
+		expectedError      error
+		appset             argoprojiov1alpha1.ApplicationSet
+		callGetDirectories bool
+	}{
+		{
+			name: "Signature Verification - ignores templated project field",
+			repoApps: []string{
+				"app1",
+			},
+			repoPathsError: nil,
+			appset: argoprojiov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "set",
+				},
+				Spec: argoprojiov1alpha1.ApplicationSetSpec{
+					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+						Git: &argoprojiov1alpha1.GitGenerator{
+							RepoURL:         "RepoURL",
+							Revision:        "Revision",
+							Directories:     []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+							PathParamPrefix: "",
+							Values: map[string]string{
+								"foo": "bar",
+							},
+						},
+					}},
+					Template: argoprojiov1alpha1.ApplicationSetTemplate{
+						Spec: argoprojiov1alpha1.ApplicationSpec{
+							Project: "{{.project}}",
+						},
+					},
+				},
+			},
+			callGetDirectories: true,
+			expected:           []map[string]interface{}{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
+			expectedError:      nil,
+		},
+		{
+			name: "Signature Verification - Checks for non-templated project field",
+			repoApps: []string{
+				"app1",
+			},
+			repoPathsError: nil,
+			appset: argoprojiov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "set",
+				},
+				Spec: argoprojiov1alpha1.ApplicationSetSpec{
+					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+						Git: &argoprojiov1alpha1.GitGenerator{
+							RepoURL:         "RepoURL",
+							Revision:        "Revision",
+							Directories:     []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+							PathParamPrefix: "",
+							Values: map[string]string{
+								"foo": "bar",
+							},
+						},
+					}},
+					Template: argoprojiov1alpha1.ApplicationSetTemplate{
+						Spec: argoprojiov1alpha1.ApplicationSpec{
+							Project: "project",
+						},
+					},
+				},
+			},
+			callGetDirectories: false,
+			expected:           []map[string]interface{}{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
+			expectedError:      fmt.Errorf("error getting project project: appprojects.argoproj.io \"project\" not found"),
+		},
+	}
+	for _, testCase := range cases {
+		argoCDServiceMock := mocks.Repos{}
+
+		if testCase.callGetDirectories {
+			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCase.repoApps, testCase.repoPathsError)
+		}
+		gitGenerator := NewGitGenerator(&argoCDServiceMock)
+
+		scheme := runtime.NewScheme()
+		err := v1alpha1.AddToScheme(scheme)
+		require.NoError(t, err)
+		appProject := argoprojiov1alpha1.AppProject{}
+
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
+
+		got, err := gitGenerator.GenerateParams(&testCase.appset.Spec.Generators[0], &testCase.appset, client)
+
+		if testCase.expectedError != nil {
+			require.EqualError(t, err, testCase.expectedError.Error())
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, testCase.expected, got)
+		}
+
+		argoCDServiceMock.AssertExpectations(t)
+	}
+}
