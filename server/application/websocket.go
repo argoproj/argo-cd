@@ -159,19 +159,22 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 
 func (t *terminalSession) performValidationsAndReconnect(p []byte) (int, error) {
 	// In disable auth mode, no point verifying the token or validating permissions
-	if !t.terminalOpts.disableAuth {
-		// check if token still valid
-		_, newToken, err := t.sessionManager.VerifyToken(*t.token)
-		// err in case if token is revoked, newToken in case if refresh happened
-		if err != nil || newToken != "" {
-			// need to send reconnect code in case if token was refreshed
-			return t.reconnect()
-		}
-		code, err := t.validatePermissions(p)
-		if err != nil {
-			return code, err
-		}
+	if t.terminalOpts.disableAuth {
+		return 0, nil
 	}
+
+	// check if token still valid
+	_, newToken, err := t.sessionManager.VerifyToken(*t.token)
+	// err in case if token is revoked, newToken in case if refresh happened
+	if err != nil || newToken != "" {
+		// need to send reconnect code in case if token was refreshed
+		return t.reconnect()
+	}
+	code, err := t.validatePermissions(p)
+	if err != nil {
+		return code, err
+	}
+
 	return 0, nil
 }
 
