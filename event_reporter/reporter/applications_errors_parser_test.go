@@ -1,4 +1,4 @@
-package application
+package reporter
 
 import (
 	"fmt"
