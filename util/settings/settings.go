@@ -218,14 +218,6 @@ type KustomizeSettings struct {
 	Versions     []KustomizeVersion
 }
 
-// CodefreshReporterVersion includes all cf reporter versions
-type CodefreshReporterVersion string
-
-const (
-	CodefreshV1ReporterVersion CodefreshReporterVersion = "v1"
-	CodefreshV2ReporterVersion CodefreshReporterVersion = "v2"
-)
-
 var (
 	ByClusterURLIndexer     = "byClusterURL"
 	byClusterURLIndexerFunc = func(obj interface{}) ([]string, error) {
@@ -777,18 +769,6 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 	label := argoCDCM.Data[settingsApplicationInstanceLabelKey]
 	if label == "" {
 		return common.LabelKeyAppInstance, nil
-	}
-	return label, nil
-}
-
-func (mgr *SettingsManager) GetCodefreshReporterVersion() (string, error) {
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return "", err
-	}
-	label := argoCDCM.Data[settingsCodefreshReporterVersion]
-	if label == "" {
-		return string(CodefreshV1ReporterVersion), nil
 	}
 	return label, nil
 }

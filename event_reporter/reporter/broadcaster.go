@@ -63,11 +63,6 @@ func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {
 	subscribers = append(subscribers, b.subscribers...)
 	b.lock.Unlock()
 
-	if !b.featureManager.ShouldReporterRun() {
-		log.Infof("filtering application '%s', event reporting is turned off and old one is in use", event.Application.Name)
-		return
-	}
-
 	if b.filter != nil {
 		result, expectedShard := b.filter(&event.Application)
 		if !result {
