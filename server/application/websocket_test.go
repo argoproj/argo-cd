@@ -85,31 +85,6 @@ func TestReconnect(t *testing.T) {
 	assert.Equal(t, ReconnectMessage, message.Data)
 }
 
-func verifyAndReconnect(t *testing.T, disableAuth bool, role string, expectSuccess bool, claimsEnforcerFunc bool) func(w http.ResponseWriter, r *http.Request) {
-	verifyAndReconnect := func(w http.ResponseWriter, r *http.Request) {
-		enf := newEnforcer()
-		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
-		enf.SetDefaultRole("role:" + role)
-		enf.SetClaimsEnforcerFunc(func(claims jwt.Claims, rvals ...interface{}) bool {
-			return claimsEnforcerFunc
-		})
-		ts := newTestTerminalSession(w, r)
-		ts.terminalOpts = &TerminalOptions{enf: enf, disableAuth: disableAuth}
-		ts.appRBACName = "test"
-		// nolint:staticcheck
-		ts.ctx = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{role}})
-		_, err := ts.performValidationsAndReconnect([]byte{})
-		if expectSuccess {
-			require.NoError(t, err)
-		} else {
-			require.Error(t, err)
-			assert.Equal(t, permissionDeniedErr.Error(), err.Error())
-		}
-
-	}
-	return verifyAndReconnect
-}
-
 func testServerConnection(t *testing.T, testFunc func(w http.ResponseWriter, r *http.Request), expectPermissionDenied bool) {
 	s := httptest.NewServer(http.HandlerFunc(testFunc))
 	defer s.Close()
