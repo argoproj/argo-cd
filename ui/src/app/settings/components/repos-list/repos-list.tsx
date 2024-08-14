@@ -38,6 +38,8 @@ export interface NewHTTPSRepoParams {
     project?: string;
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
+    // write should be true if saving as a write credential.
+    write: boolean;
 }
 
 interface NewGitHubAppRepoParams {
@@ -54,6 +56,8 @@ interface NewGitHubAppRepoParams {
     enableLfs: boolean;
     proxy: string;
     project?: string;
+    // write should be true if saving as a write credential.
+    write: boolean;
 }
 
 interface NewGoogleCloudSourceRepoParams {
@@ -63,11 +67,15 @@ interface NewGoogleCloudSourceRepoParams {
     gcpServiceAccountKey: string;
     proxy: string;
     project?: string;
+    // write should be true if saving as a write credential.
+    write: boolean;
 }
 
 interface NewSSHRepoCredsParams {
     url: string;
     sshPrivateKey: string;
+    // write should be true if saving as a write credential.
+    write: boolean;
 }
 
 interface NewHTTPSRepoCredsParams {
@@ -79,6 +87,8 @@ interface NewHTTPSRepoCredsParams {
     proxy: string;
     forceHttpBasicAuth: boolean;
     enableOCI: boolean;
+    // write should be true if saving as a write credential.
+    write: boolean;
 }
 
 interface NewGitHubAppRepoCredsParams {
@@ -90,11 +100,15 @@ interface NewGitHubAppRepoCredsParams {
     tlsClientCertData: string;
     tlsClientCertKey: string;
     proxy: string;
+    // write should be true if saving as a write credential.
+    write: boolean;
 }
 
 interface NewGoogleCloudSourceRepoCredsParams {
     url: string;
     gcpServiceAccountKey: string;
+    // write should be true if saving as a write credential.
+    write: boolean;
 }
 
 export enum ConnectionMethod {

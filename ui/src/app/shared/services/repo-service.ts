@@ -5,6 +5,7 @@ export class RepositoriesService {
     public list(): Promise<models.Repository[]> {
         return requests
             .get(`/repositories`)
+            .query({type: "both"})
             .then(res => res.body as models.RepositoryList)
             .then(list => list.items || []);
     }
@@ -29,7 +30,8 @@ export class RepositoriesService {
         proxy,
         project,
         forceHttpBasicAuth,
-        enableOCI
+        enableOCI,
+        write,
     }: {
         type: string;
         name: string;
@@ -44,9 +46,11 @@ export class RepositoriesService {
         project?: string;
         forceHttpBasicAuth?: boolean;
         enableOCI: boolean;
+        write: boolean;
     }): Promise<models.Repository> {
         return requests
             .post('/repositories')
+            .query({write})
             .send({type, name, repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs, proxy, project, forceHttpBasicAuth, enableOCI})
             .then(res => res.body as models.Repository);
     }
@@ -94,7 +98,8 @@ export class RepositoriesService {
         insecure,
         enableLfs,
         proxy,
-        project
+        project,
+        write,
     }: {
         type: string;
         name: string;
@@ -104,9 +109,11 @@ export class RepositoriesService {
         enableLfs: boolean;
         proxy: string;
         project?: string;
+        write: boolean;
     }): Promise<models.Repository> {
         return requests
             .post('/repositories')
+            .query({write})
             .send({type, name, repo: url, sshPrivateKey, insecure, enableLfs, proxy, project})
             .then(res => res.body as models.Repository);
     }
@@ -124,7 +131,8 @@ export class RepositoriesService {
         insecure,
         enableLfs,
         proxy,
-        project
+        project,
+        write,
     }: {
         type: string;
         name: string;
@@ -139,9 +147,11 @@ export class RepositoriesService {
         enableLfs: boolean;
         proxy: string;
         project?: string;
+        write: boolean;
     }): Promise<models.Repository> {
         return requests
             .post('/repositories')
+            .query({write})
             .send({
                 type,
                 name,
@@ -166,7 +176,8 @@ export class RepositoriesService {
         url,
         gcpServiceAccountKey,
         proxy,
-        project
+        project,
+        write,
     }: {
         type: string;
         name: string;
@@ -174,9 +185,11 @@ export class RepositoriesService {
         gcpServiceAccountKey: string;
         proxy: string;
         project?: string;
+        write: boolean;
     }): Promise<models.Repository> {
         return requests
             .post('/repositories')
+            .query({write})
             .send({
                 type,
                 name,

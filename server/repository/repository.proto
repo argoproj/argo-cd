@@ -49,6 +49,9 @@ message RepoQuery {
 	bool forceRefresh = 2;
 	// App project for query
 	string appProject = 3;
+	// Type determines what kind of credential we're interacting with. It can be "read", "write", or "both". Default is
+	// "read".
+	string type = 4;
 }
 
 // RepoAccessQuery is a query for checking access to a repo
@@ -101,10 +104,14 @@ message RepoCreateRequest {
 	bool upsert = 2;
 	// Whether to operate on credential set instead of repository
 	bool credsOnly = 3;
+	// Write determines whether the credential will be stored as a read credential or a write credential.
+	bool write = 4;
 }
 
 message RepoUpdateRequest {
 	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
+	// Write determines whether the credential to be updated is a read credential or a write credential.
+	bool write = 2;
 }
 
 // RepositoryService
