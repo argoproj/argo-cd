@@ -13,8 +13,6 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
-	"gopkg.in/yaml.v2"
-
 	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -88,23 +86,22 @@ var (
 
 // Server provides an Application service
 type Server struct {
-	ns                       string
-	kubeclientset            kubernetes.Interface
-	appclientset             appclientset.Interface
-	appLister                applisters.ApplicationLister
-	appInformer              cache.SharedIndexInformer
-	appBroadcaster           Broadcaster
-	repoClientset            apiclient.Clientset
-	kubectl                  kube.Kubectl
-	db                       db.ArgoDB
-	enf                      *rbac.Enforcer
-	projectLock              sync.KeyLock
-	auditLogger              *argo.AuditLogger
-	settingsMgr              *settings.SettingsManager
-	cache                    *servercache.Cache
-	projInformer             cache.SharedIndexInformer
-	enabledNamespaces        []string
-	applicationEventReporter *applicationEventReporter
+	ns                string
+	kubeclientset     kubernetes.Interface
+	appclientset      appclientset.Interface
+	appLister         applisters.ApplicationLister
+	appInformer       cache.SharedIndexInformer
+	appBroadcaster    Broadcaster
+	repoClientset     apiclient.Clientset
+	kubectl           kube.Kubectl
+	db                db.ArgoDB
+	enf               *rbac.Enforcer
+	projectLock       sync.KeyLock
+	auditLogger       *argo.AuditLogger
+	settingsMgr       *settings.SettingsManager
+	cache             *servercache.Cache
+	projInformer      cache.SharedIndexInformer
+	enabledNamespaces []string
 }
 
 // NewServer returns a new instance of the Application service
@@ -150,8 +147,6 @@ func NewServer(
 		projInformer:      projInformer,
 		enabledNamespaces: enabledNamespaces,
 	}
-	s.applicationEventReporter = NewApplicationEventReporter(s)
-
 	return s, s.getAppResources
 }
 
@@ -1244,300 +1239,6 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 }
 
 func (s *Server) StartEventSource(es *events.EventSource, stream events.Eventing_StartEventSourceServer) error {
-	var (
-		logCtx   log.FieldLogger = log.StandardLogger()
-		selector labels.Selector
-		err      error
-	)
-	q := application.ApplicationQuery{}
-	if err := yaml.Unmarshal(es.Config, &q); err != nil {
-		logCtx.WithError(err).Error("failed to unmarshal event-source config")
-		return fmt.Errorf("failed to unmarshal event-source config: %w", err)
-	}
-
-	if q.Name != nil {
-		logCtx = logCtx.WithField("application", *q.Name)
-	}
-
-	claims := stream.Context().Value("claims")
-
-	if q.Selector != nil {
-		selector, err = labels.Parse(*q.Selector)
-		if err != nil {
-			return err
-		}
-	}
-
-	minVersion := 0
-	if q.ResourceVersion != nil {
-		if minVersion, err = strconv.Atoi(*q.ResourceVersion); err != nil {
-			minVersion = 0
-		}
-	}
-
-	appNs := s.appNamespaceOrDefault(q.GetAppNamespace())
-
-	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
-	// caller has RBAC privileges permissions to view it
-	sendIfPermitted := func(ctx context.Context, logCtx log.FieldLogger, a appv1.Application, ts string, ignoreResourceCache bool) error {
-		if appVersion, err := strconv.Atoi(a.ResourceVersion); err == nil && appVersion < minVersion {
-			return nil
-		}
-
-		if selector != nil {
-			matchedEvent := (q.GetName() == "" || a.Name == q.GetName()) && selector.Matches(labels.Set(a.Labels))
-			if !matchedEvent {
-				return nil
-			}
-		}
-
-		if !s.isNamespaceEnabled(appNs) {
-			return security.NamespaceNotPermittedError(appNs)
-		}
-
-		if !s.enf.Enforce(claims, rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, a.RBACName(s.ns)) {
-			// do not emit apps user does not have accessing
-			return nil
-		}
-
-		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
-		if err != nil {
-			return err
-		}
-		trackingMethod := argoutil.GetTrackingMethod(s.settingsMgr)
-
-		err = s.applicationEventReporter.streamApplicationEvents(ctx, logCtx, &a, es, stream, ts, ignoreResourceCache, appInstanceLabelKey, trackingMethod)
-		if err != nil {
-			return err
-		}
-
-		if err := s.cache.SetLastApplicationEvent(&a, applicationEventCacheExpiration); err != nil {
-			logCtx.WithError(err).Error("failed to cache last sent application event")
-			return err
-		}
-
-		return nil
-	}
-
-	priorityQueueEnabled := env.ParseBoolFromEnv("CODEFRESH_PRIORITY_QUEUE", false)
-
-	allEventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
-	onUpdateEventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
-	onDeleteEventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
-	onAddEventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
-
-	v1ReporterEnabledFilter := func(event *appv1.ApplicationWatchEvent) bool {
-		if event.Type == watch.Bookmark {
-			return false // ignore this event
-		}
-
-		rVersion, _ := s.settingsMgr.GetCodefreshReporterVersion()
-		if rVersion == string(settings.CodefreshV2ReporterVersion) {
-			logCtx.Info("v1 reporter disabled skipping event")
-			return false
-		}
-		return true
-	}
-
-	if priorityQueueEnabled {
-		unsubscribeOnUpdateChannel := s.appBroadcaster.Subscribe(onUpdateEventsChannel, func(event *appv1.ApplicationWatchEvent) bool {
-			return event.Type == watch.Modified
-		}, v1ReporterEnabledFilter)
-
-		unsubscribeOnDeleteChannel := s.appBroadcaster.Subscribe(onDeleteEventsChannel, func(event *appv1.ApplicationWatchEvent) bool {
-			return event.Type == watch.Deleted
-		}, v1ReporterEnabledFilter)
-
-		unsubscribeOnAddChannel := s.appBroadcaster.Subscribe(onAddEventsChannel, func(event *appv1.ApplicationWatchEvent) bool {
-			return event.Type == watch.Added
-		}, v1ReporterEnabledFilter)
-
-		defer unsubscribeOnUpdateChannel()
-		defer unsubscribeOnDeleteChannel()
-		defer unsubscribeOnAddChannel()
-	} else {
-		unsubscribeEventsChannel := s.appBroadcaster.Subscribe(allEventsChannel, v1ReporterEnabledFilter)
-		defer unsubscribeEventsChannel()
-	}
-
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case event := <-onAddEventsChannel: // active only when CODEFRESH_PRIORITY_QUEUE=true
-			{
-				logCtx.Infof("OnAdd channel size is %d", len(onAddEventsChannel))
-				logAppEvent := logCtx.WithFields(log.Fields{
-					"app":  event.Application.Name,
-					"type": event.Type,
-				})
-				logAppEvent.Infof("Received application added event")
-				err = s.processEvent(event, logAppEvent, stream, sendIfPermitted)
-				if err != nil {
-					return err
-				}
-			}
-		case event := <-onDeleteEventsChannel: // active only when CODEFRESH_PRIORITY_QUEUE=true
-			{
-				logCtx.Infof("OnDelete channel size is %d", len(onDeleteEventsChannel))
-				logAppEvent := logCtx.WithFields(log.Fields{
-					"app":  event.Application.Name,
-					"type": event.Type,
-				})
-				logAppEvent.Infof("Received application deleted event")
-				err = s.processEvent(event, logAppEvent, stream, sendIfPermitted)
-				if err != nil {
-					return err
-				}
-			}
-		case event := <-onUpdateEventsChannel: // active only when CODEFRESH_PRIORITY_QUEUE=true
-			{
-				logCtx.Infof("OnUpdate channel size is %d", len(onUpdateEventsChannel))
-				logAppEvent := logCtx.WithFields(log.Fields{
-					"app":  event.Application.Name,
-					"type": event.Type,
-				})
-				logAppEvent.Infof("Received application update event")
-				err = s.processEvent(event, logAppEvent, stream, sendIfPermitted)
-				if err != nil {
-					return err
-				}
-			}
-		case event := <-allEventsChannel: // active only when CODEFRESH_PRIORITY_QUEUE=false
-			{
-				logCtx.Infof("All events channel size is %d", len(allEventsChannel))
-				logAppEvent := logCtx.WithFields(log.Fields{
-					"app":  event.Application.Name,
-					"type": event.Type,
-				})
-				logAppEvent.Infof("Received application event")
-				err = s.processEvent(event, logAppEvent, stream, sendIfPermitted)
-				if err != nil {
-					return err
-				}
-			}
-		case <-ticker.C:
-			var err error
-			ts := time.Now().Format("2006-01-02T15:04:05.000Z")
-			payload := events.EventPayload{Timestamp: ts}
-			payloadBytes, err := json.Marshal(&payload)
-			if err != nil {
-				log.Errorf("failed to marshal payload for heartbeat: %s", err.Error())
-				break
-			}
-
-			ev := &events.Event{Payload: payloadBytes, Name: es.Name}
-			if err = stream.Send(ev); err != nil {
-				log.Errorf("failed to send heartbeat: %s", err.Error())
-				break
-			}
-		case <-stream.Context().Done():
-			return nil
-		}
-	}
-}
-
-func (s *Server) processEvent(
-	event *appv1.ApplicationWatchEvent,
-	logCtx log.FieldLogger,
-	stream events.Eventing_StartEventSourceServer,
-	sendIfPermitted func(ctx context.Context, logCtx log.FieldLogger, a appv1.Application, ts string, ignoreResourceCache bool) error,
-) error {
-	shouldProcess, ignoreResourceCache := s.applicationEventReporter.shouldSendApplicationEvent(event)
-	if !shouldProcess {
-		logCtx.Infof("ignore event")
-		return nil
-	}
-
-	ts := time.Now().Format("2006-01-02T15:04:05.000Z")
-	ctx, cancel := context.WithTimeout(stream.Context(), 2*time.Minute)
-	err := sendIfPermitted(ctx, logCtx, event.Application, ts, ignoreResourceCache)
-	if err != nil {
-		logCtx.WithError(err).Error("failed to stream application events")
-		if strings.Contains(err.Error(), "context deadline exceeded") {
-			logCtx.Info("Closing event-source connection")
-			cancel()
-			return err
-		}
-	}
-
-	cancel()
-	return nil
-}
-
-func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.ApplicationValidationRequest) (*application.ApplicationValidateResponse, error) {
-	app := requset.Application
-	proj, err := argo.GetAppProject(app, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db, ctx)
-	if err != nil {
-		entity := projectEntity
-		if apierr.IsNotFound(err) {
-			errMsg := fmt.Sprintf("application references project %s which does not exist", app.Spec.Project)
-			return &application.ApplicationValidateResponse{
-				Error:  &errMsg,
-				Entity: &entity,
-			}, nil
-		}
-		errMsg := err.Error()
-		return &application.ApplicationValidateResponse{
-			Error:  &errMsg,
-			Entity: &entity,
-		}, nil
-	}
-
-	if err := validateDestination(ctx, &app.Spec.Destination, s.db); err != nil {
-		entity := destinationEntity
-		errMsg := fmt.Sprintf("application destination spec for %s is invalid: %s", app.ObjectMeta.Name, err.Error())
-		return &application.ApplicationValidateResponse{
-			Error:  &errMsg,
-			Entity: &entity,
-		}, nil
-	}
-	var conditions []appv1.ApplicationCondition
-	conditions, err = argo.ValidateRepo(ctx, app, s.repoClientset, s.db, s.kubectl, proj, s.settingsMgr)
-	if err != nil {
-		entity := sourceEntity
-		errMsg := err.Error()
-		return &application.ApplicationValidateResponse{
-			Error:  &errMsg,
-			Entity: &entity,
-		}, nil
-	}
-	if len(conditions) > 0 {
-		entity := sourceEntity
-		errMsg := fmt.Sprintf("application spec for %s is invalid: %s", app.ObjectMeta.Name, argo.FormatAppConditions(conditions))
-		return &application.ApplicationValidateResponse{
-			Error:  &errMsg,
-			Entity: &entity,
-		}, nil
-	}
-	return &application.ApplicationValidateResponse{
-		Error:  nil,
-		Entity: nil,
-	}, nil
-}
-
-// validates destination name (argo.ValidateDestination) and server with extra logic
-func validateDestination(ctx context.Context, dest *appv1.ApplicationDestination, db db.ArgoDB) error {
-	err := argo.ValidateDestination(ctx, dest, db)
-
-	if err != nil {
-		return err
-	}
-
-	if dest.Server != "" {
-		// Ensure the k8s cluster the app is referencing, is configured in Argo CD
-		_, err := db.GetCluster(ctx, dest.Server)
-		if err != nil {
-			if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
-				return fmt.Errorf("cluster '%s' has not been configured", dest.Server)
-			} else {
-				return err
-			}
-		}
-	} else if dest.Server == "" {
-		return fmt.Errorf("destination server missing from app spec")
-	}
-
 	return nil
 }
 
