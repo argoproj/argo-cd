@@ -33,6 +33,11 @@ func Test_GetWebUrlRegex(t *testing.T) {
 		{false, "https://example.com/org/repo", "ssh://-user-name@example.com/org/repo", "invalid usernames with hyphens in repo should not match"},
 		{true, "https://example.com:443/org/repo", "GIT@EXAMPLE.COM:22:ORG/REPO", "matches aren't case-sensitive"},
 		{true, "https://example.com/org/repo%20", "https://example.com/org/repo%20", "escape codes in path are preserved"},
+		{true, "https://user@example.com/org/repo", "http://example.com/org/repo", "https+username should match http"},
+		{true, "https://user@example.com/org/repo", "https://example.com/org/repo", "https+username should match https"},
+		{true, "http://example.com/org/repo", "https://user@example.com/org/repo", "http should match https+username"},
+		{true, "https://example.com/org/repo", "https://user@example.com/org/repo", "https should match https+username"},
+		{true, "https://user@example.com/org/repo", "ssh://example.com/org/repo", "https+username should match ssh"},
 	}
 	for _, testCase := range tests {
 		testCopy := testCase

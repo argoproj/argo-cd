@@ -146,11 +146,11 @@ func getUrlRegex(originalUrl string, regexpFormat string) (*regexp.Regexp, error
 }
 
 func GetWebUrlRegex(originalUrl string) (*regexp.Regexp, error) {
-	return getUrlRegex(originalUrl, `(?i)^(https?://|%[1]s@|ssh://(%[1]s@)?((alt)?ssh\.)?)%[2]s(:[0-9]+)?[:/]%[3]s$`)
+	return getUrlRegex(originalUrl, `(?i)^((https?|ssh)://)?(%[1]s@)?((alt)?ssh\.)?%[2]s(:[0-9]+)?[:/]%[3]s$`)
 }
 
 func GetApiUrlRegex(originalUrl string) (*regexp.Regexp, error) {
-	return getUrlRegex(originalUrl, `(?i)^https?://%[2]s(:[0-9]+)?/?$`)
+	return getUrlRegex(originalUrl, `(?i)^(https?://)?(%[1]s@)?%[2]s(:[0-9]+)?/?$`)
 }
 
 func (webhook *Webhook) HandleRequest(writer http.ResponseWriter, request *http.Request) {
