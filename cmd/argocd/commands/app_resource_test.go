@@ -36,7 +36,7 @@ func TestPrintTreeViewAppResources(t *testing.T) {
 	buf := &bytes.Buffer{}
 	w := tabwriter.NewWriter(buf, 0, 0, 2, ' ', 0)
 
-	printTreeViewAppResourcesNotOrphaned(nodeMapping, mapParentToChild, parentNode, false, false, w)
+	printTreeViewAppResourcesNotOrphaned(nodeMapping, mapParentToChild, parentNode, w)
 	if err := w.Flush(); err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestPrintTreeViewDetailedAppResources(t *testing.T) {
 	buf := &bytes.Buffer{}
 	w := tabwriter.NewWriter(buf, 0, 0, 2, ' ', 0)
 
-	printDetailedTreeViewAppResourcesNotOrphaned(nodeMapping, mapParentToChild, parentNode, false, false, w)
+	printDetailedTreeViewAppResourcesNotOrphaned(nodeMapping, mapParentToChild, parentNode, w)
 	if err := w.Flush(); err != nil {
 		t.Fatal(err)
 	}

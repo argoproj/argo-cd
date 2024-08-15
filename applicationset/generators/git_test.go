@@ -323,7 +323,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 
 			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
-			gitGenerator := NewGitGenerator(&argoCDServiceMock)
+			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -624,7 +624,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 
 			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
-			gitGenerator := NewGitGenerator(&argoCDServiceMock)
+			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -989,7 +989,7 @@ cluster:
 			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
-			gitGenerator := NewGitGenerator(&argoCDServiceMock)
+			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -1345,7 +1345,7 @@ cluster:
 			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
-			gitGenerator := NewGitGenerator(&argoCDServiceMock)
+			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -1406,7 +1406,8 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 			repoPathsError: nil,
 			appset: argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
+					Name:      "set",
+					Namespace: "namespace",
 				},
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{
 					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
@@ -1439,7 +1440,8 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 			repoPathsError: nil,
 			appset: argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
+					Name:      "set",
+					Namespace: "namespace",
 				},
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{
 					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
@@ -1471,7 +1473,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 		if testCase.callGetDirectories {
 			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCase.repoApps, testCase.repoPathsError)
 		}
-		gitGenerator := NewGitGenerator(&argoCDServiceMock)
+		gitGenerator := NewGitGenerator(&argoCDServiceMock, "namespace")
 
 		scheme := runtime.NewScheme()
 		err := v1alpha1.AddToScheme(scheme)
