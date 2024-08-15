@@ -4056,52 +4056,6 @@
         }
       }
     },
-    "/api/v1/stream/events": {
-      "get": {
-        "tags": [
-          "Eventing"
-        ],
-        "operationId": "Eventing_StartEventSource",
-        "parameters": [
-          {
-            "type": "string",
-            "description": "The event source name.",
-            "name": "name",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "format": "byte",
-            "description": "The event source configuration value.",
-            "name": "config",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "A successful response.(streaming responses)",
-            "schema": {
-              "type": "object",
-              "title": "Stream result of genericEvent",
-              "properties": {
-                "error": {
-                  "$ref": "#/definitions/runtimeStreamError"
-                },
-                "result": {
-                  "$ref": "#/definitions/genericEvent"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "An unexpected error response.",
-            "schema": {
-              "$ref": "#/definitions/runtimeError"
-            }
-          }
-        }
-      }
-    },
     "/api/version": {
       "get": {
         "tags": [
@@ -4787,21 +4741,6 @@
           "items": {
             "$ref": "#/definitions/clusterPlugin"
           }
-        }
-      }
-    },
-    "genericEvent": {
-      "type": "object",
-      "title": "*\nRepresents an event",
-      "properties": {
-        "name": {
-          "description": "The event source name.",
-          "type": "string"
-        },
-        "payload": {
-          "description": "The event payload.",
-          "type": "string",
-          "format": "byte"
         }
       }
     },
