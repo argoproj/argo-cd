@@ -54,7 +54,7 @@ func getToken(r *http.Request) (string, error) {
 }
 
 // newTerminalSession create terminalSession
-func newTerminalSession(ctx context.Context, w http.ResponseWriter, r *http.Request, responseHeader http.Header, sessionManager *util_session.SessionManager, appRBACName string, terminalOpts TerminalOptions) (*terminalSession, error) {
+func newTerminalSession(ctx context.Context, w http.ResponseWriter, r *http.Request, responseHeader http.Header, sessionManager *util_session.SessionManager, appRBACName string, terminalOpts *TerminalOptions) (*terminalSession, error) {
 	token, err := getToken(r)
 	if err != nil {
 		return nil, err
@@ -73,7 +73,7 @@ func newTerminalSession(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		sessionManager: sessionManager,
 		token:          &token,
 		appRBACName:    appRBACName,
-		terminalOpts:   &terminalOpts,
+		terminalOpts:   terminalOpts,
 	}
 	return session, nil
 }

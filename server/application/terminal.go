@@ -232,7 +232,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	fieldLog.Info("terminal session starting")
 
-	session, err := newTerminalSession(ctx, w, r, nil, s.sessionManager, appRBACName, *s.terminalOptions)
+	session, err := newTerminalSession(ctx, w, r, nil, s.sessionManager, appRBACName, s.terminalOptions)
 	if err != nil {
 		http.Error(w, "Failed to start terminal session", http.StatusBadRequest)
 		return
