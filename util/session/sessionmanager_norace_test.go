@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -21,6 +22,8 @@ func TestRandomPasswordVerificationDelay(t *testing.T) {
 	// significantly slower due to data race detection being enabled, which breaks through
 	// the maximum time limit required by `TestRandomPasswordVerificationDelay`.
 
+	// Create a fake Kubernetes clientset for testing
+	kubeClientset := fake.NewSimpleClientset()
 	var sleptFor time.Duration
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
@@ -31,7 +34,7 @@ func TestRandomPasswordVerificationDelay(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		sleptFor = 0
 		start := time.Now()
-		require.NoError(t, mgr.VerifyUsernamePassword("admin", "password"))
+		require.NoError(t, mgr.VerifyUsernamePassword("admin", "password",kubeClientset))
 		totalDuration := time.Since(start) + sleptFor
 		assert.GreaterOrEqual(t, totalDuration.Nanoseconds(), verificationDelayNoiseMin.Nanoseconds())
 		assert.LessOrEqual(t, totalDuration.Nanoseconds(), verificationDelayNoiseMax.Nanoseconds())
