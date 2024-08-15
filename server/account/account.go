@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/kubectl/pkg/util/slice"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
@@ -28,13 +29,13 @@ type Server struct {
 	sessionMgr  *session.SessionManager
 	settingsMgr *settings.SettingsManager
 	enf         *rbac.Enforcer
+	kubeClientset kubernetes.Interface
 }
 
 // NewServer returns a new instance of the Session service
-func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.SettingsManager, enf *rbac.Enforcer) *Server {
-	return &Server{sessionMgr, settingsMgr, enf}
+func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.SettingsManager, enf *rbac.Enforcer, kubeClientset kubernetes.Interface) *Server {
+	return &Server{sessionMgr, settingsMgr, enf, kubeClientset}
 }
-
 // UpdatePassword updates the password of the currently authenticated account or the account specified in the request.
 func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRequest) (*account.UpdatePasswordResponse, error) {
 	issuer := session.Iss(ctx)
@@ -61,7 +62,7 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 			return nil, status.Errorf(codes.InvalidArgument, "password can only be changed for local users, not user %q", username)
 		}
 
-		err := s.sessionMgr.VerifyUsernamePassword(username, q.CurrentPassword)
+		err := s.sessionMgr.VerifyUsernamePassword(username, q.CurrentPassword,s.kubeClientset)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "current password does not match")
 		}
