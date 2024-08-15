@@ -7,7 +7,7 @@ import (
 )
 
 func TestAdd(t *testing.T) {
-	s := NewServer()
+	s := NewServer(SocketPath)
 	nonce := s.Add("foo", "bar")
 
 	assert.Equal(t, "foo", s.creds[nonce].Username)
@@ -15,7 +15,7 @@ func TestAdd(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	s := NewServer()
+	s := NewServer(SocketPath)
 	s.creds["some-id"] = Creds{Username: "foo"}
 
 	s.Remove("some-id")

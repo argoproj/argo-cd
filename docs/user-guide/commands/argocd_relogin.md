@@ -12,12 +12,30 @@ Refresh an expired authenticate token
 argocd relogin [flags]
 ```
 
+### Examples
+
+```
+  
+# Reinitiates the login with previous contexts
+argocd relogin
+
+# Reinitiates the login with password
+argocd relogin --password YOUR_PASSWORD
+
+# Configure direct access using Kubernetes API server
+argocd login cd.argoproj.io --core
+
+# If user logged in with - "argocd login cd.argoproj.io" with sso login
+# The command - "argocd relogin" will Reinitiates SSO login and updates the server context
+```
+
 ### Options
 
 ```
-  -h, --help              help for relogin
-      --password string   The password of an account to authenticate
-      --sso-port int      Port to run local OAuth2 login application (default 8085)
+  -h, --help                 help for relogin
+      --password string      The password of an account to authenticate
+      --sso-launch-browser   Automatically launch the default browser when performing SSO login (default true)
+      --sso-port int         Port to run local OAuth2 login application (default 8085)
 ```
 
 ### Options inherited from parent commands

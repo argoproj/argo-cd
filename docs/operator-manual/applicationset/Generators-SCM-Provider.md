@@ -98,6 +98,10 @@ spec:
           key: token
         # If true, skips validating the SCM provider's TLS certificate - useful for self-signed certificates.
         insecure: false
+        # Reference to a ConfigMap containing trusted CA certs - useful for self-signed certificates. (optional)
+        caRef:
+          configMapName: argocd-tls-certs-cm
+          key: gitlab-ca
   template:
   # ...
 ```
@@ -110,12 +114,19 @@ spec:
 * `topic`: filter projects by topic. A single topic is supported by Gitlab API. Defaults to "" (all topics).
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
+* `caRef`: Optional `ConfigMap` name and key containing the GitLab certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
 
-As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab by [mounting self-signed certificate to the applicationset controller](./Add-self-signed-TLS-Certs.md).
-
-For label filtering, the repository tags are used.
+For label filtering, the repository topics are used.
 
 Available clone protocols are `ssh` and `https`.
+
+### Self-signed TLS Certificates
+
+As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab.
+
+In order for a self-signed TLS certificate be used by an ApplicationSet's SCM / PR Gitlab Generator, the certificate needs to be mounted on the applicationset-controller. The path of the mounted certificate must be explicitly set using the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH` or alternatively using parameter `--scm-root-ca-path`. The applicationset controller will read the mounted certificate to create the Gitlab client for SCM/PR Providers
+
+This can be achieved conveniently by setting `applicationsetcontroller.scm.root.ca.path` in the argocd-cmd-params-cm ConfigMap. Be sure to restart the ApplicationSet controller after setting this value.
 
 ## Gitea
 
@@ -172,7 +183,8 @@ spec:
         api: https://mycompany.bitbucket.org
         # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
         allBranches: true
-        # Credentials for Basic authentication. Required for private repositories.
+        # Credentials for Basic authentication (App Password). Either basicAuth or bearerToken
+        # authentication is required to access private repositories
         basicAuth:
           # The username to authenticate with
           username: myuser
@@ -180,6 +192,19 @@ spec:
           passwordRef:
             secretName: mypassword
             key: password
+        # Credentials for Bearer Token (App Token) authentication. Either basicAuth or bearerToken
+        # authentication is required to access private repositories
+        bearerToken:
+          # Reference to a Secret containing the bearer token.
+          tokenRef:
+            secretName: repotoken
+            key: token
+        # If true, skips validating the SCM provider's TLS certificate - useful for self-signed certificates.
+        insecure: true
+        # Reference to a ConfigMap containing trusted CA certs - useful for self-signed certificates. (optional)
+        caRef:
+          configMapName: argocd-tls-certs-cm
+          key: bitbucket-ca
         # Support for filtering by labels is TODO. Bitbucket server labels are not supported for PRs, but they are for repos
   template:
   # ...
@@ -192,6 +217,13 @@ spec:
 If you want to access a private repository, you must also provide the credentials for Basic auth (this is the only auth supported currently):
 * `username`: The username to authenticate with. It only needs read access to the relevant repo.
 * `passwordRef`: A `Secret` name and key containing the password or personal access token to use for requests.
+
+In case of Bitbucket App Token, go with `bearerToken` section.
+* `tokenRef`: A `Secret` name and key containing the app token to use for requests.
+
+In case self-signed BitBucket Server certificates, the following options can be usefully:
+* `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
+* `caRef`: Optional `ConfigMap` name and key containing the BitBucket server certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
 
 Available clone protocols are `ssh` and `https`.
 
@@ -389,16 +421,18 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - scmProvider:
     # ...
   template:
     metadata:
-      name: '{{ repository }}'
+      name: '{{ .repository }}'
     spec:
       source:
-        repoURL: '{{ url }}'
-        targetRevision: '{{ branch }}'
+        repoURL: '{{ .url }}'
+        targetRevision: '{{ .branch }}'
         path: kubernetes/
       project: default
       destination:
@@ -427,6 +461,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - scmProvider:
       bitbucketServer:
@@ -439,15 +475,15 @@ spec:
             secretName: mypassword
             key: password
       values:
-        name: "{{organization}}-{{repository}}"
+        name: "{{.organization}}-{{.repository}}"
 
   template:
     metadata:
-      name: '{{ values.name }}'
+      name: '{{ .values.name }}'
     spec:
       source:
-        repoURL: '{{ url }}'
-        targetRevision: '{{ branch }}'
+        repoURL: '{{ .url }}'
+        targetRevision: '{{ .branch }}'
         path: kubernetes/
       project: default
       destination:

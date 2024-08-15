@@ -271,8 +271,8 @@ func TokenizedDataToPublicKey(hostname string, subType string, rawKeyData string
 
 // Returns the requested pattern with all possible square brackets escaped
 func nonBracketedPattern(pattern string) string {
-	ret := strings.Replace(pattern, "[", `\[`, -1)
-	return strings.Replace(ret, "]", `\]`, -1)
+	ret := strings.ReplaceAll(pattern, "[", `\[`)
+	return strings.ReplaceAll(ret, "]", `\]`)
 }
 
 // We do not use full fledged regular expression for matching the hostname.

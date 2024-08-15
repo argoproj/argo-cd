@@ -45,7 +45,7 @@ argocd [flags]
 * [argocd appset](argocd_appset.md)	 - Manage ApplicationSets
 * [argocd cert](argocd_cert.md)	 - Manage repository certificates and SSH known hosts entries
 * [argocd cluster](argocd_cluster.md)	 - Manage cluster credentials
-* [argocd completion](argocd_completion.md)	 - output shell completion code for the specified shell (bash or zsh)
+* [argocd completion](argocd_completion.md)	 - output shell completion code for the specified shell (bash, zsh or fish)
 * [argocd context](argocd_context.md)	 - Switch between contexts
 * [argocd gpg](argocd_gpg.md)	 - Manage GPG keys used for signature verification
 * [argocd login](argocd_login.md)	 - Log in to Argo CD

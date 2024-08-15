@@ -8,6 +8,23 @@ Manage a project's sync windows
 argocd proj windows [flags]
 ```
 
+### Examples
+
+```
+
+#Add a sync window to a project
+argocd proj windows add my-project \
+--schedule "0 0 * * 1-5" \
+--duration 3600 \
+--prune
+
+#Delete a sync window from a project 
+argocd proj windows delete <project-name> <window-id>
+
+#List project sync windows
+argocd proj windows list <project-name>
+```
+
 ### Options
 
 ```

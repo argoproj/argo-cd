@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -15,19 +16,16 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-var (
-	kindToCRDPath = map[string]string{
-		application.ApplicationFullName:    "manifests/crds/application-crd.yaml",
-		application.AppProjectFullName:     "manifests/crds/appproject-crd.yaml",
-		application.ApplicationSetFullName: "manifests/crds/applicationset-crd.yaml",
-	}
-)
+var kindToCRDPath = map[string]string{
+	application.ApplicationFullName:    "manifests/crds/application-crd.yaml",
+	application.AppProjectFullName:     "manifests/crds/appproject-crd.yaml",
+	application.ApplicationSetFullName: "manifests/crds/applicationset-crd.yaml",
+}
 
 func getCustomResourceDefinitions() map[string]*extensionsobj.CustomResourceDefinition {
 	crdYamlBytes, err := exec.Command(
 		"controller-gen",
 		"paths=./pkg/apis/application/...",
-		"crd:trivialVersions=true",
 		"crd:crdVersions=v1",
 		"output:crd:stdout",
 	).Output()
@@ -117,6 +115,10 @@ func removeDescription(v interface{}) {
 
 func checkErr(err error) {
 	if err != nil {
+		var execError *exec.ExitError
+		if errors.As(err, &execError) {
+			fmt.Println(string(execError.Stderr))
+		}
 		panic(err)
 	}
 }
@@ -149,6 +151,6 @@ func writeCRDintoFile(crd *extensionsobj.CustomResourceDefinition, path string) 
 	yamlBytes, err := yaml.JSONToYAML(jsonBytes)
 	checkErr(err)
 
-	err = os.WriteFile(path, yamlBytes, 0644)
+	err = os.WriteFile(path, yamlBytes, 0o644)
 	checkErr(err)
 }

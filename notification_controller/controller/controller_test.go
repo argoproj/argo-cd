@@ -5,14 +5,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func TestIsAppSyncStatusRefreshed(t *testing.T) {
@@ -110,25 +112,30 @@ func TestInit(t *testing.T) {
 	k8sClient := k8sfake.NewSimpleClientset()
 	appLabelSelector := "app=test"
 
-	nc := NewController(
-		k8sClient,
-		dynamicClient,
-		nil,
-		"default",
-		appLabelSelector,
-		nil,
-		"my-secret",
-		"my-configmap",
-	)
+	selfServiceNotificationEnabledFlags := []bool{false, true}
+	for _, selfServiceNotificationEnabled := range selfServiceNotificationEnabledFlags {
+		nc := NewController(
+			k8sClient,
+			dynamicClient,
+			nil,
+			"default",
+			[]string{},
+			appLabelSelector,
+			nil,
+			"my-secret",
+			"my-configmap",
+			selfServiceNotificationEnabled,
+		)
 
-	assert.NotNil(t, nc)
+		assert.NotNil(t, nc)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 
-	err = nc.Init(ctx)
+		err = nc.Init(ctx)
 
-	assert.NoError(t, err)
+		require.NoError(t, err)
+	}
 }
 
 func TestInitTimeout(t *testing.T) {
@@ -146,10 +153,12 @@ func TestInitTimeout(t *testing.T) {
 		dynamicClient,
 		nil,
 		"default",
+		[]string{},
 		appLabelSelector,
 		nil,
 		"my-secret",
 		"my-configmap",
+		false,
 	)
 
 	assert.NotNil(t, nc)
@@ -161,6 +170,30 @@ func TestInitTimeout(t *testing.T) {
 	err = nc.Init(ctx)
 
 	// Expect an error & add assertion for the error message
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, "Timed out waiting for caches to sync", err.Error())
+}
+
+func TestCheckAppNotInAdditionalNamespaces(t *testing.T) {
+	app := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"spec": map[string]interface{}{},
+		},
+	}
+	namespace := "argocd"
+	var applicationNamespaces []string
+	applicationNamespaces = append(applicationNamespaces, "namespace1")
+	applicationNamespaces = append(applicationNamespaces, "namespace2")
+
+	// app is in same namespace as controller's namespace
+	app.SetNamespace(namespace)
+	assert.False(t, checkAppNotInAdditionalNamespaces(app, namespace, applicationNamespaces))
+
+	// app is not in the namespace as controller's namespace, but it is in one of the applicationNamespaces
+	app.SetNamespace("namespace2")
+	assert.False(t, checkAppNotInAdditionalNamespaces(app, "", applicationNamespaces))
+
+	// app is not in the namespace as controller's namespace, and it is not in any of the applicationNamespaces
+	app.SetNamespace("namespace3")
+	assert.True(t, checkAppNotInAdditionalNamespaces(app, "", applicationNamespaces))
 }

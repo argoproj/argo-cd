@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
@@ -19,13 +20,13 @@ func main() {
 
 func generateNotificationsDocs() {
 	_ = os.RemoveAll("./docs/operator-manual/notifications/services")
-	_ = os.MkdirAll("./docs/operator-manual/notifications/services", 0755)
+	_ = os.MkdirAll("./docs/operator-manual/notifications/services", 0o755)
 	files, err := docs.CopyServicesDocs("./docs/operator-manual/notifications/services")
 	if err != nil {
 		log.Fatal(err)
 	}
 	if files != nil {
-		if e := updateMkDocsNav("Operator Manual", "Notification", "Notification Services", files); e != nil {
+		if e := updateMkDocsNav("Operator Manual", "Notifications", "Notification Services", files); e != nil {
 			log.Fatal(e)
 		}
 	}
@@ -49,6 +50,9 @@ func updateMkDocsNav(parent string, child string, subchild string, files []strin
 	}
 	rootnavitemmap := rootitem.(map[interface{}]interface{})
 	childnav, _ := findNavItem(rootnavitemmap[parent].([]interface{}), child)
+	if childnav == nil {
+		return fmt.Errorf("Can't find '%s' chile item under '%s' parent item in mkdoc.yml", child, parent)
+	}
 
 	childnavmap := childnav.(map[interface{}]interface{})
 	childnavitems := childnavmap[child].([]interface{})
@@ -61,7 +65,12 @@ func updateMkDocsNav(parent string, child string, subchild string, files []strin
 	if err != nil {
 		return err
 	}
-	return os.WriteFile("mkdocs.yml", newmkdocs, 0644)
+
+	// The marshaller drops custom tags, so re-add this one. Turns out this is much less invasive than trying to handle
+	// it at the YAML parser level.
+	newmkdocs = bytes.Replace(newmkdocs, []byte("site_url: READTHEDOCS_CANONICAL_URL"), []byte("site_url: !ENV READTHEDOCS_CANONICAL_URL"), 1)
+
+	return os.WriteFile("mkdocs.yml", newmkdocs, 0o644)
 }
 
 func trimPrefixes(files []string, prefix string) {

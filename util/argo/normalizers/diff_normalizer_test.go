@@ -19,24 +19,24 @@ func TestNormalizeObjectWithMatchedGroupKind(t *testing.T) {
 		Group:        "apps",
 		Kind:         "Deployment",
 		JSONPointers: []string{"/not-matching-path", "/spec/template/spec/containers"},
-	}}, make(map[string]v1alpha1.ResourceOverride))
+	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
 
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	deployment := test.NewDeployment()
 
 	_, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.True(t, has)
 
 	err = normalizer.Normalize(deployment)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.False(t, has)
 
 	err = normalizer.Normalize(nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestNormalizeNoMatchedGroupKinds(t *testing.T) {
@@ -44,17 +44,17 @@ func TestNormalizeNoMatchedGroupKinds(t *testing.T) {
 		Group:        "",
 		Kind:         "Service",
 		JSONPointers: []string{"/spec"},
-	}}, make(map[string]v1alpha1.ResourceOverride))
+	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
 
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	deployment := test.NewDeployment()
 
 	err = normalizer.Normalize(deployment)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	_, hasSpec, err := unstructured.NestedMap(deployment.Object, "spec")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.True(t, hasSpec)
 }
 
@@ -63,20 +63,20 @@ func TestNormalizeMatchedResourceOverrides(t *testing.T) {
 		"apps/Deployment": {
 			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers"}},
 		},
-	})
+	}, IgnoreNormalizerOpts{})
 
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	deployment := test.NewDeployment()
 
 	_, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.True(t, has)
 
 	err = normalizer.Normalize(deployment)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.False(t, has)
 }
 
@@ -118,20 +118,20 @@ func TestNormalizeMissingJsonPointer(t *testing.T) {
 		"apiextensions.k8s.io/CustomResourceDefinition": {
 			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/spec/additionalPrinterColumns/0/priority"}},
 		},
-	})
-	assert.NoError(t, err)
+	}, IgnoreNormalizerOpts{})
+	require.NoError(t, err)
 
 	deployment := test.NewDeployment()
 
 	err = normalizer.Normalize(deployment)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	crd := unstructured.Unstructured{}
 	err = yaml.Unmarshal([]byte(testCRDYAML), &crd)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = normalizer.Normalize(&crd)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestNormalizeGlobMatch(t *testing.T) {
@@ -139,20 +139,20 @@ func TestNormalizeGlobMatch(t *testing.T) {
 		"*/*": {
 			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers"}},
 		},
-	})
+	}, IgnoreNormalizerOpts{})
 
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	deployment := test.NewDeployment()
 
 	_, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.True(t, has)
 
 	err = normalizer.Normalize(deployment)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	_, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.False(t, has)
 }
 
@@ -161,9 +161,9 @@ func TestNormalizeJQPathExpression(t *testing.T) {
 		Group:             "apps",
 		Kind:              "Deployment",
 		JQPathExpressions: []string{".spec.template.spec.initContainers[] | select(.name == \"init-container-0\")"},
-	}}, make(map[string]v1alpha1.ResourceOverride))
+	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
 
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	deployment := test.NewDeployment()
 
@@ -171,24 +171,24 @@ func TestNormalizeJQPathExpression(t *testing.T) {
 	initContainers = append(initContainers, map[string]interface{}{"name": "init-container-0"})
 	initContainers = append(initContainers, map[string]interface{}{"name": "init-container-1"})
 	err = unstructured.SetNestedSlice(deployment.Object, initContainers, "spec", "template", "spec", "initContainers")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	actualInitContainers, has, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "initContainers")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.True(t, has)
 	assert.Len(t, actualInitContainers, 2)
 
 	err = normalizer.Normalize(deployment)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	actualInitContainers, has, err = unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "initContainers")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.True(t, has)
 	assert.Len(t, actualInitContainers, 1)
 
 	actualInitContainerName, has, err := unstructured.NestedString(actualInitContainers[0].(map[string]interface{}), "name")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.True(t, has)
-	assert.Equal(t, actualInitContainerName, "init-container-1")
+	assert.Equal(t, "init-container-1", actualInitContainerName)
 }
 
 func TestNormalizeIllegalJQPathExpression(t *testing.T) {
@@ -197,9 +197,9 @@ func TestNormalizeIllegalJQPathExpression(t *testing.T) {
 		Kind:              "Deployment",
 		JQPathExpressions: []string{".spec.template.spec.containers[] | select(.name == \"missing-quote)"},
 		// JSONPointers: []string{"no-starting-slash"},
-	}}, make(map[string]v1alpha1.ResourceOverride))
+	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
 
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestNormalizeJQPathExpressionWithError(t *testing.T) {
@@ -207,19 +207,19 @@ func TestNormalizeJQPathExpressionWithError(t *testing.T) {
 		Group:             "apps",
 		Kind:              "Deployment",
 		JQPathExpressions: []string{".spec.fakeField.foo[]"},
-	}}, make(map[string]v1alpha1.ResourceOverride))
+	}}, make(map[string]v1alpha1.ResourceOverride), IgnoreNormalizerOpts{})
 
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	deployment := test.NewDeployment()
 	originalDeployment, err := deployment.MarshalJSON()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	err = normalizer.Normalize(deployment)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	normalizedDeployment, err := deployment.MarshalJSON()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, originalDeployment, normalizedDeployment)
 }
 
@@ -230,8 +230,8 @@ func TestNormalizeExpectedErrorAreSilenced(t *testing.T) {
 				JSONPointers: []string{"/invalid", "/invalid/json/path"},
 			},
 		},
-	})
-	assert.Nil(t, err)
+	}, IgnoreNormalizerOpts{})
+	require.NoError(t, err)
 
 	ignoreNormalizer := normalizer.(*ignoreNormalizer)
 	assert.Len(t, ignoreNormalizer.patches, 2)
@@ -240,7 +240,7 @@ func TestNormalizeExpectedErrorAreSilenced(t *testing.T) {
 
 	deployment := test.NewDeployment()
 	deploymentData, err := json.Marshal(deployment)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	// Error: "error in remove for path: '/invalid': Unable to remove nonexistent key: invalid: missing value"
 	_, err = jsonPatch.Apply(deploymentData)
@@ -251,7 +251,28 @@ func TestNormalizeExpectedErrorAreSilenced(t *testing.T) {
 	assert.False(t, shouldLogError(err))
 
 	assert.True(t, shouldLogError(fmt.Errorf("An error that should not be ignored")))
+}
 
+func TestJqPathExpressionFailWithTimeout(t *testing.T) {
+	normalizer, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{}, map[string]v1alpha1.ResourceOverride{
+		"*/*": {
+			IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+				JQPathExpressions: []string{"until(true==false; [.] + [1])"},
+			},
+		},
+	}, IgnoreNormalizerOpts{})
+	require.NoError(t, err)
+
+	ignoreNormalizer := normalizer.(*ignoreNormalizer)
+	assert.Len(t, ignoreNormalizer.patches, 1)
+	jqPatch := ignoreNormalizer.patches[0]
+
+	deployment := test.NewDeployment()
+	deploymentData, err := json.Marshal(deployment)
+	require.NoError(t, err)
+
+	_, err = jqPatch.Apply(deploymentData)
+	assert.ErrorContains(t, err, "JQ patch execution timed out")
 }
 
 func TestJQPathExpressionReturnsHelpfulError(t *testing.T) {
@@ -259,9 +280,9 @@ func TestJQPathExpressionReturnsHelpfulError(t *testing.T) {
 		Kind: "ConfigMap",
 		// This is a really wild expression, but it does trigger the desired error.
 		JQPathExpressions: []string{`.nothing) | .data["config.yaml"] |= (fromjson | del(.auth) | tojson`},
-	}}, nil)
+	}}, nil, IgnoreNormalizerOpts{})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	configMap := test.NewConfigMap()
 	require.NoError(t, err)

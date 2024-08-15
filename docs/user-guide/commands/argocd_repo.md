@@ -8,6 +8,24 @@ Manage repository connection parameters
 argocd repo [flags]
 ```
 
+### Examples
+
+```
+
+# Add git repository connection parameters
+argocd repo add git@git.example.com:repos/repo
+
+# Get a Configured Repository by URL
+argocd repo get https://github.com/yourusername/your-repo.git
+
+# List Configured Repositories
+argocd repo list
+
+# Remove Repository Credentials
+argocd repo rm https://github.com/yourusername/your-repo.git
+
+```
+
 ### Options
 
 ```
@@ -19,6 +37,7 @@ argocd repo [flags]
       --client-key string              Path to a client key file for TLS
       --cluster string                 The name of the kubeconfig cluster to use
       --context string                 The name of the kubeconfig context to use
+      --disable-compression            If true, opt-out of response compression for all requests to the server
   -h, --help                           help for repo
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string              Path to a kube config. Only required if out-of-cluster

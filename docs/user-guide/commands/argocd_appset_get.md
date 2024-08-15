@@ -8,6 +8,13 @@ Get ApplicationSet details
 argocd appset get APPSETNAME [flags]
 ```
 
+### Examples
+
+```
+  # Get ApplicationSets
+  argocd appset get APPSETNAME
+```
+
 ### Options
 
 ```

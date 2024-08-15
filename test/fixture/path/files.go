@@ -10,7 +10,6 @@ import (
 
 // CopyDir copies the contents of a directory from 'src' to 'dest'
 func CopyDir(src string, dest string) error {
-
 	mode, err := os.Stat(src)
 	if err != nil {
 		return err

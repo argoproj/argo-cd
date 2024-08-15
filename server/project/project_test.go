@@ -12,6 +12,7 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
@@ -92,17 +93,15 @@ func TestProjectServer(t *testing.T) {
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB)
 		err := projectServer.NormalizeProjs()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		appList, err := projectServer.appclientset.ArgoprojV1alpha1().AppProjects(projectWithRole.Namespace).List(context.Background(), v1.ListOptions{})
-		assert.NoError(t, err)
-		assert.Equal(t, appList.Items[0].Status.JWTTokensByRole[roleName].Items[0].IssuedAt, int64(1))
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), appList.Items[0].Status.JWTTokensByRole[roleName].Items[0].IssuedAt)
 		assert.ElementsMatch(t, appList.Items[0].Status.JWTTokensByRole[roleName].Items, appList.Items[0].Spec.Roles[0].JWTTokens)
-
 	})
 
 	t.Run("TestClusterUpdateDenied", func(t *testing.T) {
-
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -117,7 +116,6 @@ func TestProjectServer(t *testing.T) {
 	})
 
 	t.Run("TestReposUpdateDenied", func(t *testing.T) {
-
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -132,7 +130,6 @@ func TestProjectServer(t *testing.T) {
 	})
 
 	t.Run("TestClusterResourceWhitelistUpdateDenied", func(t *testing.T) {
-
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -147,7 +144,6 @@ func TestProjectServer(t *testing.T) {
 	})
 
 	t.Run("TestNamespaceResourceBlacklistUpdateDenied", func(t *testing.T) {
-
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
@@ -177,7 +173,7 @@ func TestProjectServer(t *testing.T) {
 
 		_, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
-		assert.Nil(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("TestRemoveDestinationUsedByApp", func(t *testing.T) {
@@ -194,7 +190,7 @@ func TestProjectServer(t *testing.T) {
 
 		_, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
-		assert.NotNil(t, err)
+		require.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
 	})
@@ -213,7 +209,7 @@ func TestProjectServer(t *testing.T) {
 
 		_, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
-		assert.Nil(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("TestRemoveSourceUsedByApp", func(t *testing.T) {
@@ -230,7 +226,7 @@ func TestProjectServer(t *testing.T) {
 
 		_, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
-		assert.NotNil(t, err)
+		require.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
 	})
@@ -250,7 +246,7 @@ func TestProjectServer(t *testing.T) {
 
 		res, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.ElementsMatch(t, res.Spec.SourceRepos, updatedProj.Spec.SourceRepos)
 	})
 
@@ -279,7 +275,7 @@ func TestProjectServer(t *testing.T) {
 
 		res, err := projectServer.Update(context.Background(), &project.ProjectUpdateRequest{Project: updatedProj})
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.ElementsMatch(t, res.Spec.Destinations, updatedProj.Spec.Destinations)
 	})
 
@@ -289,7 +285,7 @@ func TestProjectServer(t *testing.T) {
 
 		_, err := projectServer.Delete(context.Background(), &project.ProjectQuery{Name: "test"})
 
-		assert.Nil(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("TestDeleteDefaultProjectFailure", func(t *testing.T) {
@@ -316,7 +312,7 @@ func TestProjectServer(t *testing.T) {
 
 		_, err := projectServer.Delete(context.Background(), &project.ProjectQuery{Name: "test"})
 
-		assert.NotNil(t, err)
+		require.Error(t, err)
 		statusCode, _ := status.FromError(err)
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
 	})
@@ -351,7 +347,7 @@ func TestProjectServer(t *testing.T) {
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr, argoDB)
 		_, err := projectServer.CreateToken(ctx, &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	_ = enforcer.SetBuiltinPolicy(`p, role:admin, projects, update, *, allow`)
@@ -365,16 +361,16 @@ func TestProjectServer(t *testing.T) {
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), clientset, enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr, argoDB)
 		tokenResponse, err := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 100})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		claims, _, err := sessionMgr.Parse(tokenResponse.Token)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		mapClaims, err := jwtutil.MapClaims(claims)
 		subject, ok := mapClaims["sub"].(string)
 		assert.True(t, ok)
 		expectedSubject := fmt.Sprintf(JWTTokenSubFormat, projectWithRole.Name, tokenName)
 		assert.Equal(t, expectedSubject, subject)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("TestCreateTokenWithIDSuccessfully", func(t *testing.T) {
@@ -386,16 +382,16 @@ func TestProjectServer(t *testing.T) {
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), clientset, enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr, argoDB)
 		tokenResponse, err := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1, Id: id})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		claims, _, err := sessionMgr.Parse(tokenResponse.Token)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		mapClaims, err := jwtutil.MapClaims(claims)
 		subject, ok := mapClaims["sub"].(string)
 		assert.True(t, ok)
 		expectedSubject := fmt.Sprintf(JWTTokenSubFormat, projectWithRole.Name, tokenName)
 		assert.Equal(t, expectedSubject, subject)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("TestCreateTokenWithSameIdDeny", func(t *testing.T) {
@@ -408,16 +404,16 @@ func TestProjectServer(t *testing.T) {
 		projectServer := NewServer("default", fake.NewSimpleClientset(), clientset, enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr, argoDB)
 		tokenResponse, err := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1, Id: id})
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		claims, _, err := sessionMgr.Parse(tokenResponse.Token)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		mapClaims, err := jwtutil.MapClaims(claims)
 		subject, ok := mapClaims["sub"].(string)
 		assert.True(t, ok)
 		expectedSubject := fmt.Sprintf(JWTTokenSubFormat, projectWithRole.Name, tokenName)
 		assert.Equal(t, expectedSubject, subject)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		_, err1 := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1, Id: id})
 		expectedErr := fmt.Sprintf("rpc error: code = InvalidArgument desc = rpc error: code = InvalidArgument desc = Token id '%s' has been used. ", id)
@@ -449,7 +445,7 @@ func TestProjectServer(t *testing.T) {
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr, argoDB)
 		_, err := projectServer.DeleteToken(ctx, &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: issuedAt})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	_ = enforcer.SetBuiltinPolicy(`p, role:admin, projects, get, *, allow
@@ -465,9 +461,9 @@ p, role:admin, projects, update, *, allow`)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr, argoDB)
 		_, err := projectServer.DeleteToken(ctx, &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: issuedAt})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		projWithoutToken, err := projectServer.Get(context.Background(), &project.ProjectQuery{Name: projWithToken.Name})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, projWithoutToken.Spec.Roles, 1)
 		assert.Len(t, projWithoutToken.Spec.Roles[0].JWTTokens, 1)
 		assert.Equal(t, projWithoutToken.Spec.Roles[0].JWTTokens[0].IssuedAt, secondIssuedAt)
@@ -489,9 +485,9 @@ p, role:admin, projects, update, *, allow`)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr, argoDB)
 		_, err := projectServer.DeleteToken(ctx, &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: secondIssuedAt, Id: id})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		projWithoutToken, err := projectServer.Get(context.Background(), &project.ProjectQuery{Name: projWithToken.Name})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, projWithoutToken.Spec.Roles, 1)
 		assert.Len(t, projWithoutToken.Spec.Roles[0].JWTTokens, 1)
 		assert.Equal(t, projWithoutToken.Spec.Roles[0].JWTTokens[0].IssuedAt, secondIssuedAt)
@@ -508,15 +504,14 @@ p, role:admin, projects, update, *, allow`)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr, argoDB)
 		_, err := projectServer.CreateToken(context.Background(), &project.ProjectTokenCreateRequest{Project: projWithToken.Name, Role: tokenName})
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		projWithTwoTokens, err := projectServer.Get(context.Background(), &project.ProjectQuery{Name: projWithToken.Name})
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		assert.Len(t, projWithTwoTokens.Spec.Roles, 1)
 		assert.Len(t, projWithTwoTokens.Spec.Roles[0].JWTTokens, 2)
 	})
 
 	t.Run("TestAddWildcardSource", func(t *testing.T) {
-
 		proj := existingProj.DeepCopy()
 		wildSourceRepo := "*"
 		proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, wildSourceRepo)
@@ -524,7 +519,7 @@ p, role:admin, projects, update, *, allow`)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj), enforcer, sync.NewKeyLock(), nil, policyEnf, projInformer, settingsMgr, argoDB)
 		request := &project.ProjectUpdateRequest{Project: proj}
 		updatedProj, err := projectServer.Update(context.Background(), request)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, wildSourceRepo, updatedProj.Spec.SourceRepos[1])
 	})
 
@@ -543,10 +538,10 @@ p, role:admin, projects, update, *, allow`)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, policyEnf, projInformer, settingsMgr, argoDB)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		t.Log(projWithRole.Spec.Roles[0].Policies[0])
 		expectedPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, role.Name, action, projWithRole.Name, object, effect)
-		assert.Equal(t, projWithRole.Spec.Roles[0].Policies[0], expectedPolicy)
+		assert.Equal(t, expectedPolicy, projWithRole.Spec.Roles[0].Policies[0])
 	})
 
 	t.Run("TestValidatePolicyDuplicatePolicyFailure", func(t *testing.T) {
@@ -585,7 +580,7 @@ p, role:admin, projects, update, *, allow`)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
-		assert.Contains(t, err.Error(), "object must be of form 'test/*' or 'test/<APPNAME>'")
+		assert.Contains(t, err.Error(), "object must be of form 'test/*', 'test[/<NAMESPACE>]/<APPNAME>' or 'test/<APPNAME>'")
 	})
 
 	t.Run("TestValidateProjectIncorrectProjectInRoleFailure", func(t *testing.T) {
@@ -652,7 +647,7 @@ p, role:admin, projects, update, *, allow`)
 
 		projWithRole := existingProj.DeepCopy()
 		role := v1alpha1.ProjectRole{Name: roleName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
-		noSpacesPolicyTemplate := strings.Replace(policyTemplate, " ", "", -1)
+		noSpacesPolicyTemplate := strings.ReplaceAll(policyTemplate, " ", "")
 		invalidPolicy := fmt.Sprintf(noSpacesPolicyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object, effect)
 		role.Policies = append(role.Policies, invalidPolicy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
@@ -660,7 +655,7 @@ p, role:admin, projects, update, *, allow`)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		updateProj, err := projectServer.Update(context.Background(), request)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		expectedPolicy := fmt.Sprintf(policyTemplate, projWithRole.Name, roleName, action, projWithRole.Name, object, effect)
 		assert.Equal(t, expectedPolicy, updateProj.Spec.Roles[0].Policies[0])
 	})
@@ -674,8 +669,8 @@ p, role:admin, projects, update, *, allow`)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB)
 		res, err := projectServer.GetSyncWindowsState(ctx, &project.SyncWindowsQuery{Name: projectWithSyncWindows.Name})
-		assert.NoError(t, err)
-		assert.Equal(t, 1, len(res.Windows))
+		require.NoError(t, err)
+		assert.Len(t, res.Windows, 1)
 	})
 
 	t.Run("TestGetSyncWindowsStateCannotGetProjectDetails", func(t *testing.T) {
@@ -707,7 +702,6 @@ p, role:admin, projects, update, *, allow`)
 		_, err := projectServer.GetSyncWindowsState(ctx, &project.SyncWindowsQuery{Name: projectWithSyncWindows.Name})
 		assert.EqualError(t, err, "rpc error: code = PermissionDenied desc = permission denied: projects, get, test")
 	})
-
 }
 
 func newEnforcer(kubeclientset *fake.Clientset) *rbac.Enforcer {

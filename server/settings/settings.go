@@ -109,7 +109,6 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		UserLoginsDisabled:        userLoginsDisabled,
 		KustomizeVersions:         kustomizeVersions,
 		UiCssURL:                  argoCDSettings.UiCssURL,
-		PasswordPattern:           argoCDSettings.PasswordPattern,
 		TrackingMethod:            trackingMethod,
 		ExecEnabled:               argoCDSettings.ExecEnabled,
 		AppsInAnyNamespaceEnabled: s.appsInAnyNamespaceEnabled,
@@ -122,6 +121,9 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		set.UiBannerPosition = argoCDSettings.UiBannerPosition
 		set.ControllerNamespace = s.mgr.GetNamespace()
 	}
+	if sessionmgr.LoggedIn(ctx) {
+		set.PasswordPattern = argoCDSettings.PasswordPattern
+	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig
 		err = yaml.Unmarshal([]byte(argoCDSettings.DexConfig), &cfg)
@@ -131,11 +133,12 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 	}
 	if oidcConfig := argoCDSettings.OIDCConfig(); oidcConfig != nil {
 		set.OIDCConfig = &settingspkg.OIDCConfig{
-			Name:        oidcConfig.Name,
-			Issuer:      oidcConfig.Issuer,
-			ClientID:    oidcConfig.ClientID,
-			CLIClientID: oidcConfig.CLIClientID,
-			Scopes:      oidcConfig.RequestedScopes,
+			Name:                     oidcConfig.Name,
+			Issuer:                   oidcConfig.Issuer,
+			ClientID:                 oidcConfig.ClientID,
+			CLIClientID:              oidcConfig.CLIClientID,
+			Scopes:                   oidcConfig.RequestedScopes,
+			EnablePKCEAuthentication: oidcConfig.EnablePKCEAuthentication,
 		}
 		if len(argoCDSettings.OIDCConfig().RequestedIDTokenClaims) > 0 {
 			set.OIDCConfig.IDTokenClaims = argoCDSettings.OIDCConfig().RequestedIDTokenClaims

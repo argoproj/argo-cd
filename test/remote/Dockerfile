@@ -1,6 +1,6 @@
-ARG BASE_IMAGE=docker.io/library/ubuntu:22.04
+ARG BASE_IMAGE=docker.io/library/ubuntu:24.04@sha256:3f85b7caad41a95462cf5b787d8a04604c8262cdcdf9a472b8c52ef83375fe15
 
-FROM docker.io/library/golang:1.21.1@sha256:2270a408c4cb38f8459839082d89afa4a2870773c509adf7641e9558167d0030 AS go
+FROM docker.io/library/golang:1.22.0@sha256:7b297d9abee021bab9046e492506b3c2da8a3722cbf301653186545ecc1e00bb AS go
 
 RUN go install github.com/mattn/goreman@latest && \
     go install github.com/kisielk/godepgraph@latest

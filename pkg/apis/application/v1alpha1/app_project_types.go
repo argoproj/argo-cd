@@ -17,6 +17,24 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+type ErrApplicationNotAllowedToUseProject struct {
+	application string
+	namespace   string
+	project     string
+}
+
+func NewErrApplicationNotAllowedToUseProject(application, namespace, project string) error {
+	return &ErrApplicationNotAllowedToUseProject{
+		application: application,
+		namespace:   namespace,
+		project:     project,
+	}
+}
+
+func (err *ErrApplicationNotAllowedToUseProject) Error() string {
+	return fmt.Sprintf("application '%s' in namespace '%s' is not allowed to use project %s", err.application, err.namespace, err.project)
+}
+
 // AppProjectList is list of AppProject resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AppProjectList struct {
@@ -94,7 +112,6 @@ func (p *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*J
 				return &token, i, nil
 			}
 		}
-
 	}
 
 	if issuedAt != -1 {
@@ -126,10 +143,10 @@ func (p AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) err
 	}
 
 	if err1 == nil || err2 == nil {
-		//If we find this token from either places, we can say there are no error
+		// If we find this token from either places, we can say there are no error
 		return nil
 	} else {
-		//If we could not locate this taken from either places, we can return any of the errors
+		// If we could not locate this taken from either places, we can return any of the errors
 		return err2
 	}
 }
@@ -410,7 +427,7 @@ func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination, projec
 	if destinationMatched && proj.Spec.PermitOnlyProjectScopedClusters {
 		clusters, err := projectClusters(proj.Name)
 		if err != nil {
-			return false, fmt.Errorf("could not retrieve project clusters: %s", err)
+			return false, fmt.Errorf("could not retrieve project clusters: %w", err)
 		}
 
 		for _, cluster := range clusters {
@@ -545,5 +562,5 @@ func (p AppProject) IsAppNamespacePermitted(app *Application, controllerNs strin
 		return true
 	}
 
-	return glob.MatchStringInList(p.Spec.SourceNamespaces, app.Namespace, false)
+	return glob.MatchStringInList(p.Spec.SourceNamespaces, app.Namespace, glob.REGEXP)
 }

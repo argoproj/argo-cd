@@ -20,7 +20,7 @@ exports[`ProgressPopup.0% 1`] = `
       >
         <div
           style={
-            Object {
+            {
               "background": "#CCD6DD",
               "borderRadius": "5px",
               "height": "10px",
@@ -31,7 +31,7 @@ exports[`ProgressPopup.0% 1`] = `
         >
           <div
             style={
-              Object {
+              {
                 "background": "#18BE94",
                 "borderRadius": "inherit",
                 "height": "100%",
@@ -48,7 +48,7 @@ exports[`ProgressPopup.0% 1`] = `
     >
       <div
         style={
-          Object {
+          {
             "textAlign": "right",
           }
         }
@@ -78,7 +78,7 @@ exports[`ProgressPopup.50% 1`] = `
       >
         <div
           style={
-            Object {
+            {
               "background": "#CCD6DD",
               "borderRadius": "5px",
               "height": "10px",
@@ -89,7 +89,7 @@ exports[`ProgressPopup.50% 1`] = `
         >
           <div
             style={
-              Object {
+              {
                 "background": "#18BE94",
                 "borderRadius": "inherit",
                 "height": "100%",
@@ -106,7 +106,7 @@ exports[`ProgressPopup.50% 1`] = `
     >
       <div
         style={
-          Object {
+          {
             "textAlign": "right",
           }
         }
@@ -136,7 +136,7 @@ exports[`ProgressPopup.100% 1`] = `
       >
         <div
           style={
-            Object {
+            {
               "background": "#CCD6DD",
               "borderRadius": "5px",
               "height": "10px",
@@ -147,7 +147,7 @@ exports[`ProgressPopup.100% 1`] = `
         >
           <div
             style={
-              Object {
+              {
                 "background": "#18BE94",
                 "borderRadius": "inherit",
                 "height": "100%",
@@ -164,7 +164,7 @@ exports[`ProgressPopup.100% 1`] = `
     >
       <div
         style={
-          Object {
+          {
             "textAlign": "right",
           }
         }
