@@ -14,7 +14,7 @@ func GetGenerators(ctx context.Context, c client.Client, k8sClient kubernetes.In
 	terminalGenerators := map[string]Generator{
 		"List":                    NewListGenerator(),
 		"Clusters":                NewClusterGenerator(c, ctx, k8sClient, namespace),
-		"Git":                     NewGitGenerator(argoCDService),
+		"Git":                     NewGitGenerator(argoCDService, namespace),
 		"SCMProvider":             NewSCMProviderGenerator(c, scmConfig),
 		"ClusterDecisionResource": NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
 		"PullRequest":             NewPullRequestGenerator(c, scmConfig),
