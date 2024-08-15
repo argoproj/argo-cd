@@ -503,7 +503,7 @@ func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSetInfo *argov1
 func ignoreNotAllowedNamespaces(namespaces []string) predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
-			return glob.MatchStringInList(namespaces, e.Object.GetNamespace(), false)
+			return glob.MatchStringInList(namespaces, e.Object.GetNamespace(), glob.REGEXP)
 		},
 	}
 }

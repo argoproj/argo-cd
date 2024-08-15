@@ -100,6 +100,17 @@ possible with Go text templates:
                   - name: throw-away
                     value: "{{end}}"
 
+- Signature verification is not supported for the templated `project` field when using the Git generator.
+
+        ::yaml
+        apiVersion: argoproj.io/v1alpha1
+        kind: ApplicationSet
+        spec:
+          goTemplate: true
+          template:
+            spec:
+              project: {{.project}}
+
 
 ## Migration guide
 
