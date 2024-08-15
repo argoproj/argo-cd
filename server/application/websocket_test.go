@@ -116,7 +116,7 @@ func TestVerifyAndReconnectDisableAuthTrue(t *testing.T) {
 		// Note that running with disableAuth: false will surprisingly succeed as well, because
 		// the underlying token nil pointer dereference is swallowed in a location I didn't find,
 		// or even swallowed by the test framework.
-		ts.terminalOpts = &TerminalOptions{disableAuth: true}
+		ts.terminalOpts = &TerminalOptions{DisableAuth: true}
 		code, err := ts.performValidationsAndReconnect([]byte{})
 		assert.Equal(t, 0, code)
 		require.NoError(t, err)
@@ -133,7 +133,7 @@ func TestValidateWithAdminPermissions(t *testing.T) {
 			return true
 		})
 		ts := newTestTerminalSession(w, r)
-		ts.terminalOpts = &TerminalOptions{enf: enf}
+		ts.terminalOpts = &TerminalOptions{Enf: enf}
 		ts.appRBACName = "test"
 		// nolint:staticcheck
 		ts.ctx = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"admin"}})
@@ -153,7 +153,7 @@ func TestValidateWithoutPermissions(t *testing.T) {
 			return false
 		})
 		ts := newTestTerminalSession(w, r)
-		ts.terminalOpts = &TerminalOptions{enf: enf}
+		ts.terminalOpts = &TerminalOptions{Enf: enf}
 		ts.appRBACName = "test"
 		// nolint:staticcheck
 		ts.ctx = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"test"}})

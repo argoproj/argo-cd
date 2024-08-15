@@ -43,8 +43,8 @@ type terminalHandler struct {
 }
 
 type TerminalOptions struct {
-	disableAuth bool
-	enf         *rbac.Enforcer
+	DisableAuth bool
+	Enf         *rbac.Enforcer
 }
 
 // NewHandler returns a new terminal handler.
@@ -60,14 +60,6 @@ func NewHandler(appLister applisters.ApplicationLister, namespace string, enable
 		sessionManager:    sessionManager,
 		terminalOptions:   terminalOptions,
 	}
-}
-
-func NewTerminalOptions(disableAuth bool, enf *rbac.Enforcer) *TerminalOptions {
-	return &TerminalOptions{
-		disableAuth: disableAuth,
-		enf:         enf,
-	}
-
 }
 
 func (s *terminalHandler) getApplicationClusterRawConfig(ctx context.Context, a *appv1.Application) (*rest.Config, error) {
@@ -157,12 +149,12 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	appRBACName := security.RBACName(s.namespace, project, appNamespace, app)
-	if err := s.terminalOptions.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
+	if err := s.terminalOptions.Enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	if err := s.terminalOptions.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceExec, rbacpolicy.ActionCreate, appRBACName); err != nil {
+	if err := s.terminalOptions.Enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceExec, rbacpolicy.ActionCreate, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}

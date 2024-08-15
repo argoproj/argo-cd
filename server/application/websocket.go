@@ -139,7 +139,7 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 		Operation: "stdout",
 		Data:      "Permission denied",
 	})
-	if err := t.terminalOpts.enf.EnforceErr(t.ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, t.appRBACName); err != nil {
+	if err := t.terminalOpts.Enf.EnforceErr(t.ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, t.appRBACName); err != nil {
 		err = t.wsConn.WriteMessage(websocket.TextMessage, permissionDeniedMessage)
 		if err != nil {
 			log.Errorf("permission denied message err: %v", err)
@@ -147,7 +147,7 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 		return copy(p, EndOfTransmission), permissionDeniedErr
 	}
 
-	if err := t.terminalOpts.enf.EnforceErr(t.ctx.Value("claims"), rbacpolicy.ResourceExec, rbacpolicy.ActionCreate, t.appRBACName); err != nil {
+	if err := t.terminalOpts.Enf.EnforceErr(t.ctx.Value("claims"), rbacpolicy.ResourceExec, rbacpolicy.ActionCreate, t.appRBACName); err != nil {
 		err = t.wsConn.WriteMessage(websocket.TextMessage, permissionDeniedMessage)
 		if err != nil {
 			log.Errorf("permission denied message err: %v", err)
@@ -159,7 +159,7 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 
 func (t *terminalSession) performValidationsAndReconnect(p []byte) (int, error) {
 	// In disable auth mode, no point verifying the token or validating permissions
-	if t.terminalOpts.disableAuth {
+	if t.terminalOpts.DisableAuth {
 		return 0, nil
 	}
 
