@@ -10,6 +10,5 @@ docker pull mcr.microsoft.com/dotnet/aspnet:6.0-alpine
 docker pull mcr.microsoft.com/dotnet/sdk:6.0
 docker pull ghcr.io/cse-labs/webv-red:latest
 
-
 echo "post-start complete"
 echo "$(date +'%Y-%m-%d %H:%M:%S')    post-start complete" >> "$HOME/status"
