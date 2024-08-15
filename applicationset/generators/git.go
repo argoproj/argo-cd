@@ -24,13 +24,16 @@ import (
 var _ Generator = (*GitGenerator)(nil)
 
 type GitGenerator struct {
-	repos services.Repos
+	repos     services.Repos
+	namespace string
 }
 
-func NewGitGenerator(repos services.Repos) Generator {
+func NewGitGenerator(repos services.Repos, namespace string) Generator {
 	g := &GitGenerator{
-		repos: repos,
+		repos:     repos,
+		namespace: namespace,
 	}
+
 	return g
 }
 
@@ -67,7 +70,11 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 	if !strings.Contains(appSet.Spec.Template.Spec.Project, "{{") {
 		project := appSet.Spec.Template.Spec.Project
 		appProject := &argoprojiov1alpha1.AppProject{}
-		if err := client.Get(context.TODO(), types.NamespacedName{Name: project, Namespace: appSet.Namespace}, appProject); err != nil {
+		namespace := g.namespace
+		if namespace == "" {
+			namespace = appSet.Namespace
+		}
+		if err := client.Get(context.TODO(), types.NamespacedName{Name: project, Namespace: namespace}, appProject); err != nil {
 			return nil, fmt.Errorf("error getting project %s: %w", project, err)
 		}
 		// we need to verify the signature on the Git revision if GPG is enabled
