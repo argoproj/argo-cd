@@ -563,6 +563,42 @@ func TestAutoSync(t *testing.T) {
 	assert.False(t, app.Operation.Sync.Prune)
 }
 
+func TestMultiSourceSelfHeal(t *testing.T) {
+	// Simulate OutOfSync caused by object change in cluster
+	// So our Sync Revisions and SyncStatus Revisions should deep equal
+	t.Run("ClusterObjectChangeShouldNotTriggerAutoSync", func(t *testing.T) {
+		app := newFakeMultiSourceApp()
+		app.Spec.SyncPolicy.Automated.SelfHeal = false
+		app.Status.Sync.Revisions = []string{"z", "x", "v"}
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
+		syncStatus := v1alpha1.SyncStatus{
+			Status:    v1alpha1.SyncStatusCodeOutOfSync,
+			Revisions: []string{"z", "x", "v"},
+		}
+		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}})
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Nil(t, app.Operation)
+	})
+
+	t.Run("NewRevisionChangeShouldTriggerAutoSync", func(t *testing.T) {
+		app := newFakeMultiSourceApp()
+		app.Spec.SyncPolicy.Automated.SelfHeal = false
+		app.Status.Sync.Revisions = []string{"a", "b", "c"}
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
+		syncStatus := v1alpha1.SyncStatus{
+			Status:    v1alpha1.SyncStatusCodeOutOfSync,
+			Revisions: []string{"z", "x", "v"},
+		}
+		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}})
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.NotNil(t, app.Operation)
+	})
+}
+
 func TestAutoSyncNotAllowEmpty(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.SyncPolicy.Automated.Prune = true
