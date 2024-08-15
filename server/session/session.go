@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
@@ -23,6 +24,7 @@ type Server struct {
 	authenticator      Authenticator
 	policyEnf          *rbacpolicy.RBACPolicyEnforcer
 	limitLoginAttempts func() (util.Closer, error)
+	kubeClientset      kubernetes.Interface
 }
 
 type Authenticator interface {
@@ -30,8 +32,8 @@ type Authenticator interface {
 }
 
 // NewServer returns a new instance of the Session service
-func NewServer(mgr *sessionmgr.SessionManager, settingsMgr *settings.SettingsManager, authenticator Authenticator, policyEnf *rbacpolicy.RBACPolicyEnforcer, rateLimiter func() (util.Closer, error)) *Server {
-	return &Server{mgr, settingsMgr, authenticator, policyEnf, rateLimiter}
+func NewServer(mgr *sessionmgr.SessionManager, settingsMgr *settings.SettingsManager, authenticator Authenticator, policyEnf *rbacpolicy.RBACPolicyEnforcer, rateLimiter func() (util.Closer, error), kubeClientset kubernetes.Interface) *Server {
+	return &Server{mgr, settingsMgr, authenticator, policyEnf, rateLimiter, kubeClientset}
 }
 
 // Create generates a JWT token signed by Argo CD intended for web/CLI logins of the admin user
@@ -51,7 +53,7 @@ func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*se
 	if q.Username == "" || q.Password == "" {
 		return nil, status.Errorf(codes.Unauthenticated, "no credentials supplied")
 	}
-	err := s.mgr.VerifyUsernamePassword(q.Username, q.Password)
+	err := s.mgr.VerifyUsernamePassword(q.Username, q.Password,s.kubeClientset)
 	if err != nil {
 		return nil, err
 	}
