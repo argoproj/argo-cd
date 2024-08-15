@@ -148,17 +148,22 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 	return &a, nil
 }
 
-func (a *ClientApp) oauth2Config(scopes []string) (*oauth2.Config, error) {
+func (a *ClientApp) oauth2Config(request *http.Request, scopes []string) (*oauth2.Config, error) {
 	endpoint, err := a.provider.Endpoint()
 	if err != nil {
 		return nil, err
+	}
+	redirectURL, err := a.settings.RedirectURLForRequest(request)
+	if err != nil {
+		log.Warnf("Unable to find ArgoCD URL from request, falling back to configured redirect URI: %v", err)
+		redirectURL = a.redirectURI
 	}
 	return &oauth2.Config{
 		ClientID:     a.clientID,
 		ClientSecret: a.clientSecret,
 		Endpoint:     *endpoint,
 		Scopes:       scopes,
-		RedirectURL:  a.redirectURI,
+		RedirectURL:  redirectURL,
 	}, nil
 }
 
@@ -208,7 +213,8 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 	redirectURL := a.baseHRef
 	parts := strings.SplitN(cookieVal, ":", 2)
 	if len(parts) == 2 && parts[1] != "" {
-		if !isValidRedirectURL(parts[1], []string{a.settings.URL, a.baseHRef}) {
+		if !isValidRedirectURL(parts[1],
+			append([]string{a.settings.URL, a.baseHRef}, a.settings.AdditionalURLs...)) {
 			sanitizedUrl := parts[1]
 			if len(sanitizedUrl) > 100 {
 				sanitizedUrl = sanitizedUrl[:100]
@@ -293,14 +299,14 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		scopes = config.RequestedScopes
 		opts = AppendClaimsAuthenticationRequestParameter(opts, config.RequestedIDTokenClaims)
 	}
-	oauth2Config, err := a.oauth2Config(GetScopesOrDefault(scopes))
+	oauth2Config, err := a.oauth2Config(r, GetScopesOrDefault(scopes))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	returnURL := r.FormValue("return_url")
 	// Check if return_url is valid, otherwise abort processing (see https://github.com/argoproj/argo-cd/pull/4780)
-	if !isValidRedirectURL(returnURL, []string{a.settings.URL}) {
+	if !isValidRedirectURL(returnURL, append([]string{a.settings.URL}, a.settings.AdditionalURLs...)) {
 		http.Error(w, "Invalid redirect URL: the protocol and host (including port) must match and the path must be within allowed URLs if provided", http.StatusBadRequest)
 		return
 	}
@@ -332,7 +338,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 // HandleCallback is the callback handler for an OAuth2 login flow
 func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
-	oauth2Config, err := a.oauth2Config(nil)
+	oauth2Config, err := a.oauth2Config(r, nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -398,7 +404,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	sub := jwtutil.StringField(claims, "sub")
 	err = a.clientCache.Set(&cache.Item{
-		Key:    formatAccessTokenCacheKey(AccessTokenCachePrefix, sub),
+		Key:    formatAccessTokenCacheKey(sub),
 		Object: encToken,
 		CacheActionOpts: cache.CacheActionOpts{
 			Expiration: getTokenExpiration(claims),
@@ -551,7 +557,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	var encClaims []byte
 
 	// in case we got it in the cache, we just return the item
-	clientCacheKey := formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, sub)
+	clientCacheKey := formatUserInfoResponseCacheKey(sub)
 	if err := a.clientCache.Get(clientCacheKey, &encClaims); err == nil {
 		claimsRaw, err := crypto.Decrypt(encClaims, a.encryptionKey)
 		if err != nil {
@@ -569,7 +575,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 
 	// check if the accessToken for the user is still present
 	var encAccessToken []byte
-	err := a.clientCache.Get(formatAccessTokenCacheKey(AccessTokenCachePrefix, sub), &encAccessToken)
+	err := a.clientCache.Get(formatAccessTokenCacheKey(sub), &encAccessToken)
 	// without an accessToken we can't query the user info endpoint
 	// thus the user needs to reauthenticate for argocd to get a new accessToken
 	if errors.Is(err, cache.ErrCacheMiss) {
@@ -678,11 +684,11 @@ func getTokenExpiration(claims jwt.MapClaims) time.Duration {
 }
 
 // formatUserInfoResponseCacheKey returns the key which is used to store userinfo of user in cache
-func formatUserInfoResponseCacheKey(prefix, sub string) string {
+func formatUserInfoResponseCacheKey(sub string) string {
 	return fmt.Sprintf("%s_%s", UserInfoResponseCachePrefix, sub)
 }
 
 // formatAccessTokenCacheKey returns the key which is used to store the accessToken of a user in cache
-func formatAccessTokenCacheKey(prefix, sub string) string {
-	return fmt.Sprintf("%s_%s", prefix, sub)
+func formatAccessTokenCacheKey(sub string) string {
+	return fmt.Sprintf("%s_%s", AccessTokenCachePrefix, sub)
 }

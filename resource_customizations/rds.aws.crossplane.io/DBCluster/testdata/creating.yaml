@@ -1,0 +1,48 @@
+apiVersion: rds.aws.crossplane.io/v1alpha1
+kind: DBCluster
+metadata:
+  name: test-rds1
+spec:
+  deletionPolicy: Delete
+  forProvider:
+    allowMajorVersionUpgrade: true
+    applyImmediately: true
+    autogeneratePassword: true
+    databaseName: app
+    dbSubnetGroupName: test-rds
+    engine: aurora-postgresql
+    engineVersion: '16.2'
+    masterUsername: root
+    skipFinalSnapshot: true
+  managementPolicies:
+    - '*'
+  providerConfigRef:
+    name: provider-aws
+  publishConnectionDetailsTo:
+    configRef:
+      name: store-config
+    name: test-rds1-rds
+status:
+  atProvider:
+    activityStreamStatus: stopped
+    clusterCreateTime: '2024-07-15T14:23:42Z'
+    crossAccountClone: false
+    dbClusterARN: 'arn:aws:rds:abc123:cluster:test-rds1'
+    dbClusterIdentifier: test-rds1
+    dbClusterParameterGroup: default.aurora-postgresql16
+    dbClusterResourceID: cluster-abc123
+    dbSubnetGroup: test-rds
+    endpoint: test-rds1.cluster-abc.rds.amazonaws.com
+    status: creating
+    vpcSecurityGroups:
+      - status: active
+        vpcSecurityGroupID: sg-abc123
+  conditions:
+    - lastTransitionTime: '2024-07-15T14:23:42Z'
+      reason: Creating
+      status: 'False'
+      type: Ready
+    - lastTransitionTime: '2024-07-15T14:23:42Z'
+      reason: ReconcileSuccess
+      status: 'True'
+      type: Synced

@@ -95,9 +95,11 @@ func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
 		if *pr.Repository.Name == a.repo {
 			pullRequests = append(pullRequests, &PullRequest{
 				Number:  *pr.PullRequestId,
+				Title:   *pr.Title,
 				Branch:  strings.Replace(*pr.SourceRefName, "refs/heads/", "", 1),
 				HeadSHA: *pr.LastMergeSourceCommit.CommitId,
 				Labels:  azureDevOpsLabels,
+				Author:  strings.Split(*pr.CreatedBy.UniqueName, "@")[0], // Get the part before the @ in the email-address
 			})
 		}
 	}

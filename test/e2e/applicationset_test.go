@@ -2666,6 +2666,7 @@ func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request
 			_, err := io.WriteString(w, `[
   {
     "number": 1,
+    "title": "title1",
     "labels": [
       {
         "name": "preview"
@@ -2678,7 +2679,10 @@ func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request
     "head": {
       "ref": "pull-request",
       "sha": "824a5c987fdfb2b0629e9dbf5f31636c69ba4772"
-    }
+    },
+	"user": {
+	  "login": "testName"
+	}
   }
 ]`)
 			if err != nil {

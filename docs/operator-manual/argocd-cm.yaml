@@ -10,6 +10,10 @@ data:
   # Argo CD's externally facing base URL (optional). Required when configuring SSO
   url: https://argo-cd-demo.argoproj.io
 
+  # Additional externally facing base URLs (optional)
+  additionalUrls: |
+    - https://argo-cd-demo2.argoproj.io
+
   # Enables application status badge feature
   statusbadge.enabled: "true"
 
@@ -247,9 +251,9 @@ data:
 
   # A set of settings that allow enabling or disabling the config management tool.
   # If unset, each defaults to "true".
-  kustomize.enabled: true
-  jsonnet.enabled: true
-  helm.enabled: true
+  kustomize.enabled: "true"
+  jsonnet.enabled: "true"
+  helm.enabled: "true"
 
   # Build options/parameters to use with `kustomize build` (optional)
   kustomize.buildOptions: --load_restrictor none
@@ -365,7 +369,7 @@ data:
     - url: https://mycompany.splunk.com?search={{.spec.destination.namespace}}
       title: Splunk
     # conditionally show link e.g. for specific project
-    # github.com/antonmedv/expr is used for evaluation of conditions
+    # github.com/expr-lang/expr is used for evaluation of conditions
     - url: https://mycompany.splunk.com?search={{.spec.destination.namespace}}
       title: Splunk
       if: spec.project == "default"
@@ -420,3 +424,5 @@ data:
               cluster:
                 name: some-cluster
                 server: https://some-cluster
+  # The maximum size of the payload that can be sent to the webhook server.
+  webhook.maxPayloadSizeMB: 1024

@@ -1,0 +1,23 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  interval: 10m
+  targetNamespace: default
+  sourceRef:
+    kind: GitRepository
+    name: podinfo
+  path: "./kustomize"
+  prune: true
+  timeout: 1m
+status:
+  conditions:
+  - lastTransitionTime: "2024-07-16T12:00:00Z"
+    message: GitRepository.source.toolkit.fluxcd.io "podinfo" not found
+    observedGeneration: 1
+    reason: ArtifactFailed
+    status: "False"
+    type: Ready
+  observedGeneration: -1
