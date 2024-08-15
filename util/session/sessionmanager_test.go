@@ -389,11 +389,12 @@ func TestVerifyUsernamePassword(t *testing.T) {
 	const password = "password"
 
 	for _, tc := range []struct {
-		name     string
-		disabled bool
-		userName string
-		password string
-		expected error
+		name       string
+		disabled   bool
+		userName   string
+		password   string
+		expected   error
+		isK8sToken bool
 	}{
 		{
 			name:     "Success if userName and password is correct",
@@ -423,14 +424,66 @@ func TestVerifyUsernamePassword(t *testing.T) {
 			password: password,
 			expected: status.Errorf(codes.Unauthenticated, accountDisabled, "admin"),
 		},
+		{
+			name:       "Success if Kubernetes token is valid",
+			disabled:   false,
+			userName:   common.ArgoCDAdminUsername,
+			password:   "k8s_token",
+			expected:   nil,
+			isK8sToken: true,
+		},
+		{
+			name:       "Return error if Kubernetes token is invalid",
+			disabled:   false,
+			userName:   common.ArgoCDAdminUsername,
+			password:   "invalid_k8s_token",
+			expected:   status.Errorf(codes.Unauthenticated, invalidLoginError),
+			isK8sToken: true,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(password, !tc.disabled), "argocd")
-
 			mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
-
-			err := mgr.VerifyUsernamePassword(tc.userName, tc.password)
-
+		
+			// Mock Kubernetes clientset for Kubernetes token cases
+			var kubeClientset kubernetes.Interface
+			if tc.isK8sToken {
+				kubeClientset = fake.NewSimpleClientset()
+				if tc.password == "k8s_token" {
+					// Simulate a valid token by generating a dynamic token with an expiration date
+					sa := &corev1.ServiceAccount{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "test-sa",
+							Namespace: "default",
+						},
+					}
+					createdSA, err := kubeClientset.CoreV1().ServiceAccounts("default").Create(context.TODO(), sa, metav1.CreateOptions{})
+					require.NoError(t, err)
+		
+					// Ensure the service account was created successfully
+					require.NotNil(t, createdSA)
+					require.Equal(t, "test-sa", createdSA.Name)
+		
+					tokenRequest := &authv1.TokenRequest{
+						Spec: authv1.TokenRequestSpec{
+							Audiences:         []string{"https://kubernetes.default.svc.cluster.local"},
+							ExpirationSeconds: int64Ptr(3600), // Token valid for 1 hour
+						},
+					}
+					tokenResponse, err := kubeClientset.CoreV1().ServiceAccounts("default").CreateToken(context.TODO(), createdSA.Name, tokenRequest, metav1.CreateOptions{})
+					require.NoError(t, err)
+					require.NotNil(t, tokenResponse)
+					require.NotEmpty(t, tokenResponse.Status.Token)
+		
+					// Override the password with the generated token
+					tc.password = tokenResponse.Status.Token
+				}
+			} else {
+				kubeClientset = nil
+			}
+		
+			err := mgr.VerifyUsernamePassword(tc.userName, tc.password, kubeClientset)
+		
 			if tc.expected == nil {
 				require.NoError(t, err)
 			} else {
@@ -439,6 +492,8 @@ func TestVerifyUsernamePassword(t *testing.T) {
 		})
 	}
 }
+
+func int64Ptr(i int64) *int64 { return &i }
 
 func TestCacheValueGetters(t *testing.T) {
 	t.Run("Default values", func(t *testing.T) {
