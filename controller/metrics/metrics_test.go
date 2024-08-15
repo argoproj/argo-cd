@@ -380,7 +380,7 @@ func assertMetricsNotPrinted(t *testing.T, expectedLines, body string) {
 		if line == "" {
 			continue
 		}
-		assert.NotContains(t, body, expectedLines)
+		assert.False(t, strings.Contains(body, expectedLines))
 	}
 }
 

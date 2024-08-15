@@ -4,9 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -191,22 +188,10 @@ func NewCommand() *cobra.Command {
 				defer closeTracer()
 			}
 
-			// Graceful shutdown code
-			sigCh := make(chan os.Signal, 1)
-			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-			go func() {
-				s := <-sigCh
-				log.Printf("got signal %v, attempting graceful shutdown", s)
-				cancel()
-			}()
-
 			go appController.Run(ctx, statusProcessors, operationProcessors)
 
-			<-ctx.Done()
-
-			log.Println("clean shutdown")
-
-			return nil
+			// Wait forever
+			select {}
 		},
 	}
 

@@ -90,7 +90,7 @@ func TestManifestStream(t *testing.T) {
 
 	go func() {
 		err := manifeststream.SendApplicationManifestQueryWithFiles(context.Background(), appStreamMock, "test", "test", appDir, nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		appStreamMock.done <- true
 	}()
 
@@ -102,7 +102,7 @@ func TestManifestStream(t *testing.T) {
 
 	go func() {
 		err = manifeststream.SendRepoStream(repoStreamMock, appStreamMock, req, *query.Checksum)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		repoStreamMock.done <- true
 	}()
 

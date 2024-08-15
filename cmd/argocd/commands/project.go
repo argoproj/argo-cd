@@ -921,16 +921,6 @@ func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Reposit
 		fmt.Printf(printProjFmtStr, "", p.Spec.SourceRepos[i])
 	}
 
-	// Print source namespaces
-	ns0 := "<none>"
-	if len(p.Spec.SourceNamespaces) > 0 {
-		ns0 = p.Spec.SourceNamespaces[0]
-	}
-	fmt.Printf(printProjFmtStr, "Source Namespaces:", ns0)
-	for i := 1; i < len(p.Spec.SourceNamespaces); i++ {
-		fmt.Printf(printProjFmtStr, "", p.Spec.SourceNamespaces[i])
-	}
-
 	// Print scoped repositories
 	scr0 := "<none>"
 	if len(scopedRepositories) > 0 {

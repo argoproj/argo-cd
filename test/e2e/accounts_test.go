@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/argoproj/pkg/errors"
@@ -49,7 +50,7 @@ func TestCanIGetLogsAllowNoSwitch(t *testing.T) {
 		CanIGetLogs().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, output, "yes")
+			assert.True(t, strings.Contains(output, "yes"))
 		})
 }
 
@@ -64,7 +65,7 @@ func TestCanIGetLogsDenySwitchOn(t *testing.T) {
 		CanIGetLogs().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, output, "no")
+			assert.True(t, strings.Contains(output, "no"))
 		})
 }
 
@@ -92,7 +93,7 @@ func TestCanIGetLogsAllowSwitchOn(t *testing.T) {
 		CanIGetLogs().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, output, "yes")
+			assert.True(t, strings.Contains(output, "yes"))
 		})
 }
 
@@ -107,7 +108,7 @@ func TestCanIGetLogsAllowSwitchOff(t *testing.T) {
 		CanIGetLogs().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, output, "yes")
+			assert.True(t, strings.Contains(output, "yes"))
 		})
 }
 

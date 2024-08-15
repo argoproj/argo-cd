@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -439,7 +440,7 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 		return nil, errors.New("some error")
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "could not retrieve project clusters")
+	assert.True(t, strings.Contains(err.Error(), "could not retrieve project clusters"))
 }
 
 func TestAppProject_IsGroupKindPermitted(t *testing.T) {
@@ -881,153 +882,6 @@ func TestAppSourceEquality(t *testing.T) {
 	assert.True(t, left.Equals(right))
 	right.Directory.Recurse = false
 	assert.False(t, left.Equals(right))
-}
-
-func TestAppSource_GetKubeVersionOrDefault(t *testing.T) {
-	defaultKV := "999.999.999"
-	cases := []struct {
-		name   string
-		source *ApplicationSource
-		expect string
-	}{
-		{
-			"nil source returns default",
-			nil,
-			defaultKV,
-		},
-		{
-			"source without Helm or Kustomize returns default",
-			&ApplicationSource{},
-			defaultKV,
-		},
-		{
-			"source with empty Helm returns default",
-			&ApplicationSource{Helm: &ApplicationSourceHelm{}},
-			defaultKV,
-		},
-		{
-			"source with empty Kustomize returns default",
-			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{}},
-			defaultKV,
-		},
-		{
-			"source with Helm override returns override",
-			&ApplicationSource{Helm: &ApplicationSourceHelm{KubeVersion: "1.2.3"}},
-			"1.2.3",
-		},
-		{
-			"source with Kustomize override returns override",
-			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{KubeVersion: "1.2.3"}},
-			"1.2.3",
-		},
-	}
-
-	for _, tc := range cases {
-		tcc := tc
-		t.Run(tcc.name, func(t *testing.T) {
-			t.Parallel()
-			kv := tcc.source.GetKubeVersionOrDefault(defaultKV)
-			assert.Equal(t, tcc.expect, kv)
-		})
-	}
-}
-
-func TestAppSource_GetAPIVersionsOrDefault(t *testing.T) {
-	defaultAPIVersions := []string{"v1", "v2"}
-	cases := []struct {
-		name   string
-		source *ApplicationSource
-		expect []string
-	}{
-		{
-			"nil source returns default",
-			nil,
-			defaultAPIVersions,
-		},
-		{
-			"source without Helm or Kustomize returns default",
-			&ApplicationSource{},
-			defaultAPIVersions,
-		},
-		{
-			"source with empty Helm returns default",
-			&ApplicationSource{Helm: &ApplicationSourceHelm{}},
-			defaultAPIVersions,
-		},
-		{
-			"source with empty Kustomize returns default",
-			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{}},
-			defaultAPIVersions,
-		},
-		{
-			"source with Helm override returns override",
-			&ApplicationSource{Helm: &ApplicationSourceHelm{APIVersions: []string{"v3", "v4"}}},
-			[]string{"v3", "v4"},
-		},
-		{
-			"source with Kustomize override returns override",
-			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{APIVersions: []string{"v3", "v4"}}},
-			[]string{"v3", "v4"},
-		},
-	}
-
-	for _, tc := range cases {
-		tcc := tc
-		t.Run(tcc.name, func(t *testing.T) {
-			t.Parallel()
-			kv := tcc.source.GetAPIVersionsOrDefault(defaultAPIVersions)
-			assert.Equal(t, tcc.expect, kv)
-		})
-	}
-}
-
-func TestAppSource_GetNamespaceOrDefault(t *testing.T) {
-	defaultNS := "default"
-	cases := []struct {
-		name   string
-		source *ApplicationSource
-		expect string
-	}{
-		{
-			"nil source returns default",
-			nil,
-			defaultNS,
-		},
-		{
-			"source without Helm or Kustomize returns default",
-			&ApplicationSource{},
-			defaultNS,
-		},
-		{
-			"source with empty Helm returns default",
-			&ApplicationSource{Helm: &ApplicationSourceHelm{}},
-			defaultNS,
-		},
-		{
-			"source with empty Kustomize returns default",
-			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{}},
-			defaultNS,
-		},
-		{
-			"source with Helm override returns override",
-			&ApplicationSource{Helm: &ApplicationSourceHelm{Namespace: "not-default"}},
-			"not-default",
-		},
-		{
-			"source with Kustomize override returns override",
-			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{Namespace: "not-default"}},
-			"not-default",
-		},
-	}
-
-	for _, tc := range cases {
-		tcc := tc
-		t.Run(tcc.name, func(t *testing.T) {
-			t.Parallel()
-			kv := tcc.source.GetNamespaceOrDefault(defaultNS)
-			assert.Equal(t, tcc.expect, kv)
-		})
-	}
 }
 
 func TestAppDestinationEquality(t *testing.T) {
@@ -3386,25 +3240,18 @@ func TestGetCAPath(t *testing.T) {
 		"https://foo.example.com",
 		"oci://foo.example.com",
 		"foo.example.com",
-		"foo.example.com/charts",
-		"https://foo.example.com:5000",
-		"foo.example.com:5000",
-		"foo.example.com:5000/charts",
-		"ssh://foo.example.com",
 	}
 	invalidpath := []string{
 		"https://bar.example.com",
 		"oci://bar.example.com",
 		"bar.example.com",
-		"ssh://bar.example.com",
-		"git@foo.example.com:organization/reponame.git",
-		"ssh://git@foo.example.com:organization/reponame.git",
+		"ssh://foo.example.com",
+		"git@example.com:organization/reponame.git",
 		"/some/invalid/thing",
 		"../another/invalid/thing",
 		"./also/invalid",
 		"$invalid/as/well",
 		"..",
-		"://invalid",
 	}
 
 	for _, str := range validcert {

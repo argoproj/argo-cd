@@ -122,7 +122,7 @@ func NewRBACCommand() *cobra.Command {
 	return command
 }
 
-// NewRBACCanCommand is the command for 'rbac can-role'
+// NewRBACCanRoleCommand is the command for 'rbac can-role'
 func NewRBACCanCommand() *cobra.Command {
 	var (
 		policyFile   string

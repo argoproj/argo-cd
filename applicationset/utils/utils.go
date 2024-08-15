@@ -483,7 +483,7 @@ func SlugifyName(args ...interface{}) string {
 	return urlSlug
 }
 
-func getTlsConfigWithCACert(scmRootCAPath string, caCerts []byte) *tls.Config {
+func getTlsConfigWithCACert(scmRootCAPath string) *tls.Config {
 	tlsConfig := &tls.Config{}
 
 	if scmRootCAPath != "" {
@@ -497,12 +497,8 @@ func getTlsConfigWithCACert(scmRootCAPath string, caCerts []byte) *tls.Config {
 			log.Errorf("error reading certificate from file '%s', proceeding without custom rootCA : %s", scmRootCAPath, err)
 			return tlsConfig
 		}
-		caCerts = append(caCerts, rootCA...)
-	}
-
-	if len(caCerts) > 0 {
 		certPool := x509.NewCertPool()
-		ok := certPool.AppendCertsFromPEM(caCerts)
+		ok := certPool.AppendCertsFromPEM([]byte(rootCA))
 		if !ok {
 			log.Errorf("failed to append certificates from PEM: proceeding without custom rootCA")
 		} else {
@@ -512,8 +508,8 @@ func getTlsConfigWithCACert(scmRootCAPath string, caCerts []byte) *tls.Config {
 	return tlsConfig
 }
 
-func GetTlsConfig(scmRootCAPath string, insecure bool, caCerts []byte) *tls.Config {
-	tlsConfig := getTlsConfigWithCACert(scmRootCAPath, caCerts)
+func GetTlsConfig(scmRootCAPath string, insecure bool) *tls.Config {
+	tlsConfig := getTlsConfigWithCACert(scmRootCAPath)
 
 	if insecure {
 		tlsConfig.InsecureSkipVerify = true
