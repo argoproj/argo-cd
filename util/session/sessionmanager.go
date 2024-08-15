@@ -19,6 +19,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	authenticationv1 "k8s.io/api/authentication/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -411,10 +414,11 @@ func (mgr *SessionManager) exceededFailedLoginAttempts(attempt LoginAttempts) bo
 }
 
 // VerifyUsernamePassword verifies if a username/password combo is correct
-func (mgr *SessionManager) VerifyUsernamePassword(username string, password string) error {
+func (mgr *SessionManager) VerifyUsernamePassword(username string, password string, kubeClientset kubernetes.Interface) error {
 	if password == "" {
 		return status.Errorf(codes.Unauthenticated, blankPasswordError)
 	}
+
 	// Enforce maximum length of username on local accounts
 	if len(username) > maxUsernameLength {
 		return status.Errorf(codes.InvalidArgument, usernameTooLongError, maxUsernameLength)
@@ -423,10 +427,10 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 	start := time.Now()
 	if mgr.verificationDelayNoiseEnabled {
 		defer func() {
-			// introduces random delay to protect from timing-based user enumeration attack
+			// Introduces random delay to protect from timing-based user enumeration attack
 			delayNanoseconds := verificationDelayNoiseMin.Nanoseconds() +
 				int64(rand.Intn(int(verificationDelayNoiseMax.Nanoseconds()-verificationDelayNoiseMin.Nanoseconds())))
-			// take into account amount of time spent since the request start
+			// Take into account the amount of time spent since the request start
 			delayNanoseconds = delayNanoseconds - time.Since(start).Nanoseconds()
 			if delayNanoseconds > 0 {
 				mgr.sleep(time.Duration(delayNanoseconds))
@@ -440,23 +444,35 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 		return InvalidLoginErr
 	}
 
+	// Get the Argo CD account details for the provided username
 	account, err := mgr.settingsMgr.GetAccount(username)
 	if err != nil {
 		if errStatus, ok := status.FromError(err); ok && errStatus.Code() == codes.NotFound {
 			mgr.updateFailureCount(username, true)
 			err = InvalidLoginErr
 		}
-		// to prevent time-based user enumeration, we must perform a password
+		// To prevent time-based user enumeration, we must perform a password
 		// hash cycle to keep response time consistent (if the function were
 		// to continue and not return here)
 		_, _ = passwordutil.HashPassword("for_consistent_response_time")
 		return err
 	}
 
-	valid, _ := passwordutil.VerifyPassword(password, account.PasswordHash)
-	if !valid {
-		mgr.updateFailureCount(username, true)
-		return InvalidLoginErr
+	// Allow service account token authentication only for the 'admin' user
+	if username == "admin" && mgr.isKubernetesToken(password) {
+		// Simply verify that the token is valid
+		valid, err := mgr.verifyKubernetesToken(password,kubeClientset)
+		if err != nil || !valid {
+			mgr.updateFailureCount(username, true)
+			return InvalidLoginErr
+		}
+	} else {
+		// If it's not a token or the username isn't 'admin', proceed with standard password verification
+		valid, _ := passwordutil.VerifyPassword(password, account.PasswordHash)
+		if !valid {
+			mgr.updateFailureCount(username, true)
+			return InvalidLoginErr
+		}
 	}
 
 	if !account.Enabled {
@@ -466,8 +482,66 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 	if !account.HasCapability(settings.AccountCapabilityLogin) {
 		return status.Errorf(codes.Unauthenticated, userDoesNotHaveCapability, username, settings.AccountCapabilityLogin)
 	}
+
 	mgr.updateFailureCount(username, false)
 	return nil
+}
+
+// Check if the string is likely a Kubernetes token
+func (mgr *SessionManager) isKubernetesToken(token string) bool {
+    // Parse the JWT token
+    parsedToken, _, err := new(jwt.Parser).ParseUnverified(token, jwt.MapClaims{})
+    if err != nil {
+        return false
+    }
+
+    // Extract the claims from the token
+    claims, ok := parsedToken.Claims.(jwt.MapClaims)
+    if !ok {
+        return false
+    }
+
+    
+    // Check for the `kubernetes.io` claim
+    k8sClaim, ok := claims["kubernetes.io"].(map[string]interface{})
+    if !ok {
+        return false
+    }
+
+    // Check for nested service account attributes
+    _, ok = k8sClaim["serviceaccount"].(map[string]interface{})
+    if !ok {
+        return false
+    }
+
+    return true
+}
+
+// Verify the Kubernetes token to ensure it is valid
+func (mgr *SessionManager) verifyKubernetesToken(token string, kubeClientset kubernetes.Interface) (bool, error) {
+  
+	tokenReview := &authenticationv1.TokenReview{
+        Spec: authenticationv1.TokenReviewSpec{
+            Token: token,
+            Audiences: []string{
+                "https://kubernetes.default.svc.cluster.local", 
+            },
+        },
+    }
+
+	resp, err := kubeClientset.AuthenticationV1().TokenReviews().Create(context.TODO(), tokenReview, metav1.CreateOptions{})
+	if err != nil {
+		log.Errorf("Error during TokenReview creation: %v", err)
+		return false, err
+	}
+
+	if !resp.Status.Authenticated {
+        log.Printf("Token is not authenticated. Error: %v", resp.Status.Error)
+        return false, nil
+    }
+
+	// Return true if the token is authenticated
+	return true, nil
 }
 
 // AuthMiddlewareFunc returns a function that can be used as an
