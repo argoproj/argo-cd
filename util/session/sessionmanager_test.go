@@ -19,12 +19,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	authv1 "k8s.io/api/authentication/v1"
+	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes"
+	
 
 	"github.com/argoproj/argo-cd/v2/common"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -386,8 +387,13 @@ func TestGroups(t *testing.T) {
 	assert.Equal(t, []string{"baz"}, Groups(loggedInContext, []string{"groups"}))
 }
 
+
+
+
 func TestVerifyUsernamePassword(t *testing.T) {
     const password = "password"
+	// Generate a minimal valid JWT with the required claims
+    validK8sToken := generateValidK8sJWT() // A function to generate a valid JWT
 
     for _, tc := range []struct {
         name       string
@@ -429,7 +435,7 @@ func TestVerifyUsernamePassword(t *testing.T) {
             name:       "Success if Kubernetes token is valid",
             disabled:   false,
             userName:   common.ArgoCDAdminUsername,
-            password:   "k8s_token",
+            password:   validK8sToken, // Use the valid JWT instead of a simple string,
             expected:   nil,
             isK8sToken: true,
         },
@@ -437,12 +443,12 @@ func TestVerifyUsernamePassword(t *testing.T) {
             name:       "Return error if Kubernetes token is invalid",
             disabled:   false,
             userName:   common.ArgoCDAdminUsername,
-            password:   "invalid_k8s_token",
+            password:   "invalid_k8s_token", // This can be an invalid JWT or string
             expected:   status.Errorf(codes.Unauthenticated, invalidLoginError),
             isK8sToken: true,
         },
     } {
-        t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
             settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(password, !tc.disabled), "argocd")
             mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
@@ -450,34 +456,27 @@ func TestVerifyUsernamePassword(t *testing.T) {
             if tc.isK8sToken {
                 kubeClientset = fake.NewSimpleClientset()
 
-                if tc.password == "k8s_token" {
-                    // Simulate a valid token by generating a dynamic token with an expiration date
-                    sa := &corev1.ServiceAccount{
-                        ObjectMeta: metav1.ObjectMeta{
-                            Name:      "test-sa",
-                            Namespace: "default",
-                        },
-                    }
-                    createdSA, err := kubeClientset.CoreV1().ServiceAccounts("default").Create(context.TODO(), sa, metav1.CreateOptions{})
-                    require.NoError(t, err)
+                if tc.password == validK8sToken {
+                    // Mock TokenReview response
+                    kubeClientset.(*fake.Clientset).Fake.PrependReactor("create", "tokenreviews", func(action testing.Action) (bool, runtime.Object, error) {
+                        tr := action.(testing.CreateAction).GetObject().(*authenticationv1.TokenReview)
+                        if tr.Spec.Token == validK8sToken { // Use valid JWT
+                            return true, &authenticationv1.TokenReview{
+                                Status: authenticationv1.TokenReviewStatus{
+                                    Authenticated: true,
+                                },
+                            }, nil
+                        }
+                        return true, &authenticationv1.TokenReview{
+                            Status: authenticationv1.TokenReviewStatus{
+                                Authenticated: false,
+                                Error:         "Invalid token",
+                            },
+                        }, nil
+                    })
 
-                    // Ensure the service account was created successfully
-                    require.NotNil(t, createdSA)
-                    require.Equal(t, "test-sa", createdSA.Name)
-
-                    tokenRequest := &authv1.TokenRequest{
-                        Spec: authv1.TokenRequestSpec{
-                            Audiences:         []string{"https://kubernetes.default.svc.cluster.local"},
-                            ExpirationSeconds: int64Ptr(3600), // Token valid for 1 hour
-                        },
-                    }
-                    tokenResponse, err := kubeClientset.CoreV1().ServiceAccounts("default").CreateToken(context.TODO(), "test-sa", tokenRequest, metav1.CreateOptions{})
-                    require.NoError(t, err)
-                    require.NotNil(t, tokenResponse)
-                    require.NotEmpty(t, tokenResponse.Status.Token)
-
-                    // Override the password with the generated token
-                    tc.password = tokenResponse.Status.Token
+                    // Override the password with the fake token
+                    tc.password = validK8sToken
                 }
             } else {
                 kubeClientset = nil
@@ -494,9 +493,25 @@ func TestVerifyUsernamePassword(t *testing.T) {
     }
 }
 
-
-
 func int64Ptr(i int64) *int64 { return &i }
+
+// Helper function to generate a valid Kubernetes JWT for testing
+func generateValidK8sJWT() string {
+   
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+        "kubernetes.io": map[string]interface{}{
+            "serviceaccount": map[string]interface{}{
+                "namespace": "default",
+                "name":      "test-service-account",
+            },
+        },
+    })
+
+    // Sign the token with a dummy key, this key doesn't need to be secure for the test
+    tokenString, _ := token.SignedString([]byte("dummy-secret"))
+    return tokenString
+}
+
 
 func TestCacheValueGetters(t *testing.T) {
 	t.Run("Default values", func(t *testing.T) {
