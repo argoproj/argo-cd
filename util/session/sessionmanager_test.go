@@ -446,10 +446,10 @@ func TestVerifyUsernamePassword(t *testing.T) {
 			settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(password, !tc.disabled), "argocd")
 			mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
-			// Mock Kubernetes clientset for Kubernetes token cases
 			var kubeClientset kubernetes.Interface
 			if tc.isK8sToken {
 				kubeClientset = fake.NewSimpleClientset()
+
 				if tc.password == "k8s_token" {
 					// Simulate a valid token by generating a dynamic token with an expiration date
 					sa := &corev1.ServiceAccount{
@@ -461,9 +461,18 @@ func TestVerifyUsernamePassword(t *testing.T) {
 					createdSA, err := kubeClientset.CoreV1().ServiceAccounts("default").Create(context.TODO(), sa, metav1.CreateOptions{})
 					require.NoError(t, err)
 
+					// Debugging output
+					t.Logf("Created ServiceAccount: %v", createdSA)
+
+
 					// Ensure the service account was created successfully
 					require.NotNil(t, createdSA)
 					require.Equal(t, "test-sa", createdSA.Name)
+
+					// Attempt to retrieve the ServiceAccount to confirm it exists
+					retrievedSA, err := kubeClientset.CoreV1().ServiceAccounts("default").Get(context.TODO(), createdSA.Name, metav1.GetOptions{})
+					require.NoError(t, err)
+					require.NotNil(t, retrievedSA)
 
 					tokenRequest := &authv1.TokenRequest{
 						Spec: authv1.TokenRequestSpec{
@@ -493,6 +502,7 @@ func TestVerifyUsernamePassword(t *testing.T) {
 		})
 	}
 }
+
 
 func int64Ptr(i int64) *int64 { return &i }
 
