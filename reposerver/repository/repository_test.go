@@ -3504,7 +3504,9 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				SyncedRevision: "SYNCEDHEAD",
 				Paths:          []string{"."},
 			},
-		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Revision:"632039659e542ed7de0c170a4fcc1c571b288fc0",
+		}, wantErr: assert.NoError},
 		{name: "ChangedFilesDoNothing", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Init").Return(nil)
@@ -3531,6 +3533,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
 			Changes: true,
+			Revision:"632039659e542ed7de0c170a4fcc1c571b288fc0",
 		}, wantErr: assert.NoError},
 		{name: "NoChangesUpdateCache", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
@@ -3563,7 +3566,9 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				ApplicationSource: &argoappv1.ApplicationSource{Path: "."},
 				KubeVersion:       "v1.16.0",
 			},
-		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError, cacheHit: &cacheHit{
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Revision:"632039659e542ed7de0c170a4fcc1c571b288fc0",
+		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
 			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
 		}},
@@ -3600,7 +3605,9 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 
 				HasMultipleSources: true,
 			},
-		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError, cacheHit: &cacheHit{
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Revision:"632039659e542ed7de0c170a4fcc1c571b288fc0",
+		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
 			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
 		}},
