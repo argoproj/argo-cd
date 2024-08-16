@@ -1,7 +1,6 @@
 package kustomize
 
 import (
-	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -36,7 +35,7 @@ type BuildOpts struct {
 // Kustomize provides wrapper functionality around the `kustomize` command.
 type Kustomize interface {
 	// Build returns a list of unstructured objects from a `kustomize build` command and extract supported parameters
-	Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, buildOpts *BuildOpts) ([]*unstructured.Unstructured, []Image, error)
+	Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, buildOpts *BuildOpts) ([]*unstructured.Unstructured, []Image, []string, error)
 }
 
 // NewKustomizeApp create a new wrapper to run commands on the `kustomize` command-line tool.
@@ -93,7 +92,10 @@ func mapToEditAddArgs(val map[string]string) []string {
 	return args
 }
 
-func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, buildOpts *BuildOpts) ([]*unstructured.Unstructured, []Image, error) {
+func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOptions *v1alpha1.KustomizeOptions, envVars *v1alpha1.Env, buildOpts *BuildOpts) ([]*unstructured.Unstructured, []Image, []string, error) {
+	// commands stores all the commands that were run as part of this build.
+	var commands []string
+
 	env := os.Environ()
 	if envVars != nil {
 		env = append(env, envVars.Environ()...)
@@ -101,7 +103,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 
 	closer, environ, err := k.creds.Environ()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	defer func() { _ = closer.Close() }()
 
@@ -132,17 +134,19 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		if opts.NamePrefix != "" {
 			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "nameprefix", "--", opts.NamePrefix)
 			cmd.Dir = k.path
+			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 		}
 		if opts.NameSuffix != "" {
 			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namesuffix", "--", opts.NameSuffix)
 			cmd.Dir = k.path
+			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 		}
 		if len(opts.Images) > 0 {
@@ -156,9 +160,10 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
+			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 		}
 
@@ -168,7 +173,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			for _, replica := range opts.Replicas {
 				count, err := replica.GetIntCount()
 				if err != nil {
-					return nil, nil, err
+					return nil, nil, nil, err
 				}
 				arg := fmt.Sprintf("%s=%d", replica.Name, count)
 				args = append(args, arg)
@@ -176,9 +181,10 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 
 			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
+			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 		}
 
@@ -197,9 +203,10 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(commonLabels)...)...)
 			cmd.Dir = k.path
+			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 		}
 
@@ -220,18 +227,20 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 			cmd := exec.Command(k.getBinaryPath(), append(args, mapToEditAddArgs(commonAnnotations)...)...)
 			cmd.Dir = k.path
+			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 		}
 
 		if opts.Namespace != "" {
 			cmd := exec.Command(k.getBinaryPath(), "edit", "set", "namespace", "--", opts.Namespace)
 			cmd.Dir = k.path
+			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 		}
 
@@ -239,23 +248,23 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			kustomizationPath := filepath.Join(k.path, "kustomization.yaml")
 			b, err := os.ReadFile(kustomizationPath)
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to load kustomization.yaml: %w", err)
+				return nil, nil, nil, fmt.Errorf("failed to load kustomization.yaml: %w", err)
 			}
 			var kustomization interface{}
 			err = yaml.Unmarshal(b, &kustomization)
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to unmarshal kustomization.yaml: %w", err)
+				return nil, nil, nil, fmt.Errorf("failed to unmarshal kustomization.yaml: %w", err)
 			}
 			kMap, ok := kustomization.(map[string]interface{})
 			if !ok {
-				return nil, nil, fmt.Errorf("expected kustomization.yaml to be type map[string]interface{}, but got %T", kMap)
+				return nil, nil, nil, fmt.Errorf("expected kustomization.yaml to be type map[string]interface{}, but got %T", kMap)
 			}
 			patches, ok := kMap["patches"]
 			if ok {
 				// The kustomization.yaml already had a patches field, so we need to append to it.
 				patchesList, ok := patches.([]interface{})
 				if !ok {
-					return nil, nil, fmt.Errorf("expected 'patches' field in kustomization.yaml to be []interface{}, but got %T", patches)
+					return nil, nil, nil, fmt.Errorf("expected 'patches' field in kustomization.yaml to be []interface{}, but got %T", patches)
 				}
 				// Since the patches from the Application manifest are typed, we need to convert them to a type which
 				// can be appended to the existing list.
@@ -271,23 +280,24 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			}
 			updatedKustomization, err := yaml.Marshal(kMap)
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to marshal kustomization.yaml after adding patches: %w", err)
+				return nil, nil, nil, fmt.Errorf("failed to marshal kustomization.yaml after adding patches: %w", err)
 			}
 			kustomizationFileInfo, err := os.Stat(kustomizationPath)
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to stat kustomization.yaml: %w", err)
+				return nil, nil, nil, fmt.Errorf("failed to stat kustomization.yaml: %w", err)
 			}
 			err = os.WriteFile(kustomizationPath, updatedKustomization, kustomizationFileInfo.Mode())
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to write kustomization.yaml with updated 'patches' field: %w", err)
+				return nil, nil, nil, fmt.Errorf("failed to write kustomization.yaml with updated 'patches' field: %w", err)
 			}
+			commands = append(commands, "# kustomization.yaml updated with patches. There is no `kustomize edit` command for adding patches. In order to generate the manifests in your local environment, you will need to copy the patches into kustomization.yaml manually.")
 		}
 
 		if len(opts.Components) > 0 {
 			// components only supported in kustomize >= v3.7.0
 			// https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md
 			if getSemverSafe().LessThan(semver.MustParse("v3.7.0")) {
-				return nil, nil, fmt.Errorf("kustomize components require kustomize v3.7.0 and above")
+				return nil, nil, nil, fmt.Errorf("kustomize components require kustomize v3.7.0 and above")
 			}
 
 			// add components
@@ -296,9 +306,10 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 			cmd := exec.Command(k.getBinaryPath(), args...)
 			cmd.Dir = k.path
 			cmd.Env = env
+			commands = append(commands, executil.GetCommandArgsToLog(cmd))
 			_, err := executil.Run(cmd)
 			if err != nil {
-				return nil, nil, err
+				return nil, nil, nil, err
 			}
 		}
 	}
@@ -312,17 +323,23 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 	}
 	cmd.Env = env
 	cmd.Dir = k.repoRoot
+	commands = append(commands, executil.GetCommandArgsToLog(cmd))
 	out, err := executil.Run(cmd)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	objs, err := kube.SplitYAML([]byte(out))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return objs, getImageParameters(objs), nil
+	redactedCommands := make([]string, len(commands))
+	for i, c := range commands {
+		redactedCommands[i] = strings.ReplaceAll(c, k.repoRoot, ".")
+	}
+
+	return objs, getImageParameters(objs), redactedCommands, nil
 }
 
 func parseKustomizeBuildOptions(path string, buildOptions string, buildOpts *BuildOpts) []string {
@@ -345,17 +362,6 @@ func isHelmEnabled(buildOptions string) bool {
 }
 
 var KustomizationNames = []string{"kustomization.yaml", "kustomization.yml", "Kustomization"}
-
-// kustomization is a file that describes a configuration consumable by kustomize.
-func (k *kustomize) findKustomization() (string, error) {
-	for _, file := range KustomizationNames {
-		kustomization := filepath.Join(k.path, file)
-		if _, err := os.Stat(kustomization); err == nil {
-			return kustomization, nil
-		}
-	}
-	return "", errors.New("did not find kustomization in " + k.path)
-}
 
 func IsKustomization(path string) bool {
 	for _, kustomization := range KustomizationNames {
