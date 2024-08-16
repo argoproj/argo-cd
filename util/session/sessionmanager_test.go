@@ -24,6 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -444,7 +445,7 @@ func TestVerifyUsernamePassword(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(password, !tc.disabled), "argocd")
 			mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
-		
+
 			// Mock Kubernetes clientset for Kubernetes token cases
 			var kubeClientset kubernetes.Interface
 			if tc.isK8sToken {
@@ -459,11 +460,11 @@ func TestVerifyUsernamePassword(t *testing.T) {
 					}
 					createdSA, err := kubeClientset.CoreV1().ServiceAccounts("default").Create(context.TODO(), sa, metav1.CreateOptions{})
 					require.NoError(t, err)
-		
+
 					// Ensure the service account was created successfully
 					require.NotNil(t, createdSA)
 					require.Equal(t, "test-sa", createdSA.Name)
-		
+
 					tokenRequest := &authv1.TokenRequest{
 						Spec: authv1.TokenRequestSpec{
 							Audiences:         []string{"https://kubernetes.default.svc.cluster.local"},
@@ -474,16 +475,16 @@ func TestVerifyUsernamePassword(t *testing.T) {
 					require.NoError(t, err)
 					require.NotNil(t, tokenResponse)
 					require.NotEmpty(t, tokenResponse.Status.Token)
-		
+
 					// Override the password with the generated token
 					tc.password = tokenResponse.Status.Token
 				}
 			} else {
 				kubeClientset = nil
 			}
-		
+
 			err := mgr.VerifyUsernamePassword(tc.userName, tc.password, kubeClientset)
-		
+
 			if tc.expected == nil {
 				require.NoError(t, err)
 			} else {
@@ -550,6 +551,9 @@ func TestCacheValueGetters(t *testing.T) {
 }
 
 func TestLoginRateLimiter(t *testing.T) {
+	// Mock Kubernetes clientset for Kubernetes token cases
+	var kubeClientset kubernetes.Interface
+
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
 	storage := NewUserStateStorage(nil)
 
@@ -557,48 +561,54 @@ func TestLoginRateLimiter(t *testing.T) {
 
 	t.Run("Test login delay valid user", func(t *testing.T) {
 		for i := 0; i < getMaxLoginFailures(); i++ {
-			err := mgr.VerifyUsernamePassword("admin", "wrong")
+			err := mgr.VerifyUsernamePassword("admin", "wrong",kubeClientset)
 			require.Error(t, err)
 		}
 
 		// The 11th time should fail even if password is right
 		{
-			err := mgr.VerifyUsernamePassword("admin", "password")
+			err := mgr.VerifyUsernamePassword("admin", "password",kubeClientset)
 			require.Error(t, err)
 		}
 
 		storage.attempts = map[string]LoginAttempts{}
 		// Failed counter should have been reset, should validate immediately
 		{
-			err := mgr.VerifyUsernamePassword("admin", "password")
+			err := mgr.VerifyUsernamePassword("admin", "password",kubeClientset)
 			require.NoError(t, err)
 		}
 	})
 
 	t.Run("Test login delay invalid user", func(t *testing.T) {
 		for i := 0; i < getMaxLoginFailures(); i++ {
-			err := mgr.VerifyUsernamePassword("invalid", "wrong")
+			err := mgr.VerifyUsernamePassword("invalid", "wrong",kubeClientset)
 			require.Error(t, err)
 		}
 
-		err := mgr.VerifyUsernamePassword("invalid", "wrong")
+		err := mgr.VerifyUsernamePassword("invalid", "wrong",kubeClientset)
 		require.Error(t, err)
 	})
 }
 
 func TestMaxUsernameLength(t *testing.T) {
+	// Mock Kubernetes clientset for Kubernetes token cases
+	var kubeClientset kubernetes.Interface
+
 	username := ""
 	for i := 0; i < maxUsernameLength+1; i++ {
 		username += "a"
 	}
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
-	err := mgr.VerifyUsernamePassword(username, "password")
+	err := mgr.VerifyUsernamePassword(username, "password",kubeClientset)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), fmt.Sprintf(usernameTooLongError, maxUsernameLength))
 }
 
 func TestMaxCacheSize(t *testing.T) {
+	// Mock Kubernetes clientset for Kubernetes token cases
+	var kubeClientset kubernetes.Interface
+
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
@@ -607,7 +617,7 @@ func TestMaxCacheSize(t *testing.T) {
 	t.Setenv(envLoginMaxCacheSize, "5")
 
 	for _, user := range invalidUsers {
-		err := mgr.VerifyUsernamePassword(user, "password")
+		err := mgr.VerifyUsernamePassword(user, "password",kubeClientset)
 		require.Error(t, err)
 	}
 
@@ -615,6 +625,8 @@ func TestMaxCacheSize(t *testing.T) {
 }
 
 func TestFailedAttemptsExpiry(t *testing.T) {
+	// Mock Kubernetes clientset for Kubernetes token cases
+	var kubeClientset kubernetes.Interface
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 
@@ -623,13 +635,13 @@ func TestFailedAttemptsExpiry(t *testing.T) {
 	t.Setenv(envLoginFailureWindowSeconds, "1")
 
 	for _, user := range invalidUsers {
-		err := mgr.VerifyUsernamePassword(user, "password")
+		err := mgr.VerifyUsernamePassword(user, "password",kubeClientset)
 		require.Error(t, err)
 	}
 
 	time.Sleep(2 * time.Second)
 
-	err := mgr.VerifyUsernamePassword("invalid8", "password")
+	err := mgr.VerifyUsernamePassword("invalid8", "password",kubeClientset)
 	require.Error(t, err)
 	assert.Len(t, mgr.GetLoginFailures(), 1)
 }
