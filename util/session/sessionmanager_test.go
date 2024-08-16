@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes"
+	k8stesting "k8s.io/client-go/testing"
 	
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -458,7 +459,7 @@ func TestVerifyUsernamePassword(t *testing.T) {
 
                 if tc.password == validK8sToken {
                     // Mock TokenReview response
-                    kubeClientset.(*fake.Clientset).Fake.PrependReactor("create", "tokenreviews", func(action testing.Action) (bool, runtime.Object, error) {
+                    kubeClientset.(*fake.Clientset).Fake.PrependReactor("create", "tokenreviews", func(action k8stesting.Action) (bool, runtime.Object, error) {
                         tr := action.(testing.CreateAction).GetObject().(*authenticationv1.TokenReview)
                         if tr.Spec.Token == validK8sToken { // Use valid JWT
                             return true, &authenticationv1.TokenReview{
