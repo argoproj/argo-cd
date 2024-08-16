@@ -4,15 +4,16 @@ import (
 	"context"
 	"testing"
 
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/admin"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/admin/utils"
 	appfixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestBackupExportImport(t *testing.T) {
