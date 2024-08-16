@@ -460,7 +460,7 @@ func TestVerifyUsernamePassword(t *testing.T) {
                 if tc.password == validK8sToken {
                     // Mock TokenReview response
                     kubeClientset.(*fake.Clientset).Fake.PrependReactor("create", "tokenreviews", func(action k8stesting.Action) (bool, runtime.Object, error) {
-                        tr := action.(testing.CreateAction).GetObject().(*authenticationv1.TokenReview)
+                        tr := action.(k8stesting.CreateAction).GetObject().(*authenticationv1.TokenReview)
                         if tr.Spec.Token == validK8sToken { // Use valid JWT
                             return true, &authenticationv1.TokenReview{
                                 Status: authenticationv1.TokenReviewStatus{
