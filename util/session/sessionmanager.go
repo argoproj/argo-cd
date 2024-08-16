@@ -501,7 +501,6 @@ func (mgr *SessionManager) isKubernetesToken(token string) bool {
         return false
     }
 
-    
     // Check for the `kubernetes.io` claim
     k8sClaim, ok := claims["kubernetes.io"].(map[string]interface{})
     if !ok {
@@ -510,12 +509,9 @@ func (mgr *SessionManager) isKubernetesToken(token string) bool {
 
     // Check for nested service account attributes
     _, ok = k8sClaim["serviceaccount"].(map[string]interface{})
-    if !ok {
-        return false
-    }
-
-    return true
+    return ok
 }
+
 
 // Verify the Kubernetes token to ensure it is valid
 func (mgr *SessionManager) verifyKubernetesToken(token string, kubeClientset kubernetes.Interface) (bool, error) {

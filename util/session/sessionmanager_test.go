@@ -494,8 +494,6 @@ func TestVerifyUsernamePassword(t *testing.T) {
     }
 }
 
-func int64Ptr(i int64) *int64 { return &i }
-
 // Helper function to generate a valid Kubernetes JWT for testing
 func generateValidK8sJWT() string {
    
