@@ -1984,7 +1984,7 @@ func TestAlreadyAttemptSync(t *testing.T) {
 	t.Run("different manifest with sync result, with enabled flag", func(t *testing.T) {
 
 		_ = os.Setenv("PERSIST_CHANGE_REVISIONS", "1")
-		
+
 		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, nil)
 		assert.False(t, attempted)
 	})

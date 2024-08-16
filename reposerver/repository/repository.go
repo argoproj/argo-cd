@@ -3031,14 +3031,14 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 		if err != nil {
 			// Only warn with the error, no need to block anything if there is a caching error.
 			logCtx.Warnf("error updating cached revision for repo %s with revision %s: %v", repo.Repo, revision, err)
-			return &apiclient.UpdateRevisionForPathsResponse{Revision: revision,}, nil
+			return &apiclient.UpdateRevisionForPathsResponse{Revision: revision}, nil
 		}
 
-		return &apiclient.UpdateRevisionForPathsResponse{Revision: revision,}, nil
+		return &apiclient.UpdateRevisionForPathsResponse{Revision: revision}, nil
 	}
 
 	logCtx.Debugf("changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, syncedRevision, revision)
-	return &apiclient.UpdateRevisionForPathsResponse{Changes: true, Revision: revision,}, nil
+	return &apiclient.UpdateRevisionForPathsResponse{Changes: true, Revision: revision}, nil
 }
 
 func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, gitClientOpts git.ClientOpts) error {

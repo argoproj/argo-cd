@@ -78,9 +78,6 @@ const (
 var (
 	watchAPIBufferSize  = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
 	permissionDeniedErr = status.Error(codes.PermissionDenied, "permission denied")
-
-	applicationEventCacheExpiration = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvApplicationEventCacheDuration, 20, 0, math.MaxInt32))
-	resourceEventCacheExpiration    = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvResourceEventCacheDuration, 20, 0, math.MaxInt32))
 )
 
 // Server provides an Application service

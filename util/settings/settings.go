@@ -438,8 +438,6 @@ const (
 	settingsWebhookMaxPayloadSizeMB = "webhook.maxPayloadSizeMB"
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
-	// settingsCodefreshReporterVersion is the key to configure injected app instance label key
-	settingsCodefreshReporterVersion = "codefresh.reporterVersion"
 	// settingsResourceTrackingMethodKey is the key to configure tracking method for application resources
 	settingsResourceTrackingMethodKey = "application.resourceTrackingMethod"
 	// resourcesCustomizationsKey is the key to the map of resource overrides
