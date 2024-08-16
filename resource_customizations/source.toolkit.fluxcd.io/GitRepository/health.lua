@@ -1,4 +1,9 @@
 local hs = {}
+if obj.spec.suspend ~= nil and obj.spec.suspend == true then
+  hs.message = obj.kind .. " is suspended"
+  hs.status = "Suspended"
+  return hs
+end
 if obj.status ~= nil then
   if obj.status.conditions ~= nil then
     local numProgressing = 0
