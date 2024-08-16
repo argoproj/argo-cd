@@ -750,9 +750,7 @@ func RunCliWithStdin(stdin string, isKubeConextOnlyCli bool, args ...string) (st
 	}
 
 	// For commands executed with Kubernetes context server argument causes a conflict (for those commands server argument is for KubeAPI server), also authentication is not required
-	if isKubeConextOnlyCli {
-		args = append(args, "--namespace", TestNamespace())
-	} else {
+	if !isKubeConextOnlyCli {
 		args = append(args, "--server", apiServerAddress, "--auth-token", token)
 	}
 

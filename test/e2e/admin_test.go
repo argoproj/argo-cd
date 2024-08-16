@@ -7,12 +7,10 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-	fixtureutils "github.com/argoproj/argo-cd/v2/test/e2e/fixture/admin/utils"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	appfixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
-
+	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/admin/utils"
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/admin"
 )
@@ -55,7 +53,8 @@ func TestBackupExportImport(t *testing.T) {
 		AndCLIOutput(func(output string, err error) {
 			require.NoError(t, err, "export finished with error")
 			exportRawOutput = output
-			exportResources, err := fixtureutils.GetExportedResourcesFromOutput(output)
+		}).
+		AndExportedResources(func(exportResources *ExportedResources, err error) {
 			require.NoError(t, err, "export format not valid")
 			assert.True(t, exportResources.HasResource(kube.NewResourceKey("", "ConfigMap", "", "argocd-cm")), "argocd-cm not found in export")
 			assert.True(t, exportResources.HasResource(kube.NewResourceKey(ApplicationSchemaGroupVersionKind.Group, ApplicationSchemaGroupVersionKind.Kind, "", "exported-app1")), "test namespace application not in export")

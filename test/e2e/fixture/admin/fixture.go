@@ -10,6 +10,6 @@ func RunCli(args ...string) (string, error) {
 }
 
 func RunCliWithStdin(stdin string, args ...string) (string, error) {
-	args = append([]string{"admin"}, args...)
+	args = append([]string{"admin", "--namespace", fixture.TestNamespace()}, args...)
 	return fixture.RunCliWithStdin(stdin, true, args...)
 }
