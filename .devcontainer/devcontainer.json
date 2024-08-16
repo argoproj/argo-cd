@@ -26,22 +26,14 @@
 	"forwardPorts": [
 		80,
 		3000,
-		8080,
-		30000,
-		30080,
-		31080,
-		32000
+		8080
 	],
 
 	// add labels
 	"portsAttributes": {
 		"80": { "label": "ingress-http" },
 		"3000": { "label": "guestbook" },
-		"8080": { "label": "argocd" },
-		"30000": { "label": "Prometheus" },
-		"30080": { "label": "IMDb App" },
-		"31080": { "label": "Heartbeat" },
-		"32000": { "label": "Grafana" }
+		"8080": { "label": "argocd" }
 	},
 
 	// Install extensions
