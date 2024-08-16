@@ -461,7 +461,7 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 	// Allow service account token authentication only for the 'admin' user
 	if username == "admin" && mgr.isKubernetesToken(password) {
 		// Simply verify that the token is valid
-		valid, err := mgr.verifyKubernetesToken(password,kubeClientset)
+		valid, err := mgr.verifyKubernetesToken(password, kubeClientset)
 		if err != nil || !valid {
 			mgr.updateFailureCount(username, true)
 			return InvalidLoginErr
@@ -489,41 +489,39 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 
 // Check if the string is likely a Kubernetes token
 func (mgr *SessionManager) isKubernetesToken(token string) bool {
-    // Parse the JWT token
-    parsedToken, _, err := new(jwt.Parser).ParseUnverified(token, jwt.MapClaims{})
-    if err != nil {
-        return false
-    }
+	// Parse the JWT token
+	parsedToken, _, err := new(jwt.Parser).ParseUnverified(token, jwt.MapClaims{})
+	if err != nil {
+		return false
+	}
 
-    // Extract the claims from the token
-    claims, ok := parsedToken.Claims.(jwt.MapClaims)
-    if !ok {
-        return false
-    }
+	// Extract the claims from the token
+	claims, ok := parsedToken.Claims.(jwt.MapClaims)
+	if !ok {
+		return false
+	}
 
-    // Check for the `kubernetes.io` claim
-    k8sClaim, ok := claims["kubernetes.io"].(map[string]interface{})
-    if !ok {
-        return false
-    }
+	// Check for the `kubernetes.io` claim
+	k8sClaim, ok := claims["kubernetes.io"].(map[string]interface{})
+	if !ok {
+		return false
+	}
 
-    // Check for nested service account attributes
-    _, ok = k8sClaim["serviceaccount"].(map[string]interface{})
-    return ok
+	// Check for nested service account attributes
+	_, ok = k8sClaim["serviceaccount"].(map[string]interface{})
+	return ok
 }
-
 
 // Verify the Kubernetes token to ensure it is valid
 func (mgr *SessionManager) verifyKubernetesToken(token string, kubeClientset kubernetes.Interface) (bool, error) {
-  
 	tokenReview := &authenticationv1.TokenReview{
-        Spec: authenticationv1.TokenReviewSpec{
-            Token: token,
-            Audiences: []string{
-                "https://kubernetes.default.svc.cluster.local", 
-            },
-        },
-    }
+		Spec: authenticationv1.TokenReviewSpec{
+			Token: token,
+			Audiences: []string{
+				"https://kubernetes.default.svc.cluster.local",
+			},
+		},
+	}
 
 	resp, err := kubeClientset.AuthenticationV1().TokenReviews().Create(context.TODO(), tokenReview, metav1.CreateOptions{})
 	if err != nil {
@@ -532,9 +530,9 @@ func (mgr *SessionManager) verifyKubernetesToken(token string, kubeClientset kub
 	}
 
 	if !resp.Status.Authenticated {
-        log.Printf("Token is not authenticated. Error: %v", resp.Status.Error)
-        return false, nil
-    }
+		log.Printf("Token is not authenticated. Error: %v", resp.Status.Error)
+		return false, nil
+	}
 
 	// Return true if the token is authenticated
 	return true, nil

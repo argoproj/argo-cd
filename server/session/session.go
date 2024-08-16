@@ -53,7 +53,7 @@ func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*se
 	if q.Username == "" || q.Password == "" {
 		return nil, status.Errorf(codes.Unauthenticated, "no credentials supplied")
 	}
-	err := s.mgr.VerifyUsernamePassword(q.Username, q.Password,s.kubeClientset)
+	err := s.mgr.VerifyUsernamePassword(q.Username, q.Password, s.kubeClientset)
 	if err != nil {
 		return nil, err
 	}

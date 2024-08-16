@@ -34,7 +34,7 @@ func TestRandomPasswordVerificationDelay(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		sleptFor = 0
 		start := time.Now()
-		require.NoError(t, mgr.VerifyUsernamePassword("admin", "password",kubeClientset))
+		require.NoError(t, mgr.VerifyUsernamePassword("admin", "password", kubeClientset))
 		totalDuration := time.Since(start) + sleptFor
 		assert.GreaterOrEqual(t, totalDuration.Nanoseconds(), verificationDelayNoiseMin.Nanoseconds())
 		assert.LessOrEqual(t, totalDuration.Nanoseconds(), verificationDelayNoiseMax.Nanoseconds())
