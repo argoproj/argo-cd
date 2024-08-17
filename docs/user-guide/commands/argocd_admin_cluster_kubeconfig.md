@@ -54,6 +54,7 @@ argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kub
 ### Options inherited from parent commands
 
 ```
+      --argocd-context string           The name of the Argo-CD server context to use
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
