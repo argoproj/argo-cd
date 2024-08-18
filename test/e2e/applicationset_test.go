@@ -845,7 +845,10 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 		Spec: v1alpha1.ApplicationSetSpec{
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook-sync-policy-create-update"},
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name: "{{.cluster}}-guestbook-sync-policy-create-update",
+					Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
 					Source: &argov1alpha1.ApplicationSource{
@@ -915,7 +918,7 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewMetadata}))
+		Delete().Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestSyncPolicyCreateDelete(t *testing.T) {
@@ -1052,7 +1055,10 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 		Spec: v1alpha1.ApplicationSetSpec{
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook-sync-policy-create-only"},
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name: "{{.cluster}}-guestbook-sync-policy-create-only",
+					Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
 					Source: &argov1alpha1.ApplicationSource{
@@ -1113,7 +1119,7 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewNamespace}))
+		Delete().Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace}))
 }
 
 func TestSimpleGitDirectoryGenerator(t *testing.T) {
