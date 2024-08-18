@@ -846,7 +846,7 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
-					Name: "{{.cluster}}-guestbook-sync-policy-create-update",
+					Name:       "{{.cluster}}-guestbook-sync-policy-create-update",
 					Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 				},
 				Spec: argov1alpha1.ApplicationSpec{
@@ -1056,7 +1056,7 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
 				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
-					Name: "{{.cluster}}-guestbook-sync-policy-create-only",
+					Name:       "{{.cluster}}-guestbook-sync-policy-create-only",
 					Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
 				},
 				Spec: argov1alpha1.ApplicationSpec{
