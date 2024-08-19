@@ -64,6 +64,10 @@ const (
 	// the client, its value will be overridden by the extension
 	// handler.
 	HeaderArgoCDTargetClusterName = "Argocd-Target-Cluster-Name"
+
+	// HeaderArgoCDUsername is the header name that defines the logged
+	// in user authenticated by Argo CD.
+	HeaderArgoCDUsername = "Argocd-Username"
 )
 
 // RequestResources defines the authorization scope for
@@ -282,7 +286,7 @@ func NewDefaultApplicationGetter(al applisters.ApplicationLister) *DefaultApplic
 	}
 }
 
-// Get will retrieve the application resorce for the given namespace and name.
+// Get will retrieve the application resource for the given namespace and name.
 func (a *DefaultApplicationGetter) Get(ns, name string) (*v1alpha1.Application, error) {
 	return a.appLister.Applications(ns).Get(name)
 }
@@ -302,7 +306,12 @@ type Manager struct {
 	rbac        RbacEnforcer
 	registry    ExtensionRegistry
 	metricsReg  ExtensionMetricsRegistry
+	username    UsernameGetterFunc
 }
+
+// UsernameGetterFunc defines the function signature to retrieve the username
+// from the context.Context. The real implementation is defined in session.Username()
+type UsernameGetterFunc func(context.Context) string
 
 // ExtensionMetricsRegistry exposes operations to update http metrics in the Argo CD
 // API server.
@@ -317,13 +326,14 @@ type ExtensionMetricsRegistry interface {
 }
 
 // NewManager will initialize a new manager.
-func NewManager(log *log.Entry, sg SettingsGetter, ag ApplicationGetter, pg ProjectGetter, rbac RbacEnforcer) *Manager {
+func NewManager(log *log.Entry, sg SettingsGetter, ag ApplicationGetter, pg ProjectGetter, rbac RbacEnforcer, userFn UsernameGetterFunc) *Manager {
 	return &Manager{
 		log:         log,
 		settings:    sg,
 		application: ag,
 		project:     pg,
 		rbac:        rbac,
+		username:    userFn,
 	}
 }
 
@@ -699,7 +709,7 @@ func (m *Manager) CallExtension() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		prepareRequest(r, extName, app)
+		prepareRequest(r, extName, app, m.username(r.Context()))
 		m.log.Debugf("proxing request for extension %q", extName)
 		// httpsnoop package is used to properly wrap the responseWriter
 		// and avoid optional intefaces issue:
@@ -719,15 +729,22 @@ func registerMetrics(extName string, metrics httpsnoop.Metrics, extensionMetrics
 }
 
 // prepareRequest is responsible for cleaning the incoming request URL removing
-// the Argo CD extension API section from it. It will set the cluster destination name
-// and cluster destination server in the headers as it is defined in the given app.
-func prepareRequest(r *http.Request, extName string, app *v1alpha1.Application) {
+// the Argo CD extension API section from it. It provides additional information to
+// the backend service appending them in the outgoing request headers. The appended
+// headers are:
+//   - Cluster destination name
+//   - Cluster destination server
+//   - Argo CD authenticated username
+func prepareRequest(r *http.Request, extName string, app *v1alpha1.Application, username string) {
 	r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s/%s", URLPrefix, extName))
 	if app.Spec.Destination.Name != "" {
 		r.Header.Set(HeaderArgoCDTargetClusterName, app.Spec.Destination.Name)
 	}
 	if app.Spec.Destination.Server != "" {
 		r.Header.Set(HeaderArgoCDTargetClusterURL, app.Spec.Destination.Server)
+	}
+	if username != "" {
+		r.Header.Set(HeaderArgoCDUsername, username)
 	}
 }
 
