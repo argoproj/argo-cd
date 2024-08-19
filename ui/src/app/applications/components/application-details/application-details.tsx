@@ -31,7 +31,7 @@ import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './application-details.scss';
 import {
-    AppActionMenuExtension,
+    ActionMenuExtension,
     AppViewExtension,
     StatusPanelExtension
 } from '../../../shared/services/extensions-service';
@@ -48,10 +48,9 @@ interface ApplicationDetailsState {
     extensionsMap?: {[key: string]: AppViewExtension};
     statusExtensions?: StatusPanelExtension[];
     statusExtensionsMap?: {[key: string]: StatusPanelExtension};
-    statusExtProps?: any;
-    appActionMenuExtensions?: AppActionMenuExtension[];
-    appActionMenuExtensionsMap?: {[key: string]: AppActionMenuExtension};
-
+    actionMenuExtensions?: ActionMenuExtension[];
+    actionMenuExtensionsMap?: {[key: string]: ActionMenuExtension};
+    extComponentData?: any;
 }
 
 interface FilterInput {
@@ -82,17 +81,18 @@ export const SelectNode = (fullName: string, containerIndex = 0, tab: string = n
     appContext.navigation.goto('.', {node, tab}, {replace: true});
 };
 
+
+
 export class ApplicationDetails extends React.Component<RouteComponentProps<{appnamespace: string; name: string}>, ApplicationDetailsState> {
     public static contextTypes = {
         apis: PropTypes.object
     };
-
     private appChanged = new BehaviorSubject<appModels.Application>(null);
     private appNamespace: string;
-
-    constructor(props: RouteComponentProps<{appnamespace: string; name: string}>) {
+    constructor(props: RouteComponentProps<{appnamespace: string; name: string; }>) {
         super(props);
         const extensions = services.extensions.getAppViewExtensions();
+
         const extensionsMap: {[key: string]: AppViewExtension} = {};
         extensions.forEach(ext => {
             extensionsMap[ext.title] = ext;
@@ -102,10 +102,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         statusExtensions.forEach(ext => {
             statusExtensionsMap[ext.id] = ext;
         });
-        const appActionMenuExtensions = services.extensions.getAppActionMenuExtensions();
-        const appActionMenuExtensionsMap: {[key: string]: AppActionMenuExtension} = {};
-        appActionMenuExtensions.forEach(ext => {
-            appActionMenuExtensionsMap[ext.id] = ext;
+        const actionMenuExtensions = services.extensions.getActionMenuExtensions();
+        const actionMenuExtensionsMap: {[key: string]: ActionMenuExtension} = {};
+        actionMenuExtensions.forEach(ext => {
+            actionMenuExtensionsMap[ext.id] = ext;
         });
         this.state = {
             page: 0,
@@ -118,14 +118,20 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             extensionsMap,
             statusExtensions,
             statusExtensionsMap,
-            appActionMenuExtensions,
-            appActionMenuExtensionsMap,
+            actionMenuExtensions,
+            actionMenuExtensionsMap,
+            extComponentData: {},
         };
         if (typeof this.props.match.params.appnamespace === 'undefined') {
             this.appNamespace = '';
         } else {
             this.appNamespace = this.props.match.params.appnamespace;
         }
+
+    }
+
+    private extComponentData(refresh: boolean) {
+        this.setState({ extComponentData: refresh });
     }
 
     private get showOperationState() {
@@ -144,7 +150,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             this.setState({collapsedNodes: updatedNodes});
         }
     }
-
 
     private getNodeExpansion(node: string): boolean {
         return this.state.collapsedNodes.indexOf(node) < 0;
@@ -170,8 +175,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
     private get selectedExtension() {
         return new URLSearchParams(this.props.history.location.search).get('extension');
     }
-
-
 
     private closeGroupedNodesPanel() {
         this.setState({groupedResources: []});
@@ -586,8 +589,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             });
 
                             const activeExtension = this.state.statusExtensionsMap[this.selectedExtension];
-                            const appActionMenuExt = this.state.appActionMenuExtensionsMap[this.selectedExtension];
-                            const appActionMenuExtMap = services.extensions.getAppActionMenuExtensions();
+                            const appActionMenuExt = this.state.actionMenuExtensionsMap[this.selectedExtension];
+                            const actionMenuExtMap = services.extensions.getActionMenuExtensions();
 
                             return (
                                 <div className={`application-details ${this.props.match.params.name}`}>
@@ -603,8 +606,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         actionMenu: {
                                             items: [
                                                 ...this.getApplicationActionMenu(application, true),
-                                                ...(appActionMenuExtMap ? appActionMenuExtMap.map(ext => this.
-                                                renderActionMenuItem(ext, application)) : [])
+                                                ...(actionMenuExtMap ? actionMenuExtMap
+                                                    .filter(ext => application?.metadata?.labels && ext.env ===  application?.metadata?.labels['application.environmentLabelKey'])
+                                                    .map(ext => this.renderActionMenuItem(ext, tree, application)) : [])
                                             ]
                                         },
                                         tools: (
@@ -667,6 +671,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     showConditions={() => this.setConditionsStatusVisible(true)}
                                                     showExtension={id => this.setExtensionPanelVisible(id)}
                                                     showMetadataInfo={revision => this.setState({...this.state, revision})}
+                                                    extComponentData={this.state.extComponentData}
+                                                    setExtComponentData={data => this.extComponentData(data)}
                                                 />
                                             </div>
                                             <div className='application-details__tree'>
@@ -895,14 +901,16 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                             isShown={this.selectedExtension !== '' && activeExtension != null && activeExtension.flyout != null}
                                             onClose={() => this.setExtensionPanelVisible('')}>
                                             {this.selectedExtension !== ''  && activeExtension?.flyout && (
-                                                <activeExtension.flyout  setProps={this.setStatusPanelProps} application={application} tree={tree} />
+                                                <activeExtension.flyout  tree={tree} application={application}/>
                                             )}
                                         </SlidingPanel>
                                         <SlidingPanel
                                             isShown={this.selectedExtension !== '' && appActionMenuExt != null && appActionMenuExt.flyout != null}
                                             onClose={() => this.setExtensionPanelVisible('')}>
                                             {this.selectedExtension !== ''  && appActionMenuExt?.flyout && (
-                                                <appActionMenuExt.flyout   application={application} tree={tree} />
+                                                <appActionMenuExt.flyout application={application} tree={tree}
+                                                     setExtComponentData={ (data: any ) => this.extComponentData(data)}
+                                                />
                                             )}
                                         </SlidingPanel>
                                     </Page>
@@ -914,17 +922,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             </ObservableQuery>
         );
     }
-    private renderActionMenuItem(ext: AppActionMenuExtension, application: appModels.Application): any {
-        const settings =  services.authService.settings();
-        console.log( 'settings', settings)
-
+    private renderActionMenuItem(ext: ActionMenuExtension, tree: appModels.ApplicationTree, application: appModels.Application): any {
         return {
             action: () => this.setExtensionPanelVisible(ext.id),
-            title: <ext.component application={application}/> as React.ReactNode,
-            iconClassName: "",
+            title: <ext.component application={application} tree={tree} setExtComponentData={ (data: any ) => this.extComponentData(data)}/>,
+            iconClassName: ""
         };
     }
-
     private getApplicationActionMenu(app: appModels.Application, needOverlapLabelOnNarrowScreen: boolean) {
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
@@ -1143,13 +1147,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
     }
 
     private setExtensionPanelVisible(selectedExtension = '') {
-        console.log('setExtensionPanelVisible', selectedExtension)
         this.appContext.apis.navigation.goto('.', {extension: selectedExtension}, {replace: true});
     }
+
+
 
     private selectNode(fullName: string, containerIndex = 0, tab: string = null) {
         SelectNode(fullName, containerIndex, tab, this.appContext.apis);
     }
+
 
     private async rollbackApplication(revisionHistory: appModels.RevisionHistory, application: appModels.Application) {
         try {

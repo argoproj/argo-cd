@@ -126,6 +126,8 @@ type ArgoCDSettings struct {
 	// ExtensionConfig configurations related to ArgoCD proxy extensions. The value
 	// is a yaml string defined in extension.ExtensionConfigs struct.
 	ExtensionConfig string `json:"extensionConfig,omitempty"`
+	// EnvironmentLabelKey is  global key to identify environment for applications
+	EnvironmentLabelKey string `json:"application.environmentLabelKey"`
 }
 
 type GoogleAnalytics struct {
@@ -523,6 +525,7 @@ const (
 	RespectRBAC            = "resource.respectRBAC"
 	RespectRBACValueStrict = "strict"
 	RespectRBACValueNormal = "normal"
+	envenvironmentLabelKey = "application.environmentLabelKey"
 )
 
 const (
@@ -1518,6 +1521,8 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.TrackingMethod = argoCDCM.Data[settingsResourceTrackingMethodKey]
 	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"
 	settings.ExtensionConfig = argoCDCM.Data[extensionConfig]
+	settings.EnvironmentLabelKey = argoCDCM.Data[envenvironmentLabelKey]
+
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid

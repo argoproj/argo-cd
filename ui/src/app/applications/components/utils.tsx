@@ -485,6 +485,7 @@ function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: model
         .catch(() => [] as MenuItem[]);
 }
 
+
 function getActionItems(
     resource: ResourceTreeNode,
     application: appModels.Application,
@@ -504,12 +505,12 @@ function getActionItems(
 
     const items: MenuItem[] = [
         ...((isManaged && [
-            {
-                title: 'Sync',
-                iconClassName: 'fa fa-fw fa-sync',
-                action: () => showDeploy(nodeKey(resource), null, apis)
-            }
-        ]) ||
+                {
+                    title: 'Sync',
+                    iconClassName: 'fa fa-fw fa-sync',
+                    action: () => showDeploy(nodeKey(resource), null, apis)
+                }
+            ]) ||
             []),
         {
             title: 'Delete',
@@ -550,6 +551,7 @@ function getActionItems(
             concat([[] as MenuItem[]], logsAction) // this resolves at first to [] and then whatever the API returns
         ).pipe(map(res => ([] as MenuItem[]).concat(...res)));
     }
+
 
     const execAction = services.authService
         .settings()

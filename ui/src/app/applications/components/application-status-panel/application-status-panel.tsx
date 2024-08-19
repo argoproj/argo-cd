@@ -19,6 +19,9 @@ interface Props {
     showConditions?: () => any;
     showExtension?: (id: string) => any;
     showMetadataInfo?: (revision: string) => any;
+    extensionPropsMap?: {[extId: string]: any};
+    extComponentData?: any;
+    setExtComponentData?: (data: any) => void;
 }
 
 interface SectionInfo {
@@ -46,7 +49,7 @@ const sectionHeader = (info: SectionInfo, onClick?: () => any) => {
     );
 };
 
-export const ApplicationStatusPanel = ({application, showDiff, showOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
+export const ApplicationStatusPanel = ({application, showDiff, showOperation, showConditions, showExtension, showMetadataInfo, extComponentData}: Props) => {
     const today = new Date();
     let daysSinceLastSynchronized = 0;
     const history = application.status.history || [];
@@ -215,7 +218,8 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     </React.Fragment>
                 )}
             </DataLoader>
-            {statusExtensions && statusExtensions.map(ext => <ext.component key={ext.title} application={application} openFlyout={() => showExtension && showExtension(ext.id)} />)}
+            {statusExtensions && statusExtensions.map(ext => <ext.component key={ext.title} application={application}  openFlyout={() => showExtension && showExtension(ext.id)} extComponentData={extComponentData} setExtComponentData={extComponentData} />)}
+
         </div>
     );
 };

@@ -8,8 +8,9 @@ const extensions = {
     systemLevelExtensions: new Array<SystemLevelExtension>(),
     appViewExtensions: new Array<AppViewExtension>(),
     statusPanelExtensions: new Array<StatusPanelExtension>(),
-    AppActionMenuExtensions: new Array<AppActionMenuExtension>()
+    ActionMenuExtensions: new Array<ActionMenuExtension>()
 };
+
 
 function registerResourceExtension(component: ExtensionComponent, group: string, kind: string, tabTitle: string, opts?: {icon: string}) {
     extensions.resourceExtensions.push({component, group, kind, title: tabTitle, icon: opts?.icon});
@@ -27,8 +28,8 @@ function registerStatusPanelExtension(component: StatusPanelExtensionComponent, 
     extensions.statusPanelExtensions.push({component, flyout, title, id});
 }
 
-function registerAppActionMenuPanelExtension(component: StatusPanelExtensionComponent, title: string, id: string, flyout?: AppActionMenuExtensionExtensionFlyoutComponent) {
-    extensions.AppActionMenuExtensions.push({component, flyout, title, id});
+function registerAppActionMenuPanelExtension(component: StatusPanelExtensionComponent, title: string, id: string,env: string, flyout?: ActionMenuExtFlyoutComponent) {
+    extensions.ActionMenuExtensions.push({component, flyout, title, id, env});
 }
 let legacyInitialized = false;
 
@@ -72,30 +73,31 @@ export interface StatusPanelExtension {
     id: string;
 }
 
-export interface AppActionMenuExtension {
-    component: AppActionMenuExtensionComponent;
-    flyout: AppActionMenuExtensionExtensionFlyoutComponent;
+export interface ActionMenuExtension {
+    component: ActionMenuExtensionComponent;
+    flyout: ActionMenuExtFlyoutComponent;
     title: string;
     id: string;
+    env?: string;
+
 }
 
 export type ExtensionComponent = React.ComponentType<ExtensionComponentProps>;
 export type SystemExtensionComponent = React.ComponentType;
 export type AppViewExtensionComponent = React.ComponentType<AppViewComponentProps>;
-export type StatusPanelExtensionComponent = React.ComponentType<StatusPanelComponentProps>;
-export type StatusPanelExtensionFlyoutComponent = React.ComponentType<StatusPanelFlyoutProps>;
-export type AppActionMenuExtensionComponent = React.ComponentType<AppActionMenuComponentProps>;
-export type AppActionMenuExtensionExtensionFlyoutComponent = React.ComponentType<AppActionMenuFlyoutProps>;
-
+export type StatusPanelExtensionComponent = React.ComponentType<BaseExtensionComponentProps>;
+export type StatusPanelExtensionFlyoutComponent = React.ComponentType<BaseFlyoutProps>;
+export type ActionMenuExtensionComponent = React.ComponentType<BaseExtensionComponentProps>;
+export type ActionMenuExtFlyoutComponent = React.ComponentType<BaseFlyoutProps>;
 
 export interface Extension {
     component: ExtensionComponent;
 }
 
 export interface ExtensionComponentProps {
-    resource: State;
-    tree: ApplicationTree;
-    application: Application;
+    resource?: State;
+    tree?: ApplicationTree;
+    application?: Application;
 }
 
 export interface AppViewComponentProps {
@@ -103,23 +105,20 @@ export interface AppViewComponentProps {
     tree: ApplicationTree;
 }
 
-export interface StatusPanelComponentProps {
-    application: Application;
-}
-
-export interface StatusPanelFlyoutProps {
-    application: Application;
-    openFlyout?: () => any;}
-
-export interface AppActionMenuComponentProps {
+export interface BaseExtensionComponentProps {
     application?: Application;
+    tree?: ApplicationTree;
     openFlyout?: () => any;
+    setExtComponentData?: (refresh: any) => void;
+    extComponentData?: any
 }
 
-export interface AppActionMenuFlyoutProps {
+
+ export interface BaseFlyoutProps {
     application: Application;
     tree: ApplicationTree;
-}
+    setExtComponentData?: (refresh: any) => void;
+    extComponentData?: any}
 
 export class ExtensionsService {
     public getResourceTabs(group: string, kind: string): ResourceTabExtension[] {
@@ -140,8 +139,8 @@ export class ExtensionsService {
         return extensions.statusPanelExtensions.slice();
     }
 
-    public getAppActionMenuExtensions(): AppActionMenuExtension[] {
-        return extensions.AppActionMenuExtensions.slice();
+    public getActionMenuExtensions(): ActionMenuExtension[] {
+        return extensions.ActionMenuExtensions.slice();
     }
 }
 

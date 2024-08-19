@@ -491,6 +491,7 @@ export interface AuthSettings {
     uiBannerPosition: string;
     execEnabled: boolean;
     appsInAnyNamespaceEnabled: boolean;
+    appEnvLabelKey: string;
 }
 
 export interface UserInfo {
