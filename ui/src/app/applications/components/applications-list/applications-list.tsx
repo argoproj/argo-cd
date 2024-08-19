@@ -46,7 +46,9 @@ const APP_FIELDS = [
     'status.operationState.finishedAt',
     'status.operationState.operation.sync',
     'status.summary',
-    'status.resources'
+    'status.resources',
+    'status.sourceHydrator',
+    'status.sourceHydrator.currentOperation.phase'
 ];
 const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];

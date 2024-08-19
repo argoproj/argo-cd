@@ -7,7 +7,7 @@ import {Consumer, Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import {getAppDefaultSource, OperationState} from '../utils';
+import {getAppDefaultSource, OperationState, HydrateOperationPhaseIcon} from '../utils';
 import {ApplicationsLabels} from './applications-labels';
 import {ApplicationsSource} from './applications-source';
 import {services} from '../../../shared/services';
@@ -131,6 +131,12 @@ export const ApplicationsTable = (props: {
 
                                             <div className='columns small-2'>
                                                 <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
+                                                {app.spec.sourceHydrator && app.status?.sourceHydrator?.currentOperation && (
+                                                    <>
+                                                        <HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />
+                                                        <span>{app.status.sourceHydrator.currentOperation.phase}</span> <br />
+                                                    </>
+                                                )}
                                                 <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
                                                 <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
                                                 <DropDownMenu
