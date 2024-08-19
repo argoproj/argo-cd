@@ -591,7 +591,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				}
 
 				// No need to care about the return value here, we just want the modified managedNs
-				_, err = syncNamespace(m.resourceTracking, appLabelKey, trackingMethod, app.Name, app.Spec.SyncPolicy)(managedNs, liveObj)
+				_, err = syncNamespace(app.Spec.SyncPolicy)(managedNs, liveObj)
 				if err != nil {
 					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 					failedToLoadObjs = true
