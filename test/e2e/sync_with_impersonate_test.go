@@ -67,7 +67,7 @@ func TestSyncWithImpersonateDefaultNamespaceServiceAccountWithRBAC(t *testing.T)
 			require.NoError(t, err)
 		}).
 		Then().
-		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeSynced))
+		Expect(Error("", "no matching service account found for destination"))
 }
 
 func TestSyncWithImpersonateWithSyncServiceAccount(t *testing.T) {
