@@ -5668,6 +5668,13 @@ func schema_pkg_apis_application_v1alpha1_RepoCreds(ref common.ReferenceCallback
 							Format:      "",
 						},
 					},
+					"noProxy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"url"},
 			},
@@ -5869,6 +5876,13 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 						SchemaProps: spec.SchemaProps{
 							Description: "ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections",
 							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"noProxy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied",
+							Type:        []string{"string"},
 							Format:      "",
 						},
 					},

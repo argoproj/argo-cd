@@ -15,7 +15,7 @@ func Test_cmd_redactor(t *testing.T) {
 }
 
 func TestCmd_template_kubeVersion(t *testing.T) {
-	cmd, err := NewCmdWithVersion(".", false, "")
+	cmd, err := NewCmdWithVersion(".", false, "", "")
 	require.NoError(t, err)
 	s, _, err := cmd.template("testdata/redis", &TemplateOpts{
 		KubeVersion: "1.14",
@@ -25,7 +25,7 @@ func TestCmd_template_kubeVersion(t *testing.T) {
 }
 
 func TestCmd_template_noApiVersionsInError(t *testing.T) {
-	cmd, err := NewCmdWithVersion(".", false, "")
+	cmd, err := NewCmdWithVersion(".", false, "", "")
 	require.NoError(t, err)
 	_, _, err = cmd.template("testdata/chart-does-not-exist", &TemplateOpts{
 		KubeVersion: "1.14",
@@ -37,13 +37,14 @@ func TestCmd_template_noApiVersionsInError(t *testing.T) {
 }
 
 func TestNewCmd_helmInvalidVersion(t *testing.T) {
-	_, err := NewCmd(".", "abcd", "")
+	_, err := NewCmd(".", "abcd", "", "")
 	log.Println(err)
 	assert.EqualError(t, err, "helm chart version 'abcd' is not supported")
 }
 
 func TestNewCmd_withProxy(t *testing.T) {
-	cmd, err := NewCmd(".", "", "https://proxy:8888")
+	cmd, err := NewCmd(".", "", "https://proxy:8888", ".argoproj.io")
 	require.NoError(t, err)
 	assert.Equal(t, "https://proxy:8888", cmd.proxy)
+	assert.Equal(t, ".argoproj.io", cmd.noProxy)
 }
