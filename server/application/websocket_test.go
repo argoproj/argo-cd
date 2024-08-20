@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"encoding/json"
+	"k8s.io/client-go/tools/remotecommand"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -164,4 +165,165 @@ func TestValidateWithoutPermissions(t *testing.T) {
 	}
 
 	testServerConnection(t, validate, true)
+}
+
+func TestTerminalSession_Read(t *testing.T) {
+	validate := func(w http.ResponseWriter, r *http.Request) {
+		ts := newTestTerminalSession(w, r)
+		if ts.wsConn == nil {
+			t.Fatalf("WebSocket connection is not initialized")
+		}
+
+		ts.terminalOpts = &TerminalOptions{DisableAuth: true}
+
+		testMessages := []TerminalMessage{
+			{
+				Operation: "stdin",
+				Data:      "test input",
+			},
+			{
+				Operation: "resize",
+				Cols:      80,
+				Rows:      24,
+			},
+			{
+				Operation: "unknown",
+			},
+		}
+
+		for _, msg := range testMessages {
+			bytes, _ := json.Marshal(msg)
+			err := ts.wsConn.WriteMessage(websocket.TextMessage, bytes)
+			if err != nil {
+				t.Errorf("Failed to write message: %v", err)
+			}
+		}
+	}
+
+	tests := []struct {
+		name           string
+		expectedOutput string
+		expectedSize   *remotecommand.TerminalSize
+		expectedError  bool
+	}{
+		{
+			name:           "stdin operation",
+			expectedOutput: "test input",
+			expectedSize:   nil,
+			expectedError:  false,
+		},
+		{
+			name:           "resize operation",
+			expectedOutput: "",
+			expectedSize: &remotecommand.TerminalSize{
+				Width:  80,
+				Height: 24,
+			},
+			expectedError: false,
+		},
+		{
+			name:           "unknown operation",
+			expectedOutput: EndOfTransmission,
+			expectedSize:   nil,
+			expectedError:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := httptest.NewServer(http.HandlerFunc(validate))
+			defer s.Close()
+
+			u := "ws" + strings.TrimPrefix(s.URL, "http")
+
+			ws, _, err := websocket.DefaultDialer.Dial(u, nil)
+			require.NoError(t, err)
+			defer ws.Close()
+
+			ts := terminalSession{
+				wsConn:   ws,
+				sizeChan: make(chan remotecommand.TerminalSize, 1),
+			}
+
+			p := make([]byte, 1024)
+
+			// Read data from the websocket
+			n, err := ts.Read(p)
+			if tt.expectedError {
+				assert.Error(t, err)
+				assert.Equal(t, tt.expectedOutput, string(p[:n]))
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedOutput, string(p[:n]))
+			}
+
+			if tt.expectedSize != nil {
+				select {
+				case size := <-ts.sizeChan:
+					assert.Equal(t, *tt.expectedSize, size)
+				default:
+					t.Error("Expected size message not received")
+				}
+			}
+		})
+	}
+}
+
+func TestTerminalSession_Write(t *testing.T) {
+	tests := []struct {
+		name        string
+		data        string
+		expectError bool
+	}{
+		{
+			name:        "simple message",
+			data:        "test output",
+			expectError: false,
+		},
+		{
+			name:        "empty message",
+			data:        "",
+			expectError: false,
+		},
+		{
+			name:        "long message",
+			data:        strings.Repeat("a", 1024),
+			expectError: false,
+		},
+		{
+			name:        "special chars",
+			data:        "special chars !@#$%^&*()",
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			validate := func(w http.ResponseWriter, r *http.Request) {
+				ts := newTestTerminalSession(w, r)
+				ts.terminalOpts = &TerminalOptions{DisableAuth: true}
+
+				// Test the Write function
+				n, err := ts.Write([]byte(tt.data))
+				if tt.expectError {
+					require.Error(t, err)
+					assert.Equal(t, 0, n)
+				} else {
+					require.NoError(t, err)
+					assert.Equal(t, len(tt.data), n)
+
+					// Check if the message was correctly sent
+					_, msg, err := ts.wsConn.ReadMessage()
+					require.NoError(t, err)
+					var response TerminalMessage
+					err = json.Unmarshal(msg, &response)
+					require.NoError(t, err)
+					assert.Equal(t, "stdout", response.Operation)
+					assert.Equal(t, tt.data, response.Data)
+				}
+			}
+
+			testServerConnection(t, validate, false)
+		})
+	}
 }
