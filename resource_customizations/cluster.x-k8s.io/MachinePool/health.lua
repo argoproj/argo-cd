@@ -1,4 +1,4 @@
--- Reference CRD can be foudn here:
+-- Reference CRD can be found here:
 -- https://doc.crds.dev/github.com/kubernetes-sigs/cluster-api/cluster.x-k8s.io/MachinePool/v1beta1@v1.8.1
 
 function getStatusBasedOnPhase(obj, hs)
