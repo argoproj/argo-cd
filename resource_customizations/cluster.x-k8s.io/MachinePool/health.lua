@@ -19,7 +19,7 @@ function getStatusBasedOnPhase(obj, hs)
     return hs
 end
 
-function getReadyContitionStatus(obj, hs)
+function getConditionStatuses(obj, hs)
     local extraInfo = ""
     if obj.status ~= nil and obj.status.conditions ~= nil then
         for i, condition in ipairs(obj.status.conditions) do
@@ -46,6 +46,6 @@ hs.status = "Progressing"
 hs.message = ""
 
 getStatusBasedOnPhase(obj, hs)
-getReadyContitionStatus(obj, hs)
+getConditionStatuses(obj, hs)
 
 return hs
