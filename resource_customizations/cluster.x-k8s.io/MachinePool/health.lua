@@ -6,10 +6,7 @@ function getStatusBasedOnPhase(obj, hs)
     -- https://github.com/kubernetes-sigs/cluster-api/blob/release-1.8/exp/api/v1beta1/machinepool_types.go#L139-L182
     if obj.status ~= nil and obj.status.phase ~= nil then
         hs.message = "MachinePool is " .. obj.status.phase
-        if obj.status.phase == "Running" or
-            obj.status.phase == "Scaling" or
-            obj.status.phase == "ScalingUp" or
-            obj.status.phase == "ScalingDown" then
+        if obj.status.phase == "Running" then
             hs.status = "Healthy"
         end
         if obj.status.phase == "Failed" or obj.status.phase == "Unknown"  then
@@ -29,7 +26,7 @@ function getConditionStatuses(obj, hs)
                 end
                 extraInfo = extraInfo .. "Not " .. condition.type
                 if condition.reason ~= nil then
-                    extraInfo = extraInfo .. " " .. condition.reason
+                    extraInfo = extraInfo .. " (" .. condition.reason .. ")"
                 end
             end
         end
