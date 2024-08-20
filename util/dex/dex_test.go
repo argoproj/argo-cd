@@ -9,15 +9,14 @@ import (
 	"strings"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/settings"
-
 	utillog "github.com/argoproj/argo-cd/v2/util/log"
-	log "github.com/sirupsen/logrus"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const invalidURL = ":://localhost/foo/bar"
