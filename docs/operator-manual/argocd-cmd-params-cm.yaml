@@ -72,6 +72,8 @@ data:
   # Diff calculation will be done by running a server side apply dryrun (when
   # diff cache is unavailable).
   controller.diff.server.side: "false"
+  # Enables profile endpoint on the internal metrics port
+  controller.profile.enabled: "false"
 
   ## Server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
@@ -136,6 +138,8 @@ data:
   server.default.cache.expiration: "24h0m0s"
   # Enable the experimental proxy extension feature
   server.enable.proxy.extension: "false"
+  # Enables profile endpoint on the internal metrics port
+  server.profile.enabled: "false"
 
   ## Repo-server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
@@ -200,6 +204,11 @@ data:
   # (i.e. the spec.syncPlicy.applicationSync field). Set it to "true" to allow overrides. "" or "false" will disable
   # overrides. (default "")
   applicationsetcontroller.enable.policy.override: ""
+  # Max concurrent reconciliation limit for the controller (default 10)
+  applicationsetcontroller.concurrent.reconciliations.max: "10"
+  # Enable new globbing in Git files generator (default "false")
+  # See https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Generators-Git-File-Globbing/
+  applicationsetcontroller.enable.new.git.file.globbing: "false"
   # Print debug logs. Takes precedence over loglevel
   applicationsetcontroller.debug: "false"
   # Set the logging format. One of: text|json (default "text")
