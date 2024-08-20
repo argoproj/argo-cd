@@ -48,6 +48,7 @@ const APP_FIELDS = [
     'status.summary',
     'status.resources',
     'status.sourceHydrator',
+    'status.sourceHydrator.currentOperation',
     'status.sourceHydrator.currentOperation.phase'
 ];
 const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];

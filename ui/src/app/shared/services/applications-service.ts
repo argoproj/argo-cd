@@ -507,7 +507,16 @@ export class ApplicationsService {
                 },
                 status: {
                     resources: [],
-                    summary: {}
+                    summary: {},
+                    sourceHydrator: {
+                        currentOperation: {
+                            phase: '',
+                            message: '',
+                            drySHA: '',
+                            finishedAt: '',
+                            startedAt: ''
+                        }
+                    }
                 }
             },
             data
