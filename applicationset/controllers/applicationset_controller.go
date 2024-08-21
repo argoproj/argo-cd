@@ -1268,8 +1268,15 @@ func (r *ApplicationSetReconciler) migrateStatus(ctx context.Context, appset *ar
 	}
 
 	if update {
+		namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
 		if err := r.Client.Status().Update(ctx, appset); err != nil {
 			return fmt.Errorf("unable to set application set status: %w", err)
+		}
+		if err := r.Get(ctx, namespacedName, appset); err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				return nil
+			}
+			return fmt.Errorf("error fetching updated application set: %w", err)
 		}
 	}
 	return nil
