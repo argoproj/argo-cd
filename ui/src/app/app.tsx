@@ -242,10 +242,9 @@ export class App extends React.Component<
         return {history, apis: {popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager}};
     }
 
-    private onAddSystemLevelExtension(evt: CustomEvent<SystemLevelExtension>) {
+    private onAddSystemLevelExtension(extension: SystemLevelExtension) {
         const extendedNavItems = this.navItems;
         const extendedRoutes = this.routes;
-        const extension = evt.detail;
         extendedNavItems.push({
             title: extension.title,
             path: extension.path,

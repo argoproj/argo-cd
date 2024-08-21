@@ -6,10 +6,26 @@ import {Application, ApplicationTree, State} from '../models';
 type ExtensionsEventType = 'resource' | 'systemLevel' | 'appView' | 'statusPanel';
 type ExtensionsType = ResourceTabExtension | SystemLevelExtension | AppViewExtension | StatusPanelExtension;
 
-class ExtensionsEventTarget extends EventTarget {
-    emit(eventName: ExtensionsEventType, detail: ExtensionsType) {
-        const event = new CustomEvent(eventName, {detail});
-        this.dispatchEvent(event);
+class ExtensionsEventTarget {
+    private listeners: Map<ExtensionsEventType, Array<(extension: ExtensionsType) => void>> = new Map();
+
+    addEventListener(eventName: ExtensionsEventType, listener: (extension: ExtensionsType) => void) {
+        if (!this.listeners.has(eventName)) {
+            this.listeners.set(eventName, []);
+        }
+        this.listeners.get(eventName)?.push(listener);
+    }
+
+    removeEventListener(eventName: ExtensionsEventType, listenerToRemove: (extension: ExtensionsType) => void) {
+        const listeners = this.listeners.get(eventName);
+        if (!listeners) return;
+
+        const filteredListeners = listeners.filter(listener => listener !== listenerToRemove);
+        this.listeners.set(eventName, filteredListeners);
+    }
+
+    emit(eventName: ExtensionsEventType, extension: ExtensionsType) {
+        this.listeners.get(eventName)?.forEach(listener => listener(extension));
     }
 }
 
@@ -119,11 +135,11 @@ export interface StatusPanelFlyoutProps {
 }
 
 export class ExtensionsService {
-    public addEventListener(evtType: ExtensionsEventType, cb: (evt: CustomEvent<ExtensionsType>) => void) {
+    public addEventListener(evtType: ExtensionsEventType, cb: (ext: ExtensionsType) => void) {
         extensions.eventTarget.addEventListener(evtType, cb);
     }
 
-    public removeEventListener(evtType: ExtensionsEventType, cb: (evt: CustomEvent<ExtensionsType>) => void) {
+    public removeEventListener(evtType: ExtensionsEventType, cb: (ext: ExtensionsType) => void) {
         extensions.eventTarget.removeEventListener(evtType, cb);
     }
 
