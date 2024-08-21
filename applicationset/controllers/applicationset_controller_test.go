@@ -2266,11 +2266,10 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
-	testCases := []struct{
-		appset v1alpha1.ApplicationSet
+	testCases := []struct {
+		appset     v1alpha1.ApplicationSet
 		conditions []v1alpha1.ApplicationSetCondition
-		testfunc func(t *testing.T,appset v1alpha1.ApplicationSet)
-
+		testfunc   func(t *testing.T, appset v1alpha1.ApplicationSet)
 	}{
 		{
 			appset: v1alpha1.ApplicationSet{
@@ -2367,11 +2366,11 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
 							Steps: []v1alpha1.ApplicationSetRolloutStep{
 								{
-									MatchExpressions: []v1alpha1.ApplicationMatchExpression {
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
 										{
-											Key: "test",
+											Key:      "test",
 											Operator: "In",
-											Values: []string{"test"},
+											Values:   []string{"test"},
 										},
 									},
 								},
@@ -2415,7 +2414,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{}
 
-	for _,testCase := range testCases {
+	for _, testCase := range testCases {
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testCase.appset).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 
 		r := ApplicationSetReconciler{
@@ -2437,8 +2436,8 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		testCase.testfunc(t ,testCase.appset)
-		//assert.Len(t, testCase.appset.Status.Conditions, 3)
+		testCase.testfunc(t, testCase.appset)
+		// assert.Len(t, testCase.appset.Status.Conditions, 3)
 	}
 }
 

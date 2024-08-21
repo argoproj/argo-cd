@@ -423,7 +423,6 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 		}
 	}
 
-
 	if needToUpdateConditions || len(applicationSet.Status.Conditions) < len(newConditions) {
 		// fetch updated Application Set object before updating it
 		namespacedName := types.NamespacedName{Namespace: applicationSet.Namespace, Name: applicationSet.Name}
