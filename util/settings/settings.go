@@ -126,6 +126,8 @@ type ArgoCDSettings struct {
 	// ExtensionConfig configurations related to ArgoCD proxy extensions. The value
 	// is a yaml string defined in extension.ExtensionConfigs struct.
 	ExtensionConfig string `json:"extensionConfig,omitempty"`
+	// PromptsEnabled indicates whether toggleable CLI prompts are enabled
+	PromptsEnabled bool `json:"promptsEnabled"`
 }
 
 type GoogleAnalytics struct {
@@ -525,6 +527,8 @@ const (
 	RespectRBAC            = "resource.respectRBAC"
 	RespectRBACValueStrict = "strict"
 	RespectRBACValueNormal = "normal"
+	// promptsEnabled is the key to configure whether toggleable CLI prompts are enabled
+	promptsEnabled = "prompts.enabled"
 )
 
 const (
@@ -1520,6 +1524,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	settings.TrackingMethod = argoCDCM.Data[settingsResourceTrackingMethodKey]
 	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"
 	settings.ExtensionConfig = argoCDCM.Data[extensionConfig]
+	settings.PromptsEnabled = argoCDCM.Data[promptsEnabled] == "true"
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid
