@@ -583,5 +583,5 @@ func deriveServiceAccountName(project *v1alpha1.AppProject, application *v1alpha
 		}
 	}
 	// if there is no match found in the AppProject.Spec.DestinationServiceAccounts, use the default service account of the destination namespace.
-	return "", fmt.Errorf("no matching service account found for destination %v in target namespace %s", application.Spec.Destination, serviceAccountNamespace)
+	return "", fmt.Errorf("no matching service account found for destination server %s and namespace %s", application.Spec.Destination.Server, serviceAccountNamespace)
 }
