@@ -26,23 +26,24 @@ type Cmd struct {
 	IsLocal   bool
 	IsHelmOci bool
 	proxy     string
+	noProxy   string
 }
 
-func NewCmd(workDir string, version string, proxy string) (*Cmd, error) {
+func NewCmd(workDir string, version string, proxy string, noProxy string) (*Cmd, error) {
 	switch version {
 	// If v3 is specified (or by default, if no value is specified) then use v3
 	case "", "v3":
-		return NewCmdWithVersion(workDir, false, proxy)
+		return NewCmdWithVersion(workDir, false, proxy, noProxy)
 	}
 	return nil, fmt.Errorf("helm chart version '%s' is not supported", version)
 }
 
-func NewCmdWithVersion(workDir string, isHelmOci bool, proxy string) (*Cmd, error) {
+func NewCmdWithVersion(workDir string, isHelmOci bool, proxy string, noProxy string) (*Cmd, error) {
 	tmpDir, err := os.MkdirTemp("", "helm")
 	if err != nil {
 		return nil, err
 	}
-	return &Cmd{WorkDir: workDir, helmHome: tmpDir, IsHelmOci: isHelmOci, proxy: proxy}, err
+	return &Cmd{WorkDir: workDir, helmHome: tmpDir, IsHelmOci: isHelmOci, proxy: proxy, noProxy: noProxy}, err
 }
 
 var redactor = func(text string) string {
@@ -65,7 +66,7 @@ func (c Cmd) run(args ...string) (string, string, error) {
 		cmd.Env = append(cmd.Env, "HELM_EXPERIMENTAL_OCI=1")
 	}
 
-	cmd.Env = proxy.UpsertEnv(cmd, c.proxy)
+	cmd.Env = proxy.UpsertEnv(cmd, c.proxy, c.noProxy)
 
 	out, err := executil.RunWithRedactor(cmd, redactor)
 	fullCommand := executil.GetCommandArgsToLog(cmd)

@@ -50,6 +50,7 @@ argocd admin repo generate-spec REPOURL [flags]
       --insecure-ignore-host-key                disables SSH strict host key checking (deprecated, use --insecure-skip-server-verification instead)
       --insecure-skip-server-verification       disables server certificate and host key checks
       --name string                             name of the repository, mandatory for repositories of type helm
+      --no-proxy string                         don't access these targets via proxy
   -o, --output string                           Output format. One of: json|yaml (default "yaml")
       --password string                         password to the repository
       --project string                          project of the repository
