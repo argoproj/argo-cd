@@ -7,7 +7,7 @@ import {Consumer, Context, AuthSettingsCtx} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import {getAppDefaultSource, OperationState, HydrateOperationPhaseIcon} from '../utils';
+import {getAppDefaultSource, OperationState} from '../utils';
 import {services} from '../../../shared/services';
 
 import './applications-tiles.scss';
@@ -200,8 +200,8 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             &nbsp;
                                                             {app.spec.sourceHydrator && app.status?.sourceHydrator?.currentOperation && (
                                                                 <>
-                                                                    <HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />
-                                                                    {app.status.sourceHydrator.currentOperation.phase}
+                                                                    <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />
+                                                                    {app.status.sourceHydrator.currentOperation.phase || 'Unknown'}
                                                                     &nbsp;
                                                                 </>
                                                             )}

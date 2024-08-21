@@ -481,9 +481,9 @@ export interface SuccessfulHydrateOperation {
 export type HydrateOperationPhase = 'Hydrating' | 'Failed' | 'Hydrated';
 
 export const HydrateOperationPhases = {
-    Hydrating: 'Hydrating' as OperationPhase,
-    Failed: 'Failed' as OperationPhase,
-    Hydrated: 'Hydrated' as OperationPhase
+    Hydrating: 'Hydrating' as HydrateOperationPhase,
+    Failed: 'Failed' as HydrateOperationPhase,
+    Hydrated: 'Hydrated' as HydrateOperationPhase
 };
 
 export interface JwtTokens {

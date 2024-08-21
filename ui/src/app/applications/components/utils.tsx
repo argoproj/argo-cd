@@ -230,21 +230,26 @@ export const HydrateOperationPhaseIcon = ({operationState}: {operationState?: ap
     }
     let className = '';
     let color = '';
+    const title = operationState.phase || 'Unknown';
     switch (operationState.phase) {
         case appModels.HydrateOperationPhases.Hydrated:
             className = 'fa fa-check-circle';
-            color = COLORS.operation.success;
+            color = COLORS.hydrate.success;
             break;
         case appModels.HydrateOperationPhases.Failed:
             className = 'fa fa-times-circle';
-            color = COLORS.operation.failed;
+            color = COLORS.hydrate.failed;
+            break;
+        case appModels.HydrateOperationPhases.Hydrating:
+            className = 'fa fa-circle-notch fa-spin';
+            color = COLORS.hydrate.running;
             break;
         default:
             className = 'fa fa-circle-notch fa-spin';
-            color = COLORS.operation.running;
+            color = COLORS.hydrate.unknown;
             break;
     }
-    return <i title={operationState.phase} qe-id='utils-operations-status-title' className={className} style={{color}} />;
+    return <i title={title} qe-id='utils-operations-status-title' className={className} style={{color}} />;
 };
 
 export const ComparisonStatusIcon = ({

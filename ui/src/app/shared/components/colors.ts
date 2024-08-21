@@ -45,5 +45,12 @@ export const COLORS = {
         manual: ARGO_WARNING_COLOR,
         inactive: ARGO_GRAY4_COLOR,
         unknown: ARGO_GRAY4_COLOR
+    },
+    hydrate: {
+        error: ARGO_FAILED_COLOR,
+        failed: ARGO_FAILED_COLOR,
+        running: ARGO_RUNNING_COLOR,
+        success: ARGO_SUCCESS_COLOR,
+        unknown: ARGO_GRAY4_COLOR
     }
 };

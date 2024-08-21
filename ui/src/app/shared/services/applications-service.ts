@@ -498,30 +498,38 @@ export class ApplicationsService {
     }
 
     private parseAppFields(data: any): models.Application {
-        data = deepMerge(
-            {
-                apiVersion: 'argoproj.io/v1alpha1',
-                kind: 'Application',
-                spec: {
-                    project: 'default'
-                },
-                status: {
-                    resources: [],
-                    summary: {},
-                    sourceHydrator: {
-                        currentOperation: {
-                            phase: '',
-                            message: '',
-                            drySHA: '',
-                            finishedAt: '',
-                            startedAt: ''
-                        }
-                    }
-                }
+        const defaultData: models.Application = {
+            apiVersion: 'argoproj.io/v1alpha1',
+            kind: 'Application',
+            spec: {
+                project: 'default',
+                source: undefined,
+                sources: [],
+                destination: undefined,
+                sourceHydrator: undefined
             },
-            data
-        );
-
-        return data as models.Application;
+            status: {
+                observedAt: new Date().toISOString() as unknown as string,
+                resources: [] as models.ResourceStatus[],
+                sync: {
+                    status: 'Unknown',
+                    revision: '',
+                    comparedTo: undefined,
+                    revisions: []
+                },
+                conditions: [],
+                history: [],
+                health: {
+                    status: 'Unknown',
+                    message: ''
+                },
+                sourceHydrator: undefined as models.SourceHydratorStatus 
+            },
+            metadata: undefined as unknown
+        };
+        const mergedData = deepMerge(defaultData, data, {
+            arrayMerge: (destinationArray, sourceArray) => sourceArray
+        }) as models.Application;
+        return mergedData;
     }
 }
