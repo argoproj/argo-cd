@@ -110,96 +110,6 @@ func testServerConnection(t *testing.T, testFunc func(w http.ResponseWriter, r *
 	}
 }
 
-func TestTerminalSession_Read_Alternative(t *testing.T) {
-	validate := func(w http.ResponseWriter, r *http.Request) {
-		ts := newTestTerminalSession(w, r)
-		if ts.wsConn == nil {
-			t.Fatalf("WebSocket connection is not initialized")
-		}
-
-		ts.terminalOpts = &TerminalOptions{DisableAuth: true}
-	}
-
-	tests := []struct {
-		name           string
-		message        TerminalMessage
-		expectedOutput string
-		expectedSize   *remotecommand.TerminalSize
-		expectedError  bool
-	}{
-		{
-			name:           "stdin operation",
-			message:        TerminalMessage{Operation: "stdin", Data: "test input"},
-			expectedOutput: "test input",
-			expectedSize:   nil,
-			expectedError:  false,
-		},
-		{
-			name:           "resize operation",
-			message:        TerminalMessage{Operation: "resize", Cols: 80, Rows: 24},
-			expectedOutput: "",
-			expectedSize: &remotecommand.TerminalSize{
-				Width:  80,
-				Height: 24,
-			},
-			expectedError: false,
-		},
-		{
-			name:           "unknown operation",
-			message:        TerminalMessage{Operation: "unknown"},
-			expectedOutput: EndOfTransmission,
-			expectedSize:   nil,
-			expectedError:  true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := httptest.NewServer(http.HandlerFunc(validate))
-			defer s.Close()
-
-			u := "ws" + strings.TrimPrefix(s.URL, "http")
-			ws, _, err := websocket.DefaultDialer.Dial(u, nil)
-			require.NoError(t, err)
-			defer ws.Close()
-
-			ts := terminalSession{
-				wsConn:       ws,
-				sizeChan:     make(chan remotecommand.TerminalSize, 1),
-				terminalOpts: &TerminalOptions{DisableAuth: true},                                                            // Ensure terminalOpts is initialized
-				token:        new(string),                                                                                    // Initialize token to avoid nil dereference
-				ctx:          context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"admin"}}), // Set context with claims
-			}
-
-			// Send the test message
-			bytes, _ := json.Marshal(tt.message)
-			err = ts.wsConn.WriteMessage(websocket.TextMessage, bytes)
-			require.NoError(t, err)
-
-			// Read data from the WebSocket
-			p := make([]byte, 1024)
-			n, err := ts.Read(p)
-
-			if tt.expectedError {
-				assert.Error(t, err)
-				assert.Equal(t, tt.expectedOutput, string(p[:n]))
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.expectedOutput, string(p[:n]))
-			}
-
-			if tt.expectedSize != nil {
-				select {
-				case size := <-ts.sizeChan:
-					assert.Equal(t, *tt.expectedSize, size)
-				default:
-					t.Error("Expected size message not received")
-				}
-			}
-		})
-	}
-}
-
 func TestVerifyAndReconnectDisableAuthTrue(t *testing.T) {
 	validate := func(w http.ResponseWriter, r *http.Request) {
 		ts := newTestTerminalSession(w, r)
@@ -337,7 +247,6 @@ func TestTerminalSession_Read(t *testing.T) {
 				ctx:          context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"admin"}}), // Set context with claims
 			}
 
-			// Read data from the WebSocket
 			p := make([]byte, 1024)
 			n, err := ts.Read(p)
 
