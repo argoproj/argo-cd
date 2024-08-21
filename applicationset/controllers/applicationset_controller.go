@@ -397,7 +397,20 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 	paramtersGeneratedCondition := getParametersGeneratedCondition(paramtersGenerated, condition.Message)
 	resourceUpToDateCondition := getResourceUpToDateCondition(errOccurred, condition.Message, condition.Reason)
 
+	evaluatedTypes := map[argov1alpha1.ApplicationSetConditionType]bool{
+		argov1alpha1.ApplicationSetConditionErrorOccurred:       true,
+		argov1alpha1.ApplicationSetConditionParametersGenerated: true,
+		argov1alpha1.ApplicationSetConditionResourcesUpToDate:   true,
+	}
 	newConditions := []argov1alpha1.ApplicationSetCondition{errOccurredCondition, paramtersGeneratedCondition, resourceUpToDateCondition}
+
+	if progressiveSyncsRollingSyncStrategyEnabled(applicationSet) {
+		evaluatedTypes[argov1alpha1.ApplicationSetConditionRolloutProgressing] = true
+
+		if condition.Type == argov1alpha1.ApplicationSetConditionRolloutProgressing {
+			newConditions = append(newConditions, condition)
+		}
+	}
 
 	needToUpdateConditions := false
 	for _, condition := range newConditions {
@@ -409,13 +422,8 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 			}
 		}
 	}
-	evaluatedTypes := map[argov1alpha1.ApplicationSetConditionType]bool{
-		argov1alpha1.ApplicationSetConditionErrorOccurred:       true,
-		argov1alpha1.ApplicationSetConditionParametersGenerated: true,
-		argov1alpha1.ApplicationSetConditionResourcesUpToDate:   true,
-	}
 
-	if needToUpdateConditions || len(applicationSet.Status.Conditions) < 3 {
+	if needToUpdateConditions || len(applicationSet.Status.Conditions) < len(newConditions) {
 		// fetch updated Application Set object before updating it
 		namespacedName := types.NamespacedName{Namespace: applicationSet.Namespace, Name: applicationSet.Name}
 		if err := r.Get(ctx, namespacedName, applicationSet); err != nil {
@@ -1220,7 +1228,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusConditio
 				Message: "ApplicationSet Rollout Rollout started",
 				Reason:  argov1alpha1.ApplicationSetReasonApplicationSetModified,
 				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
-			}, false,
+			}, true,
 		)
 	} else if !appSetProgressing && appSetConditionProgressing {
 		_ = r.setApplicationSetStatusCondition(ctx,
@@ -1230,7 +1238,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusConditio
 				Message: "ApplicationSet Rollout Rollout complete",
 				Reason:  argov1alpha1.ApplicationSetReasonApplicationSetRolloutComplete,
 				Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
-			}, false,
+			}, true,
 		)
 	}
 
