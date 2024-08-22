@@ -2266,54 +2266,179 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
-	appSet := v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "name",
-			Namespace: "argocd",
-		},
-		Spec: v1alpha1.ApplicationSetSpec{
-			Generators: []v1alpha1.ApplicationSetGenerator{
-				{List: &v1alpha1.ListGenerator{
-					Elements: []apiextensionsv1.JSON{{
-						Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
-					}},
-				}},
+	testCases := []struct {
+		appset     v1alpha1.ApplicationSet
+		conditions []v1alpha1.ApplicationSetCondition
+		testfunc   func(t *testing.T, appset v1alpha1.ApplicationSet)
+	}{
+		{
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{
+								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+							}},
+						}},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
 			},
-			Template: v1alpha1.ApplicationSetTemplate{},
+			conditions: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Message: "All applications have been generated successfully",
+					Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
+					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+				},
+			},
+			testfunc: func(t *testing.T, appset v1alpha1.ApplicationSet) {
+				assert.Len(t, appset.Status.Conditions, 3)
+			},
 		},
-	}
+		{
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{
+								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+							}},
+						}},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+			},
+			conditions: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Message: "All applications have been generated successfully",
+					Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
+					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+				},
+				{
+					Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
+					Message: "ApplicationSet Rollout Rollout started",
+					Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
+					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+				},
+			},
+			testfunc: func(t *testing.T, appset v1alpha1.ApplicationSet) {
+				assert.Len(t, appset.Status.Conditions, 3)
 
-	appCondition := v1alpha1.ApplicationSetCondition{
-		Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-		Message: "All applications have been generated successfully",
-		Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-		Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+				isProgressingCondition := false
+
+				for _, condition := range appset.Status.Conditions {
+					if condition.Type == v1alpha1.ApplicationSetConditionRolloutProgressing {
+						isProgressingCondition = true
+						break
+					}
+				}
+
+				assert.False(t, isProgressingCondition, "no RolloutProgressing should be set for applicationsets that don't have rolling strategy")
+			},
+		},
+		{
+			appset: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{
+								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+							}},
+						}},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "test",
+											Operator: "In",
+											Values:   []string{"test"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			conditions: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Message: "All applications have been generated successfully",
+					Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
+					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+				},
+				{
+					Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
+					Message: "ApplicationSet Rollout Rollout started",
+					Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
+					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+				},
+			},
+			testfunc: func(t *testing.T, appset v1alpha1.ApplicationSet) {
+				assert.Len(t, appset.Status.Conditions, 4)
+
+				isProgressingCondition := false
+
+				for _, condition := range appset.Status.Conditions {
+					if condition.Type == v1alpha1.ApplicationSetConditionRolloutProgressing {
+						isProgressingCondition = true
+						break
+					}
+				}
+
+				assert.True(t, isProgressingCondition, "RolloutProgressing should be set for rollout strategy appset")
+			},
+		},
 	}
 
 	kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
 	argoDBMock := dbmocks.ArgoDB{}
 	argoObjs := []runtime.Object{}
 
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	for _, testCase := range testCases {
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testCase.appset).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 
-	r := ApplicationSetReconciler{
-		Client:   client,
-		Scheme:   scheme,
-		Renderer: &utils.Render{},
-		Recorder: record.NewFakeRecorder(1),
-		Cache:    &fakeCache{},
-		Generators: map[string]generators.Generator{
-			"List": generators.NewListGenerator(),
-		},
-		ArgoDB:           &argoDBMock,
-		ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
-		KubeClientset:    kubeclientset,
+		r := ApplicationSetReconciler{
+			Client:   client,
+			Scheme:   scheme,
+			Renderer: &utils.Render{},
+			Recorder: record.NewFakeRecorder(1),
+			Cache:    &fakeCache{},
+			Generators: map[string]generators.Generator{
+				"List": generators.NewListGenerator(),
+			},
+			ArgoDB:           &argoDBMock,
+			ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+			KubeClientset:    kubeclientset,
+		}
+
+		for _, condition := range testCase.conditions {
+			err = r.setApplicationSetStatusCondition(context.TODO(), &testCase.appset, condition, true)
+			require.NoError(t, err)
+		}
+
+		testCase.testfunc(t, testCase.appset)
+		// assert.Len(t, testCase.appset.Status.Conditions, 3)
 	}
-
-	err = r.setApplicationSetStatusCondition(context.TODO(), &appSet, appCondition, true)
-	require.NoError(t, err)
-
-	assert.Len(t, appSet.Status.Conditions, 3)
 }
 
 func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alpha1.ApplicationsSyncPolicy, recordBuffer int, allowPolicyOverride bool) v1alpha1.Application {

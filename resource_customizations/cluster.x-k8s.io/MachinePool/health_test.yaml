@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: 'MachinePool is Running'
+  inputPath: testdata/healthy_provisioned.yaml
+- healthStatus:
+    status: Progressing
+    message: 'MachinePool is Provisioning: Not Ready (WaitingForInfrastructure), Not InfrastructureReady (WaitingForInfrastructure)'
+  inputPath: testdata/progressing_provisioning.yaml
+- healthStatus:
+    status: Degraded
+    message: 'MachinePool is Failed'
+  inputPath: testdata/degraded_failed.yaml

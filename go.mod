@@ -65,7 +65,7 @@ require (
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/prometheus/client_golang v1.20.0
+	github.com/prometheus/client_golang v1.20.1
 	github.com/r3labs/diff v1.1.0
 	github.com/redis/go-redis/v9 v9.6.1
 	github.com/robfig/cron/v3 v3.0.1
@@ -272,6 +272,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.24.0 // indirect
 	go.opentelemetry.io/otel/trace v1.24.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
+	go.uber.org/automaxprocs v1.5.3
 	gomodules.xyz/envconfig v1.3.1-0.20190308184047-426f31af0d45 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	gomodules.xyz/notify v0.1.1 // indirect

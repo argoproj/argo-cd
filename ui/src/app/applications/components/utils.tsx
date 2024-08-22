@@ -773,7 +773,7 @@ export const HealthStatusIcon = ({state, noSpin}: {state: appModels.HealthStatus
     if (state.message) {
         title = `${state.status}: ${state.message}`;
     }
-    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{color}} />;
+    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon + ' utils-health-status-icon'} style={{color}} />;
 };
 
 export const PodHealthIcon = ({state}: {state: appModels.HealthStatus}) => {
