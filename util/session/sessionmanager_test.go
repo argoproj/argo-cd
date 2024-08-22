@@ -522,7 +522,7 @@ func parseJWT(tokenString string) (map[string]interface{}, error) {
 	if claims, ok := token.Claims.(jwt.MapClaims); ok {
 		return claims, nil
 	}
-	return nil, errors.New("invalid token claims")
+	return nil, stderrors.New("invalid token claims")
 }
 
 // Helper function to generate a valid Kubernetes JWT for testing
