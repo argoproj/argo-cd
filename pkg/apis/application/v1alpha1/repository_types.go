@@ -2,9 +2,10 @@ package v1alpha1
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/oci"
 	"net/url"
 	"strings"
+
+	"github.com/argoproj/argo-cd/v2/util/oci"
 
 	"github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/git"
