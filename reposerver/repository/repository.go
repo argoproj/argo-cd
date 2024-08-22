@@ -94,7 +94,7 @@ type Service struct {
 	parallelismLimitSemaphore *semaphore.Weighted
 	metricsServer             *metrics.MetricsServer
 	resourceTracking          argo.ResourceTracking
-	newOciClient              func(repoURL string, creds oci.Creds, proxy string, noProxy string, opts ...oci.ClientOpts) (oci.Client, error)
+	newOCIClient              func(repoURL string, creds oci.Creds, proxy string, noProxy string, opts ...oci.ClientOpts) (oci.Client, error)
 	newGitClient              func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (git.Client, error)
 	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client
 	initConstants             RepoServerInitConstants
@@ -136,7 +136,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 		metricsServer:             metricsServer,
 		newGitClient:              git.NewClientExt,
 		resourceTracking:          resourceTracking,
-		newOciClient: func(repoURL string, creds oci.Creds, proxy string, noProxy string, opts ...oci.ClientOpts) (oci.Client, error) {
+		newOCIClient: func(repoURL string, creds oci.Creds, proxy string, noProxy string, opts ...oci.ClientOpts) (oci.Client, error) {
 			return oci.NewClient(repoURL, creds, proxy, noProxy, opts...)
 		},
 		newHelmClient: func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client {
@@ -316,7 +316,7 @@ func (s *Service) runRepoOperation(
 	revision = textutils.FirstNonEmpty(revision, source.TargetRevision)
 	unresolvedRevision := revision
 	if source.IsOci() {
-		ociClient, revision, err = s.newOciClientResolveRevision(ctx, repo, revision, settings.noCache || settings.noRevisionCache)
+		ociClient, revision, err = s.newOCIClientResolveRevision(ctx, repo, revision, settings.noCache || settings.noRevisionCache)
 	} else if source.IsHelm() {
 		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart, settings.noCache || settings.noRevisionCache)
 	} else {
@@ -2485,8 +2485,8 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 	return gitClient, commitSHA, nil
 }
 
-func (s *Service) newOciClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, noRevisionCache bool) (oci.Client, string, error) {
-	ociClient, err := s.newOciClient(repo.Repo, repo.GetOciCreds(), repo.Proxy, repo.NoProxy, oci.WithIndexCache(s.cache), oci.WithChartPaths(s.chartPaths))
+func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, noRevisionCache bool) (oci.Client, string, error) {
+	ociClient, err := s.newOCIClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, oci.WithIndexCache(s.cache), oci.WithChartPaths(s.chartPaths))
 	if err != nil {
 		return nil, "", err
 	}
@@ -2642,7 +2642,7 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 			return git.TestRepo(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, repo.NoProxy)
 		},
 		"oci": func() error {
-			client, err := oci.NewClient(repo.Repo, repo.GetOciCreds(), repo.Proxy, repo.NoProxy)
+			client, err := oci.NewClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy)
 			if err != nil {
 				return err
 			}
@@ -2680,7 +2680,7 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 	source := app.Spec.GetSourcePtrByIndex(int(q.SourceIndex))
 
 	if source.IsOci() {
-		_, revision, err := s.newOciClientResolveRevision(ctx, repo, ambiguousRevision, true)
+		_, revision, err := s.newOCIClientResolveRevision(ctx, repo, ambiguousRevision, true)
 		if err != nil {
 			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
 		}
