@@ -288,14 +288,13 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
 
 	if m.settingsMgr.IsImpersonationEnabled() {
-		logEntry.Info("application sync using impersonation feature is enabled")
 		serviceAccountToImpersonate, err := deriveServiceAccountName(proj, app)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to find a matching service account to impersonate: %v", err)
 			return
 		}
-		logEntry.Infof("service account to be used for impersonation: %s", serviceAccountToImpersonate)
+		logEntry = logEntry.WithFields(log.Fields{"impersonationEnabled": "true", "serviceAccount": serviceAccountToImpersonate})
 		// set the impersonation headers.
 		rawConfig.Impersonate = rest.ImpersonationConfig{
 			UserName: serviceAccountToImpersonate,
