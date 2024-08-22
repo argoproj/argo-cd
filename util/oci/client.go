@@ -83,21 +83,21 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 	ociRepo := strings.TrimPrefix(repoURL, "oci://")
 	repo, err := remote.NewRepository(ociRepo)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize repository: %v", err)
+		return nil, fmt.Errorf("failed to initialize repository: %w", err)
 	}
 
 	repo.PlainHTTP = creds.InsecureHttpOnly
 
 	ociUri, err := url.Parse(repoURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse registry host: %v", err)
+		return nil, fmt.Errorf("failed to parse registry host: %w", err)
 	}
 
 	var tlsConf *tls.Config
 	if !repo.PlainHTTP {
 		tlsConf, err = newTLSConfig(creds)
 		if err != nil {
-			return nil, fmt.Errorf("failed setup tlsConfig: %v", err)
+			return nil, fmt.Errorf("failed setup tlsConfig: %w", err)
 		}
 	}
 
@@ -263,7 +263,7 @@ func (c *nativeOCIClient) CleanCache(revision, project string) error {
 func (c *nativeOCIClient) ResolveDigest(ctx context.Context, revision string) (string, error) {
 	descriptor, err := c.repo.Resolve(ctx, revision)
 	if err != nil {
-		return "", fmt.Errorf("cannot get digest: %v", err)
+		return "", fmt.Errorf("cannot get digest: %w", err)
 	}
 
 	return descriptor.Digest.String(), nil
@@ -273,11 +273,13 @@ func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, 
 	constraints, err := semver.NewConstraint(revision)
 	if err == nil {
 		tags, err := c.GetTags(ctx, noCache)
+		if err != nil {
+			return "", fmt.Errorf("error fetching tags: %w", err)
+		}
 		version, err := tags.MaxVersion(constraints)
 		if err != nil {
-			return "", fmt.Errorf("no version for constraints: %v", err)
+			return "", fmt.Errorf("no version for constraints: %w", err)
 		}
-
 		return version.String(), nil
 	}
 
@@ -291,7 +293,7 @@ func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) (*TagsList,
 	var data []byte
 	if !noCache && c.indexCache != nil {
 		if err := c.indexCache.GetHelmIndex(c.repoURL, &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
-			log.Warnf("Failed to load index cache for repo: %s: %v", c.repoLock, err)
+			log.Warnf("Failed to load index cache for repo: %s: %s", c.repoLock, err)
 		}
 	}
 
@@ -308,7 +310,7 @@ func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) (*TagsList,
 			return nil
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to get tags: %v", err)
+			return nil, fmt.Errorf("failed to get tags: %w", err)
 		}
 		log.WithFields(
 			log.Fields{"seconds": time.Since(start).Seconds(), "repo": c.repoURL},
@@ -316,13 +318,13 @@ func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) (*TagsList,
 
 		if c.indexCache != nil {
 			if err := c.indexCache.SetHelmIndex(c.repoURL, data); err != nil {
-				log.Warnf("Failed to store tags list cache for repo: %s: %v", c.repoURL, err)
+				log.Warnf("Failed to store tags list cache for repo: %s: %s", c.repoURL, err)
 			}
 		}
 	} else {
 		err := json.Unmarshal(data, tags)
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode tags: %v", err)
+			return nil, fmt.Errorf("failed to decode tags: %w", err)
 		}
 	}
 

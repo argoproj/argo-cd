@@ -136,9 +136,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 		metricsServer:             metricsServer,
 		newGitClient:              git.NewClientExt,
 		resourceTracking:          resourceTracking,
-		newOCIClient: func(repoURL string, creds oci.Creds, proxy string, noProxy string, opts ...oci.ClientOpts) (oci.Client, error) {
-			return oci.NewClient(repoURL, creds, proxy, noProxy, opts...)
-		},
+		newOCIClient:              oci.NewClient,
 		newHelmClient: func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client {
 			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock(), enableOci, proxy, noProxy, opts...)
 		},
