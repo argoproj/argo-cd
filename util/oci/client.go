@@ -7,6 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/Masterminds/semver/v3"
 	"github.com/argoproj/argo-cd/v2/util/cache"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
@@ -14,17 +21,12 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
-	"io"
-	"net/http"
-	"net/url"
+
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/file"
 	"oras.land/oras-go/v2/content/oci"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
-	"os"
-	"strings"
-	"time"
 )
 
 var (
@@ -72,13 +74,14 @@ func WithChartPaths(repoCachePaths argoio.TempPaths) ClientOpts {
 		c.repoCachePaths = repoCachePaths
 	}
 }
+
 func NewClient(repoURL string, creds Creds, proxy, noProxy string, opts ...ClientOpts) (Client, error) {
 	return NewClientWithLock(repoURL, creds, globalLock, proxy, noProxy, opts...)
 }
+
 func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxyUrl, noProxy string, opts ...ClientOpts) (Client, error) {
 	ociRepo := strings.TrimPrefix(repoURL, "oci://")
 	repo, err := remote.NewRepository(ociRepo)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize repository: %v", err)
 	}
@@ -279,7 +282,6 @@ func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, 
 	}
 
 	return revision, nil
-
 }
 
 func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) (*TagsList, error) {
@@ -305,7 +307,6 @@ func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) (*TagsList,
 
 			return nil
 		})
-
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tags: %v", err)
 		}

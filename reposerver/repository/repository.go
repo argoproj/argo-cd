@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/oci"
 	goio "io"
 	"io/fs"
 	"net/url"
@@ -16,6 +15,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/util/oci"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/TomOnTime/utfutil"
