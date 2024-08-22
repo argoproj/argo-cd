@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -88,11 +87,6 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 
 	repo.PlainHTTP = creds.InsecureHttpOnly
 
-	ociUri, err := url.Parse(repoURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse registry host: %w", err)
-	}
-
 	var tlsConf *tls.Config
 	if !repo.PlainHTTP {
 		tlsConf, err = newTLSConfig(creds)
@@ -101,12 +95,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 		}
 	}
 
-	var ociRegistry string
-	if ociUri.Port() != "" {
-		ociRegistry = fmt.Sprintf("%s:%s", ociUri.Hostname(), ociUri.Port())
-	} else {
-		ociRegistry = ociUri.Hostname()
-	}
+	ociRegistry := repo.Reference.Registry
 
 	client := &http.Client{Transport: &http.Transport{
 		Proxy:             proxy.GetCallback(proxyUrl, noProxy),
