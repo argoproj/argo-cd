@@ -86,12 +86,15 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 	// channel to either get the channel or fail-fast.
 	go func() {
 		opts = append(opts,
+			// nolint:staticcheck
 			grpc.WithBlock(),
+			// nolint:staticcheck
 			grpc.FailOnNonTempDialError(true),
 			grpc.WithContextDialer(dialer),
 			grpc.WithTransportCredentials(insecure.NewCredentials()), // we are handling TLS, so tell grpc not to
 			grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: common.GetGRPCKeepAliveTime()}),
 		)
+		// nolint:staticcheck
 		conn, err := grpc.DialContext(ctx, address, opts...)
 		var res interface{}
 		if err != nil {
