@@ -135,8 +135,8 @@ func TestCustomHTTPClient(t *testing.T) {
 	assert.NotEqual(t, "", string(keyData))
 
 	// Get HTTPSCreds with client cert creds specified, and insecure connection
-	creds := NewHTTPSCreds("test", "test", string(certData), string(keyData), false, "http://proxy:5000", "", &NoopCredsStore{}, false)
-	client := GetRepoHTTPClient("https://localhost:9443/foo/bar", false, creds, "http://proxy:5000", "")
+	creds := NewHTTPSCreds("test", "test", string(certData), string(keyData), false, "http://proxy:5000", &NoopCredsStore{}, false)
+	client := GetRepoHTTPClient("https://localhost:9443/foo/bar", false, creds, "http://proxy:5000")
 	assert.NotNil(t, client)
 	assert.NotNil(t, client.Transport)
 	if client.Transport != nil {
@@ -157,15 +157,14 @@ func TestCustomHTTPClient(t *testing.T) {
 		}
 		proxy, err := transport.Proxy(nil)
 		require.NoError(t, err)
-		assert.NotNil(t, proxy) // nil would mean no proxy is used
 		assert.Equal(t, "http://proxy:5000", proxy.String())
 	}
 
 	t.Setenv("http_proxy", "http://proxy-from-env:7878")
 
 	// Get HTTPSCreds without client cert creds, but insecure connection
-	creds = NewHTTPSCreds("test", "test", "", "", true, "", "", &NoopCredsStore{}, false)
-	client = GetRepoHTTPClient("https://localhost:9443/foo/bar", true, creds, "", "")
+	creds = NewHTTPSCreds("test", "test", "", "", true, "", &NoopCredsStore{}, false)
+	client = GetRepoHTTPClient("https://localhost:9443/foo/bar", true, creds, "")
 	assert.NotNil(t, client)
 	assert.NotNil(t, client.Transport)
 	if client.Transport != nil {
@@ -198,7 +197,7 @@ func TestCustomHTTPClient(t *testing.T) {
 	err = os.WriteFile(filepath.Join(temppath, "127.0.0.1"), cert, 0o666)
 	require.NoError(t, err)
 	t.Setenv(common.EnvVarTLSDataPath, temppath)
-	client = GetRepoHTTPClient("https://127.0.0.1", false, creds, "", "")
+	client = GetRepoHTTPClient("https://127.0.0.1", false, creds, "")
 	assert.NotNil(t, client)
 	assert.NotNil(t, client.Transport)
 	if client.Transport != nil {
@@ -211,7 +210,7 @@ func TestCustomHTTPClient(t *testing.T) {
 }
 
 func TestLsRemote(t *testing.T) {
-	clnt, err := NewClientExt("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, "", "")
+	clnt, err := NewClientExt("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, "")
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -312,7 +311,7 @@ func TestLFSClient(t *testing.T) {
 
 	tempDir := t.TempDir()
 
-	client, err := NewClientExt("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true, "", "")
+	client, err := NewClientExt("https://github.com/argoproj-labs/argocd-testrepo-lfs", tempDir, NopCreds{}, false, true, "")
 	require.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
@@ -351,7 +350,7 @@ func TestLFSClient(t *testing.T) {
 func TestVerifyCommitSignature(t *testing.T) {
 	p := t.TempDir()
 
-	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", p, NopCreds{}, false, false, "", "")
+	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", p, NopCreds{}, false, false, "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -405,7 +404,7 @@ func TestNewFactory(t *testing.T) {
 
 		dirName := t.TempDir()
 
-		client, err := NewClientExt(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false, "", "")
+		client, err := NewClientExt(tt.args.url, dirName, NopCreds{}, tt.args.insecureIgnoreHostKey, false, "")
 		require.NoError(t, err)
 		commitSHA, err := client.LsRemote("HEAD")
 		require.NoError(t, err)
@@ -442,7 +441,7 @@ func TestListRevisions(t *testing.T) {
 	dir := t.TempDir()
 
 	repoURL := "https://github.com/argoproj/argo-cd.git"
-	client, err := NewClientExt(repoURL, dir, NopCreds{}, false, false, "", "")
+	client, err := NewClientExt(repoURL, dir, NopCreds{}, false, false, "")
 	require.NoError(t, err)
 
 	lsResult, err := client.LsRefs()
@@ -461,7 +460,7 @@ func TestLsFiles(t *testing.T) {
 	tmpDir1 := t.TempDir()
 	tmpDir2 := t.TempDir()
 
-	client, err := NewClientExt("", tmpDir1, NopCreds{}, false, false, "", "")
+	client, err := NewClientExt("", tmpDir1, NopCreds{}, false, false, "")
 	require.NoError(t, err)
 
 	err = runCmd(tmpDir1, "git", "init")

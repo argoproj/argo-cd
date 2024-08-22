@@ -9,23 +9,20 @@ ApplicationSet is using [fasttemplate](https://github.com/valyala/fasttemplate) 
 An Argo CD Application is created by combining the parameters from the generator with fields of the template (via `{{values}}`), and from that a concrete `Application` resource is produced and applied to the cluster.
 
 Here is the template subfield from a Cluster generator:
-
 ```yaml
 # (...)
  template:
    metadata:
-     name: '{{ .nameNormalized }}-guestbook'
+     name: '{{cluster}}-guestbook'
    spec:
      source:
        repoURL: https://github.com/infra-team/cluster-deployments.git
        targetRevision: HEAD
-       path: guestbook/{{ .nameNormalized }}
+       path: guestbook/{{cluster}}
      destination:
-       server: '{{ .server }}'
+       server: '{{url}}'
        namespace: guestbook
 ```
-
-For details on all available parameters (like `.name`, `.nameNormalized`, etc.) please refer to the [Cluster Generator docs](./Generators-Cluster.md).
 
 The template subfields correspond directly to [the spec of an Argo CD `Application` resource](../../declarative-setup/#applications):
 
@@ -57,7 +54,7 @@ template as a Helm string literal. For example:
 
 ```yaml
     metadata:
-      name: '{{`{{ .nameNormalized }}`}}-guestbook'
+      name: '{{`{{.cluster}}`}}-guestbook'
 ```
 
 This _only_ applies if you use Helm to deploy your ApplicationSet resources.
@@ -92,12 +89,12 @@ spec:
             targetRevision: HEAD
             repoURL: https://github.com/argoproj/argo-cd.git
             # New path value is generated here:
-            path: 'applicationset/examples/template-override/{{ .nameNormalized }}-override'
+            path: 'applicationset/examples/template-override/{{cluster}}-override'
           destination: {}
 
   template:
     metadata:
-      name: '{{ .nameNormalized }}-guestbook'
+      name: '{{cluster}}-guestbook'
     spec:
       project: "default"
       source:
@@ -106,7 +103,7 @@ spec:
         # This 'default' value is not used: it is replaced by the generator's template path, above
         path: applicationset/examples/template-override/default
       destination:
-        server: '{{ .server }}'
+        server: '{{url}}'
         namespace: guestbook
 ```
 (*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/template-override).*)
@@ -144,15 +141,15 @@ spec:
             - values.debug.yaml
   template:
     metadata:
-      name: '{{ .nameNormalized }}-deployment'
+      name: '{{.cluster}}-deployment'
     spec:
       project: "default"
       source:
         repoURL: https://github.com/infra-team/cluster-deployments.git
         targetRevision: HEAD
-        path: guestbook/{{ .nameNormalized }}
+        path: guestbook/{{ .cluster }}
       destination:
-        server: '{{ .server }}'
+        server: '{{.url}}'
         namespace: guestbook
   templatePatch: |
     spec:

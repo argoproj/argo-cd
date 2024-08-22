@@ -122,7 +122,7 @@ func NewRBACCommand() *cobra.Command {
 	return command
 }
 
-// NewRBACCanCommand is the command for 'rbac can-role'
+// NewRBACCanRoleCommand is the command for 'rbac can-role'
 func NewRBACCanCommand() *cobra.Command {
 	var (
 		policyFile   string
@@ -359,16 +359,20 @@ func getPolicyFromFile(policyFile string) (string, string, string, error) {
 // Retrieve policy information from a ConfigMap
 func getPolicyFromConfigMap(cm *corev1.ConfigMap) (string, string, string) {
 	var (
+		userPolicy  string
 		defaultRole string
 		ok          bool
 	)
-
+	userPolicy, ok = cm.Data[rbac.ConfigMapPolicyCSVKey]
+	if !ok {
+		userPolicy = ""
+	}
 	defaultRole, ok = cm.Data[rbac.ConfigMapPolicyDefaultKey]
 	if !ok {
 		defaultRole = ""
 	}
 
-	return rbac.PolicyCSV(cm.Data), defaultRole, cm.Data[rbac.ConfigMapMatchModeKey]
+	return userPolicy, defaultRole, cm.Data[rbac.ConfigMapMatchModeKey]
 }
 
 // getPolicyConfigMap fetches the RBAC config map from K8s cluster

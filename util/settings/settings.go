@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"net/http"
 	"net/url"
 	"path"
 	"reflect"
@@ -50,9 +49,6 @@ type ArgoCDSettings struct {
 	// URL is the externally facing URL users will visit to reach Argo CD.
 	// The value here is used when configuring SSO. Omitting this value will disable SSO.
 	URL string `json:"url,omitempty"`
-	// URLs is a list of externally facing URLs users will visit to reach Argo CD.
-	// The value here is used when configuring SSO reachable from multiple domains.
-	AdditionalURLs []string `json:"additionalUrls,omitempty"`
 	// Indicates if status badge is enabled or not.
 	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
 	// Indicates if status badge custom root URL should be used.
@@ -341,8 +337,6 @@ type Repository struct {
 	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
 	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
 	Proxy string `json:"proxy,omitempty"`
-	// NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
-	NoProxy string `json:"noProxy,omitempty"`
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
 	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
 	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
@@ -412,8 +406,6 @@ const (
 	settingServerPrivateKey = "tls.key"
 	// settingURLKey designates the key where Argo CD's external URL is set
 	settingURLKey = "url"
-	// settingAdditionalUrlsKey designates the key where Argo CD's additional external URLs are set
-	settingAdditionalUrlsKey = "additionalUrls"
 	// repositoriesKey designates the key where ArgoCDs repositories list is set
 	repositoriesKey = "repositories"
 	// repositoryCredentialsKey designates the key where ArgoCDs repositories credentials list is set
@@ -1478,16 +1470,6 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	if err := validateExternalURL(argoCDCM.Data[settingUiBannerURLKey]); err != nil {
 		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
 	}
-	if argoCDCM.Data[settingAdditionalUrlsKey] != "" {
-		if err := yaml.Unmarshal([]byte(argoCDCM.Data[settingAdditionalUrlsKey]), &settings.AdditionalURLs); err != nil {
-			log.Warnf("Failed to decode all additional URLs in configmap: %v", err)
-		}
-	}
-	for _, url := range settings.AdditionalURLs {
-		if err := validateExternalURL(url); err != nil {
-			log.Warnf("Failed to validate external URL in configmap: %v", err)
-		}
-	}
 	settings.UiBannerURL = argoCDCM.Data[settingUiBannerURLKey]
 	settings.UserSessionDuration = time.Hour * 24
 	if userSessionDurationStr, ok := argoCDCM.Data[userSessionDurationKey]; ok {
@@ -2009,39 +1991,6 @@ func appendURLPath(inputURL string, inputPath string) (string, error) {
 
 func (a *ArgoCDSettings) RedirectURL() (string, error) {
 	return appendURLPath(a.URL, common.CallbackEndpoint)
-}
-
-func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
-	for _, candidateURL := range append([]string{a.URL}, a.AdditionalURLs...) {
-		u, err := url.Parse(candidateURL)
-		if err != nil {
-			return "", err
-		}
-		if u.Host == r.Host && strings.HasPrefix(r.URL.RequestURI(), u.RequestURI()) {
-			return candidateURL, nil
-		}
-	}
-	return a.URL, nil
-}
-
-func (a *ArgoCDSettings) RedirectURLForRequest(r *http.Request) (string, error) {
-	base, err := a.ArgoURLForRequest(r)
-	if err != nil {
-		return "", err
-	}
-	return appendURLPath(base, common.CallbackEndpoint)
-}
-
-func (a *ArgoCDSettings) RedirectAdditionalURLs() ([]string, error) {
-	RedirectAdditionalURLs := []string{}
-	for _, url := range a.AdditionalURLs {
-		redirectURL, err := appendURLPath(url, common.CallbackEndpoint)
-		if err != nil {
-			return []string{}, err
-		}
-		RedirectAdditionalURLs = append(RedirectAdditionalURLs, redirectURL)
-	}
-	return RedirectAdditionalURLs, nil
 }
 
 func (a *ArgoCDSettings) DexRedirectURL() (string, error) {

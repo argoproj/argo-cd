@@ -186,6 +186,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		if len(revisions) < len(sources) || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
 		}
+		ts.AddCheckpoint("helm_ms")
 		repo, err := m.db.GetRepository(context.Background(), source.RepoURL, proj.Name)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
@@ -227,6 +228,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			}
 		}
 
+		ts.AddCheckpoint("version_ms")
 		log.Debugf("Generating Manifest for source %s revision %s", source, revisions[i])
 		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 			Repo:               repo,
@@ -263,7 +265,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		manifestInfos = append(manifestInfos, manifestInfo)
 	}
 
-	ts.AddCheckpoint("manifests_ms")
+	ts.AddCheckpoint("unmarshal_ms")
 	logCtx := log.WithField("application", app.QualifiedName())
 	for k, v := range ts.Timings() {
 		logCtx = logCtx.WithField(k, v.Milliseconds())
@@ -589,7 +591,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				}
 
 				// No need to care about the return value here, we just want the modified managedNs
-				_, err = syncNamespace(app.Spec.SyncPolicy)(managedNs, liveObj)
+				_, err = syncNamespace(m.resourceTracking, appLabelKey, trackingMethod, app.Name, app.Spec.SyncPolicy)(managedNs, liveObj)
 				if err != nil {
 					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})
 					failedToLoadObjs = true

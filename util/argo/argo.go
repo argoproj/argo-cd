@@ -509,7 +509,7 @@ func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestina
 	return nil
 }
 
-func validateSourcePermissions(source argoappv1.ApplicationSource, hasMultipleSources bool) []argoappv1.ApplicationCondition {
+func validateSourcePermissions(ctx context.Context, source argoappv1.ApplicationSource, proj *argoappv1.AppProject, project string, hasMultipleSources bool) []argoappv1.ApplicationCondition {
 	var conditions []argoappv1.ApplicationCondition
 	if hasMultipleSources {
 		if source.RepoURL == "" || (source.Path == "" && source.Chart == "" && source.Ref == "") {
@@ -545,7 +545,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 
 	if spec.HasMultipleSources() {
 		for _, source := range spec.Sources {
-			condition := validateSourcePermissions(source, spec.HasMultipleSources())
+			condition := validateSourcePermissions(ctx, source, proj, spec.Project, spec.HasMultipleSources())
 			if len(condition) > 0 {
 				conditions = append(conditions, condition...)
 				return conditions, nil
@@ -559,7 +559,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 			}
 		}
 	} else {
-		conditions = validateSourcePermissions(spec.GetSource(), spec.HasMultipleSources())
+		conditions = validateSourcePermissions(ctx, spec.GetSource(), proj, spec.Project, spec.HasMultipleSources())
 		if len(conditions) > 0 {
 			return conditions, nil
 		}
@@ -753,11 +753,10 @@ func verifyGenerateManifests(
 		}
 		req := apiclient.ManifestRequest{
 			Repo: &argoappv1.Repository{
-				Repo:    source.RepoURL,
-				Type:    repoRes.Type,
-				Name:    repoRes.Name,
-				Proxy:   repoRes.Proxy,
-				NoProxy: repoRes.NoProxy,
+				Repo:  source.RepoURL,
+				Type:  repoRes.Type,
+				Name:  repoRes.Name,
+				Proxy: repoRes.Proxy,
 			},
 			Repos:              helmRepos,
 			Revision:           source.TargetRevision,
@@ -1020,25 +1019,26 @@ func GetDifferentPathsBetweenStructs(a, b interface{}) ([]string, error) {
 	return difference, nil
 }
 
-// parseName will split the qualified name into its components, which are separated by the delimiter.
-// If delimiter is not contained in the string qualifiedName then returned namespace is defaultNs.
-func parseName(qualifiedName string, defaultNs string, delim string) (name string, namespace string) {
-	t := strings.SplitN(qualifiedName, delim, 2)
+// parseName will
+func parseName(appName string, defaultNs string, delim string) (string, string) {
+	var ns string
+	var name string
+	t := strings.SplitN(appName, delim, 2)
 	if len(t) == 2 {
-		namespace = t[0]
+		ns = t[0]
 		name = t[1]
 	} else {
-		namespace = defaultNs
+		ns = defaultNs
 		name = t[0]
 	}
-	return
+	return name, ns
 }
 
 // ParseAppNamespacedName parses a namespaced name in the format namespace/name
 // and returns the components. If name wasn't namespaced, defaultNs will be
 // returned as namespace component.
-func ParseFromQualifiedName(qualifiedAppName string, defaultNs string) (appName string, appNamespace string) {
-	return parseName(qualifiedAppName, defaultNs, "/")
+func ParseFromQualifiedName(appName string, defaultNs string) (string, string) {
+	return parseName(appName, defaultNs, "/")
 }
 
 // ParseInstanceName parses a namespaced name in the format namespace_name
@@ -1132,7 +1132,7 @@ func GetAppEventLabels(app *argoappv1.Application, projLister applicationsv1.App
 	// Filter out event labels to include
 	inKeys := settingsManager.GetIncludeEventLabelKeys()
 	for k, v := range labels {
-		found := glob.MatchStringInList(inKeys, k, glob.GLOB)
+		found := glob.MatchStringInList(inKeys, k, false)
 		if found {
 			eventLabels[k] = v
 		}
@@ -1141,7 +1141,7 @@ func GetAppEventLabels(app *argoappv1.Application, projLister applicationsv1.App
 	// Remove excluded event labels
 	exKeys := settingsManager.GetExcludeEventLabelKeys()
 	for k := range eventLabels {
-		found := glob.MatchStringInList(exKeys, k, glob.GLOB)
+		found := glob.MatchStringInList(exKeys, k, false)
 		if found {
 			delete(eventLabels, k)
 		}

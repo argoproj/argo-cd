@@ -3,34 +3,7 @@ import * as minimatch from 'minimatch';
 
 import {Application, ApplicationTree, State} from '../models';
 
-type ExtensionsEventType = 'resource' | 'systemLevel' | 'appView' | 'statusPanel';
-type ExtensionsType = ResourceTabExtension | SystemLevelExtension | AppViewExtension | StatusPanelExtension;
-
-class ExtensionsEventTarget {
-    private listeners: Map<ExtensionsEventType, Array<(extension: ExtensionsType) => void>> = new Map();
-
-    addEventListener(eventName: ExtensionsEventType, listener: (extension: ExtensionsType) => void) {
-        if (!this.listeners.has(eventName)) {
-            this.listeners.set(eventName, []);
-        }
-        this.listeners.get(eventName)?.push(listener);
-    }
-
-    removeEventListener(eventName: ExtensionsEventType, listenerToRemove: (extension: ExtensionsType) => void) {
-        const listeners = this.listeners.get(eventName);
-        if (!listeners) return;
-
-        const filteredListeners = listeners.filter(listener => listener !== listenerToRemove);
-        this.listeners.set(eventName, filteredListeners);
-    }
-
-    emit(eventName: ExtensionsEventType, extension: ExtensionsType) {
-        this.listeners.get(eventName)?.forEach(listener => listener(extension));
-    }
-}
-
 const extensions = {
-    eventTarget: new ExtensionsEventTarget(),
     resourceExtentions: new Array<ResourceTabExtension>(),
     systemLevelExtensions: new Array<SystemLevelExtension>(),
     appViewExtensions: new Array<AppViewExtension>(),
@@ -38,27 +11,19 @@ const extensions = {
 };
 
 function registerResourceExtension(component: ExtensionComponent, group: string, kind: string, tabTitle: string, opts?: {icon: string}) {
-    const ext = {component, group, kind, title: tabTitle, icon: opts?.icon};
-    extensions.resourceExtentions.push(ext);
-    extensions.eventTarget.emit('resource', ext);
+    extensions.resourceExtentions.push({component, group, kind, title: tabTitle, icon: opts?.icon});
 }
 
 function registerSystemLevelExtension(component: ExtensionComponent, title: string, path: string, icon: string) {
-    const ext = {component, title, icon, path};
-    extensions.systemLevelExtensions.push(ext);
-    extensions.eventTarget.emit('systemLevel', ext);
+    extensions.systemLevelExtensions.push({component, title, icon, path});
 }
 
 function registerAppViewExtension(component: ExtensionComponent, title: string, icon: string) {
-    const ext = {component, title, icon};
-    extensions.appViewExtensions.push(ext);
-    extensions.eventTarget.emit('appView', ext);
+    extensions.appViewExtensions.push({component, title, icon});
 }
 
 function registerStatusPanelExtension(component: StatusPanelExtensionComponent, title: string, id: string, flyout?: ExtensionComponent) {
-    const ext = {component, flyout, title, id};
-    extensions.statusPanelExtensions.push(ext);
-    extensions.eventTarget.emit('statusPanel', ext);
+    extensions.statusPanelExtensions.push({component, flyout, title, id});
 }
 
 let legacyInitialized = false;
@@ -135,14 +100,6 @@ export interface StatusPanelFlyoutProps {
 }
 
 export class ExtensionsService {
-    public addEventListener(evtType: ExtensionsEventType, cb: (ext: ExtensionsType) => void) {
-        extensions.eventTarget.addEventListener(evtType, cb);
-    }
-
-    public removeEventListener(evtType: ExtensionsEventType, cb: (ext: ExtensionsType) => void) {
-        extensions.eventTarget.removeEventListener(evtType, cb);
-    }
-
     public getResourceTabs(group: string, kind: string): ResourceTabExtension[] {
         initLegacyExtensions();
         const items = extensions.resourceExtentions.filter(extension => minimatch(group, extension.group) && minimatch(kind, extension.kind)).slice();

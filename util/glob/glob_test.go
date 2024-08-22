@@ -31,28 +31,26 @@ func Test_Match(t *testing.T) {
 
 func Test_MatchList(t *testing.T) {
 	tests := []struct {
-		name         string
-		input        string
-		list         []string
-		patternMatch string
-		result       bool
+		name   string
+		input  string
+		list   []string
+		exact  bool
+		result bool
 	}{
-		{"Exact name in list", "test", []string{"test"}, EXACT, true},
-		{"Exact name not in list", "test", []string{"other"}, EXACT, false},
-		{"Exact name not in list, multiple elements", "test", []string{"some", "other"}, EXACT, false},
-		{"Exact name not in list, list empty", "test", []string{}, EXACT, false},
-		{"Exact name not in list, empty element", "test", []string{""}, EXACT, false},
-		{"Glob name in list, but exact wanted", "test", []string{"*"}, EXACT, false},
-		{"Glob name in list with simple wildcard", "test", []string{"*"}, GLOB, true},
-		{"Glob name in list without wildcard", "test", []string{"test"}, GLOB, true},
-		{"Glob name in list, multiple elements", "test", []string{"other*", "te*"}, GLOB, true},
-		{"match everything but specified word: fail", "disallowed", []string{"/^((?!disallowed).)*$/"}, REGEXP, false},
-		{"match everything but specified word: pass", "allowed", []string{"/^((?!disallowed).)*$/"}, REGEXP, true},
+		{"Exact name in list", "test", []string{"test"}, true, true},
+		{"Exact name not in list", "test", []string{"other"}, true, false},
+		{"Exact name not in list, multiple elements", "test", []string{"some", "other"}, true, false},
+		{"Exact name not in list, list empty", "test", []string{}, true, false},
+		{"Exact name not in list, empty element", "test", []string{""}, true, false},
+		{"Glob name in list, but exact wanted", "test", []string{"*"}, true, false},
+		{"Glob name in list with simple wildcard", "test", []string{"*"}, false, true},
+		{"Glob name in list without wildcard", "test", []string{"test"}, false, true},
+		{"Glob name in list, multiple elements", "test", []string{"other*", "te*"}, false, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res := MatchStringInList(tt.list, tt.input, tt.patternMatch)
+			res := MatchStringInList(tt.list, tt.input, tt.exact)
 			assert.Equal(t, tt.result, res)
 		})
 	}

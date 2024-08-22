@@ -65,10 +65,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	argoURL, err := argoCDSettings.ArgoURLForRequest(r)
-	if err != nil {
-		log.Warnf("unable to find ArgoCD URL from config: %v", err)
-	}
+	argoURL := argoCDSettings.URL
 	if argoURL == "" {
 		// golang does not provide any easy way to determine scheme of current request
 		// so redirecting ot http which will auto-redirect too https if necessary
