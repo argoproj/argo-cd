@@ -148,10 +148,10 @@ func newServiceWithOpt(t *testing.T, cf clientFunc, root string) (*Service, *git
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, root)
 
-	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
 	}
-	service.newHelmClient = func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client {
+	service.newHelmClient = func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client {
 		return helmClient
 	}
 	service.gitRepoInitializer = func(rootPath string) goio.Closer {
@@ -191,7 +191,7 @@ func newServiceWithCommitSHA(t *testing.T, root, revision string) *Service {
 		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
 	}, root)
 
-	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
 	}
 
@@ -363,7 +363,7 @@ func TestGenerateManifest_RefOnlyShortCircuit(t *testing.T) {
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, repopath)
-	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		opts = append(opts, git.WithEventHandlers(git.EventHandlers{
 			// Primary check, we want to make sure ls-remote is not called when the item is in cache
 			OnLsRemote: func(repo string) func() {
@@ -377,7 +377,7 @@ func TestGenerateManifest_RefOnlyShortCircuit(t *testing.T) {
 				}
 			},
 		}))
-		gitClient, err := git.NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, opts...)
+		gitClient, err := git.NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, noProxy, opts...)
 		return gitClient, err
 	}
 	revision := initGitRepo(t, newGitRepoOptions{
@@ -431,7 +431,7 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, repopath)
 	var gitClient git.Client
 	var err error
-	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		opts = append(opts, git.WithEventHandlers(git.EventHandlers{
 			// Primary check, we want to make sure ls-remote is not called when the item is in cache
 			OnLsRemote: func(repo string) func() {
@@ -440,7 +440,7 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 				}
 			},
 		}))
-		gitClient, err = git.NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, opts...)
+		gitClient, err = git.NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, noProxy, opts...)
 		return gitClient, err
 	}
 	repoRemote := fmt.Sprintf("file://%s", repopath)
@@ -3036,7 +3036,7 @@ func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
 	destRepoPath, err := os.MkdirTemp(rootPath, "")
 	require.NoError(t, err)
 
-	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "")
+	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
@@ -3899,7 +3899,7 @@ func TestGetRefs_CacheWithLockDisabled(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, true))
+			client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 			require.NoError(t, err)
 			refs, err := client.LsRefs()
 			require.NoError(t, err)
@@ -3926,7 +3926,7 @@ func TestGetRefs_CacheDisabled(t *testing.T) {
 	})
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
-	client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, false))
+	client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, false))
 	require.NoError(t, err)
 	refs, err := client.LsRefs()
 	require.NoError(t, err)
@@ -3955,7 +3955,7 @@ func TestGetRefs_CacheWithLock(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, true))
+			client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 			require.NoError(t, err)
 			refs, err := client.LsRefs()
 			require.NoError(t, err)
@@ -3984,7 +3984,7 @@ func TestGetRefs_CacheUnlockedOnUpdateFailed(t *testing.T) {
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	repoUrl := fmt.Sprintf("file://%s", dir)
-	client, err := git.NewClient(repoUrl, git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, true))
+	client, err := git.NewClient(repoUrl, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 	require.NoError(t, err)
 	refs, err := client.LsRefs()
 	require.NoError(t, err)
@@ -4015,7 +4015,7 @@ func TestGetRefs_CacheLockTryLockGitRefCacheError(t *testing.T) {
 	repoUrl := fmt.Sprintf("file://%s", dir)
 	// buf := bytes.Buffer{}
 	// log.SetOutput(&buf)
-	client, err := git.NewClient(repoUrl, git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, true))
+	client, err := git.NewClient(repoUrl, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 	require.NoError(t, err)
 	refs, err := client.LsRefs()
 	require.NoError(t, err)
