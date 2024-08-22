@@ -78,7 +78,7 @@ func TestCreateServiceAccount(t *testing.T) {
 
 	t.Run("New SA", func(t *testing.T) {
 		cs := fake.NewSimpleClientset(ns)
-		err := CreateServiceAccount(cs, "argocd-manager", "kube-system")
+		err := CreateServiceAccount(cs, "kube-system")
 		require.NoError(t, err)
 		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -87,25 +87,16 @@ func TestCreateServiceAccount(t *testing.T) {
 
 	t.Run("SA exists already", func(t *testing.T) {
 		cs := fake.NewSimpleClientset(ns, sa)
-		err := CreateServiceAccount(cs, "argocd-manager", "kube-system")
+		err := CreateServiceAccount(cs, "kube-system")
 		require.NoError(t, err)
 		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
 		require.NoError(t, err)
 		assert.NotNil(t, rsa)
 	})
 
-	t.Run("Invalid name", func(t *testing.T) {
-		cs := fake.NewSimpleClientset(ns)
-		err := CreateServiceAccount(cs, "", "kube-system")
-		require.NoError(t, err)
-		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
-		require.Error(t, err)
-		assert.Nil(t, rsa)
-	})
-
 	t.Run("Invalid namespace", func(t *testing.T) {
 		cs := fake.NewSimpleClientset()
-		err := CreateServiceAccount(cs, "argocd-manager", "invalid")
+		err := CreateServiceAccount(cs, "invalid")
 		require.NoError(t, err)
 		rsa, err := cs.CoreV1().ServiceAccounts("invalid").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
 		require.NoError(t, err)

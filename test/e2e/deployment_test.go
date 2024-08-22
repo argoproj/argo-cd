@@ -270,7 +270,7 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 
 	// Create a ServiceAccount in that Namespace, which will be used for the Argo CD Cluster SEcret
 	serviceAccountName := username + "-serviceaccount"
-	err = clusterauth.CreateServiceAccount(KubeClientset, serviceAccountName, ns.Name)
+	err = clusterauth.CreateServiceAccount(KubeClientset, ns.Name)
 	require.NoError(t, err)
 
 	// Create a Role that allows the ServiceAccount to read/write all within the Namespace

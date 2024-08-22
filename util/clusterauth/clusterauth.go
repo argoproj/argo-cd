@@ -50,30 +50,26 @@ var ArgoCDManagerNamespacePolicyRules = []rbacv1.PolicyRule{
 }
 
 // CreateServiceAccount creates a service account in a given namespace
-func CreateServiceAccount(
-	clientset kubernetes.Interface,
-	serviceAccountName string,
-	namespace string,
-) error {
+func CreateServiceAccount(clientset kubernetes.Interface, namespace string) error {
 	serviceAccount := corev1.ServiceAccount{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "v1",
 			Kind:       "ServiceAccount",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      serviceAccountName,
+			Name:      ArgoCDManagerServiceAccount,
 			Namespace: namespace,
 		},
 	}
 	_, err := clientset.CoreV1().ServiceAccounts(namespace).Create(context.Background(), &serviceAccount, metav1.CreateOptions{})
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
-			return fmt.Errorf("Failed to create service account %q in namespace %q: %w", serviceAccountName, namespace, err)
+			return fmt.Errorf("Failed to create service account %q in namespace %q: %w", ArgoCDManagerServiceAccount, namespace, err)
 		}
-		log.Infof("ServiceAccount %q already exists in namespace %q", serviceAccountName, namespace)
+		log.Infof("ServiceAccount %q already exists in namespace %q", ArgoCDManagerServiceAccount, namespace)
 		return nil
 	}
-	log.Infof("ServiceAccount %q created in namespace %q", serviceAccountName, namespace)
+	log.Infof("ServiceAccount %q created in namespace %q", ArgoCDManagerServiceAccount, namespace)
 	return nil
 }
 
@@ -178,7 +174,7 @@ func upsertRoleBinding(clientset kubernetes.Interface, name string, roleName str
 
 // InstallClusterManagerRBAC installs RBAC resources for a cluster manager to operate a cluster. Returns a token
 func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namespaces []string, bearerTokenTimeout time.Duration) (string, error) {
-	err := CreateServiceAccount(clientset, ArgoCDManagerServiceAccount, ns)
+	err := CreateServiceAccount(clientset, ns)
 	if err != nil {
 		return "", err
 	}
