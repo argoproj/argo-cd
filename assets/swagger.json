@@ -5049,6 +5049,13 @@
     "repositoryManifestResponse": {
       "type": "object",
       "properties": {
+        "commands": {
+          "type": "array",
+          "title": "Commands is the list of commands used to hydrate the manifests",
+          "items": {
+            "type": "string"
+          }
+        },
         "manifests": {
           "type": "array",
           "items": {
@@ -6476,6 +6483,13 @@
       "type": "object",
       "title": "ApplicationSourceHelm holds helm specific options",
       "properties": {
+        "apiVersions": {
+          "description": "APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,\nArgo CD uses the API versions of the target cluster. The format is [group/]version/kind.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "fileParameters": {
           "type": "array",
           "title": "FileParameters are file parameters to the helm template",
@@ -6486,6 +6500,14 @@
         "ignoreMissingValueFiles": {
           "type": "boolean",
           "title": "IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values"
+        },
+        "kubeVersion": {
+          "description": "KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD\nuses the Kubernetes version of the target cluster.",
+          "type": "string"
+        },
+        "namespace": {
+          "description": "Namespace is an optional namespace to template with. If left empty, defaults to the app's destination namespace.",
+          "type": "string"
         },
         "parameters": {
           "type": "array",
@@ -6557,6 +6579,13 @@
       "type": "object",
       "title": "ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize",
       "properties": {
+        "apiVersions": {
+          "description": "APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,\nArgo CD uses the API versions of the target cluster. The format is [group/]version/kind.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "commonAnnotations": {
           "type": "object",
           "title": "CommonAnnotations is a list of additional annotations to add to rendered manifests",
@@ -6596,6 +6625,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "kubeVersion": {
+          "description": "KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD\nuses the Kubernetes version of the target cluster.",
+          "type": "string"
         },
         "labelWithoutSelector": {
           "type": "boolean",
@@ -7148,6 +7181,18 @@
           "type": "boolean"
         },
         "name": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ConfigMapKeyRef": {
+      "description": "Utility struct for a reference to a configmap key.",
+      "type": "object",
+      "properties": {
+        "configMapName": {
+          "type": "string"
+        },
+        "key": {
           "type": "string"
         }
       }
@@ -7979,6 +8024,13 @@
         "bearerToken": {
           "$ref": "#/definitions/v1alpha1BearerTokenBitbucket"
         },
+        "caRef": {
+          "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
+        },
+        "insecure": {
+          "type": "boolean",
+          "title": "Allow self-signed TLS / Certificates; default: false"
+        },
         "project": {
           "description": "Project to scan. Required.",
           "type": "string"
@@ -8008,6 +8060,9 @@
         "api": {
           "description": "The GitLab API URL to talk to. If blank, uses https://gitlab.com/.",
           "type": "string"
+        },
+        "caRef": {
+          "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
         },
         "insecure": {
           "type": "boolean",
@@ -8124,6 +8179,10 @@
           "type": "string",
           "title": "GithubAppPrivateKey specifies the private key PEM data for authentication via GitHub app"
         },
+        "noProxy": {
+          "type": "string",
+          "title": "NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied"
+        },
         "password": {
           "type": "string",
           "title": "Password for authenticating at the repo server"
@@ -8229,6 +8288,10 @@
         "name": {
           "type": "string",
           "title": "Name specifies a name to be used for this repo. Only used with Helm repos"
+        },
+        "noProxy": {
+          "type": "string",
+          "title": "NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied"
         },
         "password": {
           "type": "string",
@@ -8889,6 +8952,13 @@
         "bearerToken": {
           "$ref": "#/definitions/v1alpha1BearerTokenBitbucket"
         },
+        "caRef": {
+          "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
+        },
+        "insecure": {
+          "type": "boolean",
+          "title": "Allow self-signed TLS / Certificates; default: false"
+        },
         "project": {
           "description": "Project to scan. Required.",
           "type": "string"
@@ -8988,6 +9058,9 @@
         "api": {
           "description": "The Gitlab API URL to talk to.",
           "type": "string"
+        },
+        "caRef": {
+          "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
         },
         "group": {
           "description": "Gitlab group to scan. Required.  You can use either the project id (recommended) or the full namespaced path.",

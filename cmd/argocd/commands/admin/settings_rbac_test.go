@@ -130,6 +130,8 @@ func Test_PolicyFromYAML(t *testing.T) {
 	require.NotEmpty(t, uPol)
 	require.Equal(t, "role:unknown", dRole)
 	require.Empty(t, matchMode)
+	require.True(t, checkPolicy("my-org:team-qa", "update", "project", "foo",
+		"", uPol, dRole, matchMode, true))
 }
 
 func Test_PolicyFromK8s(t *testing.T) {

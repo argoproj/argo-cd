@@ -46,6 +46,7 @@ const (
 	ArgoCDGPGKeysConfigMapName  = "argocd-gpg-keys-cm"
 	// ArgoCDAppControllerShardConfigMapName contains the application controller to shard mapping
 	ArgoCDAppControllerShardConfigMapName = "argocd-app-controller-shard-cm"
+	ArgoCDCmdParamsConfigMapName          = "argocd-cmd-params-cm"
 )
 
 // Some default configurables
@@ -221,7 +222,7 @@ const (
 	EnvGitRetryMaxDuration = "ARGOCD_GIT_RETRY_MAX_DURATION"
 	// EnvGitRetryDuration specifies duration of git remote operation retry
 	EnvGitRetryDuration = "ARGOCD_GIT_RETRY_DURATION"
-	// EnvGitRetryFactor specifies fator of git remote operation retry
+	// EnvGitRetryFactor specifies factor of git remote operation retry
 	EnvGitRetryFactor = "ARGOCD_GIT_RETRY_FACTOR"
 	// EnvGitSubmoduleEnabled overrides git submodule support, true by default
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"

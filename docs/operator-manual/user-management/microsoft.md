@@ -133,6 +133,7 @@
                      requestedIDTokenClaims:
                         groups:
                            essential: true
+                           value: "SecurityGroup"
                      requestedScopes:
                         - openid
                         - profile
