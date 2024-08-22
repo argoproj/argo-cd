@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"flag"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v4"
@@ -46,6 +47,7 @@ type SessionManager struct {
 	sleep                         func(d time.Duration)
 	verificationDelayNoiseEnabled bool
 	failedLock                    sync.RWMutex
+	inclusterServiceAccount       string
 }
 
 // LoginAttempts is a timestamped counter for failed login attempts
@@ -115,12 +117,19 @@ func getLoginFailureWindow() time.Duration {
 
 // NewSessionManager creates a new session manager from Argo CD settings
 func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1alpha1.AppProjectNamespaceLister, dexServerAddr string, dexTlsConfig *dex.DexTLSConfig, storage UserStateStorage) *SessionManager {
+	var inclusterServiceAccount string
+
+	 // Define and parse command-line flags
+	 flag.StringVar(&inclusterServiceAccount, "in-cluster-service-account", "", "In-Cluster Kubernetes Service Account")
+	 flag.Parse()
+
 	s := SessionManager{
 		settingsMgr:                   settingsMgr,
 		storage:                       storage,
 		sleep:                         time.Sleep,
 		projectsLister:                projectsLister,
 		verificationDelayNoiseEnabled: true,
+		inclusterServiceAccount: inclusterServiceAccount,
 	}
 	settings, err := settingsMgr.GetSettings()
 	if err != nil {
@@ -534,8 +543,41 @@ func (mgr *SessionManager) verifyKubernetesToken(token string, kubeClientset kub
 		return false, nil
 	}
 
+	claims, err := decodeToken(token)
+    if err != nil {
+        return false, fmt.Errorf("error decoding token: %v", err)
+    }
+
+    if claims["sub"] != mgr.inclusterServiceAccount {
+        return false, fmt.Errorf("token subject does not match expected service account: %v", claims["sub"])
+    }
+
+    return true, nil
+
 	// Return true if the token is authenticated
 	return true, nil
+}
+
+func decodeToken(token string) (jwt.MapClaims, error) {
+    // Split the token into its constituent parts
+    parts := strings.Split(token, ".")
+    if len(parts) != 3 {
+        return nil, errors.New("token is not in JWT format")
+    }
+
+    // Base64 decode the payload part
+    payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+    if err != nil {
+        return nil, fmt.Errorf("error decoding token payload: %v", err)
+    }
+
+    // Parse and validate the JWT token
+    var claims jwt.MapClaims
+    if err := jwt.UnmarshalJSON(payload, &claims); err != nil {
+        return nil, fmt.Errorf("error unmarshalling token claims: %v", err)
+    }
+
+    return claims, nil
 }
 
 // AuthMiddlewareFunc returns a function that can be used as an

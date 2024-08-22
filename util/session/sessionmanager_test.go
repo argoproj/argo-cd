@@ -389,8 +389,8 @@ func TestGroups(t *testing.T) {
 
 func TestVerifyUsernamePassword(t *testing.T) {
 	const password = "password"
-	// Generate a minimal valid JWT with the required claims
-	validK8sToken := generateValidK8sJWT() // A function to generate a valid JWT
+	validK8sToken := generateValidK8sJWT() // Generate a valid JWT with correct service account
+	invalidK8sToken := generateValidK8sJWTWithDifferentServiceAccount() // Token with different service account
 
 	for _, tc := range []struct {
 		name       string
@@ -401,7 +401,7 @@ func TestVerifyUsernamePassword(t *testing.T) {
 		isK8sToken bool
 	}{
 		{
-			name:     "Success if userName and password is correct",
+			name:     "Success if userName and password are correct",
 			disabled: false,
 			userName: common.ArgoCDAdminUsername,
 			password: password,
@@ -429,10 +429,10 @@ func TestVerifyUsernamePassword(t *testing.T) {
 			expected: status.Errorf(codes.Unauthenticated, accountDisabled, "admin"),
 		},
 		{
-			name:       "Success if Kubernetes token is valid",
+			name:       "Success if Kubernetes token is valid and service account matches",
 			disabled:   false,
 			userName:   common.ArgoCDAdminUsername,
-			password:   validK8sToken, // Use the valid JWT instead of a simple string,
+			password:   validK8sToken,
 			expected:   nil,
 			isK8sToken: true,
 		},
@@ -440,7 +440,15 @@ func TestVerifyUsernamePassword(t *testing.T) {
 			name:       "Return error if Kubernetes token is invalid",
 			disabled:   false,
 			userName:   common.ArgoCDAdminUsername,
-			password:   "invalid_k8s_token", // This can be an invalid JWT or string
+			password:   "invalid_k8s_token",
+			expected:   status.Errorf(codes.Unauthenticated, invalidLoginError),
+			isK8sToken: true,
+		},
+		{
+			name:       "Return error if Kubernetes token is valid but wrong service account",
+			disabled:   false,
+			userName:   common.ArgoCDAdminUsername,
+			password:   invalidK8sToken,
 			expected:   status.Errorf(codes.Unauthenticated, invalidLoginError),
 			isK8sToken: true,
 		},
@@ -453,28 +461,41 @@ func TestVerifyUsernamePassword(t *testing.T) {
 			if tc.isK8sToken {
 				kubeClientset = fake.NewSimpleClientset()
 
-				if tc.password == validK8sToken {
-					// Mock TokenReview response
-					kubeClientset.(*fake.Clientset).Fake.PrependReactor("create", "tokenreviews", func(action k8stesting.Action) (bool, runtime.Object, error) {
-						tr := action.(k8stesting.CreateAction).GetObject().(*authenticationv1.TokenReview)
-						if tr.Spec.Token == validK8sToken { // Use valid JWT
+				kubeClientset.(*fake.Clientset).Fake.PrependReactor("create", "tokenreviews", func(action k8stesting.Action) (bool, runtime.Object, error) {
+					tr := action.(k8stesting.CreateAction).GetObject().(*authenticationv1.TokenReview)
+					parsedToken, _ := parseJWT(tr.Spec.Token)
+					
+					// Simulate token validation
+					expectedServiceAccount := "test-service-account"
+					if tc.password == validK8sToken {
+						// Mock response for valid token and correct service account
+						if parsedToken["kubernetes.io"].(map[string]interface{})["serviceaccount"].(map[string]interface{})["name"] == expectedServiceAccount {
 							return true, &authenticationv1.TokenReview{
 								Status: authenticationv1.TokenReviewStatus{
 									Authenticated: true,
 								},
 							}, nil
 						}
-						return true, &authenticationv1.TokenReview{
-							Status: authenticationv1.TokenReviewStatus{
-								Authenticated: false,
-								Error:         "Invalid token",
-							},
-						}, nil
-					})
-
-					// Override the password with the fake token
-					tc.password = validK8sToken
-				}
+					}
+					if tc.password == invalidK8sToken {
+						// Mock response for valid token but wrong service account
+						if parsedToken["kubernetes.io"].(map[string]interface{})["serviceaccount"].(map[string]interface{})["name"] != expectedServiceAccount {
+							return true, &authenticationv1.TokenReview{
+								Status: authenticationv1.TokenReviewStatus{
+									Authenticated: false,
+									Error:         "Invalid service account",
+								},
+							}, nil
+						}
+					}
+					// Mock response for invalid token
+					return true, &authenticationv1.TokenReview{
+						Status: authenticationv1.TokenReviewStatus{
+							Authenticated: false,
+							Error:         "Invalid token",
+						},
+					}, nil
+				})
 			} else {
 				kubeClientset = nil
 			}
@@ -490,6 +511,20 @@ func TestVerifyUsernamePassword(t *testing.T) {
 	}
 }
 
+// Helper function to parse JWT for testing
+func parseJWT(tokenString string) (map[string]interface{}, error) {
+	// For simplicity, use the same parsing logic used in the application.
+	// This function should parse the token and return its claims.
+	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+	if err != nil {
+		return nil, err
+	}
+	if claims, ok := token.Claims.(jwt.MapClaims); ok {
+		return claims, nil
+	}
+	return nil, errors.New("invalid token claims")
+}
+
 // Helper function to generate a valid Kubernetes JWT for testing
 func generateValidK8sJWT() string {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -501,10 +536,25 @@ func generateValidK8sJWT() string {
 		},
 	})
 
-	// Sign the token with a dummy key, this key doesn't need to be secure for the test
 	tokenString, _ := token.SignedString([]byte("dummy-secret"))
 	return tokenString
 }
+
+// Helper function to generate a valid Kubernetes JWT with a different service account for testing
+func generateValidK8sJWTWithDifferentServiceAccount() string {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"kubernetes.io": map[string]interface{}{
+			"serviceaccount": map[string]interface{}{
+				"namespace": "default",
+				"name":      "other-service-account",
+			},
+		},
+	})
+
+	tokenString, _ := token.SignedString([]byte("dummy-secret"))
+	return tokenString
+}
+
 
 func TestCacheValueGetters(t *testing.T) {
 	t.Run("Default values", func(t *testing.T) {
