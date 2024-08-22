@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 	"flag"
-	"encoding/base64"
+	
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v4"
@@ -540,8 +540,7 @@ func (mgr *SessionManager) verifyKubernetesToken(token string, kubeClientset kub
 	}
 
 	if !resp.Status.Authenticated {
-		log.Printf("Token is not authenticated. Error: %v", resp.Status.Error)
-		return false, nil
+		return false, fmt.Errorf("Token is not authenticated: %v", resp.Status.Error)
 	}
 
 	claims, err := decodeToken(token)
