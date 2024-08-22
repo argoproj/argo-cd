@@ -535,8 +535,7 @@ func (mgr *SessionManager) verifyKubernetesToken(token string, kubeClientset kub
 
 	resp, err := kubeClientset.AuthenticationV1().TokenReviews().Create(context.TODO(), tokenReview, metav1.CreateOptions{})
 	if err != nil {
-		log.Errorf("Error during TokenReview creation: %v", err)
-		return false, err
+		return false, fmt.Errorf("Error during TokenReview creation: %v", err)
 	}
 
 	if !resp.Status.Authenticated {
@@ -552,9 +551,7 @@ func (mgr *SessionManager) verifyKubernetesToken(token string, kubeClientset kub
         return false, fmt.Errorf("token subject does not match expected service account: %v", claims["sub"])
     }
 
-    return true, nil
-
-	// Return true if the token is authenticated
+   // Return true if the token is authenticated
 	return true, nil
 }
 
