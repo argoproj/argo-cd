@@ -247,3 +247,5 @@ data:
   notificationscontroller.log.format: "text"
   # Enable self-service notifications config. Used in conjunction with apps-in-any-namespace. (default "false")
   notificationscontroller.selfservice.enabled: "false"
+  # Disable TLS on connections to repo server
+  notificationscontroller.repo.server.plaintext: "false"
