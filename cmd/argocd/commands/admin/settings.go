@@ -31,15 +31,15 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-type settingsOpts struct {
-	argocdCMPath        string
+type SettingsOpts struct {
+	ArgocdCMPath        string
 	argocdSecretPath    string
 	loadClusterSettings bool
 	clientConfig        clientcmd.ClientConfig
 }
 
 type commandContext interface {
-	createSettingsManager(context.Context) (*settings.SettingsManager, error)
+	CreateSettingsManager(context.Context) (*settings.SettingsManager, error)
 }
 
 func collectLogs(callback func()) string {
@@ -61,11 +61,11 @@ func setSettingsMeta(obj v1.Object) {
 	obj.SetLabels(labels)
 }
 
-func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.SettingsManager, error) {
+func (opts *SettingsOpts) CreateSettingsManager(ctx context.Context) (*settings.SettingsManager, error) {
 	var argocdCM *corev1.ConfigMap
-	if opts.argocdCMPath == "" && !opts.loadClusterSettings {
+	if opts.ArgocdCMPath == "" && !opts.loadClusterSettings {
 		return nil, fmt.Errorf("either --argocd-cm-path must be provided or --load-cluster-settings must be set to true")
-	} else if opts.argocdCMPath == "" {
+	} else if opts.ArgocdCMPath == "" {
 		realClientset, ns, err := opts.getK8sClient()
 		if err != nil {
 			return nil, err
@@ -76,7 +76,7 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 			return nil, err
 		}
 	} else {
-		data, err := os.ReadFile(opts.argocdCMPath)
+		data, err := os.ReadFile(opts.ArgocdCMPath)
 		if err != nil {
 			return nil, err
 		}
@@ -127,7 +127,7 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 	return manager, nil
 }
 
-func (opts *settingsOpts) getK8sClient() (*kubernetes.Clientset, string, error) {
+func (opts *SettingsOpts) getK8sClient() (*kubernetes.Clientset, string, error) {
 	namespace, _, err := opts.clientConfig.Namespace()
 	if err != nil {
 		return nil, "", err
@@ -146,7 +146,7 @@ func (opts *settingsOpts) getK8sClient() (*kubernetes.Clientset, string, error) 
 }
 
 func NewSettingsCommand() *cobra.Command {
-	var opts settingsOpts
+	var opts SettingsOpts
 
 	command := &cobra.Command{
 		Use:   "settings",
@@ -162,7 +162,7 @@ func NewSettingsCommand() *cobra.Command {
 	command.AddCommand(NewRBACCommand())
 
 	opts.clientConfig = cli.AddKubectlFlagsToCmd(command)
-	command.PersistentFlags().StringVar(&opts.argocdCMPath, "argocd-cm-path", "", "Path to local argocd-cm.yaml file")
+	command.PersistentFlags().StringVar(&opts.ArgocdCMPath, "argocd-cm-path", "", "Path to local argocd-cm.yaml file")
 	command.PersistentFlags().StringVar(&opts.argocdSecretPath, "argocd-secret-path", "", "Path to local argocd-secret.yaml file")
 	command.PersistentFlags().BoolVar(&opts.loadClusterSettings, "load-cluster-settings", false,
 		"Indicates that config map and secret should be loaded from cluster unless local file path is provided")
@@ -297,7 +297,7 @@ argocd admin settings validate --group accounts --group plugins --load-cluster-s
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
-			settingsManager, err := cmdCtx.createSettingsManager(ctx)
+			settingsManager, err := cmdCtx.CreateSettingsManager(ctx)
 			errors.CheckError(err)
 
 			if len(groups) == 0 {
@@ -358,7 +358,7 @@ func executeResourceOverrideCommand(ctx context.Context, cmdCtx commandContext, 
 	res := unstructured.Unstructured{}
 	errors.CheckError(yaml.Unmarshal(data, &res))
 
-	settingsManager, err := cmdCtx.createSettingsManager(ctx)
+	settingsManager, err := cmdCtx.CreateSettingsManager(ctx)
 	errors.CheckError(err)
 
 	overrides, err := settingsManager.GetResourceOverrides()
@@ -379,7 +379,7 @@ func executeIgnoreResourceUpdatesOverrideCommand(ctx context.Context, cmdCtx com
 	res := unstructured.Unstructured{}
 	errors.CheckError(yaml.Unmarshal(data, &res))
 
-	settingsManager, err := cmdCtx.createSettingsManager(ctx)
+	settingsManager, err := cmdCtx.CreateSettingsManager(ctx)
 	errors.CheckError(err)
 
 	overrides, err := settingsManager.GetIgnoreResourceUpdatesOverrides()
