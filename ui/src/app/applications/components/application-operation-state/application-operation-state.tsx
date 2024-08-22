@@ -60,7 +60,12 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
             title: 'DURATION',
             value: (
                 <Ticker>
-                    {time => <Duration durationMs={((operationState.finishedAt && moment(operationState.finishedAt)) || moment(time)).diff(moment(operationState.startedAt)) / 1000} />}
+                    {time => (
+                        <Duration
+                            durationS={((operationState.finishedAt && moment(operationState.finishedAt)) || moment(time)).diff(moment(operationState.startedAt)) / 1000}
+                            durationMs={null}
+                        />
+                    )}
                 </Ticker>
             )
         }

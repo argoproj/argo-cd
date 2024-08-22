@@ -40,7 +40,7 @@ export const ApplicationDeploymentHistory = ({
                             <br />
                             <i className='fa fa-hourglass-half' /> <span className='show-for-large'>Time to deploy:</span>
                             <br />
-                            {(info.deployStartedAt && <Duration durationMs={moment(info.deployedAt).diff(moment(info.deployStartedAt)) / 1000} />) || 'Unknown'}
+                            {(info.deployStartedAt && <Duration durationS={moment(info.deployedAt).diff(moment(info.deployStartedAt)) / 1000} durationMs={null} />) || 'Unknown'}
                         </div>
                         <div>
                             <br />
@@ -52,7 +52,7 @@ export const ApplicationDeploymentHistory = ({
                             <br />
                             Active for:
                             <br />
-                            <Duration durationMs={info.durationMs} />
+                            <Duration durationS={info.durationMs} durationMs={null} />
                         </div>
                     </div>
                     <div className='columns small-9'>
