@@ -32,7 +32,7 @@ var (
 	indexLock  = sync.NewKeyLock()
 )
 
-var _ Client = &nativeOciClient{}
+var _ Client = &nativeOCIClient{}
 
 type indexCache interface {
 	SetHelmIndex(repo string, indexData []byte) error
@@ -59,16 +59,16 @@ type Creds struct {
 	InsecureHttpOnly   bool
 }
 
-type ClientOpts func(c *nativeOciClient)
+type ClientOpts func(c *nativeOCIClient)
 
 func WithIndexCache(indexCache indexCache) ClientOpts {
-	return func(c *nativeOciClient) {
+	return func(c *nativeOCIClient) {
 		c.indexCache = indexCache
 	}
 }
 
 func WithChartPaths(repoCachePaths argoio.TempPaths) ClientOpts {
-	return func(c *nativeOciClient) {
+	return func(c *nativeOCIClient) {
 		c.repoCachePaths = repoCachePaths
 	}
 }
@@ -119,7 +119,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 		}),
 	}
 
-	c := &nativeOciClient{
+	c := &nativeOCIClient{
 		creds:    creds,
 		repoURL:  ociRepo,
 		proxy:    proxyUrl,
@@ -132,8 +132,8 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 	return c, nil
 }
 
-// nativeOciClient implements Client interface using oras-go
-type nativeOciClient struct {
+// nativeOCIClient implements Client interface using oras-go
+type nativeOCIClient struct {
 	creds          Creds
 	repoURL        string
 	proxy          string
@@ -143,14 +143,14 @@ type nativeOciClient struct {
 	repoCachePaths argoio.TempPaths
 }
 
-func (c *nativeOciClient) TestRepo(ctx context.Context) (bool, error) {
+func (c *nativeOCIClient) TestRepo(ctx context.Context) (bool, error) {
 	err := c.repo.Tags(ctx, "", func(tags []string) error {
 		return nil
 	})
 	return err == nil, err
 }
 
-func (c *nativeOciClient) Extract(ctx context.Context, digest string, project string, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error) {
+func (c *nativeOCIClient) Extract(ctx context.Context, digest string, project string, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error) {
 	cachedPath, err := c.getCachedPath(digest, project)
 	if err != nil {
 		return "", nil, err
@@ -241,7 +241,7 @@ func copyManifestsToTempDir(ctx context.Context, store oras.ReadOnlyTarget, dige
 	return manifestsDir, fs, nil
 }
 
-func (c *nativeOciClient) getCachedPath(version, project string) (string, error) {
+func (c *nativeOCIClient) getCachedPath(version, project string) (string, error) {
 	keyData, err := json.Marshal(map[string]string{"url": c.repoURL, "project": project, "version": version})
 	if err != nil {
 		return "", err
@@ -249,7 +249,7 @@ func (c *nativeOciClient) getCachedPath(version, project string) (string, error)
 	return c.repoCachePaths.GetPath(string(keyData))
 }
 
-func (c *nativeOciClient) CleanCache(revision, project string) error {
+func (c *nativeOCIClient) CleanCache(revision, project string) error {
 	cachePath, err := c.getCachedPath(revision, project)
 	if err != nil {
 		return err
@@ -257,7 +257,7 @@ func (c *nativeOciClient) CleanCache(revision, project string) error {
 	return os.RemoveAll(cachePath)
 }
 
-func (c *nativeOciClient) ResolveDigest(ctx context.Context, revision string) (string, error) {
+func (c *nativeOCIClient) ResolveDigest(ctx context.Context, revision string) (string, error) {
 	descriptor, err := c.repo.Resolve(ctx, revision)
 	if err != nil {
 		return "", fmt.Errorf("cannot get digest: %v", err)
@@ -266,7 +266,7 @@ func (c *nativeOciClient) ResolveDigest(ctx context.Context, revision string) (s
 	return descriptor.Digest.String(), nil
 }
 
-func (c *nativeOciClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
+func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
 	constraints, err := semver.NewConstraint(revision)
 	if err == nil {
 		tags, err := c.GetTags(ctx, noCache)
@@ -282,7 +282,7 @@ func (c *nativeOciClient) ResolveRevision(ctx context.Context, revision string, 
 
 }
 
-func (c *nativeOciClient) GetTags(ctx context.Context, noCache bool) (*TagsList, error) {
+func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) (*TagsList, error) {
 	indexLock.Lock(c.repoURL)
 	defer indexLock.Unlock(c.repoURL)
 

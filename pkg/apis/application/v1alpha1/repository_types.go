@@ -231,8 +231,8 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 	}
 }
 
-// GetOciCreds returns the credentials from a repository configuration used to authenticate an OCI repository
-func (repo *Repository) GetOciCreds() oci.Creds {
+// GetOCICreds returns the credentials from a repository configuration used to authenticate an OCI repository
+func (repo *Repository) GetOCICreds() oci.Creds {
 	return oci.Creds{
 		Username:           repo.Username,
 		Password:           repo.Password,
