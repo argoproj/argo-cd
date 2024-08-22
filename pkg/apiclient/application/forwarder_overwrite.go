@@ -68,6 +68,12 @@ var appFields = map[string]func(app *v1alpha1.Application) interface{}{
 		}
 		return nil
 	},
+	"status.sourceHydrator.currentOperation.phase": func(app *v1alpha1.Application) interface{} {
+		if app.Status.SourceHydrator.CurrentOperation != nil {
+			return app.Status.SourceHydrator.CurrentOperation.Phase
+		}
+		return nil
+	},
 }
 
 func processApplicationListField(v interface{}, fields map[string]interface{}, exclude bool) (interface{}, error) {
