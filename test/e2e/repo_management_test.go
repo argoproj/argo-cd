@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -20,15 +21,15 @@ func TestAddRemovePublicRepo(t *testing.T) {
 	app.Given(t).And(func() {
 		repoUrl := fixture.RepoURL(fixture.RepoURLTypeFile)
 		_, err := fixture.RunCli("repo", "add", repoUrl)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		defer argoio.Close(conn)
 
 		repo, err := repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
 
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		exists := false
 		for i := range repo.Items {
 			if repo.Items[i].Repo == repoUrl {
@@ -39,10 +40,10 @@ func TestAddRemovePublicRepo(t *testing.T) {
 		assert.True(t, exists)
 
 		_, err = fixture.RunCli("repo", "rm", repoUrl)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		repo, err = repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		exists = false
 		for i := range repo.Items {
 			if repo.Items[i].Repo == repoUrl {
@@ -66,7 +67,7 @@ func TestGetRepoWithInheritedCreds(t *testing.T) {
 
 		// Then, we remove username/password so that the repo inherits the credentials from our repocreds
 		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		defer argoio.Close(conn)
 
 		_, err = repoClient.UpdateRepository(context.Background(), &repositorypkg.RepoUpdateRequest{
@@ -74,15 +75,15 @@ func TestGetRepoWithInheritedCreds(t *testing.T) {
 				Repo: repoUrl,
 			},
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// CLI output should indicate that repo has inherited credentials
 		out, err := fixture.RunCli("repo", "get", repoUrl)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Contains(t, out, "inherited")
 
 		_, err = fixture.RunCli("repo", "rm", repoUrl)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 }
 
@@ -91,13 +92,13 @@ func TestUpsertExistingRepo(t *testing.T) {
 		fixture.SetRepos(settings.RepositoryCredentials{URL: fixture.RepoURL(fixture.RepoURLTypeFile)})
 		repoUrl := fixture.RepoURL(fixture.RepoURLTypeFile)
 		_, err := fixture.RunCli("repo", "add", repoUrl)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		_, err = fixture.RunCli("repo", "add", repoUrl, "--username", fixture.GitUsername, "--password", fixture.GitPassword)
-		assert.Error(t, err)
+		require.Error(t, err)
 
 		_, err = fixture.RunCli("repo", "add", repoUrl, "--upsert", "--username", fixture.GitUsername, "--password", fixture.GitPassword)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 }
 
@@ -110,15 +111,15 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 			"--password", fixture.GitPassword,
 			"--tls-client-cert-path", repos.CertPath,
 			"--tls-client-cert-key-path", repos.CertKeyPath)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		defer argoio.Close(conn)
 
 		repo, err := repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		exists := false
 		for i := range repo.Items {
 			if repo.Items[i].Repo == fixture.RepoURL(fixture.RepoURLTypeHelm) {
@@ -129,10 +130,10 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 		assert.True(t, exists)
 
 		_, err = fixture.RunCli("repo", "rm", fixture.RepoURL(fixture.RepoURLTypeHelm))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		repo, err = repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		exists = false
 		for i := range repo.Items {
 			if repo.Items[i].Repo == fixture.RepoURL(fixture.RepoURLTypeHelm) {
@@ -142,7 +143,6 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 		}
 		assert.False(t, exists)
 	})
-
 }
 
 func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
@@ -156,22 +156,16 @@ func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
 			"--tls-client-cert-path", repos.CertPath,
 			"--tls-client-cert-key-path", repos.CertKeyPath)
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		defer argoio.Close(conn)
 
 		repo, err := repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
 
-		if !assert.NoError(t, err) {
-			return
-		}
+		require.NoError(t, err)
 
 		exists := false
 		for i := range repo.Items {
@@ -182,5 +176,4 @@ func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
 		}
 		assert.True(t, exists)
 	})
-
 }

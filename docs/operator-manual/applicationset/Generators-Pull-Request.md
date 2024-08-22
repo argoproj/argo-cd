@@ -84,8 +84,8 @@ spec:
   generators:
   - pullRequest:
       gitlab:
-        # The GitLab project.
-        project: myproject
+        # The GitLab project ID.
+        project: "12341234"
         # For self-hosted GitLab (optional)
         api: https://git.example.com/
         # Reference to a Secret containing an access token. (optional)
@@ -99,17 +99,22 @@ spec:
         pullRequestState: opened
         # If true, skips validating the SCM provider's TLS certificate - useful for self-signed certificates.
         insecure: false
+        # Reference to a ConfigMap containing trusted CA certs - useful for self-signed certificates. (optional)
+        caRef:
+          configMapName: argocd-tls-certs-cm
+          key: gitlab-ca
       requeueAfterSeconds: 1800
   template:
   # ...
 ```
 
-* `project`: Required name of the GitLab project.
+* `project`: Required project ID of the GitLab project.
 * `api`: If using self-hosted GitLab, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Labels is used to filter the MRs that you want to target. (Optional)
 * `pullRequestState`: PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
+* `caRef`: Optional `ConfigMap` name and key containing the GitLab certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
 
 As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab by [mounting self-signed certificate to the applicationset controller](./Generators-SCM-Provider.md#self-signed-tls-certificates).
 
@@ -170,7 +175,8 @@ spec:
         repo: myrepository
         # URL of the Bitbucket Server. Required.
         api: https://mycompany.bitbucket.org
-        # Credentials for Basic authentication. Required for private repositories.
+        # Credentials for Basic authentication (App Password). Either basicAuth or bearerToken
+        # authentication is required to access private repositories
         basicAuth:
           # The username to authenticate with
           username: myuser
@@ -178,6 +184,19 @@ spec:
           passwordRef:
             secretName: mypassword
             key: password
+        # Credentials for Bearer Token (App Token) authentication. Either basicAuth or bearerToken
+        # authentication is required to access private repositories
+        bearerToken:
+          # Reference to a Secret containing the bearer token.
+          tokenRef:
+            secretName: repotoken
+            key: token
+        # If true, skips validating the SCM provider's TLS certificate - useful for self-signed certificates.
+        insecure: true
+        # Reference to a ConfigMap containing trusted CA certs - useful for self-signed certificates. (optional)
+        caRef:
+          configMapName: argocd-tls-certs-cm
+          key: bitbucket-ca
       # Labels are not supported by Bitbucket Server, so filtering by label is not possible.
       # Filter PRs using the source branch name. (optional)
       filters:
@@ -194,6 +213,13 @@ spec:
 If you want to access a private repository, you must also provide the credentials for Basic auth (this is the only auth supported currently):
 * `username`: The username to authenticate with. It only needs read access to the relevant repo.
 * `passwordRef`: A `Secret` name and key containing the password or personal access token to use for requests.
+
+In case of Bitbucket App Token, go with `bearerToken` section.
+* `tokenRef`: A `Secret` name and key containing the app token to use for requests.
+
+In case self-signed BitBucket Server certificates, the following options can be usefully:
+* `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
+* `caRef`: Optional `ConfigMap` name and key containing the BitBucket server certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
 
 ## Bitbucket Cloud
 
@@ -228,6 +254,7 @@ spec:
           # Credentials for Bearer Token (App Token) authentication. Either basicAuth or bearerToken
           # authentication is required to access private repositories
           bearerToken:
+            # Reference to a Secret containing the bearer token.
             tokenRef:
               secretName: repotoken
               key: token
@@ -351,7 +378,7 @@ spec:
         helm:
           parameters:
           - name: "image.tag"
-            value: "pull-{{.head_sha}}"
+            value: "pull-{{.author}}-{{.head_sha}}"
       project: "my-project"
       destination:
         server: https://kubernetes.default.svc
@@ -384,7 +411,7 @@ spec:
           commonLabels:
             app.kubernetes.io/instance: '{{.branch}}-{{.number}}'
           images:
-          - 'ghcr.io/myorg/myrepo:{{.head_sha}}'
+          - 'ghcr.io/myorg/myrepo:{{.author}}-{{.head_sha}}'
       project: "my-project"
       destination:
         server: https://kubernetes.default.svc
@@ -392,6 +419,7 @@ spec:
 ```
 
 * `number`: The ID number of the pull request.
+* `title`: The title of the pull request.
 * `branch`: The name of the branch of the pull request head.
 * `branch_slug`: The branch name will be cleaned to be conform to the DNS label standard as defined in [RFC 1123](https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names), and truncated to 50 characters to give room to append/suffix-ing it with 13 more characters.
 * `target_branch`: The name of the target branch of the pull request.
@@ -400,6 +428,7 @@ spec:
 * `head_short_sha`: This is the short SHA of the head of the pull request (8 characters long or the length of the head SHA if it's shorter).
 * `head_short_sha_7`: This is the short SHA of the head of the pull request (7 characters long or the length of the head SHA if it's shorter).
 * `labels`: The array of pull request labels. (Supported only for Go Template ApplicationSet manifests.)
+* `author`: The author/creator of the pull request.
 
 ## Webhook Configuration
 

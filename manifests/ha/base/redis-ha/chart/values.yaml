@@ -1,4 +1,7 @@
 redis-ha:
+  auth: true
+  authKey: auth
+  existingSecret: argocd-redis
   persistentVolume:
     enabled: false
   redis:
@@ -11,7 +14,7 @@ redis-ha:
     IPv6:
       enabled: false
     image:
-      tag: 2.6.14-alpine
+      tag: 2.6.17-alpine
     containerSecurityContext: null
     timeout:
       server: 6m
@@ -20,7 +23,7 @@ redis-ha:
     metrics:
       enabled: true
   image:
-    tag: 7.0.14-alpine
+    tag: 7.0.15-alpine
   containerSecurityContext: null
   sentinel:
     bind: "0.0.0.0"

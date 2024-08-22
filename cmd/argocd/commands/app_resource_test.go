@@ -17,9 +17,9 @@ func TestPrintTreeViewAppResources(t *testing.T) {
 	nodes[1].ResourceRef = v1alpha1.ResourceRef{Group: "apps", Version: "v1", Kind: "ReplicaSet", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo-5dcd5457d5", UID: "75c30dce-1b66-414f-a86c-573a74be0f40"}
 	nodes[1].ParentRefs = []v1alpha1.ResourceRef{{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}}
 	nodes[2].ResourceRef = v1alpha1.ResourceRef{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}
-	var nodeMapping = make(map[string]v1alpha1.ResourceNode)
-	var mapParentToChild = make(map[string][]string)
-	var parentNode = make(map[string]struct{})
+	nodeMapping := make(map[string]v1alpha1.ResourceNode)
+	mapParentToChild := make(map[string][]string)
+	parentNode := make(map[string]struct{})
 	for _, node := range nodes {
 		nodeMapping[node.UID] = node
 		if len(node.ParentRefs) > 0 {
@@ -36,7 +36,7 @@ func TestPrintTreeViewAppResources(t *testing.T) {
 	buf := &bytes.Buffer{}
 	w := tabwriter.NewWriter(buf, 0, 0, 2, ' ', 0)
 
-	printTreeViewAppResourcesNotOrphaned(nodeMapping, mapParentToChild, parentNode, false, false, w)
+	printTreeViewAppResourcesNotOrphaned(nodeMapping, mapParentToChild, parentNode, w)
 	if err := w.Flush(); err != nil {
 		t.Fatal(err)
 	}
@@ -58,9 +58,9 @@ func TestPrintTreeViewDetailedAppResources(t *testing.T) {
 		Message: "Readiness Gate failed",
 	}
 
-	var nodeMapping = make(map[string]v1alpha1.ResourceNode)
-	var mapParentToChild = make(map[string][]string)
-	var parentNode = make(map[string]struct{})
+	nodeMapping := make(map[string]v1alpha1.ResourceNode)
+	mapParentToChild := make(map[string][]string)
+	parentNode := make(map[string]struct{})
 	for _, node := range nodes {
 		nodeMapping[node.UID] = node
 		if len(node.ParentRefs) > 0 {
@@ -77,7 +77,7 @@ func TestPrintTreeViewDetailedAppResources(t *testing.T) {
 	buf := &bytes.Buffer{}
 	w := tabwriter.NewWriter(buf, 0, 0, 2, ' ', 0)
 
-	printDetailedTreeViewAppResourcesNotOrphaned(nodeMapping, mapParentToChild, parentNode, false, false, w)
+	printDetailedTreeViewAppResourcesNotOrphaned(nodeMapping, mapParentToChild, parentNode, w)
 	if err := w.Flush(); err != nil {
 		t.Fatal(err)
 	}

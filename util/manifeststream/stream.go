@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -117,7 +118,6 @@ func SendRepoStream(repoStream RepoStreamSender, appStream ApplicationStreamRece
 			Request: req,
 		},
 	})
-
 	if err != nil {
 		return fmt.Errorf("error sending request: %w", err)
 	}
@@ -129,7 +129,6 @@ func SendRepoStream(repoStream RepoStreamSender, appStream ApplicationStreamRece
 			},
 		},
 	})
-
 	if err != nil {
 		return fmt.Errorf("error sending metadata: %w", err)
 	}
@@ -137,7 +136,7 @@ func SendRepoStream(repoStream RepoStreamSender, appStream ApplicationStreamRece
 	for {
 		part, err := appStream.Recv()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return fmt.Errorf("stream Recv error: %w", err)
@@ -180,7 +179,7 @@ func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver,
 	}
 	metadata := header2.GetMetadata()
 
-	tgzFile, err := receiveFile(ctx, receiver, metadata.GetChecksum(), destDir, maxTarSize)
+	tgzFile, err := receiveFile(ctx, receiver, metadata.GetChecksum(), maxTarSize)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error receiving tgz file: %w", err)
 	}
@@ -193,13 +192,12 @@ func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver,
 		log.Warnf("error removing the tgz file %q: %s", tgzFile.Name(), err)
 	}
 	return request, metadata, nil
-
 }
 
 // receiveFile will receive the file from the gRPC stream and save it in the dst folder.
 // Returns error if checksum doesn't match the one provided in the fileMetadata.
 // It is responsibility of the caller to close the returned file.
-func receiveFile(ctx context.Context, receiver RepoStreamReceiver, checksum, dst string, maxSize int64) (*os.File, error) {
+func receiveFile(ctx context.Context, receiver RepoStreamReceiver, checksum string, maxSize int64) (*os.File, error) {
 	hasher := sha256.New()
 	tmpDir, err := files.CreateTempDir("")
 	if err != nil {
@@ -218,7 +216,7 @@ func receiveFile(ctx context.Context, receiver RepoStreamReceiver, checksum, dst
 		}
 		req, err := receiver.Recv()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return nil, fmt.Errorf("stream Recv error: %w", err)

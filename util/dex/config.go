@@ -15,12 +15,12 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTls b
 	}
 	redirectURL, err := argocdSettings.RedirectURL()
 	if err != nil {
-		return nil, fmt.Errorf("failed to infer redirect url from config: %v", err)
+		return nil, fmt.Errorf("failed to infer redirect url from config: %w", err)
 	}
 	var dexCfg map[string]interface{}
 	err = yaml.Unmarshal([]byte(argocdSettings.DexConfig), &dexCfg)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal dex.config from configmap: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal dex.config from configmap: %w", err)
 	}
 	dexCfg["issuer"] = argocdSettings.IssuerURL()
 	dexCfg["storage"] = map[string]interface{}{
@@ -55,13 +55,15 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTls b
 		}
 	}
 
+	additionalRedirectURLs, err := argocdSettings.RedirectAdditionalURLs()
+	if err != nil {
+		return nil, fmt.Errorf("failed to infer additional redirect urls from config: %w", err)
+	}
 	argoCDStaticClient := map[string]interface{}{
-		"id":     common.ArgoCDClientAppID,
-		"name":   common.ArgoCDClientAppName,
-		"secret": argocdSettings.DexOAuth2ClientSecret(),
-		"redirectURIs": []string{
-			redirectURL,
-		},
+		"id":           common.ArgoCDClientAppID,
+		"name":         common.ArgoCDClientAppName,
+		"secret":       argocdSettings.DexOAuth2ClientSecret(),
+		"redirectURIs": append([]string{redirectURL}, additionalRedirectURLs...),
 	}
 	argoCDPKCEStaticClient := map[string]interface{}{
 		"id":   "argo-cd-pkce",

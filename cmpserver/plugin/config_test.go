@@ -155,13 +155,13 @@ spec:
 			require.NoError(t, err)
 			err = tempFile.Close()
 			require.NoError(t, err)
-			err = os.WriteFile(tempFile.Name(), []byte(tcc.fileContents), 0644)
+			err = os.WriteFile(tempFile.Name(), []byte(tcc.fileContents), 0o644)
 			require.NoError(t, err)
 			config, err := ReadPluginConfig(tempDir)
 			if tcc.expectedErr != "" {
-				assert.EqualError(t, err, tcc.expectedErr)
+				require.EqualError(t, err, tcc.expectedErr)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 			assert.Equal(t, tcc.expected, config)
 		})

@@ -31,7 +31,7 @@ managed (i.e. reconciled from Git). The default label used is the well-known
 label `app.kubernetes.io/instance`.
 
 This proposal suggests to introduce the `trackingMethod` setting that allows
-controlling how applicaton resources are identified and allows switching to
+controlling how application resources are identified and allows switching to
 using the annotation instead of `app.kubernetes.io/instance` label.
 
 ## Motivation

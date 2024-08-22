@@ -4,11 +4,16 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/services/mocks"
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/services/mocks"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func Test_generateParamsFromGitFile(t *testing.T) {
@@ -174,7 +179,6 @@ foo:
 }
 
 func TestGitGenerateParamsFromDirectories(t *testing.T) {
-
 	cases := []struct {
 		name            string
 		directories     []argoprojiov1alpha1.GitDirectoryGeneratorItem
@@ -317,9 +321,9 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 
 			argoCDServiceMock := mocks.Repos{}
 
-			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
-			var gitGenerator = NewGitGenerator(&argoCDServiceMock)
+			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -337,12 +341,19 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				},
 			}
 
-			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+			scheme := runtime.NewScheme()
+			err := v1alpha1.AddToScheme(scheme)
+			require.NoError(t, err)
+			appProject := argoprojiov1alpha1.AppProject{}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
+
+			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
 
 			if testCaseCopy.expectedError != nil {
-				assert.EqualError(t, err, testCaseCopy.expectedError.Error())
+				require.EqualError(t, err, testCaseCopy.expectedError.Error())
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
 
@@ -352,7 +363,6 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 }
 
 func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
-
 	cases := []struct {
 		name            string
 		directories     []argoprojiov1alpha1.GitDirectoryGeneratorItem
@@ -552,7 +562,6 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			},
 			repoError: nil,
 			expected: []map[string]interface{}{
-
 				{
 					"path": map[string]interface{}{
 						"path":               "app1",
@@ -613,9 +622,9 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 
 			argoCDServiceMock := mocks.Repos{}
 
-			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
-			var gitGenerator = NewGitGenerator(&argoCDServiceMock)
+			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -633,23 +642,28 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 				},
 			}
 
-			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+			scheme := runtime.NewScheme()
+			err := v1alpha1.AddToScheme(scheme)
+			require.NoError(t, err)
+			appProject := argoprojiov1alpha1.AppProject{}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
+
+			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
 
 			if testCaseCopy.expectedError != nil {
-				assert.EqualError(t, err, testCaseCopy.expectedError.Error())
+				require.EqualError(t, err, testCaseCopy.expectedError.Error())
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
 
 			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
-
 }
 
 func TestGitGenerateParamsFromFiles(t *testing.T) {
-
 	cases := []struct {
 		name string
 		// files is the list of paths/globs to match
@@ -972,10 +986,10 @@ cluster:
 			t.Parallel()
 
 			argoCDServiceMock := mocks.Repos{}
-			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
-			var gitGenerator = NewGitGenerator(&argoCDServiceMock)
+			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -992,13 +1006,20 @@ cluster:
 				},
 			}
 
-			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+			scheme := runtime.NewScheme()
+			err := v1alpha1.AddToScheme(scheme)
+			require.NoError(t, err)
+			appProject := argoprojiov1alpha1.AppProject{}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
+
+			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
 			fmt.Println(got, err)
 
 			if testCaseCopy.expectedError != nil {
-				assert.EqualError(t, err, testCaseCopy.expectedError.Error())
+				require.EqualError(t, err, testCaseCopy.expectedError.Error())
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.ElementsMatch(t, testCaseCopy.expected, got)
 			}
 
@@ -1008,7 +1029,6 @@ cluster:
 }
 
 func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
-
 	cases := []struct {
 		name string
 		// files is the list of paths/globs to match
@@ -1322,10 +1342,10 @@ cluster:
 			t.Parallel()
 
 			argoCDServiceMock := mocks.Repos{}
-			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
-			var gitGenerator = NewGitGenerator(&argoCDServiceMock)
+			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -1342,17 +1362,135 @@ cluster:
 				},
 			}
 
-			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+			scheme := runtime.NewScheme()
+			err := v1alpha1.AddToScheme(scheme)
+			require.NoError(t, err)
+			appProject := argoprojiov1alpha1.AppProject{}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
+
+			got, err := gitGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, client)
 			fmt.Println(got, err)
 
 			if testCaseCopy.expectedError != nil {
-				assert.EqualError(t, err, testCaseCopy.expectedError.Error())
+				require.EqualError(t, err, testCaseCopy.expectedError.Error())
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.ElementsMatch(t, testCaseCopy.expected, got)
 			}
 
 			argoCDServiceMock.AssertExpectations(t)
 		})
+	}
+}
+
+func TestGitGenerator_GenerateParams(t *testing.T) {
+	cases := []struct {
+		name               string
+		directories        []argoprojiov1alpha1.GitDirectoryGeneratorItem
+		pathParamPrefix    string
+		repoApps           []string
+		repoPathsError     error
+		repoFileContents   map[string][]byte
+		values             map[string]string
+		expected           []map[string]interface{}
+		expectedError      error
+		appset             argoprojiov1alpha1.ApplicationSet
+		callGetDirectories bool
+	}{
+		{
+			name: "Signature Verification - ignores templated project field",
+			repoApps: []string{
+				"app1",
+			},
+			repoPathsError: nil,
+			appset: argoprojiov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "set",
+					Namespace: "namespace",
+				},
+				Spec: argoprojiov1alpha1.ApplicationSetSpec{
+					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+						Git: &argoprojiov1alpha1.GitGenerator{
+							RepoURL:         "RepoURL",
+							Revision:        "Revision",
+							Directories:     []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+							PathParamPrefix: "",
+							Values: map[string]string{
+								"foo": "bar",
+							},
+						},
+					}},
+					Template: argoprojiov1alpha1.ApplicationSetTemplate{
+						Spec: argoprojiov1alpha1.ApplicationSpec{
+							Project: "{{.project}}",
+						},
+					},
+				},
+			},
+			callGetDirectories: true,
+			expected:           []map[string]interface{}{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
+			expectedError:      nil,
+		},
+		{
+			name: "Signature Verification - Checks for non-templated project field",
+			repoApps: []string{
+				"app1",
+			},
+			repoPathsError: nil,
+			appset: argoprojiov1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "set",
+					Namespace: "namespace",
+				},
+				Spec: argoprojiov1alpha1.ApplicationSetSpec{
+					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+						Git: &argoprojiov1alpha1.GitGenerator{
+							RepoURL:         "RepoURL",
+							Revision:        "Revision",
+							Directories:     []argoprojiov1alpha1.GitDirectoryGeneratorItem{{Path: "*"}},
+							PathParamPrefix: "",
+							Values: map[string]string{
+								"foo": "bar",
+							},
+						},
+					}},
+					Template: argoprojiov1alpha1.ApplicationSetTemplate{
+						Spec: argoprojiov1alpha1.ApplicationSpec{
+							Project: "project",
+						},
+					},
+				},
+			},
+			callGetDirectories: false,
+			expected:           []map[string]interface{}{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
+			expectedError:      fmt.Errorf("error getting project project: appprojects.argoproj.io \"project\" not found"),
+		},
+	}
+	for _, testCase := range cases {
+		argoCDServiceMock := mocks.Repos{}
+
+		if testCase.callGetDirectories {
+			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCase.repoApps, testCase.repoPathsError)
+		}
+		gitGenerator := NewGitGenerator(&argoCDServiceMock, "namespace")
+
+		scheme := runtime.NewScheme()
+		err := v1alpha1.AddToScheme(scheme)
+		require.NoError(t, err)
+		appProject := argoprojiov1alpha1.AppProject{}
+
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appProject).Build()
+
+		got, err := gitGenerator.GenerateParams(&testCase.appset.Spec.Generators[0], &testCase.appset, client)
+
+		if testCase.expectedError != nil {
+			require.EqualError(t, err, testCase.expectedError.Error())
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, testCase.expected, got)
+		}
+
+		argoCDServiceMock.AssertExpectations(t)
 	}
 }

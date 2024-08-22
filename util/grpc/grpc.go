@@ -3,12 +3,12 @@ package grpc
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"net"
 	"runtime/debug"
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/proxy"
 	"google.golang.org/grpc"
@@ -17,6 +17,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/status"
+
+	"github.com/argoproj/argo-cd/v2/common"
 )
 
 // PanicLoggerUnaryServerInterceptor returns a new unary server interceptor for recovering from panics and returning error
@@ -63,17 +65,16 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 	}
 
 	dialer := func(ctx context.Context, address string) (net.Conn, error) {
-
 		conn, err := proxy.Dial(ctx, network, address)
 		if err != nil {
 			writeResult(err)
-			return nil, err
+			return nil, fmt.Errorf("error dial proxy: %w", err)
 		}
 		if creds != nil {
 			conn, _, err = creds.ClientHandshake(ctx, address, conn)
 			if err != nil {
 				writeResult(err)
-				return nil, err
+				return nil, fmt.Errorf("error creating connection: %w", err)
 			}
 		}
 		return conn, nil

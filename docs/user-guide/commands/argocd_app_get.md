@@ -42,17 +42,19 @@ argocd app get APPNAME [flags]
 ### Options
 
 ```
-      --hard-refresh     Refresh application data as well as target manifests cache
-  -h, --help             help for get
-  -o, --output string    Output format. One of: json|yaml|wide|tree (default "wide")
-      --refresh          Refresh application data when retrieving
-      --show-operation   Show application operation
-      --show-params      Show application parameters and overrides
+  -N, --app-namespace string   Only get application from namespace
+      --hard-refresh           Refresh application data as well as target manifests cache
+  -h, --help                   help for get
+  -o, --output string          Output format. One of: json|yaml|wide|tree (default "wide")
+      --refresh                Refresh application data when retrieving
+      --show-operation         Show application operation
+      --show-params            Show application parameters and overrides
 ```
 
 ### Options inherited from parent commands
 
 ```
+      --argocd-context string           The name of the Argo-CD server context to use
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
