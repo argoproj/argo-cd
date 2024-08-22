@@ -17,6 +17,7 @@ type LocalConfig struct {
 	Contexts       []ContextRef `json:"contexts"`
 	Servers        []Server     `json:"servers"`
 	Users          []User       `json:"users"`
+	PromptsEnabled bool         `json:"prompts-enabled"`
 }
 
 // ContextRef is a reference to a Server and User for an API client
