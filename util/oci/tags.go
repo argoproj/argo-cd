@@ -24,7 +24,7 @@ func (t TagsList) MaxVersion(constraints *semver.Constraints) (*semver.Version, 
 			continue
 		}
 		if err != nil {
-			return nil, fmt.Errorf("invalid constraint in tags: %v", err)
+			return nil, fmt.Errorf("invalid constraint in tags: %w", err)
 		}
 		if constraints.Check(v) {
 			versions = append(versions, v)
