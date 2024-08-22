@@ -1,8 +1,5 @@
 # Multiple Sources for an Application
 
-!!! warning "Beta Feature"
-    Specifying multiple sources for an application is a beta feature. This feature is subject to change in backwards incompatible ways until it is marked stable.
-
 By default an Argo CD application is a link between a single source and a cluster. Sometimes however, you want to combine
 files from multiple locations to form a single Application.
 
