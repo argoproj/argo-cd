@@ -38,7 +38,7 @@ jobs:
           files_yaml: |
             backend:
               - '!ui/**'
-              - '!**.md'            
+              - '!**.md'
               - '!**/*.md'
               - '!docs/**'
             frontend:
@@ -93,8 +93,8 @@ jobs:
 
   lint-go:
     permissions:
-      contents: read  # for actions/checkout to fetch code
-      pull-requests: read  # for golangci/golangci-lint-action to fetch pull requests
+      contents: read # for actions/checkout to fetch code
+      pull-requests: read # for golangci/golangci-lint-action to fetch pull requests
     name: Lint Go code
     if: ${{ needs.changes.outputs.backend == 'true' }}
     runs-on: ubuntu-22.04
@@ -414,15 +414,15 @@ jobs:
       - changes
     env:
       GOPATH: /home/runner/go
-      ARGOCD_FAKE_IN_CLUSTER: "true"
-      ARGOCD_SSH_DATA_PATH: "/tmp/argo-e2e/app/config/ssh"
-      ARGOCD_TLS_DATA_PATH: "/tmp/argo-e2e/app/config/tls"
-      ARGOCD_E2E_SSH_KNOWN_HOSTS: "../fixture/certs/ssh_known_hosts"
-      ARGOCD_E2E_K3S: "true"
-      ARGOCD_IN_CI: "true"
-      ARGOCD_E2E_APISERVER_PORT: "8088"
-      ARGOCD_APPLICATION_NAMESPACES: "argocd-e2e-external,argocd-e2e-external-2"
-      ARGOCD_SERVER: "127.0.0.1:8088"
+      ARGOCD_FAKE_IN_CLUSTER: 'true'
+      ARGOCD_SSH_DATA_PATH: '/tmp/argo-e2e/app/config/ssh'
+      ARGOCD_TLS_DATA_PATH: '/tmp/argo-e2e/app/config/tls'
+      ARGOCD_E2E_SSH_KNOWN_HOSTS: '../fixture/certs/ssh_known_hosts'
+      ARGOCD_E2E_K3S: 'true'
+      ARGOCD_IN_CI: 'true'
+      ARGOCD_E2E_APISERVER_PORT: '8088'
+      ARGOCD_APPLICATION_NAMESPACES: 'argocd-e2e-external,argocd-e2e-external-2'
+      ARGOCD_SERVER: '127.0.0.1:8088'
       GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
       GITLAB_TOKEN: ${{ secrets.E2E_TEST_GITLAB_TOKEN }}
     steps:
@@ -476,7 +476,7 @@ jobs:
         run: |
           docker pull ghcr.io/dexidp/dex:v2.41.1
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
-          docker pull redis:7.0.15-alpine
+          docker pull public.ecr.aws/docker/library/redis:7.0.15-alpine
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist
