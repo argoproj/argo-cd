@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 	"flag"
+	"encoding/base64"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v4"
@@ -558,26 +559,20 @@ func (mgr *SessionManager) verifyKubernetesToken(token string, kubeClientset kub
 	return true, nil
 }
 
-func decodeToken(token string) (jwt.MapClaims, error) {
-    // Split the token into its constituent parts
-    parts := strings.Split(token, ".")
-    if len(parts) != 3 {
-        return nil, errors.New("token is not in JWT format")
-    }
+func decodeToken(tokenString string) (jwt.MapClaims, error) {
+	// Parse the token using the jwt package
+	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+	if err != nil {
+		return nil, fmt.Errorf("error parsing token: %v", err)
+	}
 
-    // Base64 decode the payload part
-    payload, err := base64.RawURLEncoding.DecodeString(parts[1])
-    if err != nil {
-        return nil, fmt.Errorf("error decoding token payload: %v", err)
-    }
+	// Check if the token has valid claims
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, fmt.Errorf("invalid token claims type")
+	}
 
-    // Parse and validate the JWT token
-    var claims jwt.MapClaims
-    if err := jwt.UnmarshalJSON(payload, &claims); err != nil {
-        return nil, fmt.Errorf("error unmarshalling token claims: %v", err)
-    }
-
-    return claims, nil
+	return claims, nil
 }
 
 // AuthMiddlewareFunc returns a function that can be used as an
