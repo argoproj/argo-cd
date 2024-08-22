@@ -292,6 +292,51 @@ func (a *ApplicationSource) IsZero() bool {
 			a.Plugin.IsZero()
 }
 
+// GetNamespaceOrDefault gets the static namespace configured in the source. If none is configured, returns the given
+// default.
+func (a *ApplicationSource) GetNamespaceOrDefault(defaultNamespace string) string {
+	if a == nil {
+		return defaultNamespace
+	}
+	if a.Helm != nil && a.Helm.Namespace != "" {
+		return a.Helm.Namespace
+	}
+	if a.Kustomize != nil && a.Kustomize.Namespace != "" {
+		return a.Kustomize.Namespace
+	}
+	return defaultNamespace
+}
+
+// GetKubeVersionOrDefault gets the static Kubernetes API version configured in the source. If none is configured,
+// returns the given default.
+func (a *ApplicationSource) GetKubeVersionOrDefault(defaultKubeVersion string) string {
+	if a == nil {
+		return defaultKubeVersion
+	}
+	if a.Helm != nil && a.Helm.KubeVersion != "" {
+		return a.Helm.KubeVersion
+	}
+	if a.Kustomize != nil && a.Kustomize.KubeVersion != "" {
+		return a.Kustomize.KubeVersion
+	}
+	return defaultKubeVersion
+}
+
+// GetAPIVersionsOrDefault gets the static API versions list configured in the source. If none is configured, returns
+// the given default.
+func (a *ApplicationSource) GetAPIVersionsOrDefault(defaultAPIVersions []string) []string {
+	if a == nil {
+		return defaultAPIVersions
+	}
+	if a.Helm != nil && len(a.Helm.APIVersions) > 0 {
+		return a.Helm.APIVersions
+	}
+	if a.Kustomize != nil && len(a.Kustomize.APIVersions) > 0 {
+		return a.Kustomize.APIVersions
+	}
+	return defaultAPIVersions
+}
+
 // ApplicationSourceType specifies the type of the application's source
 type ApplicationSourceType string
 
@@ -342,6 +387,14 @@ type ApplicationSourceHelm struct {
 	// ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	ValuesObject *runtime.RawExtension `json:"valuesObject,omitempty" protobuf:"bytes,10,opt,name=valuesObject"`
+	// Namespace is an optional namespace to template with. If left empty, defaults to the app's destination namespace.
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,11,opt,name=namespace"`
+	// KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+	// uses the Kubernetes version of the target cluster.
+	KubeVersion string `json:"kubeVersion,omitempty" protobuf:"bytes,12,opt,name=kubeVersion"`
+	// APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+	// Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,13,opt,name=apiVersions"`
 }
 
 // HelmParameter is a parameter that's passed to helm template during manifest generation
@@ -423,7 +476,7 @@ func (in *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
 
 // IsZero Returns true if the Helm options in an application source are considered zero
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.ValuesIsEmpty() && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds
+	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.ValuesIsEmpty() && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds && h.KubeVersion == "" && len(h.APIVersions) == 0 && h.Namespace == ""
 }
 
 // KustomizeImage represents a Kustomize image definition in the format [old_image_name=]<image_name>:<image_tag>
@@ -490,6 +543,12 @@ type ApplicationSourceKustomize struct {
 	Components []string `json:"components,omitempty" protobuf:"bytes,13,rep,name=components"`
 	// LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
 	LabelWithoutSelector bool `json:"labelWithoutSelector,omitempty" protobuf:"bytes,14,opt,name=labelWithoutSelector"`
+	// KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+	// uses the Kubernetes version of the target cluster.
+	KubeVersion string `json:"kubeVersion,omitempty" protobuf:"bytes,15,opt,name=kubeVersion"`
+	// APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+	// Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,16,opt,name=apiVersions"`
 }
 
 type KustomizeReplica struct {
@@ -595,7 +654,9 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 			len(k.CommonLabels) == 0 &&
 			len(k.CommonAnnotations) == 0 &&
 			len(k.Patches) == 0 &&
-			len(k.Components) == 0
+			len(k.Components) == 0 &&
+			k.KubeVersion == "" &&
+			len(k.APIVersions) == 0
 }
 
 // MergeImage merges a new Kustomize image identifier in to a list of images
@@ -608,7 +669,7 @@ func (k *ApplicationSourceKustomize) MergeImage(image KustomizeImage) {
 	}
 }
 
-// MergeReplicas merges a new Kustomize replica identifier in to a list of replicas
+// MergeReplica merges a new Kustomize replica identifier in to a list of replicas
 func (k *ApplicationSourceKustomize) MergeReplica(replica KustomizeReplica) {
 	i := k.Replicas.FindByName(replica.Name)
 	if i >= 0 {
