@@ -6095,6 +6095,13 @@ func schema_pkg_apis_application_v1alpha1_Repository(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"insecureHttpOnly": {
+						SchemaProps: spec.SchemaProps{
+							Description: "InsecureHttpOnly specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. Applicable for OCI repos only atm.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"repo"},
 			},

@@ -72,10 +72,10 @@ func WithChartPaths(repoCachePaths argoio.TempPaths) ClientOpts {
 		c.repoCachePaths = repoCachePaths
 	}
 }
-func NewClient(repoURL string, creds Creds, proxy string, opts ...ClientOpts) (Client, error) {
-	return NewClientWithLock(repoURL, creds, globalLock, proxy, opts...)
+func NewClient(repoURL string, creds Creds, proxy, noProxy string, opts ...ClientOpts) (Client, error) {
+	return NewClientWithLock(repoURL, creds, globalLock, proxy, noProxy, opts...)
 }
-func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxyUrl string, opts ...ClientOpts) (Client, error) {
+func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxyUrl, noProxy string, opts ...ClientOpts) (Client, error) {
 	ociRepo := strings.TrimPrefix(repoURL, "oci://")
 	repo, err := remote.NewRepository(ociRepo)
 
@@ -106,7 +106,7 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 	}
 
 	client := &http.Client{Transport: &http.Transport{
-		Proxy:             proxy.GetCallback(proxyUrl),
+		Proxy:             proxy.GetCallback(proxyUrl, noProxy),
 		TLSClientConfig:   tlsConf,
 		DisableKeepAlives: true,
 	}}
