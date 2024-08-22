@@ -53,7 +53,7 @@ argocd-application-controller [flags]
       --otlp-headers stringToString                               List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2) (default [])
       --otlp-insecure                                             OpenTelemetry collector insecure mode (default true)
       --password string                                           Password for basic authentication to the API server
-      --persist-resource-health                                   Enables storing the managed resources health in the Application CRD (default true)
+      --persist-resource-health                                   Enables storing the managed resources health in the Application CRD
       --proxy-url string                                          If provided, this URL will be used to connect via proxy
       --redis string                                              Redis server hostname and port (e.g. argocd-redis:6379). 
       --redis-ca-certificate string                               Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
