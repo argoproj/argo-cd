@@ -21468,7 +21468,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: redis:7.0.15-alpine
+        image: docker.io/redis:7.0.15-alpine
         imagePullPolicy: Always
         name: redis
         ports:
