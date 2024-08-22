@@ -136,7 +136,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 		newGitClient:              git.NewClientExt,
 		resourceTracking:          resourceTracking,
 		newOciClient: func(repoURL string, creds oci.Creds, proxy string, noProxy string, opts ...oci.ClientOpts) (oci.Client, error) {
-			return oci.NewClient(repoURL, creds, proxy, opts...)
+			return oci.NewClient(repoURL, creds, proxy, noProxy, opts...)
 		},
 		newHelmClient: func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client {
 			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock(), enableOci, proxy, noProxy, opts...)
@@ -2482,7 +2482,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 }
 
 func (s *Service) newOciClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, noRevisionCache bool) (oci.Client, string, error) {
-	ociClient, err := s.newOciClient(repo.Repo, repo.GetOciCreds(), repo.Proxy, oci.WithIndexCache(s.cache), oci.WithChartPaths(s.chartPaths))
+	ociClient, err := s.newOciClient(repo.Repo, repo.GetOciCreds(), repo.Proxy, repo.NoProxy, oci.WithIndexCache(s.cache), oci.WithChartPaths(s.chartPaths))
 	if err != nil {
 		return nil, "", err
 	}
@@ -2638,7 +2638,7 @@ func (s *Service) TestRepository(_ context.Context, q *apiclient.TestRepositoryR
 			return git.TestRepo(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, repo.NoProxy)
 		},
 		"oci": func() error {
-			client, err := oci.NewClient(repo.Repo, repo.GetOciCreds(), repo.Proxy)
+			client, err := oci.NewClient(repo.Repo, repo.GetOciCreds(), repo.Proxy, repo.NoProxy)
 			if err != nil {
 				return err
 			}
