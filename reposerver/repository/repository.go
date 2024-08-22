@@ -315,7 +315,7 @@ func (s *Service) runRepoOperation(
 	gitClientOpts := git.WithCache(s.cache, !settings.noRevisionCache && !settings.noCache)
 	revision = textutils.FirstNonEmpty(revision, source.TargetRevision)
 	unresolvedRevision := revision
-	if source.IsOci() {
+	if source.IsOCI() {
 		ociClient, revision, err = s.newOCIClientResolveRevision(ctx, repo, revision, settings.noCache || settings.noRevisionCache)
 	} else if source.IsHelm() {
 		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart, settings.noCache || settings.noRevisionCache)
@@ -349,7 +349,7 @@ func (s *Service) runRepoOperation(
 		defer settings.sem.Release(1)
 	}
 
-	if source.IsOci() {
+	if source.IsOCI() {
 		digest, err := ociClient.ResolveDigest(ctx, revision)
 		if err != nil {
 			return err
@@ -2679,7 +2679,7 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 	var revision string
 	source := app.Spec.GetSourcePtrByIndex(int(q.SourceIndex))
 
-	if source.IsOci() {
+	if source.IsOCI() {
 		_, revision, err := s.newOCIClientResolveRevision(ctx, repo, ambiguousRevision, true)
 		if err != nil {
 			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
