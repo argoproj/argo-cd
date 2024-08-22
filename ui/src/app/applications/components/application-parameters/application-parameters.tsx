@@ -248,7 +248,7 @@ export const ApplicationParameters = (props: {
                         </React.Fragment>
                     )}
                     <DataLoader input={app.spec.sources[index]} load={src => getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)}>
-                        {(details: models.RepoAppDetails) => getEditablePanelForOneSource(details, index, source)}
+                        {(details: models.RepoAppDetails) => getEditablePanelForOneSource(details, index, app.spec.sources[index])}
                     </DataLoader>
                 </div>
             </div>
