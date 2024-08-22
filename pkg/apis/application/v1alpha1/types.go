@@ -294,7 +294,7 @@ func (source *ApplicationSource) AllowsConcurrentProcessing() bool {
 	return true
 }
 
-func (a *ApplicationSource) IsOci() bool {
+func (a *ApplicationSource) IsOCI() bool {
 	return strings.HasPrefix(a.RepoURL, "oci://")
 }
 
