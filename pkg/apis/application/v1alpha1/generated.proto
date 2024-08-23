@@ -1601,6 +1601,9 @@ message RepoCreds {
 
   // ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
   optional bool forceHttpBasicAuth = 20;
+
+  // NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
+  optional string noProxy = 23;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1678,6 +1681,9 @@ message Repository {
 
   // ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
   optional bool forceHttpBasicAuth = 22;
+
+  // NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
+  optional string noProxy = 23;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

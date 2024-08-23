@@ -56,6 +56,12 @@ else
     protoc_include=${PROJECT_ROOT}/dist/protoc-include
 fi
 
+# go-to-protobuf expects dependency proto files to be in $GOPATH/src. Copy them there.
+rm -rf "${GOPATH}/src/github.com/gogo/protobuf" && mkdir -p "${GOPATH}/src/github.com/gogo" && cp -r "${PROJECT_ROOT}/vendor/github.com/gogo/protobuf" "${GOPATH}/src/github.com/gogo"
+rm -rf "${GOPATH}/src/k8s.io/apimachinery" && mkdir -p "${GOPATH}/src/k8s.io" && cp -r "${PROJECT_ROOT}/vendor/k8s.io/apimachinery" "${GOPATH}/src/k8s.io"
+rm -rf "${GOPATH}/src/k8s.io/api" && mkdir -p "${GOPATH}/src/k8s.io" && cp -r "${PROJECT_ROOT}/vendor/k8s.io/api" "${GOPATH}/src/k8s.io"
+rm -rf "${GOPATH}/src/k8s.io/apiextensions-apiserver" && mkdir -p "${GOPATH}/src/k8s.io" && cp -r "${PROJECT_ROOT}/vendor/k8s.io/apiextensions-apiserver" "${GOPATH}/src/k8s.io"
+
 go-to-protobuf \
     --go-header-file="${PROJECT_ROOT}"/hack/custom-boilerplate.go.txt \
     --packages="$(
@@ -68,7 +74,10 @@ go-to-protobuf \
     )" \
     --proto-import="${PROJECT_ROOT}"/vendor \
     --proto-import="${protoc_include}" \
-    --output-base="${GOPATH}/src/"
+    --output-dir="${GOPATH}/src/"
+
+# go-to-protobuf modifies vendored code. Re-vendor code so it's available for subsequent steps.
+go mod vendor
 
 # Either protoc-gen-go, protoc-gen-gofast, or protoc-gen-gogofast can be used to build
 # server/*/<service>.pb.go from .proto files. golang/protobuf and gogo/protobuf can be used

@@ -363,6 +363,7 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 		fmt.Printf("Cluster information\n\n")
 		fmt.Printf("  Server URL:            %s\n", cluster.Server)
 		fmt.Printf("  Server Name:           %s\n", strWithDefault(cluster.Name, "-"))
+		// nolint:staticcheck
 		fmt.Printf("  Server Version:        %s\n", cluster.ServerVersion)
 		fmt.Printf("  Namespaces:        	 %s\n", formatNamespaces(cluster))
 		fmt.Printf("\nTLS configuration\n\n")
@@ -455,6 +456,7 @@ func printClusterTable(clusters []argoappv1.Cluster) {
 		if len(c.Namespaces) > 0 {
 			server = fmt.Sprintf("%s (%d namespaces)", c.Server, len(c.Namespaces))
 		}
+		// nolint:staticcheck
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", server, c.Name, c.ServerVersion, c.ConnectionState.Status, c.ConnectionState.Message, c.Project)
 	}
 	_ = w.Flush()

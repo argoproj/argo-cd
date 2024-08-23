@@ -50,7 +50,7 @@ exports[`ComparisonStatusIcon.Unknown 1`] = `
 
 exports[`HealthStatusIcon.Degraded 1`] = `
 <i
-  className="fa fa-heart-broken"
+  className="fa fa-heart-broken utils-health-status-icon"
   qe-id="utils-health-status-title"
   style={
     {
@@ -63,7 +63,7 @@ exports[`HealthStatusIcon.Degraded 1`] = `
 
 exports[`HealthStatusIcon.Healthy 1`] = `
 <i
-  className="fa fa-heart"
+  className="fa fa-heart utils-health-status-icon"
   qe-id="utils-health-status-title"
   style={
     {
@@ -76,7 +76,7 @@ exports[`HealthStatusIcon.Healthy 1`] = `
 
 exports[`HealthStatusIcon.Missing 1`] = `
 <i
-  className="fa fa-ghost"
+  className="fa fa-ghost utils-health-status-icon"
   qe-id="utils-health-status-title"
   style={
     {
@@ -89,7 +89,7 @@ exports[`HealthStatusIcon.Missing 1`] = `
 
 exports[`HealthStatusIcon.Progressing 1`] = `
 <i
-  className="fa fa fa-circle-notch fa-spin"
+  className="fa fa fa-circle-notch fa-spin utils-health-status-icon"
   qe-id="utils-health-status-title"
   style={
     {
@@ -102,7 +102,7 @@ exports[`HealthStatusIcon.Progressing 1`] = `
 
 exports[`HealthStatusIcon.Suspended 1`] = `
 <i
-  className="fa fa-pause-circle"
+  className="fa fa-pause-circle utils-health-status-icon"
   qe-id="utils-health-status-title"
   style={
     {
@@ -115,7 +115,7 @@ exports[`HealthStatusIcon.Suspended 1`] = `
 
 exports[`HealthStatusIcon.Unknown 1`] = `
 <i
-  className="fa fa-question-circle"
+  className="fa fa-question-circle utils-health-status-icon"
   qe-id="utils-health-status-title"
   style={
     {

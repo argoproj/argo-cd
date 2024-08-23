@@ -330,6 +330,7 @@ func ValidateRepo(
 		return conditions, nil
 	}
 	config := cluster.RESTConfig()
+	// nolint:staticcheck
 	cluster.ServerVersion, err = kubectl.GetServerVersion(config)
 	if err != nil {
 		return nil, fmt.Errorf("error getting k8s server version: %w", err)
@@ -427,6 +428,7 @@ func validateRepo(ctx context.Context,
 		proj,
 		sources,
 		repoClient,
+		// nolint:staticcheck
 		cluster.ServerVersion,
 		APIResourcesToStrings(apiGroups, true),
 		permittedHelmCredentials,
@@ -753,10 +755,11 @@ func verifyGenerateManifests(
 		}
 		req := apiclient.ManifestRequest{
 			Repo: &argoappv1.Repository{
-				Repo:  source.RepoURL,
-				Type:  repoRes.Type,
-				Name:  repoRes.Name,
-				Proxy: repoRes.Proxy,
+				Repo:    source.RepoURL,
+				Type:    repoRes.Type,
+				Name:    repoRes.Name,
+				Proxy:   repoRes.Proxy,
+				NoProxy: repoRes.NoProxy,
 			},
 			Repos:              helmRepos,
 			Revision:           source.TargetRevision,

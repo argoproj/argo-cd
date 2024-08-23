@@ -188,6 +188,11 @@ data:
   # Include hidden directories from Git
   reposerver.include.hidden.directories: "false"
 
+
+  # Set the logging format. One of: text|json (default "text")
+  dexserver.log.format: "text"
+  # Set the logging level. One of: debug|info|warn|error (default "info")
+  dexserver.log.level: "info"
   # Disable TLS on the HTTP endpoint
   dexserver.disable.tls: "false"
 
