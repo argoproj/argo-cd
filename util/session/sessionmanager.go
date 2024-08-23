@@ -527,7 +527,7 @@ func (mgr *SessionManager) verifyKubernetesToken(token string, kubeClientset kub
 
 	resp, err := kubeClientset.AuthenticationV1().TokenReviews().Create(context.TODO(), tokenReview, metav1.CreateOptions{})
 	if err != nil {
-		return false, fmt.Errorf("Error during TokenReview creation: %v", err)
+		return false, fmt.Errorf("Error during TokenReview creation: %w", err)
 	}
 
 	if !resp.Status.Authenticated {
@@ -536,7 +536,7 @@ func (mgr *SessionManager) verifyKubernetesToken(token string, kubeClientset kub
 
 	claims, err := decodeToken(token)
     if err != nil {
-        return false, fmt.Errorf("error decoding token: %v", err)
+        return false, fmt.Errorf("error decoding token: %w", err)
     }
 
     if claims["sub"] != mgr.inclusterServiceAccount {
@@ -551,7 +551,7 @@ func decodeToken(tokenString string) (jwt.MapClaims, error) {
 	// Parse the token using the jwt package
 	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
 	if err != nil {
-		return nil, fmt.Errorf("error parsing token: %v", err)
+		return nil, fmt.Errorf("error parsing token: %w", err)
 	}
 
 	// Check if the token has valid claims
