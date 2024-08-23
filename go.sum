@@ -690,6 +690,8 @@ github.com/apache/thrift v0.12.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb
 github.com/apache/thrift v0.13.0/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.16.0/go.mod h1:PHK3hniurgQaNMZYaCLEqXKsYK8upmhPbmdP2FXSqgU=
 github.com/appscode/go v0.0.0-20191119085241-0887d8ec2ecc/go.mod h1:OawnOmAL4ZX3YaPdN+8HTNwBveT1jMsqP74moa9XUbE=
+github.com/argoproj/gitops-engine v0.7.1-0.20240823155720-099cba69bdfc h1:eF+6rdcJZE1s5DNryi98JU93PYDtqL0oROHrxnbruB4=
+github.com/argoproj/gitops-engine v0.7.1-0.20240823155720-099cba69bdfc/go.mod h1:jdZaV4B21k6sQtSrxgwsgB9Y7kbemP37onLhjjz/3BE=
 github.com/argoproj/notifications-engine v0.4.1-0.20240606074338-0802cd427621 h1:Yg1nt+D2uDK1SL2jSlfukA4yc7db184TTN7iWy3voRE=
 github.com/argoproj/notifications-engine v0.4.1-0.20240606074338-0802cd427621/go.mod h1:N0A4sEws2soZjEpY4hgZpQS8mRIEw6otzwfkgc3g9uQ=
 github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1 h1:qsHwwOJ21K2Ao0xPju1sNuqphyMnMYkyB3ZLoLtxWpo=
@@ -1605,8 +1607,6 @@ github.com/sirupsen/logrus v1.8.1/go.mod h1:yWOB1SBYBC5VeMP7gHvWumXLIWorT60ONWic
 github.com/sirupsen/logrus v1.9.2/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
 github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=
 github.com/sirupsen/logrus v1.9.3/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
-github.com/sivchari/gitops-engine v0.0.0-20240820144913-48307b8c3346 h1:9NdW2zND37YZJWcKK4QmVXckLOt2MDjGSiKMynSh420=
-github.com/sivchari/gitops-engine v0.0.0-20240820144913-48307b8c3346/go.mod h1:iuDMPIBi3RUXV/9TrATdJ66RnXVyC1irAmYoBSgZUWE=
 github.com/skeema/knownhosts v1.2.2 h1:Iug2P4fLmDw9f41PB6thxUkNUkJzB5i+1/exaj40L3A=
 github.com/skeema/knownhosts v1.2.2/go.mod h1:xYbVRSPxqBZFrdmDyMmsOs+uX1UZC3nTN3ThzgDxUwo=
 github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c h1:fyKiXKO1/I/B6Y2U8T7WdQGWzwehOuGIrljPtt7YTTI=
