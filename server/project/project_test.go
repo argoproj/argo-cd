@@ -496,7 +496,7 @@ p, role:admin, projects, update, *, allow`)
 	enforcer = newEnforcer(kubeclientset)
 
 	t.Run("TestCreateTwoTokensInRoleSuccess", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
+		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil), "")
 		projWithToken := existingProj.DeepCopy()
 		tokenName := "testToken"
 		token := v1alpha1.ProjectRole{Name: tokenName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
@@ -661,7 +661,7 @@ p, role:admin, projects, update, *, allow`)
 	})
 
 	t.Run("TestSyncWindowsActive", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
+		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil), "")
 		projectWithSyncWindows := existingProj.DeepCopy()
 		projectWithSyncWindows.Spec.SyncWindows = v1alpha1.SyncWindows{}
 		win := &v1alpha1.SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
@@ -674,7 +674,7 @@ p, role:admin, projects, update, *, allow`)
 	})
 
 	t.Run("TestGetSyncWindowsStateCannotGetProjectDetails", func(t *testing.T) {
-		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
+		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil), "")
 		projectWithSyncWindows := existingProj.DeepCopy()
 		projectWithSyncWindows.Spec.SyncWindows = v1alpha1.SyncWindows{}
 		win := &v1alpha1.SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
@@ -693,7 +693,7 @@ p, role:admin, projects, update, *, allow`)
 		// nolint:staticcheck
 		ctx := context.WithValue(context.Background(), "claims", &jwt.MapClaims{"groups": []string{"my-group"}})
 
-		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil))
+		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(nil), "")
 		projectWithSyncWindows := existingProj.DeepCopy()
 		win := &v1alpha1.SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
 		projectWithSyncWindows.Spec.SyncWindows = append(projectWithSyncWindows.Spec.SyncWindows, win)
