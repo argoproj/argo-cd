@@ -4514,6 +4514,43 @@
         }
       }
     },
+    "applicationv1alpha1ResourceStatus": {
+      "type": "object",
+      "title": "ResourceStatus holds the current sync and health status of a resource\nTODO: describe members of this type",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "health": {
+          "$ref": "#/definitions/v1alpha1HealthStatus"
+        },
+        "hook": {
+          "type": "boolean"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "requiresPruning": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string"
+        },
+        "syncWave": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
     "clusterClusterID": {
       "type": "object",
       "title": "ClusterID holds a cluster server URL or cluster name",
@@ -5616,7 +5653,7 @@
           "type": "string"
         },
         "kubeProxyVersion": {
-          "description": "KubeProxy Version reported by the node.",
+          "description": "Deprecated: KubeProxy Version reported by the node.",
           "type": "string"
         },
         "kubeletVersion": {
@@ -6334,7 +6371,7 @@
           "description": "Resources is a list of Applications resources managed by this application set.",
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1ResourceStatus"
+            "$ref": "#/definitions/applicationv1alpha1ResourceStatus"
           }
         }
       }
@@ -6801,7 +6838,7 @@
           "type": "array",
           "title": "Resources is a list of Kubernetes resources managed by this application",
           "items": {
-            "$ref": "#/definitions/v1alpha1ResourceStatus"
+            "$ref": "#/definitions/applicationv1alpha1ResourceStatus"
           }
         },
         "sourceType": {
@@ -8687,43 +8724,6 @@
         "version": {
           "type": "string",
           "title": "Version specifies the API version of the resource"
-        }
-      }
-    },
-    "v1alpha1ResourceStatus": {
-      "type": "object",
-      "title": "ResourceStatus holds the current sync and health status of a resource\nTODO: describe members of this type",
-      "properties": {
-        "group": {
-          "type": "string"
-        },
-        "health": {
-          "$ref": "#/definitions/v1alpha1HealthStatus"
-        },
-        "hook": {
-          "type": "boolean"
-        },
-        "kind": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "namespace": {
-          "type": "string"
-        },
-        "requiresPruning": {
-          "type": "boolean"
-        },
-        "status": {
-          "type": "string"
-        },
-        "syncWave": {
-          "type": "integer",
-          "format": "int64"
-        },
-        "version": {
-          "type": "string"
         }
       }
     },
