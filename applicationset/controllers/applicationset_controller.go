@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -422,20 +423,28 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 
 	if needToUpdateConditions || len(applicationSet.Status.Conditions) < len(newConditions) {
 		// fetch updated Application Set object before updating it
-		namespacedName := types.NamespacedName{Namespace: applicationSet.Namespace, Name: applicationSet.Name}
-		if err := r.Get(ctx, namespacedName, applicationSet); err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				return nil
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			namespacedName := types.NamespacedName{Namespace: applicationSet.Namespace, Name: applicationSet.Name}
+			updatedAppset := &argov1alpha1.ApplicationSet{}
+			if err := r.Get(ctx, namespacedName, updatedAppset); err != nil {
+				if client.IgnoreNotFound(err) != nil {
+					return nil
+				}
+				return fmt.Errorf("error fetching updated application set: %w", err)
 			}
-			return fmt.Errorf("error fetching updated application set: %w", err)
-		}
 
-		applicationSet.Status.SetConditions(
-			newConditions, evaluatedTypes,
-		)
+			updatedAppset.Status.SetConditions(
+				newConditions, evaluatedTypes,
+			)
 
-		// Update the newly fetched object with new set of conditions
-		err := r.Client.Status().Update(ctx, applicationSet)
+			// Update the newly fetched object with new set of conditions
+			err := r.Client.Status().Update(ctx, updatedAppset)
+			if err != nil {
+				return err
+			}
+			updatedAppset.DeepCopyInto(applicationSet)
+			return nil
+		})
 		if err != nil && !apierr.IsNotFound(err) {
 			return fmt.Errorf("unable to set application set condition: %w", err)
 		}
@@ -1244,15 +1253,28 @@ func (r *ApplicationSetReconciler) migrateStatus(ctx context.Context, appset *ar
 	}
 
 	if update {
-		namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
-		if err := r.Client.Status().Update(ctx, appset); err != nil {
-			return fmt.Errorf("unable to set application set status: %w", err)
-		}
-		if err := r.Get(ctx, namespacedName, appset); err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				return nil
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
+			updatedAppset := &argov1alpha1.ApplicationSet{}
+			if err := r.Get(ctx, namespacedName, updatedAppset); err != nil {
+				if client.IgnoreNotFound(err) != nil {
+					return nil
+				}
+				return fmt.Errorf("error fetching updated application set: %w", err)
 			}
-			return fmt.Errorf("error fetching updated application set: %w", err)
+
+			updatedAppset.Status.ApplicationStatus = appset.Status.ApplicationStatus
+
+			// Update the newly fetched object with new set of ApplicationStatus
+			err := r.Client.Status().Update(ctx, updatedAppset)
+			if err != nil {
+				return err
+			}
+			updatedAppset.DeepCopyInto(appset)
+			return nil
+		})
+		if err != nil && !apierr.IsNotFound(err) {
+			return fmt.Errorf("unable to set application set condition: %w", err)
 		}
 	}
 	return nil
@@ -1267,21 +1289,30 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 		statuses = append(statuses, status)
 	}
 	appset.Status.Resources = statuses
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
+		updatedAppset := &argov1alpha1.ApplicationSet{}
+		if err := r.Get(ctx, namespacedName, updatedAppset); err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				return nil
+			}
+			return fmt.Errorf("error fetching updated application set: %w", err)
+		}
 
-	namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
-	err := r.Client.Status().Update(ctx, appset)
+		updatedAppset.Status.Resources = appset.Status.Resources
+
+		// Update the newly fetched object with new status resources
+		err := r.Client.Status().Update(ctx, updatedAppset)
+		if err != nil {
+			return err
+		}
+		updatedAppset.DeepCopyInto(appset)
+		return nil
+	})
 	if err != nil {
 		logCtx.Errorf("unable to set application set status: %v", err)
 		return fmt.Errorf("unable to set application set status: %w", err)
 	}
-
-	if err := r.Get(ctx, namespacedName, appset); err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			return nil
-		}
-		return fmt.Errorf("error fetching updated application set: %w", err)
-	}
-
 	return nil
 }
 
@@ -1317,18 +1348,28 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 			applicationSet.Status.SetApplicationStatus(applicationStatuses[i])
 		}
 
-		// Update the newly fetched object with new set of ApplicationStatus
-		err := r.Client.Status().Update(ctx, applicationSet)
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			updatedAppset := &argov1alpha1.ApplicationSet{}
+			if err := r.Get(ctx, namespacedName, updatedAppset); err != nil {
+				if client.IgnoreNotFound(err) != nil {
+					return nil
+				}
+				return fmt.Errorf("error fetching updated application set: %w", err)
+			}
+
+			updatedAppset.Status.ApplicationStatus = applicationSet.Status.ApplicationStatus
+
+			// Update the newly fetched object with new set of ApplicationStatus
+			err := r.Client.Status().Update(ctx, updatedAppset)
+			if err != nil {
+				return err
+			}
+			updatedAppset.DeepCopyInto(applicationSet)
+			return nil
+		})
 		if err != nil {
 			logCtx.Errorf("unable to set application set status: %v", err)
 			return fmt.Errorf("unable to set application set status: %w", err)
-		}
-
-		if err := r.Get(ctx, namespacedName, applicationSet); err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				return nil
-			}
-			return fmt.Errorf("error fetching updated application set: %w", err)
 		}
 	}
 
