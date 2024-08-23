@@ -52,9 +52,6 @@ func init() {
 	knownTypes["core/v1/CinderVolumeSource"] = func() interface{} {
 		return &corev1.CinderVolumeSource{}
 	}
-	knownTypes["core/v1/ClaimSource"] = func() interface{} {
-		return &corev1.ClaimSource{}
-	}
 	knownTypes["core/v1/ClientIPConfig"] = func() interface{} {
 		return &corev1.ClientIPConfig{}
 	}
@@ -117,6 +114,9 @@ func init() {
 	}
 	knownTypes["core/v1/ContainerStatus"] = func() interface{} {
 		return &corev1.ContainerStatus{}
+	}
+	knownTypes["core/v1/ContainerUser"] = func() interface{} {
+		return &corev1.ContainerUser{}
 	}
 	knownTypes["core/v1/DaemonEndpoint"] = func() interface{} {
 		return &corev1.DaemonEndpoint{}
@@ -229,6 +229,9 @@ func init() {
 	knownTypes["core/v1/ISCSIVolumeSource"] = func() interface{} {
 		return &corev1.ISCSIVolumeSource{}
 	}
+	knownTypes["core/v1/ImageVolumeSource"] = func() interface{} {
+		return &corev1.ImageVolumeSource{}
+	}
 	knownTypes["core/v1/KeyToPath"] = func() interface{} {
 		return &corev1.KeyToPath{}
 	}
@@ -249,6 +252,9 @@ func init() {
 	}
 	knownTypes["core/v1/LimitRangeSpec"] = func() interface{} {
 		return &corev1.LimitRangeSpec{}
+	}
+	knownTypes["core/v1/LinuxContainerUser"] = func() interface{} {
+		return &corev1.LinuxContainerUser{}
 	}
 	knownTypes["core/v1/List"] = func() interface{} {
 		return &corev1.List{}
@@ -306,6 +312,9 @@ func init() {
 	}
 	knownTypes["core/v1/NodeDaemonEndpoints"] = func() interface{} {
 		return &corev1.NodeDaemonEndpoints{}
+	}
+	knownTypes["core/v1/NodeFeatures"] = func() interface{} {
+		return &corev1.NodeFeatures{}
 	}
 	knownTypes["core/v1/NodeList"] = func() interface{} {
 		return &corev1.NodeList{}
@@ -520,6 +529,9 @@ func init() {
 	knownTypes["core/v1/ResourceFieldSelector"] = func() interface{} {
 		return &corev1.ResourceFieldSelector{}
 	}
+	knownTypes["core/v1/ResourceHealth"] = func() interface{} {
+		return &corev1.ResourceHealth{}
+	}
 	knownTypes["core/v1/ResourceList"] = func() interface{} {
 		return &corev1.ResourceList{}
 	}
@@ -537,6 +549,9 @@ func init() {
 	}
 	knownTypes["core/v1/ResourceRequirements"] = func() interface{} {
 		return &corev1.ResourceRequirements{}
+	}
+	knownTypes["core/v1/ResourceStatus"] = func() interface{} {
+		return &corev1.ResourceStatus{}
 	}
 	knownTypes["core/v1/SELinuxOptions"] = func() interface{} {
 		return &corev1.SELinuxOptions{}
