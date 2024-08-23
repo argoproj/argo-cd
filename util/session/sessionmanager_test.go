@@ -455,7 +455,7 @@ func TestVerifyUsernamePassword(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(password, !tc.disabled), "argocd")
-			mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
+			mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil), "test-service-account")
 
 			var kubeClientset kubernetes.Interface
 			if tc.isK8sToken {
