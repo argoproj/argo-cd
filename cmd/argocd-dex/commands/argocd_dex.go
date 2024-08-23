@@ -136,8 +136,8 @@ func NewRunDexCommand() *cobra.Command {
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
-	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
-	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_DEX_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_DEX_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_DEX_SERVER_DISABLE_TLS", false), "Disable TLS on the HTTP endpoint")
 	return &command
 }
@@ -204,8 +204,8 @@ func NewGenDexConfigCommand() *cobra.Command {
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
-	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
-	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_DEX_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_DEX_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVarP(&out, "out", "o", "", "Output to the specified file instead of stdout")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_DEX_SERVER_DISABLE_TLS", false), "Disable TLS on the HTTP endpoint")
 	return &command

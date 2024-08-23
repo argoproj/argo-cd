@@ -31,11 +31,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
-	k8scache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -90,7 +88,6 @@ type ApplicationSetReconciler struct {
 	SCMRootCAPath              string
 	GlobalPreservedAnnotations []string
 	GlobalPreservedLabels      []string
-	Cache                      cache.Cache
 }
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
@@ -397,7 +394,20 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 	paramtersGeneratedCondition := getParametersGeneratedCondition(paramtersGenerated, condition.Message)
 	resourceUpToDateCondition := getResourceUpToDateCondition(errOccurred, condition.Message, condition.Reason)
 
+	evaluatedTypes := map[argov1alpha1.ApplicationSetConditionType]bool{
+		argov1alpha1.ApplicationSetConditionErrorOccurred:       true,
+		argov1alpha1.ApplicationSetConditionParametersGenerated: true,
+		argov1alpha1.ApplicationSetConditionResourcesUpToDate:   true,
+	}
 	newConditions := []argov1alpha1.ApplicationSetCondition{errOccurredCondition, paramtersGeneratedCondition, resourceUpToDateCondition}
+
+	if progressiveSyncsRollingSyncStrategyEnabled(applicationSet) {
+		evaluatedTypes[argov1alpha1.ApplicationSetConditionRolloutProgressing] = true
+
+		if condition.Type == argov1alpha1.ApplicationSetConditionRolloutProgressing {
+			newConditions = append(newConditions, condition)
+		}
+	}
 
 	needToUpdateConditions := false
 	for _, condition := range newConditions {
@@ -409,13 +419,8 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 			}
 		}
 	}
-	evaluatedTypes := map[argov1alpha1.ApplicationSetConditionType]bool{
-		argov1alpha1.ApplicationSetConditionErrorOccurred:       true,
-		argov1alpha1.ApplicationSetConditionParametersGenerated: true,
-		argov1alpha1.ApplicationSetConditionResourcesUpToDate:   true,
-	}
 
-	if needToUpdateConditions || len(applicationSet.Status.Conditions) < 3 {
+	if needToUpdateConditions || len(applicationSet.Status.Conditions) < len(newConditions) {
 		// fetch updated Application Set object before updating it
 		namespacedName := types.NamespacedName{Namespace: applicationSet.Namespace, Name: applicationSet.Name}
 		if err := r.Get(ctx, namespacedName, applicationSet); err != nil {
@@ -534,25 +539,6 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 		Complete(r)
 }
 
-func (r *ApplicationSetReconciler) updateCache(ctx context.Context, obj client.Object, logger *log.Entry) {
-	informer, err := r.Cache.GetInformer(ctx, obj)
-	if err != nil {
-		logger.Errorf("failed to get informer: %v", err)
-		return
-	}
-	// The controller runtime abstract away informers creation
-	// so unfortunately could not find any other way to access informer store.
-	k8sInformer, ok := informer.(k8scache.SharedInformer)
-	if !ok {
-		logger.Error("informer is not a kubernetes informer")
-		return
-	}
-	if err := k8sInformer.GetStore().Update(obj); err != nil {
-		logger.Errorf("failed to update cache: %v", err)
-		return
-	}
-}
-
 // createOrUpdateInCluster will create / update application resources in the cluster.
 // - For new applications, it will call create
 // - For existing application, it will call update
@@ -650,7 +636,6 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			}
 			continue
 		}
-		r.updateCache(ctx, found, appLog)
 
 		if action != controllerutil.OperationResultNone {
 			// Don't pollute etcd with "unchanged Application" events
@@ -817,7 +802,6 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 			if err := r.Client.Patch(ctx, updated, patch); err != nil {
 				return fmt.Errorf("error updating finalizers: %w", err)
 			}
-			r.updateCache(ctx, updated, appLog)
 			// Application must have updated list of finalizers
 			updated.DeepCopyInto(app)
 
@@ -1220,7 +1204,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusConditio
 				Message: "ApplicationSet Rollout Rollout started",
 				Reason:  argov1alpha1.ApplicationSetReasonApplicationSetModified,
 				Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
-			}, false,
+			}, true,
 		)
 	} else if !appSetProgressing && appSetConditionProgressing {
 		_ = r.setApplicationSetStatusCondition(ctx,
@@ -1230,7 +1214,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusConditio
 				Message: "ApplicationSet Rollout Rollout complete",
 				Reason:  argov1alpha1.ApplicationSetReasonApplicationSetRolloutComplete,
 				Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
-			}, false,
+			}, true,
 		)
 	}
 
@@ -1260,8 +1244,15 @@ func (r *ApplicationSetReconciler) migrateStatus(ctx context.Context, appset *ar
 	}
 
 	if update {
+		namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
 		if err := r.Client.Status().Update(ctx, appset); err != nil {
 			return fmt.Errorf("unable to set application set status: %w", err)
+		}
+		if err := r.Get(ctx, namespacedName, appset); err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				return nil
+			}
+			return fmt.Errorf("error fetching updated application set: %w", err)
 		}
 	}
 	return nil
