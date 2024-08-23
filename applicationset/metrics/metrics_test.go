@@ -1,8 +1,6 @@
 package metrics
 
 import (
-	// "context"
-	// "log"
 	"net/http"
 	"net/http/httptest"
 	"strings"

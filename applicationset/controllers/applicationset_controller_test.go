@@ -2396,7 +2396,6 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 		}
 
 		testCase.testfunc(t, testCase.appset)
-		// assert.Len(t, testCase.appset.Status.Conditions, 3)
 	}
 }
 
