@@ -1,9 +1,10 @@
 package commands
 
 import (
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"os"
 	"testing"
+
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,7 +24,7 @@ func TestNewConfigurationCommand_PromptsEnabled_DefaultTrue(t *testing.T) {
 
 	localConfig, err := localconfig.ReadLocalConfig(testConfigFilePath)
 	require.NoError(t, err)
-	assert.Equal(t, false, localConfig.PromptsEnabled)
+	assert.False(t, localConfig.PromptsEnabled)
 
 	// Set `PromptsEnabled` to `true` using `argocd configuration --prompts-enabled`
 	cmd := NewConfigurationCommand(&argocdclient.ClientOptions{ConfigPath: testConfigFilePath})
@@ -36,7 +37,7 @@ func TestNewConfigurationCommand_PromptsEnabled_DefaultTrue(t *testing.T) {
 	localConfig, err = localconfig.ReadLocalConfig(testConfigFilePath)
 	require.NoError(t, err)
 
-	assert.Equal(t, true, localConfig.PromptsEnabled)
+	assert.True(t, localConfig.PromptsEnabled)
 }
 
 func TestNewConfigurationCommand_PromptsEnabled_True(t *testing.T) {
@@ -51,7 +52,7 @@ func TestNewConfigurationCommand_PromptsEnabled_True(t *testing.T) {
 
 	localConfig, err := localconfig.ReadLocalConfig(testConfigFilePath)
 	require.NoError(t, err)
-	assert.Equal(t, false, localConfig.PromptsEnabled)
+	assert.False(t, localConfig.PromptsEnabled)
 
 	// Set `PromptsEnabled` to `true` using `argocd configuration --prompts-enabled=true`
 	cmd := NewConfigurationCommand(&argocdclient.ClientOptions{ConfigPath: testConfigFilePath})
@@ -64,7 +65,7 @@ func TestNewConfigurationCommand_PromptsEnabled_True(t *testing.T) {
 	localConfig, err = localconfig.ReadLocalConfig(testConfigFilePath)
 	require.NoError(t, err)
 
-	assert.Equal(t, true, localConfig.PromptsEnabled)
+	assert.True(t, localConfig.PromptsEnabled)
 }
 
 func TestNewConfigurationCommand_PromptsEnabled_False(t *testing.T) {
@@ -79,7 +80,7 @@ func TestNewConfigurationCommand_PromptsEnabled_False(t *testing.T) {
 
 	localConfig, err := localconfig.ReadLocalConfig(testConfigFilePath)
 	require.NoError(t, err)
-	assert.Equal(t, false, localConfig.PromptsEnabled)
+	assert.False(t, localConfig.PromptsEnabled)
 
 	// Set `PromptsEnabled` to `false` using `argocd configuration --prompts-enabled=false`
 	cmd := NewConfigurationCommand(&argocdclient.ClientOptions{ConfigPath: testConfigFilePath})
@@ -92,5 +93,5 @@ func TestNewConfigurationCommand_PromptsEnabled_False(t *testing.T) {
 	localConfig, err = localconfig.ReadLocalConfig(testConfigFilePath)
 	require.NoError(t, err)
 
-	assert.Equal(t, false, localConfig.PromptsEnabled)
+	assert.False(t, localConfig.PromptsEnabled)
 }

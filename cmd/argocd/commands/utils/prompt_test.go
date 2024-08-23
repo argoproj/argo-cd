@@ -39,7 +39,7 @@ prompts-enabled: true`
 	prompt, err := NewPrompt(&clientOpts)
 	require.NoError(t, err)
 
-	assert.Equal(t, true, prompt.enabled)
+	assert.True(t, prompt.enabled)
 }
 
 func TestNewPrompt_PromptsEnabled_False(t *testing.T) {
@@ -71,7 +71,7 @@ prompts-enabled: false`
 	prompt, err := NewPrompt(&clientOpts)
 	require.NoError(t, err)
 
-	assert.Equal(t, false, prompt.enabled)
+	assert.False(t, prompt.enabled)
 }
 
 func TestNewPrompt_PromptsEnabled_Unspecified(t *testing.T) {
@@ -102,5 +102,5 @@ users:
 	prompt, err := NewPrompt(&clientOpts)
 	require.NoError(t, err)
 
-	assert.Equal(t, false, prompt.enabled)
+	assert.False(t, prompt.enabled)
 }
