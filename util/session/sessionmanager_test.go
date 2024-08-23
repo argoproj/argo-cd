@@ -465,6 +465,7 @@ func TestVerifyUsernamePassword(t *testing.T) {
 					tr := action.(k8stesting.CreateAction).GetObject().(*authenticationv1.TokenReview)
 					parsedToken, _ := parseJWT(tr.Spec.Token)
 					
+					
 					// Simulate token validation
 					expectedServiceAccount := "test-service-account"
 					if tc.password == validK8sToken {
