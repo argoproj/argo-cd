@@ -80,7 +80,7 @@ func getKubeClient(pass string, enabled bool, capabilities ...settings.AccountCa
 }
 
 func newSessionManager(settingsMgr *settings.SettingsManager, projectLister v1alpha1.AppProjectNamespaceLister, storage UserStateStorage) *SessionManager {
-	mgr := NewSessionManager(settingsMgr, projectLister, "", nil, storage)
+	mgr := NewSessionManager(settingsMgr, projectLister, "", nil, storage, "")
 	mgr.verificationDelayNoiseEnabled = false
 	return mgr
 }
@@ -389,8 +389,8 @@ func TestGroups(t *testing.T) {
 
 func TestVerifyUsernamePassword(t *testing.T) {
 	const password = "password"
-	// Generate a minimal valid JWT with the required claims
-	validK8sToken := generateValidK8sJWT() // A function to generate a valid JWT
+	validK8sToken := generateValidK8sJWT()                              // Generate a valid JWT with correct service account
+	invalidK8sToken := generateValidK8sJWTWithDifferentServiceAccount() // Token with different service account
 
 	for _, tc := range []struct {
 		name       string
@@ -429,7 +429,7 @@ func TestVerifyUsernamePassword(t *testing.T) {
 			expected: status.Errorf(codes.Unauthenticated, accountDisabled, "admin"),
 		},
 		{
-			name:       "Success if Kubernetes token is valid",
+			name:       "Success if Kubernetes token is valid and service account matches",
 			disabled:   false,
 			userName:   common.ArgoCDAdminUsername,
 			password:   validK8sToken, // Use the valid JWT instead of a simple string,
@@ -444,37 +444,50 @@ func TestVerifyUsernamePassword(t *testing.T) {
 			expected:   status.Errorf(codes.Unauthenticated, invalidLoginError),
 			isK8sToken: true,
 		},
+		{
+			name:       "Return error if Kubernetes token is valid but wrong service account",
+			disabled:   false,
+			userName:   common.ArgoCDAdminUsername,
+			password:   invalidK8sToken,
+			expected:   status.Errorf(codes.Unauthenticated, invalidLoginError),
+			isK8sToken: true,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			expectedServiceAccount := "system:serviceaccount:default:test-service-account"
+
 			settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient(password, !tc.disabled), "argocd")
-			mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
+			mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil), expectedServiceAccount)
 
 			var kubeClientset kubernetes.Interface
 			if tc.isK8sToken {
 				kubeClientset = fake.NewSimpleClientset()
 
-				if tc.password == validK8sToken {
-					// Mock TokenReview response
-					kubeClientset.(*fake.Clientset).Fake.PrependReactor("create", "tokenreviews", func(action k8stesting.Action) (bool, runtime.Object, error) {
-						tr := action.(k8stesting.CreateAction).GetObject().(*authenticationv1.TokenReview)
-						if tr.Spec.Token == validK8sToken { // Use valid JWT
-							return true, &authenticationv1.TokenReview{
-								Status: authenticationv1.TokenReviewStatus{
-									Authenticated: true,
-								},
-							}, nil
-						}
+				// Mock TokenReview response based on the test case
+				kubeClientset.(*fake.Clientset).Fake.PrependReactor("create", "tokenreviews", func(action k8stesting.Action) (bool, runtime.Object, error) {
+					tr := action.(k8stesting.CreateAction).GetObject().(*authenticationv1.TokenReview)
+					switch tr.Spec.Token {
+					case validK8sToken:
+						return true, &authenticationv1.TokenReview{
+							Status: authenticationv1.TokenReviewStatus{
+								Authenticated: true,
+							},
+						}, nil
+					case invalidK8sToken:
+						return true, &authenticationv1.TokenReview{
+							Status: authenticationv1.TokenReviewStatus{
+								Authenticated: true,
+							},
+						}, nil
+					default:
 						return true, &authenticationv1.TokenReview{
 							Status: authenticationv1.TokenReviewStatus{
 								Authenticated: false,
 								Error:         "Invalid token",
 							},
 						}, nil
-					})
-
-					// Override the password with the fake token
-					tc.password = validK8sToken
-				}
+					}
+				})
 			} else {
 				kubeClientset = nil
 			}
@@ -499,9 +512,25 @@ func generateValidK8sJWT() string {
 				"name":      "test-service-account",
 			},
 		},
+		"sub": "system:serviceaccount:default:test-service-account", // Adding the sub claim
 	})
 
-	// Sign the token with a dummy key, this key doesn't need to be secure for the test
+	tokenString, _ := token.SignedString([]byte("dummy-secret"))
+	return tokenString
+}
+
+// Helper function to generate a valid Kubernetes JWT with a different service account for testing
+func generateValidK8sJWTWithDifferentServiceAccount() string {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"kubernetes.io": map[string]interface{}{
+			"serviceaccount": map[string]interface{}{
+				"namespace": "default",
+				"name":      "test-service-account",
+			},
+		},
+		"sub": "system:serviceaccount:default:other-service-account", // Adding the sub claim
+	})
+
 	tokenString, _ := token.SignedString([]byte("dummy-secret"))
 	return tokenString
 }
@@ -701,7 +730,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, nil), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil), "")
 		mgr.verificationDelayNoiseEnabled = false
 		// Use test server's client to avoid TLS issues.
 		mgr.client = oidcTestServer.Client()
@@ -735,7 +764,7 @@ rootCA: |
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, nil), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil), "")
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -772,7 +801,7 @@ rootCA: |
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, nil, NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, nil, NewUserStateStorage(nil), "")
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -807,7 +836,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil), "")
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -842,7 +871,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, nil, NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), dexTestServer.URL, nil, NewUserStateStorage(nil), "")
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -878,7 +907,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil), "")
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -907,7 +936,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(dexConfig, nil), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil), "")
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"test-client"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -944,7 +973,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil), "")
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -980,7 +1009,7 @@ skipAudienceCheckWhenTokenHasNoAudience: true`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil), "")
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -1016,7 +1045,7 @@ skipAudienceCheckWhenTokenHasNoAudience: false`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil), "")
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -1052,7 +1081,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil), "")
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"xxx"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -1089,7 +1118,7 @@ allowedAudiences:
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil), "")
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"something"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -1126,7 +1155,7 @@ allowedAudiences:
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil), "")
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"something"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -1162,7 +1191,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil), "")
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"something"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -1199,7 +1228,7 @@ allowedAudiences: []`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil), "")
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"something"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -1237,7 +1266,7 @@ allowedAudiences: ["aud-a", "aud-b"]`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil), "")
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Audience: jwt.ClaimStrings{"aud-b"}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}
@@ -1272,7 +1301,7 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		}
 
 		settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClientWithConfig(config, secretConfig), "argocd")
-		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil))
+		mgr := NewSessionManager(settingsMgr, getProjLister(), "", nil, NewUserStateStorage(nil), "")
 		mgr.verificationDelayNoiseEnabled = false
 
 		claims := jwt.RegisteredClaims{Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))}

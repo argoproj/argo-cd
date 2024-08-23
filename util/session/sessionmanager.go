@@ -46,6 +46,7 @@ type SessionManager struct {
 	sleep                         func(d time.Duration)
 	verificationDelayNoiseEnabled bool
 	failedLock                    sync.RWMutex
+	inclusterServiceAccount       string
 }
 
 // LoginAttempts is a timestamped counter for failed login attempts
@@ -114,13 +115,14 @@ func getLoginFailureWindow() time.Duration {
 }
 
 // NewSessionManager creates a new session manager from Argo CD settings
-func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1alpha1.AppProjectNamespaceLister, dexServerAddr string, dexTlsConfig *dex.DexTLSConfig, storage UserStateStorage) *SessionManager {
+func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1alpha1.AppProjectNamespaceLister, dexServerAddr string, dexTlsConfig *dex.DexTLSConfig, storage UserStateStorage, inclusterServiceAccount string) *SessionManager {
 	s := SessionManager{
 		settingsMgr:                   settingsMgr,
 		storage:                       storage,
 		sleep:                         time.Sleep,
 		projectsLister:                projectsLister,
 		verificationDelayNoiseEnabled: true,
+		inclusterServiceAccount:       inclusterServiceAccount,
 	}
 	settings, err := settingsMgr.GetSettings()
 	if err != nil {
@@ -525,17 +527,40 @@ func (mgr *SessionManager) verifyKubernetesToken(token string, kubeClientset kub
 
 	resp, err := kubeClientset.AuthenticationV1().TokenReviews().Create(context.TODO(), tokenReview, metav1.CreateOptions{})
 	if err != nil {
-		log.Errorf("Error during TokenReview creation: %v", err)
-		return false, err
+		return false, fmt.Errorf("Error during TokenReview creation: %w", err)
 	}
 
 	if !resp.Status.Authenticated {
-		log.Printf("Token is not authenticated. Error: %v", resp.Status.Error)
-		return false, nil
+		return false, fmt.Errorf("Token is not authenticated: %v", resp.Status.Error)
+	}
+
+	claims, err := decodeToken(token)
+	if err != nil {
+		return false, fmt.Errorf("error decoding token: %w", err)
+	}
+
+	if claims["sub"] != mgr.inclusterServiceAccount {
+		return false, fmt.Errorf("token subject does not match expected service account: %v", claims["sub"])
 	}
 
 	// Return true if the token is authenticated
 	return true, nil
+}
+
+func decodeToken(tokenString string) (jwt.MapClaims, error) {
+	// Parse the token using the jwt package
+	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+	if err != nil {
+		return nil, fmt.Errorf("error parsing token: %w", err)
+	}
+
+	// Check if the token has valid claims
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, fmt.Errorf("invalid token claims type")
+	}
+
+	return claims, nil
 }
 
 // AuthMiddlewareFunc returns a function that can be used as an
