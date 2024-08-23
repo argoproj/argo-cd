@@ -13,10 +13,20 @@ Kubernetes), then the user effectively has the same privileges as that ServiceAc
 ## Enabling the terminal
 <!-- Use indented code blocks for the numbered list to prevent breaking the numbering. See #11590 -->
 
-1. Set the `exec.enabled` key to `"true"` on the `argocd-cm` ConfigMap.
+1. In the `argocd-cm` ConfigMap, set the `exec.enabled` key to `"true"`. This enables the exec feature in Argo CD.
+
+    ```
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: argocd-cm
+      namespace: <namespace>  # Replace <namespace> with your actual namespace
+    data:
+      exec.enabled: "true"
+    ```
 
 2. Patch the `argocd-server` Role (if using namespaced Argo) or ClusterRole (if using clustered Argo) to allow `argocd-server`
-to exec into pods
+to `exec` into pods
 
         - apiGroups:
           - ""
@@ -24,14 +34,24 @@ to exec into pods
           - pods/exec
           verbs:
           - create
+   If you'd like to perform the patch imperatively, you can use the following command:
+        
+    - For namespaced Argo
+         ```
+         kubectl patch role <argocd-server-role-name> -n argocd - type='json' -p='[{"op": "add", "path": "/rules/-", "value": {"apiGroups": ["*"], "resources": ["pods/exec"], "verbs": ["create"]}}]'
+         ```
+    - For clustered Argo
+         ````
+         kubectl patch clusterrole <argocd-server-clusterrole-name> - type='json' -p='[{"op": "add", "path": "/rules/-", "value": {"apiGroups": ["*"], "resources": ["pods/exec"], "verbs": ["create"]}}]'
+         ```
 
+3. Add RBAC rules to allow your users to `create` the `exec` resource i.e. 
 
-3. Add RBAC rules to allow your users to `create` the `exec` resource, i.e. 
+        p, role:myrole, exec, create, */*, allow 
 
-        p, role:myrole, exec, create, */*, allow
+    This can be added either to the `argocd-cm` `Configmap` manifest or an `AppProject` manifest.
 
-
-See [RBAC Configuration](rbac.md#exec-resource) for more info.
+   See [RBAC Configuration](rbac.md#exec-resource) for more info.
 
 ## Changing allowed shells
 

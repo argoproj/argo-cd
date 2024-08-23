@@ -8179,6 +8179,10 @@
           "type": "string",
           "title": "GithubAppPrivateKey specifies the private key PEM data for authentication via GitHub app"
         },
+        "noProxy": {
+          "type": "string",
+          "title": "NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied"
+        },
         "password": {
           "type": "string",
           "title": "Password for authenticating at the repo server"
@@ -8284,6 +8288,10 @@
         "name": {
           "type": "string",
           "title": "Name specifies a name to be used for this repo. Only used with Helm repos"
+        },
+        "noProxy": {
+          "type": "string",
+          "title": "NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied"
         },
         "password": {
           "type": "string",

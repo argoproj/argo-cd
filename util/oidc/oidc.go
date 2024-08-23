@@ -404,7 +404,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	sub := jwtutil.StringField(claims, "sub")
 	err = a.clientCache.Set(&cache.Item{
-		Key:    formatAccessTokenCacheKey(AccessTokenCachePrefix, sub),
+		Key:    formatAccessTokenCacheKey(sub),
 		Object: encToken,
 		CacheActionOpts: cache.CacheActionOpts{
 			Expiration: getTokenExpiration(claims),
@@ -557,7 +557,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	var encClaims []byte
 
 	// in case we got it in the cache, we just return the item
-	clientCacheKey := formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, sub)
+	clientCacheKey := formatUserInfoResponseCacheKey(sub)
 	if err := a.clientCache.Get(clientCacheKey, &encClaims); err == nil {
 		claimsRaw, err := crypto.Decrypt(encClaims, a.encryptionKey)
 		if err != nil {
@@ -575,7 +575,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 
 	// check if the accessToken for the user is still present
 	var encAccessToken []byte
-	err := a.clientCache.Get(formatAccessTokenCacheKey(AccessTokenCachePrefix, sub), &encAccessToken)
+	err := a.clientCache.Get(formatAccessTokenCacheKey(sub), &encAccessToken)
 	// without an accessToken we can't query the user info endpoint
 	// thus the user needs to reauthenticate for argocd to get a new accessToken
 	if errors.Is(err, cache.ErrCacheMiss) {
@@ -684,11 +684,11 @@ func getTokenExpiration(claims jwt.MapClaims) time.Duration {
 }
 
 // formatUserInfoResponseCacheKey returns the key which is used to store userinfo of user in cache
-func formatUserInfoResponseCacheKey(prefix, sub string) string {
+func formatUserInfoResponseCacheKey(sub string) string {
 	return fmt.Sprintf("%s_%s", UserInfoResponseCachePrefix, sub)
 }
 
 // formatAccessTokenCacheKey returns the key which is used to store the accessToken of a user in cache
-func formatAccessTokenCacheKey(prefix, sub string) string {
-	return fmt.Sprintf("%s_%s", prefix, sub)
+func formatAccessTokenCacheKey(sub string) string {
+	return fmt.Sprintf("%s_%s", AccessTokenCachePrefix, sub)
 }
