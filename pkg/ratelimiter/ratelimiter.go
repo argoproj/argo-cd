@@ -35,10 +35,10 @@ func GetDefaultAppRateLimiterConfig() *AppControllerRateLimiterConfig {
 
 // NewCustomAppControllerRateLimiter is a constructor for the rate limiter for a workqueue used by app controller.  It has
 // both overall and per-item rate limiting.  The overall is a token bucket and the per-item is exponential(with auto resets)
-func NewCustomAppControllerRateLimiter[T comparable](cfg *AppControllerRateLimiterConfig) workqueue.TypedRateLimiter[T] {
-	return workqueue.NewTypedMaxOfRateLimiter[T](
-		NewItemExponentialRateLimiterWithAutoReset[T](cfg.BaseDelay, cfg.MaxDelay, cfg.FailureCoolDown, cfg.BackoffFactor),
-		&workqueue.TypedBucketRateLimiter[T]{Limiter: rate.NewLimiter(rate.Limit(cfg.BucketQPS), int(cfg.BucketSize))},
+func NewCustomAppControllerRateLimiter(cfg *AppControllerRateLimiterConfig) workqueue.TypedRateLimiter[string] {
+	return workqueue.NewTypedMaxOfRateLimiter[string](
+		NewItemExponentialRateLimiterWithAutoReset[string](cfg.BaseDelay, cfg.MaxDelay, cfg.FailureCoolDown, cfg.BackoffFactor),
+		&workqueue.TypedBucketRateLimiter[string]{Limiter: rate.NewLimiter(rate.Limit(cfg.BucketQPS), int(cfg.BucketSize))},
 	)
 }
 
