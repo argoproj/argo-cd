@@ -80,22 +80,15 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 		return conn, nil
 	}
 
-	// Even with grpc.FailOnNonTempDialError, this call will usually timeout in
-	// the face of TLS handshake errors. So we can't rely on grpc.WithBlock() to
-	// know when we're done. So we run it in a goroutine and then use result
+	// This call will usually timeout. So we run it in a goroutine and then use result
 	// channel to either get the channel or fail-fast.
 	go func() {
 		opts = append(opts,
-			// nolint:staticcheck
-			grpc.WithBlock(),
-			// nolint:staticcheck
-			grpc.FailOnNonTempDialError(true),
 			grpc.WithContextDialer(dialer),
 			grpc.WithTransportCredentials(insecure.NewCredentials()), // we are handling TLS, so tell grpc not to
 			grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: common.GetGRPCKeepAliveTime()}),
 		)
-		// nolint:staticcheck
-		conn, err := grpc.DialContext(ctx, address, opts...)
+		conn, err := grpc.NewClient(address, opts...)
 		var res interface{}
 		if err != nil {
 			res = err
