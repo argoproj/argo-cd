@@ -2,8 +2,10 @@ package commands
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
 	"strconv"
+
+
+	"github.com/spf13/cobra"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -12,9 +14,7 @@ import (
 
 // NewConfigurationCommand returns a new instance of an `argocd configuration` command
 func NewConfigurationCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		promptsEnabled bool
-	)
+	var promptsEnabled bool
 	command := &cobra.Command{
 		Use:   "configuration",
 		Short: "Manage local configuration",
