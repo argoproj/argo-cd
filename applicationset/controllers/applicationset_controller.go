@@ -580,7 +580,7 @@ func (r *ApplicationSetReconciler) applyTemplatePatch(app *argov1alpha1.Applicat
 func ignoreNotAllowedNamespaces(namespaces []string) predicate.Predicate {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
-			return glob.MatchStringInList(namespaces, e.Object.GetNamespace(), glob.GLOB)
+			return glob.MatchStringInList(namespaces, e.Object.GetNamespace(), glob.REGEXP)
 		},
 	}
 }

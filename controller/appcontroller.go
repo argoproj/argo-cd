@@ -2011,7 +2011,7 @@ func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application) (bool,
 // isAppNamespaceAllowed returns whether the application is allowed in the
 // namespace it's residing in.
 func (ctrl *ApplicationController) isAppNamespaceAllowed(app *appv1.Application) bool {
-	return app.Namespace == ctrl.namespace || glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, glob.GLOB)
+	return app.Namespace == ctrl.namespace || glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, glob.REGEXP)
 }
 
 func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {

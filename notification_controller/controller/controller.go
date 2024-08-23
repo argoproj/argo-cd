@@ -122,7 +122,7 @@ func NewController(
 
 // Check if app is not in the namespace where the controller is in, and also app is not in one of the applicationNamespaces
 func checkAppNotInAdditionalNamespaces(app *unstructured.Unstructured, namespace string, applicationNamespaces []string) bool {
-	return namespace != app.GetNamespace() && !glob.MatchStringInList(applicationNamespaces, app.GetNamespace(), glob.GLOB)
+	return namespace != app.GetNamespace() && !glob.MatchStringInList(applicationNamespaces, app.GetNamespace(), glob.REGEXP)
 }
 
 func (c *notificationController) alterDestinations(obj v1.Object, destinations services.Destinations, cfg api.Config) services.Destinations {
@@ -151,7 +151,7 @@ func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string
 				}
 				newItems := []unstructured.Unstructured{}
 				for _, res := range appList.Items {
-					if controllerNamespace == res.GetNamespace() || glob.MatchStringInList(applicationNamespaces, res.GetNamespace(), glob.GLOB) {
+					if controllerNamespace == res.GetNamespace() || glob.MatchStringInList(applicationNamespaces, res.GetNamespace(), glob.REGEXP) {
 						newItems = append(newItems, res)
 					}
 				}
