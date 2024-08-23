@@ -1,5 +1,6 @@
 core/v1/AWSElasticBlockStoreVolumeSource
 core/v1/Affinity
+core/v1/AppArmorProfile
 core/v1/AttachedVolume
 core/v1/AvoidPods
 core/v1/AzureDiskVolumeSource
@@ -100,7 +101,8 @@ core/v1/NodeConfigStatus
 core/v1/NodeDaemonEndpoints
 core/v1/NodeList
 core/v1/NodeProxyOptions
-core/v1/NodeResources
+core/v1/NodeRuntimeHandler
+core/v1/NodeRuntimeHandlerFeatures
 core/v1/NodeSelector
 core/v1/NodeSelectorRequirement
 core/v1/NodeSelectorTerm
@@ -214,6 +216,7 @@ core/v1/TypedObjectReference
 core/v1/Volume
 core/v1/VolumeDevice
 core/v1/VolumeMount
+core/v1/VolumeMountStatus
 core/v1/VolumeNodeAffinity
 core/v1/VolumeProjection
 core/v1/VolumeResourceRequirements
