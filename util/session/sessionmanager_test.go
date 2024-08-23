@@ -514,7 +514,7 @@ func TestVerifyUsernamePassword(t *testing.T) {
 
 // Helper function to parse JWT for testing
 func parseJWT(tokenString string) (map[string]interface{}, error) {
-	// For simplicity, use the same parsing logic used in the application.
+	
 	// This function should parse the token and return its claims.
 	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
 	if err != nil {
