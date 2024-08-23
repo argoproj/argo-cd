@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-	
+
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
@@ -122,7 +122,7 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 		sleep:                         time.Sleep,
 		projectsLister:                projectsLister,
 		verificationDelayNoiseEnabled: true,
-		inclusterServiceAccount: inclusterServiceAccount,
+		inclusterServiceAccount:       inclusterServiceAccount,
 	}
 	settings, err := settingsMgr.GetSettings()
 	if err != nil {
@@ -535,15 +535,15 @@ func (mgr *SessionManager) verifyKubernetesToken(token string, kubeClientset kub
 	}
 
 	claims, err := decodeToken(token)
-    if err != nil {
-        return false, fmt.Errorf("error decoding token: %w", err)
-    }
+	if err != nil {
+		return false, fmt.Errorf("error decoding token: %w", err)
+	}
 
-    if claims["sub"] != mgr.inclusterServiceAccount {
-        return false, fmt.Errorf("token subject does not match expected service account: %v", claims["sub"])
-    }
+	if claims["sub"] != mgr.inclusterServiceAccount {
+		return false, fmt.Errorf("token subject does not match expected service account: %v", claims["sub"])
+	}
 
-   // Return true if the token is authenticated
+	// Return true if the token is authenticated
 	return true, nil
 }
 

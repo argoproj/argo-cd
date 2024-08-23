@@ -389,7 +389,7 @@ func TestGroups(t *testing.T) {
 
 func TestVerifyUsernamePassword(t *testing.T) {
 	const password = "password"
-	validK8sToken := generateValidK8sJWT()                          // Generate a valid JWT with correct service account
+	validK8sToken := generateValidK8sJWT()                              // Generate a valid JWT with correct service account
 	invalidK8sToken := generateValidK8sJWTWithDifferentServiceAccount() // Token with different service account
 
 	for _, tc := range []struct {
@@ -503,37 +503,36 @@ func TestVerifyUsernamePassword(t *testing.T) {
 	}
 }
 
-
 // Helper function to generate a valid Kubernetes JWT for testing
 func generateValidK8sJWT() string {
-    token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-        "kubernetes.io": map[string]interface{}{
-            "serviceaccount": map[string]interface{}{
-                "namespace": "default",
-                "name":      "test-service-account",
-            },
-        },
-        "sub": "system:serviceaccount:default:test-service-account", // Adding the sub claim
-    })
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"kubernetes.io": map[string]interface{}{
+			"serviceaccount": map[string]interface{}{
+				"namespace": "default",
+				"name":      "test-service-account",
+			},
+		},
+		"sub": "system:serviceaccount:default:test-service-account", // Adding the sub claim
+	})
 
-    tokenString, _ := token.SignedString([]byte("dummy-secret"))
-    return tokenString
+	tokenString, _ := token.SignedString([]byte("dummy-secret"))
+	return tokenString
 }
 
 // Helper function to generate a valid Kubernetes JWT with a different service account for testing
 func generateValidK8sJWTWithDifferentServiceAccount() string {
-    token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-        "kubernetes.io": map[string]interface{}{
-            "serviceaccount": map[string]interface{}{
-                "namespace": "default",
-                "name":      "test-service-account",
-            },
-        },
-        "sub": "system:serviceaccount:default:other-service-account", // Adding the sub claim
-    })
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"kubernetes.io": map[string]interface{}{
+			"serviceaccount": map[string]interface{}{
+				"namespace": "default",
+				"name":      "test-service-account",
+			},
+		},
+		"sub": "system:serviceaccount:default:other-service-account", // Adding the sub claim
+	})
 
-    tokenString, _ := token.SignedString([]byte("dummy-secret"))
-    return tokenString
+	tokenString, _ := token.SignedString([]byte("dummy-secret"))
+	return tokenString
 }
 
 func TestCacheValueGetters(t *testing.T) {
