@@ -10,9 +10,9 @@
 
 Argo CD supports syncing `Application` resources using the same service account used for its control plane operations. This feature enables users to decouple service account used for application sync from the service account used for control plane operations.
 
-By default, application syncs in Argo CD have the same privileges as the Argo CD control plane. As a consequence, in a multi-tenant setup, the Argo CD control plane privileges needs to match the tenant that needs the highest privileges. As an example, if an Argo CD instance has 10 Applications and only one of them requires admin privileges, then the Argo CD control plane must have admin privileges in order to be able to sync that one Application. Argo CD provides a multi-tenancy model to restrict what each Application can do using `AppProjects`, even though the control plane has higher privileges, however that creates a large attack surface since if Argo CD is compromised, attackers will gain cluster-admin access to the cluster.
+By default, application syncs in Argo CD have the same privileges as the Argo CD control plane. As a consequence, in a multi-tenant setup, the Argo CD control plane privileges needs to match the tenant that needs the highest privileges. As an example, if an Argo CD instance has 10 Applications and only one of them requires admin privileges, then the Argo CD control plane must have admin privileges in order to be able to sync that one Application. This provides an opportunity for malicious tenants to gain admin level access. Argo CD provides a multi-tenancy model to restrict what each `Application` is authorized to do using `AppProjects`, however it is not secure enough and if Argo CD is compromised, attackers will easily gain `cluster-admin` access to the cluster.
 
-Some manual steps will need to be performed by the Argo CD administrator in order to enable this feature. 
+Some manual steps will need to be performed by the Argo CD administrator in order to enable this feature, as it is disabled by default.
 
 !!! note
     This feature is considered alpha as of now. Some of the implementation details may change over the course of time until it is promoted to a stable status. We will be happy if early adopters use this feature and provide us with bug reports and feedback.
@@ -27,11 +27,11 @@ Impersonation requests first authenticate as the requesting user, then switch to
 
 In a multi-team/multi-tenant environment, a team/tenant is typically granted access to a target namespace to self-manage their kubernetes resources in a declarative way.
 A typical tenant onboarding process looks like below:
-1. The platform admin creates a tenant namespace and the service account to be used for creating the resources in that namespace is created.
+1. The platform admin creates a tenant namespace and the service account to be used for creating the resources is also created in the same tenant namespace.
 2. The platform admin creates one or more Role(s) to manage kubernetes resources in the tenant namespace
-3. The platform admin creates one or more RoleBinding(s) to map the service account to the role(s) created in previous steps.
-4. The platform admin configures ArgoCD to support apps-in-any-namespace feature, so that tenants can self-service their Argo applications in their respective tenant namespaces.
-5. If apps-in-any-namespace feature is not used, then the platform admin can provide access to tenants to manage ArgoCD Applications in the ArgoCD control plane namespace.
+3. The platform admin creates one or more RoleBinding(s) to map the service account to the role(s) created in the previous steps.
+4. The platform admin can choose to use either the [apps-in-any-namespace](./app-any-namespace.md) feature or provide access to tenants to create applications in the ArgoCD control plane namespace.
+5. If the platform admin chooses apps-in-any-namespace feature, tenants can self-service their Argo applications in their respective tenant namespaces and no additional access needs to be provided for the control plane namespace.
 
 ## Implementation details
 
@@ -64,6 +64,9 @@ data:
 
 !!! note
     This feature is disabled by default.
+
+!!! note
+    This feature can be enabled/disabled only at the system level and once enabled/disabled it is applicable to all Applications managed by ArgoCD.
 
 ## Configuring destination service accounts
 
