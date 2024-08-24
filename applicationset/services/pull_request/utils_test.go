@@ -138,6 +138,40 @@ func TestFilterTargetBranchMatch(t *testing.T) {
 	assert.Equal(t, "two", pullRequests[0].Branch)
 }
 
+func TestFilterFileMatch(t *testing.T) {
+	provider, _ := NewFakeService(
+		context.Background(),
+		[]*PullRequest{
+			{
+				Number:       1,
+				Title:        "PR one",
+				Branch:       "one",
+				TargetBranch: "master",
+				HeadSHA:      "189d92cbf9ff857a39e6feccd32798ca700fb958",
+				ChangedFiles: []string{"file1", "file2"},
+			},
+			{
+				Number:       2,
+				Title:        "PR two",
+				Branch:       "two",
+				TargetBranch: "master",
+				HeadSHA:      "7bbef45b3bc70855010e02460717643125c3beca",
+				ChangedFiles: []string{"images/file1", "images/file2"},
+			},
+		},
+		nil,
+	)
+
+	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
+		{
+			FileMatch: strp("images/*"),
+		},
+	}
+	pullRequests, err := ListPullRequests(context.Background(), provider, filters)
+	require.NoError(t, err)
+	assert.Len(t, pullRequests, 1)
+}
+
 func TestMultiFilterOr(t *testing.T) {
 	provider, _ := NewFakeService(
 		context.Background(),
