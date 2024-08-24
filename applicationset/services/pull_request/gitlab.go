@@ -96,3 +96,23 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 	}
 	return pullRequests, nil
 }
+
+func (g *GitLabService) listChangedFiles(ctx context.Context, number int) ([]string, error) {
+	filesChanged := []string{}
+	opts := &gitlab.GetMergeRequestChangesOptions{}
+
+	for {
+		changes, resp, err := g.client.MergeRequests.GetMergeRequestChanges(g.project, number, opts)
+		if err != nil {
+			return nil, fmt.Errorf("error listing changes for merge request %d: %w", number, err)
+		}
+		for _, change := range changes.Changes {
+			filesChanged = append(filesChanged, change.NewPath)
+		}
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+	return filesChanged, nil
+}
