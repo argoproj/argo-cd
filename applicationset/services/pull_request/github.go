@@ -71,12 +71,10 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 	pullRequests := []*PullRequest{}
 	for {
 		pulls, resp, err := g.client.PullRequests.List(ctx, g.owner, g.repo, opts)
-
 		if err != nil {
 			return nil, fmt.Errorf("error listing pull requests for %s/%s: %w", g.owner, g.repo, err)
 		}
 		for _, pull := range pulls {
-
 			filesChanged, err := g.listChangedFiles(ctx, *pull.Number)
 			if err != nil {
 				return nil, err
