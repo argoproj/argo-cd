@@ -535,6 +535,7 @@ export interface Repository {
     tlsClientCertData?: string;
     tlsClientCertKey?: string;
     proxy?: string;
+    noProxy?: string;
     insecure?: boolean;
     enableLfs?: boolean;
     githubAppId?: string;

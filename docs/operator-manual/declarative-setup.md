@@ -468,9 +468,9 @@ data:
 
 ### Configure repositories with proxy
 
-Proxy for your repository can be specified in the `proxy` field of the repository secret, along with other repository configurations. Argo CD uses this proxy to access the repository. Argo CD looks for the standard proxy environment variables in the repository server if the custom proxy is absent.
+Proxy for your repository can be specified in the `proxy` field of the repository secret, along with a corresponding `noProxy` config. Argo CD uses this proxy/noProxy config to access the repository and do related helm/kustomize operations. Argo CD looks for the standard proxy environment variables in the repository server if the custom proxy config is absent.
 
-An example repository with proxy:
+An example repository with proxy and noProxy:
 
 ```yaml
 apiVersion: v1
@@ -484,9 +484,12 @@ stringData:
   type: git
   url: https://github.com/argoproj/private-repo
   proxy: https://proxy-server-url:8888
+  noProxy: ".internal.example.com,company.org,10.123.0.0/16"
   password: my-password
   username: my-username
 ```
+
+A note on noProxy: Argo CD uses exec to interact with different tools such as helm and kustomize. Not all of these tools support the same noProxy syntax as the [httpproxy go package](https://cs.opensource.google/go/x/net/+/internal-branch.go1.21-vendor:http/httpproxy/proxy.go;l=38-50) does. In case you run in trouble with noProxy not beeing respected you might want to try using the full domain instead of a wildcard pattern or IP range to find a common syntax that all tools support.
 
 ### Legacy behaviour
 

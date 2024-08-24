@@ -64,6 +64,10 @@
 
     .select {
         padding-bottom: 0;
+
+        .select__value{
+            min-height: 28px;
+        }
     }
 
     .row.application-retry-options {

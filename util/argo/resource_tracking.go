@@ -65,7 +65,7 @@ func IsOldTrackingMethod(trackingMethod string) bool {
 	return trackingMethod == "" || trackingMethod == string(TrackingMethodLabel)
 }
 
-func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) *AppInstanceValue {
+func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured) *AppInstanceValue {
 	appInstanceAnnotation, err := argokube.GetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance)
 	if err != nil {
 		return nil
@@ -80,7 +80,7 @@ func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, k
 // GetAppName retrieve application name base on tracking method
 func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string {
 	retrieveAppInstanceValue := func() string {
-		value := rt.getAppInstanceValue(un, key, trackingMethod)
+		value := rt.getAppInstanceValue(un)
 		if value != nil {
 			return value.ApplicationName
 		}
@@ -112,7 +112,7 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 func (rt *resourceTracking) GetAppInstance(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) *AppInstanceValue {
 	switch trackingMethod {
 	case TrackingMethodAnnotation, TrackingMethodAnnotationAndLabel:
-		return rt.getAppInstanceValue(un, key, trackingMethod)
+		return rt.getAppInstanceValue(un)
 	default:
 		return nil
 	}
