@@ -217,13 +217,23 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 
 // GetHelmCreds returns the credentials from a repository configuration used to authenticate at a Helm repository
 func (repo *Repository) GetHelmCreds() helm.Creds {
+	var googlecreds git.GoogleCloudCreds
+	username := repo.Username
+	password := repo.Password
+	if repo.GCPServiceAccountKey != "" {
+		var store git.CredsStore
+		username = "oauth2accesstoken"
+		password = "replaceme"
+		googlecreds = git.NewGoogleCloudCreds(repo.GCPServiceAccountKey, store)
+	}
 	return helm.Creds{
-		Username:           repo.Username,
-		Password:           repo.Password,
-		CAPath:             getCAPath(repo.Repo),
-		CertData:           []byte(repo.TLSClientCertData),
-		KeyData:            []byte(repo.TLSClientCertKey),
-		InsecureSkipVerify: repo.Insecure,
+		Username:             username,
+		Password:             password,
+		CAPath:               getCAPath(repo.Repo),
+		CertData:             []byte(repo.TLSClientCertData),
+		KeyData:              []byte(repo.TLSClientCertKey),
+		InsecureSkipVerify:   repo.Insecure,
+		GCPServiceAccountKey: &googlecreds,
 	}
 }
 

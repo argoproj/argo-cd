@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/git"
 	"io"
 	"net/http"
 	"net/url"
@@ -40,12 +41,13 @@ var (
 )
 
 type Creds struct {
-	Username           string
-	Password           string
-	CAPath             string
-	CertData           []byte
-	KeyData            []byte
-	InsecureSkipVerify bool
+	Username             string
+	Password             string
+	CAPath               string
+	CertData             []byte
+	KeyData              []byte
+	InsecureSkipVerify   bool
+	GCPServiceAccountKey *git.GoogleCloudCreds
 }
 
 type indexCache interface {
