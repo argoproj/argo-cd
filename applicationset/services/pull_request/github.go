@@ -56,18 +56,17 @@ func (g *GithubService) listChangedFiles(ctx context.Context, number int) ([]str
 
 	for {
 		commitChanges, resp, err := g.client.PullRequests.ListFiles(ctx, g.owner, g.repo, number, opts)
-		if resp.NextPage == 0 {
-			break
-		}
-
-		opts.Page = resp.NextPage
-
+		fmt.Println("commitChanges", commitChanges)
 		for _, commitChange := range commitChanges {
 			filesChanged = append(filesChanged, *commitChange.Filename)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("error listing files for pull request %d: %w", number, err)
 		}
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
 	}
 	return filesChanged, nil
 }

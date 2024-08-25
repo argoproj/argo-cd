@@ -542,7 +542,7 @@ func githubMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
-		case "/api/v3/repos/argoproj/argo-cd/pulls/1347/files":
+		case "/api/v3/repos/argoproj/argo-cd/pulls/1347/files?per_page=100":
 			_, err := io.WriteString(w, `[
 			{
 			  "sha": "bbcd538c8e72b8c175046e27cc8f907076331401",
@@ -605,11 +605,11 @@ func TestGithubListPulls(t *testing.T) {
 			pullRequestsExpected: []*PullRequest{},
 		},
 		{
-			name: "PRs with files ending in .txt",
+			name: "PRs with files ending in txt",
 			url:  "git@github.com:argoproj/argo-cd.git",
 			filters: []v1alpha1.PullRequestGeneratorFilter{
 				{
-					FileMatch: strp("*.txt"),
+					FileMatch: strp(".*.txt"),
 				},
 			},
 			pullRequestsExpected: []*PullRequest{
@@ -633,7 +633,7 @@ func TestGithubListPulls(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			svc, _ := NewGithubService(context.Background(), "", ts.URL, "argoproj", "argo-cd", nil)
-			prs, err := svc.List(context.Background())
+			prs, err := ListPullRequests(context.Background(), svc, c.filters)
 			assert.ElementsMatch(t, c.pullRequestsExpected, prs)
 			assert.Len(t, prs, len(c.pullRequestsExpected))
 
