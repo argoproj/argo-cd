@@ -50,14 +50,24 @@ func NewGithubService(ctx context.Context, token, url, owner, repo string, label
 
 func (g *GithubService) listChangedFiles(ctx context.Context, number int) ([]string, error) {
 	filesChanged := []string{}
-	commitChanges, resp, err := g.client.PullRequests.ListFiles(ctx, g.owner, g.repo, number, nil)
-	fmt.Println(resp)
-
-	for _, commitChange := range commitChanges {
-		filesChanged = append(filesChanged, *commitChange.Filename)
+	opts := &github.ListOptions{
+		PerPage: 100,
 	}
-	if err != nil {
-		return nil, fmt.Errorf("error listing files for pull request %d: %w", number, err)
+
+	for {
+		commitChanges, resp, err := g.client.PullRequests.ListFiles(ctx, g.owner, g.repo, number, opts)
+		if resp.NextPage == 0 {
+			break
+		}
+
+		opts.Page = resp.NextPage
+
+		for _, commitChange := range commitChanges {
+			filesChanged = append(filesChanged, *commitChange.Filename)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("error listing files for pull request %d: %w", number, err)
+		}
 	}
 	return filesChanged, nil
 }
