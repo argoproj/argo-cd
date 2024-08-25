@@ -1,0 +1,24 @@
+[
+    {
+      "old_path": "README",
+      "new_path": "README",
+      "a_mode": "100644",
+      "b_mode": "100644",
+      "diff": "",
+      "new_file": false,
+      "renamed_file": false,
+      "deleted_file": false,
+      "generated_file": false
+    },
+    {
+      "old_path": "VERSION",
+      "new_path": "VERSION",
+      "a_mode": "100644",
+      "b_mode": "100644",
+      "diff": "",
+      "new_file": false,
+      "renamed_file": false,
+      "deleted_file": false,
+      "generated_file": false
+    }
+]
