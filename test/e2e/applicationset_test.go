@@ -916,7 +916,9 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 		// verify the ApplicationSet status conditions were set correctly
 		Expect(ApplicationSetHasConditions("sync-policy-create-update", ExpectedConditions)).
 
-		// Delete the ApplicationSet, and verify it deletes the Applications
+		// Delete the ApplicationSet, and verify it not deletes the Applications
+		// As policy is create-update, AppSet controller will remove all generated applications's ownerReferences on delete AppSet
+		// So AppSet deletion will be reflected, but all the applications it generates will still exist
 		When().
 		Delete().Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata}))
 }
@@ -1117,7 +1119,9 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 		// verify the ApplicationSet status conditions were set correctly
 		Expect(ApplicationSetHasConditions("sync-policy-create-only", ExpectedConditions)).
 
-		// Delete the ApplicationSet, and verify it deletes the Applications
+		// Delete the ApplicationSet, and verify it not deletes the Applications
+		// As policy is create-update, AppSet controller will remove all generated applications's ownerReferences on delete AppSet
+		// So AppSet deletion will be reflected, but all the applications it generates will still exist
 		When().
 		Delete().Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace}))
 }
