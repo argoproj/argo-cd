@@ -139,7 +139,7 @@ func (cg *ClusterGenerator) getClusterCredentials(namespace string, releaseSuffi
 
 // TODO: also should provision service for vcluster pod
 func (cg *ClusterGenerator) installVCluster(opts *util.GenerateOpts, namespace string, releaseName string) error {
-	cmd, err := helm.NewCmd("/tmp", "v3", "")
+	cmd, err := helm.NewCmd("/tmp", "v3", "", "")
 	if err != nil {
 		return err
 	}

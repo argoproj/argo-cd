@@ -39,7 +39,7 @@ func Test_nativeGitClient_Fetch(t *testing.T) {
 	tempDir, err := _createEmptyGitRepo()
 	require.NoError(t, err)
 
-	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "")
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -53,7 +53,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	tempDir, err := _createEmptyGitRepo()
 	require.NoError(t, err)
 
-	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "")
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -76,7 +76,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 
 func Test_IsAnnotatedTag(t *testing.T) {
 	tempDir := t.TempDir()
-	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "")
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -121,7 +121,7 @@ func Test_IsAnnotatedTag(t *testing.T) {
 func Test_ChangedFiles(t *testing.T) {
 	tempDir := t.TempDir()
 
-	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "")
+	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -209,7 +209,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	err = runCmd(tempDir, "git", "clone", foo)
 	require.NoError(t, err)
 
-	client, err := NewClient(fmt.Sprintf("file://%s", foo), NopCreds{}, true, false, "")
+	client, err := NewClient(fmt.Sprintf("file://%s", foo), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -257,7 +257,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 }
 
 func TestNewClient_invalidSSHURL(t *testing.T) {
-	client, err := NewClient("ssh://bitbucket.org:org/repo", NopCreds{}, false, false, "")
+	client, err := NewClient("ssh://bitbucket.org:org/repo", NopCreds{}, false, false, "", "")
 	assert.Nil(t, client)
 	assert.ErrorIs(t, err, ErrInvalidRepoURL)
 }
@@ -265,7 +265,7 @@ func TestNewClient_invalidSSHURL(t *testing.T) {
 func Test_IsRevisionPresent(t *testing.T) {
 	tempDir := t.TempDir()
 
-	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "")
+	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	err = client.Init()

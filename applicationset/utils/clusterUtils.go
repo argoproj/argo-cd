@@ -132,9 +132,12 @@ func getLocalCluster(clientset kubernetes.Interface) *appv1.Cluster {
 	initLocalCluster.Do(func() {
 		info, err := clientset.Discovery().ServerVersion()
 		if err == nil {
+			// nolint:staticcheck
 			localCluster.ServerVersion = fmt.Sprintf("%s.%s", info.Major, info.Minor)
+			// nolint:staticcheck
 			localCluster.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
 		} else {
+			// nolint:staticcheck
 			localCluster.ConnectionState = appv1.ConnectionState{
 				Status:  appv1.ConnectionStatusFailed,
 				Message: err.Error(),
@@ -143,6 +146,7 @@ func getLocalCluster(clientset kubernetes.Interface) *appv1.Cluster {
 	})
 	cluster := localCluster.DeepCopy()
 	now := metav1.Now()
+	// nolint:staticcheck
 	cluster.ConnectionState.ModifiedAt = &now
 	return cluster
 }
