@@ -343,6 +343,7 @@ argocd proj windows list test-project`,
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	return command
 }
+
 func collectSyncWindowData(proj *v1alpha1.AppProject) []map[string]interface{} {
 	var outputs []map[string]interface{}
 	for i, window := range proj.Spec.SyncWindows {
