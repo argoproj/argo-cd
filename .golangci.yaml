@@ -1,6 +1,5 @@
 issues:
   exclude:
-    - SA1019
     - SA5011
   max-issues-per-linter: 0
   max-same-issues: 0
