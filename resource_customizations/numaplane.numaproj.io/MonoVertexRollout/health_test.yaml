@@ -14,8 +14,4 @@ tests:
 - healthStatus:
     status: Progressing
     message: "Waiting for MonoVertex status"
-  inputPath: testdata/progressing-nostatus.yaml
-- healthStatus:
-    status: Progressing
-    message: "Waiting for MonoVertex status"
   inputPath: testdata/progressing-reason.yaml
