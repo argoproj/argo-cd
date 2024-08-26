@@ -1987,7 +1987,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 	// application in an infinite loop. To detect this, we only attempt the Sync if the revision
 	// and parameter overrides are different from our most recent sync operation.
 	if alreadyAttempted && (!selfHeal || !attemptPhase.Successful()) {
-		if !attemptPhase.Successful() {
+		if !attemptPhase.Completed() {
 			logCtx.Warnf("Skipping auto-sync: failed previous sync attempt to %s", desiredCommitSHA)
 			message := fmt.Sprintf("Failed sync attempt to %s: %s", desiredCommitSHA, app.Status.OperationState.Message)
 			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}, 0
