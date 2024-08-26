@@ -7,13 +7,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"io"
 	"math"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/argoproj/argo-cd/v2/util/cache"
@@ -360,7 +361,8 @@ func (s *tarFileStore) Push(ctx context.Context, desc v1.Descriptor, content io.
 	err := s.Store.Push(ctx, desc, content)
 	return err
 }
+
 func isTar(mediaType string) bool {
 	return strings.HasSuffix(mediaType, "tar+gzip")
-	//return mediaType == "application/vnd.oci.image.layer.v1.tar+gzip"
+	// return mediaType == "application/vnd.oci.image.layer.v1.tar+gzip"
 }
