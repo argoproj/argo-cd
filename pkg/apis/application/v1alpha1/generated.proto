@@ -2120,6 +2120,9 @@ message SCMProviderGeneratorFilter {
 
   // A regex which must match the branch name.
   optional string branchMatch = 5;
+
+  // Include archived repos.
+  optional bool includeArchivedRepos = 6;
 }
 
 // SCMProviderGeneratorGitea defines a connection info specific to Gitea.

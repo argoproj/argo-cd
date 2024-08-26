@@ -8973,6 +8973,10 @@
           "description": "A regex which must match the branch name.",
           "type": "string"
         },
+        "includeArchivedRepos": {
+          "description": "Include archived repos.",
+          "type": "boolean"
+        },
         "labelMatch": {
           "description": "A regex which must match at least one label.",
           "type": "string"

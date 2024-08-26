@@ -6556,6 +6556,8 @@ spec:
                                       properties:
                                         branchMatch:
                                           type: string
+                                        includeArchivedRepos:
+                                          type: boolean
                                         labelMatch:
                                           type: string
                                         pathsDoNotExist:
@@ -11920,6 +11922,8 @@ spec:
                                       properties:
                                         branchMatch:
                                           type: string
+                                        includeArchivedRepos:
+                                          type: boolean
                                         labelMatch:
                                           type: string
                                         pathsDoNotExist:
@@ -14809,6 +14813,8 @@ spec:
                             properties:
                               branchMatch:
                                 type: string
+                              includeArchivedRepos:
+                                type: boolean
                               labelMatch:
                                 type: string
                               pathsDoNotExist:
