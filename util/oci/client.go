@@ -25,7 +25,6 @@ import (
 
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/file"
-	"oras.land/oras-go/v2/content/oci"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 )
@@ -157,14 +156,16 @@ func (c *nativeOCIClient) Extract(ctx context.Context, digest string, project st
 	}
 
 	if !exists {
-		// Create scratch dir for the OCI store. This will be put into a TAR archive.
 		tempDir, err := files.CreateTempDir(os.TempDir())
 		if err != nil {
 			return "", nil, err
 		}
 		defer os.RemoveAll(tempDir)
 
-		store := newTarFileStore(tempDir, cachedPath)
+		store, err := newTarFileStore(tempDir, cachedPath)
+		if err != nil {
+			return "", nil, err
+		}
 
 		// Copy remote repo at the given digest to the scratch dir.
 		_, err = oras.Copy(ctx, c.repo, digest, store, digest, oras.DefaultCopyOptions)
@@ -330,30 +331,34 @@ func fileExist(filePath string) (bool, error) {
 }
 
 type tarFileStore struct {
-	*oci.Store
+	*file.Store
 	dest    string
 	tempDir string
 }
 
-func newTarFileStore(tempDir, dest string) *tarFileStore {
-	f, _ := oci.New(tempDir)
-	return &tarFileStore{f, dest, tempDir}
+func newTarFileStore(tempDir, dest string) (*tarFileStore, error) {
+	f, err := file.New(tempDir)
+	if err != nil {
+		return nil, err
+	}
+
+	return &tarFileStore{f, dest, tempDir}, nil
 }
 
 func (s *tarFileStore) Push(ctx context.Context, desc v1.Descriptor, content io.Reader) error {
 	if isTar(desc.MediaType) {
-		all, err := io.ReadAll(content)
+		dest, err := os.Create(s.dest)
 		if err != nil {
 			return err
 		}
-		return os.WriteFile(s.dest, all, 0644)
-	} else {
-		err := s.Store.Push(ctx, desc, content)
-		if err != nil {
-			return err
-		}
+		defer dest.Close()
+
+		_, err = io.Copy(dest, content)
+		return err
 	}
-	return nil
+
+	err := s.Store.Push(ctx, desc, content)
+	return err
 }
 func isTar(mediaType string) bool {
 	return strings.HasSuffix(mediaType, "tar+gzip")
