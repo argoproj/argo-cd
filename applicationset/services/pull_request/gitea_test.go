@@ -23,6 +23,22 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
+		case "/api/v1/repos/test-argocd/pr-test/pulls/1/files?limit=0&page=1":
+			_, err := io.WriteString(w, `[{
+				"sha": "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f",
+				"filename": "test",
+				"status": "added",
+				"additions": 0,
+				"deletions": 0,
+				"changes": 0,
+				"blob_url": "https://gitea.com/test-argocd/pr-test/raw/7bbaf62d92ddfafd9cc8b340c619abaec32bc09f/test",
+				"raw_url": "https://gitea.com/test-argocd/pr-test/raw/7bbaf62d92ddfafd9cc8b340c619abaec32bc09f/test",
+				"contents_url": "https://gitea.com/api/v1/repos/test-argocd/pr-test/contents/test?ref=7bbaf62d92ddfafd9cc8b340c619abaec32bc09f",
+				"patch": "@@ -0,0 +1 @@\n+test\n"
+			}]`)
+			if err != nil {
+				t.Fail()
+			}
 		case "/api/v1/repos/test-argocd/pr-test/pulls?limit=0&page=1&state=open":
 			_, err := io.WriteString(w, `[{
 				"id": 50721,
@@ -250,9 +266,11 @@ func TestGiteaList(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		giteaMockHandler(t)(w, r)
 	}))
-	host, err := NewGiteaService(context.Background(), "", ts.URL, "test-argocd", "pr-test", false)
+	svc, err := NewGiteaService(context.Background(), "", ts.URL, "test-argocd", "pr-test", false)
 	require.NoError(t, err)
-	prs, err := host.List(context.Background())
+	prs, err := ListPullRequests(context.Background(), svc, nil)
+
+	require.NoError(t, err)
 	require.NoError(t, err)
 	assert.Len(t, prs, 1)
 	assert.Equal(t, 1, prs[0].Number)
