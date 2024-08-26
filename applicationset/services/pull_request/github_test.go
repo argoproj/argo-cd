@@ -641,7 +641,6 @@ func TestGithubListPulls(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-
 			}
 		})
 	}

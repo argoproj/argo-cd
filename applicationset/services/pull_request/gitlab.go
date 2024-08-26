@@ -80,7 +80,7 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 		}
 		for _, mr := range mrs {
 			var changeFiles []string
-			changeFiles, err = g.listChangedFiles(ctx, mr.IID)
+			changeFiles, err = g.listChangedFiles(mr.IID)
 			if err != nil {
 				return nil, err
 			}
@@ -103,7 +103,7 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 	return pullRequests, nil
 }
 
-func (g *GitLabService) listChangedFiles(ctx context.Context, number int) ([]string, error) {
+func (g *GitLabService) listChangedFiles(number int) ([]string, error) {
 	filesChanged := []string{}
 	opts := &gitlab.ListMergeRequestDiffsOptions{}
 

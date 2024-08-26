@@ -55,9 +55,11 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 	}
 	list := []*PullRequest{}
 	for _, pr := range prs {
-		changedFiles := []string{}
-		changedFiles, err = g.listChangedFiles(ctx, pr.Index)
-
+		var changeFiles []string
+		changeFiles, err = g.listChangedFiles(pr.Index)
+		if err != nil {
+			return nil, err
+		}
 		list = append(list, &PullRequest{
 			Number:       int(pr.Index),
 			Title:        pr.Title,
@@ -66,13 +68,13 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 			HeadSHA:      pr.Head.Sha,
 			Labels:       getGiteaPRLabelNames(pr.Labels),
 			Author:       pr.Poster.UserName,
-			ChangedFiles: changedFiles,
+			ChangedFiles: changeFiles,
 		})
 	}
 	return list, nil
 }
 
-func (g *GiteaService) listChangedFiles(ctx context.Context, prNumber int64) ([]string, error) {
+func (g *GiteaService) listChangedFiles(prNumber int64) ([]string, error) {
 	filesChanged := []string{}
 
 	files, _, err := g.client.ListPullRequestFiles(g.owner, g.repo, prNumber, gitea.ListPullRequestFilesOptions{})
