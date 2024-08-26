@@ -1,0 +1,29 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "Cluster is in a healthy running state"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: "Cluster pods are being restarted"
+  inputPath: testdata/restarting.yaml
+- healthStatus:
+    status: Progressing
+    message: "Cluster pods are being upgraded"
+  inputPath: testdata/upgrading.yaml
+- healthStatus:
+    status: Progressing
+    message: "Cluster is waiting on resources to be provisioned"
+  inputPath: testdata/pending.yaml
+- healthStatus:
+    status: Degraded
+    message: 'Secret "example-humiocluster-license" not found'
+  inputPath: testdata/configerror_custom.yaml
+- healthStatus:
+    status: Degraded
+    message: 'User-provided cluster specification resulted in a configuration error'
+  inputPath: testdata/configerror.yaml
+- healthStatus:
+    status: Unknown
+    message: "Component state: Unknown."
+  inputPath: testdata/unknown.yaml

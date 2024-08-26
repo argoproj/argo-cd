@@ -1,7 +1,5 @@
 # Applications in any namespace
 
-**Current feature state**: Beta
-
 !!! warning
     Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
 
@@ -12,10 +10,6 @@ As of version 2.5, Argo CD supports managing `Application` resources in namespac
 Argo CD administrators can define a certain set of namespaces where `Application` resources may be created, updated and reconciled in. However, applications in these additional namespaces will only be allowed to use certain `AppProjects`, as configured by the Argo CD administrators. This allows ordinary Argo CD users (e.g. application teams) to use patterns like declarative management of `Application` resources, implementing app-of-apps and others without the risk of a privilege escalation through usage of other `AppProjects` that would exceed the permissions granted to the application teams.
 
 Some manual steps will need to be performed by the Argo CD administrator in order to enable this feature. 
-
-!!! note
-    This feature is considered beta as of now. Some of the implementation details may change over the course of time until it is promoted to a stable status. We will be happy if early adopters use this feature and provide us with bug reports and feedback.
-
 
 One additional advantage of adopting applications in any namespace is to allow end-users to configure notifications for their Argo CD application in the namespace where Argo CD application is running in. See notifications [namespace based configuration](notifications/index.md#namespace-based-configuration) page for more information.
 
@@ -48,8 +42,11 @@ In order for an application to be managed and reconciled outside the Argo CD's c
 
 In order to enable this feature, the Argo CD administrator must reconfigure the `argocd-server` and `argocd-application-controller` workloads to add the `--application-namespaces` parameter to the container's startup command.
 
-The `--application-namespaces` parameter takes a comma-separated list of namespaces where `Applications` are to be allowed in. Each entry of the list supports shell-style wildcards such as `*`, so for example the entry `app-team-*` would match `app-team-one` and `app-team-two`. To enable all namespaces on the cluster where Argo CD is running on, you can just specify `*`, i.e. `--application-namespaces=*`.
+The `--application-namespaces` parameter takes a comma-separated list of namespaces where `Applications` are to be allowed in. Each entry of the list supports:
 
+- shell-style wildcards such as `*`, so for example the entry `app-team-*` would match `app-team-one` and `app-team-two`. To enable all namespaces on the cluster where Argo CD is running on, you can just specify `*`, i.e. `--application-namespaces=*`.
+- regex, requires wrapping the string in ```/```, example to allow all namespaces except a particular one: ```/^((?!not-allowed).)*$/```.
+  
 The startup parameters for both, the `argocd-server` and the `argocd-application-controller` can also be conveniently set up and kept in sync by specifying the `application.namespaces` settings in the `argocd-cmd-params-cm` ConfigMap _instead_ of changing the manifests for the respective workloads. For example:
 
 ```yaml

@@ -26,7 +26,7 @@ Each link in the list has five subfields:
 4. `icon.class` (optional): a font-awesome icon class to be used when displaying the links in dropdown menus
 5. `if` (optional): a conditional statement that results in either `true` or `false`, it also has access to the same
    data as the `url` field. If the condition resolves to `true` the deep link will be displayed - else it will be hidden. If
-   the field is omitted, by default the deep links will be displayed. This uses [antonmedv/expr](https://github.com/antonmedv/expr/tree/master/docs) for evaluating conditions
+   the field is omitted, by default the deep links will be displayed. This uses [expr-lang/expr](https://github.com/expr-lang/expr/tree/master/docs) for evaluating conditions
 
 !!!note
     For resources of kind Secret the data fields are redacted but other fields are accessible for templating the deep links.
@@ -63,7 +63,7 @@ An example `argocd-cm.yaml` file with deep links and their variations :
     - url: https://mycompany.splunk.com?search={{.app.spec.destination.namespace}}&env={{.project.metadata.labels.env}}
       title: Splunk
     # conditionally show link e.g. for specific project
-    # github.com/antonmedv/expr is used for evaluation of conditions
+    # github.com/expr-lang/expr is used for evaluation of conditions
     - url: https://mycompany.splunk.com?search={{.app.spec.destination.namespace}}
       title: Splunk
       if: application.spec.project == "default"
@@ -75,4 +75,9 @@ An example `argocd-cm.yaml` file with deep links and their variations :
     - url: https://mycompany.splunk.com?search={{.resource.metadata.name}}&env={{.project.metadata.labels.env}}
       title: Splunk
       if: resource.kind == "Pod" || resource.kind == "Deployment"
+    
+    # sample checking a tag exists that contains - or / and how to alternatively access it
+    - url: https://mycompany.splunk.com?tag={{ index .resource.metadata.labels "some.specific.kubernetes.like/tag" }}
+      title: Tag Service
+      if: resource.metadata.labels["some.specific.kubernetes.like/tag"] != nil && resource.metadata.labels["some.specific.kubernetes.like/tag"] != ""
 ```

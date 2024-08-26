@@ -114,7 +114,7 @@ metadata:
 ...
 ```
 
-Note: This annoation is only effective when Server-Side Diff is
+Note: This annotation is only effective when Server-Side Diff is
 enabled. To enable both options for a given application add the
 following annotation in the Argo CD Application resource:
 

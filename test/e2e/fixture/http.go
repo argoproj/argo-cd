@@ -28,6 +28,7 @@ func DoHttpRequest(method string, path string, data ...byte) (*http.Response, er
 		return nil, err
 	}
 	req.AddCookie(&http.Cookie{Name: common.AuthCookieName, Value: token})
+	req.Header.Set("Content-Type", "application/json")
 
 	httpClient := &http.Client{
 		Transport: &http.Transport{

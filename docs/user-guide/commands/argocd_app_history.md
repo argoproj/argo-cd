@@ -11,13 +11,15 @@ argocd app history APPNAME [flags]
 ### Options
 
 ```
-  -h, --help            help for history
-  -o, --output string   Output format. One of: wide|id (default "wide")
+  -N, --app-namespace string   Only show application deployment history in namespace
+  -h, --help                   help for history
+  -o, --output string          Output format. One of: wide|id (default "wide")
 ```
 
 ### Options inherited from parent commands
 
 ```
+      --argocd-context string           The name of the Argo-CD server context to use
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file

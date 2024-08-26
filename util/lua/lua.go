@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -102,7 +104,6 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 	}
 	returnValue := l.Get(-1)
 	if returnValue.Type() == lua.LTTable {
-
 		jsonBytes, err := luajson.Encode(returnValue)
 		if err != nil {
 			return nil, err
@@ -110,6 +111,11 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 		healthStatus := &health.HealthStatus{}
 		err = json.Unmarshal(jsonBytes, healthStatus)
 		if err != nil {
+			// Validate if the error is caused by an empty object
+			typeError := &json.UnmarshalTypeError{Value: "array", Type: reflect.TypeOf(healthStatus)}
+			if errors.As(err, &typeError) {
+				return &health.HealthStatus{}, nil
+			}
 			return nil, err
 		}
 		if !isValidHealthStatusCode(healthStatus.Status) {
@@ -120,6 +126,8 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 		}
 
 		return healthStatus, nil
+	} else if returnValue.Type() == lua.LTNil {
+		return &health.HealthStatus{}, nil
 	}
 	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
 }
@@ -157,7 +165,6 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 	returnValue := l.Get(-1)
 	if returnValue.Type() == lua.LTTable {
 		jsonBytes, err := luajson.Encode(returnValue)
-
 		if err != nil {
 			return nil, err
 		}
@@ -193,7 +200,6 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 			if impactedResource.K8SOperation == PatchOperation {
 				impactedResource.UnstructuredObj.Object = cleanReturnedObj(impactedResource.UnstructuredObj.Object, obj.Object)
 			}
-
 		}
 		return impactedResources, nil
 	}
@@ -276,7 +282,6 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 	}
 	returnValue := l.Get(-1)
 	if returnValue.Type() == lua.LTTable {
-
 		jsonBytes, err := luajson.Encode(returnValue)
 		if err != nil {
 			return nil, err
@@ -427,7 +432,7 @@ func isValidHealthStatusCode(statusCode health.HealthStatusCode) bool {
 // Took logic from the link below and added the int, int32, and int64 types since the value would have type int64
 // while actually running in the controller and it was not reproducible through testing.
 // https://github.com/layeh/gopher-json/blob/97fed8db84274c421dbfffbb28ec859901556b97/json.go#L154
-func decodeValue(L *lua.LState, value interface{}) lua.LValue {
+func decodeValue(l *lua.LState, value interface{}) lua.LValue {
 	switch converted := value.(type) {
 	case bool:
 		return lua.LBool(converted)
@@ -444,15 +449,15 @@ func decodeValue(L *lua.LState, value interface{}) lua.LValue {
 	case int64:
 		return lua.LNumber(converted)
 	case []interface{}:
-		arr := L.CreateTable(len(converted), 0)
+		arr := l.CreateTable(len(converted), 0)
 		for _, item := range converted {
-			arr.Append(decodeValue(L, item))
+			arr.Append(decodeValue(l, item))
 		}
 		return arr
 	case map[string]interface{}:
-		tbl := L.CreateTable(0, len(converted))
+		tbl := l.CreateTable(0, len(converted))
 		for key, item := range converted {
-			tbl.RawSetH(lua.LString(key), decodeValue(L, item))
+			tbl.RawSetH(lua.LString(key), decodeValue(l, item))
 		}
 		return tbl
 	case nil:

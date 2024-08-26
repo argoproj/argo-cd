@@ -7,20 +7,21 @@
 
 ***
 ## Release Assets
-| Asset                   | Description                   |
-|-------------------------|-------------------------------|
-| argocd-darwin-amd64     | CLI Binary                    |
-| argocd-darwin-arm64     | CLI Binary                    |
-| argocd-linux_amd64      | CLI Binary                    |
-| argocd-linux_arm64      | CLI Binary                    |
-| argocd-linux_ppc64le    | CLI Binary                    |
-| argocd-linux_s390x      | CLI Binary                    |
-| argocd-windows_amd64    | CLI Binary                    |
-| argocd-cli.intoto.jsonl | Attestation of CLI binaries   |
-| cli_checksums.txt       | Checksums of binaries         |
-| sbom.tar.gz             | Sbom                          |
-| sbom.tar.gz.pem         | Certificate used to sign sbom |
-| sbom.tar.gz.sig         | Signature of sbom                |
+| Asset                    | Description                   |
+|--------------------------|-------------------------------|
+| argocd-darwin-amd64      | CLI Binary                    |
+| argocd-darwin-arm64      | CLI Binary                    |
+| argocd-linux_amd64       | CLI Binary                    |
+| argocd-linux_arm64       | CLI Binary                    |
+| argocd-linux_ppc64le     | CLI Binary                    |
+| argocd-linux_s390x       | CLI Binary                    |
+| argocd-windows_amd64     | CLI Binary                    |
+| argocd-cli.intoto.jsonl  | Attestation of CLI binaries   |
+| argocd-sbom.intoto.jsonl | Attestation of SBOM           |
+| cli_checksums.txt        | Checksums of binaries         |
+| sbom.tar.gz              | Sbom                          |
+| sbom.tar.gz.pem          | Certificate used to sign sbom |
+| sbom.tar.gz.sig          | Signature of sbom             |
 
 ***
 ## Verification of container images
@@ -31,7 +32,8 @@ Argo CD container images are signed by [cosign](https://github.com/sigstore/cosi
 cosign verify \
 --certificate-identity-regexp https://github.com/argoproj/argo-cd/.github/workflows/image-reuse.yaml@refs/tags/v \
 --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-quay.io/argoproj/argocd:v2.7.0 | jq
+--certificate-github-workflow-repository "argoproj/argo-cd" \
+quay.io/argoproj/argocd:v2.11.3 | jq
 ```
 The command should output the following if the container image was correctly verified:
 ```bash

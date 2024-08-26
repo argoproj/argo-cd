@@ -1,0 +1,24 @@
+apiVersion: astra.netapp.io/v1
+kind: Snapshot
+metadata:
+  annotations:
+    astra.netapp.io/correlationid: de2315e9-4733-4733-91a0-1abec5f1e44e
+  creationTimestamp: "2024-04-24T21:17:04Z"
+  finalizers:
+    - astra.netapp.io/finalizer
+  generation: 2
+  name: argo-presync-20240424211703
+  namespace: astra-connector
+  ownerReferences:
+    - apiVersion: astra.netapp.io/v1
+      kind: Application
+      name: ghost
+      uid: 0af10ee8-772b-4367-8334-44f9e4ad2849
+  resourceVersion: "10654224"
+  uid: b200db48-c186-4ae8-9748-1ba7bec23d6d
+spec:
+  appVaultRef: astra-gcp-backup-743cfd150129
+  applicationRef: ghost
+  completionTimeout: 0s
+  volumeSnapshotsCreatedTimeout: 0s
+  volumeSnapshotsReadyToUseTimeout: 0s

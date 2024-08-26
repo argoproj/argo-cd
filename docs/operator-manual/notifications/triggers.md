@@ -71,7 +71,7 @@ When one repo is used to sync multiple applications, the `oncePer: app.status.sy
 
 ### oncePer
 
-The `oncePer` filed is supported like as follows.
+The `oncePer` field is supported like as follows.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1

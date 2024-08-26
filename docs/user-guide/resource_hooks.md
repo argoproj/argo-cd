@@ -8,9 +8,9 @@ and after a Sync operation. Hooks can also be run if a Sync operation fails at a
 * Using a `Sync` hook to orchestrate a complex deployment requiring more sophistication than the
 Kubernetes rolling update strategy.
 * Using a `PostSync` hook to run integration and health checks after a deployment.
-* Using a `SyncFail` hook to run clean-up or finalizer logic if a Sync operation fails. _`SyncFail` hooks are only available starting in v1.2_
-* Using a `PostDelete` hook to run clean-up or finalizer logic after an all Application resources are deleted. Please note that
-  `PostDelete` hooks are only deleted if delete policy matches to the aggregated deletion hooks status and not garbage collected after the application is deleted. 
+* Using a `SyncFail` hook to run clean-up or finalizer logic if a Sync operation fails.
+* Using a `PostDelete` hook to run clean-up or finalizer logic after all Application resources are deleted. Please note that
+  `PostDelete` hooks are only deleted if the delete policy matches the aggregated deletion hooks status and not garbage collected after the application is deleted. 
 
 ## Usage
 
@@ -39,7 +39,8 @@ The following hooks are defined:
 | `Sync`  | Executes after all `PreSync` hooks completed and were successful, at the same time as the application of the manifests. |
 | `Skip` | Indicates to Argo CD to skip the application of the manifest. |
 | `PostSync` | Executes after all `Sync` hooks completed and were successful, a successful application, and all resources in a `Healthy` state. |
-| `SyncFail` | Executes when the sync operation fails. _Available starting in v1.2_ |
+| `SyncFail` | Executes when the sync operation fails. |
+| `PostDelete` | Executes after all Application resources are deleted. _Available starting in v2.10._ |
 
 ### Generate Name
 

@@ -51,6 +51,10 @@ message RevisionMetadataQuery{
 	// the application's namespace
 	optional string appNamespace = 3;
 	optional string project = 4;
+	// source index (for multi source apps)
+	optional int32 sourceIndex = 5;
+	// versionId from historical data (for multi source apps)
+	optional int32 versionId = 6;
 }
 
 // ApplicationEventsQuery is a query for application resource events
@@ -69,6 +73,8 @@ message ApplicationManifestQuery {
 	optional string revision = 2;
 	optional string appNamespace = 3;
 	optional string project = 4;
+	repeated int64 sourcePositions = 5;
+	repeated string revisions = 6;
 }
 
 message FileChunk {
@@ -129,6 +135,8 @@ message ApplicationSyncRequest {
 	optional SyncOptions syncOptions = 11;
 	optional string appNamespace = 12;
 	optional string project = 13;
+	repeated int64 sourcePositions = 14;
+	repeated string revisions = 15;
 }
 
 // ApplicationUpdateSpecRequest is a request to update application spec

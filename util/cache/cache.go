@@ -2,20 +2,21 @@ package cache
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"math"
 	"os"
 	"strings"
 	"time"
 
-	"crypto/tls"
-	"crypto/x509"
+	"github.com/redis/go-redis/v9"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	certutil "github.com/argoproj/argo-cd/v2/util/cert"
 	"github.com/argoproj/argo-cd/v2/util/env"
-	"github.com/redis/go-redis/v9"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -27,6 +28,10 @@ const (
 	envRedisRetryCount = "REDIS_RETRY_COUNT"
 	// defaultRedisRetryCount holds default number of retries
 	defaultRedisRetryCount = 3
+	// envRedisSentinelPassword is an env variable name which stores redis sentinel password
+	envRedisSentinelPassword = "REDIS_SENTINEL_PASSWORD"
+	// envRedisSentinelUsername is an env variable name which stores redis sentinel username
+	envRedisSentinelUsername = "REDIS_SENTINEL_USERNAME"
 )
 
 const (
@@ -57,21 +62,23 @@ func buildRedisClient(redisAddress, password, username string, redisDB, maxRetri
 	return client
 }
 
-func buildFailoverRedisClient(sentinelMaster, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config, sentinelAddresses []string) *redis.Client {
+func buildFailoverRedisClient(sentinelMaster, sentinelUsername, sentinelPassword, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config, sentinelAddresses []string) *redis.Client {
 	opts := &redis.FailoverOptions{
-		MasterName:    sentinelMaster,
-		SentinelAddrs: sentinelAddresses,
-		DB:            redisDB,
-		Password:      password,
-		MaxRetries:    maxRetries,
-		TLSConfig:     tlsConfig,
-		Username:      username,
+		MasterName:       sentinelMaster,
+		SentinelAddrs:    sentinelAddresses,
+		DB:               redisDB,
+		Password:         password,
+		MaxRetries:       maxRetries,
+		TLSConfig:        tlsConfig,
+		Username:         username,
+		SentinelUsername: sentinelUsername,
+		SentinelPassword: sentinelPassword,
 	}
 
 	client := redis.NewFailoverClient(opts)
 
 	client.AddHook(redis.Hook(NewArgoRedisHook(func() {
-		*client = *buildFailoverRedisClient(sentinelMaster, password, username, redisDB, maxRetries, tlsConfig, sentinelAddresses)
+		*client = *buildFailoverRedisClient(sentinelMaster, sentinelUsername, sentinelPassword, password, username, redisDB, maxRetries, tlsConfig, sentinelAddresses)
 	})))
 
 	return client
@@ -89,7 +96,7 @@ func (o *Options) callOnClientCreated(client *redis.Client) {
 }
 
 func (o *Options) getEnvPrefix() string {
-	return strings.Replace(strings.ToUpper(o.FlagPrefix), "-", "_", -1)
+	return strings.ReplaceAll(strings.ToUpper(o.FlagPrefix), "-", "_")
 }
 
 func mergeOptions(opts ...Options) Options {
@@ -199,13 +206,30 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 		}
 		password := os.Getenv(envRedisPassword)
 		username := os.Getenv(envRedisUsername)
+		sentinelUsername := os.Getenv(envRedisSentinelUsername)
+		sentinelPassword := os.Getenv(envRedisSentinelPassword)
+		if opt.FlagPrefix != "" {
+			if val := os.Getenv(opt.getEnvPrefix() + envRedisUsername); val != "" {
+				username = val
+			}
+			if val := os.Getenv(opt.getEnvPrefix() + envRedisPassword); val != "" {
+				password = val
+			}
+			if val := os.Getenv(opt.getEnvPrefix() + envRedisSentinelUsername); val != "" {
+				sentinelUsername = val
+			}
+			if val := os.Getenv(opt.getEnvPrefix() + envRedisSentinelPassword); val != "" {
+				sentinelPassword = val
+			}
+		}
+
 		maxRetries := env.ParseNumFromEnv(envRedisRetryCount, defaultRedisRetryCount, 0, math.MaxInt32)
 		compression, err := CompressionTypeFromString(compressionStr)
 		if err != nil {
 			return nil, err
 		}
 		if len(sentinelAddresses) > 0 {
-			client := buildFailoverRedisClient(sentinelMaster, password, username, redisDB, maxRetries, tlsConfig, sentinelAddresses)
+			client := buildFailoverRedisClient(sentinelMaster, sentinelUsername, sentinelPassword, password, username, redisDB, maxRetries, tlsConfig, sentinelAddresses)
 			opt.callOnClientCreated(client)
 			return NewCache(NewRedisCache(client, defaultCacheExpiration, compression)), nil
 		}
@@ -236,30 +260,43 @@ func (c *Cache) RenameItem(oldKey string, newKey string, expiration time.Duratio
 	return c.client.Rename(fmt.Sprintf("%s|%s", oldKey, common.CacheVersion), fmt.Sprintf("%s|%s", newKey, common.CacheVersion), expiration)
 }
 
-func (c *Cache) SetItem(key string, item interface{}, expiration time.Duration, delete bool) error {
-	key = fmt.Sprintf("%s|%s", key, common.CacheVersion)
-	if delete {
-		return c.client.Delete(key)
+func (c *Cache) generateFullKey(key string) string {
+	if key == "" {
+		log.Debug("Cache key is empty, this will result in key collisions if there is more than one empty key")
+	}
+	return fmt.Sprintf("%s|%s", key, common.CacheVersion)
+}
+
+// Sets or deletes an item in cache
+func (c *Cache) SetItem(key string, item interface{}, opts *CacheActionOpts) error {
+	if item == nil {
+		return fmt.Errorf("cannot set nil item in cache")
+	}
+	if opts == nil {
+		opts = &CacheActionOpts{}
+	}
+	fullKey := c.generateFullKey(key)
+	client := c.GetClient()
+	if opts.Delete {
+		return client.Delete(fullKey)
 	} else {
-		if item == nil {
-			return fmt.Errorf("cannot set item to nil for key %s", key)
-		}
-		return c.client.Set(&Item{Object: item, Key: key, Expiration: expiration})
+		return client.Set(&Item{Key: fullKey, Object: item, CacheActionOpts: *opts})
 	}
 }
 
 func (c *Cache) GetItem(key string, item interface{}) error {
+	key = c.generateFullKey(key)
 	if item == nil {
 		return fmt.Errorf("cannot get item into a nil for key %s", key)
 	}
-	key = fmt.Sprintf("%s|%s", key, common.CacheVersion)
-	return c.client.Get(key, item)
+	client := c.GetClient()
+	return client.Get(key, item)
 }
 
 func (c *Cache) OnUpdated(ctx context.Context, key string, callback func() error) error {
-	return c.client.OnUpdated(ctx, fmt.Sprintf("%s|%s", key, common.CacheVersion), callback)
+	return c.client.OnUpdated(ctx, c.generateFullKey(key), callback)
 }
 
 func (c *Cache) NotifyUpdated(key string) error {
-	return c.client.NotifyUpdated(fmt.Sprintf("%s|%s", key, common.CacheVersion))
+	return c.client.NotifyUpdated(c.generateFullKey(key))
 }

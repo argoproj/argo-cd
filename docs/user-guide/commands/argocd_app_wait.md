@@ -38,7 +38,9 @@ argocd app wait [APPNAME.. | -l selector] [flags]
 ### Options
 
 ```
+  -N, --app-namespace string   Only wait for an application  in namespace
       --degraded               Wait for degraded
+      --delete                 Wait for delete
       --health                 Wait for health
   -h, --help                   help for wait
       --operation              Wait for pending operations
@@ -53,6 +55,7 @@ argocd app wait [APPNAME.. | -l selector] [flags]
 ### Options inherited from parent commands
 
 ```
+      --argocd-context string           The name of the Argo-CD server context to use
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file

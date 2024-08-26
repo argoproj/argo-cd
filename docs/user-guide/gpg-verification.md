@@ -17,8 +17,8 @@ allowed public key.
 By default, signature verification is enabled but not enforced. If you wish to
 completely disable the GnuPG functionality in ArgoCD, you have to set the
 environment variable `ARGOCD_GPG_ENABLED` to `"false"` in the pod templates of
-the `argocd-server`, `argocd-repo-server` and `argocd-application-controller`
-deployment manifests.
+the `argocd-server`, `argocd-repo-server`, `argocd-application-controller` and 
+`argocd-applicationset-controller` deployment manifests.
 
 Verification of GnuPG signatures is only supported with Git repositories. It is
 not possible using Helm repositories.
@@ -28,6 +28,11 @@ not possible using Helm repositories.
     is imported, ArgoCD will trust it. ArgoCD does not support more complex
     trust models, and it is not necessary (nor possible) to sign the public keys
     you are going to import into ArgoCD.
+
+
+!!!note Limitations
+  Signature verification is not supported for the templated `project` field when 
+  using the Git generator.
 
 ## Signature verification targets
 
@@ -282,8 +287,8 @@ spec:
 
 The GnuPG feature can be completely disabled if desired. In order to disable it,
 set the environment variable `ARGOCD_GPG_ENABLED` to `false` for the pod
-templates of the `argocd-server`, `argocd-repo-server` and
- `argocd-application-controller` deployments.
+templates of the `argocd-server`, `argocd-repo-server`, `argocd-application-controller`
+and `argocd-applicationset-controller` deployments.
 
 After the pods have been restarted, the GnuPG feature is disabled.
 

@@ -44,8 +44,7 @@ type Renderer interface {
 	Replace(tmpl string, replaceMap map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (string, error)
 }
 
-type Render struct {
-}
+type Render struct{}
 
 func copyValueIntoUnexported(destination, value reflect.Value) {
 	reflect.NewAt(destination.Type(), unsafe.Pointer(destination.UnsafeAddr())).
@@ -54,7 +53,7 @@ func copyValueIntoUnexported(destination, value reflect.Value) {
 }
 
 func copyUnexported(copy, original reflect.Value) {
-	var unexported = reflect.NewAt(original.Type(), unsafe.Pointer(original.UnsafeAddr())).Elem()
+	unexported := reflect.NewAt(original.Type(), unsafe.Pointer(original.UnsafeAddr())).Elem()
 	copyValueIntoUnexported(copy, unexported)
 }
 
@@ -127,7 +126,7 @@ func (r *Render) deeplyReplace(copy, original reflect.Value, replaceMap map[stri
 	// If it is a struct we translate each field
 	case reflect.Struct:
 		for i := 0; i < original.NumField(); i += 1 {
-			var currentType = fmt.Sprintf("%s.%s", original.Type().Field(i).Name, original.Type().PkgPath())
+			currentType := fmt.Sprintf("%s.%s", original.Type().Field(i).Name, original.Type().PkgPath())
 			// specific case time
 			if currentType == "time.Time" {
 				copy.Field(i).Set(original.Field(i))
@@ -269,9 +268,8 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 	// b) there IS a syncPolicy, but preserveResourcesOnDeletion is set to false
 	// See TestRenderTemplateParamsFinalizers in util_test.go for test-based definition of behaviour
 	if (syncPolicy == nil || !syncPolicy.PreserveResourcesOnDeletion) &&
-		((*replacedTmpl).ObjectMeta.Finalizers == nil || len((*replacedTmpl).ObjectMeta.Finalizers) == 0) {
-
-		(*replacedTmpl).ObjectMeta.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
+		(replacedTmpl.ObjectMeta.Finalizers == nil || len(replacedTmpl.ObjectMeta.Finalizers) == 0) {
+		replacedTmpl.ObjectMeta.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
 	}
 
 	return replacedTmpl, nil
@@ -485,8 +483,7 @@ func SlugifyName(args ...interface{}) string {
 	return urlSlug
 }
 
-func getTlsConfigWithCACert(scmRootCAPath string) *tls.Config {
-
+func getTlsConfigWithCACert(scmRootCAPath string, caCerts []byte) *tls.Config {
 	tlsConfig := &tls.Config{}
 
 	if scmRootCAPath != "" {
@@ -500,8 +497,12 @@ func getTlsConfigWithCACert(scmRootCAPath string) *tls.Config {
 			log.Errorf("error reading certificate from file '%s', proceeding without custom rootCA : %s", scmRootCAPath, err)
 			return tlsConfig
 		}
+		caCerts = append(caCerts, rootCA...)
+	}
+
+	if len(caCerts) > 0 {
 		certPool := x509.NewCertPool()
-		ok := certPool.AppendCertsFromPEM([]byte(rootCA))
+		ok := certPool.AppendCertsFromPEM(caCerts)
 		if !ok {
 			log.Errorf("failed to append certificates from PEM: proceeding without custom rootCA")
 		} else {
@@ -511,8 +512,8 @@ func getTlsConfigWithCACert(scmRootCAPath string) *tls.Config {
 	return tlsConfig
 }
 
-func GetTlsConfig(scmRootCAPath string, insecure bool) *tls.Config {
-	tlsConfig := getTlsConfigWithCACert(scmRootCAPath)
+func GetTlsConfig(scmRootCAPath string, insecure bool, caCerts []byte) *tls.Config {
+	tlsConfig := getTlsConfigWithCACert(scmRootCAPath, caCerts)
 
 	if insecure {
 		tlsConfig.InsecureSkipVerify = true
