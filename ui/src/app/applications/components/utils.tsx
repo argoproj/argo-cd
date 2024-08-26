@@ -352,7 +352,17 @@ export const deleteSourceAction = (app: appModels.Application, source: appModels
         () => (
             <div>
                 <p>
-                    Are you sure you want to delete the source with URL: <kbd>{source.repoURL}</kbd>?
+                    <>
+                        Are you sure you want to delete the source with URL: <kbd>{source.repoURL}</kbd>
+                        {source.path ? (
+                            <>
+                                {' '}
+                                and path: <kbd>{source.path}</kbd>?
+                            </>
+                        ) : (
+                            <>?</>
+                        )}
+                    </>
                 </p>
             </div>
         ),
