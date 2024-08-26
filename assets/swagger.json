@@ -8085,6 +8085,9 @@
         "branchMatch": {
           "type": "string"
         },
+        "fileMatch": {
+          "type": "string"
+        },
         "targetBranchMatch": {
           "type": "string"
         }
