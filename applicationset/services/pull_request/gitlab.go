@@ -109,7 +109,6 @@ func (g *GitLabService) listChangedFiles(number int) ([]string, error) {
 
 	for {
 		changes, resp, err := g.client.MergeRequests.ListMergeRequestDiffs(g.project, number, opts)
-		//changes, resp, err := g.client.MergeRequests.GetMergeRequestChanges(g.project, number, opts)
 		if err != nil {
 			return nil, fmt.Errorf("error listing changes for merge request %d: %w", number, err)
 		}
