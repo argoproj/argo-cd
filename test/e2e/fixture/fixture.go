@@ -673,7 +673,7 @@ func initTestContainers(ctx context.Context) {
 					"UID": &currentUser.Uid,
 				},
 			},
-			ExposedPorts: []string{"2222/tcp", "9080:9080/tcp", "9081/tcp", "9443/tcp", "9444/tcp"},
+			ExposedPorts: []string{"2222/tcp", "9080/tcp", "9081/tcp", "9443/tcp", "9444/tcp"},
 			Cmd:          []string{"goreman", "start"},
 			LogConsumerCfg: &testcontainers.LogConsumerConfig{
 				Opts:      []testcontainers.LogProductionOption{testcontainers.WithLogProductionTimeout(10 * time.Second)},
@@ -696,10 +696,9 @@ func initTestContainers(ctx context.Context) {
 	port, _ := e2eServer.MappedPort(ctx, "2222")
 	mappedSSHPort = port.Port()
 
-	// TODO: Make this a dynamically mapped port
-	mappedHelmHttpPort = "9080"
-	// port, _ := e2eServer.MappedPort(ctx, "9080")
-	// mappedHelmHttpPort = port.Port()
+	// TODO: Figure out Helm error
+	port, _ = e2eServer.MappedPort(ctx, "9080")
+	mappedHelmHttpPort = port.Port()
 
 	port, _ = e2eServer.MappedPort(ctx, "9081")
 	mappedGitNoAuthPort = port.Port()
@@ -969,7 +968,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			}
 			if !info.IsDir() && strings.HasSuffix(path, ".yaml") {
 				CheckError(replaceInFile(path, map[string]string{
-					//	"9080": mappedHelmHttpPort,
+					"9080": mappedHelmHttpPort,
 					"2222": mappedSSHPort,
 					"5000": MappedOCIRegistryPort,
 					"9443": MappedHttpsAuthPort,
