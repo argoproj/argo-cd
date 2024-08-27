@@ -57,7 +57,7 @@ func TestPrintSyncWindows(t *testing.T) {
 		outputs := collectSyncWindowData(proj)
 		return PrintResourceList(outputs, "yaml", false)
 	})
-	fmt.Println("YAML Output:\n", yamlOutput) // YAML 출력 확인
+	fmt.Println("YAML Output:\n", yamlOutput)
 	require.NoError(t, err)
 	assert.Contains(t, yamlOutput, "Kind: deny")
 	assert.Contains(t, yamlOutput, "Duration: 30m")
