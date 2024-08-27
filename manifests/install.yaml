@@ -24277,6 +24277,12 @@ spec:
               key: controller.ignore.normalizer.jq.timeout
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_MANIFEST_GENERATION_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: controller.manifest.generation.path
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
