@@ -19,6 +19,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
+	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
+
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller"
@@ -41,7 +43,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 	kubeutil "github.com/argoproj/argo-cd/v2/util/kube"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 )
 
 func NewAppCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {

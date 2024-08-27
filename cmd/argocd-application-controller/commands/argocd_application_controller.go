@@ -16,6 +16,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
+	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
+
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller"
@@ -34,7 +36,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/argoproj/argo-cd/v2/util/tls"
 	"github.com/argoproj/argo-cd/v2/util/trace"
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 )
 
 const (

@@ -37,6 +37,8 @@ import (
 
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 
+	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
+
 	mockstatecache "github.com/argoproj/argo-cd/v2/controller/cache/mocks"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
@@ -47,7 +49,6 @@ import (
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 )
 
 type namespacedResource struct {
