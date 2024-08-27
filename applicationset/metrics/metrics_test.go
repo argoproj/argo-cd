@@ -19,6 +19,8 @@ import (
 
 	prometheus "github.com/prometheus/client_golang/prometheus"
 
+	metricsutil "github.com/argoproj/argo-cd/v2/util/metrics"
+
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"sigs.k8s.io/yaml"
