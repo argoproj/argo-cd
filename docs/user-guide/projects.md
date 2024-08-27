@@ -314,6 +314,11 @@ stringData:
   password: ****
 ```
 
+!!! warning
+Please keep in mind when using a project-scoped repository, only applications from the same project can make use of
+it. When using applicationsets with the Git generator, only non-scoped repositories can be used (i.e. repositories that
+do _not_ have a `project` set).
+
 All the examples above talk about Git repositories, but the same principles apply to clusters as well.
 
 ```yaml
