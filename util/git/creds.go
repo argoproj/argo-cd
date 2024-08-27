@@ -170,10 +170,10 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 		// We need to actually create two temp files, one for storing cert data and
 		// another for storing the key. If we fail to create second fail, the first
 		// must be removed.
-		certFile, err := os.CreateTemp(argoio.TempDir, "")
+		certFile, err := os.CreateTemp(argoio.TempPathUseDevShmIfAvailable(), "")
 		if err == nil {
 			defer certFile.Close()
-			keyFile, err = os.CreateTemp(argoio.TempDir, "")
+			keyFile, err = os.CreateTemp(argoio.TempPathUseDevShmIfAvailable(), "")
 			if err != nil {
 				removeErr := os.Remove(certFile.Name())
 				if removeErr != nil {
@@ -269,7 +269,7 @@ func (f authFilePaths) Close() error {
 
 func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	// use the SHM temp dir from util, more secure
-	file, err := os.CreateTemp(argoio.TempDir, "")
+	file, err := os.CreateTemp(argoio.TempPathUseDevShmIfAvailable(), "")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -371,10 +371,10 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 		// We need to actually create two temp files, one for storing cert data and
 		// another for storing the key. If we fail to create second fail, the first
 		// must be removed.
-		certFile, err := os.CreateTemp(argoio.TempDir, "")
+		certFile, err := os.CreateTemp(argoio.TempPathUseDevShmIfAvailable(), "")
 		if err == nil {
 			defer certFile.Close()
-			keyFile, err = os.CreateTemp(argoio.TempDir, "")
+			keyFile, err = os.CreateTemp(argoio.TempPathUseDevShmIfAvailable(), "")
 			if err != nil {
 				removeErr := os.Remove(certFile.Name())
 				if removeErr != nil {
