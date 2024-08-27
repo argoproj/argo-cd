@@ -19,7 +19,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	appsetmetrics "github.com/argoproj/argo-cd/v2/applicationset/metrics"
 	"github.com/argoproj/argo-cd/v2/applicationset/services/mocks"
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -91,7 +90,7 @@ func TestRequeueAfter(t *testing.T) {
 	}
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
-	metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *argov1alpha1.ApplicationSet) bool { return true })
+	metrics := appsetmetrics.FakeAppsetMetrics(client)
 	r := ApplicationSetReconciler{
 		Client:     client,
 		Scheme:     scheme,

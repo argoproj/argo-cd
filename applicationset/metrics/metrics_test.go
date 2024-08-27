@@ -218,7 +218,7 @@ func TestObserverReconcile(t *testing.T) {
 	client := initializeClient(appsetList)
 	metrics.Registry = prometheus.NewRegistry()
 
-	appsetMetrics := NewApplicationsetMetrics(utils.NewAppsetLister(client), collectedLabels, filter)
+	appsetMetrics := FakeAppsetMetrics(client)
 
 	req, err := http.NewRequest("GET", "/metrics", nil)
 	require.NoError(t, err)

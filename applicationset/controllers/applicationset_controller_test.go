@@ -1059,7 +1059,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-			metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *v1alpha1.ApplicationSet) bool { return true })
+			metrics := appsetmetrics.FakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:   client,
@@ -1170,7 +1170,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 
 			objects := append([]runtime.Object{}, secret)
 			kubeclientset := kubefake.NewSimpleClientset(objects...)
-			metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *v1alpha1.ApplicationSet) bool { return true })
+			metrics := appsetmetrics.FakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:        client,
@@ -1329,7 +1329,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 
 			objects := append([]runtime.Object{}, secret)
 			kubeclientset := kubefake.NewSimpleClientset(objects...)
-			metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *v1alpha1.ApplicationSet) bool { return true })
+			metrics := appsetmetrics.FakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:        client,
@@ -1418,7 +1418,7 @@ func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 			initObjs := []crtclient.Object{&app, &appSet}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-			metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *v1alpha1.ApplicationSet) bool { return true })
+			metrics := appsetmetrics.FakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:        client,
@@ -1620,7 +1620,7 @@ func TestCreateApplications(t *testing.T) {
 			}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-			metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *v1alpha1.ApplicationSet) bool { return true })
+			metrics := appsetmetrics.FakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:   client,
@@ -1764,7 +1764,7 @@ func TestDeleteInCluster(t *testing.T) {
 		}
 
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-		metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *v1alpha1.ApplicationSet) bool { return true })
+		metrics := appsetmetrics.FakeAppsetMetrics(client)
 
 		r := ApplicationSetReconciler{
 			Client:        client,
@@ -1812,7 +1812,7 @@ func TestGetMinRequeueAfter(t *testing.T) {
 	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
-	metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *v1alpha1.ApplicationSet) bool { return true })
+	metrics := appsetmetrics.FakeAppsetMetrics(client)
 
 	generator := v1alpha1.ApplicationSetGenerator{
 		List:     &v1alpha1.ListGenerator{},
@@ -1883,7 +1883,7 @@ func TestRequeueGeneratorFails(t *testing.T) {
 	generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
 		Return([]map[string]interface{}{}, fmt.Errorf("Simulated error generating params that could be related to an external service/API call"))
 
-	metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *v1alpha1.ApplicationSet) bool { return true })
+	metrics := appsetmetrics.FakeAppsetMetrics(client)
 
 	r := ApplicationSetReconciler{
 		Client:   client,
@@ -1916,7 +1916,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
-	metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *v1alpha1.ApplicationSet) bool { return true })
+	metrics := appsetmetrics.FakeAppsetMetrics(client)
 
 	// Valid cluster
 	myCluster := v1alpha1.Cluster{
@@ -2192,7 +2192,7 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	argoObjs := []runtime.Object{&project}
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-	metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *v1alpha1.ApplicationSet) bool { return true })
+	metrics := appsetmetrics.FakeAppsetMetrics(client)
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	badCluster := v1alpha1.Cluster{Server: "https://bad-cluster", Name: "bad-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
@@ -2398,7 +2398,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 
 	for _, testCase := range testCases {
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testCase.appset).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-		metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *v1alpha1.ApplicationSet) bool { return true })
+		metrics := appsetmetrics.FakeAppsetMetrics(client)
 
 		r := ApplicationSetReconciler{
 			Client:   client,
@@ -2471,7 +2471,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	argoObjs := []runtime.Object{&defaultProject}
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-	metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *v1alpha1.ApplicationSet) bool { return true })
+	metrics := appsetmetrics.FakeAppsetMetrics(client)
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
 	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
@@ -2636,7 +2636,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	argoObjs := []runtime.Object{&defaultProject}
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-	metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *v1alpha1.ApplicationSet) bool { return true })
+	metrics := appsetmetrics.FakeAppsetMetrics(client)
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
 	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
@@ -2839,7 +2839,7 @@ func TestPolicies(t *testing.T) {
 			}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
-			metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *v1alpha1.ApplicationSet) bool { return true })
+			metrics := appsetmetrics.FakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:   client,
@@ -3001,7 +3001,7 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
-			metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *v1alpha1.ApplicationSet) bool { return true })
+			metrics := appsetmetrics.FakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:   client,
@@ -3034,7 +3034,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
-	metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *v1alpha1.ApplicationSet) bool { return true })
+	metrics := appsetmetrics.FakeAppsetMetrics(client)
 
 	for _, cc := range []struct {
 		name            string
@@ -3794,7 +3794,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
-	metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *v1alpha1.ApplicationSet) bool { return true })
+	metrics := appsetmetrics.FakeAppsetMetrics(client)
 
 	for _, cc := range []struct {
 		name              string
@@ -5146,7 +5146,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			argoObjs := []runtime.Object{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
-			metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *v1alpha1.ApplicationSet) bool { return true })
+			metrics := appsetmetrics.FakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:           client,
@@ -5900,7 +5900,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 			argoObjs := []runtime.Object{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
-			metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *v1alpha1.ApplicationSet) bool { return true })
+			metrics := appsetmetrics.FakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:           client,
@@ -6116,7 +6116,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 			argoObjs := []runtime.Object{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&cc.appSet).WithObjects(&cc.appSet).Build()
-			metrics := appsetmetrics.NewApplicationsetMetrics(utils.NewAppsetLister(client), []string{}, func(appset *v1alpha1.ApplicationSet) bool { return true })
+			metrics := appsetmetrics.FakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:           client,
