@@ -88,7 +88,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                 <React.Fragment>
                     {sectionHeader(
                         {
-                            title: 'SYNC STATUS',
+                            title: 'APP STATUS',
                             helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
                         },
                         () => showMetadataInfo(application.status.sync ? 'SYNC_STATUS_REVISION' : null)
@@ -130,11 +130,11 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     <React.Fragment>
                         {sectionHeader(
                             {
-                                title: 'LAST SYNC',
+                                title: 'REPO SYNCED',
                                 helpContent:
-                                    'Whether or not your last app sync was successful. It has been ' +
+                                    'Whether or not your last app repo sync was successful. It has been ' +
                                     daysSinceLastSynchronized +
-                                    ' days since last sync. Click for the status of that sync.'
+                                    ' days since last repo sync. Click for the status of that sync.'
                             },
                             () =>
                                 showMetadataInfo(

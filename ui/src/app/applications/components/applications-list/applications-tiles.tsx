@@ -257,8 +257,8 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                     </div>
                                                     {app.status.operationState && (
                                                         <div className='row'>
-                                                            <div className='columns small-3' title='Last sync:'>
-                                                                Last Sync:
+                                                            <div className='columns small-3' title='Source sync:'>
+                                                                Repo Synced:
                                                             </div>
                                                             <div className='columns small-9'>
                                                                 {AppUtils.formatCreationTimestamp(app.status.operationState.finishedAt || app.status.operationState.startedAt)}

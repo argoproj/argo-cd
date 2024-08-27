@@ -905,7 +905,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             },
             {
                 iconClassName: 'fa fa-info-circle',
-                title: <ActionMenuItem actionLabel='Sync Status' />,
+                title: <ActionMenuItem actionLabel='Repo Sync' />,
                 action: () => this.setOperationStatusVisible(true),
                 disabled: !app.status.operationState
             },

@@ -98,7 +98,7 @@ const getOptions = (apps: FilteredApp[], filterType: keyof FilterResult, filter:
 
 const SyncFilter = (props: AppFilterProps) => (
     <Filter
-        label='SYNC STATUS'
+        label='APP STATUS'
         selected={props.pref.syncFilter}
         setSelected={s => props.onChange({...props.pref, syncFilter: s})}
         options={getOptions(
