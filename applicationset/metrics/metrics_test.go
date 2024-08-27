@@ -18,8 +18,10 @@ import (
 	fake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	metricsutil "github.com/argoproj/argo-cd/v2/util/metrics"
+  prometheus "github.com/prometheus/client_golang/prometheus"
 
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
+
 	"sigs.k8s.io/yaml"
 )
 
@@ -170,6 +172,7 @@ func newFakeAppsets(fakeAppsetYAML string) []argoappv1.ApplicationSet {
 func TestApplicationsetCollector(t *testing.T) {
 	appsetList := newFakeAppsets(fakeAppsetList)
 	client := initializeClient(appsetList)
+  metrics.Registry = prometheus.NewRegistry()
 
 	appsetCollector := newAppsetCollector(utils.NewAppsetLister(client), collectedLabels, filter)
 
@@ -212,6 +215,7 @@ argocd_appset_owned_applications{name="test2",namespace="argocd"} 0
 func TestObserverReconcile(t *testing.T) {
 	appsetList := newFakeAppsets(fakeAppsetList)
 	client := initializeClient(appsetList)
+  metrics.Registry = prometheus.NewRegistry()
 
 	appsetMetrics := NewApplicationsetMetrics(utils.NewAppsetLister(client), collectedLabels, filter)
 

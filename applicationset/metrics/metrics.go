@@ -53,7 +53,7 @@ func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, apps
 
 	appsetCollector := newAppsetCollector(appsetLister, appsetLabels, appsetFilter)
 
-	// Rgister collectors and metrics
+	// Register collectors and metrics
 	metrics.Registry.MustRegister(reconcileHistogram)
 	metrics.Registry.MustRegister(appsetCollector)
 
@@ -78,11 +78,11 @@ func newAppsetCollector(lister applisters.ApplicationSetLister, labels []string,
 		)
 	}
 
-	return (&appsetCollector{
+	return &appsetCollector{
 		lister: lister,
 		labels: labels,
 		filter: filter,
-	})
+	}
 }
 
 // Describe implements the prometheus.Collector interface

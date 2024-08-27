@@ -88,7 +88,7 @@ type ApplicationSetReconciler struct {
 	SCMRootCAPath              string
 	GlobalPreservedAnnotations []string
 	GlobalPreservedLabels      []string
-	Metrics                    metrics.ApplicationsetMetrics
+	Metrics                    *metrics.ApplicationsetMetrics
 }
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
