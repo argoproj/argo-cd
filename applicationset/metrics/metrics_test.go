@@ -17,9 +17,7 @@ import (
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	fake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	metricsutil "github.com/argoproj/argo-cd/v2/util/metrics"
 	prometheus "github.com/prometheus/client_golang/prometheus"
-
 
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 
