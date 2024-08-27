@@ -4489,6 +4489,30 @@
         }
       }
     },
+    "applicationsetApplicationSetGenerateRequest": {
+      "type": "object",
+      "title": "ApplicationSetGetQuery is a query for applicationset resources",
+      "properties": {
+        "applicationSet": {
+          "$ref": "#/definitions/v1alpha1ApplicationSet"
+        }
+      }
+    },
+    "applicationsetApplicationSetGenerateResponse": {
+      "type": "object",
+      "title": "ApplicationSetGenerateResponse is a response for applicationset generate request",
+      "properties": {
+        "applications": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Application"
+          }
+        },
+        "errorLog": {
+          "type": "string"
+        }
+      }
+    },
     "applicationsetApplicationSetResponse": {
       "type": "object",
       "properties": {
