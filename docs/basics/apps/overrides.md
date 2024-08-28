@@ -2,7 +2,7 @@
 
 Argo CD provides a mechanism to override the parameters of Argo CD applications that leverages config management
 tools. This provides flexibility in having most of the application manifests defined in Git, while leaving room
-for *some* parts of the  k8s manifests determined dynamically, or outside of Git. It also serves as an alternative way of
+for *some* parts of the  k8s manifests to be determined dynamically, or outside of Git. It also serves as an alternative way of
 redeploying an application by changing application parameters via Argo CD, instead of making the 
 changes to the manifests in Git.
 
