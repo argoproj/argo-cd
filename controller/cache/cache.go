@@ -175,21 +175,23 @@ func NewLiveStateCache(
 	appInformer cache.SharedIndexInformer,
 	settingsMgr *settings.SettingsManager,
 	kubectl kube.Kubectl,
+	manifestGenTmpPath string,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
 	clusterSharding sharding.ClusterShardingCache,
 	resourceTracking argo.ResourceTracking,
 ) LiveStateCache {
 	return &liveStateCache{
-		appInformer:      appInformer,
-		db:               db,
-		clusters:         make(map[string]clustercache.ClusterCache),
-		onObjectUpdated:  onObjectUpdated,
-		kubectl:          kubectl,
-		settingsMgr:      settingsMgr,
-		metricsServer:    metricsServer,
-		clusterSharding:  clusterSharding,
-		resourceTracking: resourceTracking,
+		appInformer:        appInformer,
+		db:                 db,
+		clusters:           make(map[string]clustercache.ClusterCache),
+		onObjectUpdated:    onObjectUpdated,
+		kubectl:            kubectl,
+		settingsMgr:        settingsMgr,
+		metricsServer:      metricsServer,
+		clusterSharding:    clusterSharding,
+		resourceTracking:   resourceTracking,
+		manifestGenTmpPath: manifestGenTmpPath,
 	}
 }
 
@@ -218,6 +220,9 @@ type liveStateCache struct {
 	clusters      map[string]clustercache.ClusterCache
 	cacheSettings cacheSettings
 	lock          sync.RWMutex
+
+	// manifestGenTmpPath is the temporary path value passed to gitops-engine, which gitops-engine uses when passing kubernetes manifests/cluster credentials to kubectl code. See 'github.com/argoproj/gitops-engine/pkg/utils/io' for details.
+	manifestGenTmpPath string
 }
 
 func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
@@ -546,6 +551,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		clustercache.SetLogr(logutils.NewLogrusLogger(log.WithField("server", cluster.Server))),
 		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
 		clustercache.SetRespectRBAC(respectRBAC),
+		clustercache.SetTmpPath(c.manifestGenTmpPath),
 	}
 
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)

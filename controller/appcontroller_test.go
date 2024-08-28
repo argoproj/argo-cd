@@ -37,6 +37,8 @@ import (
 
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 
+	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
+
 	mockstatecache "github.com/argoproj/argo-cd/v2/controller/cache/mocks"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
@@ -163,6 +165,7 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		false,
 		false,
 		normalizers.IgnoreNormalizerOpts{},
+		argoio.TempPathUseDevShmIfAvailable(),
 	)
 	db := &dbmocks.ArgoDB{}
 	db.On("GetApplicationControllerReplicas").Return(1)

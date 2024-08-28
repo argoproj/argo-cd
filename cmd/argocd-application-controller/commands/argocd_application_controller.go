@@ -16,6 +16,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
+	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
+
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller"
@@ -77,6 +79,7 @@ func NewCommand() *cobra.Command {
 		enableDynamicClusterDistribution bool
 		serverSideDiff                   bool
 		ignoreNormalizerOpts             normalizers.IgnoreNormalizerOpts
+		manifestGenerationTmpPath        string
 	)
 	command := cobra.Command{
 		Use:               cliName,
@@ -175,6 +178,7 @@ func NewCommand() *cobra.Command {
 				serverSideDiff,
 				enableDynamicClusterDistribution,
 				ignoreNormalizerOpts,
+				manifestGenerationTmpPath,
 			)
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
@@ -248,6 +252,9 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableDynamicClusterDistribution, "dynamic-cluster-distribution-enabled", env.ParseBoolFromEnv(common.EnvEnableDynamicClusterDistribution, false), "Enables dynamic cluster distribution.")
 	command.Flags().BoolVar(&serverSideDiff, "server-side-diff-enabled", env.ParseBoolFromEnv(common.EnvServerSideDiff, false), "Feature flag to enable ServerSide diff. Default (\"false\")")
 	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout-seconds", env.ParseDurationFromEnv("ARGOCD_IGNORE_NORMALIZER_JQ_TIMEOUT", 0*time.Second, 0, math.MaxInt64), "Set ignore normalizer JQ execution timeout")
+
+	command.Flags().StringVar(&manifestGenerationTmpPath, "manifestGenerationTmpPath", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_MANIFEST_GENERATION_PATH", argoio.TempPathUseDevShmIfAvailable()), "Set the path within application-controller container where Kubernetes manifests will be generated before being passed to kubectl code, default value is \"/dev/shm\"")
+
 	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {
 			redisClient = client
