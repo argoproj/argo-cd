@@ -62,7 +62,6 @@ message ApplicationSetGenerateRequest {
 // ApplicationSetGenerateResponse is a response for applicationset generate request
 message ApplicationSetGenerateResponse {
 	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application applications = 1;
-	string errorLog = 2;
 }
 
 // ApplicationSetService

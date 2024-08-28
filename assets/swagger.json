@@ -4507,9 +4507,6 @@
           "items": {
             "$ref": "#/definitions/v1alpha1Application"
           }
-        },
-        "errorLog": {
-          "type": "string"
         }
       }
     },

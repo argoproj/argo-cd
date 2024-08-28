@@ -250,10 +250,6 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 			}
 			resp, err := appIf.Generate(ctx, &req)
 			errors.CheckError(err)
-			if resp.ErrorLog != "" {
-				_, _ = os.Stderr.WriteString(resp.ErrorLog)
-				os.Exit(1)
-			}
 
 			var appsList []arogappsetv1.Application
 			for i := range resp.Applications {

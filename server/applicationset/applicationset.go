@@ -388,13 +388,11 @@ func (s *Server) Generate(ctx context.Context, q *applicationset.ApplicationSetG
 	logger := log.New()
 	logger.SetOutput(logs)
 
-	res := &applicationset.ApplicationSetGenerateResponse{}
-
 	apps, err := s.generateApplicationSetApps(ctx, logger.WithField("applicationset", appset.Name), *appset, namespace)
 	if err != nil {
-		res.ErrorLog = fmt.Sprintf("unable to generate Applications of ApplicationSet: %v\n", err)
-		res.ErrorLog += logs.String()
+		return nil, fmt.Errorf("unable to generate Applications of ApplicationSet: %w\n%s", err, logs.String())
 	}
+	res := &applicationset.ApplicationSetGenerateResponse{}
 	for i := range apps {
 		res.Applications = append(res.Applications, &apps[i])
 	}
