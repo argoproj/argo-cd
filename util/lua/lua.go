@@ -275,13 +275,13 @@ func cleanReturnedArray(newObj, obj []interface{}) []interface{} {
 	return arrayToReturn
 }
 
-func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, script []string) ([]appv1.ResourceAction, error) {
-	if len(script) == 0 {
+func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scripts []string) ([]appv1.ResourceAction, error) {
+	if len(scripts) == 0 {
 		return nil, fmt.Errorf("no action discovery script provided")
 	}
-	availableActions := make([]appv1.ResourceAction, 0)
 
-	for _, script := range script {
+	availableActions := make([]appv1.ResourceAction, 0)
+	for _, script := range scripts {
 		l, err := vm.runLua(obj, script)
 		if err != nil {
 			return nil, err
@@ -311,7 +311,6 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 				if err != nil {
 					return nil, err
 				}
-
 				err = json.Unmarshal(resourceActionBytes, &resourceAction)
 				if err != nil {
 					return nil, err
@@ -322,7 +321,6 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 			return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
 		}
 	}
-
 	return availableActions, nil
 }
 
