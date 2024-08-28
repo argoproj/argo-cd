@@ -2,7 +2,7 @@
 
 ## argocd appset generate
 
-Generate apps of ApplicationSet
+Generate apps of ApplicationSet rendered templates
 
 ```
 argocd appset generate [flags]
@@ -11,7 +11,7 @@ argocd appset generate [flags]
 ### Examples
 
 ```
-  # Generate apps of ApplicationSet
+  # Generate apps of ApplicationSet rendered templates
   argocd appset generate <filename or URL> (<filename or URL>...)
 ```
 

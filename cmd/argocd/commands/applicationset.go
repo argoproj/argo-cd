@@ -215,9 +215,9 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 	var output string
 	command := &cobra.Command{
 		Use:   "generate",
-		Short: "Generate apps of ApplicationSet",
+		Short: "Generate apps of ApplicationSet rendered templates",
 		Example: templates.Examples(`
-	# Generate apps of ApplicationSet
+	# Generate apps of ApplicationSet rendered templates
 	argocd appset generate <filename or URL> (<filename or URL>...)
 `),
 		Run: func(c *cobra.Command, args []string) {
@@ -238,7 +238,7 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 			}
 			appset := appsets[0]
 			if appset.Name == "" {
-				err := fmt.Errorf("Error generating aps for ApplicationSet %s. ApplicationSet does not have Name field set", appset)
+				err := fmt.Errorf("Error generating apps for ApplicationSet %s. ApplicationSet does not have Name field set", appset)
 				errors.CheckError(err)
 			}
 
@@ -261,6 +261,7 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 				var resources []interface{}
 				for i := range appsList {
 					app := appsList[i]
+					// backfill api version and kind because k8s client always return empty values for these fields
 					app.APIVersion = arogappsetv1.ApplicationSchemaGroupVersionKind.GroupVersion().String()
 					app.Kind = arogappsetv1.ApplicationSchemaGroupVersionKind.Kind
 					resources = append(resources, app)
