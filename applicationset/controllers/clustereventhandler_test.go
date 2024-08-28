@@ -551,24 +551,18 @@ func TestClusterEventHandler(t *testing.T) {
 
 			handler.queueRelatedAppGenerators(context.Background(), &mockAddRateLimitingInterface, &test.secret)
 
-			assert.False(t, mockAddRateLimitingInterface.errorOccurred)
 			assert.ElementsMatch(t, mockAddRateLimitingInterface.addedItems, test.expectedRequests)
 		})
 	}
 }
 
 // Add checks the type, and adds it to the internal list of received additions
-func (obj *mockAddRateLimitingInterface) Add(item interface{}) {
-	if req, ok := item.(ctrl.Request); ok {
-		obj.addedItems = append(obj.addedItems, req)
-	} else {
-		obj.errorOccurred = true
-	}
+func (obj *mockAddRateLimitingInterface) Add(item reconcile.Request) {
+	obj.addedItems = append(obj.addedItems, item)
 }
 
 type mockAddRateLimitingInterface struct {
-	errorOccurred bool
-	addedItems    []ctrl.Request
+	addedItems []reconcile.Request
 }
 
 func TestNestedGeneratorHasClusterGenerator_NestedClusterGenerator(t *testing.T) {

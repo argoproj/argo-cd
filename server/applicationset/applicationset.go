@@ -185,7 +185,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 		return nil, fmt.Errorf("error creating ApplicationSets: ApplicationSets is nil in request")
 	}
 
-	projectName, err := s.validateAppSet(ctx, appset)
+	projectName, err := s.validateAppSet(appset)
 	if err != nil {
 		return nil, fmt.Errorf("error validating ApplicationSets: %w", err)
 	}
@@ -363,10 +363,10 @@ func (s *Server) ResourceTree(ctx context.Context, q *applicationset.Application
 		return nil, err
 	}
 
-	return s.buildApplicationSetTree(ctx, a)
+	return s.buildApplicationSetTree(a)
 }
 
-func (s *Server) buildApplicationSetTree(ctx context.Context, a *v1alpha1.ApplicationSet) (*v1alpha1.ApplicationSetTree, error) {
+func (s *Server) buildApplicationSetTree(a *v1alpha1.ApplicationSet) (*v1alpha1.ApplicationSetTree, error) {
 	var tree v1alpha1.ApplicationSetTree
 
 	gvk := v1alpha1.ApplicationSetSchemaGroupVersionKind
@@ -393,7 +393,7 @@ func (s *Server) buildApplicationSetTree(ctx context.Context, a *v1alpha1.Applic
 	return &tree, nil
 }
 
-func (s *Server) validateAppSet(ctx context.Context, appset *v1alpha1.ApplicationSet) (string, error) {
+func (s *Server) validateAppSet(appset *v1alpha1.ApplicationSet) (string, error) {
 	if appset == nil {
 		return "", fmt.Errorf("ApplicationSet cannot be validated for nil value")
 	}
