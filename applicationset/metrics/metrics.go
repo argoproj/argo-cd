@@ -62,7 +62,7 @@ func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, apps
 	}
 }
 
-func (m *ApplicationsetMetrics) ObserveRconcile(appset *argoappv1.ApplicationSet, duration time.Duration) {
+func (m *ApplicationsetMetrics) ObserveReconcile(appset *argoappv1.ApplicationSet, duration time.Duration) {
 	m.reconcileHistogram.WithLabelValues(appset.Namespace, appset.Name).Observe(duration.Seconds())
 }
 

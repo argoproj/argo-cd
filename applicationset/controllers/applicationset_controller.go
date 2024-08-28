@@ -108,7 +108,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	defer func() {
-		r.Metrics.ObserveRconcile(&applicationSetInfo, time.Since(startTime))
+		r.Metrics.ObserveReconcile(&applicationSetInfo, time.Since(startTime))
 	}()
 
 	// Do not attempt to further reconcile the ApplicationSet if it is being deleted.

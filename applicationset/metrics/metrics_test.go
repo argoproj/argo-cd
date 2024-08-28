@@ -213,7 +213,7 @@ argocd_appset_owned_applications{name="test2",namespace="argocd"} 0
 	assert.NotContains(t, rr.Body.String(), `name="should-be-filtered-out"`)
 }
 
-func TestObserverReconcile(t *testing.T) {
+func TestObserveReconcile(t *testing.T) {
 	appsetList := newFakeAppsets(fakeAppsetList)
 	client := initializeClient(appsetList)
 	metrics.Registry = prometheus.NewRegistry()
@@ -224,7 +224,7 @@ func TestObserverReconcile(t *testing.T) {
 	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
-	appsetMetrics.ObserveRconcile(&appsetList[0], 5*time.Second)
+	appsetMetrics.ObserveReconcile(&appsetList[0], 5*time.Second)
 	handler.ServeHTTP(rr, req)
 	assert.Contains(t, rr.Body.String(), `
 argocd_appset_reconcile_sum{name="test1",namespace="argocd"} 5
