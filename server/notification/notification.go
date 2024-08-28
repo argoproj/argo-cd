@@ -3,10 +3,11 @@ package notification
 import (
 	"context"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
 	"github.com/argoproj/notifications-engine/pkg/api"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/notification"
 )
 
 // Server provides an Application service
@@ -30,7 +31,7 @@ func (s *Server) ListTriggers(ctx context.Context, q *notification.TriggersListR
 	}
 	triggers := []*notification.Trigger{}
 	for trigger := range api.GetConfig().Triggers {
-		triggers = append(triggers, &notification.Trigger{Name: pointer.String(trigger)})
+		triggers = append(triggers, &notification.Trigger{Name: ptr.To(trigger)})
 	}
 	return &notification.TriggerList{Items: triggers}, nil
 }
@@ -46,7 +47,7 @@ func (s *Server) ListServices(ctx context.Context, q *notification.ServicesListR
 	}
 	services := []*notification.Service{}
 	for svc := range api.GetConfig().Services {
-		services = append(services, &notification.Service{Name: pointer.String(svc)})
+		services = append(services, &notification.Service{Name: ptr.To(svc)})
 	}
 	return &notification.ServiceList{Items: services}, nil
 }
@@ -62,7 +63,7 @@ func (s *Server) ListTemplates(ctx context.Context, q *notification.TemplatesLis
 	}
 	templates := []*notification.Template{}
 	for tmpl := range api.GetConfig().Templates {
-		templates = append(templates, &notification.Template{Name: pointer.String(tmpl)})
+		templates = append(templates, &notification.Template{Name: ptr.To(tmpl)})
 	}
 	return &notification.TemplateList{Items: templates}, nil
 }

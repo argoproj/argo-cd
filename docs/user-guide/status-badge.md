@@ -14,7 +14,45 @@ The URLs for status image are available on application details page:
 for the status image URL in markdown, html, etc are available .
 4. Copy the text and paste it into your README or website.
 
-The application name may optionally be displayed in the status badge by adding the `?showAppName=true` query parameter.   
+## Additional query parameters options
+### showAppName
+Display the application name in the status badge.   
 
-For example, `${argoCdBaseUrl}/api/badge?name=${appName}&showAppName=true`.   
-To remove the application name from the badge, remove the query parameter from the URL or set it to `false`.
+Available values: `true/false`
+
+Default value: `false`
+
+Example: `&showAppName=true`
+
+### revision
+Display revision targeted by the application.
+
+It will also extend the badge width to 192px.
+
+Available values: `true/false`
+
+Default value: `false`
+
+Example: `&revision=true`
+### keepFullRevision
+By default, displayed  revision is truncated to 7 characters.
+
+This parameter allows to display it fully if it exceeds that length.
+
+It will also extend the badge width to 400px.
+
+Available values: `true/false`
+
+Default value: `false`
+
+Example: `&keepFullRevision=true`
+### width
+Change width of the badge.
+
+Completely replace current calculated width.
+
+Available values: `integer`
+
+Default value: `nil`
+
+Example: `&width=500`
