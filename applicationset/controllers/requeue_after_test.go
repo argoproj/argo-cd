@@ -90,13 +90,13 @@ func TestRequeueAfter(t *testing.T) {
 	}
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
-	metrics := appsetmetrics.FakeAppsetMetrics(client)
+	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 	r := ApplicationSetReconciler{
 		Client:     client,
 		Scheme:     scheme,
 		Recorder:   record.NewFakeRecorder(0),
 		Generators: topLevelGenerators,
-		Metrics:    &metrics,
+		Metrics:    metrics,
 	}
 
 	type args struct {
