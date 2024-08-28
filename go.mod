@@ -5,7 +5,7 @@ go 1.22.0
 require (
 	code.gitea.io/sdk/gitea v0.19.0
 	github.com/Azure/kubelogin v0.0.20
-	github.com/Masterminds/semver/v3 v3.2.1
+	github.com/Masterminds/semver/v3 v3.3.0
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.33.0
@@ -295,9 +295,6 @@ require (
 )
 
 replace (
-	// https://github.com/golang/go/issues/33546#issuecomment-519656923
-	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
-
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 => github.com/OvyFlash/telegram-bot-api/v5 v5.0.0-20240108230938-63e5c59035bf
 
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
