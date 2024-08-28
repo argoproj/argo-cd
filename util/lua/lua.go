@@ -318,10 +318,8 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 				}
 				availableActions = append(availableActions, resourceAction)
 			}
-
 		} else {
 			return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
-
 		}
 	}
 
