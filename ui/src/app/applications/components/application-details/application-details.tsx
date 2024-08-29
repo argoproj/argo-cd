@@ -933,7 +933,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
-        return [
+
+        const actionMenus = [
             {
                 iconClassName: 'fa fa-info-circle',
                 title: <ActionMenuItem actionLabel='Details' />,
@@ -945,13 +946,40 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 title: <ActionMenuItem actionLabel='Diff' />,
                 action: () => this.selectNode(fullName, 0, 'diff'),
                 disabled: app.status.sync.status === appModels.SyncStatuses.Synced || (!app.spec.source && (!app.spec.sources || app.spec.sources.length === 0))
-            },
-            {
+            }
+        ];
+
+        // Show Terminate Sync if operation is running
+        if ((!app.status.operationState?.finishedAt || app.status.operationState?.phase === 'Running') && app.status.operationState?.phase !== 'Terminating') {
+            actionMenus.push({
+                iconClassName: 'fa fa-stop',
+                title: <ActionMenuItem actionLabel='Terminate Sync' />,
+                action: async () => {
+                    const confirmed = await this.context.apis.popup.confirm('Terminate operation', 'Are you sure you want to terminate operation?');
+                    if (confirmed) {
+                        try {
+                            await services.applications.terminateOperation(app.metadata.name, app.metadata.namespace);
+                        } catch (e) {
+                            this.context.apis.notifications.show({
+                                content: <ErrorNotification title='Unable to terminate operation' e={e} />,
+                                type: NotificationType.Error
+                            });
+                        }
+                    }
+                },
+                disabled: false
+            });
+        } else {
+            actionMenus.push({
                 iconClassName: 'fa fa-sync',
                 title: <ActionMenuItem actionLabel='Sync' />,
                 action: () => AppUtils.showDeploy('all', null, this.appContext.apis),
                 disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0)
-            },
+            });
+        }
+
+        // Add refresh action
+        actionMenus.push(
             ...(app.status?.operationState?.phase === 'Running' && app.status.resources.find(r => r.requiresDeletionConfirmation)
                 ? [
                       {
@@ -976,8 +1004,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 disabled: !app.status.operationState
             },
             app.metadata.deletionTimestamp &&
-            app.status.resources.find(r => r.requiresDeletionConfirmation) &&
-            !((app.metadata.annotations || {})[appModels.AppDeletionConfirmedAnnotation] == 'true')
+                app.status.resources.find(r => r.requiresDeletionConfirmation) &&
+                !((app.metadata.annotations || {})[appModels.AppDeletionConfirmedAnnotation] == 'true')
                 ? {
                       iconClassName: 'fa fa-check',
                       title: <ActionMenuItem actionLabel='Confirm Deletion' />,
@@ -1014,7 +1042,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                     }
                 }
             }
-        ];
+        );
+
+        return actionMenus;
     }
 
     private filterTreeNode(node: ResourceTreeNode, filterInput: FilterInput): boolean {
