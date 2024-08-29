@@ -11085,6 +11085,8 @@ spec:
                                       properties:
                                         branchMatch:
                                           type: string
+                                        fileMatch:
+                                          type: string
                                         targetBranchMatch:
                                           type: string
                                       type: object
@@ -16449,6 +16451,8 @@ spec:
                                       properties:
                                         branchMatch:
                                           type: string
+                                        fileMatch:
+                                          type: string
                                         targetBranchMatch:
                                           type: string
                                       type: object
@@ -19337,6 +19341,8 @@ spec:
                           items:
                             properties:
                               branchMatch:
+                                type: string
+                              fileMatch:
                                 type: string
                               targetBranchMatch:
                                 type: string

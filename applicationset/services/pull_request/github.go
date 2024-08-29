@@ -48,6 +48,29 @@ func NewGithubService(ctx context.Context, token, url, owner, repo string, label
 	}, nil
 }
 
+func (g *GithubService) listChangedFiles(ctx context.Context, number int) ([]string, error) {
+	filesChanged := []string{}
+	opts := &github.ListOptions{
+		PerPage: 100,
+	}
+
+	for {
+		commitChanges, resp, err := g.client.PullRequests.ListFiles(ctx, g.owner, g.repo, number, opts)
+		fmt.Println("commitChanges", commitChanges)
+		for _, commitChange := range commitChanges {
+			filesChanged = append(filesChanged, *commitChange.Filename)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("error listing files for pull request %d: %w", number, err)
+		}
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+	return filesChanged, nil
+}
+
 func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 	opts := &github.PullRequestListOptions{
 		ListOptions: github.ListOptions{
@@ -61,9 +84,15 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 			return nil, fmt.Errorf("error listing pull requests for %s/%s: %w", g.owner, g.repo, err)
 		}
 		for _, pull := range pulls {
+			filesChanged, err := g.listChangedFiles(ctx, *pull.Number)
+			if err != nil {
+				return nil, err
+			}
+
 			if !containLabels(g.labels, pull.Labels) {
 				continue
 			}
+
 			pullRequests = append(pullRequests, &PullRequest{
 				Number:       *pull.Number,
 				Title:        *pull.Title,
@@ -72,6 +101,7 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 				HeadSHA:      *pull.Head.SHA,
 				Labels:       getGithubPRLabelNames(pull.Labels),
 				Author:       *pull.User.Login,
+				ChangedFiles: filesChanged,
 			})
 		}
 		if resp.NextPage == 0 {

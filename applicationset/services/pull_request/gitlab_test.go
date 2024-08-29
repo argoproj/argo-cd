@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func writeMRListResponse(t *testing.T, w io.Writer) {
-	f, err := os.Open("fixtures/gitlab_mr_list_response.json")
+func writeFixtureResponse(t *testing.T, filename string, w io.Writer) {
+	f, err := os.Open(filename)
 	if err != nil {
 		t.Fatalf("error opening fixture file: %v", err)
 	}
@@ -25,16 +25,50 @@ func writeMRListResponse(t *testing.T, w io.Writer) {
 	}
 }
 
+func TestGitLabChangedFiles(t *testing.T) {
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	path := "/api/v4/projects/278964/merge_requests"
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, path+"?per_page=100", r.URL.RequestURI())
+		writeFixtureResponse(t, "fixtures/gitlab_mr_list_response.json", w)
+	})
+
+	mergeRequestDiffPath := "/api/v4/projects/278964/merge_requests/15442/diffs"
+	mux.HandleFunc(mergeRequestDiffPath, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, mergeRequestDiffPath, r.URL.RequestURI())
+		writeFixtureResponse(t, "fixtures/gitlab_mr_list_change_diff_response.json", w)
+	})
+
+	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", nil, "", "", false, nil)
+	require.NoError(t, err)
+
+	pullRequests, err := svc.List(context.Background())
+	require.NoError(t, err)
+	changedFiles := []string{}
+	for _, pr := range pullRequests {
+		changedFiles = append(changedFiles, pr.ChangedFiles...)
+	}
+	assert.Len(t, changedFiles, 2)
+}
+
 func TestGitLabServiceCustomBaseURL(t *testing.T) {
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
 	path := "/api/v4/projects/278964/merge_requests"
-
 	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, path+"?per_page=100", r.URL.RequestURI())
-		writeMRListResponse(t, w)
+		writeFixtureResponse(t, "fixtures/gitlab_mr_list_response.json", w)
+	})
+
+	mergeRequestDiffPath := "/api/v4/projects/278964/merge_requests/15442/diffs"
+	mux.HandleFunc(mergeRequestDiffPath, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, mergeRequestDiffPath, r.URL.RequestURI())
+		writeFixtureResponse(t, "fixtures/gitlab_mr_list_change_diff_response.json", w)
 	})
 
 	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", nil, "", "", false, nil)
@@ -50,10 +84,15 @@ func TestGitLabServiceToken(t *testing.T) {
 	defer server.Close()
 
 	path := "/api/v4/projects/278964/merge_requests"
-
 	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "token-123", r.Header.Get("Private-Token"))
-		writeMRListResponse(t, w)
+		writeFixtureResponse(t, "fixtures/gitlab_mr_list_response.json", w)
+	})
+
+	mergeRequestDiffPath := "/api/v4/projects/278964/merge_requests/15442/diffs"
+	mux.HandleFunc(mergeRequestDiffPath, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, mergeRequestDiffPath, r.URL.RequestURI())
+		writeFixtureResponse(t, "fixtures/gitlab_mr_list_change_diff_response.json", w)
 	})
 
 	svc, err := NewGitLabService(context.Background(), "token-123", server.URL, "278964", nil, "", "", false, nil)
@@ -69,10 +108,15 @@ func TestList(t *testing.T) {
 	defer server.Close()
 
 	path := "/api/v4/projects/278964/merge_requests"
-
 	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, path+"?per_page=100", r.URL.RequestURI())
-		writeMRListResponse(t, w)
+		writeFixtureResponse(t, "fixtures/gitlab_mr_list_response.json", w)
+	})
+
+	mergeRequestDiffPath := "/api/v4/projects/278964/merge_requests/15442/diffs"
+	mux.HandleFunc(mergeRequestDiffPath, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, mergeRequestDiffPath, r.URL.RequestURI())
+		writeFixtureResponse(t, "fixtures/gitlab_mr_list_change_diff_response.json", w)
 	})
 
 	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{}, "", "", false, nil)
@@ -95,10 +139,15 @@ func TestListWithLabels(t *testing.T) {
 	defer server.Close()
 
 	path := "/api/v4/projects/278964/merge_requests"
-
 	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, path+"?labels=feature%2Cready&per_page=100", r.URL.RequestURI())
-		writeMRListResponse(t, w)
+		writeFixtureResponse(t, "fixtures/gitlab_mr_list_response.json", w)
+	})
+
+	mergeRequestDiffPath := "/api/v4/projects/278964/merge_requests/15442/diffs"
+	mux.HandleFunc(mergeRequestDiffPath, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, mergeRequestDiffPath, r.URL.RequestURI())
+		writeFixtureResponse(t, "fixtures/gitlab_mr_list_change_diff_response.json", w)
 	})
 
 	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{"feature", "ready"}, "", "", false, nil)
@@ -114,10 +163,15 @@ func TestListWithState(t *testing.T) {
 	defer server.Close()
 
 	path := "/api/v4/projects/278964/merge_requests"
-
 	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, path+"?per_page=100&state=opened", r.URL.RequestURI())
-		writeMRListResponse(t, w)
+		writeFixtureResponse(t, "fixtures/gitlab_mr_list_response.json", w)
+	})
+
+	mergeRequestDiffPath := "/api/v4/projects/278964/merge_requests/15442/diffs"
+	mux.HandleFunc(mergeRequestDiffPath, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, mergeRequestDiffPath, r.URL.RequestURI())
+		writeFixtureResponse(t, "fixtures/gitlab_mr_list_change_diff_response.json", w)
 	})
 
 	svc, err := NewGitLabService(context.Background(), "", server.URL, "278964", []string{}, "opened", "", false, nil)
@@ -164,7 +218,7 @@ func TestListWithStateTLS(t *testing.T) {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
 			ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				writeMRListResponse(t, w)
+				writeFixtureResponse(t, "fixtures/gitlab_mr_list_response.json", w)
 			}))
 			defer ts.Close()
 

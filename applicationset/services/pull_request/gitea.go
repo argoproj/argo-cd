@@ -55,6 +55,11 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 	}
 	list := []*PullRequest{}
 	for _, pr := range prs {
+		var changeFiles []string
+		changeFiles, err = g.listChangedFiles(pr.Index)
+		if err != nil {
+			return nil, err
+		}
 		list = append(list, &PullRequest{
 			Number:       int(pr.Index),
 			Title:        pr.Title,
@@ -63,9 +68,23 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 			HeadSHA:      pr.Head.Sha,
 			Labels:       getGiteaPRLabelNames(pr.Labels),
 			Author:       pr.Poster.UserName,
+			ChangedFiles: changeFiles,
 		})
 	}
 	return list, nil
+}
+
+func (g *GiteaService) listChangedFiles(prNumber int64) ([]string, error) {
+	filesChanged := []string{}
+
+	files, _, err := g.client.ListPullRequestFiles(g.owner, g.repo, prNumber, gitea.ListPullRequestFilesOptions{})
+	if err != nil {
+		return nil, err
+	}
+	for _, file := range files {
+		filesChanged = append(filesChanged, file.Filename)
+	}
+	return filesChanged, nil
 }
 
 // Get the Gitea pull request label names.

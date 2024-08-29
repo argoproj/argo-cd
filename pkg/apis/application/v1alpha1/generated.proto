@@ -1482,6 +1482,8 @@ message PullRequestGeneratorFilter {
   optional string branchMatch = 1;
 
   optional string targetBranchMatch = 2;
+
+  optional string fileMatch = 3;
 }
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.

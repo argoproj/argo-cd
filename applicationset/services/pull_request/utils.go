@@ -25,6 +25,13 @@ func compileFilters(filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]
 				return nil, fmt.Errorf("error compiling TargetBranchMatch regexp %q: %w", *filter.TargetBranchMatch, err)
 			}
 		}
+
+		if filter.FileMatch != nil {
+			outFilter.FileMatch, err = regexp.Compile(*filter.FileMatch)
+			if err != nil {
+				return nil, fmt.Errorf("error compiling FileMatch regexp %q: %w", *filter.FileMatch, err)
+			}
+		}
 		outFilters = append(outFilters, outFilter)
 	}
 	return outFilters, nil
@@ -37,7 +44,13 @@ func matchFilter(pullRequest *PullRequest, filter *Filter) bool {
 	if filter.TargetBranchMatch != nil && !filter.TargetBranchMatch.MatchString(pullRequest.TargetBranch) {
 		return false
 	}
-
+	if filter.FileMatch != nil {
+		for _, file := range pullRequest.ChangedFiles {
+			if !filter.FileMatch.MatchString(file) {
+				return false
+			}
+		}
+	}
 	return true
 }
 

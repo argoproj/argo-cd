@@ -79,6 +79,11 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 			return nil, fmt.Errorf("error listing merge requests for project '%s': %w", g.project, err)
 		}
 		for _, mr := range mrs {
+			var changeFiles []string
+			changeFiles, err = g.listChangedFiles(mr.IID)
+			if err != nil {
+				return nil, err
+			}
 			pullRequests = append(pullRequests, &PullRequest{
 				Number:       mr.IID,
 				Title:        mr.Title,
@@ -87,6 +92,7 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 				HeadSHA:      mr.SHA,
 				Labels:       mr.Labels,
 				Author:       mr.Author.Username,
+				ChangedFiles: changeFiles,
 			})
 		}
 		if resp.NextPage == 0 {
@@ -95,4 +101,24 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 		opts.Page = resp.NextPage
 	}
 	return pullRequests, nil
+}
+
+func (g *GitLabService) listChangedFiles(number int) ([]string, error) {
+	filesChanged := []string{}
+	opts := &gitlab.ListMergeRequestDiffsOptions{}
+
+	for {
+		changes, resp, err := g.client.MergeRequests.ListMergeRequestDiffs(g.project, number, opts)
+		if err != nil {
+			return nil, fmt.Errorf("error listing changes for merge request %d: %w", number, err)
+		}
+		for _, change := range changes {
+			filesChanged = append(filesChanged, change.NewPath)
+		}
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+	return filesChanged, nil
 }

@@ -20,6 +20,8 @@ type PullRequest struct {
 	Labels []string
 	// Author is the author of the pull request.
 	Author string
+	// Files changed
+	ChangedFiles []string
 }
 
 type PullRequestService interface {
@@ -30,4 +32,5 @@ type PullRequestService interface {
 type Filter struct {
 	BranchMatch       *regexp.Regexp
 	TargetBranchMatch *regexp.Regexp
+	FileMatch         *regexp.Regexp
 }
