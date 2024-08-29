@@ -92,7 +92,7 @@ func EvaluateDeepLinksResponse(obj map[string]interface{}, name string, links []
 			}
 			switch resOut := out.(type) {
 			case bool:
-				if resOut {
+				if !resOut {
 					continue
 				}
 			default:
@@ -105,22 +105,18 @@ func EvaluateDeepLinksResponse(obj map[string]interface{}, name string, links []
 			errors = append(errors, fmt.Sprintf("failed to parse link template '%v', error=%v", link.URL, err.Error()))
 			continue
 		}
-
 		finalURL := bytes.Buffer{}
 		err = t.Execute(&finalURL, obj)
 		if err != nil {
 			errors = append(errors, fmt.Sprintf("failed to evaluate link template '%v' with resource %v, error=%v", link.URL, name, err.Error()))
 			continue
 		}
-		
-		
 		finalLinks = append(finalLinks, &application.LinkInfo{
 			Title:       ptr.To(link.Title),
 			Url:         ptr.To(finalURL.String()),
 			Description: link.Description,
 			IconClass:   link.IconClass,
 		})
-		
 	}
 	return &application.LinksResponse{
 		Items: finalLinks,

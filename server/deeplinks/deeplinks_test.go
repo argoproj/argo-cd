@@ -172,6 +172,23 @@ func TestDeepLinks(t *testing.T) {
 			}},
 			error: []string{},
 		},
+		{
+			name:        "condition is nil",
+			appObj:      appObj,
+			resourceObj: resourceObj,
+			projectObj:  projectObj,
+			clusterObj:  clusterObj,
+			inputLinks: []settings.DeepLink{{
+				Title:     "link",
+				URL:       "http://example.com/{{ .application.metadata.name }}&{{ .resource.data.key }}&{{ index .project.spec.sourceRepos 0}}&{{ .cluster.name }}",
+				Condition: nil,
+			}},
+			outputLinks: []*application.LinkInfo{{
+				Title: ptr.To("link"),
+				Url:   ptr.To("http://example.com/test&value1&test-repo.git&test-cluster"),
+			}},
+			error: []string{},
+		},
 	}
 
 	for _, tc := range testTable {
