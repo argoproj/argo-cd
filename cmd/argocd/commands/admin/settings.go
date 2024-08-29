@@ -159,7 +159,7 @@ func NewSettingsCommand() *cobra.Command {
 
 	command.AddCommand(NewValidateSettingsCommand(&opts))
 	command.AddCommand(NewResourceOverridesCommand(&opts))
-	command.AddCommand(NewRBACCommand())
+	command.AddCommand(NewRBACCommand(&opts))
 
 	opts.clientConfig = cli.AddKubectlFlagsToCmd(command)
 	command.PersistentFlags().StringVar(&opts.argocdCMPath, "argocd-cm-path", "", "Path to local argocd-cm.yaml file")

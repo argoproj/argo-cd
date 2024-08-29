@@ -20,11 +20,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	kubefake "k8s.io/client-go/kubernetes/fake"
-	k8scache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
-	crtcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	crtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -37,40 +34,13 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/generators/mocks"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 
+	appsetmetrics "github.com/argoproj/argo-cd/v2/applicationset/metrics"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
-
-type fakeStore struct {
-	k8scache.Store
-}
-
-func (f *fakeStore) Update(obj interface{}) error {
-	return nil
-}
-
-type fakeInformer struct {
-	k8scache.SharedInformer
-}
-
-func (f *fakeInformer) AddIndexers(indexers k8scache.Indexers) error {
-	return nil
-}
-
-func (f *fakeInformer) GetStore() k8scache.Store {
-	return &fakeStore{}
-}
-
-type fakeCache struct {
-	cache.Cache
-}
-
-func (f *fakeCache) GetInformer(ctx context.Context, obj crtclient.Object, opt ...crtcache.InformerGetOption) (cache.Informer, error) {
-	return &fakeInformer{}, nil
-}
 
 func TestCreateOrUpdateInCluster(t *testing.T) {
 	scheme := runtime.NewScheme()
@@ -1089,12 +1059,13 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:   client,
 				Scheme:   scheme,
 				Recorder: record.NewFakeRecorder(len(initObjs) + len(c.expected)),
-				Cache:    &fakeCache{},
+				Metrics:  metrics,
 			}
 
 			err = r.createOrUpdateInCluster(context.TODO(), log.NewEntry(log.StandardLogger()), c.appSet, c.desiredApps)
@@ -1199,13 +1170,14 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 
 			objects := append([]runtime.Object{}, secret)
 			kubeclientset := kubefake.NewSimpleClientset(objects...)
+			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:        client,
 				Scheme:        scheme,
 				Recorder:      record.NewFakeRecorder(10),
 				KubeClientset: kubeclientset,
-				Cache:         &fakeCache{},
+				Metrics:       metrics,
 			}
 			// settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "namespace")
 			// argoDB := db.NewDB("namespace", settingsMgr, r.KubeClientset)
@@ -1357,13 +1329,14 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 
 			objects := append([]runtime.Object{}, secret)
 			kubeclientset := kubefake.NewSimpleClientset(objects...)
+			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:        client,
 				Scheme:        scheme,
 				Recorder:      record.NewFakeRecorder(10),
 				KubeClientset: kubeclientset,
-				Cache:         &fakeCache{},
+				Metrics:       metrics,
 			}
 			// settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd")
 			// argoDB := db.NewDB("argocd", settingsMgr, r.KubeClientset)
@@ -1445,13 +1418,14 @@ func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 			initObjs := []crtclient.Object{&app, &appSet}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:        client,
 				Scheme:        scheme,
 				Recorder:      record.NewFakeRecorder(10),
 				KubeClientset: nil,
-				Cache:         &fakeCache{},
+				Metrics:       metrics,
 			}
 
 			err = r.removeOwnerReferencesOnDeleteAppSet(context.Background(), appSet)
@@ -1646,12 +1620,13 @@ func TestCreateApplications(t *testing.T) {
 			}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:   client,
 				Scheme:   scheme,
 				Recorder: record.NewFakeRecorder(len(initObjs) + len(c.expected)),
-				Cache:    &fakeCache{},
+				Metrics:  metrics,
 			}
 
 			err = r.createInCluster(context.TODO(), log.NewEntry(log.StandardLogger()), c.appSet, c.apps)
@@ -1789,12 +1764,14 @@ func TestDeleteInCluster(t *testing.T) {
 		}
 
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+		metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
 		r := ApplicationSetReconciler{
 			Client:        client,
 			Scheme:        scheme,
 			Recorder:      record.NewFakeRecorder(len(initObjs) + len(c.expected)),
 			KubeClientset: kubefake.NewSimpleClientset(),
+			Metrics:       metrics,
 		}
 
 		err = r.deleteInCluster(context.TODO(), log.NewEntry(log.StandardLogger()), c.appSet, c.desiredApps)
@@ -1835,6 +1812,7 @@ func TestGetMinRequeueAfter(t *testing.T) {
 	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
+	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
 	generator := v1alpha1.ApplicationSetGenerator{
 		List:     &v1alpha1.ListGenerator{},
@@ -1858,7 +1836,7 @@ func TestGetMinRequeueAfter(t *testing.T) {
 		Client:   client,
 		Scheme:   scheme,
 		Recorder: record.NewFakeRecorder(0),
-		Cache:    &fakeCache{},
+		Metrics:  metrics,
 		Generators: map[string]generators.Generator{
 			"List":     &generatorMock10,
 			"Git":      &generatorMock1,
@@ -1905,14 +1883,16 @@ func TestRequeueGeneratorFails(t *testing.T) {
 	generatorMock.On("GenerateParams", &generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
 		Return([]map[string]interface{}{}, fmt.Errorf("Simulated error generating params that could be related to an external service/API call"))
 
+	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+
 	r := ApplicationSetReconciler{
 		Client:   client,
 		Scheme:   scheme,
 		Recorder: record.NewFakeRecorder(0),
-		Cache:    &fakeCache{},
 		Generators: map[string]generators.Generator{
 			"PullRequest": &generatorMock,
 		},
+		Metrics: metrics,
 	}
 
 	req := ctrl.Request{
@@ -1936,6 +1916,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
+	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
 	// Valid cluster
 	myCluster := v1alpha1.Cluster{
@@ -2121,12 +2102,12 @@ func TestValidateGeneratedApplications(t *testing.T) {
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
-				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoCDNamespace:  "namespace",
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
 				KubeClientset:    kubeclientset,
+				Metrics:          metrics,
 			}
 
 			appSetInfo := v1alpha1.ApplicationSet{}
@@ -2211,6 +2192,7 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	argoObjs := []runtime.Object{&project}
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	badCluster := v1alpha1.Cluster{Server: "https://bad-cluster", Name: "bad-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
@@ -2224,7 +2206,6 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 		Scheme:   scheme,
 		Renderer: &utils.Render{},
 		Recorder: record.NewFakeRecorder(1),
-		Cache:    &fakeCache{},
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
@@ -2233,6 +2214,7 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 		KubeClientset:    kubeclientset,
 		Policy:           v1alpha1.ApplicationsSyncPolicySync,
 		ArgoCDNamespace:  "argocd",
+		Metrics:          metrics,
 	}
 
 	req := ctrl.Request{
@@ -2416,19 +2398,20 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 
 	for _, testCase := range testCases {
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&testCase.appset).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+		metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
 		r := ApplicationSetReconciler{
 			Client:   client,
 			Scheme:   scheme,
 			Renderer: &utils.Render{},
 			Recorder: record.NewFakeRecorder(1),
-			Cache:    &fakeCache{},
 			Generators: map[string]generators.Generator{
 				"List": generators.NewListGenerator(),
 			},
 			ArgoDB:           &argoDBMock,
 			ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
 			KubeClientset:    kubeclientset,
+			Metrics:          metrics,
 		}
 
 		for _, condition := range testCase.conditions {
@@ -2437,7 +2420,6 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 		}
 
 		testCase.testfunc(t, testCase.appset)
-		// assert.Len(t, testCase.appset.Status.Conditions, 3)
 	}
 }
 
@@ -2489,6 +2471,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	argoObjs := []runtime.Object{&defaultProject}
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
 	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
@@ -2500,7 +2483,6 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		Scheme:   scheme,
 		Renderer: &utils.Render{},
 		Recorder: record.NewFakeRecorder(recordBuffer),
-		Cache:    &fakeCache{},
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
@@ -2510,6 +2492,7 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		KubeClientset:        kubeclientset,
 		Policy:               v1alpha1.ApplicationsSyncPolicySync,
 		EnablePolicyOverride: allowPolicyOverride,
+		Metrics:              metrics,
 	}
 
 	req := ctrl.Request{
@@ -2653,6 +2636,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 	argoObjs := []runtime.Object{&defaultProject}
 
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 	goodCluster := v1alpha1.Cluster{Server: "https://good-cluster", Name: "good-cluster"}
 	argoDBMock.On("GetCluster", mock.Anything, "https://good-cluster").Return(&goodCluster, nil)
 	argoDBMock.On("ListClusters", mock.Anything).Return(&v1alpha1.ClusterList{Items: []v1alpha1.Cluster{
@@ -2664,7 +2648,6 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		Scheme:   scheme,
 		Renderer: &utils.Render{},
 		Recorder: record.NewFakeRecorder(recordBuffer),
-		Cache:    &fakeCache{},
 		Generators: map[string]generators.Generator{
 			"List": generators.NewListGenerator(),
 		},
@@ -2674,6 +2657,7 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		KubeClientset:        kubeclientset,
 		Policy:               v1alpha1.ApplicationsSyncPolicySync,
 		EnablePolicyOverride: allowPolicyOverride,
+		Metrics:              metrics,
 	}
 
 	req := ctrl.Request{
@@ -2855,13 +2839,13 @@ func TestPolicies(t *testing.T) {
 			}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:   client,
 				Scheme:   scheme,
 				Renderer: &utils.Render{},
 				Recorder: record.NewFakeRecorder(10),
-				Cache:    &fakeCache{},
 				Generators: map[string]generators.Generator{
 					"List": generators.NewListGenerator(),
 				},
@@ -2870,6 +2854,7 @@ func TestPolicies(t *testing.T) {
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
 				KubeClientset:    kubeclientset,
 				Policy:           policy,
+				Metrics:          metrics,
 			}
 
 			req := ctrl.Request{
@@ -3016,19 +3001,20 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
+			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:   client,
 				Scheme:   scheme,
 				Renderer: &utils.Render{},
 				Recorder: record.NewFakeRecorder(1),
-				Cache:    &fakeCache{},
 				Generators: map[string]generators.Generator{
 					"List": generators.NewListGenerator(),
 				},
 				ArgoDB:           &argoDBMock,
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
 				KubeClientset:    kubeclientset,
+				Metrics:          metrics,
 			}
 
 			err = r.setAppSetApplicationStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appStatuses)
@@ -3048,6 +3034,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
+	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
 	for _, cc := range []struct {
 		name            string
@@ -3784,11 +3771,11 @@ func TestBuildAppDependencyList(t *testing.T) {
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
-				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
 				KubeClientset:    kubeclientset,
+				Metrics:          metrics,
 			}
 
 			appDependencyList, appStepMap := r.buildAppDependencyList(log.NewEntry(log.StandardLogger()), cc.appSet, cc.apps)
@@ -3807,6 +3794,7 @@ func TestBuildAppSyncMap(t *testing.T) {
 	require.NoError(t, err)
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
+	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
 	for _, cc := range []struct {
 		name              string
@@ -4374,11 +4362,11 @@ func TestBuildAppSyncMap(t *testing.T) {
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
-				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
 				KubeClientset:    kubeclientset,
+				Metrics:          metrics,
 			}
 
 			appSyncMap := r.buildAppSyncMap(cc.appSet, cc.appDependencyList, cc.appMap)
@@ -5158,16 +5146,17 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			argoObjs := []runtime.Object{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
+			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
-				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
 				KubeClientset:    kubeclientset,
+				Metrics:          metrics,
 			}
 
 			appStatuses, err := r.updateApplicationSetApplicationStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, cc.appStepMap)
@@ -5911,16 +5900,17 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 			argoObjs := []runtime.Object{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
+			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
-				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
 				KubeClientset:    kubeclientset,
+				Metrics:          metrics,
 			}
 
 			appStatuses, err := r.updateApplicationSetApplicationStatusProgress(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appSyncMap, cc.appStepMap)
@@ -6126,16 +6116,17 @@ func TestUpdateResourceStatus(t *testing.T) {
 			argoObjs := []runtime.Object{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&cc.appSet).WithObjects(&cc.appSet).Build()
+			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:           client,
 				Scheme:           scheme,
 				Recorder:         record.NewFakeRecorder(1),
-				Cache:            &fakeCache{},
 				Generators:       map[string]generators.Generator{},
 				ArgoDB:           &argoDBMock,
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
 				KubeClientset:    kubeclientset,
+				Metrics:          metrics,
 			}
 
 			err := r.updateResourcesStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
