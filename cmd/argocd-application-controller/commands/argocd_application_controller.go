@@ -4,9 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -78,7 +75,7 @@ func NewCommand() *cobra.Command {
 		serverSideDiff                   bool
 		ignoreNormalizerOpts             normalizers.IgnoreNormalizerOpts
 	)
-	command := cobra.Command{
+	var command = cobra.Command{
 		Use:               cliName,
 		Short:             "Run ArgoCD Application Controller",
 		Long:              "ArgoCD application controller is a Kubernetes controller that continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo). This command runs Application Controller in the foreground.  It can be configured by following options.",
@@ -191,22 +188,10 @@ func NewCommand() *cobra.Command {
 				defer closeTracer()
 			}
 
-			// Graceful shutdown code
-			sigCh := make(chan os.Signal, 1)
-			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-			go func() {
-				s := <-sigCh
-				log.Printf("got signal %v, attempting graceful shutdown", s)
-				cancel()
-			}()
-
 			go appController.Run(ctx, statusProcessors, operationProcessors)
 
-			<-ctx.Done()
-
-			log.Println("clean shutdown")
-
-			return nil
+			// Wait forever
+			select {}
 		},
 	}
 
@@ -235,7 +220,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&otlpAttrs, "otlp-attrs", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_ATTRS", []string{}, ","), "List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces that applications are allowed to be reconciled from")
 	command.Flags().BoolVar(&persistResourceHealth, "persist-resource-health", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH", true), "Enables storing the managed resources health in the Application CRD")
-	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", env.StringFromEnv(common.EnvControllerShardingAlgorithm, common.DefaultShardingAlgorithm), "Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin, consistent-hashing] ")
+	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", env.StringFromEnv(common.EnvControllerShardingAlgorithm, common.DefaultShardingAlgorithm), "Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin] ")
 	// global queue rate limit config
 	command.Flags().Int64Var(&workqueueRateLimit.BucketSize, "wq-bucket-size", env.ParseInt64FromEnv("WORKQUEUE_BUCKET_SIZE", 500, 1, math.MaxInt64), "Set Workqueue Rate Limiter Bucket Size, default 500")
 	command.Flags().Float64Var(&workqueueRateLimit.BucketQPS, "wq-bucket-qps", env.ParseFloat64FromEnv("WORKQUEUE_BUCKET_QPS", math.MaxFloat64, 1, math.MaxFloat64), "Set Workqueue Rate Limiter Bucket QPS, default set to MaxFloat64 which disables the bucket limiter")

@@ -2,11 +2,11 @@
 
 ## argocd completion
 
-output shell completion code for the specified shell (bash, zsh or fish)
+output shell completion code for the specified shell (bash or zsh)
 
 ### Synopsis
 
-Write bash, zsh or fish shell completion code to standard output.
+Write bash or zsh shell completion code to standard output.
 
 For bash, ensure you have bash completions installed and enabled.
 To access completions in your current shell, run
@@ -36,11 +36,6 @@ $ source <(argocd completion bash)
 $ argocd completion zsh > _argocd
 $ source _argocd
 
-# For fish
-$ argocd completion fish > ~/.config/fish/completions/argocd.fish
-$ source ~/.config/fish/completions/argocd.fish
-
-
 ```
 
 ### Options
@@ -52,7 +47,6 @@ $ source ~/.config/fish/completions/argocd.fish
 ### Options inherited from parent commands
 
 ```
-      --argocd-context string           The name of the Argo-CD server context to use
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file

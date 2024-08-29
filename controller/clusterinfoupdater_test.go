@@ -23,7 +23,6 @@ import (
 
 	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 )
@@ -34,7 +33,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 	const updatedK8sVersion = "1.0"
 	now := time.Now()
 
-	tests := []struct {
+	var tests = []struct {
 		LastCacheSyncTime *time.Time
 		SyncError         error
 		ExpectedStatus    v1alpha1.ConnectionStatus
@@ -77,7 +76,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 
 	appCache := appstate.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute)
 	cluster, err := argoDB.CreateCluster(ctx, &v1alpha1.Cluster{Server: "http://minikube"})
-	require.NoError(t, err, "Test prepare test data create cluster failed")
+	assert.NoError(t, err, "Test prepare test data create cluster failed")
 
 	for _, test := range tests {
 		info := &clustercache.ClusterInfo{
@@ -91,11 +90,11 @@ func TestClusterSecretUpdater(t *testing.T) {
 		updater := NewClusterInfoUpdater(nil, argoDB, lister, appCache, nil, nil, fakeNamespace)
 
 		err = updater.updateClusterInfo(context.Background(), *cluster, info)
-		require.NoError(t, err, "Invoking updateClusterInfo failed.")
+		assert.NoError(t, err, "Invoking updateClusterInfo failed.")
 
 		var clusterInfo v1alpha1.ClusterInfo
 		err = appCache.GetClusterInfo(cluster.Server, &clusterInfo)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, updatedK8sVersion, clusterInfo.ServerVersion)
 		assert.Equal(t, test.ExpectedStatus, clusterInfo.ConnectionState.Status)
 	}
@@ -104,7 +103,7 @@ func TestClusterSecretUpdater(t *testing.T) {
 func TestUpdateClusterLabels(t *testing.T) {
 	shouldNotBeInvoked := func(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
 		shouldNotHappen := errors.New("if an error happens here, something's wrong")
-		require.NoError(t, shouldNotHappen)
+		assert.NoError(t, shouldNotHappen)
 		return nil, shouldNotHappen
 	}
 	tests := []struct {
@@ -161,7 +160,7 @@ func TestUpdateClusterLabels(t *testing.T) {
 				Labels: map[string]string{"argocd.argoproj.io/kubernetes-version": "1.27", "argocd.argoproj.io/auto-label-cluster-info": "true"},
 			},
 			func(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
-				assert.Equal(t, "1.28", cluster.Labels["argocd.argoproj.io/kubernetes-version"])
+				assert.Equal(t, cluster.Labels["argocd.argoproj.io/kubernetes-version"], "1.28")
 				return nil, nil
 			},
 			assert.NoError,
@@ -177,7 +176,7 @@ func TestUpdateClusterLabels(t *testing.T) {
 				Labels: map[string]string{"argocd.argoproj.io/kubernetes-version": "1.27", "argocd.argoproj.io/auto-label-cluster-info": "true"},
 			},
 			func(ctx context.Context, cluster *v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
-				assert.Equal(t, "1.28", cluster.Labels["argocd.argoproj.io/kubernetes-version"])
+				assert.Equal(t, cluster.Labels["argocd.argoproj.io/kubernetes-version"], "1.28")
 				return nil, errors.New("some error happened while saving")
 			},
 			assert.Error,

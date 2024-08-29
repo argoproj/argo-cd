@@ -61,5 +61,5 @@ func TestLuaHealthScript(t *testing.T) {
 		}
 		return nil
 	})
-	assert.NoError(t, err)
+	assert.Nil(t, err)
 }

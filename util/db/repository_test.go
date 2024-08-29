@@ -1,11 +1,10 @@
 package db
 
 import (
-	"context"
 	"testing"
 
+	"context"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -27,25 +26,27 @@ const (
   type: git`
 )
 
-var repoArgoCD = &corev1.Secret{
-	ObjectMeta: metav1.ObjectMeta{
-		Namespace: testNamespace,
-		Name:      "some-repo-secret",
-		Annotations: map[string]string{
-			common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+var (
+	repoArgoCD = &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: testNamespace,
+			Name:      "some-repo-secret",
+			Annotations: map[string]string{
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
+			},
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+			},
 		},
-		Labels: map[string]string{
-			common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+		Data: map[string][]byte{
+			"name":     []byte("SomeRepo"),
+			"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+			"username": []byte("someUsername"),
+			"password": []byte("somePassword"),
+			"type":     []byte("git"),
 		},
-	},
-	Data: map[string][]byte{
-		"name":     []byte("SomeRepo"),
-		"url":      []byte("git@github.com:argoproj/argo-cd.git"),
-		"username": []byte("someUsername"),
-		"password": []byte("somePassword"),
-		"type":     []byte("git"),
-	},
-}
+	}
+)
 
 func TestDb_CreateRepository(t *testing.T) {
 	clientset := getClientset(map[string]string{})
@@ -65,22 +66,22 @@ func TestDb_CreateRepository(t *testing.T) {
 
 	// The repository was indeed created successfully
 	output, err := testee.CreateRepository(context.TODO(), input)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Same(t, input, output)
 
 	// New repositories should not be stored in the settings anymore
 	settingRepositories, err := settingsManager.GetRepositories()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Empty(t, settingRepositories)
 
 	// New repositories should be now stored as secrets
 	secret, err := clientset.CoreV1().Secrets(testNamespace).Get(
 		context.TODO(),
-		RepoURLToSecretName(repoSecretPrefix, input.Repo, ""),
+		RepoURLToSecretName(repoSecretPrefix, input.Repo),
 		metav1.GetOptions{},
 	)
 	assert.NotNil(t, secret)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 }
 
 func TestDb_GetRepository(t *testing.T) {
@@ -92,18 +93,18 @@ func TestDb_GetRepository(t *testing.T) {
 		settingsMgr:   settingsManager,
 	}
 
-	repository, err := testee.GetRepository(context.TODO(), "git@github.com:argoproj/argoproj.git", "")
-	require.NoError(t, err)
+	repository, err := testee.GetRepository(context.TODO(), "git@github.com:argoproj/argoproj.git")
+	assert.NoError(t, err)
 	assert.NotNil(t, repository)
 	assert.Equal(t, "OtherRepo", repository.Name)
 
-	repository, err = testee.GetRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git", "")
-	require.NoError(t, err)
+	repository, err = testee.GetRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git")
+	assert.NoError(t, err)
 	assert.NotNil(t, repository)
 	assert.Equal(t, "SomeRepo", repository.Name)
 
-	repository, err = testee.GetRepository(context.TODO(), "git@github.com:argoproj/not-existing.git", "")
-	require.NoError(t, err)
+	repository, err = testee.GetRepository(context.TODO(), "git@github.com:argoproj/not-existing.git")
+	assert.NoError(t, err)
 	assert.NotNil(t, repository)
 	assert.Equal(t, "git@github.com:argoproj/not-existing.git", repository.Repo)
 }
@@ -118,7 +119,7 @@ func TestDb_ListRepositories(t *testing.T) {
 	}
 
 	repositories, err := testee.ListRepositories(context.TODO())
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, repositories, 2)
 }
 
@@ -149,7 +150,7 @@ func TestDb_UpdateRepository(t *testing.T) {
 	// Verify that legacy repository can still be updated
 	settingRepository.Username = "OtherUpdatedUsername"
 	repository, err := testee.UpdateRepository(context.TODO(), settingRepository)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, repository)
 	assert.Same(t, settingRepository, repository)
 
@@ -158,14 +159,14 @@ func TestDb_UpdateRepository(t *testing.T) {
 		"managed-secret",
 		metav1.GetOptions{},
 	)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Equal(t, "OtherUpdatedUsername", string(secret.Data["username"]))
 
 	// Verify that secret-based repository can be updated
 	secretRepository.Username = "UpdatedUsername"
 	repository, err = testee.UpdateRepository(context.TODO(), secretRepository)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, repository)
 	assert.Same(t, secretRepository, repository)
 
@@ -174,7 +175,7 @@ func TestDb_UpdateRepository(t *testing.T) {
 		"some-repo-secret",
 		metav1.GetOptions{},
 	)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.Equal(t, "UpdatedUsername", string(secret.Data["username"]))
 }
@@ -188,18 +189,18 @@ func TestDb_DeleteRepository(t *testing.T) {
 		settingsMgr:   settingsManager,
 	}
 
-	err := testee.DeleteRepository(context.TODO(), "git@github.com:argoproj/argoproj.git", "")
-	require.NoError(t, err)
+	err := testee.DeleteRepository(context.TODO(), "git@github.com:argoproj/argoproj.git")
+	assert.NoError(t, err)
 
 	repositories, err := settingsManager.GetRepositories()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Empty(t, repositories)
 
-	err = testee.DeleteRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git", "")
-	require.NoError(t, err)
+	err = testee.DeleteRepository(context.TODO(), "git@github.com:argoproj/argo-cd.git")
+	assert.NoError(t, err)
 
 	_, err = clientset.CoreV1().Secrets(testNamespace).Get(context.TODO(), "some-repo-secret", metav1.GetOptions{})
-	require.Error(t, err)
+	assert.Error(t, err)
 }
 
 func TestDb_GetRepositoryCredentials(t *testing.T) {
@@ -233,78 +234,33 @@ func TestDb_GetRepositoryCredentials(t *testing.T) {
 	testee := NewDB(testNamespace, settings.NewSettingsManager(context.TODO(), clientset, testNamespace), clientset)
 
 	repoCreds, err := testee.GetRepositoryCredentials(context.TODO(), "git@github.com:argoproj/argoproj.git")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, repoCreds)
 	assert.Equal(t, "git@github.com:argoproj", repoCreds.URL)
 
 	repoCreds, err = testee.GetRepositoryCredentials(context.TODO(), "git@gitlab.com:someorg/foobar.git")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.NotNil(t, repoCreds)
 	assert.Equal(t, "git@gitlab.com", repoCreds.URL)
 
 	repoCreds, err = testee.GetRepositoryCredentials(context.TODO(), "git@github.com:example/not-existing.git")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Nil(t, repoCreds)
 }
 
 func TestRepoURLToSecretName(t *testing.T) {
-	tables := []struct {
-		repoUrl    string
-		secretName string
-		project    string
-	}{{
-		repoUrl:    "git://git@github.com:argoproj/ARGO-cd.git",
-		secretName: "repo-83273445",
-		project:    "",
-	}, {
-		repoUrl:    "git://git@github.com:argoproj/ARGO-cd.git",
-		secretName: "repo-2733415816",
-		project:    "foobar",
-	}, {
-		repoUrl:    "https://github.com/argoproj/ARGO-cd",
-		secretName: "repo-1890113693",
-		project:    "",
-	}, {
-		repoUrl:    "https://github.com/argoproj/ARGO-cd",
-		secretName: "repo-4161185408",
-		project:    "foobar",
-	}, {
-		repoUrl:    "https://github.com/argoproj/argo-cd",
-		secretName: "repo-42374749",
-		project:    "",
-	}, {
-		repoUrl:    "https://github.com/argoproj/argo-cd",
-		secretName: "repo-1894545728",
-		project:    "foobar",
-	}, {
-		repoUrl:    "https://github.com/argoproj/argo-cd.git",
-		secretName: "repo-821842295",
-		project:    "",
-	}, {
-		repoUrl:    "https://github.com/argoproj/argo-cd.git",
-		secretName: "repo-1474166686",
-		project:    "foobar",
-	}, {
-		repoUrl:    "https://github.com/argoproj/argo_cd.git",
-		secretName: "repo-1049844989",
-		project:    "",
-	}, {
-		repoUrl:    "https://github.com/argoproj/argo_cd.git",
-		secretName: "repo-3916272608",
-		project:    "foobar",
-	}, {
-		repoUrl:    "ssh://git@github.com/argoproj/argo-cd.git",
-		secretName: "repo-3569564120",
-		project:    "",
-	}, {
-		repoUrl:    "ssh://git@github.com/argoproj/argo-cd.git",
-		secretName: "repo-754834421",
-		project:    "foobar",
-	}}
+	tables := map[string]string{
+		"git://git@github.com:argoproj/ARGO-cd.git": "repo-83273445",
+		"https://github.com/argoproj/ARGO-cd":       "repo-1890113693",
+		"https://github.com/argoproj/argo-cd":       "repo-42374749",
+		"https://github.com/argoproj/argo-cd.git":   "repo-821842295",
+		"https://github.com/argoproj/argo_cd.git":   "repo-1049844989",
+		"ssh://git@github.com/argoproj/argo-cd.git": "repo-3569564120",
+	}
 
-	for _, v := range tables {
-		if sn := RepoURLToSecretName(repoSecretPrefix, v.repoUrl, v.project); sn != v.secretName {
-			t.Errorf("Expected secret name %q for repo %q; instead, got %q", v.secretName, v.repoUrl, sn)
+	for k, v := range tables {
+		if sn := RepoURLToSecretName(repoSecretPrefix, k); sn != v {
+			t.Errorf("Expected secret name %q for repo %q; instead, got %q", v, k, sn)
 		}
 	}
 }
@@ -318,7 +274,7 @@ func Test_CredsURLToSecretName(t *testing.T) {
 	}
 
 	for k, v := range tables {
-		if sn := RepoURLToSecretName(credSecretPrefix, k, ""); sn != v {
+		if sn := RepoURLToSecretName(credSecretPrefix, k); sn != v {
 			t.Errorf("Expected secret name %q for repo %q; instead, got %q", v, k, sn)
 		}
 	}
@@ -358,7 +314,7 @@ func Test_GetProjectRepositories(t *testing.T) {
 	argoDB := NewDB(testNamespace, settings.NewSettingsManager(context.TODO(), clientset, testNamespace), clientset)
 
 	repos, err := argoDB.GetProjectRepositories(context.TODO(), "some-project")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Len(t, repos, 1)
 	assert.Equal(t, "git@github.com:argoproj/argo-cd", repos[0].Repo)
 }

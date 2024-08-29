@@ -7,17 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/redis/go-redis/v9"
-	"k8s.io/apimachinery/pkg/runtime"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-
 	"github.com/argoproj/pkg/stats"
+	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
@@ -46,7 +41,6 @@ const (
 var (
 	failureRetryCount              = env.ParseNumFromEnv(failureRetryCountEnv, 0, 0, 10)
 	failureRetryPeriodMilliSeconds = env.ParseNumFromEnv(failureRetryPeriodMilliSecondsEnv, 100, 0, 1000)
-	gitSubmoduleEnabled            = env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
 )
 
 // NewCommand returns a new instance of an argocd command
@@ -84,15 +78,8 @@ func NewCommand() *cobra.Command {
 		staticAssetsDir          string
 		applicationNamespaces    []string
 		enableProxyExtension     bool
-		webhookParallelism       int
-
-		// ApplicationSet
-		enableNewGitFileGlobbing bool
-		scmRootCAPath            string
-		allowedScmProviders      []string
-		enableScmProviders       bool
 	)
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use:               cliName,
 		Short:             "Run the ArgoCD API server",
 		Long:              "The API server is a gRPC/REST server which exposes the API consumed by the Web UI, CLI, and CI/CD systems.  This command runs API server in the foreground.  It can be configured by following options.",
@@ -141,16 +128,6 @@ func NewCommand() *cobra.Command {
 				DisableTLS:       repoServerPlaintext,
 				StrictValidation: repoServerStrictTLS,
 			}
-
-			dynamicClient := dynamic.NewForConfigOrDie(config)
-
-			scheme := runtime.NewScheme()
-			_ = clientgoscheme.AddToScheme(scheme)
-			_ = v1alpha1.AddToScheme(scheme)
-
-			controllerClient, err := client.New(config, client.Options{Scheme: scheme})
-			errors.CheckError(err)
-			controllerClient = client.NewDryRunClient(controllerClient)
 
 			// Load CA information to use for validating connections to the
 			// repository server, if strict TLS validation was requested.
@@ -201,48 +178,37 @@ func NewCommand() *cobra.Command {
 			}
 
 			argoCDOpts := server.ArgoCDServerOpts{
-				Insecure:                insecure,
-				ListenPort:              listenPort,
-				ListenHost:              listenHost,
-				MetricsPort:             metricsPort,
-				MetricsHost:             metricsHost,
-				Namespace:               namespace,
-				BaseHRef:                baseHRef,
-				RootPath:                rootPath,
-				DynamicClientset:        dynamicClient,
-				KubeControllerClientset: controllerClient,
-				KubeClientset:           kubeclientset,
-				AppClientset:            appClientSet,
-				RepoClientset:           repoclientset,
-				DexServerAddr:           dexServerAddress,
-				DexTLSConfig:            dexTlsConfig,
-				DisableAuth:             disableAuth,
-				ContentTypes:            contentTypesList,
-				EnableGZip:              enableGZip,
-				TLSConfigCustomizer:     tlsConfigCustomizer,
-				Cache:                   cache,
-				RepoServerCache:         repoServerCache,
-				XFrameOptions:           frameOptions,
-				ContentSecurityPolicy:   contentSecurityPolicy,
-				RedisClient:             redisClient,
-				StaticAssetsDir:         staticAssetsDir,
-				ApplicationNamespaces:   applicationNamespaces,
-				EnableProxyExtension:    enableProxyExtension,
-				WebhookParallelism:      webhookParallelism,
-			}
-
-			appsetOpts := server.ApplicationSetOpts{
-				GitSubmoduleEnabled:      gitSubmoduleEnabled,
-				EnableNewGitFileGlobbing: enableNewGitFileGlobbing,
-				ScmRootCAPath:            scmRootCAPath,
-				AllowedScmProviders:      allowedScmProviders,
-				EnableScmProviders:       enableScmProviders,
+				Insecure:              insecure,
+				ListenPort:            listenPort,
+				ListenHost:            listenHost,
+				MetricsPort:           metricsPort,
+				MetricsHost:           metricsHost,
+				Namespace:             namespace,
+				BaseHRef:              baseHRef,
+				RootPath:              rootPath,
+				KubeClientset:         kubeclientset,
+				AppClientset:          appClientSet,
+				RepoClientset:         repoclientset,
+				DexServerAddr:         dexServerAddress,
+				DexTLSConfig:          dexTlsConfig,
+				DisableAuth:           disableAuth,
+				ContentTypes:          contentTypesList,
+				EnableGZip:            enableGZip,
+				TLSConfigCustomizer:   tlsConfigCustomizer,
+				Cache:                 cache,
+				RepoServerCache:       repoServerCache,
+				XFrameOptions:         frameOptions,
+				ContentSecurityPolicy: contentSecurityPolicy,
+				RedisClient:           redisClient,
+				StaticAssetsDir:       staticAssetsDir,
+				ApplicationNamespaces: applicationNamespaces,
+				EnableProxyExtension:  enableProxyExtension,
 			}
 
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
-			argocd := server.NewServer(ctx, argoCDOpts, appsetOpts)
+			argocd := server.NewServer(ctx, argoCDOpts)
 			argocd.Init(ctx)
 			lns, err := argocd.Listen()
 			errors.CheckError(err)
@@ -265,7 +231,7 @@ func NewCommand() *cobra.Command {
 		Example: templates.Examples(`
 			# Start the Argo CD API server with default settings
 			$ argocd-server
-
+				
 			# Start the Argo CD API server on a custom port and enable tracing
 			$ argocd-server --port 8888 --otlp-address localhost:4317
 		`),
@@ -302,14 +268,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&dexServerStrictTLS, "dex-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_SERVER_DEX_SERVER_STRICT_TLS", false), "Perform strict validation of TLS certificates when connecting to dex server")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
 	command.Flags().BoolVar(&enableProxyExtension, "enable-proxy-extension", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_PROXY_EXTENSION", false), "Enable Proxy Extension feature")
-	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
-
-	// Flags related to the applicationSet component.
-	command.Flags().StringVar(&scmRootCAPath, "appset-scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")
-	command.Flags().BoolVar(&enableScmProviders, "appset-enable-scm-providers", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS", true), "Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true)")
-	command.Flags().StringSliceVar(&allowedScmProviders, "appset-allowed-scm-providers", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS", []string{}, ","), "The list of allowed custom SCM provider API URLs. This restriction does not apply to SCM or PR generators which do not accept a custom API URL. (Default: Empty = all)")
-	command.Flags().BoolVar(&enableNewGitFileGlobbing, "appset-enable-new-git-file-globbing", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING", false), "Enable new globbing in Git files generator.")
-
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)
 	cacheSrc = servercache.AddCacheFlagsToCmd(command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {

@@ -19,17 +19,14 @@ argocd cluster set NAME [flags]
 ### Options
 
 ```
-      --annotation stringArray   Set metadata annotations (e.g. --annotation key=value)
-  -h, --help                     help for set
-      --label stringArray        Set metadata labels (e.g. --label key=value)
-      --name string              Overwrite the cluster name
-      --namespace stringArray    List of namespaces which are allowed to manage. Specify '*' to manage all namespaces
+  -h, --help                    help for set
+      --name string             Overwrite the cluster name
+      --namespace stringArray   List of namespaces which are allowed to manage. Specify '*' to manage all namespaces
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --argocd-context string           The name of the Argo-CD server context to use
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
