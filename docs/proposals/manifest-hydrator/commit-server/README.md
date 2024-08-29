@@ -2,7 +2,7 @@
 
 The Argo CD Commit Server provides push access to git repositories for hydrated manifests.
 
-The server exposes a gRCP service which accepts requests to push hydrated manifests to a git repository. This is the interface:
+The server exposes a gRPC service which accepts requests to push hydrated manifests to a git repository. This is the interface:
 
 ```protobuf
 // CommitManifests represents the caller's request for some Kubernetes manifests to be pushed to a git repository.
