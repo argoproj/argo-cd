@@ -434,13 +434,21 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 			DisableKeepAlives: true,
 		}}
 
+		var password = c.creds.Password
+		if c.creds.GCPServiceAccountKey != nil {
+			err := error(nil)
+			password, err = c.creds.GCPServiceAccountKey.GetAccessToken()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get access token from creds: %w", err)
+			}
+		}
 		repoHost, _, _ := strings.Cut(tagsURL, "/")
 		repo.Client = &auth.Client{
 			Client: client,
 			Cache:  nil,
 			Credential: auth.StaticCredential(repoHost, auth.Credential{
 				Username: c.creds.Username,
-				Password: c.creds.Password,
+				Password: password,
 			}),
 		}
 
