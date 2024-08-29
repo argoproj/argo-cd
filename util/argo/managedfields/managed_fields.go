@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
@@ -33,6 +34,7 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 	results, err := newTypedResults(liveCopy, configCopy, pt)
 	// error might happen if the resources are not parsable and so cannot be normalized
 	if err != nil {
+		log.Debugf("error building typed results: %v", err)
 		return liveCopy, configCopy, nil
 	}
 
