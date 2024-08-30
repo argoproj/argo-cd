@@ -4489,6 +4489,27 @@
         }
       }
     },
+    "applicationsetApplicationSetGenerateRequest": {
+      "type": "object",
+      "title": "ApplicationSetGetQuery is a query for applicationset resources",
+      "properties": {
+        "applicationSet": {
+          "$ref": "#/definitions/v1alpha1ApplicationSet"
+        }
+      }
+    },
+    "applicationsetApplicationSetGenerateResponse": {
+      "type": "object",
+      "title": "ApplicationSetGenerateResponse is a response for applicationset generate request",
+      "properties": {
+        "applications": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Application"
+          }
+        }
+      }
+    },
     "applicationsetApplicationSetResponse": {
       "type": "object",
       "properties": {
@@ -6904,6 +6925,11 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceNode"
           }
+        },
+        "shardsCount": {
+          "type": "integer",
+          "format": "int64",
+          "title": "ShardsCount contains total number of shards the application tree is split into"
         }
       }
     },
