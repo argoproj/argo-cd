@@ -26,7 +26,7 @@ func TestNewConfigureCommand_PromptsEnabled_DefaultTrue(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, localConfig.PromptsEnabled)
 
-	// Set `PromptsEnabled` to `true` using `argocd configuration --prompts-enabled`
+	// Set `PromptsEnabled` to `true` using `argocd configure --prompts-enabled`
 	cmd := NewConfigureCommand(&argocdclient.ClientOptions{ConfigPath: testConfigFilePath})
 	cmd.SetArgs([]string{"--prompts-enabled"})
 
@@ -54,7 +54,7 @@ func TestNewConfigureCommand_PromptsEnabled_True(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, localConfig.PromptsEnabled)
 
-	// Set `PromptsEnabled` to `true` using `argocd configuration --prompts-enabled=true`
+	// Set `PromptsEnabled` to `true` using `argocd configure --prompts-enabled=true`
 	cmd := NewConfigureCommand(&argocdclient.ClientOptions{ConfigPath: testConfigFilePath})
 	cmd.SetArgs([]string{"--prompts-enabled=true"})
 
@@ -82,7 +82,7 @@ func TestNewConfigureCommand_PromptsEnabled_False(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, localConfig.PromptsEnabled)
 
-	// Set `PromptsEnabled` to `false` using `argocd configuration --prompts-enabled=false`
+	// Set `PromptsEnabled` to `false` using `argocd configure --prompts-enabled=false`
 	cmd := NewConfigureCommand(&argocdclient.ClientOptions{ConfigPath: testConfigFilePath})
 	cmd.SetArgs([]string{"--prompts-enabled=false"})
 
