@@ -22,9 +22,9 @@ func NewPrompt(clientOpts *apiclient.ClientOptions) (*Prompt, error) {
 }
 
 func (p *Prompt) Confirm(message string) bool {
-	if p.enabled {
-		return cli.AskToProceed(message)
+	if !p.enabled {
+		return true
 	}
 
-	return true
+	return cli.AskToProceed(message)
 }
