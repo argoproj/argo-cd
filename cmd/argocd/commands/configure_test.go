@@ -12,7 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
 )
 
-func TestNewConfigurationCommand_PromptsEnabled_DefaultTrue(t *testing.T) {
+func TestNewConfigureCommand_PromptsEnabled_DefaultTrue(t *testing.T) {
 	// Write the test config file
 	err := os.WriteFile(testConfigFilePath, []byte(testConfig), os.ModePerm)
 	require.NoError(t, err)
@@ -27,7 +27,7 @@ func TestNewConfigurationCommand_PromptsEnabled_DefaultTrue(t *testing.T) {
 	assert.False(t, localConfig.PromptsEnabled)
 
 	// Set `PromptsEnabled` to `true` using `argocd configuration --prompts-enabled`
-	cmd := NewConfigurationCommand(&argocdclient.ClientOptions{ConfigPath: testConfigFilePath})
+	cmd := NewConfigureCommand(&argocdclient.ClientOptions{ConfigPath: testConfigFilePath})
 	cmd.SetArgs([]string{"--prompts-enabled"})
 
 	err = cmd.Execute()
@@ -40,7 +40,7 @@ func TestNewConfigurationCommand_PromptsEnabled_DefaultTrue(t *testing.T) {
 	assert.True(t, localConfig.PromptsEnabled)
 }
 
-func TestNewConfigurationCommand_PromptsEnabled_True(t *testing.T) {
+func TestNewConfigureCommand_PromptsEnabled_True(t *testing.T) {
 	// Write the test config file
 	err := os.WriteFile(testConfigFilePath, []byte(testConfig), os.ModePerm)
 	require.NoError(t, err)
@@ -55,7 +55,7 @@ func TestNewConfigurationCommand_PromptsEnabled_True(t *testing.T) {
 	assert.False(t, localConfig.PromptsEnabled)
 
 	// Set `PromptsEnabled` to `true` using `argocd configuration --prompts-enabled=true`
-	cmd := NewConfigurationCommand(&argocdclient.ClientOptions{ConfigPath: testConfigFilePath})
+	cmd := NewConfigureCommand(&argocdclient.ClientOptions{ConfigPath: testConfigFilePath})
 	cmd.SetArgs([]string{"--prompts-enabled=true"})
 
 	err = cmd.Execute()
@@ -68,7 +68,7 @@ func TestNewConfigurationCommand_PromptsEnabled_True(t *testing.T) {
 	assert.True(t, localConfig.PromptsEnabled)
 }
 
-func TestNewConfigurationCommand_PromptsEnabled_False(t *testing.T) {
+func TestNewConfigureCommand_PromptsEnabled_False(t *testing.T) {
 	// Write the test config file
 	err := os.WriteFile(testConfigFilePath, []byte(testConfig), os.ModePerm)
 	require.NoError(t, err)
@@ -83,7 +83,7 @@ func TestNewConfigurationCommand_PromptsEnabled_False(t *testing.T) {
 	assert.False(t, localConfig.PromptsEnabled)
 
 	// Set `PromptsEnabled` to `false` using `argocd configuration --prompts-enabled=false`
-	cmd := NewConfigurationCommand(&argocdclient.ClientOptions{ConfigPath: testConfigFilePath})
+	cmd := NewConfigureCommand(&argocdclient.ClientOptions{ConfigPath: testConfigFilePath})
 	cmd.SetArgs([]string{"--prompts-enabled=false"})
 
 	err = cmd.Execute()
