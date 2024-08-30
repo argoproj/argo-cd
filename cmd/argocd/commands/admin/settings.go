@@ -39,7 +39,7 @@ type settingsOpts struct {
 }
 
 type commandContext interface {
-	CreateSettingsManager(context.Context) (*settings.SettingsManager, error)
+	createSettingsManager(context.Context) (*settings.SettingsManager, error)
 }
 
 func collectLogs(callback func()) string {
@@ -61,7 +61,7 @@ func setSettingsMeta(obj v1.Object) {
 	obj.SetLabels(labels)
 }
 
-func (opts *settingsOpts) CreateSettingsManager(ctx context.Context) (*settings.SettingsManager, error) {
+func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.SettingsManager, error) {
 	var argocdCM *corev1.ConfigMap
 	if opts.argocdCMPath == "" && !opts.loadClusterSettings {
 		return nil, fmt.Errorf("either --argocd-cm-path must be provided or --load-cluster-settings must be set to true")
@@ -297,7 +297,7 @@ argocd admin settings validate --group accounts --group plugins --load-cluster-s
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
-			settingsManager, err := cmdCtx.CreateSettingsManager(ctx)
+			settingsManager, err := cmdCtx.createSettingsManager(ctx)
 			errors.CheckError(err)
 
 			if len(groups) == 0 {
@@ -358,7 +358,7 @@ func executeResourceOverrideCommand(ctx context.Context, cmdCtx commandContext, 
 	res := unstructured.Unstructured{}
 	errors.CheckError(yaml.Unmarshal(data, &res))
 
-	settingsManager, err := cmdCtx.CreateSettingsManager(ctx)
+	settingsManager, err := cmdCtx.createSettingsManager(ctx)
 	errors.CheckError(err)
 
 	overrides, err := settingsManager.GetResourceOverrides()
@@ -379,7 +379,7 @@ func executeIgnoreResourceUpdatesOverrideCommand(ctx context.Context, cmdCtx com
 	res := unstructured.Unstructured{}
 	errors.CheckError(yaml.Unmarshal(data, &res))
 
-	settingsManager, err := cmdCtx.CreateSettingsManager(ctx)
+	settingsManager, err := cmdCtx.createSettingsManager(ctx)
 	errors.CheckError(err)
 
 	overrides, err := settingsManager.GetIgnoreResourceUpdatesOverrides()

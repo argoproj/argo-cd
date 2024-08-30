@@ -77,7 +77,7 @@ func newCmdContext(data map[string]string) *fakeCmdContext {
 	return &fakeCmdContext{mgr: newSettingsManager(data)}
 }
 
-func (ctx *fakeCmdContext) CreateSettingsManager(context.Context) (*settings.SettingsManager, error) {
+func (ctx *fakeCmdContext) createSettingsManager(context.Context) (*settings.SettingsManager, error) {
 	return ctx.mgr, nil
 }
 
@@ -101,7 +101,7 @@ data:
 	defer utils.Close(closer)
 
 	opts := settingsOpts{argocdCMPath: f}
-	settingsManager, err := opts.CreateSettingsManager(ctx)
+	settingsManager, err := opts.createSettingsManager(ctx)
 
 	require.NoError(t, err)
 
