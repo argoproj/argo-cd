@@ -100,7 +100,7 @@ data:
 	require.NoError(t, err)
 	defer utils.Close(closer)
 
-	opts := SettingsOpts{ArgocdCMPath: f}
+	opts := SettingsOpts{argocdCMPath: f}
 	settingsManager, err := opts.CreateSettingsManager(ctx)
 
 	require.NoError(t, err)

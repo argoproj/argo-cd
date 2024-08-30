@@ -32,7 +32,7 @@ import (
 )
 
 type SettingsOpts struct {
-	ArgocdCMPath        string
+	argocdCMPath        string
 	argocdSecretPath    string
 	loadClusterSettings bool
 	clientConfig        clientcmd.ClientConfig
@@ -63,9 +63,9 @@ func setSettingsMeta(obj v1.Object) {
 
 func (opts *SettingsOpts) CreateSettingsManager(ctx context.Context) (*settings.SettingsManager, error) {
 	var argocdCM *corev1.ConfigMap
-	if opts.ArgocdCMPath == "" && !opts.loadClusterSettings {
+	if opts.argocdCMPath == "" && !opts.loadClusterSettings {
 		return nil, fmt.Errorf("either --argocd-cm-path must be provided or --load-cluster-settings must be set to true")
-	} else if opts.ArgocdCMPath == "" {
+	} else if opts.argocdCMPath == "" {
 		realClientset, ns, err := opts.getK8sClient()
 		if err != nil {
 			return nil, err
@@ -76,7 +76,7 @@ func (opts *SettingsOpts) CreateSettingsManager(ctx context.Context) (*settings.
 			return nil, err
 		}
 	} else {
-		data, err := os.ReadFile(opts.ArgocdCMPath)
+		data, err := os.ReadFile(opts.argocdCMPath)
 		if err != nil {
 			return nil, err
 		}
@@ -162,7 +162,7 @@ func NewSettingsCommand() *cobra.Command {
 	command.AddCommand(NewRBACCommand())
 
 	opts.clientConfig = cli.AddKubectlFlagsToCmd(command)
-	command.PersistentFlags().StringVar(&opts.ArgocdCMPath, "argocd-cm-path", "", "Path to local argocd-cm.yaml file")
+	command.PersistentFlags().StringVar(&opts.argocdCMPath, "argocd-cm-path", "", "Path to local argocd-cm.yaml file")
 	command.PersistentFlags().StringVar(&opts.argocdSecretPath, "argocd-secret-path", "", "Path to local argocd-secret.yaml file")
 	command.PersistentFlags().BoolVar(&opts.loadClusterSettings, "load-cluster-settings", false,
 		"Indicates that config map and secret should be loaded from cluster unless local file path is provided")
