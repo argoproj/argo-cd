@@ -31,7 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-type SettingsOpts struct {
+type settingsOpts struct {
 	argocdCMPath        string
 	argocdSecretPath    string
 	loadClusterSettings bool
@@ -61,7 +61,7 @@ func setSettingsMeta(obj v1.Object) {
 	obj.SetLabels(labels)
 }
 
-func (opts *SettingsOpts) CreateSettingsManager(ctx context.Context) (*settings.SettingsManager, error) {
+func (opts *settingsOpts) CreateSettingsManager(ctx context.Context) (*settings.SettingsManager, error) {
 	var argocdCM *corev1.ConfigMap
 	if opts.argocdCMPath == "" && !opts.loadClusterSettings {
 		return nil, fmt.Errorf("either --argocd-cm-path must be provided or --load-cluster-settings must be set to true")
@@ -127,7 +127,7 @@ func (opts *SettingsOpts) CreateSettingsManager(ctx context.Context) (*settings.
 	return manager, nil
 }
 
-func (opts *SettingsOpts) getK8sClient() (*kubernetes.Clientset, string, error) {
+func (opts *settingsOpts) getK8sClient() (*kubernetes.Clientset, string, error) {
 	namespace, _, err := opts.clientConfig.Namespace()
 	if err != nil {
 		return nil, "", err
@@ -146,7 +146,7 @@ func (opts *SettingsOpts) getK8sClient() (*kubernetes.Clientset, string, error) 
 }
 
 func NewSettingsCommand() *cobra.Command {
-	var opts SettingsOpts
+	var opts settingsOpts
 
 	command := &cobra.Command{
 		Use:   "settings",
