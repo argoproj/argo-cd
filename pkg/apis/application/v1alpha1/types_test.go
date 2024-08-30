@@ -3889,3 +3889,73 @@ func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
 		})
 	}
 }
+
+func TestApplicationTree_GetShards(t *testing.T) {
+	tree := &ApplicationTree{
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}}, {ResourceRef: ResourceRef{Name: "node 3"}},
+		},
+		OrphanedNodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "orph-node 1"}}, {ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}},
+		},
+		Hosts: []HostInfo{
+			{Name: "host 1"}, {Name: "host 2"}, {Name: "host 3"},
+		},
+	}
+
+	shards := tree.GetShards(2)
+	require.Len(t, shards, 5)
+	require.Equal(t, &ApplicationTree{
+		ShardsCount: 5,
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}},
+		},
+	}, shards[0])
+	require.Equal(t, &ApplicationTree{
+		Nodes:         []ResourceNode{{ResourceRef: ResourceRef{Name: "node 3"}}},
+		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 1"}}},
+	}, shards[1])
+	require.Equal(t, &ApplicationTree{
+		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}}},
+	}, shards[2])
+	require.Equal(t, &ApplicationTree{
+		Hosts: []HostInfo{{Name: "host 1"}, {Name: "host 2"}},
+	}, shards[3])
+	require.Equal(t, &ApplicationTree{
+		Hosts: []HostInfo{{Name: "host 3"}},
+	}, shards[4])
+}
+
+func TestApplicationTree_Merge(t *testing.T) {
+	tree := &ApplicationTree{}
+	tree.Merge(&ApplicationTree{
+		ShardsCount: 5,
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}},
+		},
+	})
+	tree.Merge(&ApplicationTree{
+		Nodes:         []ResourceNode{{ResourceRef: ResourceRef{Name: "node 3"}}},
+		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 1"}}},
+	})
+	tree.Merge(&ApplicationTree{
+		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}}},
+	})
+	tree.Merge(&ApplicationTree{
+		Hosts: []HostInfo{{Name: "host 1"}, {Name: "host 2"}},
+	})
+	tree.Merge(&ApplicationTree{
+		Hosts: []HostInfo{{Name: "host 3"}},
+	})
+	require.Equal(t, &ApplicationTree{
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}}, {ResourceRef: ResourceRef{Name: "node 3"}},
+		},
+		OrphanedNodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "orph-node 1"}}, {ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}},
+		},
+		Hosts: []HostInfo{
+			{Name: "host 1"}, {Name: "host 2"}, {Name: "host 3"},
+		},
+	}, tree)
+}

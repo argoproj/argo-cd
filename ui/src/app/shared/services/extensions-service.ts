@@ -3,8 +3,8 @@ import * as minimatch from 'minimatch';
 
 import {Application, ApplicationTree, State} from '../models';
 
-type ExtensionsEventType = 'resource' | 'systemLevel' | 'appView' | 'statusPanel';
-type ExtensionsType = ResourceTabExtension | SystemLevelExtension | AppViewExtension | StatusPanelExtension;
+type ExtensionsEventType = 'resource' | 'systemLevel' | 'appView' | 'statusPanel' | 'top-bar';
+type ExtensionsType = ResourceTabExtension | SystemLevelExtension | AppViewExtension | StatusPanelExtension | TopBarActionMenuExt;
 
 class ExtensionsEventTarget {
     private listeners: Map<ExtensionsEventType, Array<(extension: ExtensionsType) => void>> = new Map();
@@ -34,7 +34,8 @@ const extensions = {
     resourceExtentions: new Array<ResourceTabExtension>(),
     systemLevelExtensions: new Array<SystemLevelExtension>(),
     appViewExtensions: new Array<AppViewExtension>(),
-    statusPanelExtensions: new Array<StatusPanelExtension>()
+    statusPanelExtensions: new Array<StatusPanelExtension>(),
+    topBarActionMenuExts: new Array<TopBarActionMenuExt>()
 };
 
 function registerResourceExtension(component: ExtensionComponent, group: string, kind: string, tabTitle: string, opts?: {icon: string}) {
@@ -59,6 +60,20 @@ function registerStatusPanelExtension(component: StatusPanelExtensionComponent, 
     const ext = {component, flyout, title, id};
     extensions.statusPanelExtensions.push(ext);
     extensions.eventTarget.emit('statusPanel', ext);
+}
+
+function registerTopBarActionMenuExt(
+    component: TopBarActionMenuExtComponent,
+    title: string,
+    id: string,
+    flyout: ExtensionComponent,
+    shouldDisplay: (app?: Application) => boolean = () => true,
+    iconClassName?: string,
+    isMiddle = false
+) {
+    const ext = {component, flyout, shouldDisplay, title, id, iconClassName, isMiddle};
+    extensions.topBarActionMenuExts.push(ext);
+    extensions.eventTarget.emit('top-bar', ext);
 }
 
 let legacyInitialized = false;
@@ -103,11 +118,24 @@ export interface StatusPanelExtension {
     id: string;
 }
 
+export interface TopBarActionMenuExt {
+    component: TopBarActionMenuExtComponent;
+    flyout: TopBarActionMenuExtFlyoutComponent;
+    shouldDisplay: (app: Application) => boolean;
+    title: string;
+    id: string;
+    iconClassName?: string;
+    isMiddle?: boolean;
+    isNarrow?: boolean;
+}
+
 export type ExtensionComponent = React.ComponentType<ExtensionComponentProps>;
 export type SystemExtensionComponent = React.ComponentType;
 export type AppViewExtensionComponent = React.ComponentType<AppViewComponentProps>;
 export type StatusPanelExtensionComponent = React.ComponentType<StatusPanelComponentProps>;
 export type StatusPanelExtensionFlyoutComponent = React.ComponentType<StatusPanelFlyoutProps>;
+export type TopBarActionMenuExtComponent = React.ComponentType<TopBarActionMenuExtComponentProps>;
+export type TopBarActionMenuExtFlyoutComponent = React.ComponentType<TopBarActionMenuExtFlyoutProps>;
 
 export interface Extension {
     component: ExtensionComponent;
@@ -129,7 +157,18 @@ export interface StatusPanelComponentProps {
     openFlyout: () => any;
 }
 
+export interface TopBarActionMenuExtComponentProps {
+    application: Application;
+    tree: ApplicationTree;
+    openFlyout: () => any;
+}
+
 export interface StatusPanelFlyoutProps {
+    application: Application;
+    tree: ApplicationTree;
+}
+
+export interface TopBarActionMenuExtFlyoutProps {
     application: Application;
     tree: ApplicationTree;
 }
@@ -160,6 +199,9 @@ export class ExtensionsService {
     public getStatusPanelExtensions(): StatusPanelExtension[] {
         return extensions.statusPanelExtensions.slice();
     }
+    public getActionMenuExtensions(): TopBarActionMenuExt[] {
+        return extensions.topBarActionMenuExts.slice();
+    }
 }
 
 ((window: any) => {
@@ -169,6 +211,7 @@ export class ExtensionsService {
         registerResourceExtension,
         registerSystemLevelExtension,
         registerAppViewExtension,
-        registerStatusPanelExtension
+        registerStatusPanelExtension,
+        registerTopBarActionMenuExt
     };
 })(window);
