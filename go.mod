@@ -16,7 +16,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.6.1
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.11.0
-	github.com/casbin/casbin/v2 v2.98.0
+	github.com/casbin/casbin/v2 v2.99.0
 	github.com/casbin/govaluate v1.2.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/chainguard-dev/git-urls v1.0.2
