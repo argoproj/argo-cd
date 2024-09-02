@@ -114,7 +114,7 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                     .filter(item => !!item);
                             }
                             if (params.get('autoSync') != null) {
-                                viewPref.autosyncFilter = params
+                                viewPref.autoSyncFilter = params
                                     .get('autoSync')
                                     .split(',')
                                     .filter(item => !!item);
@@ -521,11 +521,11 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                             {title: 'Name', compare: (a, b) => a.metadata.name.localeCompare(b.metadata.name)},
                                                                             {
                                                                                 title: 'Created At',
-                                                                                compare: (a, b) => a.metadata.creationTimestamp.localeCompare(b.metadata.creationTimestamp)
+                                                                                compare: (b, a) => a.metadata.creationTimestamp.localeCompare(b.metadata.creationTimestamp)
                                                                             },
                                                                             {
                                                                                 title: 'Synchronized',
-                                                                                compare: (a, b) =>
+                                                                                compare: (b, a) =>
                                                                                     a.status.operationState?.finishedAt?.localeCompare(b.status.operationState?.finishedAt)
                                                                             }
                                                                         ]}

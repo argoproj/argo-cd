@@ -3,22 +3,23 @@ package v1alpha1
 import (
 	"encoding/json"
 	"errors"
-	fmt "fmt"
+	"fmt"
 	"os"
 	"path"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
-	argocdcommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/stretchr/testify/require"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
+
+	argocdcommon "github.com/argoproj/argo-cd/v2/common"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {
@@ -110,74 +111,85 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 		projDest    []ApplicationDestination
 		appDest     ApplicationDestination
 		isPermitted bool
-	}{{
-		projDest: []ApplicationDestination{{
-			Server: "https://kubernetes.default.svc", Namespace: "default",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
-		isPermitted: true,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://kubernetes.default.svc", Namespace: "default",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
-		isPermitted: false,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://my-cluster", Namespace: "default",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
-		isPermitted: false,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://kubernetes.default.svc", Namespace: "*",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
-		isPermitted: true,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://*.default.svc", Namespace: "default",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
-		isPermitted: true,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://team1-*", Namespace: "default",
-		}},
-		appDest:     ApplicationDestination{Server: "https://test2-dev-cluster", Namespace: "default"},
-		isPermitted: false,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://kubernetes.default.svc", Namespace: "test-*",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test-foo"},
-		isPermitted: true,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "https://kubernetes.default.svc", Namespace: "test-*",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test"},
-		isPermitted: false,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "*", Namespace: "*",
-		}},
-		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test"},
-		isPermitted: true,
-	},
+	}{
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://kubernetes.default.svc", Namespace: "default",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
+			isPermitted: true,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://kubernetes.default.svc", Namespace: "default",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
+			isPermitted: false,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://my-cluster", Namespace: "default",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
+			isPermitted: false,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://kubernetes.default.svc", Namespace: "*",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "kube-system"},
+			isPermitted: true,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://*.default.svc", Namespace: "default",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
+			isPermitted: true,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://team1-*", Namespace: "default",
+			}},
+			appDest:     ApplicationDestination{Server: "https://test2-dev-cluster", Namespace: "default"},
+			isPermitted: false,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://kubernetes.default.svc", Namespace: "test-*",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test-foo"},
+			isPermitted: true,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "https://kubernetes.default.svc", Namespace: "test-*",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test"},
+			isPermitted: false,
+		},
+		{
+			projDest: []ApplicationDestination{{
+				Server: "*", Namespace: "*",
+			}},
+			appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "test"},
+			isPermitted: true,
+		},
 		{
 			projDest: []ApplicationDestination{{
 				Server: "", Namespace: "*", Name: "test",
 			}},
 			appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
 			isPermitted: true,
-		}, {
+		},
+		{
 			projDest: []ApplicationDestination{{
 				Server: "", Namespace: "*", Name: "test2",
 			}},
 			appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
 			isPermitted: false,
-		}}
+		},
+	}
 
 	for _, data := range testData {
 		proj := AppProject{
@@ -368,7 +380,7 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 		projDest: []ApplicationDestination{{
 			Server: "https://my-cluster.123.com", Namespace: "default",
 		}},
-		appDest: ApplicationDestination{Server: "https://some-other-cluster.com", Namespace: "default"},
+		appDest: ApplicationDestination{Server: "https://some-other-cluster.example.com", Namespace: "default"},
 		clusters: []*Cluster{{
 			Server: "https://my-cluster.123.com",
 		}},
@@ -426,8 +438,8 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 	_, err := proj.IsDestinationPermitted(ApplicationDestination{Server: "https://my-cluster.123.com", Namespace: "default"}, func(_ string) ([]*Cluster, error) {
 		return nil, errors.New("some error")
 	})
-	assert.NotNil(t, err)
-	assert.True(t, strings.Contains(err.Error(), "could not retrieve project clusters"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "could not retrieve project clusters")
 }
 
 func TestAppProject_IsGroupKindPermitted(t *testing.T) {
@@ -485,14 +497,14 @@ func TestAppProject_GetRoleByName(t *testing.T) {
 	t.Run("NotExists", func(t *testing.T) {
 		p := &AppProject{}
 		role, i, err := p.GetRoleByName("test-role")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Equal(t, -1, i)
 		assert.Nil(t, role)
 	})
 	t.Run("NotExists", func(t *testing.T) {
 		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role"}}}}
 		role, i, err := p.GetRoleByName("test-role")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, 0, i)
 		assert.Equal(t, &ProjectRole{Name: "test-role"}, role)
 	})
@@ -502,20 +514,20 @@ func TestAppProject_AddGroupToRole(t *testing.T) {
 	t.Run("NoRole", func(t *testing.T) {
 		p := &AppProject{}
 		got, err := p.AddGroupToRole("test-role", "test-group")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.False(t, got)
 	})
 	t.Run("NoGroup", func(t *testing.T) {
 		p := &AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", Groups: []string{}}}}}
 		got, err := p.AddGroupToRole("test-role", "test-group")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, got)
 		assert.Len(t, p.Spec.Roles[0].Groups, 1)
 	})
 	t.Run("Exists", func(t *testing.T) {
 		p := &AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", Groups: []string{"test-group"}}}}}
 		got, err := p.AddGroupToRole("test-role", "test-group")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, got)
 	})
 }
@@ -524,21 +536,21 @@ func TestAppProject_RemoveGroupFromRole(t *testing.T) {
 	t.Run("NoRole", func(t *testing.T) {
 		p := &AppProject{}
 		got, err := p.RemoveGroupFromRole("test-role", "test-group")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.False(t, got)
 	})
 	t.Run("NoGroup", func(t *testing.T) {
 		p := &AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", Groups: []string{}}}}}
 		got, err := p.RemoveGroupFromRole("test-role", "test-group")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, got)
 	})
 	t.Run("Exists", func(t *testing.T) {
 		p := &AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", Groups: []string{"test-group"}}}}}
 		got, err := p.RemoveGroupFromRole("test-role", "test-group")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, got)
-		assert.Len(t, p.Spec.Roles[0].Groups, 0)
+		assert.Empty(t, p.Spec.Roles[0].Groups)
 	})
 }
 
@@ -554,14 +566,14 @@ func newTestProject() *AppProject {
 func TestAppProject_ValidateSources(t *testing.T) {
 	p := newTestProject()
 	err := p.ValidateProject()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	badSources := []string{
 		"!*",
 	}
 	for _, badName := range badSources {
 		p.Spec.SourceRepos = []string{badName}
 		err = p.ValidateProject()
-		assert.Error(t, err)
+		require.Error(t, err)
 	}
 
 	duplicateSources := []string{
@@ -570,21 +582,21 @@ func TestAppProject_ValidateSources(t *testing.T) {
 	}
 	p.Spec.SourceRepos = duplicateSources
 	err = p.ValidateProject()
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 // TestAppProject_ValidateDestinations tests for an invalid destination
 func TestAppProject_ValidateDestinations(t *testing.T) {
 	p := newTestProject()
 	err := p.ValidateProject()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	badNamespaces := []string{
 		"!*",
 	}
 	for _, badName := range badNamespaces {
 		p.Spec.Destinations[0].Namespace = badName
 		err = p.ValidateProject()
-		assert.Error(t, err)
+		require.Error(t, err)
 	}
 
 	goodNamespaces := []string{
@@ -594,7 +606,7 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 	for _, goodNamespace := range goodNamespaces {
 		p.Spec.Destinations[0].Namespace = goodNamespace
 		err = p.ValidateProject()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 
 	badServers := []string{
@@ -603,7 +615,7 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 	for _, badServer := range badServers {
 		p.Spec.Destinations[0].Server = badServer
 		err = p.ValidateProject()
-		assert.Error(t, err)
+		require.Error(t, err)
 	}
 
 	goodServers := []string{
@@ -613,7 +625,7 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 	for _, badName := range goodServers {
 		p.Spec.Destinations[0].Server = badName
 		err = p.ValidateProject()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 
 	badNames := []string{
@@ -622,7 +634,7 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 	for _, badName := range badNames {
 		p.Spec.Destinations[0].Name = badName
 		err = p.ValidateProject()
-		assert.Error(t, err)
+		require.Error(t, err)
 	}
 
 	goodNames := []string{
@@ -632,7 +644,7 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 	for _, goodName := range goodNames {
 		p.Spec.Destinations[0].Name = goodName
 		err = p.ValidateProject()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 
 	validDestination := ApplicationDestination{
@@ -642,12 +654,12 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 
 	p.Spec.Destinations[0] = validDestination
 	err = p.ValidateProject()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	//no duplicates allowed
+	// no duplicates allowed
 	p.Spec.Destinations = []ApplicationDestination{validDestination, validDestination}
 	err = p.ValidateProject()
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	cluster1Destination := ApplicationDestination{
 		Name:      "cluster1",
@@ -660,12 +672,12 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 	// allow multiple destinations with blank server, same namespace but unique cluster name
 	p.Spec.Destinations = []ApplicationDestination{cluster1Destination, cluster2Destination}
 	err = p.ValidateProject()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	t.Run("must reject duplicate source namespaces", func(t *testing.T) {
 		p.Spec.SourceNamespaces = []string{"argocd", "argocd"}
 		err = p.ValidateProject()
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 }
 
@@ -673,7 +685,7 @@ func TestAppProject_ValidateDestinations(t *testing.T) {
 func TestAppProject_ValidateRoleName(t *testing.T) {
 	p := newTestProject()
 	err := p.ValidateProject()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	badRoleNames := []string{
 		"",
 		" ",
@@ -689,7 +701,7 @@ func TestAppProject_ValidateRoleName(t *testing.T) {
 	for _, badName := range badRoleNames {
 		p.Spec.Roles[0].Name = badName
 		err = p.ValidateProject()
-		assert.Error(t, err)
+		require.Error(t, err)
 	}
 	goodRoleNames := []string{
 		"MY-ROLE",
@@ -698,7 +710,7 @@ func TestAppProject_ValidateRoleName(t *testing.T) {
 	for _, goodName := range goodRoleNames {
 		p.Spec.Roles[0].Name = goodName
 		err = p.ValidateProject()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 }
 
@@ -706,10 +718,10 @@ func TestAppProject_ValidateRoleName(t *testing.T) {
 func TestAppProject_ValidateGroupName(t *testing.T) {
 	p := newTestProject()
 	err := p.ValidateProject()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	p.Spec.Roles[0].Groups = []string{"mygroup"}
 	err = p.ValidateProject()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	badGroupNames := []string{
 		"",
 		" ",
@@ -723,7 +735,7 @@ func TestAppProject_ValidateGroupName(t *testing.T) {
 	for _, badName := range badGroupNames {
 		p.Spec.Roles[0].Groups = []string{badName}
 		err = p.ValidateProject()
-		assert.Error(t, err)
+		require.Error(t, err)
 	}
 	goodGroupNames := []string{
 		"my:group",
@@ -731,7 +743,7 @@ func TestAppProject_ValidateGroupName(t *testing.T) {
 	for _, goodName := range goodGroupNames {
 		p.Spec.Roles[0].Groups = []string{goodName}
 		err = p.ValidateProject()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 }
 
@@ -739,15 +751,15 @@ func TestAppProject_ValidateSyncWindowList(t *testing.T) {
 	t.Run("WorkingSyncWindow", func(t *testing.T) {
 		p := newTestProjectWithSyncWindows()
 		err := p.ValidateProject()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 	t.Run("HasNilSyncWindow", func(t *testing.T) {
 		p := newTestProjectWithSyncWindows()
 		err := p.ValidateProject()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		p.Spec.SyncWindows = append(p.Spec.SyncWindows, nil)
 		err = p.ValidateProject()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 }
 
@@ -755,7 +767,7 @@ func TestAppProject_ValidateSyncWindowList(t *testing.T) {
 func TestAppProject_InvalidPolicyRules(t *testing.T) {
 	p := newTestProject()
 	err := p.ValidateProject()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	type badPolicy struct {
 		policy string
 		errmsg string
@@ -789,9 +801,8 @@ func TestAppProject_InvalidPolicyRules(t *testing.T) {
 	for _, bad := range badPolicies {
 		p.Spec.Roles[0].Policies = []string{bad.policy}
 		err = p.ValidateProject()
-		if assert.Error(t, err) {
-			assert.Contains(t, err.Error(), bad.errmsg)
-		}
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), bad.errmsg)
 	}
 }
 
@@ -799,7 +810,7 @@ func TestAppProject_InvalidPolicyRules(t *testing.T) {
 func TestAppProject_ValidPolicyRules(t *testing.T) {
 	p := newTestProject()
 	err := p.ValidateProject()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	goodPolicies := []string{
 		"p,proj:my-proj:my-role,applications,get,my-proj/*,allow",
 		"p, proj:my-proj:my-role, applications, get, my-proj/*, allow",
@@ -812,15 +823,19 @@ func TestAppProject_ValidPolicyRules(t *testing.T) {
 		"p, proj:my-proj:my-role, applications, *, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, create, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, update, my-proj/foo, allow",
+		"p, proj:my-proj:my-role, applications, update/*, my-proj/foo, allow",
+		"p, proj:my-proj:my-role, applications, update/*/Pod/*, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, sync, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, delete, my-proj/foo, allow",
+		"p, proj:my-proj:my-role, applications, delete/*, my-proj/foo, allow",
+		"p, proj:my-proj:my-role, applications, delete/*/Pod/*, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, action/*, my-proj/foo, allow",
 		"p, proj:my-proj:my-role, applications, action/apps/Deployment/restart, my-proj/foo, allow",
 	}
 	for _, good := range goodPolicies {
 		p.Spec.Roles[0].Policies = []string{good}
 		err = p.ValidateProject()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 }
 
@@ -834,7 +849,7 @@ func TestExplicitType(t *testing.T) {
 		},
 	}
 	explicitType, err := src.ExplicitType()
-	assert.NotNil(t, err)
+	require.Error(t, err)
 	assert.Nil(t, explicitType)
 	src = ApplicationSource{
 		Helm: &ApplicationSourceHelm{
@@ -843,8 +858,8 @@ func TestExplicitType(t *testing.T) {
 	}
 
 	explicitType, err = src.ExplicitType()
-	assert.Nil(t, err)
-	assert.Equal(t, *explicitType, ApplicationSourceTypeHelm)
+	require.NoError(t, err)
+	assert.Equal(t, ApplicationSourceTypeHelm, *explicitType)
 }
 
 func TestExplicitTypeWithDirectory(t *testing.T) {
@@ -853,7 +868,7 @@ func TestExplicitTypeWithDirectory(t *testing.T) {
 		Directory: &ApplicationSourceDirectory{},
 	}
 	_, err := src.ExplicitType()
-	assert.NotNil(t, err, "cannot add directory with any other types")
+	require.Error(t, err, "cannot add directory with any other types")
 }
 
 func TestAppSourceEquality(t *testing.T) {
@@ -863,9 +878,156 @@ func TestAppSourceEquality(t *testing.T) {
 		},
 	}
 	right := left.DeepCopy()
-	assert.True(t, left.Equals(*right))
+	assert.True(t, left.Equals(right))
 	right.Directory.Recurse = false
-	assert.False(t, left.Equals(*right))
+	assert.False(t, left.Equals(right))
+}
+
+func TestAppSource_GetKubeVersionOrDefault(t *testing.T) {
+	defaultKV := "999.999.999"
+	cases := []struct {
+		name   string
+		source *ApplicationSource
+		expect string
+	}{
+		{
+			"nil source returns default",
+			nil,
+			defaultKV,
+		},
+		{
+			"source without Helm or Kustomize returns default",
+			&ApplicationSource{},
+			defaultKV,
+		},
+		{
+			"source with empty Helm returns default",
+			&ApplicationSource{Helm: &ApplicationSourceHelm{}},
+			defaultKV,
+		},
+		{
+			"source with empty Kustomize returns default",
+			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{}},
+			defaultKV,
+		},
+		{
+			"source with Helm override returns override",
+			&ApplicationSource{Helm: &ApplicationSourceHelm{KubeVersion: "1.2.3"}},
+			"1.2.3",
+		},
+		{
+			"source with Kustomize override returns override",
+			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{KubeVersion: "1.2.3"}},
+			"1.2.3",
+		},
+	}
+
+	for _, tc := range cases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			kv := tcc.source.GetKubeVersionOrDefault(defaultKV)
+			assert.Equal(t, tcc.expect, kv)
+		})
+	}
+}
+
+func TestAppSource_GetAPIVersionsOrDefault(t *testing.T) {
+	defaultAPIVersions := []string{"v1", "v2"}
+	cases := []struct {
+		name   string
+		source *ApplicationSource
+		expect []string
+	}{
+		{
+			"nil source returns default",
+			nil,
+			defaultAPIVersions,
+		},
+		{
+			"source without Helm or Kustomize returns default",
+			&ApplicationSource{},
+			defaultAPIVersions,
+		},
+		{
+			"source with empty Helm returns default",
+			&ApplicationSource{Helm: &ApplicationSourceHelm{}},
+			defaultAPIVersions,
+		},
+		{
+			"source with empty Kustomize returns default",
+			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{}},
+			defaultAPIVersions,
+		},
+		{
+			"source with Helm override returns override",
+			&ApplicationSource{Helm: &ApplicationSourceHelm{APIVersions: []string{"v3", "v4"}}},
+			[]string{"v3", "v4"},
+		},
+		{
+			"source with Kustomize override returns override",
+			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{APIVersions: []string{"v3", "v4"}}},
+			[]string{"v3", "v4"},
+		},
+	}
+
+	for _, tc := range cases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			kv := tcc.source.GetAPIVersionsOrDefault(defaultAPIVersions)
+			assert.Equal(t, tcc.expect, kv)
+		})
+	}
+}
+
+func TestAppSource_GetNamespaceOrDefault(t *testing.T) {
+	defaultNS := "default"
+	cases := []struct {
+		name   string
+		source *ApplicationSource
+		expect string
+	}{
+		{
+			"nil source returns default",
+			nil,
+			defaultNS,
+		},
+		{
+			"source without Helm or Kustomize returns default",
+			&ApplicationSource{},
+			defaultNS,
+		},
+		{
+			"source with empty Helm returns default",
+			&ApplicationSource{Helm: &ApplicationSourceHelm{}},
+			defaultNS,
+		},
+		{
+			"source with empty Kustomize returns default",
+			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{}},
+			defaultNS,
+		},
+		{
+			"source with Helm override returns override",
+			&ApplicationSource{Helm: &ApplicationSourceHelm{Namespace: "not-default"}},
+			"not-default",
+		},
+		{
+			"source with Kustomize override returns override",
+			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{Namespace: "not-default"}},
+			"not-default",
+		},
+	}
+
+	for _, tc := range cases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			kv := tcc.source.GetNamespaceOrDefault(defaultNS)
+			assert.Equal(t, tcc.expect, kv)
+		})
+	}
 }
 
 func TestAppDestinationEquality(t *testing.T) {
@@ -922,7 +1084,6 @@ func TestAppProjectSpec_DestinationClusters(t *testing.T) {
 }
 
 func TestRepository_HasCredentials(t *testing.T) {
-
 	tests := []struct {
 		name string
 		repo Repository
@@ -1107,6 +1268,7 @@ func TestRepository_CopyCredentialsFrom(t *testing.T) {
 		{"SourceSSHPrivateKey", &Repository{}, &RepoCreds{SSHPrivateKey: "foo"}, Repository{SSHPrivateKey: "foo"}},
 		{"SourceTLSClientCertData", &Repository{}, &RepoCreds{TLSClientCertData: "foo"}, Repository{TLSClientCertData: "foo"}},
 		{"SourceTLSClientCertKey", &Repository{}, &RepoCreds{TLSClientCertKey: "foo"}, Repository{TLSClientCertKey: "foo"}},
+		{"SourceContainsProxy", &Repository{}, &RepoCreds{Proxy: "http://proxy.argoproj.io:3128", NoProxy: ".example.com"}, Repository{Proxy: "http://proxy.argoproj.io:3128", NoProxy: ".example.com"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1277,7 +1439,6 @@ func TestApplicationSourceHelm_AddParameter(t *testing.T) {
 	t.Run("Add", func(t *testing.T) {
 		src.AddParameter(HelmParameter{Value: "bar"})
 		assert.ElementsMatch(t, []HelmParameter{{Value: "bar"}}, src.Parameters)
-
 	})
 	t.Run("Replace", func(t *testing.T) {
 		src.AddParameter(HelmParameter{Value: "baz"})
@@ -1290,7 +1451,6 @@ func TestApplicationSourceHelm_AddFileParameter(t *testing.T) {
 	t.Run("Add", func(t *testing.T) {
 		src.AddFileParameter(HelmFileParameter{Name: "foo", Path: "bar"})
 		assert.ElementsMatch(t, []HelmFileParameter{{Name: "foo", Path: "bar"}}, src.FileParameters)
-
 	})
 	t.Run("Replace", func(t *testing.T) {
 		src.AddFileParameter(HelmFileParameter{Name: "foo", Path: "baz"})
@@ -1301,17 +1461,108 @@ func TestApplicationSourceHelm_AddFileParameter(t *testing.T) {
 func TestNewHelmParameter(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
 		_, err := NewHelmParameter("garbage", false)
-		assert.EqualError(t, err, "Expected helm parameter of the form: param=value. Received: garbage")
+		require.EqualError(t, err, "Expected helm parameter of the form: param=value. Received: garbage")
 	})
 	t.Run("NonString", func(t *testing.T) {
 		p, err := NewHelmParameter("foo=bar", false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, &HelmParameter{Name: "foo", Value: "bar"}, p)
 	})
 	t.Run("String", func(t *testing.T) {
 		p, err := NewHelmParameter("foo=bar", true)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, &HelmParameter{Name: "foo", Value: "bar", ForceString: true}, p)
+	})
+}
+
+func TestNewKustomizeReplica(t *testing.T) {
+	t.Run("Valid", func(t *testing.T) {
+		r, err := NewKustomizeReplica("my-deployment=2")
+		require.NoError(t, err)
+		assert.Equal(t, &KustomizeReplica{Name: "my-deployment", Count: intstr.Parse("2")}, r)
+	})
+	t.Run("InvalidFormat", func(t *testing.T) {
+		_, err := NewKustomizeReplica("garbage")
+		require.EqualError(t, err, "expected parameter of the form: name=count. Received: garbage")
+	})
+	t.Run("InvalidCount", func(t *testing.T) {
+		_, err := NewKustomizeReplica("my-deployment=garbage")
+		require.EqualError(t, err, "expected integer value for count. Received: garbage")
+	})
+}
+
+func TestKustomizeReplica_GetIntCount(t *testing.T) {
+	t.Run("String which can be converted to integer", func(t *testing.T) {
+		kr := KustomizeReplica{
+			Name:  "test",
+			Count: intstr.FromString("2"),
+		}
+		count, err := kr.GetIntCount()
+		require.NoError(t, err)
+		assert.Equal(t, 2, count)
+	})
+	t.Run("String which cannot be converted to integer", func(t *testing.T) {
+		kr := KustomizeReplica{
+			Name:  "test",
+			Count: intstr.FromString("garbage"),
+		}
+		count, err := kr.GetIntCount()
+		require.EqualError(t, err, "expected integer value for count. Received: garbage")
+		assert.Equal(t, 0, count)
+	})
+	t.Run("Integer", func(t *testing.T) {
+		kr := KustomizeReplica{
+			Name:  "test",
+			Count: intstr.FromInt(2),
+		}
+		count, err := kr.GetIntCount()
+		require.NoError(t, err)
+		assert.Equal(t, 2, count)
+	})
+}
+
+func TestApplicationSourceKustomize_MergeReplica(t *testing.T) {
+	r1 := KustomizeReplica{
+		Name:  "my-deployment",
+		Count: intstr.FromInt(2),
+	}
+	r2 := KustomizeReplica{
+		Name:  "my-deployment",
+		Count: intstr.FromInt(4),
+	}
+	t.Run("Add", func(t *testing.T) {
+		k := ApplicationSourceKustomize{Replicas: KustomizeReplicas{}}
+		k.MergeReplica(r1)
+		assert.Equal(t, KustomizeReplicas{r1}, k.Replicas)
+	})
+	t.Run("Replace", func(t *testing.T) {
+		k := ApplicationSourceKustomize{Replicas: KustomizeReplicas{r1}}
+		k.MergeReplica(r2)
+		assert.Len(t, k.Replicas, 1)
+		assert.Equal(t, k.Replicas[0].Name, r2.Name)
+		assert.Equal(t, k.Replicas[0].Count, r2.Count)
+	})
+}
+
+func TestApplicationSourceKustomize_FindByName(t *testing.T) {
+	r1 := KustomizeReplica{
+		Name:  "my-deployment",
+		Count: intstr.FromInt(2),
+	}
+	r2 := KustomizeReplica{
+		Name:  "my-statefulset",
+		Count: intstr.FromInt(4),
+	}
+	Replicas := KustomizeReplicas{r1, r2}
+	t.Run("Found", func(t *testing.T) {
+		i1 := Replicas.FindByName("my-deployment")
+		i2 := Replicas.FindByName("my-statefulset")
+		assert.Equal(t, 0, i1)
+		assert.Equal(t, 1, i2)
+	})
+	t.Run("Not Found", func(t *testing.T) {
+		i := Replicas.FindByName("not-found")
+		assert.Equal(t, -1, i)
 	})
 }
 
@@ -1346,6 +1597,7 @@ func TestApplicationSourceKustomize_IsZero(t *testing.T) {
 		{"NamePrefix", &ApplicationSourceKustomize{NamePrefix: "foo"}, false},
 		{"NameSuffix", &ApplicationSourceKustomize{NameSuffix: "foo"}, false},
 		{"Images", &ApplicationSourceKustomize{Images: []KustomizeImage{""}}, false},
+		{"Replicas", &ApplicationSourceKustomize{Replicas: []KustomizeReplica{{Name: "", Count: intstr.FromInt(0)}}}, false},
 		{"CommonLabels", &ApplicationSourceKustomize{CommonLabels: map[string]string{"": ""}}, false},
 		{"CommonAnnotations", &ApplicationSourceKustomize{CommonAnnotations: map[string]string{"": ""}}, false},
 	}
@@ -1393,7 +1645,6 @@ func TestApplicationSourceDirectory_IsZero(t *testing.T) {
 }
 
 func TestApplicationSourcePlugin_IsZero(t *testing.T) {
-
 	tests := []struct {
 		name   string
 		source *ApplicationSourcePlugin
@@ -1519,7 +1770,7 @@ func TestSyncWindows_HasWindows(t *testing.T) {
 	t.Run("False", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		err := proj.Spec.DeleteWindow(0)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, proj.Spec.SyncWindows.HasWindows())
 	})
 }
@@ -1527,7 +1778,7 @@ func TestSyncWindows_HasWindows(t *testing.T) {
 func TestSyncWindows_Active(t *testing.T) {
 	t.Run("WithTestProject", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
-		assert.Equal(t, 1, len(*proj.Spec.SyncWindows.Active()))
+		assert.Len(t, *proj.Spec.SyncWindows.Active(), 1)
 	})
 
 	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
@@ -1665,27 +1916,24 @@ func TestSyncWindows_Active(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			result := tt.syncWindow.active(tt.currentTime)
 			if result == nil {
 				result = &SyncWindows{}
 			}
-			assert.Equal(t, tt.expectedLength, len(*result))
+			assert.Len(t, *result, tt.expectedLength)
 
 			if len(*result) == 1 {
 				assert.Equal(t, tt.syncWindow[tt.matchingIndex], (*result)[0])
 			}
-
 		})
 	}
-
 }
 
 func TestSyncWindows_InactiveAllows(t *testing.T) {
 	t.Run("WithTestProject", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		proj.Spec.SyncWindows[0].Schedule = "0 0 1 1 1"
-		assert.Equal(t, 1, len(*proj.Spec.SyncWindows.InactiveAllows()))
+		assert.Len(t, *proj.Spec.SyncWindows.InactiveAllows(), 1)
 	})
 
 	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
@@ -1841,20 +2089,17 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			result := tt.syncWindow.inactiveAllows(tt.currentTime)
 			if result == nil {
 				result = &SyncWindows{}
 			}
-			assert.Equal(t, tt.expectedLength, len(*result))
+			assert.Len(t, *result, tt.expectedLength)
 
 			if len(*result) == 1 {
 				assert.Equal(t, tt.syncWindow[tt.matchingIndex], (*result)[0])
 			}
-
 		})
 	}
-
 }
 
 func TestAppProjectSpec_AddWindow(t *testing.T) {
@@ -1884,13 +2129,12 @@ func TestAppProjectSpec_AddWindow(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			switch tt.want {
 			case "error":
-				assert.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t))
+				require.Error(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t))
 			case "noError":
-				assert.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t))
-				assert.NoError(t, tt.p.Spec.DeleteWindow(0))
+				require.NoError(t, tt.p.Spec.AddWindow(tt.k, tt.s, tt.d, tt.a, tt.n, tt.c, tt.m, tt.t))
+				require.NoError(t, tt.p.Spec.DeleteWindow(0))
 			}
 		})
-
 	}
 }
 
@@ -1900,13 +2144,13 @@ func TestAppProjectSpec_DeleteWindow(t *testing.T) {
 	proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, window2)
 	t.Run("CannotFind", func(t *testing.T) {
 		err := proj.Spec.DeleteWindow(3)
-		assert.Error(t, err)
-		assert.Equal(t, 2, len(proj.Spec.SyncWindows))
+		require.Error(t, err)
+		assert.Len(t, proj.Spec.SyncWindows, 2)
 	})
 	t.Run("Delete", func(t *testing.T) {
 		err := proj.Spec.DeleteWindow(0)
-		assert.NoError(t, err)
-		assert.Equal(t, 1, len(proj.Spec.SyncWindows))
+		require.NoError(t, err)
+		assert.Len(t, proj.Spec.SyncWindows, 1)
 	})
 }
 
@@ -1916,31 +2160,31 @@ func TestSyncWindows_Matches(t *testing.T) {
 	t.Run("MatchNamespace", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Namespaces = []string{"default"}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Equal(t, 1, len(*windows))
+		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Namespaces = nil
 	})
 	t.Run("MatchCluster", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Clusters = []string{"cluster1"}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Equal(t, 1, len(*windows))
+		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Clusters = nil
 	})
 	t.Run("MatchClusterName", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Clusters = []string{"clusterName"}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Equal(t, 1, len(*windows))
+		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Clusters = nil
 	})
 	t.Run("MatchAppName", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Applications = []string{"test-app"}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Equal(t, 1, len(*windows))
+		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Applications = nil
 	})
 	t.Run("MatchWildcardAppName", func(t *testing.T) {
 		proj.Spec.SyncWindows[0].Applications = []string{"test-*"}
 		windows := proj.Spec.SyncWindows.Matches(app)
-		assert.Equal(t, 1, len(*windows))
+		assert.Len(t, *windows, 1)
 		proj.Spec.SyncWindows[0].Applications = nil
 	})
 	t.Run("NoMatch", func(t *testing.T) {
@@ -2133,6 +2377,20 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		// then
 		assert.False(t, canSync)
 	})
+	t.Run("will allow auto sync with active-allow and inactive-allow", func(t *testing.T) {
+		// given
+		t.Parallel()
+		proj := newProjectBuilder().
+			withActiveAllowWindow(false).
+			withInactiveAllowWindow(false).
+			build()
+
+		// when
+		canSync := proj.Spec.SyncWindows.CanSync(false)
+
+		// then
+		assert.True(t, canSync)
+	})
 	t.Run("will deny manual sync with active-deny", func(t *testing.T) {
 		// given
 		t.Parallel()
@@ -2277,14 +2535,12 @@ func TestSyncWindows_hasDeny(t *testing.T) {
 		hasDeny, manualEnabled := proj.Spec.SyncWindows.hasDeny()
 		assert.True(t, hasDeny)
 		assert.True(t, manualEnabled)
-
 	})
 	t.Run("False", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		hasDeny, manualEnabled := proj.Spec.SyncWindows.hasDeny()
 		assert.False(t, hasDeny)
 		assert.False(t, manualEnabled)
-
 	})
 }
 
@@ -2387,44 +2643,41 @@ func TestSyncWindow_Active(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
 			result := tt.syncWindow.active(tt.currentTime)
-			assert.Equal(t, result, tt.expectedResult)
-
+			assert.Equal(t, tt.expectedResult, result)
 		})
 	}
-
 }
 
 func TestSyncWindow_Update(t *testing.T) {
 	e := SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h", Applications: []string{"app1"}}
 	t.Run("AddApplication", func(t *testing.T) {
 		err := e.Update("", "", []string{"app1", "app2"}, []string{}, []string{}, "")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, []string{"app1", "app2"}, e.Applications)
 	})
 	t.Run("AddNamespace", func(t *testing.T) {
 		err := e.Update("", "", []string{}, []string{"namespace1"}, []string{}, "")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, []string{"namespace1"}, e.Namespaces)
 	})
 	t.Run("AddCluster", func(t *testing.T) {
 		err := e.Update("", "", []string{}, []string{}, []string{"cluster1"}, "")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, []string{"cluster1"}, e.Clusters)
 	})
 	t.Run("MissingConfig", func(t *testing.T) {
 		err := e.Update("", "", []string{}, []string{}, []string{}, "")
-		assert.EqualError(t, err, "cannot update: require one or more of schedule, duration, application, namespace, or cluster")
+		require.EqualError(t, err, "cannot update: require one or more of schedule, duration, application, namespace, or cluster")
 	})
 	t.Run("ChangeDuration", func(t *testing.T) {
 		err := e.Update("", "10h", []string{}, []string{}, []string{}, "")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "10h", e.Duration)
 	})
 	t.Run("ChangeSchedule", func(t *testing.T) {
 		err := e.Update("* 1 0 0 *", "", []string{}, []string{}, []string{}, "")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "* 1 0 0 *", e.Schedule)
 	})
 }
@@ -2432,22 +2685,22 @@ func TestSyncWindow_Update(t *testing.T) {
 func TestSyncWindow_Validate(t *testing.T) {
 	window := &SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
 	t.Run("Validates", func(t *testing.T) {
-		assert.NoError(t, window.Validate())
+		require.NoError(t, window.Validate())
 	})
 	t.Run("IncorrectKind", func(t *testing.T) {
 		window.Kind = "wrong"
-		assert.Error(t, window.Validate())
+		require.Error(t, window.Validate())
 	})
 	t.Run("IncorrectSchedule", func(t *testing.T) {
 		window.Kind = "allow"
 		window.Schedule = "* * *"
-		assert.Error(t, window.Validate())
+		require.Error(t, window.Validate())
 	})
 	t.Run("IncorrectDuration", func(t *testing.T) {
 		window.Kind = "allow"
 		window.Schedule = "* * * * *"
 		window.Duration = "1000days"
-		assert.Error(t, window.Validate())
+		require.Error(t, window.Validate())
 	})
 }
 
@@ -2748,12 +3001,12 @@ func TestSyncOptions_AddOption(t *testing.T) {
 
 func TestSyncOptions_RemoveOption(t *testing.T) {
 	options := SyncOptions{"a=1"}
-	assert.Len(t, options.RemoveOption("a=1"), 0)
-	assert.Len(t, options.RemoveOption("a=1").RemoveOption("a=1"), 0)
+	assert.Empty(t, options.RemoveOption("a=1"))
+	assert.Empty(t, options.RemoveOption("a=1").RemoveOption("a=1"))
 }
 
 func TestRevisionHistories_Trunc(t *testing.T) {
-	assert.Len(t, RevisionHistories{}.Trunc(1), 0)
+	assert.Empty(t, RevisionHistories{}.Trunc(1))
 	assert.Len(t, RevisionHistories{{}}.Trunc(1), 1)
 	assert.Len(t, RevisionHistories{{}, {}}.Trunc(1), 1)
 	// keep the last element, even with longer list
@@ -2799,22 +3052,28 @@ func TestProjectNormalize(t *testing.T) {
 		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
 	})
 	t.Run("SpecRolesEmpty-StatusRolesToken", func(t *testing.T) {
-		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role"}}},
-			Status: AppProjectStatus{JWTTokensByRole: tokensByRole}}
+		p := AppProject{
+			Spec:   AppProjectSpec{Roles: []ProjectRole{{Name: "test-role"}}},
+			Status: AppProjectStatus{JWTTokensByRole: tokensByRole},
+		}
 		needNormalize := p.NormalizeJWTTokens()
 		assert.True(t, needNormalize)
 		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
 	})
 	t.Run("SpecRolesToken-StatusRolesToken-Same", func(t *testing.T) {
-		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: testTokens}}},
-			Status: AppProjectStatus{JWTTokensByRole: tokensByRole}}
+		p := AppProject{
+			Spec:   AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: testTokens}}},
+			Status: AppProjectStatus{JWTTokensByRole: tokensByRole},
+		}
 		needNormalize := p.NormalizeJWTTokens()
 		assert.False(t, needNormalize)
 		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
 	})
 	t.Run("SpecRolesToken-StatusRolesToken-DifferentToken", func(t *testing.T) {
-		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: testTokens2}}},
-			Status: AppProjectStatus{JWTTokensByRole: tokensByRole}}
+		p := AppProject{
+			Spec:   AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: testTokens2}}},
+			Status: AppProjectStatus{JWTTokensByRole: tokensByRole},
+		}
 		needNormalize := p.NormalizeJWTTokens()
 		assert.True(t, needNormalize)
 		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
@@ -2822,10 +3081,14 @@ func TestProjectNormalize(t *testing.T) {
 	t.Run("SpecRolesToken-StatusRolesToken-DifferentRole", func(t *testing.T) {
 		jwtTokens0 := []JWTToken{{IssuedAt: issuedAt}}
 		jwtTokens1 := []JWTToken{{IssuedAt: issuedAt}, {IssuedAt: secondIssuedAt}}
-		p := AppProject{Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "test-role", JWTTokens: jwtTokens0},
-			{Name: "test-role1", JWTTokens: jwtTokens1},
-			{Name: "test-role2"}}},
-			Status: AppProjectStatus{JWTTokensByRole: tokensByRole}}
+		p := AppProject{
+			Spec: AppProjectSpec{Roles: []ProjectRole{
+				{Name: "test-role", JWTTokens: jwtTokens0},
+				{Name: "test-role1", JWTTokens: jwtTokens1},
+				{Name: "test-role2"},
+			}},
+			Status: AppProjectStatus{JWTTokensByRole: tokensByRole},
+		}
 		needNormalize := p.NormalizeJWTTokens()
 		assert.True(t, needNormalize)
 		assert.ElementsMatch(t, p.Spec.Roles[0].JWTTokens, p.Status.JWTTokensByRole["test-role"].Items)
@@ -2849,17 +3112,16 @@ func TestRetryStrategy_NextRetryAtDefaultBackoff(t *testing.T) {
 
 	for i, expected := range expectedTimes {
 		retryAt, err := retry.NextRetryAt(now, int64(i))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expected.Format(time.RFC850), retryAt.Format(time.RFC850))
 	}
-
 }
 
 func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 	retry := RetryStrategy{
 		Backoff: &Backoff{
 			Duration:    "2s",
-			Factor:      pointer.Int64Ptr(3),
+			Factor:      ptr.To(int64(3)),
 			MaxDuration: "1m",
 		},
 	}
@@ -2874,17 +3136,37 @@ func TestRetryStrategy_NextRetryAtCustomBackoff(t *testing.T) {
 
 	for i, expected := range expectedTimes {
 		retryAt, err := retry.NextRetryAt(now, int64(i))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expected.Format(time.RFC850), retryAt.Format(time.RFC850))
 	}
 }
 
 func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
-	src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
-		NameSuffix: "test",
-	}}
+	t.Run("Has NameSuffix", func(t *testing.T) {
+		src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
+			NameSuffix: "test",
+		}}
 
-	assert.False(t, src.AllowsConcurrentProcessing())
+		assert.False(t, src.AllowsConcurrentProcessing())
+	})
+
+	t.Run("Has CommonAnnotations", func(t *testing.T) {
+		src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
+			CommonAnnotations: map[string]string{"foo": "bar"},
+		}}
+
+		assert.False(t, src.AllowsConcurrentProcessing())
+	})
+
+	t.Run("Has Patches", func(t *testing.T) {
+		src := ApplicationSource{Path: ".", Kustomize: &ApplicationSourceKustomize{
+			Patches: KustomizePatches{{
+				Path: "test",
+			}},
+		}}
+
+		assert.False(t, src.AllowsConcurrentProcessing())
+	})
 }
 
 func TestUnSetCascadedDeletion(t *testing.T) {
@@ -2914,7 +3196,7 @@ func TestRemoveEnvEntry(t *testing.T) {
 				&EnvEntry{"gamma", "delta"},
 			},
 		}
-		assert.NoError(t, plugins.RemoveEnvEntry("alpha"))
+		require.NoError(t, plugins.RemoveEnvEntry("alpha"))
 		want := Env{&EnvEntry{"foo", "bar"}, &EnvEntry{"gamma", "delta"}}
 		assert.Equal(t, want, plugins.Env)
 	})
@@ -2923,7 +3205,7 @@ func TestRemoveEnvEntry(t *testing.T) {
 			Name: "test",
 			Env:  Env{&EnvEntry{"foo", "bar"}},
 		}
-		assert.NoError(t, plugins.RemoveEnvEntry("foo"))
+		require.NoError(t, plugins.RemoveEnvEntry("foo"))
 		assert.Equal(t, Env{}, plugins.Env)
 	})
 	t.Run("Remove unknown element from the list", func(t *testing.T) {
@@ -2932,15 +3214,15 @@ func TestRemoveEnvEntry(t *testing.T) {
 			Env:  Env{&EnvEntry{"foo", "bar"}},
 		}
 		err := plugins.RemoveEnvEntry("key")
-		assert.EqualError(t, err, `unable to find env variable with key "key" for plugin "test"`)
+		require.EqualError(t, err, `unable to find env variable with key "key" for plugin "test"`)
 		err = plugins.RemoveEnvEntry("bar")
-		assert.EqualError(t, err, `unable to find env variable with key "bar" for plugin "test"`)
+		require.EqualError(t, err, `unable to find env variable with key "bar" for plugin "test"`)
 		assert.Equal(t, Env{&EnvEntry{"foo", "bar"}}, plugins.Env)
 	})
 	t.Run("Remove element from an empty list", func(t *testing.T) {
 		plugins := &ApplicationSourcePlugin{Name: "test"}
 		err := plugins.RemoveEnvEntry("key")
-		assert.EqualError(t, err, `unable to find env variable with key "key" for plugin "test"`)
+		require.EqualError(t, err, `unable to find env variable with key "key" for plugin "test"`)
 	})
 }
 
@@ -2948,39 +3230,101 @@ func TestOrphanedResourcesMonitorSettings_IsWarn(t *testing.T) {
 	settings := OrphanedResourcesMonitorSettings{}
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = pointer.BoolPtr(false)
+	settings.Warn = ptr.To(false)
 	assert.False(t, settings.IsWarn())
 
-	settings.Warn = pointer.BoolPtr(true)
+	settings.Warn = ptr.To(true)
 	assert.True(t, settings.IsWarn())
+}
+
+func Test_isValidPolicyObject(t *testing.T) {
+	policyTests := []struct {
+		name    string
+		policy  string
+		isValid bool
+	}{
+		{
+			name:    "policy with full wildcard",
+			policy:  "some-project/*",
+			isValid: true,
+		},
+		{
+			name:    "policy with specified project and application",
+			policy:  "some-project/some-application",
+			isValid: true,
+		},
+		{
+			name:    "policy with full wildcard namespace and application",
+			policy:  "some-project/*/*",
+			isValid: true,
+		},
+		{
+			name:    "policy with wildcard namespace and specified application",
+			policy:  "some-project/*/some-application",
+			isValid: true,
+		},
+		{
+			name:    "policy with specified namespace and wildcard application",
+			policy:  "some-project/some-namespace/*",
+			isValid: true,
+		},
+		{
+			name:    "policy with wildcard prefix namespace and specified application",
+			policy:  "some-project/some-name*/some-application",
+			isValid: true,
+		},
+		{
+			name:    "policy with specified namespace and wildcard prefixed application",
+			policy:  "some-project/some-namespace/some-app*",
+			isValid: true,
+		},
+		{
+			name:    "policy with valid namespace and application",
+			policy:  "some-project/some-namespace/some-application",
+			isValid: true,
+		},
+		{
+			name:    "policy with invalid namespace character",
+			policy:  "some-project/some~namespace/some-application",
+			isValid: false,
+		},
+		{
+			name:    "policy with invalid application character",
+			policy:  "some-project/some-namespace/some^application",
+			isValid: false,
+		},
+	}
+
+	for _, policyTest := range policyTests {
+		assert.Equal(t, policyTest.isValid, isValidObject("some-project", policyTest.policy), policyTest.name)
+	}
 }
 
 func Test_validatePolicy_projIsNotRegex(t *testing.T) {
 	// Make sure the "." in "some.project" isn't treated as the regex wildcard.
 	err := validatePolicy("some.project", "org-admin", "p, proj:some.project:org-admin, applications, *, some-project/*, allow")
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	err = validatePolicy("some.project", "org-admin", "p, proj:some.project:org-admin, applications, *, some.project/*, allow")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applications, *, some-project/*, allow")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func Test_validatePolicy_ValidResource(t *testing.T) {
 	err := validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, applications, *, some-project/*, allow")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, repositories, *, some-project/*, allow")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, clusters, *, some-project/*, allow")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, exec, *, some-project/*, allow")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, logs, *, some-project/*, allow")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = validatePolicy("some-project", "org-admin", "p, proj:some-project:org-admin, unknown, *, some-project/*, allow")
-	assert.Error(t, err)
-
+	require.Error(t, err)
 }
 
 func TestEnvsubst(t *testing.T) {
@@ -3020,42 +3364,48 @@ func Test_validateGroupName(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateGroupName(tt.groupname)
 			if tt.isvalid {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			} else {
-				assert.Error(t, err)
+				require.Error(t, err)
 			}
 		})
 	}
 }
 
 func TestGetCAPath(t *testing.T) {
-
 	temppath := t.TempDir()
 	cert, err := os.ReadFile("../../../../test/fixture/certs/argocd-test-server.crt")
 	if err != nil {
 		panic(err)
 	}
-	err = os.WriteFile(path.Join(temppath, "foo.example.com"), cert, 0666)
+	err = os.WriteFile(path.Join(temppath, "foo.example.com"), cert, 0o666)
 	if err != nil {
 		panic(err)
 	}
-	os.Setenv(argocdcommon.EnvVarTLSDataPath, temppath)
+	t.Setenv(argocdcommon.EnvVarTLSDataPath, temppath)
 	validcert := []string{
 		"https://foo.example.com",
 		"oci://foo.example.com",
 		"foo.example.com",
+		"foo.example.com/charts",
+		"https://foo.example.com:5000",
+		"foo.example.com:5000",
+		"foo.example.com:5000/charts",
+		"ssh://foo.example.com",
 	}
 	invalidpath := []string{
 		"https://bar.example.com",
 		"oci://bar.example.com",
 		"bar.example.com",
-		"ssh://foo.example.com",
-		"git@example.com:organization/reponame.git",
+		"ssh://bar.example.com",
+		"git@foo.example.com:organization/reponame.git",
+		"ssh://git@foo.example.com:organization/reponame.git",
 		"/some/invalid/thing",
 		"../another/invalid/thing",
 		"./also/invalid",
 		"$invalid/as/well",
 		"..",
+		"://invalid",
 	}
 
 	for _, str := range validcert {
@@ -3184,7 +3534,6 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 		// app7 is installed to someotherns, controller running in argocd
 		assert.False(t, proj.IsAppNamespacePermitted(app7, "argocd"))
 	})
-
 }
 
 func Test_RBACName(t *testing.T) {
@@ -3230,7 +3579,7 @@ func TestGetSummary(t *testing.T) {
 	app := newTestApp()
 
 	summary := tree.GetSummary(app)
-	assert.Equal(t, len(summary.ExternalURLs), 0)
+	assert.Empty(t, summary.ExternalURLs)
 
 	const annotationName = argocdcommon.AnnotationKeyLinkPrefix + "/my-link"
 	const url = "https://example.com"
@@ -3238,15 +3587,15 @@ func TestGetSummary(t *testing.T) {
 	app.Annotations[annotationName] = url
 
 	summary = tree.GetSummary(app)
-	assert.Equal(t, len(summary.ExternalURLs), 1)
-	assert.Equal(t, summary.ExternalURLs[0], url)
+	assert.Len(t, summary.ExternalURLs, 1)
+	assert.Equal(t, url, summary.ExternalURLs[0])
 }
 
 func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name:    "version",
-			String_: pointer.String("1.2.3"),
+			String_: ptr.To("1.2.3"),
 		},
 	}
 	environ, err := params.Environ()
@@ -3261,8 +3610,8 @@ func TestApplicationSourcePluginParameters_Environ_string(t *testing.T) {
 func TestApplicationSourcePluginParameters_Environ_array(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
-			Name:  "dependencies",
-			Array: []string{"redis", "minio"},
+			Name:          "dependencies",
+			OptionalArray: &OptionalArray{Array: []string{"redis", "minio"}},
 		},
 	}
 	environ, err := params.Environ()
@@ -3279,9 +3628,11 @@ func TestApplicationSourcePluginParameters_Environ_map(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name: "helm-parameters",
-			Map: map[string]string{
-				"image.repo": "quay.io/argoproj/argo-cd",
-				"image.tag":  "v2.4.0",
+			OptionalMap: &OptionalMap{
+				Map: map[string]string{
+					"image.repo": "quay.io/argoproj/argo-cd",
+					"image.tag":  "v2.4.0",
+				},
 			},
 		},
 	}
@@ -3301,11 +3652,15 @@ func TestApplicationSourcePluginParameters_Environ_all(t *testing.T) {
 	params := ApplicationSourcePluginParameters{
 		{
 			Name:    "some-name",
-			String_: pointer.String("1.2.3"),
-			Array:   []string{"redis", "minio"},
-			Map: map[string]string{
-				"image.repo": "quay.io/argoproj/argo-cd",
-				"image.tag":  "v2.4.0",
+			String_: ptr.To("1.2.3"),
+			OptionalArray: &OptionalArray{
+				Array: []string{"redis", "minio"},
+			},
+			OptionalMap: &OptionalMap{
+				Map: map[string]string{
+					"image.repo": "quay.io/argoproj/argo-cd",
+					"image.tag":  "v2.4.0",
+				},
 			},
 		},
 	}
@@ -3400,4 +3755,207 @@ func TestGetSources(t *testing.T) {
 			assert.Equal(t, testCopy.expectedSources, sources)
 		})
 	}
+}
+
+func TestOptionalArrayEquality(t *testing.T) {
+	// Demonstrate that the JSON unmarshalling of an empty array parameter is an OptionalArray with the array field set
+	// to an empty array.
+	presentButEmpty := `{"array":[]}`
+	param := ApplicationSourcePluginParameter{}
+	err := json.Unmarshal([]byte(presentButEmpty), &param)
+	require.NoError(t, err)
+	jsonPresentButEmpty := param.OptionalArray
+	require.Equal(t, &OptionalArray{Array: []string{}}, jsonPresentButEmpty)
+
+	// We won't simulate the protobuf unmarshalling of an empty array parameter. By experimentation, this is how it's
+	// unmarshalled.
+	protobufPresentButEmpty := &OptionalArray{Array: nil}
+
+	tests := []struct {
+		name     string
+		a        *OptionalArray
+		b        *OptionalArray
+		expected bool
+	}{
+		{"nil and nil", nil, nil, true},
+		{"nil and empty", nil, jsonPresentButEmpty, false},
+		{"nil and empty-containing-nil", nil, protobufPresentButEmpty, false},
+		{"empty-containing-empty and nil", jsonPresentButEmpty, nil, false},
+		{"empty-containing-nil and nil", protobufPresentButEmpty, nil, false},
+		{"empty-containing-empty and empty-containing-empty", jsonPresentButEmpty, jsonPresentButEmpty, true},
+		{"empty-containing-empty and empty-containing-nil", jsonPresentButEmpty, protobufPresentButEmpty, true},
+		{"empty-containing-nil and empty-containing-empty", protobufPresentButEmpty, jsonPresentButEmpty, true},
+		{"empty-containing-nil and empty-containing-nil", protobufPresentButEmpty, protobufPresentButEmpty, true},
+		{"empty-containing-empty and non-empty", jsonPresentButEmpty, &OptionalArray{Array: []string{"a"}}, false},
+		{"non-empty and empty-containing-nil", &OptionalArray{Array: []string{"a"}}, jsonPresentButEmpty, false},
+		{"non-empty and non-empty", &OptionalArray{Array: []string{"a"}}, &OptionalArray{Array: []string{"a"}}, true},
+		{"non-empty and non-empty different", &OptionalArray{Array: []string{"a"}}, &OptionalArray{Array: []string{"b"}}, false},
+	}
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
+		})
+	}
+}
+
+func TestOptionalMapEquality(t *testing.T) {
+	// Demonstrate that the JSON unmarshalling of an empty map parameter is an OptionalMap with the map field set
+	// to an empty map.
+	presentButEmpty := `{"map":{}}`
+	param := ApplicationSourcePluginParameter{}
+	err := json.Unmarshal([]byte(presentButEmpty), &param)
+	require.NoError(t, err)
+	jsonPresentButEmpty := param.OptionalMap
+	require.Equal(t, &OptionalMap{Map: map[string]string{}}, jsonPresentButEmpty)
+
+	// We won't simulate the protobuf unmarshalling of an empty map parameter. By experimentation, this is how it's
+	// unmarshalled.
+	protobufPresentButEmpty := &OptionalMap{Map: nil}
+
+	tests := []struct {
+		name     string
+		a        *OptionalMap
+		b        *OptionalMap
+		expected bool
+	}{
+		{"nil and nil", nil, nil, true},
+		{"nil and empty-containing-empty", nil, jsonPresentButEmpty, false},
+		{"nil and empty-containing-nil", nil, protobufPresentButEmpty, false},
+		{"empty-containing-empty and nil", jsonPresentButEmpty, nil, false},
+		{"empty-containing-nil and nil", protobufPresentButEmpty, nil, false},
+		{"empty-containing-empty and empty-containing-empty", jsonPresentButEmpty, jsonPresentButEmpty, true},
+		{"empty-containing-empty and empty-containing-nil", jsonPresentButEmpty, protobufPresentButEmpty, true},
+		{"empty-containing-empty and non-empty", jsonPresentButEmpty, &OptionalMap{Map: map[string]string{"a": "b"}}, false},
+		{"empty-containing-nil and empty-containing-empty", protobufPresentButEmpty, jsonPresentButEmpty, true},
+		{"empty-containing-nil and empty-containing-nil", protobufPresentButEmpty, protobufPresentButEmpty, true},
+		{"non-empty and empty-containing-empty", &OptionalMap{Map: map[string]string{"a": "b"}}, jsonPresentButEmpty, false},
+		{"non-empty and non-empty", &OptionalMap{Map: map[string]string{"a": "b"}}, &OptionalMap{Map: map[string]string{"a": "b"}}, true},
+		{"non-empty and non-empty different", &OptionalMap{Map: map[string]string{"a": "b"}}, &OptionalMap{Map: map[string]string{"a": "c"}}, false},
+	}
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
+		})
+	}
+}
+
+func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
+	testCases := []struct {
+		name        string
+		application ApplicationSpec
+		sourceIndex int
+		expected    *ApplicationSource
+	}{
+		{
+			name: "HasMultipleSources_ReturnsFirstSource",
+			application: ApplicationSpec{
+				Sources: []ApplicationSource{
+					{RepoURL: "https://github.com/argoproj/test1.git"},
+					{RepoURL: "https://github.com/argoproj/test2.git"},
+				},
+			},
+			sourceIndex: 0,
+			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test1.git"},
+		},
+		{
+			name: "HasMultipleSources_ReturnsSourceAtIndex",
+			application: ApplicationSpec{
+				Sources: []ApplicationSource{
+					{RepoURL: "https://github.com/argoproj/test1.git"},
+					{RepoURL: "https://github.com/argoproj/test2.git"},
+				},
+			},
+			sourceIndex: 1,
+			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test2.git"},
+		},
+		{
+			name: "HasSingleSource_ReturnsSource",
+			application: ApplicationSpec{
+				Source: &ApplicationSource{RepoURL: "https://github.com/argoproj/test.git"},
+			},
+			sourceIndex: 0,
+			expected:    &ApplicationSource{RepoURL: "https://github.com/argoproj/test.git"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual := tc.application.GetSourcePtrByIndex(tc.sourceIndex)
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
+func TestApplicationTree_GetShards(t *testing.T) {
+	tree := &ApplicationTree{
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}}, {ResourceRef: ResourceRef{Name: "node 3"}},
+		},
+		OrphanedNodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "orph-node 1"}}, {ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}},
+		},
+		Hosts: []HostInfo{
+			{Name: "host 1"}, {Name: "host 2"}, {Name: "host 3"},
+		},
+	}
+
+	shards := tree.GetShards(2)
+	require.Len(t, shards, 5)
+	require.Equal(t, &ApplicationTree{
+		ShardsCount: 5,
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}},
+		},
+	}, shards[0])
+	require.Equal(t, &ApplicationTree{
+		Nodes:         []ResourceNode{{ResourceRef: ResourceRef{Name: "node 3"}}},
+		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 1"}}},
+	}, shards[1])
+	require.Equal(t, &ApplicationTree{
+		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}}},
+	}, shards[2])
+	require.Equal(t, &ApplicationTree{
+		Hosts: []HostInfo{{Name: "host 1"}, {Name: "host 2"}},
+	}, shards[3])
+	require.Equal(t, &ApplicationTree{
+		Hosts: []HostInfo{{Name: "host 3"}},
+	}, shards[4])
+}
+
+func TestApplicationTree_Merge(t *testing.T) {
+	tree := &ApplicationTree{}
+	tree.Merge(&ApplicationTree{
+		ShardsCount: 5,
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}},
+		},
+	})
+	tree.Merge(&ApplicationTree{
+		Nodes:         []ResourceNode{{ResourceRef: ResourceRef{Name: "node 3"}}},
+		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 1"}}},
+	})
+	tree.Merge(&ApplicationTree{
+		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}}},
+	})
+	tree.Merge(&ApplicationTree{
+		Hosts: []HostInfo{{Name: "host 1"}, {Name: "host 2"}},
+	})
+	tree.Merge(&ApplicationTree{
+		Hosts: []HostInfo{{Name: "host 3"}},
+	})
+	require.Equal(t, &ApplicationTree{
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}}, {ResourceRef: ResourceRef{Name: "node 3"}},
+		},
+		OrphanedNodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "orph-node 1"}}, {ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}},
+		},
+		Hosts: []HostInfo{
+			{Name: "host 1"}, {Name: "host 2"}, {Name: "host 3"},
+		},
+	}, tree)
 }

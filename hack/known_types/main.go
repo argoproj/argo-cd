@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"go/importer"
+	"go/token"
 	"go/types"
 	"os"
 	"strings"
@@ -22,10 +23,8 @@ const (
 )
 
 func newCommand() *cobra.Command {
-	var (
-		docsOutputPath string = ""
-	)
-	var command = &cobra.Command{
+	var docsOutputPath string = ""
+	command := &cobra.Command{
 		Use:     "go run github.com/argoproj/argo-cd/hack/known_types ALIAS PACKAGE_PATH OUTPUT_PATH",
 		Example: "go run github.com/argoproj/argo-cd/hack/known_types corev1 k8s.io/api/core/v1 corev1_known_types.go",
 		RunE: func(c *cobra.Command, args []string) error {
@@ -36,15 +35,16 @@ func newCommand() *cobra.Command {
 			packagePath := args[1]
 			outputPath := args[2]
 
-			// nolint:staticcheck
-			imprt := importer.For("source", nil)
+			if !strings.HasPrefix(packagePath, packagePrefix) {
+				return fmt.Errorf("package must be under %s", packagePrefix)
+			}
+
+			imprt := importer.ForCompiler(token.NewFileSet(), "source", nil)
 			pkg, err := imprt.Import(packagePath)
 			if err != nil {
 				return err
 			}
-			if !strings.HasPrefix(packagePath, packagePrefix) {
-				return fmt.Errorf("package must be under %s", packagePrefix)
-			}
+
 			shortPackagePath := strings.TrimPrefix(packagePath, packagePrefix)
 
 			var mapItems []string
@@ -77,12 +77,12 @@ import corev1 "k8s.io/api/core/v1"
 func init() {%s
 }`, strings.Join(mapItems, ""))
 			if docsOutputPath != "" {
-				if err = os.WriteFile(docsOutputPath, []byte(strings.Join(docs, "\n")), 0644); err != nil {
+				if err = os.WriteFile(docsOutputPath, []byte(strings.Join(docs, "\n")), 0o644); err != nil {
 					return err
 				}
 			}
 
-			return os.WriteFile(outputPath, []byte(res), 0644)
+			return os.WriteFile(outputPath, []byte(res+"\n"), 0o644)
 		},
 	}
 	command.Flags().StringVar(&docsOutputPath, "docs", "", "Docs output file path")

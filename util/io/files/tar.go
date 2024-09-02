@@ -45,7 +45,6 @@ func Tgz(srcPath string, inclusions []string, exclusions []string, writers ...io
 		tarWriter:  tw,
 	}
 	err := filepath.Walk(srcPath, t.tgzFile)
-
 	if err != nil {
 		return 0, err
 	}
@@ -58,7 +57,7 @@ func Tgz(srcPath string, inclusions []string, exclusions []string, writers ...io
 //   - a full path
 //   - points to an empty directory or
 //   - points to a non existing directory
-func Untgz(dstPath string, r io.Reader, maxSize int64) error {
+func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) error {
 	if !filepath.IsAbs(dstPath) {
 		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
 	}
@@ -92,7 +91,11 @@ func Untgz(dstPath string, r io.Reader, maxSize int64) error {
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			err := os.MkdirAll(target, 0755)
+			var mode os.FileMode = 0o755
+			if preserveFileMode {
+				mode = os.FileMode(header.Mode)
+			}
+			err := os.MkdirAll(target, mode)
 			if err != nil {
 				return fmt.Errorf("error creating nested folders: %w", err)
 			}
@@ -103,22 +106,27 @@ func Untgz(dstPath string, r io.Reader, maxSize int64) error {
 			if os.IsNotExist(err) {
 				realPath = linkTarget
 			} else if err != nil {
-				return fmt.Errorf("error checking symlink realpath: %s", err)
+				return fmt.Errorf("error checking symlink realpath: %w", err)
 			}
 			if !Inbound(realPath, dstPath) {
 				return fmt.Errorf("illegal filepath in symlink: %s", linkTarget)
 			}
 			err = os.Symlink(realPath, target)
 			if err != nil {
-				return fmt.Errorf("error creating symlink: %s", err)
+				return fmt.Errorf("error creating symlink: %w", err)
 			}
 		case tar.TypeReg:
-			err := os.MkdirAll(filepath.Dir(target), 0755)
+			var mode os.FileMode = 0o644
+			if preserveFileMode {
+				mode = os.FileMode(header.Mode)
+			}
+
+			err := os.MkdirAll(filepath.Dir(target), 0o755)
 			if err != nil {
 				return fmt.Errorf("error creating nested folders: %w", err)
 			}
 
-			f, err := os.Create(target)
+			f, err := os.OpenFile(target, os.O_RDWR|os.O_CREATE|os.O_TRUNC, mode)
 			if err != nil {
 				return fmt.Errorf("error creating file %q: %w", target, err)
 			}
@@ -146,7 +154,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 
 	relativePath, err := RelativePath(path, t.srcPath)
 	if err != nil {
-		return fmt.Errorf("relative path error: %s", err)
+		return fmt.Errorf("relative path error: %w", err)
 	}
 
 	if t.inclusions != nil && base != "." && !fi.IsDir() {
@@ -188,7 +196,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	if IsSymlink(fi) {
 		link, err = os.Readlink(path)
 		if err != nil {
-			return fmt.Errorf("error getting link target: %s", err)
+			return fmt.Errorf("error getting link target: %w", err)
 		}
 	}
 

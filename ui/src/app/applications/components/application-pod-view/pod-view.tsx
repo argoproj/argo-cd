@@ -11,9 +11,10 @@ import {PodViewPreferences, services, ViewPreferences} from '../../../shared/ser
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {ComparisonStatusIcon, isYoungerThanXMinutes, HealthStatusIcon, nodeKey, PodHealthIcon, deletePodAction} from '../utils';
+import {ComparisonStatusIcon, isYoungerThanXMinutes, HealthStatusIcon, nodeKey, PodHealthIcon} from '../utils';
 
 import './pod-view.scss';
+import {PodTooltip} from './pod-tooltip';
 
 interface PodViewProps {
     tree: ApplicationTree;
@@ -144,9 +145,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                     </Moment>
                                                                 </div>
                                                             ) : null}
-                                                            {group.info?.map(infoItem => (
-                                                                <div key={infoItem.name}>{infoItem.value}</div>
-                                                            ))}
+                                                            {group.info?.map(infoItem => <div key={infoItem.name}>{infoItem.value}</div>)}
                                                         </div>
                                                     )}
                                                 </div>
@@ -158,100 +157,43 @@ export class PodView extends React.Component<PodViewProps> {
                                                     )}
                                                     <div className='pod-view__node__pod-container pod-view__node__container'>
                                                         <div className='pod-view__node__pod-container__pods'>
-                                                            {group.pods.map(pod => (
-                                                                <DropDownMenu
-                                                                    key={pod.uid}
-                                                                    anchor={() => (
-                                                                        <Tooltip
-                                                                            content={
-                                                                                <div>
-                                                                                    {pod.metadata.name}
-                                                                                    <div>Health: {pod.health}</div>
-                                                                                    {pod.createdAt && (
-                                                                                        <span>
-                                                                                            <span>Created: </span>
-                                                                                            <Moment fromNow={true} ago={true}>
-                                                                                                {pod.createdAt}
-                                                                                            </Moment>
-                                                                                            <span> ago ({<Moment local={true}>{pod.createdAt}</Moment>})</span>
-                                                                                            <div>
-                                                                                                {isYoungerThanXMinutes(pod, 30) && (
-                                                                                                    <span>
-                                                                                                        <i className='fas fa-circle circle-icon' /> &nbsp;
-                                                                                                        <span>pod age less than 30min</span>
-                                                                                                    </span>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        </span>
-                                                                                    )}
-                                                                                </div>
-                                                                            }
-                                                                            popperOptions={{
-                                                                                modifiers: {
-                                                                                    preventOverflow: {
-                                                                                        enabled: true
-                                                                                    },
-                                                                                    hide: {
-                                                                                        enabled: false
-                                                                                    },
-                                                                                    flip: {
-                                                                                        enabled: false
-                                                                                    }
-                                                                                }
-                                                                            }}
-                                                                            key={pod.metadata.name}>
-                                                                            <div style={{position: 'relative'}}>
-                                                                                {isYoungerThanXMinutes(pod, 30) && (
-                                                                                    <i className='fas fa-circle pod-view__node__pod pod-view__node__pod__new-pod-icon' />
-                                                                                )}
-                                                                                <div className={`pod-view__node__pod pod-view__node__pod--${pod.health.toLowerCase()}`}>
-                                                                                    <PodHealthIcon state={{status: pod.health, message: ''}} />
-                                                                                </div>
-                                                                            </div>
-                                                                        </Tooltip>
-                                                                    )}
-                                                                    items={[
-                                                                        {
-                                                                            title: (
-                                                                                <React.Fragment>
-                                                                                    <i className='fa fa-info-circle' /> Info
-                                                                                </React.Fragment>
-                                                                            ),
-                                                                            action: () => this.props.onItemClick(pod.fullName)
-                                                                        },
-                                                                        {
-                                                                            title: (
-                                                                                <React.Fragment>
-                                                                                    <i className='fa fa-align-left' /> Logs
-                                                                                </React.Fragment>
-                                                                            ),
-                                                                            action: () => {
-                                                                                this.appContext.apis.navigation.goto('.', {node: pod.fullName, tab: 'logs'}, {replace: true});
-                                                                            }
-                                                                        },
-                                                                        {
-                                                                            title: (
-                                                                                <React.Fragment>
-                                                                                    <i className='fa fa-terminal' /> Exec
-                                                                                </React.Fragment>
-                                                                            ),
-                                                                            action: () => {
-                                                                                this.appContext.apis.navigation.goto('.', {node: pod.fullName, tab: 'exec'}, {replace: true});
-                                                                            }
-                                                                        },
-                                                                        {
-                                                                            title: (
-                                                                                <React.Fragment>
-                                                                                    <i className='fa fa-times-circle' /> Delete
-                                                                                </React.Fragment>
-                                                                            ),
-                                                                            action: () => {
-                                                                                deletePodAction(pod, this.appContext, this.props.app.metadata.name);
-                                                                            }
-                                                                        }
-                                                                    ]}
-                                                                />
-                                                            ))}
+                                                            {group.pods.map(
+                                                                pod =>
+                                                                    this.props.nodeMenu && (
+                                                                        <DropDown
+                                                                            key={pod.uid}
+                                                                            isMenu={true}
+                                                                            anchor={() => (
+                                                                                <Tooltip
+                                                                                    content={<PodTooltip pod={pod} />}
+                                                                                    popperOptions={{
+                                                                                        modifiers: {
+                                                                                            preventOverflow: {
+                                                                                                enabled: true
+                                                                                            },
+                                                                                            hide: {
+                                                                                                enabled: false
+                                                                                            },
+                                                                                            flip: {
+                                                                                                enabled: false
+                                                                                            }
+                                                                                        }
+                                                                                    }}
+                                                                                    key={pod.metadata.name}>
+                                                                                    <div style={{position: 'relative'}}>
+                                                                                        {isYoungerThanXMinutes(pod, 30) && (
+                                                                                            <i className='fas fa-circle pod-view__node__pod pod-view__node__pod__new-pod-icon' />
+                                                                                        )}
+                                                                                        <div className={`pod-view__node__pod pod-view__node__pod--${pod.health.toLowerCase()}`}>
+                                                                                            <PodHealthIcon state={{status: pod.health, message: ''}} />
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </Tooltip>
+                                                                            )}>
+                                                                            {() => this.props.nodeMenu(pod)}
+                                                                        </DropDown>
+                                                                    )
+                                                            )}
                                                         </div>
                                                         <div className='pod-view__node__label'>PODS</div>
                                                         {(podPrefs.sortMode === 'parentResource' || podPrefs.sortMode === 'topLevelResource') && (

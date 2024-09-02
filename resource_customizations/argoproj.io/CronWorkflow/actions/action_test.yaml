@@ -1,0 +1,7 @@
+actionTests:
+- action: create-workflow
+  inputPath: testdata/cronworkflow.yaml
+  expectedOutputPath: testdata/workflow.yaml
+- action: create-workflow
+  inputPath: testdata/cronworkflow-without-label.yaml
+  expectedOutputPath: testdata/workflow-without-label.yaml

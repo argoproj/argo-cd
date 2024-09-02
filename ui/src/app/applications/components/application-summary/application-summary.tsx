@@ -1,8 +1,9 @@
+/* eslint-disable no-prototype-builtins */
 import {AutocompleteField, DropDownMenu, ErrorNotification, FormField, FormSelect, HelpIcon, NotificationType} from 'argo-ui';
 import * as React from 'react';
 import {FormApi, Text} from 'react-form';
 import {
-    ARGO_WARNING_COLOR,
+    ClipboardText,
     Cluster,
     DataLoader,
     EditablePanel,
@@ -15,13 +16,13 @@ import {
     RevisionHelpIcon
 } from '../../../shared/components';
 import {BadgePanel, Spinner} from '../../../shared/components';
-import {Consumer, ContextApis} from '../../../shared/context';
+import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
-import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, formatCreationTimestamp, getAppDefaultSource, getAppSpecDefaultSource} from '../utils';
+import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, formatCreationTimestamp, getAppDefaultSource, getAppSpecDefaultSource, helpTip} from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
 import {Link} from 'react-router-dom';
@@ -37,6 +38,16 @@ function swap(array: any[], a: number, b: number) {
     return array;
 }
 
+function processPath(path: string) {
+    if (path !== null && path !== undefined) {
+        if (path === '.') {
+            return '(root)';
+        }
+        return path;
+    }
+    return '';
+}
+
 export interface ApplicationSummaryProps {
     app: models.Application;
     updateApp: (app: models.Application, query: {validate?: boolean}) => Promise<any>;
@@ -47,11 +58,14 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const source = getAppDefaultSource(app);
     const isHelm = source.hasOwnProperty('chart');
     const initialState = app.spec.destination.server === undefined ? 'NAME' : 'URL';
+    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const [destFormat, setDestFormat] = React.useState(initialState);
     const [changeSync, setChangeSync] = React.useState(false);
 
     const notificationSubscriptions = useEditNotificationSubscriptions(app.metadata.annotations || {});
     const updateApp = notificationSubscriptions.withNotificationSubscriptions(props.updateApp);
+
+    const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
 
     const attributes = [
         {
@@ -149,87 +163,101 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         },
         {
             title: 'NAMESPACE',
-            view: app.spec.destination.namespace,
+            view: <ClipboardText text={app.spec.destination.namespace} />,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.destination.namespace' component={Text} />
         },
         {
             title: 'CREATED AT',
             view: formatCreationTimestamp(app.metadata.creationTimestamp)
         },
-        {
+        !hasMultipleSources && {
             title: 'REPO URL',
             view: <Repo url={source.repoURL} />,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.repoURL' component={Text} />
         },
-        ...(isHelm
-            ? [
-                  {
-                      title: 'CHART',
-                      view: (
-                          <span>
-                              {source.chart}:{source.targetRevision}
-                          </span>
-                      ),
-                      edit: (formApi: FormApi) => (
-                          <DataLoader
-                              input={{repoURL: getAppSpecDefaultSource(formApi.getFormState().values.spec).repoURL}}
-                              load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
-                              {(charts: models.HelmChart[]) => (
-                                  <div className='row'>
-                                      <div className='columns small-8'>
-                                          <FormField
-                                              formApi={formApi}
-                                              field='spec.source.chart'
-                                              component={AutocompleteField}
-                                              componentProps={{
-                                                  items: charts.map(chart => chart.name),
-                                                  filterSuggestions: true
-                                              }}
-                                          />
-                                      </div>
-                                      <DataLoader
-                                          input={{charts, chart: getAppSpecDefaultSource(formApi.getFormState().values.spec).chart}}
-                                          load={async data => {
-                                              const chartInfo = data.charts.find(chart => chart.name === data.chart);
-                                              return (chartInfo && chartInfo.versions) || new Array<string>();
-                                          }}>
-                                          {(versions: string[]) => (
-                                              <div className='columns small-4'>
+        ...(!hasMultipleSources
+            ? isHelm
+                ? [
+                      {
+                          title: 'CHART',
+                          view: (
+                              <span>
+                                  {source.chart}:{source.targetRevision}
+                              </span>
+                          ),
+                          edit: (formApi: FormApi) =>
+                              hasMultipleSources ? (
+                                  helpTip('CHART is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
+                              ) : (
+                                  <DataLoader
+                                      input={{repoURL: getAppSpecDefaultSource(formApi.getFormState().values.spec).repoURL}}
+                                      load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
+                                      {(charts: models.HelmChart[]) => (
+                                          <div className='row'>
+                                              <div className='columns small-8'>
                                                   <FormField
                                                       formApi={formApi}
-                                                      field='spec.source.targetRevision'
+                                                      field='spec.source.chart'
                                                       component={AutocompleteField}
                                                       componentProps={{
-                                                          items: versions
+                                                          items: charts.map(chart => chart.name),
+                                                          filterSuggestions: true
                                                       }}
                                                   />
-                                                  <RevisionHelpIcon type='helm' top='0' />
                                               </div>
-                                          )}
-                                      </DataLoader>
-                                  </div>
-                              )}
-                          </DataLoader>
-                      )
-                  }
-              ]
-            : [
-                  {
-                      title: 'TARGET REVISION',
-                      view: <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} />,
-                      edit: (formApi: FormApi) => <RevisionFormField helpIconTop={'0'} hideLabel={true} formApi={formApi} repoURL={source.repoURL} />
-                  },
-                  {
-                      title: 'PATH',
-                      view: (
-                          <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} path={source.path} isForPath={true}>
-                              {source.path ?? ''}
-                          </Revision>
-                      ),
-                      edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.path' component={Text} />
-                  }
-              ]),
-
+                                              <DataLoader
+                                                  input={{charts, chart: getAppSpecDefaultSource(formApi.getFormState().values.spec).chart}}
+                                                  load={async data => {
+                                                      const chartInfo = data.charts.find(chart => chart.name === data.chart);
+                                                      return (chartInfo && chartInfo.versions) || new Array<string>();
+                                                  }}>
+                                                  {(versions: string[]) => (
+                                                      <div className='columns small-4'>
+                                                          <FormField
+                                                              formApi={formApi}
+                                                              field='spec.source.targetRevision'
+                                                              component={AutocompleteField}
+                                                              componentProps={{
+                                                                  items: versions
+                                                              }}
+                                                          />
+                                                          <RevisionHelpIcon type='helm' top='0' />
+                                                      </div>
+                                                  )}
+                                              </DataLoader>
+                                          </div>
+                                      )}
+                                  </DataLoader>
+                              )
+                      }
+                  ]
+                : [
+                      {
+                          title: 'TARGET REVISION',
+                          view: <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} />,
+                          edit: (formApi: FormApi) =>
+                              hasMultipleSources ? (
+                                  helpTip('TARGET REVISION is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
+                              ) : (
+                                  <RevisionFormField helpIconTop={'0'} hideLabel={true} formApi={formApi} repoURL={source.repoURL} />
+                              )
+                      },
+                      {
+                          title: 'PATH',
+                          view: (
+                              <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} path={source.path} isForPath={true}>
+                                  {processPath(source.path)}
+                              </Revision>
+                          ),
+                          edit: (formApi: FormApi) =>
+                              hasMultipleSources ? (
+                                  helpTip('PATH is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
+                              ) : (
+                                  <FormField formApi={formApi} field='spec.source.path' component={Text} />
+                              )
+                      }
+                  ]
+            : []),
         {
             title: 'REVISION HISTORY LIMIT',
             view: app.spec.revisionHistoryLimit,
@@ -251,7 +279,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         {
             title: 'SYNC OPTIONS',
             view: (
-                <div style={{display: 'flex'}}>
+                <div style={{display: 'flex', flexWrap: 'wrap'}}>
                     {((app.spec.syncPolicy || {}).syncOptions || []).map(opt =>
                         opt.endsWith('=true') || opt.endsWith('=false') ? (
                             <div key={opt} style={{marginRight: '10px'}}>
@@ -299,7 +327,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         {
             title: 'LINKS',
             view: (
-                <DataLoader load={() => services.applications.getLinks(app.metadata.name)} input={app} key='appLinks'>
+                <DataLoader load={() => services.applications.getLinks(app.metadata.name, app.metadata.namespace)} input={app} key='appLinks'>
                     {(links: models.LinksResponse) => <DeepLinks links={links.items} />}
                 </DataLoader>
             )
@@ -312,13 +340,17 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             title: 'URLs',
             view: (
                 <React.Fragment>
-                    {urls
-                        .map(item => item.split('|'))
-                        .map((parts, i) => (
-                            <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='__blank'>
-                                {parts[0]} &nbsp;
-                            </a>
-                        ))}
+                    <div className='application-summary__links-rows'>
+                        {urls
+                            .map(item => item.split('|'))
+                            .map((parts, i) => (
+                                <div className='application-summary__links-row'>
+                                    <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='_blank'>
+                                        {parts[0]} &nbsp;
+                                    </a>
+                                </div>
+                            ))}
+                    </div>
                 </React.Fragment>
             )
         });
@@ -466,6 +498,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             )}
             <EditablePanel
                 save={updateApp}
+                view={hasMultipleSources ? <>This is a multi-source app, see the Sources tab for repository URLs and source-related information.</> : <></>}
                 validate={input => ({
                     'spec.project': !input.spec.project && 'Project name is required',
                     'spec.destination.server': !input.spec.destination.server && input.spec.destination.hasOwnProperty('server') && 'Cluster server is required',
@@ -578,7 +611,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     </div>
                 )}
             </Consumer>
-            <BadgePanel app={props.app.metadata.name} />
+            <BadgePanel app={props.app.metadata.name} appNamespace={props.app.metadata.namespace} nsEnabled={useAuthSettingsCtx?.appsInAnyNamespaceEnabled} />
             <EditablePanel
                 save={updateApp}
                 values={app}

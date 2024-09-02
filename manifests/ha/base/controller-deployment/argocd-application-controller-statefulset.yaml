@@ -1,0 +1,15 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: argocd-application-controller
+spec:
+  replicas: 0
+  template:
+    spec:
+      containers:
+      - name: argocd-application-controller
+        args:
+        - /usr/local/bin/argocd-application-controller
+        env:
+        - name: ARGOCD_CONTROLLER_REPLICAS
+          value: "0"

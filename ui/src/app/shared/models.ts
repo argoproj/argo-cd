@@ -94,9 +94,16 @@ export interface RevisionMetadata {
     signatureInfo?: string;
 }
 
+export interface ChartDetails {
+    description?: string;
+    maintainers?: string[];
+    home?: string;
+}
+
 export interface SyncOperationResult {
     resources: ResourceResult[];
     revision: string;
+    revisions: string[];
 }
 
 export type ResultCode = 'Synced' | 'SyncFailed' | 'Pruned' | 'PruneSkipped';
@@ -191,11 +198,14 @@ export interface ApplicationSource {
     plugin?: ApplicationSourcePlugin;
 
     directory?: ApplicationSourceDirectory;
+
+    ref?: string;
 }
 
 export interface ApplicationSourceHelm {
     valueFiles: string[];
     values?: string;
+    valuesObject?: any;
     parameters: HelmParameter[];
     fileParameters: HelmFileParameter[];
 }
@@ -205,6 +215,7 @@ export interface ApplicationSourceKustomize {
     nameSuffix: string;
     images: string[];
     version: string;
+    namespace: string;
 }
 export interface EnvEntry {
     name: string;
@@ -289,6 +300,7 @@ export interface RevisionHistory {
     sources: ApplicationSource[];
     deployStartedAt: models.Time;
     deployedAt: models.Time;
+    initiatedBy: OperationInitiator;
 }
 
 export type SyncStatusCode = 'Unknown' | 'Synced' | 'OutOfSync';
@@ -317,6 +329,10 @@ export interface HealthStatus {
 
 export type State = models.TypeMeta & {metadata: models.ObjectMeta} & {status: any; spec: any};
 
+export type ReadinessGate = {
+    conditionType: string;
+};
+
 export interface ResourceStatus {
     group: string;
     version: string;
@@ -329,6 +345,7 @@ export interface ResourceStatus {
     hook?: boolean;
     requiresPruning?: boolean;
     syncWave?: number;
+    orphaned?: boolean;
 }
 
 export interface ResourceRef {
@@ -455,13 +472,16 @@ export interface AuthSettings {
     };
     oidcConfig: {
         name: string;
+        issuer: string;
+        clientID: string;
+        scopes: string[];
+        enablePKCEAuthentication: boolean;
     };
     help: {
         chatUrl: string;
         chatText: string;
         binaryUrls: Record<string, string>;
     };
-    plugins: Plugin[];
     userLoginsDisabled: boolean;
     kustomizeVersions: string[];
     uiCssURL: string;
@@ -515,9 +535,12 @@ export interface Repository {
     tlsClientCertData?: string;
     tlsClientCertKey?: string;
     proxy?: string;
+    noProxy?: string;
     insecure?: boolean;
     enableLfs?: boolean;
     githubAppId?: string;
+    forceHttpBasicAuth?: boolean;
+    enableOCI: boolean;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}
@@ -608,6 +631,7 @@ export interface HelmAppSpec {
 export interface KustomizeAppSpec {
     path: string;
     images?: string[];
+    namespace?: string;
 }
 
 export interface PluginAppSpec {
@@ -695,6 +719,7 @@ export interface ProjectSignatureKey {
 
 export interface ProjectSpec {
     sourceRepos: string[];
+    sourceNamespaces: string[];
     destinations: ApplicationDestination[];
     description: string;
     roles: ProjectRole[];
@@ -757,6 +782,8 @@ export interface ResourceAction {
     name: string;
     params: ResourceActionParam[];
     disabled: boolean;
+    iconClass: string;
+    displayName: string;
 }
 
 export interface SyncWindowsState {
@@ -937,4 +964,13 @@ export interface LinkInfo {
 
 export interface LinksResponse {
     items: LinkInfo[];
+}
+
+export interface UserMessages {
+    appName: string;
+    msgKey: string;
+    display: boolean;
+    condition?: HealthStatusCode;
+    duration?: number;
+    animation?: string;
 }

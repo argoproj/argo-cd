@@ -2,6 +2,7 @@ package util
 
 import (
 	"os"
+
 	"gopkg.in/yaml.v2"
 )
 
@@ -33,7 +34,7 @@ type ClusterOpts struct {
 	ValuesFilePath       string `yaml:"valuesFilePath"`
 	DestinationNamespace string `yaml:"destinationNamespace"`
 	ClusterNamePrefix    string `yaml:"clusterNamePrefix"`
-	Concurrency 		 int 	`yaml:"parallel"`
+	Concurrency          int    `yaml:"parallel"`
 }
 
 type GenerateOpts struct {

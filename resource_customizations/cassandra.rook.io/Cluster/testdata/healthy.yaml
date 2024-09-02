@@ -66,7 +66,7 @@ spec:
             memory: 32Gi
           limits:
             cpu: 8
-            memory: 32Gi      
+            memory: 32Gi
         # A key/value list of annotations
         annotations:
         #  key: value
@@ -75,11 +75,11 @@ spec:
             requiredDuringSchedulingIgnoredDuringExecution:
               nodeSelectorTerms:
                 - matchExpressions:
-                  - key: failure-domain.beta.kubernetes.io/region
+                  - key: topology.kubernetes.io/region
                     operator: In
                     values:
                       - us-east-1
-                  - key: failure-domain.beta.kubernetes.io/zone
+                  - key: topology.kubernetes.io/zone
                     operator: In
                     values:
                       - us-east-1a

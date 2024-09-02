@@ -8,9 +8,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-jose/go-jose/v3"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/square/go-jose.v2"
 )
 
 // Cert is a certificate for tests. It was generated like this:
@@ -131,7 +131,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 }`, url))
 			require.NoError(t, err)
 		default:
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 		}
 	}
 }
@@ -169,6 +169,16 @@ func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.R
   "claims_supported": ["sub", "aud", "exp"]
 }`, url))
 			require.NoError(t, err)
+		case "/userinfo":
+			w.Header().Set("content-type", "application/json")
+			_, err := io.WriteString(w, fmt.Sprintf(`
+{
+	"groups":["githubOrg:engineers"],
+	"iss": "%[1]s",
+	"sub": "randomUser"
+}`, url))
+
+			require.NoError(t, err)
 		case "/keys":
 			pubKey, err := jwt.ParseRSAPublicKeyFromPEM(Cert)
 			require.NoError(t, err)
@@ -184,7 +194,7 @@ func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.R
 			_, err = io.WriteString(w, string(out))
 			require.NoError(t, err)
 		default:
-			w.WriteHeader(404)
+			w.WriteHeader(http.StatusNotFound)
 		}
 	}
 }

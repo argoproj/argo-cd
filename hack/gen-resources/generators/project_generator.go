@@ -2,8 +2,9 @@ package generator
 
 import (
 	"context"
-	"log"
 	"fmt"
+	"log"
+
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/hack/gen-resources/util"

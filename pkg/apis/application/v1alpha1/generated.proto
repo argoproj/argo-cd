@@ -22,6 +22,9 @@ message AWSAuthConfig {
 
   // RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.
   optional string roleARN = 2;
+
+  // Profile contains optional role ARN. If set then AWS IAM Authenticator uses the profile to perform cluster operations instead of the default AWS credential provider chain.
+  optional string profile = 3;
 }
 
 // AppProject provides a logical grouping of applications, providing controls for:
@@ -35,7 +38,7 @@ message AWSAuthConfig {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:path=appprojects,shortName=appproj;appprojs
 message AppProject {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
   optional AppProjectSpec spec = 2;
 
@@ -45,7 +48,7 @@ message AppProject {
 // AppProjectList is list of AppProject resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message AppProjectList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated AppProject items = 2;
 }
@@ -65,10 +68,10 @@ message AppProjectSpec {
   repeated ProjectRole roles = 4;
 
   // ClusterResourceWhitelist contains list of whitelisted cluster level resources
-  repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceWhitelist = 5;
+  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceWhitelist = 5;
 
   // NamespaceResourceBlacklist contains list of blacklisted namespace level resources
-  repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceBlacklist = 6;
+  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceBlacklist = 6;
 
   // OrphanedResources specifies if controller should monitor orphaned resources of apps in this project
   optional OrphanedResourcesMonitorSettings orphanedResources = 7;
@@ -77,13 +80,13 @@ message AppProjectSpec {
   repeated SyncWindow syncWindows = 8;
 
   // NamespaceResourceWhitelist contains list of whitelisted namespace level resources
-  repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceWhitelist = 9;
+  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceWhitelist = 9;
 
   // SignatureKeys contains a list of PGP key IDs that commits in Git must be signed with in order to be allowed for sync
   repeated SignatureKey signatureKeys = 10;
 
   // ClusterResourceBlacklist contains list of blacklisted cluster level resources
-  repeated k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceBlacklist = 11;
+  repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind clusterResourceBlacklist = 11;
 
   // SourceNamespaces defines the namespaces application resources are allowed to be created in
   repeated string sourceNamespaces = 12;
@@ -106,8 +109,9 @@ message AppProjectStatus {
 // +kubebuilder:printcolumn:name="Sync Status",type=string,JSONPath=`.status.sync.status`
 // +kubebuilder:printcolumn:name="Health Status",type=string,JSONPath=`.status.health.status`
 // +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.sync.revision`,priority=10
+// +kubebuilder:printcolumn:name="Project",type=string,JSONPath=`.spec.project`,priority=10
 message Application {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
   optional ApplicationSpec spec = 2;
 
@@ -116,7 +120,7 @@ message Application {
   optional Operation operation = 4;
 }
 
-// ApplicationCondition contains details about an application condition, which is usally an error or warning
+// ApplicationCondition contains details about an application condition, which is usually an error or warning
 message ApplicationCondition {
   // Type is an application condition type
   optional string type = 1;
@@ -125,26 +129,26 @@ message ApplicationCondition {
   optional string message = 2;
 
   // LastTransitionTime is the time the condition was last observed
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
 }
 
 // ApplicationDestination holds information about the application's destination
 message ApplicationDestination {
-  // Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API
+  // Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.
   optional string server = 1;
 
   // Namespace specifies the target namespace for the application's resources.
   // The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
   optional string namespace = 2;
 
-  // Name is an alternate way of specifying the target cluster by its symbolic name
+  // Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.
   optional string name = 3;
 }
 
 // ApplicationList is list of Application resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 message ApplicationList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated Application items = 2;
 }
@@ -157,6 +161,12 @@ message ApplicationMatchExpression {
   repeated string values = 3;
 }
 
+message ApplicationPreservedFields {
+  repeated string annotations = 1;
+
+  repeated string labels = 2;
+}
+
 // ApplicationSet is a set of Application resources
 // +genclient
 // +genclient:noStatus
@@ -164,7 +174,7 @@ message ApplicationMatchExpression {
 // +kubebuilder:resource:path=applicationsets,shortName=appset;appsets
 // +kubebuilder:subresource:status
 message ApplicationSet {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
   optional ApplicationSetSpec spec = 2;
 
@@ -177,16 +187,22 @@ message ApplicationSetApplicationStatus {
   optional string application = 1;
 
   // LastTransitionTime is the time the status was last updated
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 2;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 2;
 
   // Message contains human-readable message indicating details about the status
   optional string message = 3;
 
   // Status contains the AppSet's perceived status of the managed Application resource: (Waiting, Pending, Progressing, Healthy)
-  optional string status = 5;
+  optional string status = 4;
+
+  // Step tracks which step this Application should be updated in
+  optional string step = 5;
+
+  // TargetRevision tracks the desired revisions the Application should be synced to.
+  repeated string targetrevisions = 6;
 }
 
-// ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning
+// ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning
 message ApplicationSetCondition {
   // Type is an applicationset condition type
   optional string type = 1;
@@ -195,7 +211,7 @@ message ApplicationSetCondition {
   optional string message = 2;
 
   // LastTransitionTime is the time the condition was last observed
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
 
   // True/False/Unknown
   optional string status = 4;
@@ -223,14 +239,16 @@ message ApplicationSetGenerator {
   optional MergeGenerator merge = 8;
 
   // Selector allows to post-filter all generator.
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9;
+
+  optional PluginGenerator plugin = 10;
 }
 
 // ApplicationSetList contains a list of ApplicationSet
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:object:root=true
 message ApplicationSetList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated ApplicationSet items = 2;
 }
@@ -251,19 +269,34 @@ message ApplicationSetNestedGenerator {
   optional PullRequestGenerator pullRequest = 6;
 
   // Matrix should have the form of NestedMatrixGenerator
-  optional k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON matrix = 7;
+  optional .k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON matrix = 7;
 
   // Merge should have the form of NestedMergeGenerator
-  optional k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON merge = 8;
+  optional .k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON merge = 8;
 
   // Selector allows to post-filter all generator.
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9;
+
+  optional PluginGenerator plugin = 10;
+}
+
+// ApplicationSetResourceIgnoreDifferences configures how the ApplicationSet controller will ignore differences in live
+// applications when applying changes from generated applications.
+message ApplicationSetResourceIgnoreDifferences {
+  // Name is the name of the application to ignore differences for. If not specified, the rule applies to all applications.
+  optional string name = 1;
+
+  // JSONPointers is a list of JSON pointers to fields to ignore differences for.
+  repeated string jsonPointers = 2;
+
+  // JQPathExpressions is a list of JQ path expressions to fields to ignore differences for.
+  repeated string jqPathExpressions = 3;
 }
 
 message ApplicationSetRolloutStep {
   repeated ApplicationMatchExpression matchExpressions = 1;
 
-  optional k8s.io.apimachinery.pkg.util.intstr.IntOrString maxUpdate = 2;
+  optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString maxUpdate = 2;
 }
 
 message ApplicationSetRolloutStrategy {
@@ -281,6 +314,17 @@ message ApplicationSetSpec {
   optional ApplicationSetSyncPolicy syncPolicy = 4;
 
   optional ApplicationSetStrategy strategy = 5;
+
+  optional ApplicationPreservedFields preservedFields = 6;
+
+  repeated string goTemplateOptions = 7;
+
+  // ApplyNestedSelectors enables selectors defined within the generators of two level-nested matrix or merge generators
+  optional bool applyNestedSelectors = 8;
+
+  repeated ApplicationSetResourceIgnoreDifferences ignoreApplicationDifferences = 9;
+
+  optional string templatePatch = 10;
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
@@ -290,6 +334,9 @@ message ApplicationSetStatus {
   repeated ApplicationSetCondition conditions = 1;
 
   repeated ApplicationSetApplicationStatus applicationStatus = 2;
+
+  // Resources is a list of Applications resources managed by this application set.
+  repeated ResourceStatus resources = 3;
 }
 
 // ApplicationSetStrategy configures how generated Applications are updated in sequence.
@@ -304,6 +351,11 @@ message ApplicationSetStrategy {
 message ApplicationSetSyncPolicy {
   // PreserveResourcesOnDeletion will preserve resources on deletion. If PreserveResourcesOnDeletion is set to true, these Applications will not be deleted.
   optional bool preserveResourcesOnDeletion = 1;
+
+  // ApplicationsSync represents the policy applied on the generated applications. Possible values are create-only, create-update, create-delete, sync
+  // +kubebuilder:validation:Optional
+  // +kubebuilder:validation:Enum=create-only;create-update;create-delete;sync
+  optional string applicationsSync = 2;
 }
 
 // ApplicationSetTemplate represents argocd ApplicationSpec
@@ -343,6 +395,18 @@ message ApplicationSetTerminalGenerator {
   optional DuckTypeGenerator clusterDecisionResource = 5;
 
   optional PullRequestGenerator pullRequest = 6;
+
+  optional PluginGenerator plugin = 7;
+
+  // Selector allows to post-filter all generator.
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 8;
+}
+
+// ApplicationSetTree holds nodes which belongs to the application
+// Used to build a tree of an ApplicationSet and its children
+message ApplicationSetTree {
+  // Nodes contains list of nodes which are directly managed by the applicationset
+  repeated ResourceNode nodes = 1;
 }
 
 // ApplicationSource contains all required information about the source of an application
@@ -403,7 +467,8 @@ message ApplicationSourceHelm {
   // ReleaseName is the Helm release name to use. If omitted it will use the application name
   optional string releaseName = 3;
 
-  // Values specifies Helm values to be passed to helm template, typically defined as a block
+  // Values specifies Helm values to be passed to helm template, typically defined as a block. ValuesObject takes precedence over Values, so use one or the other.
+  // +patchStrategy=replace
   optional string values = 4;
 
   // FileParameters are file parameters to the helm template
@@ -420,6 +485,21 @@ message ApplicationSourceHelm {
 
   // SkipCrds skips custom resource definition installation step (Helm's --skip-crds)
   optional bool skipCrds = 9;
+
+  // ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
+  // +kubebuilder:pruning:PreserveUnknownFields
+  optional .k8s.io.apimachinery.pkg.runtime.RawExtension valuesObject = 10;
+
+  // Namespace is an optional namespace to template with. If left empty, defaults to the app's destination namespace.
+  optional string namespace = 11;
+
+  // KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+  // uses the Kubernetes version of the target cluster.
+  optional string kubeVersion = 12;
+
+  // APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+  // Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+  repeated string apiVersions = 13;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
@@ -459,6 +539,32 @@ message ApplicationSourceKustomize {
 
   // ForceCommonAnnotations specifies whether to force applying common annotations to resources for Kustomize apps
   optional bool forceCommonAnnotations = 8;
+
+  // Namespace sets the namespace that Kustomize adds to all resources
+  optional string namespace = 9;
+
+  // CommonAnnotationsEnvsubst specifies whether to apply env variables substitution for annotation values
+  optional bool commonAnnotationsEnvsubst = 10;
+
+  // Replicas is a list of Kustomize Replicas override specifications
+  repeated KustomizeReplica replicas = 11;
+
+  // Patches is a list of Kustomize patches
+  repeated KustomizePatch patches = 12;
+
+  // Components specifies a list of kustomize components to add to the kustomization before building
+  repeated string components = 13;
+
+  // LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
+  optional bool labelWithoutSelector = 14;
+
+  // KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+  // uses the Kubernetes version of the target cluster.
+  optional string kubeVersion = 15;
+
+  // APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+  // Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+  repeated string apiVersions = 16;
 }
 
 // ApplicationSourcePlugin holds options specific to config management plugins
@@ -478,10 +584,10 @@ message ApplicationSourcePluginParameter {
   optional string string = 5;
 
   // Map is the value of a map type parameter.
-  map<string, string> map = 3;
+  optional OptionalMap map = 3;
 
   // Array is the value of an array type parameter.
-  repeated string array = 4;
+  optional OptionalArray array = 4;
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
@@ -534,14 +640,14 @@ message ApplicationStatus {
   repeated ApplicationCondition conditions = 5;
 
   // ReconciledAt indicates when the application state was reconciled using the latest git version
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time reconciledAt = 6;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time reconciledAt = 6;
 
   // OperationState contains information about any ongoing operations, such as a sync
   optional OperationState operationState = 7;
 
   // ObservedAt indicates when the application state was updated without querying latest git state
   // Deprecated: controller no longer updates ObservedAt field
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8;
 
   // SourceType specifies the type of this application
   optional string sourceType = 9;
@@ -554,6 +660,9 @@ message ApplicationStatus {
 
   // SourceTypes specifies the type of the sources included in the application
   repeated string sourceTypes = 12;
+
+  // ControllerNamespace indicates the namespace in which the application controller is located
+  optional string controllerNamespace = 13;
 }
 
 // ApplicationSummary contains information about URLs and container images used by an application
@@ -576,6 +685,9 @@ message ApplicationTree {
 
   // Hosts holds list of Kubernetes nodes that run application related pods
   repeated HostInfo hosts = 3;
+
+  // ShardsCount contains total number of shards the application tree is split into
+  optional int64 shardsCount = 4;
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -611,6 +723,29 @@ message BasicAuthBitbucketServer {
   optional SecretRef passwordRef = 2;
 }
 
+// BearerTokenBitbucket defines the Bearer token for BitBucket AppToken auth.
+message BearerTokenBitbucket {
+  // Password (or personal access token) reference.
+  optional SecretRef tokenRef = 1;
+}
+
+// BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.
+message BearerTokenBitbucketCloud {
+  // Password (or personal access token) reference.
+  optional SecretRef tokenRef = 1;
+}
+
+// ChartDetails contains helm chart metadata for a specific version
+message ChartDetails {
+  optional string description = 1;
+
+  // The URL of this projects home page, e.g. "http://example.com"
+  optional string home = 2;
+
+  // List of maintainer details, name and email, e.g. ["John Doe <john_doe@my-company.com>"]
+  repeated string maintainers = 3;
+}
+
 // Cluster is the definition of a cluster resource
 message Cluster {
   // Server is the API server URL of the Kubernetes cluster
@@ -622,11 +757,11 @@ message Cluster {
   // Config holds cluster information for connecting to a cluster
   optional ClusterConfig config = 3;
 
-  // DEPRECATED: use Info.ConnectionState field instead.
+  // Deprecated: use Info.ConnectionState field instead.
   // ConnectionState contains information about cluster connection state
   optional ConnectionState connectionState = 4;
 
-  // DEPRECATED: use Info.ServerVersion field instead.
+  // Deprecated: use Info.ServerVersion field instead.
   // The server version
   optional string serverVersion = 5;
 
@@ -634,7 +769,7 @@ message Cluster {
   repeated string namespaces = 6;
 
   // RefreshRequestedAt holds time when cluster cache refresh has been requested
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time refreshRequestedAt = 7;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time refreshRequestedAt = 7;
 
   // Info holds information about cluster cache and state
   optional ClusterInfo info = 8;
@@ -664,7 +799,7 @@ message ClusterCacheInfo {
   optional int64 apisCount = 2;
 
   // LastCacheSyncTime holds time of most recent cache synchronization
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastCacheSyncTime = 3;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastCacheSyncTime = 3;
 }
 
 // ClusterConfig is the configuration attributes. This structure is subset of the go-client
@@ -695,7 +830,7 @@ message ClusterGenerator {
   // Selector defines a label selector to match against all clusters registered with ArgoCD.
   // Clusters today are stored as Kubernetes Secrets, thus the Secret labels will be used
   // for matching the selector.
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 1;
 
   optional ApplicationSetTemplate template = 2;
 
@@ -723,7 +858,7 @@ message ClusterInfo {
 
 // ClusterList is a collection of Clusters.
 message ClusterList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated Cluster items = 2;
 }
@@ -745,6 +880,9 @@ message ComparedTo {
 
   // Sources is a reference to the application's multiple sources used for comparison
   repeated ApplicationSource sources = 3;
+
+  // IgnoreDifferences is a reference to the application's ignored differences used for comparison
+  repeated ResourceIgnoreDifferences ignoreDifferences = 4;
 }
 
 // ComponentParameter contains information about component parameter value
@@ -767,6 +905,13 @@ message ConfigManagementPlugin {
   optional bool lockRepo = 4;
 }
 
+// Utility struct for a reference to a configmap key.
+message ConfigMapKeyRef {
+  optional string configMapName = 1;
+
+  optional string key = 2;
+}
+
 // ConnectionState contains information about remote resource connection state, currently used for clusters and repositories
 message ConnectionState {
   // Status contains the current status indicator for the connection
@@ -776,7 +921,7 @@ message ConnectionState {
   optional string message = 2;
 
   // ModifiedAt contains the timestamp when this connection status has been determined
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time attemptedAt = 3;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time attemptedAt = 3;
 }
 
 // DuckType defines a generator to match against clusters registered with ArgoCD.
@@ -791,7 +936,7 @@ message DuckTypeGenerator {
 
   optional int64 requeueAfterSeconds = 3;
 
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector labelSelector = 4;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector labelSelector = 4;
 
   optional ApplicationSetTemplate template = 5;
 
@@ -806,6 +951,9 @@ message EnvEntry {
 
   // Value is the value of the variable
   optional string value = 2;
+}
+
+message ErrApplicationNotAllowedToUseProject {
 }
 
 // ExecProviderConfig is config used to call an external command to perform cluster authentication
@@ -851,6 +999,9 @@ message GitGenerator {
   optional ApplicationSetTemplate template = 6;
 
   optional string pathParamPrefix = 7;
+
+  // Values contains key/value pairs which are passed directly as parameters to the template
+  map<string, string> values = 8;
 }
 
 // GnuPGPublicKey is a representation of a GnuPG public key
@@ -876,7 +1027,7 @@ message GnuPGPublicKey {
 
 // GnuPGPublicKeyList is a collection of GnuPGPublicKey objects
 message GnuPGPublicKeyList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated GnuPGPublicKey items = 2;
 }
@@ -924,7 +1075,7 @@ message HostInfo {
 
   repeated HostResourceInfo resourcesInfo = 2;
 
-  optional k8s.io.api.core.v1.NodeSystemInfo systemInfo = 3;
+  optional .k8s.io.api.core.v1.NodeSystemInfo systemInfo = 3;
 }
 
 // TODO: describe this type
@@ -985,6 +1136,14 @@ message KnownTypeField {
   optional string type = 2;
 }
 
+message KustomizeGvk {
+  optional string group = 1;
+
+  optional string version = 2;
+
+  optional string kind = 3;
+}
+
 // KustomizeOptions are options for kustomize to use when building manifests
 message KustomizeOptions {
   // BuildOptions is a string of build parameters to use when calling `kustomize build`
@@ -994,11 +1153,48 @@ message KustomizeOptions {
   optional string binaryPath = 2;
 }
 
+message KustomizePatch {
+  optional string path = 1;
+
+  optional string patch = 2;
+
+  optional KustomizeSelector target = 3;
+
+  map<string, bool> options = 4;
+}
+
+message KustomizeReplica {
+  // Name of Deployment or StatefulSet
+  optional string name = 1;
+
+  // Number of replicas
+  optional .k8s.io.apimachinery.pkg.util.intstr.IntOrString count = 2;
+}
+
+message KustomizeResId {
+  optional KustomizeGvk gvk = 1;
+
+  optional string name = 2;
+
+  optional string namespace = 3;
+}
+
+message KustomizeSelector {
+  optional KustomizeResId resId = 1;
+
+  optional string annotationSelector = 2;
+
+  optional string labelSelector = 3;
+}
+
 // ListGenerator include items info
 message ListGenerator {
-  repeated k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON elements = 1;
+  // +kubebuilder:validation:Optional
+  repeated .k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON elements = 1;
 
   optional ApplicationSetTemplate template = 2;
+
+  optional string elementsYaml = 3;
 }
 
 message ManagedNamespaceMetadata {
@@ -1096,13 +1292,25 @@ message OperationState {
   optional SyncOperationResult syncResult = 4;
 
   // StartedAt contains time of operation start
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 6;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 6;
 
   // FinishedAt contains time of operation completion
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 7;
 
   // RetryCount contains time of operation retries
   optional int64 retryCount = 8;
+}
+
+message OptionalArray {
+  // Array is the value of an array type parameter.
+  // +optional
+  repeated string array = 1;
+}
+
+message OptionalMap {
+  // Map is the value of a map type parameter.
+  // +optional
+  map<string, string> map = 1;
 }
 
 // OrphanedResourceKey is a reference to a resource to be ignored from
@@ -1135,6 +1343,33 @@ message OverrideIgnoreDiff {
   // ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
   // desired state defined in the SCM and won't be displayed in diffs
   repeated string managedFieldsManagers = 3;
+}
+
+message PluginConfigMapRef {
+  // Name of the ConfigMap
+  optional string name = 1;
+}
+
+// PluginGenerator defines connection info specific to Plugin.
+message PluginGenerator {
+  optional PluginConfigMapRef configMapRef = 1;
+
+  optional PluginInput input = 2;
+
+  // RequeueAfterSeconds determines how long the ApplicationSet controller will wait before reconciling the ApplicationSet again.
+  optional int64 requeueAfterSeconds = 3;
+
+  optional ApplicationSetTemplate template = 4;
+
+  // Values contains key/value pairs which are passed directly as parameters to the template. These values will not be
+  // sent as parameters to the plugin.
+  map<string, string> values = 5;
+}
+
+message PluginInput {
+  // Parameters contains the information to pass to the plugin. It is a map. The keys must be strings, and the
+  // values can be any type.
+  map<string, .k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON> parameters = 1;
 }
 
 // ProjectRole represents a role that has access to a project
@@ -1173,9 +1408,53 @@ message PullRequestGenerator {
   optional int64 requeueAfterSeconds = 6;
 
   optional ApplicationSetTemplate template = 7;
+
+  optional PullRequestGeneratorBitbucket bitbucket = 8;
+
+  // Additional provider to use and config for it.
+  optional PullRequestGeneratorAzureDevOps azuredevops = 9;
 }
 
-// PullRequestGenerator defines connection info specific to BitbucketServer.
+// PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
+message PullRequestGeneratorAzureDevOps {
+  // Azure DevOps org to scan. Required.
+  optional string organization = 1;
+
+  // Azure DevOps project name to scan. Required.
+  optional string project = 2;
+
+  // Azure DevOps repo name to scan. Required.
+  optional string repo = 3;
+
+  // The Azure DevOps API URL to talk to. If blank, use https://dev.azure.com/.
+  optional string api = 4;
+
+  // Authentication token reference.
+  optional SecretRef tokenRef = 5;
+
+  // Labels is used to filter the PRs that you want to target
+  repeated string labels = 6;
+}
+
+// PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.
+message PullRequestGeneratorBitbucket {
+  // Workspace to scan. Required.
+  optional string owner = 1;
+
+  // Repo name to scan. Required.
+  optional string repo = 2;
+
+  // The Bitbucket REST API URL to talk to. If blank, uses https://api.bitbucket.org/2.0.
+  optional string api = 3;
+
+  // Credentials for Basic auth
+  optional BasicAuthBitbucketServer basicAuth = 4;
+
+  // Credentials for AppToken (Bearer auth)
+  optional BearerTokenBitbucketCloud bearerToken = 5;
+}
+
+// PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.
 message PullRequestGeneratorBitbucketServer {
   // Project to scan. Required.
   optional string project = 1;
@@ -1188,6 +1467,15 @@ message PullRequestGeneratorBitbucketServer {
 
   // Credentials for Basic auth
   optional BasicAuthBitbucketServer basicAuth = 4;
+
+  // Credentials for AccessToken (Bearer auth)
+  optional BearerTokenBitbucket bearerToken = 5;
+
+  // Allow self-signed TLS / Certificates; default: false
+  optional bool insecure = 6;
+
+  // ConfigMap key holding the trusted certificates
+  optional ConfigMapKeyRef caRef = 7;
 }
 
 // PullRequestGeneratorFilter is a single pull request filter.
@@ -1195,6 +1483,8 @@ message PullRequestGeneratorBitbucketServer {
 // pass for a pull request to be included.
 message PullRequestGeneratorFilter {
   optional string branchMatch = 1;
+
+  optional string targetBranchMatch = 2;
 }
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.
@@ -1213,9 +1503,15 @@ message PullRequestGeneratorGitLab {
 
   // PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states)
   optional string pullRequestState = 5;
+
+  // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
+  optional bool insecure = 6;
+
+  // ConfigMap key holding the trusted certificates
+  optional ConfigMapKeyRef caRef = 7;
 }
 
-// PullRequestGenerator defines connection info specific to Gitea.
+// PullRequestGeneratorGitea defines connection info specific to Gitea.
 message PullRequestGeneratorGitea {
   // Gitea org or user to scan. Required.
   optional string owner = 1;
@@ -1264,7 +1560,7 @@ message RefTarget {
 
 // RepoCreds holds the definition for repository credentials
 message RepoCreds {
-  // URL is the URL that this credentials matches to
+  // URL is the URL to which these credentials match
   optional string url = 1;
 
   // Username for authenticating at the repo server
@@ -1305,11 +1601,17 @@ message RepoCreds {
 
   // Proxy specifies the HTTP/HTTPS proxy used to access repos at the repo server
   optional string proxy = 19;
+
+  // ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
+  optional bool forceHttpBasicAuth = 20;
+
+  // NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
+  optional string noProxy = 23;
 }
 
 // RepositoryList is a collection of Repositories.
 message RepoCredsList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated RepoCreds items = 2;
 }
@@ -1374,11 +1676,17 @@ message Repository {
   // Proxy specifies the HTTP/HTTPS proxy used to access the repo
   optional string proxy = 19;
 
-  // Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity
+  // Reference between project and repository that allows it to be automatically added as an item inside SourceRepos project entity
   optional string project = 20;
 
   // GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
   optional string gcpServiceAccountKey = 21;
+
+  // ForceHttpBasicAuth specifies whether Argo CD should attempt to force basic auth for HTTP connections
+  optional bool forceHttpBasicAuth = 22;
+
+  // NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
+  optional string noProxy = 23;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
@@ -1401,7 +1709,7 @@ message RepositoryCertificate {
 
 // RepositoryCertificateList is a collection of RepositoryCertificates
 message RepositoryCertificateList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   // List of certificates to be processed
   repeated RepositoryCertificate items = 2;
@@ -1409,7 +1717,7 @@ message RepositoryCertificateList {
 
 // RepositoryList is a collection of Repositories.
 message RepositoryList {
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated Repository items = 2;
 }
@@ -1422,6 +1730,10 @@ message ResourceAction {
   repeated ResourceActionParam params = 2;
 
   optional bool disabled = 3;
+
+  optional string iconClass = 4;
+
+  optional string displayName = 5;
 }
 
 // TODO: describe this type
@@ -1514,7 +1826,7 @@ message ResourceNetworkingInfo {
 
   map<string, string> labels = 3;
 
-  repeated k8s.io.api.core.v1.LoadBalancerIngress ingress = 4;
+  repeated .k8s.io.api.core.v1.LoadBalancerIngress ingress = 4;
 
   // ExternalURLs holds list of URLs which should be available externally. List is populated for ingress resources using rules hostnames.
   repeated string externalURLs = 5;
@@ -1537,7 +1849,7 @@ message ResourceNode {
 
   optional HealthStatus health = 7;
 
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time createdAt = 8;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time createdAt = 8;
 }
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment
@@ -1550,6 +1862,8 @@ message ResourceOverride {
   optional string actions = 3;
 
   optional OverrideIgnoreDiff ignoreDifferences = 2;
+
+  optional OverrideIgnoreDiff ignoreResourceUpdates = 6;
 
   repeated KnownTypeField knownTypeFields = 4;
 }
@@ -1642,7 +1956,7 @@ message RevisionHistory {
   optional string revision = 2;
 
   // DeployedAt holds the time the sync operation completed
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time deployedAt = 4;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time deployedAt = 4;
 
   // ID is an auto incrementing identifier of the RevisionHistory
   optional int64 id = 5;
@@ -1651,13 +1965,16 @@ message RevisionHistory {
   optional ApplicationSource source = 6;
 
   // DeployStartedAt holds the time the sync operation started
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time deployStartedAt = 7;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time deployStartedAt = 7;
 
   // Sources is a reference to the application sources used for the sync operation
   repeated ApplicationSource sources = 8;
 
   // Revisions holds the revision of each source in sources field the sync was performed against
   repeated string revisions = 9;
+
+  // InitiatedBy contains information about who initiated the operations
+  optional OperationInitiator initiatedBy = 10;
 }
 
 // RevisionMetadata contains metadata for a specific revision in a Git repository
@@ -1668,7 +1985,7 @@ message RevisionMetadata {
   optional string author = 1;
 
   // Date specifies when the revision was authored
-  optional k8s.io.apimachinery.pkg.apis.meta.v1.Time date = 2;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time date = 2;
 
   // Tags specifies any tags currently attached to the revision
   // Floating tags can move from one revision to another
@@ -1707,6 +2024,28 @@ message SCMProviderGenerator {
   optional int64 requeueAfterSeconds = 9;
 
   optional ApplicationSetTemplate template = 10;
+
+  // Values contains key/value pairs which are passed directly as parameters to the template
+  map<string, string> values = 11;
+
+  optional SCMProviderGeneratorAWSCodeCommit awsCodeCommit = 12;
+}
+
+// SCMProviderGeneratorAWSCodeCommit defines connection info specific to AWS CodeCommit.
+message SCMProviderGeneratorAWSCodeCommit {
+  // TagFilters provides the tag filter(s) for repo discovery
+  repeated TagFilter tagFilters = 1;
+
+  // Role provides the AWS IAM role to assume, for cross-account repo discovery
+  // if not provided, AppSet controller will use its pod/node identity to discover.
+  optional string role = 2;
+
+  // Region provides the AWS region to discover repos.
+  // if not provided, AppSet controller will infer the current region from environment.
+  optional string region = 3;
+
+  // Scan all branches instead of just the default branch.
+  optional bool allBranches = 4;
 }
 
 // SCMProviderGeneratorAzureDevOps defines connection info specific to Azure DevOps.
@@ -1755,6 +2094,15 @@ message SCMProviderGeneratorBitbucketServer {
 
   // Scan all branches instead of just the default branch.
   optional bool allBranches = 4;
+
+  // Credentials for AccessToken (Bearer auth)
+  optional BearerTokenBitbucket bearerToken = 5;
+
+  // Allow self-signed TLS / Certificates; default: false
+  optional bool insecure = 6;
+
+  // ConfigMap key holding the trusted certificates
+  optional ConfigMapKeyRef caRef = 7;
 }
 
 // SCMProviderGeneratorFilter is a single repository filter.
@@ -1829,6 +2177,18 @@ message SCMProviderGeneratorGitlab {
 
   // Scan all branches instead of just the default branch.
   optional bool allBranches = 5;
+
+  // Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
+  optional bool insecure = 6;
+
+  // When recursing through subgroups, also include shared Projects (true) or scan only the subgroups under same path (false).  Defaults to "true"
+  optional bool includeSharedProjects = 7;
+
+  // Filter repos list based on Gitlab Topic.
+  optional string topic = 8;
+
+  // ConfigMap key holding the trusted certificates
+  optional ConfigMapKeyRef caRef = 9;
 }
 
 // Utility struct for a reference to a secret key.
@@ -1908,6 +2268,9 @@ message SyncOperationResult {
 
   // Revisions holds the revision this sync operation was performed for respective indexed source in sources field
   repeated string revisions = 5;
+
+  // ManagedNamespaceMetadata contains the current sync state of managed namespace metadata
+  optional ManagedNamespaceMetadata managedNamespaceMetadata = 6;
 }
 
 // SyncPolicy controls when a sync will be performed in response to updates in git
@@ -1930,7 +2293,7 @@ message SyncPolicyAutomated {
   // Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of automated sync (default: false)
   optional bool prune = 1;
 
-  // SelfHeal specifes whether to revert resources back to their desired state upon modification in the cluster (default: false)
+  // SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)
   optional bool selfHeal = 2;
 
   // AllowEmpty allows apps have zero live resources (default: false)
@@ -2025,5 +2388,11 @@ message TLSClientConfig {
   // CAData holds PEM-encoded bytes (typically read from a root certificates bundle).
   // CAData takes precedence over CAFile
   optional bytes caData = 5;
+}
+
+message TagFilter {
+  optional string key = 1;
+
+  optional string value = 2;
 }
 

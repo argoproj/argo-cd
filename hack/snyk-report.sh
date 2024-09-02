@@ -37,8 +37,8 @@ git clone https://github.com/argoproj/argo-cd.git
 cd argo-cd
 git checkout master
 
-minor_version=$(git tag -l | sort -g | tail -n 1 | grep -Eo '[0-9]+\.[0-9]+')
-patch_num=$(git tag -l | grep "v$minor_version." | grep -o "[a-z[:digit:]-]*$" | sort -g | tail -n 1)
+minor_version=$(git tag -l | sort -V | tail -n 1 | grep -Eo '[0-9]+\.[0-9]+')
+patch_num=$(git tag -l | grep "v$minor_version." | grep -o "[a-z[:digit:]-]*$" | sort -V | tail -n 1)
 version="v$minor_version.$patch_num"
 versions="master "
 
@@ -54,7 +54,7 @@ for i in $(seq "$version_count"); do
   minor_num=$(printf '%s' "$minor_version" | sed -E 's/[0-9]+\.//')
   minor_num=$((minor_num-1))
   minor_version=$(printf '%s' "$minor_version" | sed -E "s/\.[0-9]+$/.$minor_num/g")
-  patch_num=$(git tag -l | grep "v$minor_version." | grep -o "[a-z[:digit:]-]*$" | sort -g | tail -n 1)
+  patch_num=$(git tag -l | grep "v$minor_version." | grep -o "[a-z[:digit:]-]*$" | sort -V | tail -n 1)
   version="v$minor_version.$patch_num"
 done
 

@@ -17,11 +17,11 @@ import (
 
 	"github.com/argoproj/notifications-engine/pkg/cmd"
 	"github.com/spf13/cobra"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
-var (
-	applications = schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "applications"}
-)
+var applications = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.ApplicationPlural}
 
 func NewNotificationsCommand() *cobra.Command {
 	var (
@@ -35,7 +35,8 @@ func NewNotificationsCommand() *cobra.Command {
 		"notifications",
 		"argocd admin notifications",
 		applications,
-		settings.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm"), func(clientConfig clientcmd.ClientConfig) {
+		settings.GetFactorySettingsForCLI(&argocdService, "argocd-notifications-secret", "argocd-notifications-cm", false),
+		func(clientConfig clientcmd.ClientConfig) {
 			k8sCfg, err := clientConfig.ClientConfig()
 			if err != nil {
 				log.Fatalf("Failed to parse k8s config: %v", err)

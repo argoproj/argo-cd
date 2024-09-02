@@ -6,6 +6,7 @@ import (
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -20,7 +21,7 @@ func TestAppCreationInOtherNamespace(t *testing.T) {
 	ctx := Given(t)
 	ctx.
 		Path(guestbookPath).
-		SetAppNamespace(ArgoCDAppNamespace).
+		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
 		Then().
@@ -37,7 +38,7 @@ func TestAppCreationInOtherNamespace(t *testing.T) {
 		And(func(_ *Application) {
 			// app should be listed
 			output, err := RunCli("app", "list")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, output, ctx.AppName())
 		}).
 		When().
@@ -83,7 +84,7 @@ func TestDeletingNamespacedAppStuckInSync(t *testing.T) {
 		})
 	}).
 		Async(true).
-		SetAppNamespace(ArgoCDAppNamespace).
+		SetAppNamespace(AppNamespace()).
 		Path("hook-custom-health").
 		When().
 		CreateApp().
