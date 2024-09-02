@@ -5,12 +5,29 @@ metadata:
 spec:
   version: v1.0
   init:
-    command: [kustomize, version]
+    command: [sh, -c]
+    args:
+    - |
+      kustomize version
   generate:
-    command: [sh, -c, "cd testdata/kustomize && kustomize build"]
+    command: [sh, -c]
+    args:
+    - |
+      kustomize build
   discover:
     find:
       command: [sh, -c, find . -name kustomization.yaml]
-      glob: "**/*/kustomization.yaml"
-  allowConcurrency: true
-  lockRepo: false
+      glob: "**/kustomization.yaml"
+  parameters:
+    static:
+      - name: test-param
+        string: test-value
+    dynamic:
+      command: [sh, -c]
+      args:
+        - |
+          # Make sure env vars are making it to the plugin.
+          if [ -z "$MUST_BE_SET" ]; then
+            exit 1
+          fi
+          echo "[{\"name\": \"dynamic-test-param\", \"string\": \"$MUST_BE_SET\"}]"

@@ -9,6 +9,8 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+
+	v1 "k8s.io/api/core/v1"
 )
 
 func TestFixingDegradedApp(t *testing.T) {
@@ -99,4 +101,47 @@ func TestDegradedDeploymentIsSucceededAndSynced(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusDegraded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(ResourceResultNumbering(1))
+}
+
+// resources should be pruned in reverse of creation order(syncwaves order)
+func TestSyncPruneOrderWithSyncWaves(t *testing.T) {
+	ctx := Given(t).Timeout(60)
+
+	// remove finalizer to ensure proper cleanup if test fails at early stage
+	defer func() {
+		_, _ = RunCli("app", "patch-resource", ctx.AppQualifiedName(),
+			"--kind", "Pod",
+			"--resource-name", "pod-with-finalizers",
+			"--patch", `[{"op": "remove", "path": "/metadata/finalizers"}]`,
+			"--patch-type", "application/json-patch+json", "--all",
+		)
+	}()
+
+	ctx.Path("syncwaves-prune-order").
+		When().
+		CreateApp().
+		// creation order: sa & role -> rolebinding -> pod
+		Sync().
+		Wait().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().
+		// delete files to remove resources
+		DeleteFile("pod.yaml").
+		DeleteFile("rbac.yaml").
+		Refresh(RefreshTypeHard).
+		IgnoreErrors().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		// prune order: pod -> rolebinding -> sa & role
+		Sync("--prune").
+		Wait().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(NotPod(func(p v1.Pod) bool { return p.Name == "pod-with-finalizers" })).
+		Expect(ResourceResultNumbering(4))
 }

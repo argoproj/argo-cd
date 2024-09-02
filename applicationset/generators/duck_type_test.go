@@ -3,8 +3,10 @@ package generators
 import (
 	"context"
 	"fmt"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -14,14 +16,14 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
-
-	"testing"
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
-const resourceApiVersion = "mallard.io/v1"
-const resourceKind = "ducks"
-const resourceName = "quak"
+const (
+	resourceApiVersion = "mallard.io/v1"
+	resourceKind       = "ducks"
+	resourceName       = "quak"
+)
 
 func TestGenerateParamsForDuckType(t *testing.T) {
 	clusters := []client.Object{
@@ -280,9 +282,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-
 		t.Run(testCase.name, func(t *testing.T) {
-
 			appClientset := kubefake.NewSimpleClientset(append(runtimeClusters, configMap)...)
 
 			gvrToListKind := map[schema.GroupVersionResource]string{{
@@ -293,7 +293,7 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 
 			fakeDynClient := dynfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, testCase.resource)
 
-			var duckTypeGenerator = NewDuckTypeGenerator(context.Background(), fakeDynClient, appClientset, "namespace")
+			duckTypeGenerator := NewDuckTypeGenerator(context.Background(), fakeDynClient, appClientset, "namespace")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -309,12 +309,12 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 					LabelSelector: testCase.labelSelector,
 					Values:        testCase.values,
 				},
-			}, &applicationSetInfo)
+			}, &applicationSetInfo, nil)
 
 			if testCase.expectedError != nil {
-				assert.EqualError(t, err, testCase.expectedError.Error())
+				require.EqualError(t, err, testCase.expectedError.Error())
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.ElementsMatch(t, testCase.expected, got)
 			}
 		})
@@ -578,9 +578,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 	}
 
 	for _, testCase := range testCases {
-
 		t.Run(testCase.name, func(t *testing.T) {
-
 			appClientset := kubefake.NewSimpleClientset(append(runtimeClusters, configMap)...)
 
 			gvrToListKind := map[schema.GroupVersionResource]string{{
@@ -591,7 +589,7 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 
 			fakeDynClient := dynfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, testCase.resource)
 
-			var duckTypeGenerator = NewDuckTypeGenerator(context.Background(), fakeDynClient, appClientset, "namespace")
+			duckTypeGenerator := NewDuckTypeGenerator(context.Background(), fakeDynClient, appClientset, "namespace")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
@@ -609,12 +607,12 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 					LabelSelector: testCase.labelSelector,
 					Values:        testCase.values,
 				},
-			}, &applicationSetInfo)
+			}, &applicationSetInfo, nil)
 
 			if testCase.expectedError != nil {
-				assert.EqualError(t, err, testCase.expectedError.Error())
+				require.EqualError(t, err, testCase.expectedError.Error())
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.ElementsMatch(t, testCase.expected, got)
 			}
 		})

@@ -1,0 +1,43 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
+@import '../../config.scss';
+
+.theme-light,
+.theme-dark {
+    height: 100%;
+    display: flex;
+}
+
+.cd-layout {
+    display: flex;
+    height: 100%;
+    width: 100%;
+    @include themify($themes) {
+        background-color: themed('background-1');
+    }
+    &__loader {
+        @include themify($themes) {
+            background-color: themed('layout-loader-bg');
+        }
+        position: fixed;
+        left: 0;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 999999;
+
+        .loader-inner {
+            left: 50%;
+            position: absolute;
+            bottom: 50%;
+            transform: translateX(-50%) translateY(-50%);
+            & > div {
+                background: #f07a51;
+            }
+        }
+    }
+
+    &__content {
+        width: 100%;
+    }
+}

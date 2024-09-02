@@ -1,0 +1,9 @@
+apiVersion: storage.cnrm.cloud.google.com/v1beta1
+kind: StorageDefaultObjectAccessControl
+status:
+  conditions:
+    - lastTransitionTime: '2022-07-01T12:56:21Z'
+      message: Dependency not ready
+      reason: DependencyNotReady
+      status: 'False'
+      type: Ready

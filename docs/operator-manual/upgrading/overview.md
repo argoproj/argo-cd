@@ -5,7 +5,7 @@
     This section contains information on upgrading Argo CD. Before upgrading please make sure to read details about
     the breaking changes between Argo CD versions.
 
-Argo CD uses the semver versioning and ensures that following rules:
+Argo CD uses semver-like versioning that ensures the following rules:
 
 * The patch release does not introduce any breaking changes. So if you are upgrading from v1.5.1 to v1.5.3
  there should be no special instructions to follow.
@@ -37,6 +37,15 @@ kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/<v
 
 <hr/>
 
+* [v2.12 to v2.13](./2.12-2.13.md)
+* [v2.11 to v2.12](./2.11-2.12.md)
+* [v2.10 to v2.11](./2.10-2.11.md)
+* [v2.9 to v2.10](./2.9-2.10.md)
+* [v2.8 to v2.9](./2.8-2.9.md)
+* [v2.7 to v2.8](./2.7-2.8.md)
+* [v2.6 to v2.7](./2.6-2.7.md)
+* [v2.5 to v2.6](./2.5-2.6.md)
+* [v2.4 to v2.5](./2.4-2.5.md)
 * [v2.3 to v2.4](./2.3-2.4.md)
 * [v2.2 to v2.3](./2.2-2.3.md)
 * [v2.1 to v2.2](./2.1-2.2.md)

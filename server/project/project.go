@@ -6,8 +6,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/util/db"
-
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/pkg/sync"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
@@ -20,13 +19,17 @@ import (
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	listersv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/server/deeplinks"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/db"
 	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/session"
@@ -55,10 +58,13 @@ type Server struct {
 
 // NewServer returns a new instance of the Project service
 func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock sync.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer,
-	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, db db.ArgoDB) *Server {
+	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, db db.ArgoDB,
+) *Server {
 	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server")
-	return &Server{enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr,
-		projInformer: projInformer, settingsMgr: settingsMgr, db: db}
+	return &Server{
+		enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr,
+		projInformer: projInformer, settingsMgr: settingsMgr, db: db,
+	}
 }
 
 func validateProject(proj *v1alpha1.AppProject) error {
@@ -75,13 +81,23 @@ func validateProject(proj *v1alpha1.AppProject) error {
 
 // CreateToken creates a new token to access a project
 func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateRequest) (*project.ProjectTokenResponse, error) {
+	var resp *project.ProjectTokenResponse
+	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		var createErr error
+		resp, createErr = s.createToken(ctx, q)
+		return createErr
+	})
+	return resp, err
+}
+
+func (s *Server) createToken(ctx context.Context, q *project.ProjectTokenCreateRequest) (*project.ProjectTokenResponse, error) {
 	prj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, q.Project, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 	err = validateProject(prj)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error validating project: %w", err)
 	}
 
 	s.projectLock.Lock(q.Project)
@@ -124,6 +140,8 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	}
 	id = claims.ID
 
+	prj.NormalizeJWTTokens()
+
 	items := append(prj.Status.JWTTokensByRole[q.Role].Items, v1alpha1.JWTToken{IssuedAt: issuedAt, ExpiresAt: expiresAt, ID: id})
 	if _, found := prj.Status.JWTTokensByRole[q.Role]; found {
 		prj.Status.JWTTokensByRole[q.Role] = v1alpha1.JWTTokens{Items: items}
@@ -141,18 +159,64 @@ func (s *Server) CreateToken(ctx context.Context, q *project.ProjectTokenCreateR
 	}
 	s.logEvent(prj, ctx, argo.EventReasonResourceCreated, "created token")
 	return &project.ProjectTokenResponse{Token: jwtToken}, nil
+}
 
+func (s *Server) ListLinks(ctx context.Context, q *project.ListProjectLinksRequest) (*application.LinksResponse, error) {
+	projName := q.GetName()
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceProjects, rbacpolicy.ActionGet, projName); err != nil {
+		log.WithFields(map[string]interface{}{
+			"project": projName,
+		}).Warnf("unauthorized access to project, error=%v", err.Error())
+		return nil, fmt.Errorf("unauthorized access to project %v", projName)
+	}
+
+	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, projName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	// sanitize project jwt tokens
+	proj.Status = v1alpha1.AppProjectStatus{}
+
+	obj, err := kube.ToUnstructured(proj)
+	if err != nil {
+		return nil, fmt.Errorf("error getting application: %w", err)
+	}
+
+	deepLinks, err := s.settingsMgr.GetDeepLinks(settings.ProjectDeepLinks)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
+	}
+
+	deeplinksObj := deeplinks.CreateDeepLinksObject(nil, nil, nil, obj)
+	finalList, errorList := deeplinks.EvaluateDeepLinksResponse(deeplinksObj, obj.GetName(), deepLinks)
+	if len(errorList) > 0 {
+		log.Errorf("errorList while evaluating project deep links, %v", strings.Join(errorList, ", "))
+	}
+
+	return finalList, nil
 }
 
 // DeleteToken deletes a token in a project
 func (s *Server) DeleteToken(ctx context.Context, q *project.ProjectTokenDeleteRequest) (*project.EmptyResponse, error) {
+	var resp *project.EmptyResponse
+	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		var deleteErr error
+		resp, deleteErr = s.deleteToken(ctx, q)
+		return deleteErr
+	})
+	return resp, err
+}
+
+func (s *Server) deleteToken(ctx context.Context, q *project.ProjectTokenDeleteRequest) (*project.EmptyResponse, error) {
 	prj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, q.Project, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
 	err = validateProject(prj)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error validating project: %w", err)
 	}
 
 	s.projectLock.Lock(q.Project)
@@ -193,7 +257,7 @@ func (s *Server) Create(ctx context.Context, q *project.ProjectCreateRequest) (*
 	q.Project.NormalizePolicies()
 	err := validateProject(q.Project)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error validating project: %w", err)
 	}
 	res, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Create(ctx, q.Project, metav1.CreateOptions{})
 	if apierr.IsAlreadyExists(err) {
@@ -336,12 +400,21 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 
 	var srcValidatedApps []v1alpha1.Application
 	var dstValidatedApps []v1alpha1.Application
+	getProjectClusters := func(project string) ([]*v1alpha1.Cluster, error) {
+		return s.db.GetProjectClusters(ctx, project)
+	}
 
 	for _, a := range argo.FilterByProjects(appsList.Items, []string{q.Project.Name}) {
-		if oldProj.IsSourcePermitted(a.Spec.Source) {
+		if oldProj.IsSourcePermitted(a.Spec.GetSource()) {
 			srcValidatedApps = append(srcValidatedApps, a)
 		}
-		if oldProj.IsDestinationPermitted(a.Spec.Destination) {
+
+		dstPermitted, err := oldProj.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
+		if err != nil {
+			return nil, err
+		}
+
+		if dstPermitted {
 			dstValidatedApps = append(dstValidatedApps, a)
 		}
 	}
@@ -350,12 +423,17 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 	invalidDstCount := 0
 
 	for _, a := range srcValidatedApps {
-		if !q.Project.IsSourcePermitted(a.Spec.Source) {
+		if !q.Project.IsSourcePermitted(a.Spec.GetSource()) {
 			invalidSrcCount++
 		}
 	}
 	for _, a := range dstValidatedApps {
-		if !q.Project.IsDestinationPermitted(a.Spec.Destination) {
+		dstPermitted, err := q.Project.IsDestinationPermitted(a.Spec.Destination, getProjectClusters)
+		if err != nil {
+			return nil, err
+		}
+
+		if !dstPermitted {
 			invalidDstCount++
 		}
 	}
@@ -433,7 +511,7 @@ func (s *Server) logEvent(a *v1alpha1.AppProject, ctx context.Context, reason st
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	s.auditLogger.LogAppProjEvent(a, eventInfo, message)
+	s.auditLogger.LogAppProjEvent(a, eventInfo, message, user)
 }
 
 func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindowsQuery) (*project.SyncWindowsResponse, error) {
@@ -441,7 +519,6 @@ func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindows
 		return nil, err
 	}
 	proj, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(ctx, q.Name, metav1.GetOptions{})
-
 	if err != nil {
 		return nil, err
 	}
@@ -468,11 +545,11 @@ func (s *Server) NormalizeProjs() error {
 			if proj.NormalizeJWTTokens() {
 				_, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Update(context.Background(), &proj, metav1.UpdateOptions{})
 				if err == nil {
-					log.Info(fmt.Sprintf("Successfully normalized project %s.", proj.Name))
+					log.Infof("Successfully normalized project %s.", proj.Name)
 					break
 				}
 				if !apierr.IsConflict(err) {
-					log.Warn(fmt.Sprintf("Failed normalize project %s", proj.Name))
+					log.Warnf("Failed normalize project %s", proj.Name)
 					break
 				}
 				projGet, err := s.appclientset.ArgoprojV1alpha1().AppProjects(s.ns).Get(context.Background(), proj.Name, metav1.GetOptions{})

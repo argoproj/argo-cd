@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/ghodss/yaml"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -22,13 +22,13 @@ func PrintResource(resource interface{}, output string) error {
 	case "json":
 		jsonBytes, err := json.MarshalIndent(resource, "", "  ")
 		if err != nil {
-			return err
+			return fmt.Errorf("unable to marshal resource to json: %w", err)
 		}
 		fmt.Println(string(jsonBytes))
 	case "yaml":
 		yamlBytes, err := yaml.Marshal(resource)
 		if err != nil {
-			return err
+			return fmt.Errorf("unable to marshal resource to yaml: %w", err)
 		}
 		fmt.Print(string(yamlBytes))
 	default:
@@ -56,13 +56,13 @@ func PrintResourceList(resources interface{}, output string, single bool) error 
 	case "json":
 		jsonBytes, err := json.MarshalIndent(resources, "", "  ")
 		if err != nil {
-			return err
+			return fmt.Errorf("unable to marshal resources to json: %w", err)
 		}
 		fmt.Println(string(jsonBytes))
 	case "yaml":
 		yamlBytes, err := yaml.Marshal(resources)
 		if err != nil {
-			return err
+			return fmt.Errorf("unable to marshal resources to yaml: %w", err)
 		}
 		fmt.Print(string(yamlBytes))
 	default:

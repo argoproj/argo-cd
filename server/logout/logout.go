@@ -19,7 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
-//NewHandler creates handler serving to do api/logout endpoint
+// NewHandler creates handler serving to do api/logout endpoint
 func NewHandler(appClientset versioned.Interface, settingsMrg *settings.SettingsManager, sessionMgr *session.SessionManager, rootPath, baseHRef, namespace string) *Handler {
 	return &Handler{
 		appClientset: appClientset,
@@ -65,7 +65,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	argoURL := argoCDSettings.URL
+	argoURL, err := argoCDSettings.ArgoURLForRequest(r)
+	if err != nil {
+		log.Warnf("unable to find ArgoCD URL from config: %v", err)
+	}
 	if argoURL == "" {
 		// golang does not provide any easy way to determine scheme of current request
 		// so redirecting ot http which will auto-redirect too https if necessary

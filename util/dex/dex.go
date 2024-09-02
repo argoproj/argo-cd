@@ -15,6 +15,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
@@ -58,7 +59,6 @@ func TLSConfig(tlsConfig *DexTLSConfig) *tls.Config {
 // Argo CD API server wants to proxy requests at /api/dex, then the dex config yaml issuer URL should
 // also be /api/dex (e.g. issuer: https://argocd.example.com/api/dex)
 func NewDexHTTPReverseProxy(serverAddr string, baseHRef string, tlsConfig *DexTLSConfig) func(writer http.ResponseWriter, request *http.Request) {
-
 	fullAddr := DexServerAddressWithProtocol(serverAddr, tlsConfig)
 
 	target, err := url.Parse(fullAddr)
@@ -74,7 +74,7 @@ func NewDexHTTPReverseProxy(serverAddr string, baseHRef string, tlsConfig *DexTL
 	}
 
 	proxy.ModifyResponse = func(resp *http.Response) error {
-		if resp.StatusCode == 500 {
+		if resp.StatusCode == http.StatusInternalServerError {
 			b, err := io.ReadAll(resp.Body)
 			if err != nil {
 				return err
@@ -83,7 +83,9 @@ func NewDexHTTPReverseProxy(serverAddr string, baseHRef string, tlsConfig *DexTL
 			if err != nil {
 				return err
 			}
-			log.Errorf("received error from dex: %s", string(b))
+			log.WithFields(log.Fields{
+				common.SecurityField: common.SecurityMedium,
+			}).Errorf("received error from dex: %s", string(b))
 			resp.ContentLength = 0
 			resp.Header.Set("Content-Length", strconv.Itoa(0))
 			resp.Header.Set("Location", fmt.Sprintf("%s?has_sso_error=true", path.Join(baseHRef, "login")))
@@ -100,11 +102,11 @@ func NewDexHTTPReverseProxy(serverAddr string, baseHRef string, tlsConfig *DexTL
 }
 
 // NewDexRewriteURLRoundTripper creates a new DexRewriteURLRoundTripper
-func NewDexRewriteURLRoundTripper(dexServerAddr string, T http.RoundTripper) DexRewriteURLRoundTripper {
+func NewDexRewriteURLRoundTripper(dexServerAddr string, t http.RoundTripper) DexRewriteURLRoundTripper {
 	dexURL, _ := url.Parse(dexServerAddr)
 	return DexRewriteURLRoundTripper{
 		DexURL: dexURL,
-		T:      T,
+		T:      t,
 	}
 }
 
@@ -120,6 +122,7 @@ type DexRewriteURLRoundTripper struct {
 func (s DexRewriteURLRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	r.URL.Host = s.DexURL.Host
 	r.URL.Scheme = s.DexURL.Scheme
+	r.Host = s.DexURL.Host
 	return s.T.RoundTrip(r)
 }
 

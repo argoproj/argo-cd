@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"time"
 
-	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
+
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 var _ Generator = (*ListGenerator)(nil)
 
-type ListGenerator struct {
-}
+type ListGenerator struct{}
 
 func NewListGenerator() Generator {
 	g := &ListGenerator{}
@@ -26,7 +28,7 @@ func (g *ListGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Applicat
 	return &appSetGenerator.List.Template
 }
 
-func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
+func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]interface{}, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -42,7 +44,7 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 		var element map[string]interface{}
 		err := json.Unmarshal(tmpItem.Raw, &element)
 		if err != nil {
-			return nil, fmt.Errorf("error unmarshling list element %v", err)
+			return nil, fmt.Errorf("error unmarshling list element %w", err)
 		}
 
 		if appSet.Spec.GoTemplate {
@@ -57,20 +59,30 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 					for k, v := range values {
 						value, ok := v.(string)
 						if !ok {
-							return nil, fmt.Errorf("error parsing value as string %v", err)
+							return nil, fmt.Errorf("error parsing value as string %w", err)
 						}
 						params[fmt.Sprintf("values.%s", k)] = value
 					}
 				} else {
 					v, ok := value.(string)
 					if !ok {
-						return nil, fmt.Errorf("error parsing value as string %v", err)
+						return nil, fmt.Errorf("error parsing value as string %w", err)
 					}
 					params[key] = v
 				}
 				res[i] = params
 			}
 		}
+	}
+
+	// Append elements from ElementsYaml to the response
+	if len(appSetGenerator.List.ElementsYaml) > 0 {
+		var yamlElements []map[string]interface{}
+		err := yaml.Unmarshal([]byte(appSetGenerator.List.ElementsYaml), &yamlElements)
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshling decoded ElementsYaml %w", err)
+		}
+		res = append(res, yamlElements...)
 	}
 
 	return res, nil

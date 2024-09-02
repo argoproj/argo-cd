@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
@@ -16,20 +17,26 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/applicationset/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
 
+	"github.com/go-playground/webhooks/v6/azuredevops"
+	"github.com/go-playground/webhooks/v6/github"
+	"github.com/go-playground/webhooks/v6/gitlab"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/go-playground/webhooks.v5/github"
-	"gopkg.in/go-playground/webhooks.v5/gitlab"
 )
 
+const payloadQueueSize = 50000
+
 type WebhookHandler struct {
-	namespace  string
-	github     *github.Webhook
-	gitlab     *gitlab.Webhook
-	client     client.Client
-	generators map[string]generators.Generator
+	sync.WaitGroup // for testing
+	namespace      string
+	github         *github.Webhook
+	gitlab         *gitlab.Webhook
+	azuredevops    *azuredevops.Webhook
+	client         client.Client
+	generators     map[string]generators.Generator
+	queue          chan interface{}
 }
 
 type gitGeneratorInfo struct {
@@ -39,8 +46,14 @@ type gitGeneratorInfo struct {
 }
 
 type prGeneratorInfo struct {
-	Github *prGeneratorGithubInfo
-	Gitlab *prGeneratorGitlabInfo
+	Azuredevops *prGeneratorAzuredevopsInfo
+	Github      *prGeneratorGithubInfo
+	Gitlab      *prGeneratorGitlabInfo
+}
+
+type prGeneratorAzuredevopsInfo struct {
+	Repo    string
+	Project string
 }
 
 type prGeneratorGithubInfo struct {
@@ -54,28 +67,54 @@ type prGeneratorGitlabInfo struct {
 	APIHostname string
 }
 
-func NewWebhookHandler(namespace string, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
+func NewWebhookHandler(namespace string, webhookParallelism int, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
 	// register the webhook secrets stored under "argocd-secret" for verifying incoming payloads
 	argocdSettings, err := argocdSettingsMgr.GetSettings()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get argocd settings: %v", err)
+		return nil, fmt.Errorf("Failed to get argocd settings: %w", err)
 	}
 	githubHandler, err := github.New(github.Options.Secret(argocdSettings.WebhookGitHubSecret))
 	if err != nil {
-		return nil, fmt.Errorf("Unable to init GitHub webhook: %v", err)
+		return nil, fmt.Errorf("Unable to init GitHub webhook: %w", err)
 	}
 	gitlabHandler, err := gitlab.New(gitlab.Options.Secret(argocdSettings.WebhookGitLabSecret))
 	if err != nil {
-		return nil, fmt.Errorf("Unable to init GitLab webhook: %v", err)
+		return nil, fmt.Errorf("Unable to init GitLab webhook: %w", err)
+	}
+	azuredevopsHandler, err := azuredevops.New(azuredevops.Options.BasicAuth(argocdSettings.WebhookAzureDevOpsUsername, argocdSettings.WebhookAzureDevOpsPassword))
+	if err != nil {
+		return nil, fmt.Errorf("Unable to init Azure DevOps webhook: %w", err)
 	}
 
-	return &WebhookHandler{
-		namespace:  namespace,
-		github:     githubHandler,
-		gitlab:     gitlabHandler,
-		client:     client,
-		generators: generators,
-	}, nil
+	webhookHandler := &WebhookHandler{
+		namespace:   namespace,
+		github:      githubHandler,
+		gitlab:      gitlabHandler,
+		azuredevops: azuredevopsHandler,
+		client:      client,
+		generators:  generators,
+		queue:       make(chan interface{}, payloadQueueSize),
+	}
+
+	webhookHandler.startWorkerPool(webhookParallelism)
+
+	return webhookHandler, nil
+}
+
+func (h *WebhookHandler) startWorkerPool(webhookParallelism int) {
+	for i := 0; i < webhookParallelism; i++ {
+		h.Add(1)
+		go func() {
+			defer h.Done()
+			for {
+				payload, ok := <-h.queue
+				if !ok {
+					return
+				}
+				h.HandleEvent(payload)
+			}
+		}()
+	}
 }
 
 func (h *WebhookHandler) HandleEvent(payload interface{}) {
@@ -98,6 +137,7 @@ func (h *WebhookHandler) HandleEvent(payload interface{}) {
 			// check if the ApplicationSet uses any generator that is relevant to the payload
 			shouldRefresh = shouldRefreshGitGenerator(gen.Git, gitGenInfo) ||
 				shouldRefreshPRGenerator(gen.PullRequest, prGenInfo) ||
+				shouldRefreshPluginGenerator(gen.Plugin) ||
 				h.shouldRefreshMatrixGenerator(gen.Matrix, &appSet, gitGenInfo, prGenInfo) ||
 				h.shouldRefreshMergeGenerator(gen.Merge, &appSet, gitGenInfo, prGenInfo)
 			if shouldRefresh {
@@ -124,6 +164,8 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		payload, err = h.github.Parse(r, github.PushEvent, github.PullRequestEvent, github.PingEvent)
 	case r.Header.Get("X-Gitlab-Event") != "":
 		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents)
+	case r.Header.Get("X-Vss-Activityid") != "":
+		payload, err = h.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
 	default:
 		log.Debug("Ignoring unknown webhook event")
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
@@ -133,14 +175,19 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Infof("Webhook processing failed: %s", err)
 		status := http.StatusBadRequest
-		if r.Method != "POST" {
+		if r.Method != http.MethodPost {
 			status = http.StatusMethodNotAllowed
 		}
 		http.Error(w, fmt.Sprintf("Webhook processing failed: %s", html.EscapeString(err.Error())), status)
 		return
 	}
 
-	h.HandleEvent(payload)
+	select {
+	case h.queue <- payload:
+	default:
+		log.Info("Queue is full, discarding webhook payload")
+		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
+	}
 }
 
 func parseRevision(ref string) string {
@@ -163,6 +210,12 @@ func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 		webURL = payload.Project.WebURL
 		revision = parseRevision(payload.Ref)
 		touchedHead = payload.Project.DefaultBranch == revision
+	case azuredevops.GitPushEvent:
+		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
+		webURL = payload.Resource.Repository.RemoteURL
+		revision = parseRevision(payload.Resource.RefUpdates[0].Name)
+		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
+		// unfortunately, Azure DevOps doesn't provide a list of changed files
 	default:
 		return nil
 	}
@@ -228,6 +281,18 @@ func getPRGeneratorInfo(payload interface{}) *prGeneratorInfo {
 			Project:     strconv.FormatInt(payload.ObjectAttributes.TargetProjectID, 10),
 			APIHostname: urlObj.Hostname(),
 		}
+	case azuredevops.GitPullRequestEvent:
+		if !isAllowedAzureDevOpsPullRequestAction(string(payload.EventType)) {
+			return nil
+		}
+
+		repo := payload.Resource.Repository.Name
+		project := payload.Resource.Repository.Project.Name
+
+		info.Azuredevops = &prGeneratorAzuredevopsInfo{
+			Repo:    repo,
+			Project: project,
+		}
 	default:
 		return nil
 	}
@@ -255,6 +320,13 @@ var gitlabAllowedPullRequestActions = []string{
 	"merge",
 }
 
+// azuredevopsAllowedPullRequestActions is a list of Azure DevOps actions that allow refresh
+var azuredevopsAllowedPullRequestActions = []string{
+	"git.pullrequest.created",
+	"git.pullrequest.merged",
+	"git.pullrequest.updated",
+}
+
 func isAllowedGithubPullRequestAction(action string) bool {
 	for _, allow := range githubAllowedPullRequestActions {
 		if allow == action {
@@ -266,6 +338,15 @@ func isAllowedGithubPullRequestAction(action string) bool {
 
 func isAllowedGitlabPullRequestAction(action string) bool {
 	for _, allow := range gitlabAllowedPullRequestActions {
+		if allow == action {
+			return true
+		}
+	}
+	return false
+}
+
+func isAllowedAzureDevOpsPullRequestAction(action string) bool {
+	for _, allow := range azuredevopsAllowedPullRequestActions {
 		if allow == action {
 			return true
 		}
@@ -285,6 +366,10 @@ func shouldRefreshGitGenerator(gen *v1alpha1.GitGenerator, info *gitGeneratorInf
 		return false
 	}
 	return true
+}
+
+func shouldRefreshPluginGenerator(gen *v1alpha1.PluginGenerator) bool {
+	return gen != nil
 }
 
 func genRevisionHasChanged(gen *v1alpha1.GitGenerator, revision string, touchedHead bool) bool {
@@ -336,10 +421,12 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 	}
 
 	if gen.Github != nil && info.Github != nil {
-		if gen.Github.Owner != info.Github.Owner {
+		// repository owner and name are case-insensitive
+		// See https://docs.github.com/en/rest/pulls/pulls?apiVersion=2022-11-28#list-pull-requests
+		if !strings.EqualFold(gen.Github.Owner, info.Github.Owner) {
 			return false
 		}
-		if gen.Github.Repo != info.Github.Repo {
+		if !strings.EqualFold(gen.Github.Repo, info.Github.Repo) {
 			return false
 		}
 		api := gen.Github.API
@@ -351,6 +438,16 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 			return false
 		}
 
+		return true
+	}
+
+	if gen.AzureDevOps != nil && info.Azuredevops != nil {
+		if gen.AzureDevOps.Project != info.Azuredevops.Project {
+			return false
+		}
+		if gen.AzureDevOps.Repo != info.Azuredevops.Repo {
+			return false
+		}
 		return true
 	}
 
@@ -417,6 +514,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 		SCMProvider:             g0.SCMProvider,
 		ClusterDecisionResource: g0.ClusterDecisionResource,
 		PullRequest:             g0.PullRequest,
+		Plugin:                  g0.Plugin,
 		Matrix:                  matrixGenerator0,
 		Merge:                   mergeGenerator0,
 	}
@@ -425,7 +523,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 	relGenerators := generators.GetRelevantGenerators(requestedGenerator0, h.generators)
 	params := []map[string]interface{}{}
 	for _, g := range relGenerators {
-		p, err := g.GenerateParams(requestedGenerator0, appSet)
+		p, err := g.GenerateParams(requestedGenerator0, appSet, h.client)
 		if err != nil {
 			log.Error(err)
 			return false
@@ -471,6 +569,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 		SCMProvider:             g1.SCMProvider,
 		ClusterDecisionResource: g1.ClusterDecisionResource,
 		PullRequest:             g1.PullRequest,
+		Plugin:                  g1.Plugin,
 		Matrix:                  matrixGenerator1,
 		Merge:                   mergeGenerator1,
 	}
@@ -478,7 +577,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 	// Interpolate second child generator with params from first child generator, if there are any params
 	if len(params) != 0 {
 		for _, p := range params {
-			tempInterpolatedGenerator, err := generators.InterpolateGenerator(requestedGenerator1, p, appSet.Spec.GoTemplate)
+			tempInterpolatedGenerator, err := generators.InterpolateGenerator(requestedGenerator1, p, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 			interpolatedGenerator := &tempInterpolatedGenerator
 			if err != nil {
 				log.Error(err)
@@ -488,6 +587,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 			// Check all interpolated child generators
 			if shouldRefreshGitGenerator(interpolatedGenerator.Git, gitGenInfo) ||
 				shouldRefreshPRGenerator(interpolatedGenerator.PullRequest, prGenInfo) ||
+				shouldRefreshPluginGenerator(interpolatedGenerator.Plugin) ||
 				h.shouldRefreshMatrixGenerator(interpolatedGenerator.Matrix, appSet, gitGenInfo, prGenInfo) ||
 				h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo) {
 				return true
@@ -498,6 +598,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 	// First child generator didn't return any params, just check the second child generator
 	return shouldRefreshGitGenerator(requestedGenerator1.Git, gitGenInfo) ||
 		shouldRefreshPRGenerator(requestedGenerator1.PullRequest, prGenInfo) ||
+		shouldRefreshPluginGenerator(requestedGenerator1.Plugin) ||
 		h.shouldRefreshMatrixGenerator(requestedGenerator1.Matrix, appSet, gitGenInfo, prGenInfo) ||
 		h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo)
 }
@@ -553,7 +654,7 @@ func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) err
 	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 		err := c.Get(context.Background(), types.NamespacedName{Name: appSet.Name, Namespace: appSet.Namespace}, appSet)
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting ApplicationSet: %w", err)
 		}
 		if appSet.Annotations == nil {
 			appSet.Annotations = map[string]string{}

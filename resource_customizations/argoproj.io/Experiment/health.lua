@@ -1,4 +1,4 @@
-hs = {}
+local hs = {}
 if obj.status ~= nil then
     if obj.status.phase == "Pending" then
         hs.status = "Progressing"

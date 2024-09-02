@@ -6,6 +6,7 @@ import (
 
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -20,7 +21,7 @@ func TestAppCreationInOtherNamespace(t *testing.T) {
 	ctx := Given(t)
 	ctx.
 		Path(guestbookPath).
-		SetAppNamespace(ArgoCDAppNamespace).
+		SetAppNamespace(AppNamespace()).
 		When().
 		CreateApp().
 		Then().
@@ -28,8 +29,8 @@ func TestAppCreationInOtherNamespace(t *testing.T) {
 		And(func(app *Application) {
 			assert.Equal(t, ctx.AppName(), app.Name)
 			assert.Equal(t, AppNamespace(), app.Namespace)
-			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.Source.RepoURL)
-			assert.Equal(t, guestbookPath, app.Spec.Source.Path)
+			assert.Equal(t, RepoURL(RepoURLTypeFile), app.Spec.GetSource().RepoURL)
+			assert.Equal(t, guestbookPath, app.Spec.GetSource().Path)
 			assert.Equal(t, DeploymentNamespace(), app.Spec.Destination.Namespace)
 			assert.Equal(t, KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
 		}).
@@ -37,7 +38,7 @@ func TestAppCreationInOtherNamespace(t *testing.T) {
 		And(func(_ *Application) {
 			// app should be listed
 			output, err := RunCli("app", "list")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, output, ctx.AppName())
 		}).
 		When().
@@ -57,7 +58,7 @@ func TestAppCreationInOtherNamespace(t *testing.T) {
 		And(func(app *Application) {
 			assert.Equal(t, "label", app.Labels["test"])
 			assert.Equal(t, "annotation", app.Annotations["test"])
-			assert.Equal(t, "master", app.Spec.Source.TargetRevision)
+			assert.Equal(t, "master", app.Spec.GetSource().TargetRevision)
 		})
 }
 
@@ -83,7 +84,7 @@ func TestDeletingNamespacedAppStuckInSync(t *testing.T) {
 		})
 	}).
 		Async(true).
-		SetAppNamespace(ArgoCDAppNamespace).
+		SetAppNamespace(AppNamespace()).
 		Path("hook-custom-health").
 		When().
 		CreateApp().

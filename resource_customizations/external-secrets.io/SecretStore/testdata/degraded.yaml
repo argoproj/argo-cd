@@ -1,0 +1,24 @@
+apiVersion: external-secrets.io/v1beta1
+kind: SecretStore
+metadata:
+  name: vault
+spec:
+  provider:
+    kubernetes:
+      auth:
+        serviceAccount:
+          name: vault
+      remoteNamespace: vault
+      server:
+        caProvider:
+          key: ca.crt
+          name: kube-root-ca.crt
+          type: ConfigMap
+        url: https://kubernetes.default
+status:
+  conditions:
+  - lastTransitionTime: "2022-10-05T13:59:22Z"
+    message: unable to validate store
+    reason: ValidationFailed
+    status: "False"
+    type: Ready

@@ -1,0 +1,14 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for status"
+  inputPath: testdata/initializing.yaml
+- healthStatus:
+    status: Healthy
+    message: "Ready to use"
+  inputPath: testdata/good.yaml
+- healthStatus:
+    status: Degraded
+    message: "VolumeSnapshotContent is dynamically provisioned while expecting a pre-provisioned one"
+  inputPath: testdata/bad.yaml
+

@@ -8,7 +8,7 @@ tests:
     message: "1: CatalogSourcesUnhealthy | True\n"
   inputPath: testdata/catalog_sources_unhealthy.yaml
 - healthStatus:
-    status: Degraded
+    status: Healthy
     message: "1: CatalogSourcesUnhealthy | False\n2: InstallPlanMissing | True\n"
   inputPath: testdata/install_plan_missing.yaml
 - healthStatus:

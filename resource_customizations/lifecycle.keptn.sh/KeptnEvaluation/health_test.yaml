@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: "KeptnEvaluation is progressing"
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Degraded
+      message: "KeptnEvaluation is degraded"
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Healthy
+      message: "KeptnEvaluation is healthy"
+    inputPath: testdata/healthy.yaml

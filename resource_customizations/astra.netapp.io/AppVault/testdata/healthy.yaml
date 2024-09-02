@@ -1,0 +1,21 @@
+apiVersion: astra.netapp.io/v1
+kind: AppVault
+metadata:
+  creationTimestamp: "2024-04-11T21:28:27Z"
+  generation: 1
+  name: astra-gcp-backup-743cfd150129
+  namespace: astra-connector
+  resourceVersion: "70908"
+  uid: d1b552b2-5d8e-467b-829b-1e6af7240400
+spec:
+  providerConfig:
+    bucketName: astra-gcp-backup-743cfd150129
+  providerCredentials:
+    credentials:
+      valueFromSecret:
+        key: credentials.json
+        name: astra-gcp-backup-743cfd150129-5rdt4
+  providerType: gcp
+status:
+  state: available
+  uid: c708262e-3944-49bf-af96-ad1c3eb6cafb

@@ -3,17 +3,25 @@ package git
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+
+	gocache "github.com/patrickmn/go-cache"
+
 	argoio "github.com/argoproj/gitops-engine/pkg/utils/io"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	"github.com/bradleyfalzon/ghinstallation/v2"
-	gocache "github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -24,13 +32,14 @@ import (
 var (
 	// In memory cache for storing github APP api token credentials
 	githubAppTokenCache *gocache.Cache
+	// In memory cache for storing oauth2.TokenSource used to generate Google Cloud OAuth tokens
+	googleCloudTokenSource *gocache.Cache
 )
 
 const (
-	// ASKPASS_NONCE_ENV is the environment variable that is used to pass the nonce to the askpass script
-	ASKPASS_NONCE_ENV = "ARGOCD_GIT_ASKPASS_NONCE"
 	// githubAccessTokenUsername is a username that is used to with the github access token
 	githubAccessTokenUsername = "x-access-token"
+	forceBasicAuthHeaderEnv   = "ARGOCD_GIT_AUTH_HEADER"
 )
 
 func init() {
@@ -42,10 +51,11 @@ func init() {
 	}
 
 	githubAppTokenCache = gocache.New(githubAppCredsExp, 1*time.Minute)
+	// oauth2.TokenSource handles fetching new Tokens once they are expired. The oauth2.TokenSource itself does not expire.
+	googleCloudTokenSource = gocache.New(gocache.NoExpiration, 0)
 }
 
-type NoopCredsStore struct {
-}
+type NoopCredsStore struct{}
 
 func (d NoopCredsStore) Add(username string, password string) string {
 	return ""
@@ -54,27 +64,23 @@ func (d NoopCredsStore) Add(username string, password string) string {
 func (d NoopCredsStore) Remove(id string) {
 }
 
+func (d NoopCredsStore) Environ(id string) []string {
+	return []string{}
+}
+
 type CredsStore interface {
 	Add(username string, password string) string
 	Remove(id string)
+	// Environ returns the environment variables that should be set to use the credentials for the given credential ID.
+	Environ(id string) []string
 }
 
 type Creds interface {
 	Environ() (io.Closer, []string, error)
 }
 
-func getGitAskPassEnv(id string) []string {
-	return []string{
-		fmt.Sprintf("GIT_ASKPASS=%s", "argocd"),
-		fmt.Sprintf("%s=%s", ASKPASS_NONCE_ENV, id),
-		"GIT_TERMINAL_PROMPT=0",
-		"ARGOCD_BINARY_NAME=argocd-git-ask-pass",
-	}
-}
-
 // nop implementation
-type NopCloser struct {
-}
+type NopCloser struct{}
 
 func (c NopCloser) Close() error {
 	return nil
@@ -82,8 +88,7 @@ func (c NopCloser) Close() error {
 
 var _ Creds = NopCreds{}
 
-type NopCreds struct {
-}
+type NopCreds struct{}
 
 func (c NopCreds) Environ() (io.Closer, []string, error) {
 	return NopCloser{}, nil, nil
@@ -114,11 +119,15 @@ type HTTPSCreds struct {
 	clientCertKey string
 	// HTTP/HTTPS proxy used to access repository
 	proxy string
+	// list of targets that shouldn't use the proxy, applies only if the proxy is set
+	noProxy string
 	// temporal credentials store
 	store CredsStore
+	// whether to force usage of basic auth
+	forceBasicAuth bool
 }
 
-func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool, proxy string, store CredsStore) GenericHTTPSCreds {
+func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore, forceBasicAuth bool) GenericHTTPSCreds {
 	return HTTPSCreds{
 		username,
 		password,
@@ -126,8 +135,17 @@ func NewHTTPSCreds(username string, password string, clientCertData string, clie
 		clientCertData,
 		clientCertKey,
 		proxy,
+		noProxy,
 		store,
+		forceBasicAuth,
 	}
+}
+
+func (c HTTPSCreds) BasicAuthHeader() string {
+	h := "Authorization: Basic "
+	t := c.username + ":" + c.password
+	h += base64.StdEncoding.EncodeToString([]byte(t))
+	return h
 }
 
 // Get additional required environment variables for executing git client to
@@ -187,8 +205,14 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 		// GIT_SSL_KEY is the full path to a client certificate's key to be used
 		env = append(env, fmt.Sprintf("GIT_SSL_KEY=%s", keyFile.Name()))
 	}
+	// If at least password is set, we will set ARGOCD_BASIC_AUTH_HEADER to
+	// hold the HTTP authorization header, so auth mechanism negotiation is
+	// skipped. This is insecure, but some environments may need it.
+	if c.password != "" && c.forceBasicAuth {
+		env = append(env, fmt.Sprintf("%s=%s", forceBasicAuthHeaderEnv, c.BasicAuthHeader()))
+	}
 	nonce := c.store.Add(text.FirstNonEmpty(c.username, githubAccessTokenUsername), c.password)
-	env = append(env, getGitAskPassEnv(nonce)...)
+	env = append(env, c.store.Environ(nonce)...)
 	return argoioutils.NewCloser(func() error {
 		c.store.Remove(nonce)
 		return httpCloser.Close()
@@ -213,10 +237,12 @@ type SSHCreds struct {
 	caPath        string
 	insecure      bool
 	store         CredsStore
+	proxy         string
+	noProxy       string
 }
 
-func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool, store CredsStore) SSHCreds {
-	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey, store}
+func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool, store CredsStore, proxy string, noProxy string) SSHCreds {
+	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey, store, proxy, noProxy}
 }
 
 type sshPrivateKeyFile string
@@ -247,14 +273,21 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+
+	sshCloser := sshPrivateKeyFile(file.Name())
+
 	defer func() {
 		if err = file.Close(); err != nil {
-			log.Errorf("error closing file %q: %v", file.Name(), err)
+			log.WithFields(log.Fields{
+				common.SecurityField:    common.SecurityMedium,
+				common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
+			}).Errorf("error closing file %q: %v", file.Name(), err)
 		}
 	}()
 
 	_, err = file.WriteString(c.sshPrivateKey + "\n")
 	if err != nil {
+		sshCloser.Close()
 		return nil, nil, err
 	}
 
@@ -272,8 +305,27 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 		knownHostsFile := certutil.GetSSHKnownHostsDataPath()
 		args = append(args, "-o", "StrictHostKeyChecking=yes", "-o", fmt.Sprintf("UserKnownHostsFile=%s", knownHostsFile))
 	}
+	// Handle SSH socks5 proxy settings
+	proxyEnv := []string{}
+	if c.proxy != "" {
+		parsedProxyURL, err := url.Parse(c.proxy)
+		if err != nil {
+			sshCloser.Close()
+			return nil, nil, fmt.Errorf("failed to set environment variables related to socks5 proxy, could not parse proxy URL '%s': %w", c.proxy, err)
+		}
+		args = append(args, "-o", fmt.Sprintf("ProxyCommand='connect-proxy -S %s:%s -5 %%h %%p'",
+			parsedProxyURL.Hostname(),
+			parsedProxyURL.Port()))
+		if parsedProxyURL.User != nil {
+			proxyEnv = append(proxyEnv, fmt.Sprintf("SOCKS5_USER=%s", parsedProxyURL.User.Username()))
+			if socks5_passwd, isPasswdSet := parsedProxyURL.User.Password(); isPasswdSet {
+				proxyEnv = append(proxyEnv, fmt.Sprintf("SOCKS5_PASSWD=%s", socks5_passwd))
+			}
+		}
+	}
 	env = append(env, []string{fmt.Sprintf("GIT_SSH_COMMAND=%s", strings.Join(args, " "))}...)
-	return sshPrivateKeyFile(file.Name()), env, nil
+	env = append(env, proxyEnv...)
+	return sshCloser, env, nil
 }
 
 // GitHubAppCreds to authenticate as GitHub application
@@ -287,12 +339,13 @@ type GitHubAppCreds struct {
 	clientCertKey  string
 	insecure       bool
 	proxy          string
+	noProxy        string
 	store          CredsStore
 }
 
 // NewGitHubAppCreds provide github app credentials
-func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, repoURL string, clientCertData string, clientCertKey string, insecure bool, store CredsStore) GenericHTTPSCreds {
-	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, repoURL: repoURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, store: store}
+func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, repoURL string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore) GenericHTTPSCreds {
+	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, repoURL: repoURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, noProxy: noProxy, store: store}
 }
 
 func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
@@ -352,10 +405,9 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 		}
 		// GIT_SSL_KEY is the full path to a client certificate's key to be used
 		env = append(env, fmt.Sprintf("GIT_SSL_KEY=%s", keyFile.Name()))
-
 	}
 	nonce := g.store.Add(githubAccessTokenUsername, token)
-	env = append(env, getGitAskPassEnv(nonce)...)
+	env = append(env, g.store.Environ(nonce)...)
 	return argoioutils.NewCloser(func() error {
 		g.store.Remove(nonce)
 		return httpCloser.Close()
@@ -392,7 +444,7 @@ func (g GitHubAppCreds) getAccessToken() (string, error) {
 	}
 
 	// Create a new GitHub transport
-	c := GetRepoHTTPClient(baseUrl, g.insecure, g, g.proxy)
+	c := GetRepoHTTPClient(baseUrl, g.insecure, g, g.proxy, g.noProxy)
 	itr, err := ghinstallation.New(c.Transport,
 		g.appID,
 		g.appInstallId,
@@ -420,4 +472,99 @@ func (g GitHubAppCreds) GetClientCertData() string {
 
 func (g GitHubAppCreds) GetClientCertKey() string {
 	return g.clientCertKey
+}
+
+// GoogleCloudCreds to authenticate to Google Cloud Source repositories
+type GoogleCloudCreds struct {
+	creds *google.Credentials
+	store CredsStore
+}
+
+func NewGoogleCloudCreds(jsonData string, store CredsStore) GoogleCloudCreds {
+	creds, err := google.CredentialsFromJSON(context.Background(), []byte(jsonData), "https://www.googleapis.com/auth/cloud-platform")
+	if err != nil {
+		// Invalid JSON
+		log.Errorf("Failed reading credentials from JSON: %+v", err)
+	}
+	return GoogleCloudCreds{creds, store}
+}
+
+func (c GoogleCloudCreds) Environ() (io.Closer, []string, error) {
+	username, err := c.getUsername()
+	if err != nil {
+		return NopCloser{}, nil, fmt.Errorf("failed to get username from creds: %w", err)
+	}
+	token, err := c.getAccessToken()
+	if err != nil {
+		return NopCloser{}, nil, fmt.Errorf("failed to get access token from creds: %w", err)
+	}
+
+	nonce := c.store.Add(username, token)
+	env := c.store.Environ(nonce)
+
+	return argoioutils.NewCloser(func() error {
+		c.store.Remove(nonce)
+		return NopCloser{}.Close()
+	}), env, nil
+}
+
+func (c GoogleCloudCreds) getUsername() (string, error) {
+	type googleCredentialsFile struct {
+		Type string `json:"type"`
+
+		// Service Account fields
+		ClientEmail  string `json:"client_email"`
+		PrivateKeyID string `json:"private_key_id"`
+		PrivateKey   string `json:"private_key"`
+		AuthURL      string `json:"auth_uri"`
+		TokenURL     string `json:"token_uri"`
+		ProjectID    string `json:"project_id"`
+	}
+
+	if c.creds == nil {
+		return "", errors.New("credentials for Google Cloud Source repositories are invalid")
+	}
+
+	var f googleCredentialsFile
+	if err := json.Unmarshal(c.creds.JSON, &f); err != nil {
+		return "", fmt.Errorf("failed to unmarshal Google Cloud credentials: %w", err)
+	}
+	return f.ClientEmail, nil
+}
+
+func (c GoogleCloudCreds) getAccessToken() (string, error) {
+	if c.creds == nil {
+		return "", errors.New("credentials for Google Cloud Source repositories are invalid")
+	}
+
+	// Compute hash of creds for lookup in cache
+	h := sha256.New()
+	_, err := h.Write(c.creds.JSON)
+	if err != nil {
+		return "", err
+	}
+	key := fmt.Sprintf("%x", h.Sum(nil))
+
+	t, found := googleCloudTokenSource.Get(key)
+	if found {
+		ts := t.(*oauth2.TokenSource)
+		token, err := (*ts).Token()
+		if err != nil {
+			return "", fmt.Errorf("failed to get token from Google Cloud token source: %w", err)
+		}
+		return token.AccessToken, nil
+	}
+
+	ts := c.creds.TokenSource
+
+	// Add TokenSource to cache
+	// As TokenSource handles refreshing tokens once they expire itself, TokenSource itself can be reused. Hence, no expiration.
+	googleCloudTokenSource.Set(key, &ts, gocache.NoExpiration)
+
+	token, err := ts.Token()
+	if err != nil {
+		return "", fmt.Errorf("failed to get get SHA256 hash for Google Cloud credentials: %w", err)
+	}
+
+	return token.AccessToken, nil
 }

@@ -1,0 +1,105 @@
+syntax = "proto3";
+option go_package = "github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset";
+
+
+// ApplicationSet Service
+//
+// ApplicationSet Service API performs CRUD actions against applicationset resources
+package applicationset;
+
+import "google/api/annotations.proto";
+import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
+
+// ApplicationSetGetQuery is a query for applicationset resources
+message ApplicationSetGetQuery {
+	// the applicationsets's name
+	string name = 1;
+	// The application set namespace. Default empty is argocd control plane namespace
+	string appsetNamespace = 2;
+}
+
+message ApplicationSetListQuery {
+	// the project names to restrict returned list applicationsets
+	repeated string projects = 1;
+	// the selector to restrict returned list to applications only with matched labels
+	string selector = 2;
+	// The application set namespace. Default empty is argocd control plane namespace
+	string appsetNamespace = 3;
+}
+
+
+message ApplicationSetResponse {
+	string project = 1;
+	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSet applicationset = 2;
+}
+
+
+message ApplicationSetCreateRequest {
+	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSet applicationset = 1;
+	bool upsert = 2;
+	bool dryRun = 3;
+}
+
+
+message ApplicationSetDeleteRequest {
+	string name = 1;
+	// The application set namespace. Default empty is argocd control plane namespace
+	string appsetNamespace = 2;
+}
+
+message ApplicationSetTreeQuery {
+	string name = 1;
+	// The application set namespace. Default empty is argocd control plane namespace
+	string appsetNamespace = 2;
+}
+
+// ApplicationSetGetQuery is a query for applicationset resources
+message ApplicationSetGenerateRequest {
+	// the applicationsets
+	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSet applicationSet = 1;
+}
+
+// ApplicationSetGenerateResponse is a response for applicationset generate request
+message ApplicationSetGenerateResponse {
+	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application applications = 1;
+}
+
+// ApplicationSetService
+service ApplicationSetService {
+	// Get returns an applicationset by name
+	rpc Get (ApplicationSetGetQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSet) {
+		option (google.api.http).get = "/api/v1/applicationsets/{name}";
+	}
+
+	// Generate generates
+	rpc Generate (ApplicationSetGenerateRequest) returns (ApplicationSetGenerateResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/applicationsets"
+			body: "*"
+		};
+	}
+
+	//List returns list of applicationset
+	rpc List (ApplicationSetListQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSetList) {
+		option (google.api.http).get = "/api/v1/applicationsets";
+	}
+
+	//Create creates an applicationset
+	rpc Create (ApplicationSetCreateRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSet) {
+		option (google.api.http) = {
+			post: "/api/v1/applicationsets"
+			body: "applicationset"
+		};
+	}
+
+	// Delete deletes an application set
+	rpc Delete(ApplicationSetDeleteRequest) returns (ApplicationSetResponse) {
+		option (google.api.http).delete = "/api/v1/applicationsets/{name}";
+	}
+
+  // ResourceTree returns resource tree
+  rpc ResourceTree(ApplicationSetTreeQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSetTree) {
+    option (google.api.http).get = "/api/v1/applicationsets/{name}/resource-tree";
+  }
+
+}

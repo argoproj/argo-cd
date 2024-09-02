@@ -46,7 +46,7 @@ metrics:
     #   - myRegistrKeySecretName
 
   ## Metrics exporter labels and tolerations for pod assignment
-  # nodeSelector: {"beta.kubernetes.io/arch": "amd64"}
+  # nodeSelector: {"kubernetes.io/arch": "amd64"}
   # tolerations: []
 
   ## Metrics exporter pod Annotation and Labels
@@ -170,7 +170,7 @@ master:
   ## Redis Master Node labels and tolerations for pod assignment
   ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
   ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#taints-and-tolerations-beta-feature
-  # nodeSelector: {"beta.kubernetes.io/arch": "amd64"}
+  # nodeSelector: {"kubernetes.io/arch": "amd64"}
   # tolerations: []
   ## Redis Master pod/node affinity/anti-affinity
   affinity: {}
@@ -286,7 +286,7 @@ slave:
   #     cpu: 100m
 
   ## Redis slave labels and tolerations for pod assignment
-  # nodeSelector: {"beta.kubernetes.io/arch": "amd64"}
+  # nodeSelector: {"kubernetes.io/arch": "amd64"}
   # tolerations: []
 
   ## Use an alternate scheduler, e.g. "stork".

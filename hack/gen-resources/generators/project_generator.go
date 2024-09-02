@@ -2,6 +2,7 @@ package generator
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,7 +36,7 @@ func (pg *ProjectGenerator) Generate(opts *util.GenerateOpts) error {
 		}, v1.CreateOptions{})
 		if err != nil {
 			log.Printf("Project #%v failed to generate", i)
-			return err
+			return fmt.Errorf("error in generated-project: %w", err)
 		}
 	}
 	return nil

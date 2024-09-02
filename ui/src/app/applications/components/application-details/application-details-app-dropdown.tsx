@@ -34,7 +34,7 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string}) => {
                             }
                         />
                     </li>
-                    <DataLoader load={() => services.applications.list([], {fields: ['items.metadata.name']})}>
+                    <DataLoader load={() => services.applications.list([], {fields: ['items.metadata.name', 'items.metadata.namespace']})}>
                         {apps =>
                             apps.items
                                 .filter(app => {
@@ -42,7 +42,7 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string}) => {
                                 })
                                 .slice(0, 100) // take top 100 results after filtering to avoid performance issues
                                 .map(app => (
-                                    <li key={app.metadata.name} onClick={() => ctx.navigation.goto(`/applications/${app.metadata.name}`)}>
+                                    <li key={app.metadata.name} onClick={() => ctx.navigation.goto(`/applications/${app.metadata.namespace}/${app.metadata.name}`)}>
                                         {app.metadata.name} {app.metadata.name === props.appName && ' (current)'}
                                     </li>
                                 ))

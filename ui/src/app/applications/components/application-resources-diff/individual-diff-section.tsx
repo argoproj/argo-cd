@@ -3,7 +3,7 @@ import {useState} from 'react';
 import {Diff, Hunk} from 'react-diff-view';
 import 'react-diff-view/style/index.css';
 
-require('./application-resources-diff.scss');
+import './application-resources-diff.scss';
 
 export interface IndividualDiffSectionProps {
     file: any;
@@ -25,7 +25,7 @@ export const IndividualDiffSection = (props: IndividualDiffSectionProps) => {
             )}
             {!collapsed && (
                 <Diff viewType={viewType} diffType={file.type} hunks={file.hunks}>
-                    {(hunks: any) => hunks.map((hunk: any) => <Hunk key={hunk.content} hunk={hunk} />)}
+                    {(hunks: any) => hunks.map((hunk: any) => <Hunk className={'custom-diff-hunk'} key={hunk.content} hunk={hunk} />)}
                 </Diff>
             )}
         </div>

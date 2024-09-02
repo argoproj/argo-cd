@@ -5,6 +5,7 @@ import {CertificatesService} from './cert-service';
 import {ClustersService} from './clusters-service';
 import {ExtensionsService} from './extensions-service';
 import {GnuPGPublicKeyService} from './gpgkey-service';
+import {NotificationService} from './notification-service';
 import {ProjectsService} from './projects-service';
 import {RepositoriesService} from './repo-service';
 import {RepoCredsService} from './repocreds-service';
@@ -25,6 +26,7 @@ export interface Services {
     accounts: AccountsService;
     gpgkeys: GnuPGPublicKeyService;
     extensions: ExtensionsService;
+    notification: NotificationService;
 }
 
 export const services: Services = {
@@ -40,8 +42,9 @@ export const services: Services = {
     version: new VersionService(),
     accounts: new AccountsService(),
     gpgkeys: new GnuPGPublicKeyService(),
-    extensions: new ExtensionsService()
+    extensions: new ExtensionsService(),
+    notification: new NotificationService()
 };
 
-export {ProjectRoleParams, CreateJWTTokenParams, DeleteJWTTokenParams, JWTTokenResponse} from './projects-service';
+export * from './projects-service';
 export * from './view-preferences-service';
