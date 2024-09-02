@@ -52,10 +52,10 @@ func Test_NewExprs_Now(t *testing.T) {
 	}
 
 	vm, err := expr.Compile("time.Now().Truncate(time.Hour).Format(time.RFC3339)")
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	val, err := expr.Run(vm, map[string]interface{}{"time": NewExprs()})
-	require.Nil(t, err)
+	require.NoError(t, err)
 
 	assert.Equal(t, "2022-09-26T11:00:00Z", val)
 }
