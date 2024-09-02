@@ -41,7 +41,7 @@
         top: 1em;
         right: 1em;
     }
-
+    
     &__links-rows {
         margin: 10px 0;
     }
@@ -61,7 +61,7 @@
         }
     }
 
-    .white-box__details p {
+    .white-box__details p {            
         font-weight: 500;
         @include themify($themes) {
             color: themed('text-1');
@@ -82,7 +82,7 @@
     }
 
     .row.application-retry-options {
-        .columns.application-retry-options__item {
+        .columns.application-retry-options__item{
             padding-left: 0;
             padding-right: 10px;
         }
