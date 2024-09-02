@@ -6,7 +6,7 @@ require (
 	code.gitea.io/sdk/gitea v0.19.0
 	github.com/Azure/kubelogin v0.0.20
 	github.com/Masterminds/semver/v3 v3.3.0
-	github.com/Masterminds/sprig/v3 v3.2.3
+	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.33.0
 	github.com/argoproj/gitops-engine v0.7.1-0.20240823213048-95e00254f82a
@@ -16,7 +16,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.6.1
 	github.com/bombsimon/logrusr/v2 v2.0.1
 	github.com/bradleyfalzon/ghinstallation/v2 v2.11.0
-	github.com/casbin/casbin/v2 v2.98.0
+	github.com/casbin/casbin/v2 v2.99.0
 	github.com/casbin/govaluate v1.2.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/chainguard-dev/git-urls v1.0.2
@@ -60,7 +60,7 @@ require (
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
 	github.com/ktrysmt/go-bitbucket v0.9.80
 	github.com/mattn/go-isatty v0.0.20
-	github.com/mattn/go-zglob v0.0.4
+	github.com/mattn/go-zglob v0.0.6
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
 	github.com/olekukonko/tablewriter v0.0.5
@@ -76,7 +76,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
 	github.com/valyala/fasttemplate v1.2.2
-	github.com/xanzy/go-gitlab v0.107.0
+	github.com/xanzy/go-gitlab v0.108.0
 	github.com/yuin/gopher-lua v1.1.1
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.54.0
 	go.opentelemetry.io/otel v1.29.0
@@ -112,7 +112,7 @@ require (
 )
 
 require (
-	dario.cat/mergo v1.0.0 // indirect
+	dario.cat/mergo v1.0.1 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.1.1 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.1.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.0.0 // indirect
@@ -220,7 +220,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-version v1.6.0 // indirect
-	github.com/huandu/xstrings v1.3.3 // indirect
+	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/itchyny/timefmt-go v0.1.6 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
@@ -234,10 +234,10 @@ require (
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/malexdev/utfutil v0.0.0-20180510171754-00c8d4a8e7a8 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect
-	github.com/mitchellh/copystructure v1.0.0 // indirect
+	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
-	github.com/mitchellh/reflectwalk v1.0.0 // indirect
+	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/moby/spdystream v0.4.0 // indirect
 	github.com/moby/term v0.5.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -259,10 +259,10 @@ require (
 	github.com/rs/cors v1.11.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
-	github.com/shopspring/decimal v1.2.0 // indirect
+	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/skeema/knownhosts v1.2.2 // indirect
 	github.com/slack-go/slack v0.12.2 // indirect
-	github.com/spf13/cast v1.6.0 // indirect
+	github.com/spf13/cast v1.7.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vmihailenco/go-tinylfu v0.2.2 // indirect
