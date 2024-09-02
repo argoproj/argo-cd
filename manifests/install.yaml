@@ -23499,12 +23499,12 @@ spec:
               key: reposerver.plugin.tar.exclusions
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_REPO_SERVER_PLUGIN_ENABLE_GENERATE_MANIFESTS_USING_MANIFEST_GENERATE_PATHS_ANNOTATION
-          valueFrom:
-            configMapKeyRef:
-              key: reposerver.plugin.enable.manifests.generation.using.annotations
-              name: argocd-cmd-params-cm
-              optional: true
+        - configMapKeyRef:
+            key: reposerver.plugin.enable.manifests.generation.using.annotations
+            name: argocd-cmd-params-cm
+            optional: true
+          name: ARGOCD_REPO_SERVER_PLUGIN_ENABLE_GENERATE_MANIFESTS_USING_MANIFEST_GENERATE_PATHS_ANNOTATION
+          valueFrom: null
         - name: ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS
           valueFrom:
             configMapKeyRef:
