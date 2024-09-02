@@ -11,7 +11,10 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 )
 
-func rewrapError(err error, code codes.Code) error {
+func rewrapError(err error, code codes.Code, msg ...string) error {
+	if len(msg) > 0 {
+		return status.Errorf(code, "%s", msg[0])
+	}
 	return status.Errorf(code, err.Error())
 }
 
