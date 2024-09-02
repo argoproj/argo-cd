@@ -22,13 +22,15 @@ argocd admin settings resource-overrides ignore-resource-updates ./deploy.yaml -
 ### Options
 
 ```
-  -h, --help   help for ignore-resource-updates
+  -h, --help                                              help for ignore-resource-updates
+      --ignore-normalizer-jq-execution-timeout duration   Set ignore normalizer JQ execution timeout (default 1s)
 ```
 
 ### Options inherited from parent commands
 
 ```
       --argocd-cm-path string           Path to local argocd-cm.yaml file
+      --argocd-context string           The name of the Argo-CD server context to use
       --argocd-secret-path string       Path to local argocd-secret.yaml file
       --as string                       Username to impersonate for the operation
       --as-group stringArray            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.

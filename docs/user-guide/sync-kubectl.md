@@ -38,7 +38,7 @@ operation:
     username: <username>
   sync:
     syncStrategy:
-    hook: {}
+      hook: {}
 ```
 
 ```bash

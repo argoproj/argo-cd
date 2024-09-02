@@ -8,7 +8,6 @@ spec:
       app.kubernetes.io/name: argocd-redis-ha-haproxy
   policyTypes:
   - Ingress
-  - Egress
   ingress:
   - from:
     - podSelector:
@@ -25,18 +24,4 @@ spec:
       protocol: TCP
     - port: 26379
       protocol: TCP
-  egress:
-  - to:
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/name: argocd-redis-ha
-    ports:
-    - port: 6379
-      protocol: TCP
-    - port: 26379
-      protocol: TCP
-  - ports:
-    - port: 53
-      protocol: UDP
-    - port: 53
-      protocol: TCP
+

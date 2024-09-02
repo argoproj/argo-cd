@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	jwt "github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -17,6 +16,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/argoproj/argo-cd/v2/common"
 )
 
 // ArgoCDManagerServiceAccount is the name of the service account for managing a cluster
@@ -67,7 +68,7 @@ func CreateServiceAccount(
 	_, err := clientset.CoreV1().ServiceAccounts(namespace).Create(context.Background(), &serviceAccount, metav1.CreateOptions{})
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
-			return fmt.Errorf("Failed to create service account %q in namespace %q: %v", serviceAccountName, namespace, err)
+			return fmt.Errorf("Failed to create service account %q in namespace %q: %w", serviceAccountName, namespace, err)
 		}
 		log.Infof("ServiceAccount %q already exists in namespace %q", serviceAccountName, namespace)
 		return nil
@@ -80,11 +81,11 @@ func upsert(kind string, name string, create func() (interface{}, error), update
 	_, err := create()
 	if err != nil {
 		if !apierr.IsAlreadyExists(err) {
-			return fmt.Errorf("Failed to create %s %q: %v", kind, name, err)
+			return fmt.Errorf("Failed to create %s %q: %w", kind, name, err)
 		}
 		_, err = update()
 		if err != nil {
-			return fmt.Errorf("Failed to update %s %q: %v", kind, name, err)
+			return fmt.Errorf("Failed to update %s %q: %w", kind, name, err)
 		}
 		log.Infof("%s %q updated", kind, name)
 	} else {
@@ -177,7 +178,6 @@ func upsertRoleBinding(clientset kubernetes.Interface, name string, roleName str
 
 // InstallClusterManagerRBAC installs RBAC resources for a cluster manager to operate a cluster. Returns a token
 func InstallClusterManagerRBAC(clientset kubernetes.Interface, ns string, namespaces []string, bearerTokenTimeout time.Duration) (string, error) {
-
 	err := CreateServiceAccount(clientset, ArgoCDManagerServiceAccount, ns)
 	if err != nil {
 		return "", err
@@ -229,8 +229,8 @@ func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns string, sa 
 	}
 
 	var secret *corev1.Secret
-	err = wait.PollImmediate(500*time.Millisecond, timeout, func() (bool, error) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.ClusterAuthRequestTimeout)
+	err = wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, timeout, true, func(ctx context.Context) (bool, error) {
+		ctx, cancel := context.WithTimeout(ctx, common.ClusterAuthRequestTimeout)
 		defer cancel()
 		secret, err = clientset.CoreV1().Secrets(ns).Get(ctx, secretName, metav1.GetOptions{})
 		if err != nil {
@@ -259,20 +259,17 @@ func getOrCreateServiceAccountTokenSecret(clientset kubernetes.Interface, sa, ns
 	// Wait for sa to have secret, but don't wait too
 	// long for 1.24+ clusters
 	var serviceAccount *corev1.ServiceAccount
-	err := wait.PollImmediate(500*time.Millisecond, 5*time.Second, func() (bool, error) {
-		ctx, cancel := context.WithTimeout(context.Background(), common.ClusterAuthRequestTimeout)
+	err := wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, 30*time.Second, true, func(ctx context.Context) (bool, error) {
+		ctx, cancel := context.WithTimeout(ctx, common.ClusterAuthRequestTimeout)
 		defer cancel()
 		var getErr error
 		serviceAccount, getErr = clientset.CoreV1().ServiceAccounts(ns).Get(ctx, sa, metav1.GetOptions{})
 		if getErr != nil {
 			return false, fmt.Errorf("failed to get serviceaccount %q: %w", sa, getErr)
 		}
-		if len(serviceAccount.Secrets) == 0 {
-			return false, nil
-		}
 		return true, nil
 	})
-	if err != nil && err != wait.ErrWaitTimeout {
+	if err != nil && !wait.Interrupted(err) {
 		return "", fmt.Errorf("failed to get serviceaccount token secret: %w", err)
 	}
 	if serviceAccount == nil {
@@ -343,7 +340,7 @@ func UninstallClusterManagerRBAC(clientset kubernetes.Interface) error {
 func UninstallRBAC(clientset kubernetes.Interface, namespace, bindingName, roleName, serviceAccount string) error {
 	if err := clientset.RbacV1().ClusterRoleBindings().Delete(context.Background(), bindingName, metav1.DeleteOptions{}); err != nil {
 		if !apierr.IsNotFound(err) {
-			return fmt.Errorf("Failed to delete ClusterRoleBinding: %v", err)
+			return fmt.Errorf("Failed to delete ClusterRoleBinding: %w", err)
 		}
 		log.Infof("ClusterRoleBinding %q not found", bindingName)
 	} else {
@@ -352,7 +349,7 @@ func UninstallRBAC(clientset kubernetes.Interface, namespace, bindingName, roleN
 
 	if err := clientset.RbacV1().ClusterRoles().Delete(context.Background(), roleName, metav1.DeleteOptions{}); err != nil {
 		if !apierr.IsNotFound(err) {
-			return fmt.Errorf("Failed to delete ClusterRole: %v", err)
+			return fmt.Errorf("Failed to delete ClusterRole: %w", err)
 		}
 		log.Infof("ClusterRole %q not found", roleName)
 	} else {
@@ -361,7 +358,7 @@ func UninstallRBAC(clientset kubernetes.Interface, namespace, bindingName, roleN
 
 	if err := clientset.CoreV1().ServiceAccounts(namespace).Delete(context.Background(), serviceAccount, metav1.DeleteOptions{}); err != nil {
 		if !apierr.IsNotFound(err) {
-			return fmt.Errorf("Failed to delete ServiceAccount: %v", err)
+			return fmt.Errorf("Failed to delete ServiceAccount: %w", err)
 		}
 		log.Infof("ServiceAccount %q in namespace %q not found", serviceAccount, namespace)
 	} else {
@@ -390,7 +387,7 @@ func ParseServiceAccountToken(token string) (*ServiceAccountClaims, error) {
 	var claims ServiceAccountClaims
 	_, _, err := parser.ParseUnverified(token, &claims)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse service account token: %s", err)
+		return nil, fmt.Errorf("Failed to parse service account token: %w", err)
 	}
 	return &claims, nil
 }
@@ -419,8 +416,8 @@ func GenerateNewClusterManagerSecret(clientset kubernetes.Interface, claims *Ser
 		return nil, err
 	}
 
-	err = wait.Poll(500*time.Millisecond, 30*time.Second, func() (bool, error) {
-		created, err = secretsClient.Get(context.Background(), created.Name, metav1.GetOptions{})
+	err = wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, 30*time.Second, false, func(ctx context.Context) (bool, error) {
+		created, err = secretsClient.Get(ctx, created.Name, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
@@ -430,7 +427,7 @@ func GenerateNewClusterManagerSecret(clientset kubernetes.Interface, claims *Ser
 		return true, nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Timed out waiting for secret to generate new token")
+		return nil, fmt.Errorf("Timed out waiting for secret to generate new token: %w", err)
 	}
 	return created, nil
 }

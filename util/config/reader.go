@@ -38,7 +38,7 @@ func unmarshalObject(data []byte, obj interface{}) error {
 func MarshalLocalYAMLFile(path string, obj interface{}) error {
 	yamlData, err := yaml.Marshal(obj)
 	if err == nil {
-		err = os.WriteFile(path, yamlData, 0600)
+		err = os.WriteFile(path, yamlData, 0o600)
 	}
 	return err
 }

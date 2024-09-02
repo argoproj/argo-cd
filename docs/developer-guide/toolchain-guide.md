@@ -138,6 +138,14 @@ The following steps are required no matter whether you chose to use a virtualize
     export SUDO=sudo
     ```
 
+    If you have podman installed, you can also leverage its rootless mode. In
+    order to use podman for running and testing Argo CD locally, set the
+    `DOCKER` environment variable to `podman` before you run `make`, e.g.
+
+    ```
+    DOCKER=podman make start
+    ```
+
 ### Clone the Argo CD repository from your personal fork on GitHub
 
 * `mkdir -p ~/go/src/github.com/argoproj`
@@ -304,7 +312,7 @@ For installing the tools required to build and test Argo CD on your local system
 You can change the target location by setting the `BIN` environment before running the installer scripts. For example, you can install the binaries into `~/go/bin` (which should then be the first component in your `PATH` environment, i.e. `export PATH=~/go/bin:$PATH`):
 
 ```shell
-make BIN=~/go/bin install-tools-local
+BIN=~/go/bin make install-tools-local
 ```
 
 Additionally, you have to install at least the following tools via your OS's package manager (this list might not be always up-to-date):

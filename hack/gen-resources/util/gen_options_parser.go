@@ -1,8 +1,9 @@
 package util
 
 import (
-	"gopkg.in/yaml.v2"
 	"os"
+
+	"gopkg.in/yaml.v2"
 )
 
 type SourceOpts struct {

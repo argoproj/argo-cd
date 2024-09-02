@@ -6,3 +6,5 @@ resources:
 - argocd-redis-sa.yaml
 - argocd-redis-service.yaml
 - argocd-redis-network-policy.yaml
+- argocd-redis-role.yaml
+- argocd-redis-rolebinding.yaml

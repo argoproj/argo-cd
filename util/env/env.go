@@ -151,15 +151,24 @@ func ParseDurationFromEnv(env string, defaultValue, min, max time.Duration) time
 	return dur
 }
 
-func StringFromEnv(env string, defaultValue string) string {
-	if str := os.Getenv(env); str != "" {
+type StringFromEnvOpts struct {
+	// AllowEmpty allows the value to be empty as long as the environment variable is set.
+	AllowEmpty bool
+}
+
+func StringFromEnv(env string, defaultValue string, opts ...StringFromEnvOpts) string {
+	opt := StringFromEnvOpts{}
+	for _, o := range opts {
+		opt.AllowEmpty = opt.AllowEmpty || o.AllowEmpty
+	}
+	if str, ok := os.LookupEnv(env); opt.AllowEmpty && ok || str != "" {
 		return str
 	}
 	return defaultValue
 }
 
 // StringsFromEnv parses given value from the environment as a list of strings,
-// using seperator as the delimeter, and returns them as a slice. The strings
+// using separator as the delimeter, and returns them as a slice. The strings
 // in the returned slice will have leading and trailing white space removed.
 func StringsFromEnv(env string, defaultValue []string, separator string) []string {
 	if str := os.Getenv(env); str != "" {
@@ -189,7 +198,7 @@ func ParseBoolFromEnv(envVar string, defaultValue bool) bool {
 
 // ParseStringToStringVar parses given value from the environment as a map of string.
 // Returns default value if envVar is not set.
-func ParseStringToStringFromEnv(envVar string, defaultValue map[string]string, seperator string) map[string]string {
+func ParseStringToStringFromEnv(envVar string, defaultValue map[string]string, separator string) map[string]string {
 	str := os.Getenv(envVar)
 	str = strings.TrimSpace(str)
 	if str == "" {
@@ -197,7 +206,7 @@ func ParseStringToStringFromEnv(envVar string, defaultValue map[string]string, s
 	}
 
 	parsed := make(map[string]string)
-	for _, pair := range strings.Split(str, seperator) {
+	for _, pair := range strings.Split(str, separator) {
 		keyvalue := strings.Split(pair, "=")
 		if len(keyvalue) != 2 {
 			log.Warnf("Invalid key-value pair when parsing environment '%s' as a string map", str)

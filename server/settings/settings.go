@@ -109,7 +109,6 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		UserLoginsDisabled:        userLoginsDisabled,
 		KustomizeVersions:         kustomizeVersions,
 		UiCssURL:                  argoCDSettings.UiCssURL,
-		PasswordPattern:           argoCDSettings.PasswordPattern,
 		TrackingMethod:            trackingMethod,
 		ExecEnabled:               argoCDSettings.ExecEnabled,
 		AppsInAnyNamespaceEnabled: s.appsInAnyNamespaceEnabled,
@@ -121,6 +120,9 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		set.UiBannerPermanent = argoCDSettings.UiBannerPermanent
 		set.UiBannerPosition = argoCDSettings.UiBannerPosition
 		set.ControllerNamespace = s.mgr.GetNamespace()
+	}
+	if sessionmgr.LoggedIn(ctx) {
+		set.PasswordPattern = argoCDSettings.PasswordPattern
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig
