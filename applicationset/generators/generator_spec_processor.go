@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/jeremywohl/flatten"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 
 	"k8s.io/apimachinery/pkg/labels"
 
@@ -25,7 +27,7 @@ type TransformResult struct {
 }
 
 // Transform a spec generator to list of paramSets and a template
-func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet, genParams map[string]interface{}) ([]TransformResult, error) {
+func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, allGenerators map[string]Generator, baseTemplate argoprojiov1alpha1.ApplicationSetTemplate, appSet *argoprojiov1alpha1.ApplicationSet, genParams map[string]interface{}, client client.Client) ([]TransformResult, error) {
 	// This is a custom version of the `LabelSelectorAsSelector` that is in k8s.io/apimachinery. This has been copied
 	// verbatim from that package, with the difference that we do not have any restrictions on label values. This is done
 	// so that, among other things, we can match on cluster urls.
@@ -52,7 +54,7 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 		}
 		var params []map[string]interface{}
 		if len(genParams) != 0 {
-			tempInterpolatedGenerator, err := InterpolateGenerator(&requestedGenerator, genParams, appSet.Spec.GoTemplate)
+			tempInterpolatedGenerator, err := InterpolateGenerator(&requestedGenerator, genParams, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 			interpolatedGenerator = &tempInterpolatedGenerator
 			if err != nil {
 				log.WithError(err).WithField("genParams", genParams).
@@ -63,7 +65,7 @@ func Transform(requestedGenerator argoprojiov1alpha1.ApplicationSetGenerator, al
 				continue
 			}
 		}
-		params, err = g.GenerateParams(interpolatedGenerator, appSet)
+		params, err = g.GenerateParams(interpolatedGenerator, appSet, client)
 		if err != nil {
 			log.WithError(err).WithField("generator", g).
 				Error("error generating params")
@@ -124,7 +126,7 @@ func GetRelevantGenerators(requestedGenerator *argoprojiov1alpha1.ApplicationSet
 func flattenParameters(in map[string]interface{}) (map[string]string, error) {
 	flat, err := flatten.Flatten(in, "", flatten.DotStyle)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error flatenning parameters: %w", err)
 	}
 
 	out := make(map[string]string, len(flat))
@@ -147,13 +149,26 @@ func mergeGeneratorTemplate(g Generator, requestedGenerator *argoprojiov1alpha1.
 
 // InterpolateGenerator allows interpolating the matrix's 2nd child generator with values from the 1st child generator
 // "params" parameter is an array, where each index corresponds to a generator. Each index contains a map w/ that generator's parameters.
-func InterpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, params map[string]interface{}, useGoTemplate bool) (argoprojiov1alpha1.ApplicationSetGenerator, error) {
+func InterpolateGenerator(requestedGenerator *argoprojiov1alpha1.ApplicationSetGenerator, params map[string]interface{}, useGoTemplate bool, goTemplateOptions []string) (argoprojiov1alpha1.ApplicationSetGenerator, error) {
 	render := utils.Render{}
-	interpolatedGenerator, err := render.RenderGeneratorParams(requestedGenerator, params, useGoTemplate)
+	interpolatedGenerator, err := render.RenderGeneratorParams(requestedGenerator, params, useGoTemplate, goTemplateOptions)
 	if err != nil {
 		log.WithError(err).WithField("interpolatedGenerator", interpolatedGenerator).Error("error interpolating generator with other generator's parameter")
-		return *interpolatedGenerator, err
+		return argoprojiov1alpha1.ApplicationSetGenerator{}, err
 	}
 
 	return *interpolatedGenerator, nil
+}
+
+// Fixes https://github.com/argoproj/argo-cd/issues/11982 while ensuring backwards compatibility.
+// This is only a short-term solution and should be removed in a future major version.
+func dropDisabledNestedSelectors(generators []argoprojiov1alpha1.ApplicationSetNestedGenerator) bool {
+	var foundSelector bool
+	for i := range generators {
+		if generators[i].Selector != nil {
+			foundSelector = true
+			generators[i].Selector = nil
+		}
+	}
+	return foundSelector
 }

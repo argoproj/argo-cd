@@ -1,11 +1,14 @@
 package lua
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -21,6 +24,7 @@ import (
 
 const (
 	incorrectReturnType       = "expect %s output from Lua script, not %s"
+	incorrectInnerType        = "expect %s inner type from Lua script, not %s"
 	invalidHealthStatus       = "Lua returned an invalid health status"
 	healthScriptFile          = "health.lua"
 	actionScriptFile          = "action.lua"
@@ -107,6 +111,11 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 		healthStatus := &health.HealthStatus{}
 		err = json.Unmarshal(jsonBytes, healthStatus)
 		if err != nil {
+			// Validate if the error is caused by an empty object
+			typeError := &json.UnmarshalTypeError{Value: "array", Type: reflect.TypeOf(healthStatus)}
+			if errors.As(err, &typeError) {
+				return &health.HealthStatus{}, nil
+			}
 			return nil, err
 		}
 		if !isValidHealthStatusCode(healthStatus.Status) {
@@ -117,6 +126,8 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 		}
 
 		return healthStatus, nil
+	} else if returnValue.Type() == lua.LTNil {
+		return &health.HealthStatus{}, nil
 	}
 	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
 }
@@ -146,7 +157,7 @@ func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (string, bool, erro
 	return builtInScript, true, err
 }
 
-func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string) (*unstructured.Unstructured, error) {
+func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string) ([]ImpactedResource, error) {
 	l, err := vm.runLua(obj, script)
 	if err != nil {
 		return nil, err
@@ -157,15 +168,56 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 		if err != nil {
 			return nil, err
 		}
-		newObj, err := appv1.UnmarshalToUnstructured(string(jsonBytes))
-		if err != nil {
-			return nil, err
+
+		var impactedResources []ImpactedResource
+
+		jsonString := bytes.NewBuffer(jsonBytes).String()
+		if len(jsonString) < 2 {
+			return nil, fmt.Errorf("Lua output was not a valid json object or array")
 		}
-		cleanedNewObj := cleanReturnedObj(newObj.Object, obj.Object)
-		newObj.Object = cleanedNewObj
-		return newObj, nil
+		// The output from Lua is either an object (old-style action output) or an array (new-style action output).
+		// Check whether the string starts with an opening square bracket and ends with a closing square bracket,
+		// avoiding programming by exception.
+		if jsonString[0] == '[' && jsonString[len(jsonString)-1] == ']' {
+			// The string represents a new-style action array output
+			impactedResources, err = UnmarshalToImpactedResources(string(jsonBytes))
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			// The string represents an old-style action object output
+			newObj, err := appv1.UnmarshalToUnstructured(string(jsonBytes))
+			if err != nil {
+				return nil, err
+			}
+			// Wrap the old-style action output with a single-member array.
+			// The default definition of the old-style action is a "patch" one.
+			impactedResources = append(impactedResources, ImpactedResource{newObj, PatchOperation})
+		}
+
+		for _, impactedResource := range impactedResources {
+			// Cleaning the resource is only relevant to "patch"
+			if impactedResource.K8SOperation == PatchOperation {
+				impactedResource.UnstructuredObj.Object = cleanReturnedObj(impactedResource.UnstructuredObj.Object, obj.Object)
+			}
+		}
+		return impactedResources, nil
 	}
 	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
+}
+
+// UnmarshalToImpactedResources unmarshals an ImpactedResource array representation in JSON to ImpactedResource array
+func UnmarshalToImpactedResources(resources string) ([]ImpactedResource, error) {
+	if resources == "" || resources == "null" {
+		return nil, nil
+	}
+
+	var impactedResources []ImpactedResource
+	err := json.Unmarshal([]byte(resources), &impactedResources)
+	if err != nil {
+		return nil, err
+	}
+	return impactedResources, nil
 }
 
 // cleanReturnedObj Lua cannot distinguish an empty table as an array or map, and the library we are using choose to
@@ -230,7 +282,6 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 	}
 	returnValue := l.Get(-1)
 	if returnValue.Type() == lua.LTTable {
-
 		jsonBytes, err := luajson.Encode(returnValue)
 		if err != nil {
 			return nil, err
@@ -381,7 +432,7 @@ func isValidHealthStatusCode(statusCode health.HealthStatusCode) bool {
 // Took logic from the link below and added the int, int32, and int64 types since the value would have type int64
 // while actually running in the controller and it was not reproducible through testing.
 // https://github.com/layeh/gopher-json/blob/97fed8db84274c421dbfffbb28ec859901556b97/json.go#L154
-func decodeValue(L *lua.LState, value interface{}) lua.LValue {
+func decodeValue(l *lua.LState, value interface{}) lua.LValue {
 	switch converted := value.(type) {
 	case bool:
 		return lua.LBool(converted)
@@ -398,15 +449,15 @@ func decodeValue(L *lua.LState, value interface{}) lua.LValue {
 	case int64:
 		return lua.LNumber(converted)
 	case []interface{}:
-		arr := L.CreateTable(len(converted), 0)
+		arr := l.CreateTable(len(converted), 0)
 		for _, item := range converted {
-			arr.Append(decodeValue(L, item))
+			arr.Append(decodeValue(l, item))
 		}
 		return arr
 	case map[string]interface{}:
-		tbl := L.CreateTable(0, len(converted))
+		tbl := l.CreateTable(0, len(converted))
 		for key, item := range converted {
-			tbl.RawSetH(lua.LString(key), decodeValue(L, item))
+			tbl.RawSetH(lua.LString(key), decodeValue(l, item))
 		}
 		return tbl
 	case nil:

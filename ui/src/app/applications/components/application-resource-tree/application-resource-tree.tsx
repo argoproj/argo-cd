@@ -1,4 +1,4 @@
-import {DropDown, DropDownMenu, NotificationType, Tooltip} from 'argo-ui';
+import {DropDown, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
@@ -15,14 +15,14 @@ import {ResourceLabel} from '../resource-label';
 import {
     BASE_COLORS,
     ComparisonStatusIcon,
-    deletePodAction,
     getAppOverridesCount,
     HealthStatusIcon,
     isAppNode,
     isYoungerThanXMinutes,
     NodeId,
     nodeKey,
-    PodHealthIcon
+    PodHealthIcon,
+    getUsrMsgKeyToDisplay
 } from '../utils';
 import {NodeUpdateAnimation} from './node-update-animation';
 import {PodGroup} from '../application-pod-view/pod-view';
@@ -59,6 +59,8 @@ export interface ApplicationResourceTreeProps {
     appContext?: AppContext;
     showOrphanedResources: boolean;
     showCompactNodes: boolean;
+    userMsgs: models.UserMessages[];
+    updateUsrHelpTipMsgs: (userMsgs: models.UserMessages) => void;
     setShowCompactNodes: (showCompactNodes: boolean) => void;
     zoom: number;
     podGroupCount: number;
@@ -91,15 +93,7 @@ const NODE_TYPES = {
     podGroup: 'pod_group'
 };
 // generate lots of colors with different darkness
-const TRAFFIC_COLORS = [0, 0.25, 0.4, 0.6]
-    .map(darken =>
-        BASE_COLORS.map(item =>
-            color(item)
-                .darken(darken)
-                .hex()
-        )
-    )
-    .reduce((first, second) => first.concat(second), []);
+const TRAFFIC_COLORS = [0, 0.25, 0.4, 0.6].map(darken => BASE_COLORS.map(item => color(item).darken(darken).hex())).reduce((first, second) => first.concat(second), []);
 
 function getGraphSize(nodes: dagre.Node[]): {width: number; height: number} {
     let width = 0;
@@ -179,7 +173,7 @@ function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph) {
             nodeIds.forEach((nodeId: string) => {
                 const index = nodes.findIndex(node => nodeId === node.uid || nodeId === nodeKey(node));
                 const graphNode = graph.node(nodeId);
-                if (!graphNode.podGroup && index > -1) {
+                if (!graphNode?.podGroup && index > -1) {
                     groupedNodeIds.push(nodeId);
                 } else {
                     podGroupIds.push(nodeId);
@@ -297,7 +291,7 @@ function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: n
                     className='application-resource-tree__node-title application-resource-tree__direction-center-left'
                     onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupedNodeIds)}
                     title={`Click to see details of ${node.count} collapsed ${node.kind} and doesn't contains any active pods`}>
-                    {node.kind}
+                    {node.count} {node.kind}s
                     <span style={{paddingLeft: '.5em', fontSize: 'small'}}>
                         {node.kind === 'ReplicaSet' ? (
                             <i
@@ -528,11 +522,15 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                         ))}
                     {(node.info || []).length > 4 && (
                         <Tooltip
-                            content={(node.info || []).map(i => (
-                                <div key={i.name}>
-                                    {i.name}: {i.value}
-                                </div>
-                            ))}
+                            content={
+                                <>
+                                    {(node.info || []).map(i => (
+                                        <div key={i.name}>
+                                            {i.name}: {i.value}
+                                        </div>
+                                    ))}
+                                </>
+                            }
                             key={node.uid}>
                             <span className='application-resource-tree__node-label' title='More'>
                                 More
@@ -557,11 +555,13 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
             </div>
             <div className='application-resource-tree__node--lower-section'>
                 {[podGroupHealthy, podGroupDegraded, podGroupInProgress].map((pods, index) => {
-                    return (
-                        <div key={index} className={`application-resource-tree__node--lower-section__pod-group`}>
-                            {renderPodGroupByStatus(props, node, pods, showPodGroupByStatus)}
-                        </div>
-                    );
+                    if (pods.length > 0) {
+                        return (
+                            <div key={index} className={`application-resource-tree__node--lower-section__pod-group`}>
+                                {renderPodGroupByStatus(props, node, pods, showPodGroupByStatus)}
+                            </div>
+                        );
+                    }
                 })}
             </div>
         </div>
@@ -591,83 +591,58 @@ function renderPodGroupByStatus(props: ApplicationResourceTreeProps, node: any, 
                     </div>
                 </React.Fragment>
             ) : (
-                pods.map(pod => (
-                    <DropDownMenu
-                        key={pod.uid}
-                        anchor={() => (
-                            <Tooltip
-                                content={
-                                    <div>
-                                        {pod.metadata.name}
-                                        <div>Health: {pod.health}</div>
-                                        {pod.createdAt && (
-                                            <span>
-                                                <span>Created: </span>
-                                                <Moment fromNow={true} ago={true}>
-                                                    {pod.createdAt}
-                                                </Moment>
-                                                <span> ago ({<Moment local={true}>{pod.createdAt}</Moment>})</span>
-                                            </span>
-                                        )}
-                                    </div>
-                                }
-                                popperOptions={{
-                                    modifiers: {
-                                        preventOverflow: {
-                                            enabled: true
-                                        },
-                                        hide: {
-                                            enabled: false
-                                        },
-                                        flip: {
-                                            enabled: false
+                pods.map(
+                    pod =>
+                        props.nodeMenu && (
+                            <DropDown
+                                key={pod.uid}
+                                isMenu={true}
+                                anchor={() => (
+                                    <Tooltip
+                                        content={
+                                            <div>
+                                                {pod.metadata.name}
+                                                <div>Health: {pod.health}</div>
+                                                {pod.createdAt && (
+                                                    <span>
+                                                        <span>Created: </span>
+                                                        <Moment fromNow={true} ago={true}>
+                                                            {pod.createdAt}
+                                                        </Moment>
+                                                        <span> ago ({<Moment local={true}>{pod.createdAt}</Moment>})</span>
+                                                    </span>
+                                                )}
+                                            </div>
                                         }
-                                    }
-                                }}
-                                key={pod.metadata.name}>
-                                <div style={{position: 'relative'}}>
-                                    {isYoungerThanXMinutes(pod, 30) && (
-                                        <i className='fas fa-star application-resource-tree__node--lower-section__pod-group__pod application-resource-tree__node--lower-section__pod-group__pod__star-icon' />
-                                    )}
-                                    <div
-                                        className={`application-resource-tree__node--lower-section__pod-group__pod application-resource-tree__node--lower-section__pod-group__pod--${pod.health.toLowerCase()}`}>
-                                        <PodHealthIcon state={{status: pod.health, message: ''}} />
-                                    </div>
-                                </div>
-                            </Tooltip>
-                        )}
-                        items={[
-                            {
-                                title: (
-                                    <React.Fragment>
-                                        <i className='fa fa-info-circle' /> Info
-                                    </React.Fragment>
-                                ),
-                                action: () => props.onNodeClick(pod.fullName)
-                            },
-                            {
-                                title: (
-                                    <React.Fragment>
-                                        <i className='fa fa-align-left' /> Logs
-                                    </React.Fragment>
-                                ),
-                                action: () => {
-                                    props.appContext.apis.navigation.goto('.', {node: pod.fullName, tab: 'logs'}, {replace: true});
-                                }
-                            },
-                            {
-                                title: (
-                                    <React.Fragment>
-                                        <i className='fa fa-times-circle' /> Delete
-                                    </React.Fragment>
-                                ),
-                                action: () => {
-                                    deletePodAction(pod, props.appContext, props.app.metadata.name, props.app.metadata.namespace);
-                                }
-                            }
-                        ]}
-                    />
-                ))
+                                        popperOptions={{
+                                            modifiers: {
+                                                preventOverflow: {
+                                                    enabled: true
+                                                },
+                                                hide: {
+                                                    enabled: false
+                                                },
+                                                flip: {
+                                                    enabled: false
+                                                }
+                                            }
+                                        }}
+                                        key={pod.metadata.name}>
+                                        <div style={{position: 'relative'}}>
+                                            {isYoungerThanXMinutes(pod, 30) && (
+                                                <i className='fas fa-star application-resource-tree__node--lower-section__pod-group__pod application-resource-tree__node--lower-section__pod-group__pod__star-icon' />
+                                            )}
+                                            <div
+                                                className={`application-resource-tree__node--lower-section__pod-group__pod application-resource-tree__node--lower-section__pod-group__pod--${pod.health.toLowerCase()}`}>
+                                                <PodHealthIcon state={{status: pod.health, message: ''}} />
+                                            </div>
+                                        </div>
+                                    </Tooltip>
+                                )}>
+                                {() => props.nodeMenu(pod)}
+                            </DropDown>
+                        )
+                )
             )}
         </div>
     );
@@ -822,11 +797,15 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                     })}
                 {(node.info || []).length > 4 && (
                     <Tooltip
-                        content={(node.info || []).map(i => (
-                            <div key={i.name}>
-                                {i.name}: {i.value}
-                            </div>
-                        ))}
+                        content={
+                            <>
+                                {(node.info || []).map(i => (
+                                    <div key={i.name}>
+                                        {i.name}: {i.value}
+                                    </div>
+                                ))}
+                            </>
+                        }
                         key={node.uid}>
                         <span className='application-resource-tree__node-label' title='More'>
                             More
@@ -879,7 +858,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         resourceVersion: props.app.metadata.resourceVersion,
         group: 'argoproj.io',
         version: '',
-        children: Array(),
+        // @ts-expect-error its not any
+        children: [],
         status: props.app.status.sync.status,
         health: props.app.status.health,
         uid: props.app.kind + '-' + props.app.metadata.namespace + '-' + props.app.metadata.name,
@@ -919,6 +899,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const [filters, setFilters] = React.useState(props.filters);
     const [filteredGraph, setFilteredGraph] = React.useState([]);
     const filteredNodes: any[] = [];
+
     React.useEffect(() => {
         if (props.filters !== filters) {
             setFilters(props.filters);
@@ -926,23 +907,18 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             props.setTreeFilterGraph(filteredGraph);
         }
     }, [props.filters]);
+    const {podGroupCount, userMsgs, updateUsrHelpTipMsgs, setShowCompactNodes} = props;
+    const podCount = nodes.filter(node => node.kind === 'Pod').length;
 
-    const [defaultCompactView, setDefaultCompactView] = React.useState(false);
     React.useEffect(() => {
-        const {podGroupCount, setShowCompactNodes, appContext} = props;
-        const podCount = nodes.filter(node => node.kind === 'Pod').length;
-
-        if (!defaultCompactView && podCount > podGroupCount) {
-            setShowCompactNodes(true);
-            setDefaultCompactView(true);
-
-            appContext.apis.notifications.show({
-                content: `Since the number of pods has surpassed the threshold pod count of ${podGroupCount}, you will now be switched to the group node view.
-                 If you prefer the tree view, you can simply click on the Group Nodes toolbar button to deselect the current view.`,
-                type: NotificationType.Success
-            });
+        if (podCount > podGroupCount) {
+            const userMsg = getUsrMsgKeyToDisplay(appNode.name, 'groupNodes', userMsgs);
+            updateUsrHelpTipMsgs(userMsg);
+            if (!userMsg.display) {
+                setShowCompactNodes(true);
+            }
         }
-    }, [props.setShowCompactNodes, props.showCompactNodes, defaultCompactView]);
+    }, [podCount]);
 
     function filterGraph(app: models.Application, filteredIndicatorParent: string, graphNodesFilter: dagre.graphlib.Graph, predicate: (node: ResourceTreeNode) => boolean) {
         const appKey = appNodeKey(app);
@@ -1026,7 +1002,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 const loadBalancers = root.networkingInfo.ingress.map(ingress => ingress.hostname || ingress.ip);
                 const colorByService = new Map<string, string>();
                 (childrenByParentKey.get(treeNodeKey(root)) || []).forEach((child, i) => colorByService.set(treeNodeKey(child), TRAFFIC_COLORS[i % TRAFFIC_COLORS.length]));
-                (childrenByParentKey.get(treeNodeKey(root)) || []).sort(compareNodes).forEach((child, i) => {
+                (childrenByParentKey.get(treeNodeKey(root)) || []).sort(compareNodes).forEach(child => {
                     processNode(child, root, [colorByService.get(treeNodeKey(child))]);
                 });
                 if (root.podGroup && props.showCompactNodes) {

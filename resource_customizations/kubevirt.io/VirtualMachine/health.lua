@@ -1,4 +1,4 @@
-hs = { status="Progressing", message="No status available"}
+local hs = { status="Progressing", message="No status available"}
 if obj.status ~= nil then
   if obj.status.conditions ~= nil then
     for i, condition in ipairs(obj.status.conditions) do
@@ -13,7 +13,7 @@ if obj.status ~= nil then
           hs.message="Running"
         else
           if obj.status.created then
-	    hs.message = "Starting"
+            hs.message = "Starting"
           else
             hs.status = "Suspended"
             hs.message = "Stopped"

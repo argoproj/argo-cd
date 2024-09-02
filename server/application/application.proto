@@ -13,11 +13,15 @@ import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.p
 import "github.com/argoproj/argo-cd/v2/reposerver/repository/repository.proto";
 
 
-// ApplicationQuery is a query for application resources
+// ApplicationQuery is a query for application resources. When getting multiple applications, the "projects" field acts
+// as a filter. When getting a single application, you may specify either zero or one project. If you specify zero
+// projects, the application will be returned regardless of which project it belongs to (assuming you have access). If
+// you specify one project, the application will only be returned if it exists and belongs to the specified project.
+// Otherwise you will receive a 404.
 message ApplicationQuery {
 	// the application's name
 	optional string name = 1;
-	// forces application reconciliation if set to true
+	// forces application reconciliation if set to 'hard'
 	optional string refresh = 2;
 	// the project names to restrict returned list applications
 	repeated string projects = 3;
@@ -46,6 +50,11 @@ message RevisionMetadataQuery{
 	required string revision = 2;
 	// the application's namespace
 	optional string appNamespace = 3;
+	optional string project = 4;
+	// source index (for multi source apps)
+	optional int32 sourceIndex = 5;
+	// versionId from historical data (for multi source apps)
+	optional int32 versionId = 6;
 }
 
 // ApplicationEventsQuery is a query for application resource events
@@ -55,6 +64,7 @@ message ApplicationResourceEventsQuery {
 	optional string resourceName = 3;
 	optional string resourceUID = 4;
 	optional string appNamespace = 5;
+	optional string project = 6;
 }
 
 // ManifestQuery is a query for manifest resources
@@ -62,6 +72,9 @@ message ApplicationManifestQuery {
 	required string name = 1;
 	optional string revision = 2;
 	optional string appNamespace = 3;
+	optional string project = 4;
+	repeated int64 sourcePositions = 5;
+	repeated string revisions = 6;
 }
 
 message FileChunk {
@@ -72,6 +85,7 @@ message ApplicationManifestQueryWithFiles {
 	required string name = 1;
 	required string checksum = 2;
 	optional string appNamespace = 3;
+	optional string project = 4;
 }
 
 message ApplicationManifestQueryWithFilesWrapper {
@@ -92,6 +106,7 @@ message ApplicationCreateRequest {
 message ApplicationUpdateRequest {
 	required github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application application = 1;
 	optional bool validate = 2;
+	optional string project = 3;
 }
 
 message ApplicationDeleteRequest {
@@ -99,6 +114,7 @@ message ApplicationDeleteRequest {
 	optional bool cascade = 2;
 	optional string propagationPolicy = 3;
 	optional string appNamespace = 4;
+	optional string project = 5;
 }
 
 message SyncOptions {
@@ -118,6 +134,9 @@ message ApplicationSyncRequest {
 	optional github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RetryStrategy retryStrategy = 10;
 	optional SyncOptions syncOptions = 11;
 	optional string appNamespace = 12;
+	optional string project = 13;
+	repeated int64 sourcePositions = 14;
+	repeated string revisions = 15;
 }
 
 // ApplicationUpdateSpecRequest is a request to update application spec
@@ -126,6 +145,7 @@ message ApplicationUpdateSpecRequest {
 	required github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSpec spec = 2;
 	optional bool validate = 3;
 	optional string appNamespace = 4;
+	optional string project = 5;
 }
 
 // ApplicationPatchRequest is a request to patch an application
@@ -134,6 +154,7 @@ message ApplicationPatchRequest {
 	required string patch = 2;
 	required string patchType = 3;
 	optional string appNamespace = 5;
+	optional string project = 6;
 }
 
 message ApplicationRollbackRequest {
@@ -142,6 +163,7 @@ message ApplicationRollbackRequest {
 	optional bool dryRun = 3;
 	optional bool prune = 4;
 	optional string appNamespace = 6;
+	optional string project = 7;
 }
 
 message ApplicationResourceRequest {
@@ -152,6 +174,7 @@ message ApplicationResourceRequest {
 	optional string group = 5;
 	required string kind = 6;
 	optional string appNamespace = 7;
+	optional string project = 8;
 }
 
 message ApplicationResourcePatchRequest {
@@ -164,6 +187,7 @@ message ApplicationResourcePatchRequest {
 	required string patch = 7;
 	required string patchType = 8;
 	optional string appNamespace = 9;
+	optional string project = 10;
 }
 
 message ApplicationResourceDeleteRequest {
@@ -176,6 +200,7 @@ message ApplicationResourceDeleteRequest {
 	optional bool force = 7;
 	optional bool orphan = 8;
 	optional string appNamespace = 9;
+	optional string project = 10;
 }
 
 message ResourceActionRunRequest {
@@ -187,6 +212,7 @@ message ResourceActionRunRequest {
 	required string kind = 6;
 	required string action = 7;
 	optional string appNamespace = 8;
+	optional string project = 9;
 }
 
 message ResourceActionsListResponse {
@@ -213,6 +239,7 @@ message ApplicationPodLogsQuery {
 	optional string resourceName = 13 ;
 	optional bool previous = 14;
 	optional string appNamespace = 15;
+	optional string project = 16;
 }
 
 message LogEntry {
@@ -227,11 +254,13 @@ message LogEntry {
 message OperationTerminateRequest {
 	required string name = 1;
 	optional string appNamespace = 2;
+	optional string project = 3;
 }
 
 message ApplicationSyncWindowsQuery {
 	required string name = 1;
 	optional string appNamespace = 2;
+	optional string project = 3;
 }
 
 message ApplicationSyncWindowsResponse {
@@ -260,6 +289,7 @@ message ResourcesQuery {
 	optional string group = 5;
 	optional string kind = 6;
 	optional string appNamespace = 7;
+	optional string project = 8;
 }
 
 message ManagedResourcesResponse {
@@ -280,6 +310,7 @@ message LinksResponse {
 message ListAppLinksRequest {
 	required string name = 1;
 	optional string namespace = 3;
+	optional string project = 4;
 }
 
 

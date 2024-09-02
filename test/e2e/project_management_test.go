@@ -10,10 +10,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -28,7 +29,7 @@ func assertProjHasEvent(t *testing.T, a *v1alpha1.AppProject, message string, re
 			"involvedObject.namespace": fixture.TestNamespace(),
 		}).String(),
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	for i := range list.Items {
 		event := list.Items[i]
@@ -49,12 +50,12 @@ func TestProjectCreation(t *testing.T) {
 		"-d", "https://192.168.99.100:8443,service",
 		"-s", "https://github.com/argoproj/argo-cd.git",
 		"--orphaned-resources")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 2, len(proj.Spec.Destinations))
+	assert.Len(t, proj.Spec.Destinations, 2)
 
 	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[0].Server)
 	assert.Equal(t, "default", proj.Spec.Destinations[0].Namespace)
@@ -62,7 +63,7 @@ func TestProjectCreation(t *testing.T) {
 	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[1].Server)
 	assert.Equal(t, "service", proj.Spec.Destinations[1].Namespace)
 
-	assert.Equal(t, 1, len(proj.Spec.SourceRepos))
+	assert.Len(t, proj.Spec.SourceRepos, 1)
 	assert.Equal(t, "https://github.com/argoproj/argo-cd.git", proj.Spec.SourceRepos[0])
 
 	assert.NotNil(t, proj.Spec.OrphanedResources)
@@ -76,19 +77,19 @@ func TestProjectCreation(t *testing.T) {
 	proj.ResourceVersion = ""
 	data, err := json.Marshal(proj)
 	stdinString := string(data)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// fail without upsert flag
-	_, err = fixture.RunCliWithStdin(stdinString, "proj", "create",
+	_, err = fixture.RunCliWithStdin(stdinString, false, "proj", "create",
 		"-f", "-")
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// succeed with the upsert flag
-	_, err = fixture.RunCliWithStdin(stdinString, "proj", "create",
+	_, err = fixture.RunCliWithStdin(stdinString, false, "proj", "create",
 		"-f", "-", "--upsert")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	proj, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, newDescription, proj.Spec.Description)
 }
 
@@ -98,10 +99,10 @@ func TestProjectDeletion(t *testing.T) {
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Create(
 		context.Background(), &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}}, metav1.CreateOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = fixture.RunCli("proj", "delete", projectName)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	assert.True(t, errors.IsNotFound(err))
@@ -114,19 +115,19 @@ func TestSetProject(t *testing.T) {
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Create(
 		context.Background(), &v1alpha1.AppProject{ObjectMeta: metav1.ObjectMeta{Name: projectName}}, metav1.CreateOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = fixture.RunCli("proj", "set", projectName,
 		"--description", "updated description",
 		"-d", "https://192.168.99.100:8443,default",
 		"-d", "https://192.168.99.100:8443,service",
 		"--orphaned-resources-warn=false")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 2, len(proj.Spec.Destinations))
+	assert.Len(t, proj.Spec.Destinations, 2)
 
 	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[0].Server)
 	assert.Equal(t, "default", proj.Spec.Destinations[0].Namespace)
@@ -154,7 +155,6 @@ func TestAddProjectDestination(t *testing.T) {
 		"https://192.168.99.100:8443",
 		"test1",
 	)
-
 	if err != nil {
 		t.Fatalf("Unable to add project destination %v", err)
 	}
@@ -163,27 +163,27 @@ func TestAddProjectDestination(t *testing.T) {
 		"https://192.168.99.100:8443",
 		"test1",
 	)
-	assert.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "already defined"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already defined")
 
 	_, err = fixture.RunCli("proj", "add-destination", projectName,
 		"!*",
 		"test1",
 	)
-	assert.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "server has an invalid format, '!*'"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "server has an invalid format, '!*'")
 
 	_, err = fixture.RunCli("proj", "add-destination", projectName,
 		"https://192.168.99.100:8443",
 		"!*",
 	)
-	assert.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "namespace has an invalid format, '!*'"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "namespace has an invalid format, '!*'")
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 1, len(proj.Spec.Destinations))
+	assert.Len(t, proj.Spec.Destinations, 1)
 
 	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.Destinations[0].Server)
 	assert.Equal(t, "test1", proj.Spec.Destinations[0].Namespace)
@@ -205,15 +205,14 @@ func TestAddProjectDestinationWithName(t *testing.T) {
 		"test1",
 		"--name",
 	)
-
 	if err != nil {
 		t.Fatalf("Unable to add project destination %v", err)
 	}
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 1, len(proj.Spec.Destinations))
+	assert.Len(t, proj.Spec.Destinations, 1)
 
 	assert.Equal(t, "", proj.Spec.Destinations[0].Server)
 	assert.Equal(t, "in-cluster", proj.Spec.Destinations[0].Name)
@@ -234,7 +233,6 @@ func TestRemoveProjectDestination(t *testing.T) {
 			}},
 		},
 	}, metav1.CreateOptions{})
-
 	if err != nil {
 		t.Fatalf("Unable to create project %v", err)
 	}
@@ -243,7 +241,6 @@ func TestRemoveProjectDestination(t *testing.T) {
 		"https://192.168.99.100:8443",
 		"test",
 	)
-
 	if err != nil {
 		t.Fatalf("Unable to remove project destination %v", err)
 	}
@@ -252,7 +249,7 @@ func TestRemoveProjectDestination(t *testing.T) {
 		"https://192.168.99.100:8443",
 		"test1",
 	)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "does not exist")
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
@@ -260,7 +257,7 @@ func TestRemoveProjectDestination(t *testing.T) {
 		t.Fatalf("Unable to get project %v", err)
 	}
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 0, len(proj.Spec.Destinations))
+	assert.Empty(t, proj.Spec.Destinations)
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 }
 
@@ -275,18 +272,17 @@ func TestAddProjectSource(t *testing.T) {
 	}
 
 	_, err = fixture.RunCli("proj", "add-source", projectName, "https://github.com/argoproj/argo-cd.git")
-
 	if err != nil {
 		t.Fatalf("Unable to add project source %v", err)
 	}
 
 	_, err = fixture.RunCli("proj", "add-source", projectName, "https://github.com/argoproj/argo-cd.git")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 1, len(proj.Spec.SourceRepos))
+	assert.Len(t, proj.Spec.SourceRepos, 1)
 
 	assert.Equal(t, "https://github.com/argoproj/argo-cd.git", proj.Spec.SourceRepos[0])
 }
@@ -302,19 +298,19 @@ func TestRemoveProjectSource(t *testing.T) {
 		},
 	}, metav1.CreateOptions{})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = fixture.RunCli("proj", "remove-source", projectName, "https://github.com/argoproj/argo-cd.git")
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = fixture.RunCli("proj", "remove-source", projectName, "https://github.com/argoproj/argo-cd.git")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 0, len(proj.Spec.SourceRepos))
+	assert.Empty(t, proj.Spec.SourceRepos)
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 }
 
@@ -324,6 +320,7 @@ func TestUseJWTToken(t *testing.T) {
 	projectName := "proj-" + strconv.FormatInt(time.Now().Unix(), 10)
 	appName := "app-" + strconv.FormatInt(time.Now().Unix(), 10)
 	roleName := "roleTest"
+	roleName2 := "roleTest2"
 	testApp := &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: appName,
@@ -350,42 +347,50 @@ func TestUseJWTToken(t *testing.T) {
 			SourceRepos: []string{"*"},
 		},
 	}, metav1.CreateOptions{})
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Create(context.Background(), testApp, metav1.CreateOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, err = fixture.RunCli("proj", "role", "create", projectName, roleName)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	roleGetResult, err := fixture.RunCli("proj", "role", "get", projectName, roleName)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, strings.HasSuffix(roleGetResult, "ID  ISSUED-AT  EXPIRES-AT"))
 
 	_, err = fixture.RunCli("proj", "role", "create-token", projectName, roleName)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+
+	// Create second role with kubectl, to test that it will not affect 1st role
+	_, err = fixture.Run("", "kubectl", "patch", "appproject", projectName, "--type", "merge",
+		"-n", fixture.TestNamespace(),
+		"-p", fmt.Sprintf(`{"spec":{"roles":[{"name":"%s"},{"name":"%s"}]}}`, roleName, roleName2))
+	require.NoError(t, err)
+
+	_, err = fixture.RunCli("proj", "role", "create-token", projectName, roleName2)
+	require.NoError(t, err)
 
 	for _, action := range []string{"get", "update", "sync", "create", "override", "*"} {
 		_, err = fixture.RunCli("proj", "role", "add-policy", projectName, roleName, "-a", action, "-o", "*", "-p", "allow")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 
 	newProj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, newProj.Status.JWTTokensByRole[roleName].Items, 1)
 	assert.ElementsMatch(t, newProj.Status.JWTTokensByRole[roleName].Items, newProj.Spec.Roles[0].JWTTokens)
 
 	roleGetResult, err = fixture.RunCli("proj", "role", "get", projectName, roleName)
-	assert.NoError(t, err)
-	assert.True(t, strings.Contains(roleGetResult, strconv.FormatInt(newProj.Status.JWTTokensByRole[roleName].Items[0].IssuedAt, 10)))
+	require.NoError(t, err)
+	assert.Contains(t, roleGetResult, strconv.FormatInt(newProj.Status.JWTTokensByRole[roleName].Items[0].IssuedAt, 10))
 
 	_, err = fixture.RunCli("proj", "role", "delete-token", projectName, roleName, strconv.FormatInt(newProj.Status.JWTTokensByRole[roleName].Items[0].IssuedAt, 10))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	newProj, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Nil(t, newProj.Status.JWTTokensByRole[roleName].Items)
 	assert.Nil(t, newProj.Spec.Roles[0].JWTTokens)
-
 }
 
 func TestAddOrphanedIgnore(t *testing.T) {
@@ -404,7 +409,6 @@ func TestAddOrphanedIgnore(t *testing.T) {
 		"--name",
 		"name",
 	)
-
 	if err != nil {
 		t.Fatalf("Unable to add resource to orphaned ignore %v", err)
 	}
@@ -415,13 +419,13 @@ func TestAddOrphanedIgnore(t *testing.T) {
 		"--name",
 		"name",
 	)
-	assert.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), "already defined"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already defined")
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 1, len(proj.Spec.OrphanedResources.Ignore))
+	assert.Len(t, proj.Spec.OrphanedResources.Ignore, 1)
 
 	assert.Equal(t, "group", proj.Spec.OrphanedResources.Ignore[0].Group)
 	assert.Equal(t, "kind", proj.Spec.OrphanedResources.Ignore[0].Kind)
@@ -437,12 +441,11 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: projectName},
 		Spec: v1alpha1.AppProjectSpec{
 			OrphanedResources: &v1alpha1.OrphanedResourcesMonitorSettings{
-				Warn:   pointer.BoolPtr(true),
+				Warn:   ptr.To(true),
 				Ignore: []v1alpha1.OrphanedResourceKey{{Group: "group", Kind: "kind", Name: "name"}},
 			},
 		},
 	}, metav1.CreateOptions{})
-
 	if err != nil {
 		t.Fatalf("Unable to create project %v", err)
 	}
@@ -453,7 +456,6 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 		"--name",
 		"name",
 	)
-
 	if err != nil {
 		t.Fatalf("Unable to remove resource from orphaned ignore list %v", err)
 	}
@@ -464,7 +466,7 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 		"--name",
 		"name",
 	)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "does not exist")
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
@@ -472,12 +474,12 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 		t.Fatalf("Unable to get project %v", err)
 	}
 	assert.Equal(t, projectName, proj.Name)
-	assert.Equal(t, 0, len(proj.Spec.OrphanedResources.Ignore))
+	assert.Empty(t, proj.Spec.OrphanedResources.Ignore)
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
 }
 
 func createAndConfigGlobalProject() error {
-	//Create global project
+	// Create global project
 	projectGlobalName := "proj-g-" + fixture.Name()
 	_, err := fixture.RunCli("proj", "create", projectGlobalName,
 		"--description", "Test description",
@@ -519,7 +521,7 @@ func createAndConfigGlobalProject() error {
 		return err
 	}
 
-	//Configure global project settings
+	// Configure global project settings
 	globalProjectsSettings := `data:
   accounts.config-service: apiKey
   globalProjects: |
@@ -545,77 +547,75 @@ func createAndConfigGlobalProject() error {
 func TestGetVirtualProjectNoMatch(t *testing.T) {
 	fixture.EnsureCleanState(t)
 	err := createAndConfigGlobalProject()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	//Create project which does not match global project settings
+	// Create project which does not match global project settings
 	projectName := "proj-" + fixture.Name()
 	_, err = fixture.RunCli("proj", "create", projectName,
 		"--description", "Test description",
 		"-d", fmt.Sprintf("%s,*", v1alpha1.KubernetesInternalAPIServerAddr),
 		"-s", "*",
 		"--orphaned-resources")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	//Create an app belongs to proj project
+	// Create an app belongs to proj project
 	_, err = fixture.RunCli("app", "create", fixture.Name(), "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
 		"--path", guestbookPath, "--project", proj.Name, "--dest-server", v1alpha1.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Waiting for the app to be successfully created.
 	// Else the sync would fail to retrieve the app resources.
 	time.Sleep(time.Second * 2)
 
-	//App trying to sync a resource which is not blacked listed anywhere
+	// App trying to sync a resource which is not blacked listed anywhere
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	//app trying to sync a resource which is black listed by global project
+	// app trying to sync a resource which is black listed by global project
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
-	assert.NoError(t, err)
-
+	require.NoError(t, err)
 }
 
 func TestGetVirtualProjectMatch(t *testing.T) {
 	fixture.EnsureCleanState(t)
 	err := createAndConfigGlobalProject()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	//Create project which matches global project settings
+	// Create project which matches global project settings
 	projectName := "proj-" + fixture.Name()
 	_, err = fixture.RunCli("proj", "create", projectName,
 		"--description", "Test description",
 		"-d", fmt.Sprintf("%s,*", v1alpha1.KubernetesInternalAPIServerAddr),
 		"-s", "*",
 		"--orphaned-resources")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	//Add a label to this project so that this project match global project selector
+	// Add a label to this project so that this project match global project selector
 	proj.Labels = map[string]string{"opt": "me"}
 	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(context.Background(), proj, metav1.UpdateOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	//Create an app belongs to proj project
+	// Create an app belongs to proj project
 	_, err = fixture.RunCli("app", "create", fixture.Name(), "--repo", fixture.RepoURL(fixture.RepoURLTypeFile),
 		"--path", guestbookPath, "--project", proj.Name, "--dest-server", v1alpha1.KubernetesInternalAPIServerAddr, "--dest-namespace", fixture.DeploymentNamespace())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Waiting for the app to be successfully created.
 	// Else the sync would fail to retrieve the app resources.
 	time.Sleep(time.Second * 2)
 
-	//App trying to sync a resource which is not blacked listed anywhere
+	// App trying to sync a resource which is not blacked listed anywhere
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "blocked by sync window")
 
-	//app trying to sync a resource which is black listed by global project
+	// app trying to sync a resource which is black listed by global project
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
 	assert.Contains(t, err.Error(), "blocked by sync window")
-
 }

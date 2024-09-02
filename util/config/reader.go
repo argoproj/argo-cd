@@ -31,7 +31,6 @@ func unmarshalObject(data []byte, obj interface{}) error {
 	if err != nil {
 		return fmt.Errorf("error converting yaml to json: %w", err)
 	}
-
 	err = json.Unmarshal(jsonData, &obj)
 	if err != nil {
 		return fmt.Errorf("unable to unmarshal json: %w", err)

@@ -4,10 +4,14 @@ import {Timestamp} from '../../../shared/components/timestamp';
 import {ApplicationSource, RevisionMetadata, ChartDetails} from '../../../shared/models';
 import {services} from '../../../shared/services';
 
-export const RevisionMetadataRows = (props: {applicationName: string; applicationNamespace: string; source: ApplicationSource}) => {
+export const RevisionMetadataRows = (props: {applicationName: string; applicationNamespace: string; source: ApplicationSource; index: number; versionId: number}) => {
     if (props.source.chart) {
         return (
-            <DataLoader input={props} load={input => services.applications.revisionChartDetails(input.applicationName, input.applicationNamespace, input.source.targetRevision)}>
+            <DataLoader
+                input={props}
+                load={input =>
+                    services.applications.revisionChartDetails(input.applicationName, input.applicationNamespace, input.source.targetRevision, input.index, input.versionId)
+                }>
                 {(m: ChartDetails) => (
                     <div>
                         <div className='row'>
@@ -32,7 +36,7 @@ export const RevisionMetadataRows = (props: {applicationName: string; applicatio
                                 <div className='columns small-9'>{m.description}</div>
                             </div>
                         )}
-                        {m.maintainers.length > 0 && (
+                        {m.maintainers && m.maintainers.length > 0 && (
                             <div className='row'>
                                 <div className='columns small-3'>Maintainers:</div>
                                 <div className='columns small-9'>{m.maintainers.join(', ')}</div>
@@ -44,7 +48,9 @@ export const RevisionMetadataRows = (props: {applicationName: string; applicatio
         );
     }
     return (
-        <DataLoader input={props} load={input => services.applications.revisionMetadata(input.applicationName, input.applicationNamespace, input.source.targetRevision)}>
+        <DataLoader
+            input={props}
+            load={input => services.applications.revisionMetadata(input.applicationName, input.applicationNamespace, input.source.targetRevision, input.index, input.versionId)}>
             {(m: RevisionMetadata) => (
                 <div>
                     <div className='row'>

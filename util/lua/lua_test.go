@@ -1,11 +1,13 @@
 package lua
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	lua "github.com/yuin/gopher-lua"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
@@ -24,6 +26,7 @@ metadata:
   namespace: default
   resourceVersion: "123"
 `
+
 const objWithNoScriptJSON = `
 apiVersion: not-an-endpoint.io/v1alpha1
 kind: Test
@@ -78,26 +81,24 @@ func TestExecuteNewHealthStatusFunction(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, newHealthStatusFunction)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	expectedHealthStatus := &health.HealthStatus{
 		Status:  "Healthy",
 		Message: "testMessage",
 	}
 	assert.Equal(t, expectedHealthStatus, status)
-
 }
 
 func TestExecuteWildcardHealthStatusFunction(t *testing.T) {
 	testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, newWildcardHealthStatusFunction)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	expectedHealthStatus := &health.HealthStatus{
 		Status:  "Healthy",
 		Message: "testWildcardMessage",
 	}
 	assert.Equal(t, expectedHealthStatus, status)
-
 }
 
 const osLuaScript = `os.getenv("HOME")`
@@ -106,7 +107,7 @@ func TestFailExternalLibCall(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	_, err := vm.ExecuteHealthLua(testObj, osLuaScript)
-	assert.Error(t, err, "")
+	require.Error(t, err, "")
 	assert.IsType(t, &lua.ApiError{}, err)
 }
 
@@ -128,11 +129,50 @@ func TestInvalidHealthStatusStatus(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, invalidHealthStatusStatus)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	expectedStatus := &health.HealthStatus{
 		Status:  health.HealthStatusUnknown,
 		Message: invalidHealthStatus,
 	}
+	assert.Equal(t, expectedStatus, status)
+}
+
+const validReturnNothingHealthStatusStatus = `local healthStatus = {}
+return
+`
+
+func TestNoReturnHealthStatusStatus(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{}
+	status, err := vm.ExecuteHealthLua(testObj, validReturnNothingHealthStatusStatus)
+	require.NoError(t, err)
+	expectedStatus := &health.HealthStatus{}
+	assert.Equal(t, expectedStatus, status)
+}
+
+const validNilHealthStatusStatus = `local healthStatus = {}
+return nil
+`
+
+func TestNilHealthStatusStatus(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{}
+	status, err := vm.ExecuteHealthLua(testObj, validNilHealthStatusStatus)
+	require.NoError(t, err)
+	expectedStatus := &health.HealthStatus{}
+	assert.Equal(t, expectedStatus, status)
+}
+
+const validEmptyArrayHealthStatusStatus = `local healthStatus = {}
+return healthStatus
+`
+
+func TestEmptyHealthStatusStatus(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{}
+	status, err := vm.ExecuteHealthLua(testObj, validEmptyArrayHealthStatusStatus)
+	require.NoError(t, err)
+	expectedStatus := &health.HealthStatus{}
 	assert.Equal(t, expectedStatus, status)
 }
 
@@ -156,8 +196,8 @@ func TestGetHealthScriptWithOverride(t *testing.T) {
 		},
 	}
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
-	assert.Nil(t, err)
-	assert.Equal(t, false, useOpenLibs)
+	require.NoError(t, err)
+	assert.False(t, useOpenLibs)
 	assert.Equal(t, newHealthStatusFunction, script)
 }
 
@@ -173,8 +213,8 @@ func TestGetHealthScriptWithKindWildcardOverride(t *testing.T) {
 	}
 
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
-	assert.Nil(t, err)
-	assert.Equal(t, false, useOpenLibs)
+	require.NoError(t, err)
+	assert.False(t, useOpenLibs)
 	assert.Equal(t, newHealthStatusFunction, script)
 }
 
@@ -190,8 +230,8 @@ func TestGetHealthScriptWithGroupWildcardOverride(t *testing.T) {
 	}
 
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
-	assert.Nil(t, err)
-	assert.Equal(t, false, useOpenLibs)
+	require.NoError(t, err)
+	assert.False(t, useOpenLibs)
 	assert.Equal(t, newHealthStatusFunction, script)
 }
 
@@ -207,8 +247,8 @@ func TestGetHealthScriptWithGroupAndKindWildcardOverride(t *testing.T) {
 	}
 
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
-	assert.Nil(t, err)
-	assert.Equal(t, false, useOpenLibs)
+	require.NoError(t, err)
+	assert.False(t, useOpenLibs)
 	assert.Equal(t, newHealthStatusFunction, script)
 }
 
@@ -216,8 +256,8 @@ func TestGetHealthScriptPredefined(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
-	assert.Nil(t, err)
-	assert.Equal(t, true, useOpenLibs)
+	require.NoError(t, err)
+	assert.True(t, useOpenLibs)
 	assert.NotEmpty(t, script)
 }
 
@@ -225,8 +265,8 @@ func TestGetHealthScriptNoPredefined(t *testing.T) {
 	testObj := StrToUnstructured(objWithNoScriptJSON)
 	vm := VM{}
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
-	assert.Nil(t, err)
-	assert.Equal(t, true, useOpenLibs)
+	require.NoError(t, err)
+	assert.True(t, useOpenLibs)
 	assert.Equal(t, "", script)
 }
 
@@ -235,7 +275,7 @@ func TestGetResourceActionPredefined(t *testing.T) {
 	vm := VM{}
 
 	action, err := vm.GetResourceAction(testObj, "resume")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, action)
 }
 
@@ -243,7 +283,7 @@ func TestGetResourceActionNoPredefined(t *testing.T) {
 	testObj := StrToUnstructured(objWithNoScriptJSON)
 	vm := VM{}
 	action, err := vm.GetResourceAction(testObj, "test")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, action.ActionLua)
 }
 
@@ -266,7 +306,7 @@ func TestGetResourceActionWithOverride(t *testing.T) {
 		},
 	}
 	action, err := vm.GetResourceAction(testObj, "test")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, test, action)
 }
 
@@ -275,7 +315,7 @@ func TestGetResourceActionDiscoveryPredefined(t *testing.T) {
 	vm := VM{}
 
 	discoveryLua, err := vm.GetResourceActionDiscovery(testObj)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, discoveryLua)
 }
 
@@ -283,7 +323,7 @@ func TestGetResourceActionDiscoveryNoPredefined(t *testing.T) {
 	testObj := StrToUnstructured(objWithNoScriptJSON)
 	vm := VM{}
 	discoveryLua, err := vm.GetResourceActionDiscovery(testObj)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, discoveryLua)
 }
 
@@ -299,7 +339,7 @@ func TestGetResourceActionDiscoveryWithOverride(t *testing.T) {
 		},
 	}
 	discoveryLua, err := vm.GetResourceActionDiscovery(testObj)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, validDiscoveryLua, discoveryLua)
 }
 
@@ -319,7 +359,7 @@ func TestExecuteResourceActionDiscovery(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	actions, err := vm.ExecuteResourceActionDiscovery(testObj, validDiscoveryLua)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	expectedActions := []appv1.ResourceAction{
 		{
 			Name: "resume",
@@ -347,7 +387,7 @@ func TestExecuteResourceActionDiscoveryInvalidResourceAction(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	actions, err := vm.ExecuteResourceActionDiscovery(testObj, discoveryLuaWithInvalidResourceAction)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, actions)
 }
 
@@ -361,8 +401,7 @@ func TestExecuteResourceActionDiscoveryInvalidReturn(t *testing.T) {
 	vm := VM{}
 	actions, err := vm.ExecuteResourceActionDiscovery(testObj, invalidDiscoveryLua)
 	assert.Nil(t, actions)
-	assert.Error(t, err)
-
+	require.Error(t, err)
 }
 
 const validActionLua = `
@@ -370,7 +409,7 @@ obj.metadata.labels["test"] = "test"
 return obj
 `
 
-const expectedUpdatedObj = `
+const expectedLuaUpdatedResult = `
 apiVersion: argoproj.io/v1alpha1
 kind: Rollout
 metadata:
@@ -382,13 +421,221 @@ metadata:
   resourceVersion: "123"
 `
 
-func TestExecuteResourceAction(t *testing.T) {
+// Test an action that returns a single k8s resource json
+func TestExecuteOldStyleResourceAction(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
-	expectedObj := StrToUnstructured(expectedUpdatedObj)
+	expectedLuaUpdatedObj := StrToUnstructured(expectedLuaUpdatedResult)
 	vm := VM{}
-	newObj, err := vm.ExecuteResourceAction(testObj, validActionLua)
-	assert.Nil(t, err)
-	assert.Equal(t, expectedObj, newObj)
+	newObjects, err := vm.ExecuteResourceAction(testObj, validActionLua)
+	require.NoError(t, err)
+	assert.Len(t, newObjects, 1)
+	assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
+	assert.Equal(t, expectedLuaUpdatedObj, newObjects[0].UnstructuredObj)
+}
+
+const cronJobObjYaml = `
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hello
+  namespace: test-ns
+`
+
+const expectedCreatedJobObjList = `
+- operation: create
+  resource:
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: hello-1
+      namespace: test-ns
+`
+
+const expectedCreatedMultipleJobsObjList = `
+- operation: create
+  resource:
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: hello-1
+      namespace: test-ns
+- operation: create
+  resource:
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: hello-2
+      namespace: test-ns	  
+`
+
+const expectedActionMixedOperationObjList = `
+- operation: create
+  resource:
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: hello-1
+      namespace: test-ns
+- operation: patch
+  resource:
+    apiVersion: batch/v1
+    kind: CronJob
+    metadata:
+      name: hello
+      namespace: test-ns	  
+      labels:
+        test: test  
+`
+
+const createJobActionLua = `
+job = {}
+job.apiVersion = "batch/v1"
+job.kind = "Job"
+
+job.metadata = {}
+job.metadata.name = "hello-1"
+job.metadata.namespace = "test-ns"
+
+impactedResource = {}
+impactedResource.operation = "create"
+impactedResource.resource = job
+result = {}
+result[1] = impactedResource
+
+return result
+`
+
+const createMultipleJobsActionLua = `
+job1 = {}
+job1.apiVersion = "batch/v1"
+job1.kind = "Job"
+
+job1.metadata = {}
+job1.metadata.name = "hello-1"
+job1.metadata.namespace = "test-ns"
+
+impactedResource1 = {}
+impactedResource1.operation = "create"
+impactedResource1.resource = job1
+result = {}
+result[1] = impactedResource1
+
+job2 = {}
+job2.apiVersion = "batch/v1"
+job2.kind = "Job"
+
+job2.metadata = {}
+job2.metadata.name = "hello-2"
+job2.metadata.namespace = "test-ns"
+
+impactedResource2 = {}
+impactedResource2.operation = "create"
+impactedResource2.resource = job2
+
+result[2] = impactedResource2
+
+return result
+`
+
+const mixedOperationActionLuaOk = `
+job1 = {}
+job1.apiVersion = "batch/v1"
+job1.kind = "Job"
+
+job1.metadata = {}
+job1.metadata.name = "hello-1"
+job1.metadata.namespace = obj.metadata.namespace
+
+impactedResource1 = {}
+impactedResource1.operation = "create"
+impactedResource1.resource = job1
+result = {}
+result[1] = impactedResource1
+
+obj.metadata.labels = {}
+obj.metadata.labels["test"] = "test"
+
+impactedResource2 = {}
+impactedResource2.operation = "patch"
+impactedResource2.resource = obj
+
+result[2] = impactedResource2
+
+return result
+`
+
+const createMixedOperationActionLuaFailing = `
+job1 = {}
+job1.apiVersion = "batch/v1"
+job1.kind = "Job"
+
+job1.metadata = {}
+job1.metadata.name = "hello-1"
+job1.metadata.namespace = obj.metadata.namespace
+
+impactedResource1 = {}
+impactedResource1.operation = "create"
+impactedResource1.resource = job1
+result = {}
+result[1] = impactedResource1
+
+obj.metadata.labels = {}
+obj.metadata.labels["test"] = "test"
+
+impactedResource2 = {}
+impactedResource2.operation = "thisShouldFail"
+impactedResource2.resource = obj
+
+result[2] = impactedResource2
+
+return result
+`
+
+func TestExecuteNewStyleCreateActionSingleResource(t *testing.T) {
+	testObj := StrToUnstructured(cronJobObjYaml)
+	jsonBytes, err := yaml.YAMLToJSON([]byte(expectedCreatedJobObjList))
+	require.NoError(t, err)
+	t.Log(bytes.NewBuffer(jsonBytes).String())
+	expectedObjects, err := UnmarshalToImpactedResources(bytes.NewBuffer(jsonBytes).String())
+	require.NoError(t, err)
+	vm := VM{}
+	newObjects, err := vm.ExecuteResourceAction(testObj, createJobActionLua)
+	require.NoError(t, err)
+	assert.Equal(t, expectedObjects, newObjects)
+}
+
+func TestExecuteNewStyleCreateActionMultipleResources(t *testing.T) {
+	testObj := StrToUnstructured(cronJobObjYaml)
+	jsonBytes, err := yaml.YAMLToJSON([]byte(expectedCreatedMultipleJobsObjList))
+	require.NoError(t, err)
+	// t.Log(bytes.NewBuffer(jsonBytes).String())
+	expectedObjects, err := UnmarshalToImpactedResources(bytes.NewBuffer(jsonBytes).String())
+	require.NoError(t, err)
+	vm := VM{}
+	newObjects, err := vm.ExecuteResourceAction(testObj, createMultipleJobsActionLua)
+	require.NoError(t, err)
+	assert.Equal(t, expectedObjects, newObjects)
+}
+
+func TestExecuteNewStyleActionMixedOperationsOk(t *testing.T) {
+	testObj := StrToUnstructured(cronJobObjYaml)
+	jsonBytes, err := yaml.YAMLToJSON([]byte(expectedActionMixedOperationObjList))
+	require.NoError(t, err)
+	// t.Log(bytes.NewBuffer(jsonBytes).String())
+	expectedObjects, err := UnmarshalToImpactedResources(bytes.NewBuffer(jsonBytes).String())
+	require.NoError(t, err)
+	vm := VM{}
+	newObjects, err := vm.ExecuteResourceAction(testObj, mixedOperationActionLuaOk)
+	require.NoError(t, err)
+	assert.Equal(t, expectedObjects, newObjects)
+}
+
+func TestExecuteNewStyleActionMixedOperationsFailure(t *testing.T) {
+	testObj := StrToUnstructured(cronJobObjYaml)
+	vm := VM{}
+	_, err := vm.ExecuteResourceAction(testObj, createMixedOperationActionLuaFailing)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported operation")
 }
 
 func TestExecuteResourceActionNonTableReturn(t *testing.T) {
@@ -407,7 +654,7 @@ func TestExecuteResourceActionInvalidUnstructured(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
 	_, err := vm.ExecuteResourceAction(testObj, invalidTableReturn)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 const objWithEmptyStruct = `
@@ -461,10 +708,11 @@ func TestCleanPatch(t *testing.T) {
 	testObj := StrToUnstructured(objWithEmptyStruct)
 	expectedObj := StrToUnstructured(expectedUpdatedObjWithEmptyStruct)
 	vm := VM{}
-	newObj, err := vm.ExecuteResourceAction(testObj, pausedToFalseLua)
-	assert.Nil(t, err)
-	assert.Equal(t, expectedObj, newObj)
-
+	newObjects, err := vm.ExecuteResourceAction(testObj, pausedToFalseLua)
+	require.NoError(t, err)
+	assert.Len(t, newObjects, 1)
+	assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
+	assert.Equal(t, expectedObj, newObjects[0].UnstructuredObj)
 }
 
 func TestGetResourceHealth(t *testing.T) {
@@ -510,7 +758,7 @@ return hs`
 		testObj := StrToUnstructured(testSA)
 		overrides := getHealthOverride(true)
 		status, err := overrides.GetResourceHealth(testObj)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		expectedStatus := &health.HealthStatus{
 			Status:  health.HealthStatusHealthy,
 			Message: "Standard lib was used",
@@ -524,7 +772,7 @@ return hs`
 		status, err := overrides.GetResourceHealth(testObj)
 		assert.IsType(t, &lua.ApiError{}, err)
 		expectedErr := "<string>:4: attempt to index a non-table object(nil) with key 'find'\nstack traceback:\n\t<string>:4: in main chunk\n\t[G]: ?"
-		assert.EqualError(t, err, expectedErr)
+		require.EqualError(t, err, expectedErr)
 		assert.Nil(t, status)
 	})
 
@@ -532,7 +780,7 @@ return hs`
 		testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
 		overrides := getWildcardHealthOverride
 		status, err := overrides.GetResourceHealth(testObj)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		expectedStatus := &health.HealthStatus{
 			Status: health.HealthStatusHealthy,
 		}
@@ -543,7 +791,7 @@ return hs`
 		testObj := StrToUnstructured(testSA)
 		overrides := getWildcardHealthOverride
 		status, err := overrides.GetResourceHealth(testObj)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, status)
 	})
 }

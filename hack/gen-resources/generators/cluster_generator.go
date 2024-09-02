@@ -99,7 +99,7 @@ func (cg *ClusterGenerator) getClusterCredentials(namespace string, releaseSuffi
 		return nil, nil, nil, err
 	}
 
-	err = exec.Stream(remotecommand.StreamOptions{
+	err = exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
 		Stdin:  &stdin,
 		Stdout: &stdout,
 		Stderr: &stderr,
@@ -139,7 +139,7 @@ func (cg *ClusterGenerator) getClusterCredentials(namespace string, releaseSuffi
 
 // TODO: also should provision service for vcluster pod
 func (cg *ClusterGenerator) installVCluster(opts *util.GenerateOpts, namespace string, releaseName string) error {
-	cmd, err := helm.NewCmd("/tmp", "v3", "")
+	cmd, err := helm.NewCmd("/tmp", "v3", "", "")
 	if err != nil {
 		return err
 	}
@@ -161,7 +161,7 @@ func (cg *ClusterGenerator) getClusterServerUri(namespace string, releaseSuffix 
 	return "https://" + pod.Status.PodIP + ":8443", nil
 }
 
-func (cg *ClusterGenerator) retrieveClusterUri(namespace, releaseSuffix string) (string, error) {
+func (cg *ClusterGenerator) retrieveClusterUri(namespace, releaseSuffix string) string {
 	for i := 0; i < 10; i++ {
 		log.Printf("Attempting to get cluster uri")
 		uri, err := cg.getClusterServerUri(namespace, releaseSuffix)
@@ -170,9 +170,9 @@ func (cg *ClusterGenerator) retrieveClusterUri(namespace, releaseSuffix string) 
 			time.Sleep(10 * time.Second)
 			continue
 		}
-		return uri, nil
+		return uri
 	}
-	return "", nil
+	return ""
 }
 
 func (cg *ClusterGenerator) generate(i int, opts *util.GenerateOpts) error {
@@ -208,11 +208,7 @@ func (cg *ClusterGenerator) generate(i int, opts *util.GenerateOpts) error {
 
 	log.Print("Get cluster server uri")
 
-	uri, err := cg.retrieveClusterUri(namespace, releaseSuffix)
-	if err != nil {
-		return err
-	}
-
+	uri := cg.retrieveClusterUri(namespace, releaseSuffix)
 	log.Printf("Cluster server uri is %s", uri)
 
 	log.Print("Create cluster")

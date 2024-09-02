@@ -1,0 +1,14 @@
+# All
+** @argoproj/argocd-approvers
+
+# Docs
+/docs/**     @argoproj/argocd-approvers @argoproj/argocd-approvers-docs
+/USERS.md    @argoproj/argocd-approvers @argoproj/argocd-approvers-docs
+/README.md   @argoproj/argocd-approvers @argoproj/argocd-approvers-docs
+/mkdocs.yml  @argoproj/argocd-approvers @argoproj/argocd-approvers-docs
+
+# CI
+/.codecov.yml             @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+/.github/**               @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+/.goreleaser.yaml         @argoproj/argocd-approvers @argoproj/argocd-approvers-ci
+/sonar-project.properties @argoproj/argocd-approvers @argoproj/argocd-approvers-ci

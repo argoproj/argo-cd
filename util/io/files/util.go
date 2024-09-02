@@ -20,19 +20,22 @@ var RelativeOutOfBoundErr = errors.New("full path does not contain base path")
 // does not match (example 2).
 //
 // Example 1:
-//   fullPath: /home/test/app/readme.md
-//   basePath: /home/test
-//   return:   app/readme.md
+//
+//	fullPath: /home/test/app/readme.md
+//	basePath: /home/test
+//	return:   app/readme.md
 //
 // Example 2:
-//   fullPath: /home/test/app/readme.md
-//   basePath: /somewhere/else
-//   return:   "", RelativeOutOfBoundErr
+//
+//	fullPath: /home/test/app/readme.md
+//	basePath: /somewhere/else
+//	return:   "", RelativeOutOfBoundErr
 //
 // Example 3:
-//   fullPath: /home/test/app/readme.md
-//   basePath: /home/test/app/readme.md
-//   return:   .
+//
+//	fullPath: /home/test/app/readme.md
+//	basePath: /home/test/app/readme.md
+//	return:   .
 func RelativePath(fullPath, basePath string) (string, error) {
 	fp := filepath.Clean(fullPath)
 	if !strings.HasPrefix(fp, filepath.Clean(basePath)) {
@@ -54,11 +57,11 @@ func CreateTempDir(baseDir string) (string, error) {
 	}
 	newUUID, err := uuid.NewRandom()
 	if err != nil {
-		return "", fmt.Errorf("error creating directory name: %s", err)
+		return "", fmt.Errorf("error creating directory name: %w", err)
 	}
 	tempDir := path.Join(base, newUUID.String())
-	if err := os.MkdirAll(tempDir, 0755); err != nil {
-		return "", fmt.Errorf("error creating tempDir: %s", err)
+	if err := os.MkdirAll(tempDir, 0o755); err != nil {
+		return "", fmt.Errorf("error creating tempDir: %w", err)
 	}
 	return tempDir, nil
 }

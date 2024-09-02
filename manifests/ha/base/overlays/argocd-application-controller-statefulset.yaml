@@ -9,9 +9,3 @@ spec:
       - name: argocd-application-controller
         args:
         - /usr/local/bin/argocd-application-controller
-        env:
-        - name: ARGOCD_REDIS
-          valueFrom:
-            configMapKeyRef:
-              name: argocd-cmd-params-cm
-              key: redis.server

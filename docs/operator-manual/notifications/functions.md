@@ -49,6 +49,16 @@ Transforms given GIT URL into HTTPs format.
 Returns repository URL full name `(<owner>/<repoName>)`. Currently supports only Github, GitLab and Bitbucket.
 
 <hr>
+**`repo.QueryEscape(s string) string`**
+
+QueryEscape escapes the string, so it can be safely placed inside a URL
+
+Example:
+```
+/projects/{{ call .repo.QueryEscape (call .repo.FullNameByRepoURL .app.status.RepoURL) }}/merge_requests
+```
+
+<hr>
 **`repo.GetCommitMetadata(sha string) CommitMetadata`**
 
 Returns commit metadata. The commit must belong to the application source repository. `CommitMetadata` fields:

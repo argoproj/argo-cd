@@ -1,6 +1,24 @@
 @import 'node_modules/argo-ui/src/styles/config';
 
 .applications-tiles {
+    display: grid;
+    gap: 24px;
+    grid-template-columns: repeat(auto-fill,minmax(370px,1fr));
+    padding: 0 12px;
+
+    &__wrapper {
+        height: 100%;
+    }
+
+    &__item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    &__actions {
+        margin-top: auto;
+    }
+
     .argo-table-list__row {
         padding-top: 0;
         padding-bottom: 0;

@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for Function"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: "Secret missing: secrets \"missing-secret\" not found"
+  inputPath: testdata/degraded_no_secret.yaml
+- healthStatus:
+    status: Healthy
+    message: "Deployment and service reconciled"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Suspended
+    message: "No replicas available"
+  inputPath: testdata/suspended_zero_replicas.yaml

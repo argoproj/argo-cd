@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -47,7 +47,6 @@ func AddProjFlags(command *cobra.Command, opts *ProjectOpts) {
 	command.Flags().StringArrayVar(&opts.allowedNamespacedResources, "allow-namespaced-resource", []string{}, "List of allowed namespaced resources")
 	command.Flags().StringArrayVar(&opts.deniedNamespacedResources, "deny-namespaced-resource", []string{}, "List of denied namespaced resources")
 	command.Flags().StringSliceVar(&opts.SourceNamespaces, "source-namespaces", []string{}, "List of source namespaces for applications")
-
 }
 
 func getGroupKindList(values []string) []v1.GroupKind {
@@ -115,7 +114,7 @@ func GetOrphanedResourcesSettings(flagSet *pflag.FlagSet, opts ProjectOpts) *v1a
 	if opts.orphanedResourcesEnabled || warnChanged {
 		settings := v1alpha1.OrphanedResourcesMonitorSettings{}
 		if warnChanged {
-			settings.Warn = pointer.BoolPtr(opts.orphanedResourcesWarn)
+			settings.Warn = ptr.To(opts.orphanedResourcesWarn)
 		}
 		return &settings
 	}
@@ -126,7 +125,7 @@ func readProjFromStdin(proj *v1alpha1.AppProject) error {
 	reader := bufio.NewReader(os.Stdin)
 	err := config.UnmarshalReader(reader, &proj)
 	if err != nil {
-		return fmt.Errorf("unable to read manifest from stdin: %v", err)
+		return fmt.Errorf("unable to read manifest from stdin: %w", err)
 	}
 	return nil
 }
@@ -177,7 +176,7 @@ func SetProjSpecOptions(flags *pflag.FlagSet, spec *v1alpha1.AppProjectSpec, pro
 }
 
 func ConstructAppProj(fileURL string, args []string, opts ProjectOpts, c *cobra.Command) (*v1alpha1.AppProject, error) {
-	var proj = v1alpha1.AppProject{
+	proj := v1alpha1.AppProject{
 		TypeMeta: v1.TypeMeta{
 			Kind:       application.AppProjectKind,
 			APIVersion: application.Group + "/v1alpha1",

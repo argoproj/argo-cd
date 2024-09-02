@@ -1,14 +1,15 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"hash/fnv"
+	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
-	"context"
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -110,8 +111,8 @@ func (db *db) watchSecrets(ctx context.Context,
 	secretType string,
 	handleAddEvent func(secret *apiv1.Secret),
 	handleModEvent func(oldSecret *apiv1.Secret, newSecret *apiv1.Secret),
-	handleDeleteEvent func(secret *apiv1.Secret)) {
-
+	handleDeleteEvent func(secret *apiv1.Secret),
+) {
 	secretListOptions := func(options *metav1.ListOptions) {
 		labelSelector := fields.ParseSelectorOrDie(common.LabelKeySecretType + "=" + secretType)
 		options.LabelSelector = labelSelector.String()
@@ -138,7 +139,10 @@ func (db *db) watchSecrets(ctx context.Context,
 
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 	clusterSecretInformer := informerv1.NewFilteredSecretInformer(db.kubeclientset, db.ns, 3*time.Minute, indexers, secretListOptions)
-	clusterSecretInformer.AddEventHandler(secretEventHandler)
+	_, err := clusterSecretInformer.AddEventHandler(secretEventHandler)
+	if err != nil {
+		log.Error(err)
+	}
 
 	log.Info("Starting secretInformer for", secretType)
 	go func() {
@@ -155,8 +159,24 @@ func URIToSecretName(uriType, uri string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	host := parsedURI.Host
+	if strings.HasPrefix(host, "[") {
+		last := strings.Index(host, "]")
+		if last >= 0 {
+			addr, err := netip.ParseAddr(host[1:last])
+			if err != nil {
+				return "", err
+			}
+			host = strings.ReplaceAll(addr.String(), ":", "-")
+		}
+	} else {
+		last := strings.Index(host, ":")
+		if last >= 0 {
+			host = host[0:last]
+		}
+	}
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(uri))
-	host := strings.ToLower(strings.Split(parsedURI.Host, ":")[0])
+	host = strings.ToLower(host)
 	return fmt.Sprintf("%s-%s-%v", uriType, host, h.Sum32()), nil
 }

@@ -25,6 +25,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	utilnet "k8s.io/apimachinery/pkg/util/net"
@@ -36,7 +37,9 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/collections"
+	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/helm"
+	utilhttp "github.com/argoproj/argo-cd/v2/util/http"
 	"github.com/argoproj/argo-cd/v2/util/security"
 )
 
@@ -48,6 +51,7 @@ import (
 // +kubebuilder:printcolumn:name="Sync Status",type=string,JSONPath=`.status.sync.status`
 // +kubebuilder:printcolumn:name="Health Status",type=string,JSONPath=`.status.health.status`
 // +kubebuilder:printcolumn:name="Revision",type=string,JSONPath=`.status.sync.revision`,priority=10
+// +kubebuilder:printcolumn:name="Project",type=string,JSONPath=`.spec.project`,priority=10
 type Application struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
@@ -68,7 +72,7 @@ type ApplicationSpec struct {
 	// SyncPolicy controls when and how a sync will be performed
 	SyncPolicy *SyncPolicy `json:"syncPolicy,omitempty" protobuf:"bytes,4,name=syncPolicy"`
 	// IgnoreDifferences is a list of resources and their fields which should be ignored during comparison
-	IgnoreDifferences []ResourceIgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,5,name=ignoreDifferences"`
+	IgnoreDifferences IgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,5,name=ignoreDifferences"`
 	// Info contains a list of information (URLs, email addresses, and plain text) that relates to the application
 	Info []Info `json:"info,omitempty" protobuf:"bytes,6,name=info"`
 	// RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for informational purposes as well as for rollbacks to previous versions.
@@ -80,6 +84,12 @@ type ApplicationSpec struct {
 
 	// Sources is a reference to the location of the application's manifests or chart
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,8,opt,name=sources"`
+}
+
+type IgnoreDifferences []ResourceIgnoreDifferences
+
+func (id IgnoreDifferences) Equals(other IgnoreDifferences) bool {
+	return reflect.DeepEqual(id, other)
 }
 
 type TrackingMethod string
@@ -196,6 +206,11 @@ func (s ApplicationSources) Equals(other ApplicationSources) bool {
 	return true
 }
 
+// IsZero returns true if the application source is considered empty
+func (a ApplicationSources) IsZero() bool {
+	return len(a) == 0
+}
+
 func (a *ApplicationSpec) GetSource() ApplicationSource {
 	// if Application has multiple sources, return the first source in sources
 	if a.HasMultipleSources() {
@@ -221,9 +236,17 @@ func (a *ApplicationSpec) HasMultipleSources() bool {
 	return a.Sources != nil && len(a.Sources) > 0
 }
 
-func (a *ApplicationSpec) GetSourcePtr() *ApplicationSource {
+func (a *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *ApplicationSource {
+	// if Application has multiple sources, return the first source in sources
+	return a.GetSourcePtrByIndex(sourcePosition - 1)
+}
+
+func (a *ApplicationSpec) GetSourcePtrByIndex(sourceIndex int) *ApplicationSource {
 	// if Application has multiple sources, return the first source in sources
 	if a.HasMultipleSources() {
+		if sourceIndex > 0 {
+			return &a.Sources[sourceIndex]
+		}
 		return &a.Sources[0]
 	}
 	return a.Source
@@ -237,6 +260,11 @@ func (a *ApplicationSource) AllowsConcurrentProcessing() bool {
 		return a.Kustomize.AllowsConcurrentProcessing()
 	}
 	return true
+}
+
+// IsRef returns true when the application source is of type Ref
+func (a *ApplicationSource) IsRef() bool {
+	return a.Ref != ""
 }
 
 // IsHelm returns true when the application source is of type Helm
@@ -262,6 +290,51 @@ func (a *ApplicationSource) IsZero() bool {
 			a.Kustomize.IsZero() &&
 			a.Directory.IsZero() &&
 			a.Plugin.IsZero()
+}
+
+// GetNamespaceOrDefault gets the static namespace configured in the source. If none is configured, returns the given
+// default.
+func (a *ApplicationSource) GetNamespaceOrDefault(defaultNamespace string) string {
+	if a == nil {
+		return defaultNamespace
+	}
+	if a.Helm != nil && a.Helm.Namespace != "" {
+		return a.Helm.Namespace
+	}
+	if a.Kustomize != nil && a.Kustomize.Namespace != "" {
+		return a.Kustomize.Namespace
+	}
+	return defaultNamespace
+}
+
+// GetKubeVersionOrDefault gets the static Kubernetes API version configured in the source. If none is configured,
+// returns the given default.
+func (a *ApplicationSource) GetKubeVersionOrDefault(defaultKubeVersion string) string {
+	if a == nil {
+		return defaultKubeVersion
+	}
+	if a.Helm != nil && a.Helm.KubeVersion != "" {
+		return a.Helm.KubeVersion
+	}
+	if a.Kustomize != nil && a.Kustomize.KubeVersion != "" {
+		return a.Kustomize.KubeVersion
+	}
+	return defaultKubeVersion
+}
+
+// GetAPIVersionsOrDefault gets the static API versions list configured in the source. If none is configured, returns
+// the given default.
+func (a *ApplicationSource) GetAPIVersionsOrDefault(defaultAPIVersions []string) []string {
+	if a == nil {
+		return defaultAPIVersions
+	}
+	if a.Helm != nil && len(a.Helm.APIVersions) > 0 {
+		return a.Helm.APIVersions
+	}
+	if a.Kustomize != nil && len(a.Kustomize.APIVersions) > 0 {
+		return a.Kustomize.APIVersions
+	}
+	return defaultAPIVersions
 }
 
 // ApplicationSourceType specifies the type of the application's source
@@ -298,8 +371,9 @@ type ApplicationSourceHelm struct {
 	Parameters []HelmParameter `json:"parameters,omitempty" protobuf:"bytes,2,opt,name=parameters"`
 	// ReleaseName is the Helm release name to use. If omitted it will use the application name
 	ReleaseName string `json:"releaseName,omitempty" protobuf:"bytes,3,opt,name=releaseName"`
-	// Values specifies Helm values to be passed to helm template, typically defined as a block
-	Values string `json:"values,omitempty" protobuf:"bytes,4,opt,name=values"`
+	// Values specifies Helm values to be passed to helm template, typically defined as a block. ValuesObject takes precedence over Values, so use one or the other.
+	// +patchStrategy=replace
+	Values string `json:"values,omitempty" patchStrategy:"replace" protobuf:"bytes,4,opt,name=values"`
 	// FileParameters are file parameters to the helm template
 	FileParameters []HelmFileParameter `json:"fileParameters,omitempty" protobuf:"bytes,5,opt,name=fileParameters"`
 	// Version is the Helm version to use for templating ("3")
@@ -310,6 +384,17 @@ type ApplicationSourceHelm struct {
 	IgnoreMissingValueFiles bool `json:"ignoreMissingValueFiles,omitempty" protobuf:"bytes,8,opt,name=ignoreMissingValueFiles"`
 	// SkipCrds skips custom resource definition installation step (Helm's --skip-crds)
 	SkipCrds bool `json:"skipCrds,omitempty" protobuf:"bytes,9,opt,name=skipCrds"`
+	// ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	ValuesObject *runtime.RawExtension `json:"valuesObject,omitempty" protobuf:"bytes,10,opt,name=valuesObject"`
+	// Namespace is an optional namespace to template with. If left empty, defaults to the app's destination namespace.
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,11,opt,name=namespace"`
+	// KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+	// uses the Kubernetes version of the target cluster.
+	KubeVersion string `json:"kubeVersion,omitempty" protobuf:"bytes,12,opt,name=kubeVersion"`
+	// APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+	// Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,13,opt,name=apiVersions"`
 }
 
 // HelmParameter is a parameter that's passed to helm template during manifest generation
@@ -391,7 +476,7 @@ func (in *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
 
 // IsZero Returns true if the Helm options in an application source are considered zero
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.Values == "" && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds
+	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.ValuesIsEmpty() && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds && h.KubeVersion == "" && len(h.APIVersions) == 0 && h.Namespace == ""
 }
 
 // KustomizeImage represents a Kustomize image definition in the format [old_image_name=]<image_name>:<image_tag>
@@ -452,6 +537,18 @@ type ApplicationSourceKustomize struct {
 	CommonAnnotationsEnvsubst bool `json:"commonAnnotationsEnvsubst,omitempty" protobuf:"bytes,10,opt,name=commonAnnotationsEnvsubst"`
 	// Replicas is a list of Kustomize Replicas override specifications
 	Replicas KustomizeReplicas `json:"replicas,omitempty" protobuf:"bytes,11,opt,name=replicas"`
+	// Patches is a list of Kustomize patches
+	Patches KustomizePatches `json:"patches,omitempty" protobuf:"bytes,12,opt,name=patches"`
+	// Components specifies a list of kustomize components to add to the kustomization before building
+	Components []string `json:"components,omitempty" protobuf:"bytes,13,rep,name=components"`
+	// LabelWithoutSelector specifies whether to apply common labels to resource selectors or not
+	LabelWithoutSelector bool `json:"labelWithoutSelector,omitempty" protobuf:"bytes,14,opt,name=labelWithoutSelector"`
+	// KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+	// uses the Kubernetes version of the target cluster.
+	KubeVersion string `json:"kubeVersion,omitempty" protobuf:"bytes,15,opt,name=kubeVersion"`
+	// APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+	// Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,16,opt,name=apiVersions"`
 }
 
 type KustomizeReplica struct {
@@ -496,6 +593,43 @@ func NewKustomizeReplica(text string) (*KustomizeReplica, error) {
 	return kr, nil
 }
 
+type KustomizePatches []KustomizePatch
+
+type KustomizePatch struct {
+	Path    string             `json:"path,omitempty" yaml:"path,omitempty" protobuf:"bytes,1,opt,name=path"`
+	Patch   string             `json:"patch,omitempty" yaml:"patch,omitempty" protobuf:"bytes,2,opt,name=patch"`
+	Target  *KustomizeSelector `json:"target,omitempty" yaml:"target,omitempty" protobuf:"bytes,3,opt,name=target"`
+	Options map[string]bool    `json:"options,omitempty" yaml:"options,omitempty" protobuf:"bytes,4,opt,name=options"`
+}
+
+// Copied from: https://github.com/kubernetes-sigs/kustomize/blob/cd7ba1744eadb793ab7cd056a76ee8a5ca725db9/api/types/patch.go
+func (p *KustomizePatch) Equals(o KustomizePatch) bool {
+	targetEqual := (p.Target == o.Target) ||
+		(p.Target != nil && o.Target != nil && *p.Target == *o.Target)
+	return p.Path == o.Path &&
+		p.Patch == o.Patch &&
+		targetEqual &&
+		reflect.DeepEqual(p.Options, o.Options)
+}
+
+type KustomizeSelector struct {
+	KustomizeResId     `json:",inline,omitempty" yaml:",inline,omitempty" protobuf:"bytes,1,opt,name=resId"`
+	AnnotationSelector string `json:"annotationSelector,omitempty" yaml:"annotationSelector,omitempty" protobuf:"bytes,2,opt,name=annotationSelector"`
+	LabelSelector      string `json:"labelSelector,omitempty" yaml:"labelSelector,omitempty" protobuf:"bytes,3,opt,name=labelSelector"`
+}
+
+type KustomizeResId struct {
+	KustomizeGvk `json:",inline,omitempty" yaml:",inline,omitempty" protobuf:"bytes,1,opt,name=gvk"`
+	Name         string `json:"name,omitempty" yaml:"name,omitempty" protobuf:"bytes,2,opt,name=name"`
+	Namespace    string `json:"namespace,omitempty" yaml:"namespace,omitempty" protobuf:"bytes,3,opt,name=namespace"`
+}
+
+type KustomizeGvk struct {
+	Group   string `json:"group,omitempty" yaml:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Version string `json:"version,omitempty" yaml:"version,omitempty" protobuf:"bytes,2,opt,name=version"`
+	Kind    string `json:"kind,omitempty" yaml:"kind,omitempty" protobuf:"bytes,3,opt,name=kind"`
+}
+
 // AllowsConcurrentProcessing returns true if multiple processes can run Kustomize builds on the same source at the same time
 func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
 	return len(k.Images) == 0 &&
@@ -503,7 +637,9 @@ func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
 		len(k.CommonAnnotations) == 0 &&
 		k.NamePrefix == "" &&
 		k.Namespace == "" &&
-		k.NameSuffix == ""
+		k.NameSuffix == "" &&
+		len(k.Patches) == 0 &&
+		len(k.Components) == 0
 }
 
 // IsZero returns true when the Kustomize options are considered empty
@@ -516,7 +652,11 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 			len(k.Images) == 0 &&
 			len(k.Replicas) == 0 &&
 			len(k.CommonLabels) == 0 &&
-			len(k.CommonAnnotations) == 0
+			len(k.CommonAnnotations) == 0 &&
+			len(k.Patches) == 0 &&
+			len(k.Components) == 0 &&
+			k.KubeVersion == "" &&
+			len(k.APIVersions) == 0
 }
 
 // MergeImage merges a new Kustomize image identifier in to a list of images
@@ -529,7 +669,7 @@ func (k *ApplicationSourceKustomize) MergeImage(image KustomizeImage) {
 	}
 }
 
-// MergeReplicas merges a new Kustomize replica identifier in to a list of replicas
+// MergeReplica merges a new Kustomize replica identifier in to a list of replicas
 func (k *ApplicationSourceKustomize) MergeReplica(replica KustomizeReplica) {
 	i := k.Replicas.FindByName(replica.Name)
 	if i >= 0 {
@@ -847,12 +987,12 @@ func (c *ApplicationSourcePlugin) RemoveEnvEntry(key string) error {
 
 // ApplicationDestination holds information about the application's destination
 type ApplicationDestination struct {
-	// Server specifies the URL of the target cluster and must be set to the Kubernetes control plane API
+	// Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.
 	Server string `json:"server,omitempty" protobuf:"bytes,1,opt,name=server"`
 	// Namespace specifies the target namespace for the application's resources.
 	// The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
-	// Name is an alternate way of specifying the target cluster by its symbolic name
+	// Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.
 	Name string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 
 	// nolint:govet
@@ -893,6 +1033,37 @@ type ApplicationStatus struct {
 	ResourceHealthSource ResourceHealthLocation `json:"resourceHealthSource,omitempty" protobuf:"bytes,11,opt,name=resourceHealthSource"`
 	// SourceTypes specifies the type of the sources included in the application
 	SourceTypes []ApplicationSourceType `json:"sourceTypes,omitempty" protobuf:"bytes,12,opt,name=sourceTypes"`
+	// ControllerNamespace indicates the namespace in which the application controller is located
+	ControllerNamespace string `json:"controllerNamespace,omitempty" protobuf:"bytes,13,opt,name=controllerNamespace"`
+}
+
+// GetRevisions will return the current revision associated with the Application.
+// If app has multisources, it will return all corresponding revisions preserving
+// order from the app.spec.sources. If app has only one source, it will return a
+// single revision in the list.
+func (a *ApplicationStatus) GetRevisions() []string {
+	revisions := []string{}
+	if len(a.Sync.Revisions) > 0 {
+		revisions = a.Sync.Revisions
+	} else if a.Sync.Revision != "" {
+		revisions = append(revisions, a.Sync.Revision)
+	}
+	return revisions
+}
+
+// BuildComparedToStatus will build a ComparedTo object based on the current
+// Application state.
+func (app *Application) BuildComparedToStatus() ComparedTo {
+	ct := ComparedTo{
+		Destination:       app.Spec.Destination,
+		IgnoreDifferences: app.Spec.IgnoreDifferences,
+	}
+	if app.Spec.HasMultipleSources() {
+		ct.Sources = app.Spec.Sources
+	} else {
+		ct.Source = app.Spec.GetSource()
+	}
+	return ct
 }
 
 // JWTTokens represents a list of JWT tokens
@@ -1079,11 +1250,12 @@ type SyncPolicy struct {
 	Retry *RetryStrategy `json:"retry,omitempty" protobuf:"bytes,3,opt,name=retry"`
 	// ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
 	ManagedNamespaceMetadata *ManagedNamespaceMetadata `json:"managedNamespaceMetadata,omitempty" protobuf:"bytes,4,opt,name=managedNamespaceMetadata"`
+	// If you add a field here, be sure to update IsZero.
 }
 
 // IsZero returns true if the sync policy is empty
 func (p *SyncPolicy) IsZero() bool {
-	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil)
+	return p == nil || (p.Automated == nil && len(p.SyncOptions) == 0 && p.Retry == nil && p.ManagedNamespaceMetadata == nil)
 }
 
 // RetryStrategy contains information about the strategy to apply when a sync failed
@@ -1127,7 +1299,6 @@ func (r *RetryStrategy) NextRetryAt(lastAttempt time.Time, retryCounts int64) (t
 		if r.Backoff.Factor != nil {
 			factor = *r.Backoff.Factor
 		}
-
 	}
 	// Formula: timeToWait = duration * factor^retry_number
 	// Note that timeToWait should equal to duration for the first retry attempt.
@@ -1311,6 +1482,8 @@ type RevisionHistory struct {
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,8,opt,name=sources"`
 	// Revisions holds the revision of each source in sources field the sync was performed against
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,9,opt,name=revisions"`
+	// InitiatedBy contains information about who initiated the operations
+	InitiatedBy OperationInitiator `json:"initiatedBy,omitempty" protobuf:"bytes,10,opt,name=initiatedBy"`
 }
 
 // ApplicationWatchEvent contains information about application change.
@@ -1347,7 +1520,7 @@ type SyncStatusCode string
 const (
 	// SyncStatusCodeUnknown indicates that the status of a sync could not be reliably determined
 	SyncStatusCodeUnknown SyncStatusCode = "Unknown"
-	// SyncStatusCodeOutOfSync indicates that desired and live states match
+	// SyncStatusCodeSynced indicates that desired and live states match
 	SyncStatusCodeSynced SyncStatusCode = "Synced"
 	// SyncStatusCodeOutOfSync indicates that there is a drift between desired and live states
 	SyncStatusCodeOutOfSync SyncStatusCode = "OutOfSync"
@@ -1398,6 +1571,8 @@ type ComparedTo struct {
 	Destination ApplicationDestination `json:"destination" protobuf:"bytes,2,opt,name=destination"`
 	// Sources is a reference to the application's multiple sources used for comparison
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,3,opt,name=sources"`
+	// IgnoreDifferences is a reference to the application's ignored differences used for comparison
+	IgnoreDifferences IgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,4,opt,name=ignoreDifferences"`
 }
 
 // SyncStatus contains information about the currently observed live and desired states of an application
@@ -1465,6 +1640,60 @@ type ApplicationTree struct {
 	OrphanedNodes []ResourceNode `json:"orphanedNodes,omitempty" protobuf:"bytes,2,rep,name=orphanedNodes"`
 	// Hosts holds list of Kubernetes nodes that run application related pods
 	Hosts []HostInfo `json:"hosts,omitempty" protobuf:"bytes,3,rep,name=hosts"`
+	// ShardsCount contains total number of shards the application tree is split into
+	ShardsCount int64 `json:"shardsCount,omitempty" protobuf:"bytes,4,opt,name=shardsCount"`
+}
+
+func (t *ApplicationTree) Merge(other *ApplicationTree) {
+	t.Nodes = append(t.Nodes, other.Nodes...)
+	t.OrphanedNodes = append(t.OrphanedNodes, other.OrphanedNodes...)
+	t.Hosts = append(t.Hosts, other.Hosts...)
+	t.Normalize()
+}
+
+// GetShards split application tree into shards with populated metadata
+func (t *ApplicationTree) GetShards(size int64) []*ApplicationTree {
+	t.Normalize()
+	if size == 0 {
+		return []*ApplicationTree{t}
+	}
+
+	var items []func(*ApplicationTree)
+	for i := range t.Nodes {
+		item := t.Nodes[i]
+		items = append(items, func(shard *ApplicationTree) {
+			shard.Nodes = append(shard.Nodes, item)
+		})
+	}
+	for i := range t.OrphanedNodes {
+		item := t.OrphanedNodes[i]
+		items = append(items, func(shard *ApplicationTree) {
+			shard.OrphanedNodes = append(shard.OrphanedNodes, item)
+		})
+	}
+	for i := range t.Hosts {
+		item := t.Hosts[i]
+		items = append(items, func(shard *ApplicationTree) {
+			shard.Hosts = append(shard.Hosts, item)
+		})
+	}
+	var shards []*ApplicationTree
+	for len(items) > 0 {
+		shard := &ApplicationTree{}
+		shards = append(shards, shard)
+		cnt := 0
+		for i := int64(0); i < size && i < int64(len(items)); i++ {
+			items[i](shard)
+			cnt++
+		}
+		items = items[cnt:]
+	}
+	if len(shards) > 0 {
+		shards[0].ShardsCount = int64(len(shards))
+	} else {
+		shards = []*ApplicationTree{{ShardsCount: 0}}
+	}
+	return shards
 }
 
 // Normalize sorts application tree nodes and hosts. The persistent order allows to
@@ -1589,7 +1818,7 @@ type ResourceStatus struct {
 	SyncWave        int64          `json:"syncWave,omitempty" protobuf:"bytes,10,opt,name=syncWave"`
 }
 
-// GroupKindVersion returns the GVK schema type for given resource status
+// GroupVersionKind returns the GVK schema type for given resource status
 func (r *ResourceStatus) GroupVersionKind() schema.GroupVersionKind {
 	return schema.GroupVersionKind{Group: r.Group, Version: r.Version, Kind: r.Kind}
 }
@@ -1655,10 +1884,10 @@ type Cluster struct {
 	Name string `json:"name" protobuf:"bytes,2,opt,name=name"`
 	// Config holds cluster information for connecting to a cluster
 	Config ClusterConfig `json:"config" protobuf:"bytes,3,opt,name=config"`
-	// DEPRECATED: use Info.ConnectionState field instead.
+	// Deprecated: use Info.ConnectionState field instead.
 	// ConnectionState contains information about cluster connection state
 	ConnectionState ConnectionState `json:"connectionState,omitempty" protobuf:"bytes,4,opt,name=connectionState"`
-	// DEPRECATED: use Info.ServerVersion field instead.
+	// Deprecated: use Info.ServerVersion field instead.
 	// The server version
 	ServerVersion string `json:"serverVersion,omitempty" protobuf:"bytes,5,opt,name=serverVersion"`
 	// Holds list of namespaces which are accessible in that cluster. Cluster level resources will be ignored if namespace list is not empty.
@@ -1762,6 +1991,9 @@ type AWSAuthConfig struct {
 
 	// RoleARN contains optional role ARN. If set then AWS IAM Authenticator assume a role to perform cluster operations instead of the default AWS credential provider chain.
 	RoleARN string `json:"roleARN,omitempty" protobuf:"bytes,2,opt,name=roleARN"`
+
+	// Profile contains optional role ARN. If set then AWS IAM Authenticator uses the profile to perform cluster operations instead of the default AWS credential provider chain.
+	Profile string `json:"profile,omitempty" protobuf:"bytes,3,opt,name=profile"`
 }
 
 // ExecProviderConfig is config used to call an external command to perform cluster authentication
@@ -1835,9 +2067,9 @@ type KnownTypeField struct {
 // OverrideIgnoreDiff contains configurations about how fields should be ignored during diffs between
 // the desired state and live state
 type OverrideIgnoreDiff struct {
-	//JSONPointers is a JSON path list following the format defined in RFC4627 (https://datatracker.ietf.org/doc/html/rfc6902#section-3)
+	// JSONPointers is a JSON path list following the format defined in RFC4627 (https://datatracker.ietf.org/doc/html/rfc6902#section-3)
 	JSONPointers []string `json:"jsonPointers" protobuf:"bytes,1,rep,name=jSONPointers"`
-	//JQPathExpressions is a JQ path list that will be evaludated during the diff process
+	// JQPathExpressions is a JQ path list that will be evaludated during the diff process
 	JQPathExpressions []string `json:"jqPathExpressions" protobuf:"bytes,2,opt,name=jqPathExpressions"`
 	// ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
 	// desired state defined in the SCM and won't be displayed in diffs
@@ -1845,21 +2077,23 @@ type OverrideIgnoreDiff struct {
 }
 
 type rawResourceOverride struct {
-	HealthLua         string           `json:"health.lua,omitempty"`
-	UseOpenLibs       bool             `json:"health.lua.useOpenLibs,omitempty"`
-	Actions           string           `json:"actions,omitempty"`
-	IgnoreDifferences string           `json:"ignoreDifferences,omitempty"`
-	KnownTypeFields   []KnownTypeField `json:"knownTypeFields,omitempty"`
+	HealthLua             string           `json:"health.lua,omitempty"`
+	UseOpenLibs           bool             `json:"health.lua.useOpenLibs,omitempty"`
+	Actions               string           `json:"actions,omitempty"`
+	IgnoreDifferences     string           `json:"ignoreDifferences,omitempty"`
+	IgnoreResourceUpdates string           `json:"ignoreResourceUpdates,omitempty"`
+	KnownTypeFields       []KnownTypeField `json:"knownTypeFields,omitempty"`
 }
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment
 // TODO: describe the members of this type
 type ResourceOverride struct {
-	HealthLua         string             `protobuf:"bytes,1,opt,name=healthLua"`
-	UseOpenLibs       bool               `protobuf:"bytes,5,opt,name=useOpenLibs"`
-	Actions           string             `protobuf:"bytes,3,opt,name=actions"`
-	IgnoreDifferences OverrideIgnoreDiff `protobuf:"bytes,2,opt,name=ignoreDifferences"`
-	KnownTypeFields   []KnownTypeField   `protobuf:"bytes,4,opt,name=knownTypeFields"`
+	HealthLua             string             `protobuf:"bytes,1,opt,name=healthLua"`
+	UseOpenLibs           bool               `protobuf:"bytes,5,opt,name=useOpenLibs"`
+	Actions               string             `protobuf:"bytes,3,opt,name=actions"`
+	IgnoreDifferences     OverrideIgnoreDiff `protobuf:"bytes,2,opt,name=ignoreDifferences"`
+	IgnoreResourceUpdates OverrideIgnoreDiff `protobuf:"bytes,6,opt,name=ignoreResourceUpdates"`
+	KnownTypeFields       []KnownTypeField   `protobuf:"bytes,4,opt,name=knownTypeFields"`
 }
 
 // TODO: describe this method
@@ -1872,7 +2106,15 @@ func (s *ResourceOverride) UnmarshalJSON(data []byte) error {
 	s.HealthLua = raw.HealthLua
 	s.UseOpenLibs = raw.UseOpenLibs
 	s.Actions = raw.Actions
-	return yaml.Unmarshal([]byte(raw.IgnoreDifferences), &s.IgnoreDifferences)
+	err := yaml.Unmarshal([]byte(raw.IgnoreDifferences), &s.IgnoreDifferences)
+	if err != nil {
+		return err
+	}
+	err = yaml.Unmarshal([]byte(raw.IgnoreResourceUpdates), &s.IgnoreResourceUpdates)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // TODO: describe this method
@@ -1881,7 +2123,11 @@ func (s ResourceOverride) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	raw := &rawResourceOverride{s.HealthLua, s.UseOpenLibs, s.Actions, string(ignoreDifferencesData), s.KnownTypeFields}
+	ignoreResourceUpdatesData, err := yaml.Marshal(s.IgnoreResourceUpdates)
+	if err != nil {
+		return nil, err
+	}
+	raw := &rawResourceOverride{s.HealthLua, s.UseOpenLibs, s.Actions, string(ignoreDifferencesData), string(ignoreResourceUpdatesData), s.KnownTypeFields}
 	return json.Marshal(raw)
 }
 
@@ -1912,9 +2158,11 @@ type ResourceActionDefinition struct {
 // TODO: describe this type
 // TODO: describe members of this type
 type ResourceAction struct {
-	Name     string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	Params   []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
-	Disabled bool                  `json:"disabled,omitempty" protobuf:"varint,3,opt,name=disabled"`
+	Name        string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Params      []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
+	Disabled    bool                  `json:"disabled,omitempty" protobuf:"varint,3,opt,name=disabled"`
+	IconClass   string                `json:"iconClass,omitempty" protobuf:"bytes,4,opt,name=iconClass"`
+	DisplayName string                `json:"displayName,omitempty" protobuf:"bytes,5,opt,name=displayName"`
 }
 
 // TODO: describe this type
@@ -1939,6 +2187,8 @@ var validActions = map[string]bool{
 
 var validActionPatterns = []*regexp.Regexp{
 	regexp.MustCompile("action/.*"),
+	regexp.MustCompile("update/.*"),
+	regexp.MustCompile("delete/.*"),
 }
 
 func isValidAction(action string) bool {
@@ -1966,6 +2216,12 @@ func isValidResource(resource string) bool {
 	return validResources[resource]
 }
 
+func isValidObject(proj string, object string) bool {
+	// match against <PROJECT>[/<NAMESPACE>]/<APPLICATION>
+	objectRegexp, err := regexp.Compile(fmt.Sprintf(`^%s(/[*\w-.]+)?/[*\w-.]+$`, regexp.QuoteMeta(proj)))
+	return objectRegexp.MatchString(object) && err == nil
+}
+
 func validatePolicy(proj string, role string, policy string) error {
 	policyComponents := strings.Split(policy, ",")
 	if len(policyComponents) != 6 || strings.Trim(policyComponents[0], " ") != "p" {
@@ -1989,9 +2245,8 @@ func validatePolicy(proj string, role string, policy string) error {
 	}
 	// object
 	object := strings.Trim(policyComponents[4], " ")
-	objectRegexp, err := regexp.Compile(fmt.Sprintf(`^%s/[*\w-.]+$`, regexp.QuoteMeta(proj)))
-	if err != nil || !objectRegexp.MatchString(object) {
-		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': object must be of form '%s/*' or '%s/<APPNAME>', not '%s'", policy, proj, proj, object)
+	if !isValidObject(proj, object) {
+		return status.Errorf(codes.InvalidArgument, "invalid policy rule '%s': object must be of form '%s/*', '%s[/<NAMESPACE>]/<APPNAME>' or '%s/<APPNAME>', not '%s'", policy, proj, proj, proj, object)
 	}
 	// effect
 	effect := strings.Trim(policyComponents[5], " ")
@@ -2111,7 +2366,7 @@ type SyncWindow struct {
 	Clusters []string `json:"clusters,omitempty" protobuf:"bytes,6,opt,name=clusters"`
 	// ManualSync enables manual syncs when they would otherwise be blocked
 	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,7,opt,name=manualSync"`
-	//TimeZone of the sync that will be applied to the schedule
+	// TimeZone of the sync that will be applied to the schedule
 	TimeZone string `json:"timeZone,omitempty" protobuf:"bytes,8,opt,name=timeZone"`
 }
 
@@ -2126,7 +2381,6 @@ func (s *SyncWindows) Active() *SyncWindows {
 }
 
 func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
-
 	// If SyncWindows.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before we scan through the SyncWindows.
 	currentTime = currentTime.In(time.UTC)
@@ -2160,7 +2414,6 @@ func (s *SyncWindows) InactiveAllows() *SyncWindows {
 }
 
 func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
-
 	// If SyncWindows.InactiveAllows() is called outside of a UTC locale, it should be
 	// first converted to UTC before we scan through the SyncWindows.
 	currentTime = currentTime.In(time.UTC)
@@ -2202,7 +2455,6 @@ func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
 func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []string, ns []string, cl []string, ms bool, timeZone string) error {
 	if len(knd) == 0 || len(sch) == 0 || len(dur) == 0 {
 		return fmt.Errorf("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
-
 	}
 
 	window := &SyncWindow{
@@ -2231,7 +2483,6 @@ func (s *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []str
 	s.SyncWindows = append(s.SyncWindows, window)
 
 	return nil
-
 }
 
 // DeleteWindow deletes a sync window with the given id from the AppProject
@@ -2337,10 +2588,8 @@ func (w *SyncWindows) hasDeny() (bool, bool) {
 		if a.Kind == "deny" {
 			if !denyFound {
 				manualEnabled = a.ManualSync
-			} else {
-				if manualEnabled {
-					manualEnabled = a.ManualSync
-				}
+			} else if manualEnabled {
+				manualEnabled = a.ManualSync
 			}
 			denyFound = true
 		}
@@ -2382,7 +2631,6 @@ func (w SyncWindow) Active() bool {
 }
 
 func (w SyncWindow) active(currentTime time.Time) bool {
-
 	// If SyncWindow.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before search
 	currentTime = currentTime.UTC()
@@ -2400,7 +2648,6 @@ func (w SyncWindow) active(currentTime time.Time) bool {
 
 // Update updates a sync window's settings with the given parameter
 func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string) error {
-
 	if len(s) == 0 && len(d) == 0 && len(a) == 0 && len(n) == 0 && len(c) == 0 {
 		return fmt.Errorf("cannot update: require one or more of schedule, duration, application, namespace, or cluster")
 	}
@@ -2431,7 +2678,6 @@ func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []stri
 
 // Validate checks whether a sync window has valid configuration. The error returned indicates any problems that has been found.
 func (w *SyncWindow) Validate() error {
-
 	// Default timeZone to UTC if timeZone is not specified
 	if w.TimeZone == "" {
 		w.TimeZone = "UTC"
@@ -2447,11 +2693,11 @@ func (w *SyncWindow) Validate() error {
 	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 	_, err := specParser.Parse(w.Schedule)
 	if err != nil {
-		return fmt.Errorf("cannot parse schedule '%s': %s", w.Schedule, err)
+		return fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, err)
 	}
 	_, err = time.ParseDuration(w.Duration)
 	if err != nil {
-		return fmt.Errorf("cannot parse duration '%s': %s", w.Duration, err)
+		return fmt.Errorf("cannot parse duration '%s': %w", w.Duration, err)
 	}
 	return nil
 }
@@ -2541,6 +2787,18 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 		refreshType = RefreshTypeHard
 	}
 	return refreshType, true
+}
+
+func (app *Application) HasPostDeleteFinalizer(stage ...string) bool {
+	return getFinalizerIndex(app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/")) > -1
+}
+
+func (app *Application) SetPostDeleteFinalizer(stage ...string) {
+	setFinalizer(&app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/"), true)
+}
+
+func (app *Application) UnSetPostDeleteFinalizer(stage ...string) {
+	setFinalizer(&app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/"), false)
 }
 
 // SetCascadedDeletion will enable cascaded deletion by setting the propagation policy finalizer
@@ -2817,6 +3075,12 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	config.Timeout = K8sServerSideTimeout
 
 	config.Transport = tr
+	maxRetries := env.ParseInt64FromEnv(utilhttp.EnvRetryMax, 0, 1, math.MaxInt64)
+	if maxRetries > 0 {
+		backoffDurationMS := env.ParseInt64FromEnv(utilhttp.EnvRetryBaseBackoff, 100, 1, math.MaxInt64)
+		backoffDuration := time.Duration(backoffDurationMS) * time.Millisecond
+		config.WrapTransport = utilhttp.WithRetry(maxRetries, backoffDuration)
+	}
 	return nil
 }
 
@@ -2824,12 +3088,17 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 func (c *Cluster) RawRestConfig() *rest.Config {
 	var config *rest.Config
 	var err error
-	if c.Server == KubernetesInternalAPIServerAddr && os.Getenv(EnvVarFakeInClusterConfig) == "true" {
+	if c.Server == KubernetesInternalAPIServerAddr && env.ParseBoolFromEnv(EnvVarFakeInClusterConfig, false) {
 		conf, exists := os.LookupEnv("KUBECONFIG")
 		if exists {
 			config, err = clientcmd.BuildConfigFromFlags("", conf)
 		} else {
-			config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(os.Getenv("HOME"), ".kube", "config"))
+			var homeDir string
+			homeDir, err = os.UserHomeDir()
+			if err != nil {
+				homeDir = ""
+			}
+			config, err = clientcmd.BuildConfigFromFlags("", filepath.Join(homeDir, ".kube", "config"))
 		}
 	} else if c.Server == KubernetesInternalAPIServerAddr && c.Config.Username == "" && c.Config.Password == "" && c.Config.BearerToken == "" {
 		config, err = rest.InClusterConfig()
@@ -2853,6 +3122,9 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 			args := []string{"aws", "--cluster-name", c.Config.AWSAuthConfig.ClusterName}
 			if c.Config.AWSAuthConfig.RoleARN != "" {
 				args = append(args, "--role-arn", c.Config.AWSAuthConfig.RoleARN)
+			}
+			if c.Config.AWSAuthConfig.Profile != "" {
+				args = append(args, "--profile", c.Config.AWSAuthConfig.Profile)
 			}
 			config = &rest.Config{
 				Host:            c.Server,
@@ -2940,7 +3212,6 @@ func (r ResourceDiff) TargetObject() (*unstructured.Unstructured, error) {
 
 // SetInferredServer sets the Server field of the destination. See IsServerInferred() for details.
 func (d *ApplicationDestination) SetInferredServer(server string) {
-
 	d.isServerInferred = true
 	d.Server = server
 }
@@ -2993,5 +3264,5 @@ func (a *Application) QualifiedName() string {
 // RBACName returns the full qualified RBAC resource name for the application
 // in a backwards-compatible way.
 func (a *Application) RBACName(defaultNS string) string {
-	return security.AppRBACName(defaultNS, a.Spec.GetProject(), a.Namespace, a.Name)
+	return security.RBACName(defaultNS, a.Spec.GetProject(), a.Namespace, a.Name)
 }

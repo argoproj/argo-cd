@@ -17,14 +17,11 @@ const initialPasswordSecretName = "argocd-initial-admin-secret"
 
 // NewInitialPasswordCommand defines a new command to retrieve Argo CD initial password.
 func NewInitialPasswordCommand() *cobra.Command {
-	var (
-		clientConfig clientcmd.ClientConfig
-	)
-	var command = cobra.Command{
+	var clientConfig clientcmd.ClientConfig
+	command := cobra.Command{
 		Use:   "initial-password",
 		Short: "Prints initial password to log in to Argo CD for the first time",
 		Run: func(c *cobra.Command, args []string) {
-
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			namespace, _, err := clientConfig.Namespace()

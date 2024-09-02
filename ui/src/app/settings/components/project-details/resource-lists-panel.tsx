@@ -99,6 +99,36 @@ function viewSourceReposInfoList(type: field, proj: Project) {
     );
 }
 
+const sourceNamespacesInfoByField: {[type: string]: {title: string; helpText: string}} = {
+    sourceNamespaces: {
+        title: 'source namespaces',
+        helpText: 'Kubernetes namespaces where application resources are allowed to be created in'
+    }
+};
+
+function viewSourceNamespacesInfoList(type: field, proj: Project) {
+    const info = sourceNamespacesInfoByField[type];
+    const list = proj.spec[type] as Array<string>;
+    return (
+        <React.Fragment>
+            <p className='project-details__list-title'>
+                {info.title} {helpTip(info.helpText)}
+            </p>
+            {(list || []).length > 0 ? (
+                <React.Fragment>
+                    {list.map((namespace, i) => (
+                        <div className='row white-box__details-row' key={i}>
+                            <div className='columns small-12'>{namespace}</div>
+                        </div>
+                    ))}
+                </React.Fragment>
+            ) : (
+                <p>The {info.title} is empty</p>
+            )}
+        </React.Fragment>
+    );
+}
+
 const destinationsInfoByField: {[type: string]: {title: string; helpText: string}} = {
     destinations: {
         title: 'destinations',
@@ -180,6 +210,8 @@ export const ResourceListsPanel = ({proj, saveProject, title}: {proj: Project; t
                     <React.Fragment key={key}>{viewList(key as field, proj)}</React.Fragment>
                 ))}
                 {!proj.metadata && Object.keys(sourceReposInfoByField).map(key => <React.Fragment key={key}>{viewSourceReposInfoList(key as field, proj)}</React.Fragment>)}
+                {!proj.metadata &&
+                    Object.keys(sourceNamespacesInfoByField).map(key => <React.Fragment key={key}>{viewSourceNamespacesInfoList(key as field, proj)}</React.Fragment>)}
                 {!proj.metadata && Object.keys(destinationsInfoByField).map(key => <React.Fragment key={key}>{viewDestinationsInfoList(key as field, proj)}</React.Fragment>)}
             </React.Fragment>
         }
