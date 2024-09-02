@@ -226,7 +226,7 @@ func TestGenerateParams(t *testing.T) {
 			values:        nil,
 			expected:      nil,
 			clientError:   true,
-			expectedError: fmt.Errorf("could not list Secrets"),
+			expectedError: fmt.Errorf("error getting cluster secrets: could not list Secrets"),
 		},
 	}
 
@@ -597,7 +597,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 			values:        nil,
 			expected:      nil,
 			clientError:   true,
-			expectedError: fmt.Errorf("could not list Secrets"),
+			expectedError: fmt.Errorf("error getting cluster secrets: could not list Secrets"),
 		},
 	}
 

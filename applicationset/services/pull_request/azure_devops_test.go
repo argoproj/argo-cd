@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/microsoft/azure-devops-go-api/azuredevops/webapi"
+
 	"github.com/microsoft/azure-devops-go-api/azuredevops/core"
 	git "github.com/microsoft/azure-devops-go-api/azuredevops/git"
 	"github.com/stretchr/testify/assert"
@@ -26,6 +28,10 @@ func createIntPtr(x int) *int {
 }
 
 func createLabelsPtr(x []core.WebApiTagDefinition) *[]core.WebApiTagDefinition {
+	return &x
+}
+
+func createUniqueNamePtr(x string) *string {
 	return &x
 }
 
@@ -59,6 +65,7 @@ func TestListPullRequest(t *testing.T) {
 	pr_title := "feat(123)"
 	pr_head_sha := "cd4973d9d14a08ffe6b641a89a68891d6aac8056"
 	ctx := context.Background()
+	uniqueName := "testName"
 
 	pullRequestMock := []git.GitPullRequest{
 		{
@@ -71,6 +78,9 @@ func TestListPullRequest(t *testing.T) {
 			Labels: &[]core.WebApiTagDefinition{},
 			Repository: &git.GitRepository{
 				Name: createStringPtr(repoName),
+			},
+			CreatedBy: &webapi.IdentityRef{
+				UniqueName: createUniqueNamePtr(uniqueName + "@example.com"),
 			},
 		},
 	}
@@ -99,6 +109,7 @@ func TestListPullRequest(t *testing.T) {
 	assert.Equal(t, pr_head_sha, list[0].HeadSHA)
 	assert.Equal(t, "feat(123)", list[0].Title)
 	assert.Equal(t, pr_id, list[0].Number)
+	assert.Equal(t, uniqueName, list[0].Author)
 }
 
 func TestConvertLabes(t *testing.T) {

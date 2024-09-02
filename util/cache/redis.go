@@ -78,6 +78,11 @@ func (r *redisCache) marshal(obj interface{}) ([]byte, error) {
 			return nil, err
 		}
 	}
+	if closer, ok := w.(interface{ Close() error }); ok {
+		if err := closer.Close(); err != nil {
+			return nil, err
+		}
+	}
 	return buf.Bytes(), nil
 }
 

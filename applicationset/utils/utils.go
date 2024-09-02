@@ -23,6 +23,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 )
 
 var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
@@ -45,6 +46,10 @@ type Renderer interface {
 }
 
 type Render struct{}
+
+func IsNamespaceAllowed(namespaces []string, namespace string) bool {
+	return glob.MatchStringInList(namespaces, namespace, glob.REGEXP)
+}
 
 func copyValueIntoUnexported(destination, value reflect.Value) {
 	reflect.NewAt(destination.Type(), unsafe.Pointer(destination.UnsafeAddr())).

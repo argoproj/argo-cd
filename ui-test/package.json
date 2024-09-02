@@ -14,12 +14,12 @@
   "dependencies": {
     "@types/selenium-webdriver": "^4.1.23",
     "assert": "^2.1.0",
-    "chromedriver": "^126.0.5",
+    "chromedriver": "^128.0.1",
     "selenium-webdriver": "^4.21.0"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.6",
-    "@types/node": "^20.14.11",
+    "@types/node": "^22.5.2",
     "dotenv": "^16.4.5",
     "mocha": "^10.4.0",
     "prettier": "^2.8.8",

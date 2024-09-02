@@ -286,7 +286,7 @@ func NewDefaultApplicationGetter(al applisters.ApplicationLister) *DefaultApplic
 	}
 }
 
-// Get will retrieve the application resorce for the given namespace and name.
+// Get will retrieve the application resource for the given namespace and name.
 func (a *DefaultApplicationGetter) Get(ns, name string) (*v1alpha1.Application, error) {
 	return a.appLister.Applications(ns).Get(name)
 }

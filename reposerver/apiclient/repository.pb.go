@@ -43,8 +43,10 @@ type ManifestRequest struct {
 	// Deprecated: use sidecar plugins instead.
 	Plugins          []*v1alpha1.ConfigManagementPlugin `protobuf:"bytes,12,rep,name=plugins,proto3" json:"plugins,omitempty"`
 	KustomizeOptions *v1alpha1.KustomizeOptions         `protobuf:"bytes,13,opt,name=kustomizeOptions,proto3" json:"kustomizeOptions,omitempty"`
-	KubeVersion      string                             `protobuf:"bytes,14,opt,name=kubeVersion,proto3" json:"kubeVersion,omitempty"`
-	ApiVersions      []string                           `protobuf:"bytes,15,rep,name=apiVersions,proto3" json:"apiVersions,omitempty"`
+	// KubeVersion is the Kubernetes API version from the destination cluster.
+	KubeVersion string `protobuf:"bytes,14,opt,name=kubeVersion,proto3" json:"kubeVersion,omitempty"`
+	// ApiVersions is the list of API versions from the destination cluster, used for rendering Helm charts.
+	ApiVersions []string `protobuf:"bytes,15,rep,name=apiVersions,proto3" json:"apiVersions,omitempty"`
 	// Request to verify the signature when generating the manifests (only for Git repositories)
 	VerifySignature    bool                           `protobuf:"varint,16,opt,name=verifySignature,proto3" json:"verifySignature,omitempty"`
 	HelmRepoCreds      []*v1alpha1.RepoCreds          `protobuf:"bytes,17,rep,name=helmRepoCreds,proto3" json:"helmRepoCreds,omitempty"`
@@ -698,7 +700,9 @@ type ManifestResponse struct {
 	Revision   string `protobuf:"bytes,4,opt,name=revision,proto3" json:"revision,omitempty"`
 	SourceType string `protobuf:"bytes,6,opt,name=sourceType,proto3" json:"sourceType,omitempty"`
 	// Raw response of git verify-commit operation (always the empty string for Helm)
-	VerifyResult         string   `protobuf:"bytes,7,opt,name=verifyResult,proto3" json:"verifyResult,omitempty"`
+	VerifyResult string `protobuf:"bytes,7,opt,name=verifyResult,proto3" json:"verifyResult,omitempty"`
+	// Commands is the list of commands used to hydrate the manifests
+	Commands             []string `protobuf:"bytes,8,rep,name=commands,proto3" json:"commands,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -777,6 +781,13 @@ func (m *ManifestResponse) GetVerifyResult() string {
 		return m.VerifyResult
 	}
 	return ""
+}
+
+func (m *ManifestResponse) GetCommands() []string {
+	if m != nil {
+		return m.Commands
+	}
+	return nil
 }
 
 type ListRefsRequest struct {
@@ -3859,6 +3870,15 @@ func (m *ManifestResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i -= len(m.XXX_unrecognized)
 		copy(dAtA[i:], m.XXX_unrecognized)
 	}
+	if len(m.Commands) > 0 {
+		for iNdEx := len(m.Commands) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Commands[iNdEx])
+			copy(dAtA[i:], m.Commands[iNdEx])
+			i = encodeVarintRepository(dAtA, i, uint64(len(m.Commands[iNdEx])))
+			i--
+			dAtA[i] = 0x42
+		}
+	}
 	if len(m.VerifyResult) > 0 {
 		i -= len(m.VerifyResult)
 		copy(dAtA[i:], m.VerifyResult)
@@ -5716,6 +5736,12 @@ func (m *ManifestResponse) Size() (n int) {
 	l = len(m.VerifyResult)
 	if l > 0 {
 		n += 1 + l + sovRepository(uint64(l))
+	}
+	if len(m.Commands) > 0 {
+		for _, s := range m.Commands {
+			l = len(s)
+			n += 1 + l + sovRepository(uint64(l))
+		}
 	}
 	if m.XXX_unrecognized != nil {
 		n += len(m.XXX_unrecognized)
@@ -8340,6 +8366,38 @@ func (m *ManifestResponse) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.VerifyResult = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Commands", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRepository
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthRepository
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthRepository
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Commands = append(m.Commands, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

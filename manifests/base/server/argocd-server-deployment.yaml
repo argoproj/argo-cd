@@ -305,6 +305,8 @@ spec:
               name: plugins-home
             - mountPath: /tmp
               name: tmp
+            - name: argocd-cmd-params-cm
+              mountPath: /home/argocd/params
           ports:
             - containerPort: 8080
             - containerPort: 8083
@@ -361,6 +363,13 @@ spec:
                 path: tls.crt
               - key: ca.crt
                 path: ca.crt
+        - name: argocd-cmd-params-cm
+          configMap:
+            optional: true
+            name: argocd-cmd-params-cm
+            items:
+            - key: server.profile.enabled
+              path: profiler.enabled
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

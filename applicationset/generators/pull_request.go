@@ -105,6 +105,7 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			"head_sha":           pull.HeadSHA,
 			"head_short_sha":     pull.HeadSHA[:shortSHALength],
 			"head_short_sha_7":   pull.HeadSHA[:shortSHALength7],
+			"author":             pull.Author,
 		}
 
 		// PR lables will only be supported for Go Template appsets, since fasttemplate will be deprecated.

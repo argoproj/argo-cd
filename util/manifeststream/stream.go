@@ -179,7 +179,7 @@ func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver,
 	}
 	metadata := header2.GetMetadata()
 
-	tgzFile, err := receiveFile(ctx, receiver, metadata.GetChecksum(), destDir, maxTarSize)
+	tgzFile, err := receiveFile(ctx, receiver, metadata.GetChecksum(), maxTarSize)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error receiving tgz file: %w", err)
 	}
@@ -197,7 +197,7 @@ func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver,
 // receiveFile will receive the file from the gRPC stream and save it in the dst folder.
 // Returns error if checksum doesn't match the one provided in the fileMetadata.
 // It is responsibility of the caller to close the returned file.
-func receiveFile(ctx context.Context, receiver RepoStreamReceiver, checksum, dst string, maxSize int64) (*os.File, error) {
+func receiveFile(ctx context.Context, receiver RepoStreamReceiver, checksum string, maxSize int64) (*os.File, error) {
 	hasher := sha256.New()
 	tmpDir, err := files.CreateTempDir("")
 	if err != nil {
