@@ -1,4 +1,4 @@
-import {DataLoader, Layout, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps, Tooltip} from 'argo-ui';
+import {DataLoader, NavigationManager, Notifications, NotificationsManager, PageContext, Popup, PopupManager, PopupProps} from 'argo-ui';
 import {createBrowserHistory} from 'history';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -8,13 +8,18 @@ import applications from './applications';
 import help from './help';
 import login from './login';
 import settings from './settings';
+import {Layout} from './shared/components/layout/layout';
+import {Page} from './shared/components/page/page';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
-import {Provider} from './shared/context';
+import {AuthSettingsCtx, Provider} from './shared/context';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
 import {hashCode} from './shared/utils';
 import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
+import {AuthSettings} from './shared/models';
+import {PKCEVerification} from './login/components/pkce-verify';
+import {SystemLevelExtension} from './shared/services/extensions-service';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -22,24 +27,36 @@ const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
 export const history = createBrowserHistory({basename: base});
 requests.setBaseHRef(base);
 
-const routes: {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}} = {
+type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}};
+
+const routes: Routes = {
     '/login': {component: login.component as any, noLayout: true},
     '/applications': {component: applications.component},
     '/settings': {component: settings.component},
     '/user-info': {component: userInfo.component},
-    '/help': {component: help.component}
+    '/help': {component: help.component},
+    '/pkce/verify': {component: PKCEVerification, noLayout: true}
 };
 
-const navItems = [
+interface NavItem {
+    title: string;
+    tooltip?: string;
+    path: string;
+    iconClassName: string;
+}
+
+const navItems: NavItem[] = [
     {
-        title: 'Manage your applications, and diagnose health problems.',
+        title: 'Applications',
+        tooltip: 'Manage your applications, and diagnose health problems.',
         path: '/applications',
-        iconClassName: 'argo-icon-application'
+        iconClassName: 'argo-icon argo-icon-application'
     },
     {
-        title: 'Manage your repositories, projects, settings',
+        title: 'Settings',
+        tooltip: 'Manage your repositories, projects, settings',
         path: '/settings',
-        iconClassName: 'argo-icon-settings'
+        iconClassName: 'argo-icon argo-icon-settings'
     },
     {
         title: 'User Info',
@@ -47,9 +64,10 @@ const navItems = [
         iconClassName: 'fa fa-user-circle'
     },
     {
-        title: 'Read the documentation, and get help and assistance.',
+        title: 'Documentation',
+        tooltip: 'Read the documentation, and get help and assistance.',
         path: '/help',
-        iconClassName: 'argo-icon-docs'
+        iconClassName: 'argo-icon argo-icon-docs'
     }
 ];
 
@@ -58,8 +76,8 @@ const versionLoader = services.version.version();
 async function isExpiredSSO() {
     try {
         const {iss} = await services.users.get();
+        const authSettings = await services.authService.settings();
         if (iss && iss !== 'argocd') {
-            const authSettings = await services.authService.settings();
             return ((authSettings.dexConfig && authSettings.dexConfig.connectors) || []).length > 0 || authSettings.oidcConfig;
         }
     } catch {
@@ -81,10 +99,7 @@ requests.onError.subscribe(async err => {
         }
         // Query for basehref and remove trailing /.
         // If basehref is the default `/` it will become an empty string.
-        const basehref = document
-            .querySelector('head > base')
-            .getAttribute('href')
-            .replace(/\/$/, '');
+        const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
         if (isSSO) {
             window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
         } else {
@@ -93,7 +108,10 @@ requests.onError.subscribe(async err => {
     }
 });
 
-export class App extends React.Component<{}, {popupProps: PopupProps; showVersionPanel: boolean; error: Error}> {
+export class App extends React.Component<
+    {},
+    {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; extensionsLoaded: boolean; authSettings: AuthSettings}
+> {
     public static childContextTypes = {
         history: PropTypes.object,
         apis: PropTypes.object
@@ -106,13 +124,18 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
     private popupManager: PopupManager;
     private notificationsManager: NotificationsManager;
     private navigationManager: NavigationManager;
+    private navItems: NavItem[];
+    private routes: Routes;
 
     constructor(props: {}) {
         super(props);
-        this.state = {popupProps: null, error: null, showVersionPanel: false};
+        this.state = {popupProps: null, error: null, showVersionPanel: false, navItems: [], routes: null, extensionsLoaded: false, authSettings: null};
         this.popupManager = new PopupManager();
         this.notificationsManager = new NotificationsManager();
         this.navigationManager = new NavigationManager(history);
+        this.navItems = navItems;
+        this.routes = routes;
+        services.extensions.addEventListener('systemLevel', this.onAddSystemLevelExtension.bind(this));
     }
 
     public async componentDidMount() {
@@ -140,6 +163,8 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
             link.type = 'text/css';
             document.head.appendChild(link);
         }
+
+        this.setState({...this.state, navItems: this.navItems, routes: this.routes, extensionsLoaded: false, authSettings});
     }
 
     public render() {
@@ -168,57 +193,43 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
                 </Helmet>
                 <PageContext.Provider value={{title: 'Argo CD'}}>
                     <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}}>
-                        {this.state.popupProps && <Popup {...this.state.popupProps} />}
-                        <Router history={history}>
-                            <Switch>
-                                <Redirect exact={true} path='/' to='/applications' />
-                                {Object.keys(routes).map(path => {
-                                    const route = routes[path];
-                                    return (
-                                        <Route
-                                            key={path}
-                                            path={path}
-                                            render={routeProps =>
-                                                route.noLayout ? (
-                                                    <div>
-                                                        <route.component {...routeProps} />
-                                                    </div>
-                                                ) : (
-                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                        {pref => (
-                                                            <Layout
-                                                                navItems={navItems}
-                                                                theme={pref.theme}
-                                                                version={() => (
-                                                                    <DataLoader load={() => versionLoader}>
-                                                                        {version => {
-                                                                            const versionString = version ? version.Version : 'Unknown';
-                                                                            return (
-                                                                                <React.Fragment>
-                                                                                    <Tooltip content={versionString}>
-                                                                                        <a style={{color: 'white'}} onClick={() => this.setState({showVersionPanel: true})}>
-                                                                                            {versionString}
-                                                                                        </a>
-                                                                                    </Tooltip>
-                                                                                </React.Fragment>
-                                                                            );
-                                                                        }}
-                                                                    </DataLoader>
-                                                                )}>
-                                                                <Banner>
-                                                                    <route.component {...routeProps} />
-                                                                </Banner>
-                                                            </Layout>
-                                                        )}
-                                                    </DataLoader>
-                                                )
-                                            }
-                                        />
-                                    );
-                                })}
-                                <Redirect path='*' to='/' />
-                            </Switch>
-                        </Router>
+                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                            {pref => <div className={pref.theme ? 'theme-' + pref.theme : 'theme-light'}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</div>}
+                        </DataLoader>
+                        <AuthSettingsCtx.Provider value={this.state.authSettings}>
+                            <Router history={history}>
+                                <Switch>
+                                    <Redirect exact={true} path='/' to='/applications' />
+                                    {Object.keys(this.routes).map(path => {
+                                        const route = this.routes[path];
+                                        return (
+                                            <Route
+                                                key={path}
+                                                path={path}
+                                                render={routeProps =>
+                                                    route.noLayout ? (
+                                                        <div>
+                                                            <route.component {...routeProps} />
+                                                        </div>
+                                                    ) : (
+                                                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                            {pref => (
+                                                                <Layout onVersionClick={() => this.setState({showVersionPanel: true})} navItems={this.navItems} pref={pref}>
+                                                                    <Banner>
+                                                                        <route.component {...routeProps} />
+                                                                    </Banner>
+                                                                </Layout>
+                                                            )}
+                                                        </DataLoader>
+                                                    )
+                                                }
+                                            />
+                                        );
+                                    })}
+                                    {this.state.extensionsLoaded && <Redirect path='*' to='/' />}
+                                </Switch>
+                            </Router>
+                        </AuthSettingsCtx.Provider>
                     </Provider>
                 </PageContext.Provider>
                 <Notifications notifications={this.notificationsManager.notifications} />
@@ -229,5 +240,29 @@ export class App extends React.Component<{}, {popupProps: PopupProps; showVersio
 
     public getChildContext() {
         return {history, apis: {popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager}};
+    }
+
+    private onAddSystemLevelExtension(extension: SystemLevelExtension) {
+        const extendedNavItems = this.navItems;
+        const extendedRoutes = this.routes;
+        extendedNavItems.push({
+            title: extension.title,
+            path: extension.path,
+            iconClassName: `fa ${extension.icon}`
+        });
+        const component = () => (
+            <>
+                <Helmet>
+                    <title>{extension.title} - Argo CD</title>
+                </Helmet>
+                <Page title={extension.title}>
+                    <extension.component />
+                </Page>
+            </>
+        );
+        extendedRoutes[extension.path] = {
+            component: component as React.ComponentType<React.ComponentProps<any>>
+        };
+        this.setState({...this.state, navItems: extendedNavItems, routes: extendedRoutes, extensionsLoaded: true});
     }
 }

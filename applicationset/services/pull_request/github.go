@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/google/go-github/v35/github"
+	"github.com/google/go-github/v63/github"
 	"golang.org/x/oauth2"
 )
 
@@ -35,7 +35,7 @@ func NewGithubService(ctx context.Context, token, url, owner, repo string, label
 		client = github.NewClient(httpClient)
 	} else {
 		var err error
-		client, err = github.NewEnterpriseClient(url, url, httpClient)
+		client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)
 		if err != nil {
 			return nil, err
 		}
@@ -65,9 +65,13 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 				continue
 			}
 			pullRequests = append(pullRequests, &PullRequest{
-				Number:  *pull.Number,
-				Branch:  *pull.Head.Ref,
-				HeadSHA: *pull.Head.SHA,
+				Number:       *pull.Number,
+				Title:        *pull.Title,
+				Branch:       *pull.Head.Ref,
+				TargetBranch: *pull.Base.Ref,
+				HeadSHA:      *pull.Head.SHA,
+				Labels:       getGithubPRLabelNames(pull.Labels),
+				Author:       *pull.User.Login,
 			})
 		}
 		if resp.NextPage == 0 {
@@ -96,4 +100,13 @@ func containLabels(expectedLabels []string, gotLabels []*github.Label) bool {
 		}
 	}
 	return true
+}
+
+// Get the Github pull request label names.
+func getGithubPRLabelNames(gitHubLabels []*github.Label) []string {
+	var labelNames []string
+	for _, gitHubLabel := range gitHubLabels {
+		labelNames = append(labelNames, *gitHubLabel.Name)
+	}
+	return labelNames
 }

@@ -1,0 +1,35 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: fakes.argoproj.io
+spec:
+  conversion:
+    strategy: None
+  group: argoproj.io
+  names:
+    kind: Fake
+    listKind: FakeList
+    plural: fakes
+    singular: fake
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            apiVersion:
+              type: string
+            kind:
+              type: string
+            metadata:
+              type: object
+            spec:
+              type: object
+              properties:
+                cpu:
+                  type: string
+                memory:
+                  type: string

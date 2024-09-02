@@ -9,5 +9,5 @@ tests:
   inputPath: testdata/degraded.yaml
 - healthStatus:
     status: Healthy
-    message: "Awaiting next reconciliation"
+    message: "Last reconciliation succeeded"
   inputPath: testdata/healthy.yaml

@@ -9,8 +9,10 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.26.6
     app: argocd-redis-ha
+secrets:
+- name: argocd-redis
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-haproxy-serviceaccount.yaml
 apiVersion: v1
@@ -21,7 +23,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.26.6
     app: argocd-redis-ha
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-configmap.yaml
@@ -33,7 +35,7 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.26.6
     app: argocd-redis-ha
 data:
   redis.conf: |
@@ -50,6 +52,8 @@ data:
     rdbcompression yes
     repl-diskless-sync yes
     save ""
+    requirepass replace-default-auth
+    masterauth replace-default-auth
 
   sentinel.conf: |
     dir "/data"
@@ -59,6 +63,7 @@ data:
         sentinel failover-timeout argocd 180000
         maxclients 10000
         sentinel parallel-syncs argocd 5
+    sentinel auth-pass argocd replace-default-auth
 
   init.sh: |
     echo "$(date) Start..."
@@ -82,7 +87,7 @@ data:
     sentinel_get_master() {
     set +e
         if [ "$SENTINEL_PORT" -eq 0 ]; then
-            redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"   --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
+            redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
             grep -E '((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?s*$))'
         else
             redis-cli -h "${SERVICE}" -p "${SENTINEL_PORT}"  sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
@@ -176,11 +181,11 @@ data:
             echo "Getting redis master ip.."
             echo "  blindly assuming (${SERVICE}-announce-0) or (${SERVICE}-server-0) are master"
             DEFAULT_MASTER="$(getent_hosts 0 | awk '{ print $1 }')"
-            echo "  identified redis (may be redis master) ip (${DEFAULT_MASTER})"
             if [ -z "${DEFAULT_MASTER}" ]; then
                 echo "Error: Unable to resolve redis master (getent hosts)."
                 exit 1
             fi
+            echo "  identified redis (may be redis master) ip (${DEFAULT_MASTER})"
             echo "Setting default slave config for redis and sentinel.."
             echo "  using master ip (${DEFAULT_MASTER})"
             redis_update "${DEFAULT_MASTER}"
@@ -191,9 +196,9 @@ data:
     redis_ping() {
     set +e
         if [ "$REDIS_PORT" -eq 0 ]; then
-            redis-cli -h "${MASTER}" -p "${REDIS_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key ping
+            redis-cli -h "${MASTER}" -a "${AUTH}" --no-auth-warning -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key ping
         else
-            redis-cli -h "${MASTER}" -p "${REDIS_PORT}" ping
+            redis-cli -h "${MASTER}" -a "${AUTH}" --no-auth-warning -p "${REDIS_PORT}" ping
         fi
     set -e
     }
@@ -226,7 +231,7 @@ data:
 
             if [ "$SENTINEL_PORT" -eq 0 ]; then
                 echo "  on sentinel (${SERVICE}:${SENTINEL_TLS_PORT}), sentinel grp (${MASTER_GROUP})"
-                if redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"   --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel failover "${MASTER_GROUP}" | grep -q 'NOGOODSLAVE' ; then
+                if redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel failover "${MASTER_GROUP}" | grep -q 'NOGOODSLAVE' ; then
                     echo "  $(date) Failover returned with 'NOGOODSLAVE'"
                     echo "Setting defaults for this pod.."
                     setup_defaults
@@ -277,11 +282,7 @@ data:
     getent_hosts() {
         index=${1:-${INDEX}}
         service="${SERVICE}-announce-${index}"
-        pod="${SERVICE}-server-${index}"
         host=$(getent hosts "${service}")
-        if [ -z "${host}" ]; then
-            host=$(getent hosts "${pod}")
-        fi
         echo "${host}"
     }
 
@@ -349,7 +350,7 @@ data:
     sentinel_get_master() {
     set +e
         if [ "$SENTINEL_PORT" -eq 0 ]; then
-            redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"   --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
+            redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
             grep -E '((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?s*$))'
         else
             redis-cli -h "${SERVICE}" -p "${SENTINEL_PORT}"  sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
@@ -443,11 +444,11 @@ data:
             echo "Getting redis master ip.."
             echo "  blindly assuming (${SERVICE}-announce-0) or (${SERVICE}-server-0) are master"
             DEFAULT_MASTER="$(getent_hosts 0 | awk '{ print $1 }')"
-            echo "  identified redis (may be redis master) ip (${DEFAULT_MASTER})"
             if [ -z "${DEFAULT_MASTER}" ]; then
                 echo "Error: Unable to resolve redis master (getent hosts)."
                 exit 1
             fi
+            echo "  identified redis (may be redis master) ip (${DEFAULT_MASTER})"
             echo "Setting default slave config for redis and sentinel.."
             echo "  using master ip (${DEFAULT_MASTER})"
             redis_update "${DEFAULT_MASTER}"
@@ -458,9 +459,9 @@ data:
     redis_ping() {
     set +e
         if [ "$REDIS_PORT" -eq 0 ]; then
-            redis-cli -h "${MASTER}" -p "${REDIS_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key ping
+            redis-cli -h "${MASTER}" -a "${AUTH}" --no-auth-warning -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key ping
         else
-            redis-cli -h "${MASTER}" -p "${REDIS_PORT}" ping
+            redis-cli -h "${MASTER}" -a "${AUTH}" --no-auth-warning -p "${REDIS_PORT}" ping
         fi
     set -e
     }
@@ -493,7 +494,7 @@ data:
 
             if [ "$SENTINEL_PORT" -eq 0 ]; then
                 echo "  on sentinel (${SERVICE}:${SENTINEL_TLS_PORT}), sentinel grp (${MASTER_GROUP})"
-                if redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"   --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel failover "${MASTER_GROUP}" | grep -q 'NOGOODSLAVE' ; then
+                if redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel failover "${MASTER_GROUP}" | grep -q 'NOGOODSLAVE' ; then
                     echo "  $(date) Failover returned with 'NOGOODSLAVE'"
                     echo "Setting defaults for this pod.."
                     setup_defaults
@@ -544,11 +545,7 @@ data:
     getent_hosts() {
         index=${1:-${INDEX}}
         service="${SERVICE}-announce-${index}"
-        pod="${SERVICE}-server-${index}"
         host=$(getent hosts "${service}")
-        if [ -z "${host}" ]; then
-            host=$(getent hosts "${pod}")
-        fi
         echo "${host}"
     }
 
@@ -562,9 +559,9 @@ data:
     redis_role() {
     set +e
         if [ "$REDIS_PORT" -eq 0 ]; then
-            ROLE=$(redis-cli  -p "${REDIS_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key info | grep role | sed 's/role://' | sed 's/\r//')
+            ROLE=$(redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key info | grep role | sed 's/role://' | sed 's/\r//')
         else
-            ROLE=$(redis-cli  -p "${REDIS_PORT}" info | grep role | sed 's/role://' | sed 's/\r//')
+            ROLE=$(redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_PORT}" info | grep role | sed 's/role://' | sed 's/\r//')
         fi
     set -e
     }
@@ -572,9 +569,9 @@ data:
     identify_redis_master() {
     set +e
         if [ "$REDIS_PORT" -eq 0 ]; then
-            REDIS_MASTER=$(redis-cli  -p "${REDIS_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key info | grep master_host | sed 's/master_host://' | sed 's/\r//')
+            REDIS_MASTER=$(redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key info | grep master_host | sed 's/master_host://' | sed 's/\r//')
         else
-            REDIS_MASTER=$(redis-cli  -p "${REDIS_PORT}" info | grep master_host | sed 's/master_host://' | sed 's/\r//')
+            REDIS_MASTER=$(redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_PORT}" info | grep master_host | sed 's/master_host://' | sed 's/\r//')
         fi
     set -e
     }
@@ -584,27 +581,34 @@ data:
         sh /readonly-config/init.sh
 
         if [ "$REDIS_PORT" -eq 0 ]; then
-            echo "shutdown" | redis-cli  -p "${REDIS_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt --cert /tls-certs/redis.crt --key /tls-certs/redis.key
+            echo "shutdown" | redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_TLS_PORT}" --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key
         else
-            echo "shutdown" | redis-cli  -p "${REDIS_PORT}"
+            echo "shutdown" | redis-cli  -a "${AUTH}" --no-auth-warning -p "${REDIS_PORT}"
         fi
     set -e
     }
 
     identify_announce_ip
 
+    while [ -z "${ANNOUNCE_IP}" ]; do
+        echo "Error: Could not resolve the announce ip for this pod."
+        sleep 30
+        identify_announce_ip
+    done
+
+    trap "exit 0" TERM
     while true; do
         sleep 60
 
         # where is redis master
         identify_master
 
-        if [ "$MASTER" == "$ANNOUNCE_IP" ]; then
+        if [ "$MASTER" = "$ANNOUNCE_IP" ]; then
             redis_role
             if [ "$ROLE" != "master" ]; then
                 reinit
             fi
-        else
+        elif [ "${MASTER}" ]; then
             identify_redis_master
             if [ "$REDIS_MASTER" != "$MASTER" ]; then
                 reinit
@@ -622,7 +626,7 @@ data:
       timeout check 2s
 
     listen health_check_http_url
-      bind [::]:8888 v4v6
+      bind :8888  
       mode http
       monitor-uri /healthz
       option      dontlognull
@@ -636,7 +640,6 @@ data:
       tcp-check send SENTINEL\ get-master-addr-by-name\ argocd\r\n
       tcp-check expect string REPLACE_ANNOUNCE0
       tcp-check send QUIT\r\n
-      tcp-check expect string +OK
       server R0 argocd-redis-ha-announce-0:26379 check inter 3s
       server R1 argocd-redis-ha-announce-1:26379 check inter 3s
       server R2 argocd-redis-ha-announce-2:26379 check inter 3s
@@ -650,7 +653,6 @@ data:
       tcp-check send SENTINEL\ get-master-addr-by-name\ argocd\r\n
       tcp-check expect string REPLACE_ANNOUNCE1
       tcp-check send QUIT\r\n
-      tcp-check expect string +OK
       server R0 argocd-redis-ha-announce-0:26379 check inter 3s
       server R1 argocd-redis-ha-announce-1:26379 check inter 3s
       server R2 argocd-redis-ha-announce-2:26379 check inter 3s
@@ -664,7 +666,6 @@ data:
       tcp-check send SENTINEL\ get-master-addr-by-name\ argocd\r\n
       tcp-check expect string REPLACE_ANNOUNCE2
       tcp-check send QUIT\r\n
-      tcp-check expect string +OK
       server R0 argocd-redis-ha-announce-0:26379 check inter 3s
       server R1 argocd-redis-ha-announce-1:26379 check inter 3s
       server R2 argocd-redis-ha-announce-2:26379 check inter 3s
@@ -672,13 +673,15 @@ data:
     # decide redis backend to use
     #master
     frontend ft_redis_master
-      bind [::]:6379 v4v6
+      bind :6379 
       use_backend bk_redis_master
     # Check all redis servers to see if they think they are master
     backend bk_redis_master
       mode tcp
       option tcp-check
       tcp-check connect
+      tcp-check send "AUTH ${AUTH}"\r\n
+      tcp-check expect string +OK
       tcp-check send PING\r\n
       tcp-check expect string +PONG
       tcp-check send info\ replication\r\n
@@ -691,6 +694,13 @@ data:
       server R1 argocd-redis-ha-announce-1:6379 check inter 3s fall 1 rise 1
       use-server R2 if { srv_is_up(R2) } { nbsrv(check_if_redis_is_master_2) ge 2 }
       server R2 argocd-redis-ha-announce-2:6379 check inter 3s fall 1 rise 1
+    frontend stats
+      mode http
+      bind :9101 
+      http-request use-service prometheus-exporter if { path /metrics }
+      stats enable
+      stats uri /stats
+      stats refresh 10s
   haproxy_init.sh: |
     HAPROXY_CONF=/data/haproxy.cfg
     cp /readonly/haproxy.cfg "$HAPROXY_CONF"
@@ -728,6 +738,7 @@ data:
     get_redis_role() {
       is_master=$(
         redis-cli \
+          -a "${AUTH}" --no-auth-warning \
           -h localhost \
           -p 6379 \
           info | grep -c 'role:master' || true
@@ -764,12 +775,13 @@ metadata:
   labels:
     heritage: Helm
     release: argocd
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.26.6
     app: argocd-redis-ha
 data:
   redis_liveness.sh: |
     response=$(
       redis-cli \
+        -a "${AUTH}" --no-auth-warning \
         -h localhost \
         -p 6379 \
         ping
@@ -782,6 +794,7 @@ data:
   redis_readiness.sh: |
     response=$(
       redis-cli \
+        -a "${AUTH}" --no-auth-warning \
         -h localhost \
         -p 6379 \
         ping
@@ -814,7 +827,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.26.6
 rules:
 - apiGroups:
     - ""
@@ -833,7 +846,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.26.6
     component: argocd-redis-ha-haproxy
 rules:
 - apiGroups:
@@ -853,7 +866,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.26.6
 subjects:
 - kind: ServiceAccount
   name: argocd-redis-ha
@@ -872,7 +885,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.26.6
     component: argocd-redis-ha-haproxy
 subjects:
 - kind: ServiceAccount
@@ -892,9 +905,8 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.26.6
   annotations:
-    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
   publishNotReadyAddresses: true
   type: ClusterIP
@@ -922,9 +934,8 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.26.6
   annotations:
-    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
   publishNotReadyAddresses: true
   type: ClusterIP
@@ -952,9 +963,8 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.26.6
   annotations:
-    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
   publishNotReadyAddresses: true
   type: ClusterIP
@@ -982,7 +992,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.26.6
   annotations:
 spec:
   type: ClusterIP
@@ -1010,7 +1020,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.26.6
     component: argocd-redis-ha-haproxy
   annotations:
 spec:
@@ -1020,6 +1030,10 @@ spec:
     port: 6379
     protocol: TCP
     targetPort: redis
+  - name: http-exporter-port
+    port: 9101
+    protocol: TCP
+    targetPort: metrics-port
   selector:
     release: argocd
     app: redis-ha-haproxy
@@ -1034,7 +1048,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.26.6
 spec:
   strategy:
     type: RollingUpdate
@@ -1050,13 +1064,19 @@ spec:
       labels:
         app: redis-ha-haproxy
         release: argocd
-        revision: "1"
       annotations:
-        checksum/config: 33967cee643b636d6e9a66e82b7f85814ceb8c55fba7a1d8af439ef056934e5c
+        prometheus.io/port: "9101"
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        checksum/config: e34e8124c38bcfd2f16e75620bbde30158686692b13bc449eecc44c51b207d54
     spec:
       # Needed when using unmodified rbac-setup.yml
       
       serviceAccountName: argocd-redis-ha-haproxy
+      securityContext: 
+        fsGroup: 99
+        runAsNonRoot: true
+        runAsUser: 99
       nodeSelector:
         {}
       tolerations:
@@ -1068,11 +1088,10 @@ spec:
                 matchLabels:
                   app: redis-ha-haproxy
                   release: argocd
-                  revision: "1"
               topologyKey: kubernetes.io/hostname
       initContainers:
       - name: config-init
-        image: haproxy:2.6.2-alpine
+        image: public.ecr.aws/docker/library/haproxy:2.6.17-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -1080,20 +1099,38 @@ spec:
         - sh
         args:
         - /readonly/haproxy_init.sh
+        securityContext: 
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
         volumeMounts:
         - name: config-volume
           mountPath: /readonly
           readOnly: true
         - name: data
           mountPath: /data
-      securityContext:
-        fsGroup: 1000
-        runAsNonRoot: true
-        runAsUser: 1000
       containers:
       - name: haproxy
-        image: haproxy:2.6.2-alpine
+        image: public.ecr.aws/docker/library/haproxy:2.6.17-alpine
         imagePullPolicy: IfNotPresent
+        securityContext: 
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        env:
+        - name: AUTH
+          valueFrom:
+            secretKeyRef:
+              name: argocd-redis
+              key: auth
         livenessProbe:
           httpGet:
             path: /healthz
@@ -1109,6 +1146,8 @@ spec:
         ports:
         - name: redis
           containerPort: 6379
+        - name: metrics-port
+          containerPort: 9101
         resources:
           {}
         volumeMounts:
@@ -1140,7 +1179,7 @@ metadata:
     app: redis-ha
     heritage: "Helm"
     release: "argocd"
-    chart: redis-ha-4.17.8
+    chart: redis-ha-4.26.6
   annotations:
     {}
 spec:
@@ -1156,7 +1195,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: 226aec192d2f29b5355769c9f1fbf093bf36c3a1e15b574b71fb8fe73fd37c05
+        checksum/init-config: 9d3c019a5ea1fd98ab5cde397d8eecd351da884f15e6ba346c607cb2446c2198
       labels:
         release: argocd
         app: redis-ha
@@ -1172,7 +1211,7 @@ spec:
                   release: argocd
                   argocd-redis-ha: replica
               topologyKey: kubernetes.io/hostname
-      securityContext:
+      securityContext: 
         fsGroup: 1000
         runAsNonRoot: true
         runAsUser: 1000
@@ -1180,7 +1219,7 @@ spec:
       automountServiceAccountToken: false
       initContainers:
       - name: config-init
-        image: redis:7.0.4-alpine
+        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         resources:
           {}
@@ -1188,6 +1227,15 @@ spec:
         - sh
         args:
         - /readonly-config/init.sh
+        securityContext: 
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault        
         env:
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
@@ -1195,6 +1243,11 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
+        - name: AUTH
+          valueFrom:
+            secretKeyRef:
+              name: argocd-redis
+              key: auth
         volumeMounts:
         - name: config
           mountPath: /readonly-config
@@ -1205,12 +1258,27 @@ spec:
 
       containers:
       - name: redis
-        image: redis:7.0.4-alpine
+        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         command:
-        - redis-server
+          - redis-server
         args:
-        - /data/conf/redis.conf
+          - /data/conf/redis.conf
+        securityContext: 
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault
+        env:
+        - name: AUTH
+          valueFrom:
+            secretKeyRef:
+              name: argocd-redis
+              key: auth
         livenessProbe:
           initialDelaySeconds: 30
           periodSeconds: 15
@@ -1253,12 +1321,27 @@ spec:
               - /bin/sh
               - /readonly-config/trigger-failover-if-master.sh
       - name: sentinel
-        image: redis:7.0.4-alpine
+        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         command:
           - redis-sentinel
         args:
           - /data/conf/sentinel.conf
+        securityContext: 
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault
+        env:
+        - name: AUTH
+          valueFrom:
+            secretKeyRef:
+              name: argocd-redis
+              key: auth
         livenessProbe:
           initialDelaySeconds: 30
           periodSeconds: 15
@@ -1295,12 +1378,21 @@ spec:
           {}
 
       - name: split-brain-fix
-        image: redis:7.0.4-alpine
+        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         command:
           - sh
         args:
           - /readonly-config/fix-split-brain.sh
+        securityContext: 
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          runAsUser: 1000
+          seccompProfile:
+            type: RuntimeDefault        
         env:
         - name: SENTINEL_ID_0
           value: 3c0d9c0320bb34888c2df5757c718ce6ca992ce6
@@ -1308,6 +1400,11 @@ spec:
           value: 40000915ab58c3fa8fd888fb8b24711944e6cbb4
         - name: SENTINEL_ID_2
           value: 2bbec7894d954a8af3bb54d13eaec53cb024e2ca
+        - name: AUTH
+          valueFrom:
+            secretKeyRef:
+              name: argocd-redis
+              key: auth
         resources:
           {}
         volumeMounts:

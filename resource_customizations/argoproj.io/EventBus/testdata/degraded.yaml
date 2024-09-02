@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: EventBus
+metadata:
+  name: test
+  namespace: eventbus-test
+spec:
+  jetstream:
+    replicas: 3
+    version: iwillfail
+status:
+  conditions:
+    - lastTransitionTime: null
+      status: 'True'
+      type: Configured
+    - lastTransitionTime: null
+      message: >-
+        failed to get jetstream version, err: unsupported version "iwillfail",
+        supported versions: "2.9.5,latest"
+      reason: JetStreamStatefulSetFailed
+      status: 'False'
+      type: Deployed

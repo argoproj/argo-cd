@@ -1,3 +1,4 @@
+/* eslint-disable no-prototype-builtins */
 import {AutocompleteField, Checkbox, DataLoader, DropDownMenu, FormField, HelpIcon, Select} from 'argo-ui';
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
@@ -10,10 +11,11 @@ import {ApplicationRetryOptions} from '../application-retry-options/application-
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import {SetFinalizerOnApplication} from './set-finalizer-on-application';
+import './application-create-panel.scss';
+import {getAppDefaultSource} from '../utils';
+import {debounce} from 'lodash-es';
 
 const jsonMergePatch = require('json-merge-patch');
-
-require('./application-create-panel.scss');
 
 const appTypes = new Array<{field: string; type: models.AppSourceType}>(
     {type: 'Helm', field: 'helm'},
@@ -39,6 +41,7 @@ const DEFAULT_APP: Partial<models.Application> = {
             repoURL: '',
             targetRevision: 'HEAD'
         },
+        sources: [],
         project: ''
     }
 };
@@ -80,16 +83,17 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
 });
 
 function normalizeAppSource(app: models.Application, type: string): boolean {
-    const repoType = (app.spec.source.hasOwnProperty('chart') && 'helm') || 'git';
+    const source = getAppDefaultSource(app);
+    const repoType = (source.hasOwnProperty('chart') && 'helm') || 'git';
     if (repoType !== type) {
         if (type === 'git') {
-            app.spec.source.path = app.spec.source.chart;
-            delete app.spec.source.chart;
-            app.spec.source.targetRevision = 'HEAD';
+            source.path = source.chart;
+            delete source.chart;
+            source.targetRevision = 'HEAD';
         } else {
-            app.spec.source.chart = app.spec.source.path;
-            delete app.spec.source.path;
-            app.spec.source.targetRevision = '';
+            source.chart = source.path;
+            delete source.path;
+            source.targetRevision = '';
         }
         return true;
     }
@@ -106,15 +110,29 @@ export const ApplicationCreatePanel = (props: {
     const [explicitPathType, setExplicitPathType] = React.useState<{path: string; type: models.AppSourceType}>(null);
     const [destFormat, setDestFormat] = React.useState('URL');
     const [retry, setRetry] = React.useState(false);
+    const app = deepMerge(DEFAULT_APP, props.app || {});
+    const debouncedOnAppChanged = debounce(props.onAppChanged, 800);
+
+    React.useEffect(() => {
+        if (app?.spec?.destination?.name && app.spec.destination.name !== '') {
+            setDestFormat('NAME');
+        } else {
+            setDestFormat('URL');
+        }
+
+        return () => {
+            debouncedOnAppChanged.cancel();
+        };
+    }, [debouncedOnAppChanged]);
 
     function normalizeTypeFields(formApi: FormApi, type: models.AppSourceType) {
-        const app = formApi.getFormState().values;
+        const appToNormalize = formApi.getFormState().values;
         for (const item of appTypes) {
             if (item.type !== type) {
-                delete app.spec.source[item.field];
+                delete appToNormalize.spec.source[item.field];
             }
         }
-        formApi.setAllValues(app);
+        formApi.setAllValues(appToNormalize);
     }
 
     return (
@@ -130,7 +148,6 @@ export const ApplicationCreatePanel = (props: {
                 }>
                 {({projects, clusters, reposInfo}) => {
                     const repos = reposInfo.map(info => info.repo).sort();
-                    const app = deepMerge(DEFAULT_APP, props.app || {});
                     const repoInfo = reposInfo.find(info => info.repo === app.spec.source.repoURL);
                     if (repoInfo) {
                         normalizeAppSource(app, repoInfo.type || 'git');
@@ -170,7 +187,7 @@ export const ApplicationCreatePanel = (props: {
                                             'Cluster name is required'
                                     })}
                                     defaultValues={app}
-                                    formDidUpdate={state => props.onAppChanged(state.values as any)}
+                                    formDidUpdate={state => debouncedOnAppChanged(state.values as any)}
                                     onSubmit={props.createApp}
                                     getApi={props.getFormApi}>
                                     {api => {
@@ -209,7 +226,10 @@ export const ApplicationCreatePanel = (props: {
                                                         qeId='application-create-field-project'
                                                         field='spec.project'
                                                         component={AutocompleteField}
-                                                        componentProps={{items: projects}}
+                                                        componentProps={{
+                                                            items: projects,
+                                                            filterSuggestions: true
+                                                        }}
                                                     />
                                                 </div>
                                                 <div className='argo-form-row'>
@@ -431,7 +451,7 @@ export const ApplicationCreatePanel = (props: {
                                                 }}
                                                 load={async src => {
                                                     if (src.repoURL && src.targetRevision && (src.path || src.chart)) {
-                                                        return services.repos.appDetails(src, src.appName, app.spec.project).catch(() => ({
+                                                        return services.repos.appDetails(src, src.appName, app.spec.project, 0, 0).catch(() => ({
                                                             type: 'Directory',
                                                             details: {}
                                                         }));

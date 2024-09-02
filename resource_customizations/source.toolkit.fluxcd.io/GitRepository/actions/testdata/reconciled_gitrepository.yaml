@@ -1,0 +1,12 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: podinfo
+  namespace: default
+  annotations:
+    reconcile.fluxcd.io/requestedAt: 'By Argo CD at: 0001-01-01T00:00:00'
+spec:
+  interval: 5m
+  url: https://github.com/stefanprodan/podinfo
+  ref:
+    branch: master

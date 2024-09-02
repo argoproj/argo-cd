@@ -2,12 +2,15 @@ package apiclient
 
 import (
 	"context"
+	"math"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/env"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	log "github.com/sirupsen/logrus"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -15,10 +18,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
-const (
-	// MaxGRPCMessageSize contains max grpc message size
-	MaxGRPCMessageSize = 100 * 1024 * 1024
-)
+// MaxGRPCMessageSize contains max grpc message size
+var MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 100, 0, math.MaxInt32) * 1024 * 1024
 
 // Clientset represents config management plugin server api clients
 type Clientset interface {
@@ -47,8 +48,8 @@ func NewConnection(address string) (*grpc.ClientConn, error) {
 		grpc.WithStreamInterceptor(grpc_retry.StreamClientInterceptor(retryOpts...)),
 		grpc.WithUnaryInterceptor(grpc_middleware.ChainUnaryClient(unaryInterceptors...)),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(MaxGRPCMessageSize), grpc.MaxCallSendMsgSize(MaxGRPCMessageSize)),
-		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
-		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
+		grpc.WithUnaryInterceptor(grpc_util.OTELUnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(grpc_util.OTELStreamClientInterceptor()),
 	}
 
 	dialOpts = append(dialOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))

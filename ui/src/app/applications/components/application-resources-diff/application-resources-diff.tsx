@@ -8,7 +8,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {IndividualDiffSection} from './individual-diff-section';
 
-require('./application-resources-diff.scss');
+import './application-resources-diff.scss';
 
 export interface ApplicationResourcesDiffProps {
     states: models.ResourceDiff[];
@@ -20,8 +20,8 @@ export const ApplicationResourcesDiff = (props: ApplicationResourcesDiffProps) =
             const diffText = props.states
                 .map(state => {
                     return {
-                        a: state.normalizedLiveState ? jsYaml.safeDump(state.normalizedLiveState, {indent: 2}) : '',
-                        b: state.predictedLiveState ? jsYaml.safeDump(state.predictedLiveState, {indent: 2}) : '',
+                        a: state.normalizedLiveState ? jsYaml.dump(state.normalizedLiveState, {indent: 2}) : '',
+                        b: state.predictedLiveState ? jsYaml.dump(state.predictedLiveState, {indent: 2}) : '',
                         hook: state.hook,
                         // doubles as sort order
                         name: (state.group || '') + '/' + state.kind + '/' + (state.namespace ? state.namespace + '/' : '') + state.name

@@ -24,6 +24,8 @@ const (
 	username = "username"
 	// The name of the key storing the password in the secret
 	password = "password"
+	// The name of the project storing the project in the secret
+	project = "project"
 	// The name of the key storing the SSH private in the secret
 	sshPrivateKey = "sshPrivateKey"
 	// The name of the key storing the TLS client cert data in the secret
@@ -32,16 +34,18 @@ const (
 	tlsClientCertKey = "tlsClientCertKey"
 	// The name of the key storing the GitHub App private key in the secret
 	githubAppPrivateKey = "githubAppPrivateKey"
+	// The name of the key storing the service account to access Google Cloud Source repositories
+	gcpServiceAccountKey = "gcpServiceAccountKey"
 )
 
 // repositoryBackend defines the API for types that wish to provide interaction with repository storage
 type repositoryBackend interface {
 	CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error)
-	GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error)
+	GetRepository(ctx context.Context, repoURL, project string) (*appsv1.Repository, error)
 	ListRepositories(ctx context.Context, repoType *string) ([]*appsv1.Repository, error)
 	UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error)
-	DeleteRepository(ctx context.Context, repoURL string) error
-	RepositoryExists(ctx context.Context, repoURL string) (bool, error)
+	DeleteRepository(ctx context.Context, repoURL, project string) error
+	RepositoryExists(ctx context.Context, repoURL, project string, allowFallback bool) (bool, error)
 
 	CreateRepoCreds(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error)
 	GetRepoCreds(ctx context.Context, repoURL string) (*appsv1.RepoCreds, error)
@@ -57,11 +61,11 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 	secretBackend := db.repoBackend()
 	legacyBackend := db.legacyRepoBackend()
 
-	secretExists, err := secretBackend.RepositoryExists(ctx, r.Repo)
+	secretExists, err := secretBackend.RepositoryExists(ctx, r.Repo, r.Project, false)
 	if err != nil {
 		return nil, err
 	}
-	legacyExists, err := legacyBackend.RepositoryExists(ctx, r.Repo)
+	legacyExists, err := legacyBackend.RepositoryExists(ctx, r.Repo, r.Project, false)
 	if err != nil {
 		return nil, err
 	}
@@ -73,14 +77,14 @@ func (db *db) CreateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 	return secretBackend.CreateRepository(ctx, r)
 }
 
-func (db *db) GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
-	repository, err := db.getRepository(ctx, repoURL)
+func (db *db) GetRepository(ctx context.Context, repoURL, project string) (*appsv1.Repository, error) {
+	repository, err := db.getRepository(ctx, repoURL, project)
 	if err != nil {
-		return repository, err
+		return repository, fmt.Errorf("unable to get repository %q: %w", repoURL, err)
 	}
 
 	if err := db.enrichCredsToRepo(ctx, repository); err != nil {
-		return repository, err
+		return repository, fmt.Errorf("unable to enrich repository %q info with credentials: %w", repoURL, err)
 	}
 
 	return repository, err
@@ -106,32 +110,40 @@ func (db *db) GetProjectRepositories(ctx context.Context, project string) ([]*ap
 	return res, nil
 }
 
-func (db *db) RepositoryExists(ctx context.Context, repoURL string) (bool, error) {
+func (db *db) RepositoryExists(ctx context.Context, repoURL, project string) (bool, error) {
 	secretsBackend := db.repoBackend()
-	exists, err := secretsBackend.RepositoryExists(ctx, repoURL)
+	exists, err := secretsBackend.RepositoryExists(ctx, repoURL, project, true)
 	if exists || err != nil {
 		return exists, err
 	}
 
 	legacyBackend := db.legacyRepoBackend()
-	return legacyBackend.RepositoryExists(ctx, repoURL)
+	return legacyBackend.RepositoryExists(ctx, repoURL, project, true)
 }
 
-func (db *db) getRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
+func (db *db) getRepository(ctx context.Context, repoURL, project string) (*appsv1.Repository, error) {
 	secretsBackend := db.repoBackend()
-	exists, err := secretsBackend.RepositoryExists(ctx, repoURL)
+	exists, err := secretsBackend.RepositoryExists(ctx, repoURL, project, true)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to check if repository %q exists from secrets backend: %w", repoURL, err)
 	} else if exists {
-		return secretsBackend.GetRepository(ctx, repoURL)
+		repository, err := secretsBackend.GetRepository(ctx, repoURL, project)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get repository %q from secrets backend: %w", repoURL, err)
+		}
+		return repository, nil
 	}
 
 	legacyBackend := db.legacyRepoBackend()
-	exists, err = legacyBackend.RepositoryExists(ctx, repoURL)
+	exists, err = legacyBackend.RepositoryExists(ctx, repoURL, project, true)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to check if repository %q exists from legacy backend: %w", repoURL, err)
 	} else if exists {
-		return legacyBackend.GetRepository(ctx, repoURL)
+		repository, err := legacyBackend.GetRepository(ctx, repoURL, project)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get repository %q from legacy backend: %w", repoURL, err)
+		}
+		return repository, nil
 	}
 
 	return &appsv1.Repository{Repo: repoURL}, nil
@@ -166,7 +178,7 @@ func (db *db) listRepositories(ctx context.Context, repoType *string) ([]*appsv1
 // UpdateRepository updates a repository
 func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
 	secretsBackend := db.repoBackend()
-	exists, err := secretsBackend.RepositoryExists(ctx, r.Repo)
+	exists, err := secretsBackend.RepositoryExists(ctx, r.Repo, r.Project, false)
 	if err != nil {
 		return nil, err
 	} else if exists {
@@ -174,7 +186,7 @@ func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 	}
 
 	legacyBackend := db.legacyRepoBackend()
-	exists, err = legacyBackend.RepositoryExists(ctx, r.Repo)
+	exists, err = legacyBackend.RepositoryExists(ctx, r.Repo, r.Project, false)
 	if err != nil {
 		return nil, err
 	} else if exists {
@@ -184,21 +196,21 @@ func (db *db) UpdateRepository(ctx context.Context, r *appsv1.Repository) (*apps
 	return nil, status.Errorf(codes.NotFound, "repo '%s' not found", r.Repo)
 }
 
-func (db *db) DeleteRepository(ctx context.Context, repoURL string) error {
+func (db *db) DeleteRepository(ctx context.Context, repoURL, project string) error {
 	secretsBackend := db.repoBackend()
-	exists, err := secretsBackend.RepositoryExists(ctx, repoURL)
+	exists, err := secretsBackend.RepositoryExists(ctx, repoURL, project, false)
 	if err != nil {
 		return err
 	} else if exists {
-		return secretsBackend.DeleteRepository(ctx, repoURL)
+		return secretsBackend.DeleteRepository(ctx, repoURL, project)
 	}
 
 	legacyBackend := db.legacyRepoBackend()
-	exists, err = legacyBackend.RepositoryExists(ctx, repoURL)
+	exists, err = legacyBackend.RepositoryExists(ctx, repoURL, project, false)
 	if err != nil {
 		return err
 	} else if exists {
-		return legacyBackend.DeleteRepository(ctx, repoURL)
+		return legacyBackend.DeleteRepository(ctx, repoURL, project)
 	}
 
 	return status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
@@ -227,17 +239,25 @@ func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*ap
 	secretsBackend := db.repoBackend()
 	exists, err := secretsBackend.RepoCredsExists(ctx, repoURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to check if repository credentials for %q exists from secrets backend: %w", repoURL, err)
 	} else if exists {
-		return secretsBackend.GetRepoCreds(ctx, repoURL)
+		creds, err := secretsBackend.GetRepoCreds(ctx, repoURL)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get repository credentials for %q from secrets backend: %w", repoURL, err)
+		}
+		return creds, nil
 	}
 
 	legacyBackend := db.legacyRepoBackend()
 	exists, err = legacyBackend.RepoCredsExists(ctx, repoURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to check if repository credentials for %q exists from legacy backend: %w", repoURL, err)
 	} else if exists {
-		return legacyBackend.GetRepoCreds(ctx, repoURL)
+		creds, err := legacyBackend.GetRepoCreds(ctx, repoURL)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get repository credentials for %q from legacy backend: %w", repoURL, err)
+		}
+		return creds, nil
 	}
 
 	return nil, nil
@@ -250,12 +270,12 @@ func (db *db) GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appsv1.Re
 
 	secretRepoCreds, err := db.repoBackend().GetAllHelmRepoCreds(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get all Helm repo creds: %w", err)
 	}
 
 	legacyRepoCreds, err := db.legacyRepoBackend().GetAllHelmRepoCreds(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get all legacy Helm repo creds: %w", err)
 	}
 
 	return append(secretRepoCreds, legacyRepoCreds...), nil
@@ -266,11 +286,11 @@ func (db *db) CreateRepositoryCredentials(ctx context.Context, r *appsv1.RepoCre
 	legacyBackend := db.legacyRepoBackend()
 	secretBackend := db.repoBackend()
 
-	secretExists, err := secretBackend.RepositoryExists(ctx, r.URL)
+	secretExists, err := secretBackend.RepositoryExists(ctx, r.URL, "", false)
 	if err != nil {
 		return nil, err
 	}
-	legacyExists, err := legacyBackend.RepositoryExists(ctx, r.URL)
+	legacyExists, err := legacyBackend.RepositoryExists(ctx, r.URL, "", false)
 	if err != nil {
 		return nil, err
 	}
@@ -351,7 +371,7 @@ func (db *db) enrichCredsToRepo(ctx context.Context, repository *appsv1.Reposito
 				repository.InheritedCreds = true
 			}
 		} else {
-			return err
+			return fmt.Errorf("failed to get repository credentials for %q: %w", repository.Repo, err)
 		}
 	} else {
 		log.Debugf("%s has credentials", repository.Repo)
@@ -364,8 +384,9 @@ func (db *db) enrichCredsToRepo(ctx context.Context, repository *appsv1.Reposito
 // repositories are _imperatively_ created and need its credentials to be stored in a secret.
 // NOTE: this formula should not be considered stable and may change in future releases.
 // Do NOT rely on this formula as a means of secret lookup, only secret creation.
-func RepoURLToSecretName(prefix string, repo string) string {
+func RepoURLToSecretName(prefix string, repo string, project string) string {
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(repo))
+	_, _ = h.Write([]byte(project))
 	return fmt.Sprintf("%s-%v", prefix, h.Sum32())
 }

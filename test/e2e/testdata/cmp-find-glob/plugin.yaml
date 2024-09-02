@@ -12,5 +12,3 @@ spec:
     find:
       command: [sh, -c, find . -name kustomization.yaml]
       glob: "**/kustomization.yaml"
-  allowConcurrency: true
-  lockRepo: false

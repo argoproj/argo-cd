@@ -135,7 +135,7 @@ func ParseTLSCertificatesFromPath(sourceFile string) ([]string, error) {
 		if err = fileHandle.Close(); err != nil {
 			log.WithFields(log.Fields{
 				common.SecurityField:    common.SecurityMedium,
-				common.SecurityCWEField: 775,
+				common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
 			}).Errorf("error closing file %q: %v", fileHandle.Name(), err)
 		}
 	}()
@@ -199,7 +199,7 @@ func ParseSSHKnownHostsFromPath(sourceFile string) ([]string, error) {
 		if err = fileHandle.Close(); err != nil {
 			log.WithFields(log.Fields{
 				common.SecurityField:    common.SecurityMedium,
-				common.SecurityCWEField: 775,
+				common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
 			}).Errorf("error closing file %q: %v", fileHandle.Name(), err)
 		}
 	}()
@@ -271,8 +271,8 @@ func TokenizedDataToPublicKey(hostname string, subType string, rawKeyData string
 
 // Returns the requested pattern with all possible square brackets escaped
 func nonBracketedPattern(pattern string) string {
-	ret := strings.Replace(pattern, "[", `\[`, -1)
-	return strings.Replace(ret, "]", `\]`, -1)
+	ret := strings.ReplaceAll(pattern, "[", `\[`)
+	return strings.ReplaceAll(ret, "]", `\]`)
 }
 
 // We do not use full fledged regular expression for matching the hostname.

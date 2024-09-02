@@ -67,7 +67,6 @@ func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*se
 		fmt.Sprintf("%s:%s", q.Username, settings.AccountCapabilityLogin),
 		int64(argoCDSettings.UserSessionDuration.Seconds()),
 		uniqueId.String())
-
 	if err != nil {
 		return nil, err
 	}

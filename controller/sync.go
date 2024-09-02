@@ -2,12 +2,16 @@ package controller
 
 import (
 	"context"
-	"encoding/json"
+	goerrors "errors"
 	"fmt"
 	"os"
 	"strconv"
 	"sync/atomic"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
+
+	cdcommon "github.com/argoproj/argo-cd/v2/common"
 
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -18,9 +22,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/managedfields"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/kubectl/pkg/util/openapi"
 
-	cdcommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	listersv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -55,6 +59,27 @@ func (m *appStateManager) getGVKParser(server string) (*managedfields.GvkParser,
 	return cluster.GetGVKParser(), nil
 }
 
+// getResourceOperations will return the kubectl implementation of the ResourceOperations
+// interface that provides functionality to manage kubernetes resources. Returns a
+// cleanup function that must be called to remove the generated kube config for this
+// server.
+func (m *appStateManager) getResourceOperations(server string) (kube.ResourceOperations, func(), error) {
+	clusterCache, err := m.liveStateCache.GetClusterCache(server)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting cluster cache: %w", err)
+	}
+
+	cluster, err := m.db.GetCluster(context.Background(), server)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting cluster: %w", err)
+	}
+	ops, cleanup, err := m.kubectl.ManageResources(cluster.RawRestConfig(), clusterCache.GetOpenAPISchema())
+	if err != nil {
+		return nil, nil, fmt.Errorf("error creating kubectl ResourceOperations: %w", err)
+	}
+	return ops, cleanup, nil
+}
+
 func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha1.OperationState) {
 	// Sync requests might be requested with ambiguous revisions (e.g. master, HEAD, v1.2.3).
 	// This can change meaning when resuming operations (e.g a hook sync). After calculating a
@@ -65,6 +90,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	var syncOp v1alpha1.SyncOperation
 	var syncRes *v1alpha1.SyncOperationResult
 	var source v1alpha1.ApplicationSource
+	var sources []v1alpha1.ApplicationSource
+	revisions := make([]string, 0)
 
 	if state.Operation.Sync == nil {
 		state.Phase = common.OperationFailed
@@ -78,35 +105,61 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	if syncOp.SyncOptions.HasOption("FailOnSharedResource=true") &&
 		hasSharedResource {
 		state.Phase = common.OperationFailed
-		state.Message = fmt.Sprintf("Shared resouce found: %s", sharedResourceMessage)
+		state.Message = fmt.Sprintf("Shared resource found: %s", sharedResourceMessage)
 		return
 	}
 
-	if syncOp.Source == nil {
-		// normal sync case (where source is taken from app.spec.source)
-		source = app.Spec.Source
-	} else {
+	isMultiSourceRevision := app.Spec.HasMultipleSources()
+	rollback := len(syncOp.Sources) > 0 || syncOp.Source != nil
+	if rollback {
 		// rollback case
-		source = *state.Operation.Sync.Source
+		if len(state.Operation.Sync.Sources) > 0 {
+			sources = state.Operation.Sync.Sources
+			isMultiSourceRevision = true
+		} else {
+			source = *state.Operation.Sync.Source
+			sources = make([]v1alpha1.ApplicationSource, 0)
+			isMultiSourceRevision = false
+		}
+	} else {
+		// normal sync case (where source is taken from app.spec.sources)
+		if app.Spec.HasMultipleSources() {
+			sources = app.Spec.Sources
+		} else {
+			// normal sync case (where source is taken from app.spec.source)
+			source = app.Spec.GetSource()
+			sources = make([]v1alpha1.ApplicationSource, 0)
+		}
 	}
 
 	if state.SyncResult != nil {
 		syncRes = state.SyncResult
 		revision = state.SyncResult.Revision
+		revisions = append(revisions, state.SyncResult.Revisions...)
 	} else {
 		syncRes = &v1alpha1.SyncOperationResult{}
 		// status.operationState.syncResult.source. must be set properly since auto-sync relies
 		// on this information to decide if it should sync (if source is different than the last
 		// sync attempt)
-		syncRes.Source = source
+		if isMultiSourceRevision {
+			syncRes.Sources = sources
+		} else {
+			syncRes.Source = source
+		}
 		state.SyncResult = syncRes
 	}
 
-	if revision == "" {
-		// if we get here, it means we did not remember a commit SHA which we should be syncing to.
-		// This typically indicates we are just about to begin a brand new sync/rollback operation.
-		// Take the value in the requested operation. We will resolve this to a SHA later.
-		revision = syncOp.Revision
+	// if we get here, it means we did not remember a commit SHA which we should be syncing to.
+	// This typically indicates we are just about to begin a brand new sync/rollback operation.
+	// Take the value in the requested operation. We will resolve this to a SHA later.
+	if isMultiSourceRevision {
+		if len(revisions) != len(sources) {
+			revisions = syncOp.Revisions
+		}
+	} else {
+		if revision == "" {
+			revision = syncOp.Revision
+		}
 	}
 
 	proj, err := argo.GetAppProject(app, listersv1alpha1.NewAppProjectLister(m.projInformer.GetIndexer()), m.namespace, m.settingsMgr, m.db, context.TODO())
@@ -114,12 +167,31 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
 		return
+	} else if syncWindowPreventsSync(app, proj) {
+		// If the operation is currently running, simply let the user know the sync is blocked by a current sync window
+		if state.Phase == common.OperationRunning {
+			state.Message = "Sync operation blocked by sync window"
+		}
+		return
 	}
 
-	compareResult := m.CompareAppState(app, proj, revision, source, false, true, syncOp.Manifests)
+	if !isMultiSourceRevision {
+		sources = []v1alpha1.ApplicationSource{source}
+		revisions = []string{revision}
+	}
+
+	// ignore error if CompareStateRepoError, this shouldn't happen as noRevisionCache is true
+	compareResult, err := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, isMultiSourceRevision, rollback)
+	if err != nil && !goerrors.Is(err, CompareStateRepoError) {
+		state.Phase = common.OperationError
+		state.Message = err.Error()
+		return
+	}
 	// We now have a concrete commit SHA. Save this in the sync result revision so that we remember
 	// what we should be syncing to when resuming operations.
+
 	syncRes.Revision = compareResult.syncStatus.Revision
+	syncRes.Revisions = compareResult.syncStatus.Revisions
 
 	// If there are any comparison or spec errors error conditions do not perform the operation
 	if errConditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
@@ -212,14 +284,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
 
-	syncCtx, cleanup, err := sync.NewSyncContext(
-		compareResult.syncStatus.Revision,
-		reconciliationResult,
-		restConfig,
-		rawConfig,
-		m.kubectl,
-		app.Spec.Destination.Namespace,
-		openAPISchema,
+	opts := []sync.SyncOpt{
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
 		sync.WithPermissionValidator(func(un *unstructured.Unstructured, res *v1.APIResource) error {
@@ -230,7 +295,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 				permitted, err := proj.IsDestinationPermitted(v1alpha1.ApplicationDestination{Namespace: un.GetNamespace(), Server: app.Spec.Destination.Server, Name: app.Spec.Destination.Name}, func(project string) ([]*v1alpha1.Cluster, error) {
 					return m.db.GetProjectClusters(context.TODO(), project)
 				})
-
 				if err != nil {
 					return err
 				}
@@ -245,17 +309,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		sync.WithInitialState(state.Phase, state.Message, initialResourcesRes, state.StartedAt),
 		sync.WithResourcesFilter(func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool {
 			return (len(syncOp.Resources) == 0 ||
+				isPostDeleteHook(target) ||
 				argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)) &&
-				m.isSelfReferencedObj(live, appLabelKey, trackingMethod)
+				m.isSelfReferencedObj(live, target, app.GetName(), appLabelKey, trackingMethod)
 		}),
 		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
-		sync.WithNamespaceCreation(syncOp.SyncOptions.HasOption("CreateNamespace=true"), func(un *unstructured.Unstructured) bool {
-			if un != nil && kube.GetAppInstanceLabel(un, cdcommon.LabelKeyAppInstance) != "" {
-				kube.UnsetLabel(un, cdcommon.LabelKeyAppInstance)
-				return true
-			}
-			return false
-		}),
 		sync.WithSyncWaveHook(delayBetweenSyncWaves),
 		sync.WithPruneLast(syncOp.SyncOptions.HasOption(common.SyncOptionPruneLast)),
 		sync.WithResourceModificationChecker(syncOp.SyncOptions.HasOption("ApplyOutOfSyncOnly=true"), compareResult.diffResultList),
@@ -263,8 +321,22 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		sync.WithReplace(syncOp.SyncOptions.HasOption(common.SyncOptionReplace)),
 		sync.WithServerSideApply(syncOp.SyncOptions.HasOption(common.SyncOptionServerSideApply)),
 		sync.WithServerSideApplyManager(cdcommon.ArgoCDSSAManager),
-	)
+	}
 
+	if syncOp.SyncOptions.HasOption("CreateNamespace=true") {
+		opts = append(opts, sync.WithNamespaceModifier(syncNamespace(app.Spec.SyncPolicy)))
+	}
+
+	syncCtx, cleanup, err := sync.NewSyncContext(
+		compareResult.syncStatus.Revision,
+		reconciliationResult,
+		restConfig,
+		rawConfig,
+		m.kubectl,
+		app.Spec.Destination.Namespace,
+		openAPISchema,
+		opts...,
+	)
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("failed to initialize sync context: %v", err)
@@ -283,7 +355,29 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	var resState []common.ResourceSyncResult
 	state.Phase, state.Message, resState = syncCtx.GetState()
 	state.SyncResult.Resources = nil
+
+	if app.Spec.SyncPolicy != nil {
+		state.SyncResult.ManagedNamespaceMetadata = app.Spec.SyncPolicy.ManagedNamespaceMetadata
+	}
+
+	var apiVersion []kube.APIResourceInfo
 	for _, res := range resState {
+		augmentedMsg, err := argo.AugmentSyncMsg(res, func() ([]kube.APIResourceInfo, error) {
+			if apiVersion == nil {
+				_, apiVersion, err = m.liveStateCache.GetVersionsInfo(app.Spec.Destination.Server)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get version info from the target cluster %q", app.Spec.Destination.Server)
+				}
+			}
+			return apiVersion, nil
+		})
+
+		if err != nil {
+			log.Errorf("using the original message since: %v", err)
+		} else {
+			res.Message = augmentedMsg
+		}
+
 		state.SyncResult.Resources = append(state.SyncResult.Resources, &v1alpha1.ResourceResult{
 			HookType:  res.HookType,
 			Group:     res.ResourceKey.Group,
@@ -301,7 +395,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	logEntry.WithField("duration", time.Since(start)).Info("sync/terminate complete")
 
 	if !syncOp.DryRun && len(syncOp.Resources) == 0 && state.Phase.Successful() {
-		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, state.StartedAt)
+		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, isMultiSourceRevision, state.StartedAt, state.Operation.InitiatedBy)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)
@@ -309,11 +403,10 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 }
 
-// normalizeTargetResources will apply the diff normalization in all live and target resources.
-// Then it calculates the merge patch between the normalized live and the current live resources.
-// Finally it applies the merge patch in the normalized target resources. This is done to ensure
-// that target resources have the same ignored diff fields values from live ones to avoid them to
-// be applied in the cluster. Returns the list of normalized target resources.
+// normalizeTargetResources modifies target resources to ensure ignored fields are not touched during synchronization:
+//   - applies normalization to the target resources based on the live resources
+//   - copies ignored fields from the matching live resources: apply normalizer to the live resource,
+//     calculates the patch performed by normalizer and applies the patch to the target resource
 func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructured, error) {
 	// normalize live and target resources
 	normalized, err := diff.Normalize(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
@@ -332,94 +425,35 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 			patchedTargets = append(patchedTargets, originalTarget)
 			continue
 		}
-		// calculate targetPatch between normalized and target resource
-		targetPatch, err := getMergePatch(normalizedTarget, originalTarget)
+
+		var lookupPatchMeta *strategicpatch.PatchMetaFromStruct
+		versionedObject, err := scheme.Scheme.New(normalizedTarget.GroupVersionKind())
+		if err == nil {
+			meta, err := strategicpatch.NewPatchMetaFromStruct(versionedObject)
+			if err != nil {
+				return nil, err
+			}
+			lookupPatchMeta = &meta
+		}
+
+		livePatch, err := getMergePatch(normalized.Lives[idx], live, lookupPatchMeta)
 		if err != nil {
 			return nil, err
 		}
 
-		// check if there is a patch to apply. An empty patch is identified by a '{}' string.
-		if len(targetPatch) > 2 {
-			livePatch, err := getMergePatch(normalized.Lives[idx], live)
-			if err != nil {
-				return nil, err
-			}
-			// generate a minimal patch that uses the fields from targetPatch (template)
-			// with livePatch values
-			patch, err := compilePatch(targetPatch, livePatch)
-			if err != nil {
-				return nil, err
-			}
-			normalizedTarget, err = applyMergePatch(normalizedTarget, patch)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			// if there is no patch just use the original target
-			normalizedTarget = originalTarget
+		normalizedTarget, err = applyMergePatch(normalizedTarget, livePatch, versionedObject)
+		if err != nil {
+			return nil, err
 		}
+
 		patchedTargets = append(patchedTargets, normalizedTarget)
 	}
 	return patchedTargets, nil
 }
 
-// compilePatch will generate a patch using the fields from templatePatch with
-// the values from valuePatch.
-func compilePatch(templatePatch, valuePatch []byte) ([]byte, error) {
-	templateMap := make(map[string]interface{})
-	err := json.Unmarshal(templatePatch, &templateMap)
-	if err != nil {
-		return nil, err
-	}
-	valueMap := make(map[string]interface{})
-	err = json.Unmarshal(valuePatch, &valueMap)
-	if err != nil {
-		return nil, err
-	}
-	resultMap := intersectMap(templateMap, valueMap)
-	return json.Marshal(resultMap)
-}
-
-// intersectMap will return map with the fields intersection from the 2 provided
-// maps populated with the valueMap values.
-func intersectMap(templateMap, valueMap map[string]interface{}) map[string]interface{} {
-	result := make(map[string]interface{})
-	for k, v := range templateMap {
-		if innerTMap, ok := v.(map[string]interface{}); ok {
-			if innerVMap, ok := valueMap[k].(map[string]interface{}); ok {
-				result[k] = intersectMap(innerTMap, innerVMap)
-			}
-		} else if innerTSlice, ok := v.([]interface{}); ok {
-			if innerVSlice, ok := valueMap[k].([]interface{}); ok {
-				items := []interface{}{}
-				for idx, innerTSliceValue := range innerTSlice {
-					if idx < len(innerVSlice) {
-						if tSliceValueMap, ok := innerTSliceValue.(map[string]interface{}); ok {
-							if vSliceValueMap, ok := innerVSlice[idx].(map[string]interface{}); ok {
-								item := intersectMap(tSliceValueMap, vSliceValueMap)
-								items = append(items, item)
-							}
-						} else {
-							items = append(items, innerVSlice[idx])
-						}
-					}
-				}
-				if len(items) > 0 {
-					result[k] = items
-				}
-			}
-		} else {
-			if _, ok := valueMap[k]; ok {
-				result[k] = valueMap[k]
-			}
-		}
-	}
-	return result
-}
-
 // getMergePatch calculates and returns the patch between the original and the
 // modified unstructures.
-func getMergePatch(original, modified *unstructured.Unstructured) ([]byte, error) {
+func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMeta *strategicpatch.PatchMetaFromStruct) ([]byte, error) {
 	originalJSON, err := original.MarshalJSON()
 	if err != nil {
 		return nil, err
@@ -428,20 +462,30 @@ func getMergePatch(original, modified *unstructured.Unstructured) ([]byte, error
 	if err != nil {
 		return nil, err
 	}
+	if lookupPatchMeta != nil {
+		return strategicpatch.CreateThreeWayMergePatch(modifiedJSON, modifiedJSON, originalJSON, lookupPatchMeta, true)
+	}
+
 	return jsonpatch.CreateMergePatch(originalJSON, modifiedJSON)
 }
 
 // applyMergePatch will apply the given patch in the obj and return the patched
 // unstructure.
-func applyMergePatch(obj *unstructured.Unstructured, patch []byte) (*unstructured.Unstructured, error) {
+func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObject interface{}) (*unstructured.Unstructured, error) {
 	originalJSON, err := obj.MarshalJSON()
 	if err != nil {
 		return nil, err
 	}
-	patchedJSON, err := jsonpatch.MergePatch(originalJSON, patch)
+	var patchedJSON []byte
+	if versionedObject == nil {
+		patchedJSON, err = jsonpatch.MergePatch(originalJSON, patch)
+	} else {
+		patchedJSON, err = strategicpatch.StrategicMergePatch(originalJSON, patch, versionedObject)
+	}
 	if err != nil {
 		return nil, err
 	}
+
 	patchedObj := &unstructured.Unstructured{}
 	_, _, err = unstructured.UnstructuredJSONScheme.Decode(patchedJSON, nil, patchedObj)
 	if err != nil {
@@ -482,4 +526,13 @@ func delayBetweenSyncWaves(phase common.SyncPhase, wave int, finalWave bool) err
 		time.Sleep(duration)
 	}
 	return nil
+}
+
+func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject) bool {
+	window := proj.Spec.SyncWindows.Matches(app)
+	isManual := false
+	if app.Status.OperationState != nil {
+		isManual = !app.Status.OperationState.Operation.InitiatedBy.Automated
+	}
+	return !window.CanSync(isManual)
 }

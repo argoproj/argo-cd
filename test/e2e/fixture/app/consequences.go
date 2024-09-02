@@ -86,7 +86,8 @@ func (c *Consequences) resource(kind, name, namespace string) ResourceStatus {
 	}
 }
 
-func (c *Consequences) Timeout(timeout int) *Consequences {
-	c.timeout = timeout
+func (c *Consequences) AndCLIOutput(block func(output string, err error)) *Consequences {
+	c.context.t.Helper()
+	block(c.actions.lastOutput, c.actions.lastError)
 	return c
 }

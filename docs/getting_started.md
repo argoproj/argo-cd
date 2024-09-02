@@ -22,21 +22,26 @@ This will create a new namespace, `argocd`, where Argo CD services and applicati
     The installation manifests include `ClusterRoleBinding` resources that reference `argocd` namespace. If you are installing Argo CD into a different
     namespace then make sure to update the namespace reference.
 
-If you are not interested in UI, SSO, multi-cluster features then you can install [core](operator-manual/installation.md#core) Argo CD components only:
-
-```bash
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/core-install.yaml
-```
+!!! tip
+    If you are not interested in UI, SSO, and multi-cluster features, then you can install only the [core](operator-manual/core.md#installing) Argo CD components.
 
 This default installation will have a self-signed certificate and cannot be accessed without a bit of extra work.
 Do one of:
 
-* Follow the [instructions to configure a certificate](./operator-manual/tls.md) (and ensure that the client OS trusts it).
+* Follow the [instructions to configure a certificate](operator-manual/tls.md) (and ensure that the client OS trusts it).
 * Configure the client OS to trust the self signed certificate.
 * Use the --insecure flag on all Argo CD CLI operations in this guide.
 
+!!! note 
+    Default namespace for `kubectl` config must be set to `argocd`.
+    This is only needed for the following commands since the previous commands have -n argocd already:
+    `kubectl config set-context --current --namespace=argocd`
+    
+
 Use `argocd login --core` to [configure](./user-guide/commands/argocd_login.md) CLI access and skip steps 3-5.
+
+!!! note
+    This default installation for Redis is using password authentication. The Redis password is stored in Kubernetes secret `argocd-redis` with key `auth` in the namespace where Argo CD is installed.
 
 ## 2. Download Argo CD CLI
 
@@ -78,10 +83,10 @@ The API server can then be accessed using https://localhost:8080
 The initial password for the `admin` account is auto-generated and stored as
 clear text in the field `password` in a secret named `argocd-initial-admin-secret`
 in your Argo CD installation namespace. You can simply retrieve this password
-using `kubectl`:
+using the `argocd` CLI:
 
 ```bash
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
+argocd admin initial-password -n argocd
 ```
 
 !!! warning
@@ -123,12 +128,12 @@ for docker-desktop context, run:
 argocd cluster add docker-desktop
 ```
 
-The above command installs a ServiceAccount (`argocd-manager`), into the kube-system namespace of 
+The above command installs a ServiceAccount (`argocd-manager`), into the kube-system namespace of
 that kubectl context, and binds the service account to an admin-level ClusterRole. Argo CD uses this
 service account token to perform its management tasks (i.e. deploy/monitoring).
 
 !!! note
-    The rules of the `argocd-manager-role` role can be modified such that it only has `create`, `update`, `patch`, `delete` privileges to a limited set of namespaces, groups, kinds. 
+    The rules of the `argocd-manager-role` role can be modified such that it only has `create`, `update`, `patch`, `delete` privileges to a limited set of namespaces, groups, kinds.
     However `get`, `list`, `watch` privileges are required at the cluster-scope for Argo CD to function.
 
 ## 6. Create An Application From A Git Repository
@@ -212,6 +217,12 @@ events, and assessed health status.
 
 ### Syncing via UI
 
-![guestbook app](assets/guestbook-app.png)
-![view app](assets/guestbook-tree.png)
+On the Applications page, click on *Sync* button of the guestbook application:
 
+![guestbook app](assets/guestbook-app.png)
+
+A panel will be opened and then, click on *Synchronize* button.
+
+You can see more details by clicking at the guestbook application:
+
+![view app](assets/guestbook-tree.png)

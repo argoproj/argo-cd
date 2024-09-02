@@ -1,0 +1,123 @@
+version: 2
+
+project_name: argocd
+
+before:
+  hooks:
+    - go mod download
+    - make build-ui
+
+builds:
+  - id: argocd-cli
+    main: ./cmd
+    binary: argocd-{{ .Os}}-{{ .Arch}}
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -v
+    ldflags:
+      - -X github.com/argoproj/argo-cd/v2/common.version={{ .Version }}
+      - -X github.com/argoproj/argo-cd/v2/common.buildDate={{ .Date }}
+      - -X github.com/argoproj/argo-cd/v2/common.gitCommit={{ .FullCommit }}
+      - -X github.com/argoproj/argo-cd/v2/common.gitTreeState={{ .Env.GIT_TREE_STATE }}
+      - -X github.com/argoproj/argo-cd/v2/common.kubectlVersion={{ .Env.KUBECTL_VERSION }}
+      - -extldflags="-static"
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - s390x
+      - ppc64le
+    ignore:
+      - goos: darwin
+        goarch: s390x
+      - goos: darwin
+        goarch: ppc64le
+      - goos: windows
+        goarch: s390x
+      - goos: windows
+        goarch: ppc64le
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: argocd-archive
+    builds:
+    - argocd-cli
+    name_template: |-
+      {{ .ProjectName }}-{{ .Os }}-{{ .Arch }}
+    format: binary
+
+checksum:
+  name_template: 'cli_checksums.txt'
+  algorithm: sha256
+
+release:
+  prerelease: auto
+  draft: false
+  header: |
+    ## Quick Start
+
+    ### Non-HA:
+
+    ```shell
+    kubectl create namespace argocd
+    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/{{.Tag}}/manifests/install.yaml
+    ```
+
+    ### HA:
+
+    ```shell
+    kubectl create namespace argocd
+    kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/{{.Tag}}/manifests/ha/install.yaml
+    ```
+
+    ## Release Signatures and Provenance
+
+    All Argo CD container images are signed by cosign.  A Provenance is generated for container images and CLI binaries which meet the SLSA Level 3 specifications. See the [documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/signed-release-assets) on how to verify.
+
+
+    ## Upgrading
+
+    If upgrading from a different minor version, be sure to read the [upgrading](https://argo-cd.readthedocs.io/en/stable/operator-manual/upgrading/overview/) documentation.
+  footer: |
+    **Full Changelog**: https://github.com/argoproj/argo-cd/compare/{{ .PreviousTag }}...{{ .Tag }}
+    
+    <a href="https://argoproj.github.io/cd/"><img src="https://raw.githubusercontent.com/argoproj/argo-site/master/content/pages/cd/gitops-cd.png" width="25%" ></a>
+
+
+snapshot: #### To be removed for PR
+  name_template: "2.6.0"
+
+changelog:
+  use:
+    github
+  sort: asc
+  abbrev: 0
+  groups: # Regex use RE2 syntax as defined here: https://github.com/google/re2/wiki/Syntax.
+    - title: 'Features'
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 100
+    - title: 'Bug fixes'
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 200
+    - title: 'Documentation'
+      regexp: '^.*?docs(\([[:word:]]+\))??!?:.+$'
+      order: 300
+    - title: 'Dependency updates'
+      regexp: '^.*?(feat|fix|chore)\(deps?.+\)!?:.+$'
+      order: 400
+    - title: 'Other work'
+      order: 999
+  filters:
+    exclude:
+      - '^test:'
+      - '^.*?Bump(\([[:word:]]+\))?.+$'
+      - '^.*?\[Bot\](\([[:word:]]+\))?.+$'
+
+
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+

@@ -12,7 +12,7 @@ Follow the [register app](https://auth0.com/docs/dashboard/guides/applications/r
 * Take note of the _clientId_ and _clientSecret_ values.
 * Register login url as https://your.argoingress.address/login
 * Set allowed callback url to https://your.argoingress.address/auth/callback
-* Under connections, select the user-registries you want to use with argo
+* Under connections, select the user-registries you want to use with argo.
 
 Any other settings are non-essential for the authentication to work.
 
@@ -39,6 +39,7 @@ data:
     issuer: https://<yourtenant>.<eu|us>.auth0.com/
     clientID: <theClientId>
     clientSecret: <theClientSecret>
+    domain_hint: <theDomainHint>
     requestedScopes:
     - openid
     - profile
@@ -70,4 +71,4 @@ data:
 <br>
 
 !!! note "Storing Client Secrets"
-    Details on storing your clientSecret securely and correctly can be found on the [User Management Overview page](../../user-management/#sensitive-data-and-sso-client-secrets).
+    Details on storing your clientSecret securely and correctly can be found on the [User Management Overview page](index.md#sensitive-data-and-sso-client-secrets).

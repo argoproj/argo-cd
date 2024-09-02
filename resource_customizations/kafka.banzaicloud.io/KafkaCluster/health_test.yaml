@@ -8,6 +8,10 @@ tests:
     message: "Waiting for KafkaCluster"
   inputPath: testdata/updating.yaml
 - healthStatus:
+    status: Progressing
+    message: "Kafka Cluster is Rolling Upgrading."
+  inputPath: testdata/rollingUpgrade.yaml
+- healthStatus:
     status: Degraded
     message: "Broker Config is out of Sync or CruiseControlState is not Ready"
   inputPath: testdata/degraded.yaml

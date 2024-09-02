@@ -60,13 +60,23 @@ To ignore fields owned by specific managers defined in your live resources:
 ```yaml
 spec:
   ignoreDifferences:
-  - group: *
-    kind: *
+  - group: "*"
+    kind: "*"
     managedFieldsManagers:
     - kube-controller-manager
 ```
 
 The above configuration will ignore differences from all fields owned by `kube-controller-manager` for all resources belonging to this application.
+
+If you have a slash `/` in your pointer path, you need to replace it with the `~1` character. For example:
+
+```yaml
+spec:
+  ignoreDifferences:
+  - kind: Node
+    jsonPointers: 
+    - /metadata/labels/node-role.kubernetes.io~1worker
+```
 
 ## System-Level Configuration
 
@@ -81,7 +91,7 @@ data:
     - '.webhooks[]?.clientConfig.caBundle'
 ```
 
-Resource customization can also be configured to ignore all differences made by a managedField.manager at the system level. The example bellow shows how to configure Argo CD to ignore changes made by `kube-controller-manager` in `Deployment` resources.
+Resource customization can also be configured to ignore all differences made by a managedField.manager at the system level. The example below shows how to configure Argo CD to ignore changes made by `kube-controller-manager` in `Deployment` resources.
 
 ```yaml
 data:
@@ -90,7 +100,7 @@ data:
     - kube-controller-manager
 ```
 
-It is possible to configure ignoreDifferences to be applied to all resources in every Application managed by an Argo CD instance. In order to do so, resource customizations can be configured like in the example bellow:
+It is possible to configure ignoreDifferences to be applied to all resources in every Application managed by an Argo CD instance. In order to do so, resource customizations can be configured like in the example below:
 
 ```yaml
 data:
@@ -172,4 +182,20 @@ data:
       type: core/v1/PodSpec
 ```
 
-The list of supported Kubernetes types is available in [diffing_known_types.txt](https://raw.githubusercontent.com/argoproj/argo-cd/master/util/argo/normalizers/diffing_known_types.txt)
+The list of supported Kubernetes types is available in [diffing_known_types.txt](https://raw.githubusercontent.com/argoproj/argo-cd/master/util/argo/normalizers/diffing_known_types.txt) and additionally:
+
+* `core/Quantity`
+* `meta/v1/duration`
+
+
+### JQ Path expression timeout
+
+By default, the evaluation of a JQPathExpression is limited to one second. If you encounter a "JQ patch execution timed out" error message due to a complex JQPathExpression that requires more time to evaluate, you can extend the timeout period by configuring the `ignore.normalizer.jq.timeout` setting within the `argocd-cmd-params-cm` ConfigMap.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  ignore.normalizer.jq.timeout: "5s"

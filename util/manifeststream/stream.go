@@ -5,15 +5,17 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+
+	log "github.com/sirupsen/logrus"
 
 	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/argoproj/argo-cd/v2/util/tgzstream"
-	log "github.com/sirupsen/logrus"
 )
 
 // Defines the contract for the application sender, i.e. the CLI
@@ -39,11 +41,11 @@ type RepoStreamReceiver interface {
 // SendApplicationManifestQueryWithFiles compresses a folder and sends it over the stream
 func SendApplicationManifestQueryWithFiles(ctx context.Context, stream ApplicationStreamSender, appName string, appNs string, dir string, inclusions []string) error {
 	f, filesWritten, checksum, err := tgzstream.CompressFiles(dir, inclusions, nil)
-	if filesWritten == 0 {
-		return fmt.Errorf("no files to send")
-	}
 	if err != nil {
 		return fmt.Errorf("failed to compress files: %w", err)
+	}
+	if filesWritten == 0 {
+		return fmt.Errorf("no files to send")
 	}
 
 	err = stream.Send(&applicationpkg.ApplicationManifestQueryWithFilesWrapper{
@@ -116,7 +118,6 @@ func SendRepoStream(repoStream RepoStreamSender, appStream ApplicationStreamRece
 			Request: req,
 		},
 	})
-
 	if err != nil {
 		return fmt.Errorf("error sending request: %w", err)
 	}
@@ -128,7 +129,6 @@ func SendRepoStream(repoStream RepoStreamSender, appStream ApplicationStreamRece
 			},
 		},
 	})
-
 	if err != nil {
 		return fmt.Errorf("error sending metadata: %w", err)
 	}
@@ -136,7 +136,7 @@ func SendRepoStream(repoStream RepoStreamSender, appStream ApplicationStreamRece
 	for {
 		part, err := appStream.Recv()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return fmt.Errorf("stream Recv error: %w", err)
@@ -179,11 +179,11 @@ func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver,
 	}
 	metadata := header2.GetMetadata()
 
-	tgzFile, err := receiveFile(ctx, receiver, metadata.GetChecksum(), destDir, maxTarSize)
+	tgzFile, err := receiveFile(ctx, receiver, metadata.GetChecksum(), maxTarSize)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error receiving tgz file: %w", err)
 	}
-	err = files.Untgz(destDir, tgzFile, maxExtractedSize)
+	err = files.Untgz(destDir, tgzFile, maxExtractedSize, false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error decompressing tgz file: %w", err)
 	}
@@ -192,13 +192,12 @@ func ReceiveManifestFileStream(ctx context.Context, receiver RepoStreamReceiver,
 		log.Warnf("error removing the tgz file %q: %s", tgzFile.Name(), err)
 	}
 	return request, metadata, nil
-
 }
 
 // receiveFile will receive the file from the gRPC stream and save it in the dst folder.
 // Returns error if checksum doesn't match the one provided in the fileMetadata.
 // It is responsibility of the caller to close the returned file.
-func receiveFile(ctx context.Context, receiver RepoStreamReceiver, checksum, dst string, maxSize int64) (*os.File, error) {
+func receiveFile(ctx context.Context, receiver RepoStreamReceiver, checksum string, maxSize int64) (*os.File, error) {
 	hasher := sha256.New()
 	tmpDir, err := files.CreateTempDir("")
 	if err != nil {
@@ -217,7 +216,7 @@ func receiveFile(ctx context.Context, receiver RepoStreamReceiver, checksum, dst
 		}
 		req, err := receiver.Recv()
 		if err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return nil, fmt.Errorf("stream Recv error: %w", err)

@@ -11,6 +11,7 @@ import {Context} from '../../../shared/context';
 import {ErrorNotification, NotificationType} from 'argo-ui';
 export interface PodTerminalViewerProps {
     applicationName: string;
+    applicationNamespace: string;
     projectName: string;
     selectedNode: models.ResourceNode;
     podState: models.State;
@@ -24,7 +25,15 @@ export interface ShellFrame {
     cols?: number;
 }
 
-export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({selectedNode, applicationName, projectName, podState, containerName, onClickContainer}) => {
+export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
+    selectedNode,
+    applicationName,
+    applicationNamespace,
+    projectName,
+    podState,
+    containerName,
+    onClickContainer
+}) => {
     const terminalRef = React.useRef(null);
     const appContext = React.useContext(Context); // used to show toast
     const fitAddon = new FitAddon();
@@ -63,7 +72,13 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({selectedNod
 
     const onConnectionMessage = (e: MessageEvent) => {
         const msg = JSON.parse(e.data);
-        connSubject.next(msg);
+        if (!msg?.Code) {
+            connSubject.next(msg);
+        } else {
+            // Do reconnect due to refresh token event
+            onConnectionClose();
+            setupConnection();
+        }
     };
 
     const onConnectionOpen = () => {
@@ -145,7 +160,7 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({selectedNod
         webSocket = new WebSocket(
             `${
                 location.protocol === 'https:' ? 'wss' : 'ws'
-            }://${url}/terminal?pod=${name}&container=${containerName}&appName=${applicationName}&projectName=${projectName}&namespace=${namespace}`
+            }://${url}/terminal?pod=${name}&container=${containerName}&appName=${applicationName}&appNamespace=${applicationNamespace}&projectName=${projectName}&namespace=${namespace}`
         );
         webSocket.onopen = onConnectionOpen;
         webSocket.onclose = onConnectionClose;
@@ -232,7 +247,7 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({selectedNod
                                         onClickContainer(group, i, 'exec');
                                     }
                                 }}>
-                                {container.name === containerName && <i className='fa fa-angle-right' />}
+                                {container.name === containerName && <i className='fa fa-angle-right negative-space-arrow' />}
                                 <span title={container.name}>{container.name}</span>
                             </div>
                         ))}

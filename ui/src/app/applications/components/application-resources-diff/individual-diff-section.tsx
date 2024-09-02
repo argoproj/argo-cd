@@ -3,7 +3,7 @@ import {useState} from 'react';
 import {Diff, Hunk} from 'react-diff-view';
 import 'react-diff-view/style/index.css';
 
-require('./application-resources-diff.scss');
+import './application-resources-diff.scss';
 
 export interface IndividualDiffSectionProps {
     file: any;

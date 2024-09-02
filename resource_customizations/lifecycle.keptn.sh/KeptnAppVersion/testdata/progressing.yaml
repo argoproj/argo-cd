@@ -1,0 +1,93 @@
+apiVersion: lifecycle.keptn.sh/v1alpha2
+kind: KeptnAppVersion
+metadata:
+  annotations:
+    traceparent: 00-adc84f15413da737240dde75de2248fb-e3fcbc6fbdd05b1c-01
+  creationTimestamp: "2022-12-14T13:17:36Z"
+  generation: 1
+  name: podtato-head-0.1.1
+  namespace: podtato-kubectl
+  ownerReferences:
+    - apiVersion: lifecycle.keptn.sh/v1alpha2
+      blockOwnerDeletion: true
+      controller: true
+      kind: KeptnApp
+      name: podtato-head
+      uid: b0e9773a-3dc7-4639-a4bd-64c8bb3d33ab
+  resourceVersion: "226500"
+  uid: 9ae27184-c63d-4e50-bbc7-18e5e289e85c
+spec:
+  appName: podtato-head
+  preDeploymentEvaluations:
+    - app-pre-deploy-eval-2
+  revision: "1"
+  traceId:
+    traceparent: 00-ecdd1f5a7e1068ac9b0d044aa165ca4c-3777b2225e0d2dc3-01
+  version: 0.1.1
+  workloads:
+    - name: podtato-head-left-arm
+      version: 0.2.7
+    - name: podtato-head-left-leg
+      version: 0.2.7
+    - name: podtato-head-entry
+      version: 0.2.7
+    - name: podtato-head-right-arm
+      version: 0.1.0
+    - name: podtato-head-right-leg
+      version: 0.2.7
+    - name: podtato-head-hat
+      version: 0.1.0
+status:
+  currentPhase: Completed
+  endTime: "2022-12-14T13:19:06Z"
+  phaseTraceIDs:
+    "":
+      traceparent: 00-ecdd1f5a7e1068ac9b0d044aa165ca4c-d566f50faad914b0-01
+    AppDeploy:
+      traceparent: 00-ecdd1f5a7e1068ac9b0d044aa165ca4c-0ae50f2d844888ab-01
+    AppPostDeployEvaluations:
+      traceparent: 00-ecdd1f5a7e1068ac9b0d044aa165ca4c-f3dd12be90fc6c55-01
+    AppPostDeployTasks:
+      traceparent: 00-ecdd1f5a7e1068ac9b0d044aa165ca4c-0ebcfa51b9b3a08b-01
+    AppPreDeployEvaluations:
+      traceparent: 00-ecdd1f5a7e1068ac9b0d044aa165ca4c-b5838bedd1703826-01
+    AppPreDeployTasks:
+      traceparent: 00-ecdd1f5a7e1068ac9b0d044aa165ca4c-b1c3977a55236160-01
+  postDeploymentEvaluationStatus: Succeeded
+  postDeploymentStatus: Succeeded
+  preDeploymentEvaluationStatus: Succeeded
+  preDeploymentEvaluationTaskStatus:
+    - endTime: "2022-12-14T13:17:41Z"
+      evaluationDefinitionName: app-pre-deploy-eval-2
+      evaluationName: pre-eval-app-pre-deploy-eval-2-48925
+      startTime: "2022-12-14T13:17:36Z"
+      status: Succeeded
+  preDeploymentStatus: Succeeded
+  startTime: "2022-12-14T13:17:36Z"
+  status: Progressing
+  workloadOverallStatus: Progressing
+  workloadStatus:
+    - status: Progressing
+      workload:
+        name: podtato-head-left-arm
+        version: 0.2.7
+    - status: Succeeded
+      workload:
+        name: podtato-head-left-leg
+        version: 0.2.7
+    - status: Succeeded
+      workload:
+        name: podtato-head-entry
+        version: 0.2.7
+    - status: Succeeded
+      workload:
+        name: podtato-head-right-arm
+        version: 0.1.0
+    - status: Succeeded
+      workload:
+        name: podtato-head-right-leg
+        version: 0.2.7
+    - status: Succeeded
+      workload:
+        name: podtato-head-hat
+        version: 0.1.0

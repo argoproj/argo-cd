@@ -1,7 +1,8 @@
-import {DropDownMenu, NotificationType, SlidingPanel} from 'argo-ui';
+import {DropDownMenu, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import * as models from '../../../shared/models';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
@@ -15,28 +16,36 @@ import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services
 import {ApplicationConditions} from '../application-conditions/application-conditions';
 import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
 import {ApplicationOperationState} from '../application-operation-state/application-operation-state';
-import {PodView} from '../application-pod-view/pod-view';
+import {PodGroupType, PodView} from '../application-pod-view/pod-view';
 import {ApplicationResourceTree, ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationStatusPanel} from '../application-status-panel/application-status-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
-import {Filters} from './application-resource-filter';
-import {urlPattern} from '../utils';
-import {ResourceStatus} from '../../../shared/models';
+import {Filters, FiltersProps} from './application-resource-filter';
+import {getAppDefaultSource, getAppCurrentVersion, urlPattern} from '../utils';
+import {ChartDetails, ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
+import {useSidebarTarget} from '../../../sidebar/sidebar';
 
-require('./application-details.scss');
+import './application-details.scss';
+import {TopBarActionMenuExt, AppViewExtension, StatusPanelExtension} from '../../../shared/services/extensions-service';
 
 interface ApplicationDetailsState {
     page: number;
-    revision?: string;
+    revision?: string; // Which type of revision panelto show SYNC_STATUS_REVISION or OPERATION_STATE_REVISION
     groupedResources?: ResourceStatus[];
     slidingPanelPage?: number;
     filteredGraph?: any[];
     truncateNameOnRight?: boolean;
     collapsedNodes?: string[];
+    extensions?: AppViewExtension[];
+    extensionsMap?: {[key: string]: AppViewExtension};
+    statusExtensions?: StatusPanelExtension[];
+    statusExtensionsMap?: {[key: string]: StatusPanelExtension};
+    topBarActionMenuExts?: TopBarActionMenuExt[];
+    topBarActionMenuExtsMap?: {[key: string]: TopBarActionMenuExt};
 }
 
 interface FilterInput {
@@ -46,6 +55,11 @@ interface FilterInput {
     sync: string[];
     namespace: string[];
 }
+
+const ApplicationDetailsFilters = (props: FiltersProps) => {
+    const sidebarTarget = useSidebarTarget();
+    return ReactDOM.createPortal(<Filters {...props} />, sidebarTarget?.current);
+};
 
 export const NodeInfo = (node?: string): {key: string; container: number} => {
     const nodeContainer = {key: '', container: 0};
@@ -72,7 +86,35 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
 
     constructor(props: RouteComponentProps<{appnamespace: string; name: string}>) {
         super(props);
-        this.state = {page: 0, groupedResources: [], slidingPanelPage: 0, filteredGraph: [], truncateNameOnRight: false, collapsedNodes: []};
+        const extensions = services.extensions.getAppViewExtensions();
+        const extensionsMap: {[key: string]: AppViewExtension} = {};
+        extensions.forEach(ext => {
+            extensionsMap[ext.title] = ext;
+        });
+        const statusExtensions = services.extensions.getStatusPanelExtensions();
+        const statusExtensionsMap: {[key: string]: StatusPanelExtension} = {};
+        statusExtensions.forEach(ext => {
+            statusExtensionsMap[ext.id] = ext;
+        });
+        const topBarActionMenuExts = services.extensions.getActionMenuExtensions();
+        const topBarActionMenuExtsMap: {[key: string]: TopBarActionMenuExt} = {};
+        topBarActionMenuExts.forEach(ext => {
+            topBarActionMenuExtsMap[ext.id] = ext;
+        });
+        this.state = {
+            page: 0,
+            groupedResources: [],
+            slidingPanelPage: 0,
+            filteredGraph: [],
+            truncateNameOnRight: false,
+            collapsedNodes: [],
+            extensions,
+            extensionsMap,
+            statusExtensions,
+            statusExtensionsMap,
+            topBarActionMenuExts,
+            topBarActionMenuExtsMap
+        };
         if (typeof this.props.match.params.appnamespace === 'undefined') {
             this.appNamespace = '';
         } else {
@@ -118,12 +160,17 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         return nodeContainer.key;
     }
 
+    private get selectedExtension() {
+        return new URLSearchParams(this.props.history.location.search).get('extension');
+    }
+
     private closeGroupedNodesPanel() {
         this.setState({groupedResources: []});
         this.setState({slidingPanelPage: 0});
     }
 
-    private toggleCompactView(pref: AppDetailsPreferences) {
+    private toggleCompactView(appName: string, pref: AppDetailsPreferences) {
+        pref.userHelpTipMsgs = pref.userHelpTipMsgs.map(usrMsg => (usrMsg.appName === appName && usrMsg.msgKey === 'groupNodes' ? {...usrMsg, display: true} : usrMsg));
         services.viewPreferences.updatePreferences({appDetails: {...pref, groupNodes: !pref.groupNodes}});
     }
 
@@ -142,6 +189,217 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         return '';
     }
 
+    private getContent(application: models.Application, source: models.ApplicationSource, revisions: string[], revision: string) {
+        const renderCommitMessage = (message: string) =>
+            message.split(/\s/).map(part =>
+                urlPattern.test(part) ? (
+                    <a href={part} target='_blank' rel='noopener noreferrer' style={{overflowWrap: 'anywhere', wordBreak: 'break-word'}}>
+                        {part}{' '}
+                    </a>
+                ) : (
+                    part + ' '
+                )
+            );
+
+        const getContentForChart = (
+            aRevision: string,
+            aSourceIndex: number | null,
+            aVersionId: number | null,
+            indx: number,
+            aSource: models.ApplicationSource,
+            sourceHeader?: JSX.Element
+        ) => {
+            const showChartNonMetadataInfo = (aRevision: string, aRepoUrl: string) => {
+                return (
+                    <>
+                        <div className='row white-box__details-row'>
+                            <div className='columns small-3'>Revision:</div>
+                            <div className='columns small-9'>{aRevision}</div>
+                        </div>
+                        <div className='row white-box__details-row'>
+                            <div className='columns small-3'>Chart Source:</div>
+                            <div className='columns small-9'>{aRepoUrl}</div>
+                        </div>
+                    </>
+                );
+            };
+            return (
+                <DataLoader
+                    key={indx}
+                    input={application}
+                    load={input => services.applications.revisionChartDetails(input.metadata.name, input.metadata.namespace, aRevision, aSourceIndex, aVersionId)}>
+                    {(m: ChartDetails) => {
+                        return m ? (
+                            <div className='white-box' style={{marginTop: '1.5em'}}>
+                                {sourceHeader && sourceHeader}
+                                <div className='white-box__details'>
+                                    {showChartNonMetadataInfo(aRevision, aSource.repoURL)}
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-3'>Helm Chart:</div>
+                                        <div className='columns small-9'>
+                                            {aSource.chart}&nbsp;
+                                            {m.home && (
+                                                <a
+                                                    title={m.home}
+                                                    onClick={e => {
+                                                        e.stopPropagation();
+                                                        window.open(m.home);
+                                                    }}>
+                                                    <i className='fa fa-external-link-alt' />
+                                                </a>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {m.description && (
+                                        <div className='row white-box__details-row'>
+                                            <div className='columns small-3'>Description:</div>
+                                            <div className='columns small-9'>{m.description}</div>
+                                        </div>
+                                    )}
+                                    {m.maintainers && m.maintainers.length > 0 && (
+                                        <div className='row white-box__details-row'>
+                                            <div className='columns small-3'>Maintainers:</div>
+                                            <div className='columns small-9'>{m.maintainers.join(', ')}</div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div key={indx} className='white-box' style={{marginTop: '1.5em'}}>
+                                <div>Source {indx + 1}</div>
+                                <div className='white-box__details'>
+                                    {showChartNonMetadataInfo(aRevision, aSource.repoURL)}
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-3'>Helm Chart:</div>
+                                        <div className='columns small-9'>
+                                            {aSource.chart}&nbsp;
+                                            {
+                                                <a
+                                                    title={sources[indx].chart}
+                                                    onClick={e => {
+                                                        e.stopPropagation();
+                                                        window.open(aSource.repoURL);
+                                                    }}>
+                                                    <i className='fa fa-external-link-alt' />
+                                                </a>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    }}
+                </DataLoader>
+            );
+        };
+
+        const getContentForNonChart = (
+            aRevision: string,
+            aSourceIndex: number,
+            aVersionId: number,
+            indx: number,
+            aSource: models.ApplicationSource,
+            sourceHeader?: JSX.Element
+        ) => {
+            const showNonMetadataInfo = (aSource: models.ApplicationSource, aRevision: string) => {
+                return (
+                    <>
+                        <div className='white-box__details'>
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-3'>SHA:</div>
+                                <div className='columns small-9'>
+                                    <Revision repoUrl={aSource.repoURL} revision={aRevision} />
+                                </div>
+                            </div>
+                        </div>
+                        <div className='white-box__details'>
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-3'>Source:</div>
+                                <div className='columns small-9'>{aSource.repoURL}</div>
+                            </div>
+                        </div>
+                    </>
+                );
+            };
+            return (
+                <DataLoader
+                    key={indx}
+                    load={() => services.applications.revisionMetadata(application.metadata.name, application.metadata.namespace, aRevision, aSourceIndex, aVersionId)}>
+                    {metadata =>
+                        metadata ? (
+                            <div key={indx} className='white-box' style={{marginTop: '1.5em'}}>
+                                {sourceHeader && sourceHeader}
+                                {showNonMetadataInfo(aSource, aRevision)}
+                                <div className='white-box__details'>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-3'>Date:</div>
+                                        <div className='columns small-9'>
+                                            <Timestamp date={metadata.date} />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className='white-box__details'>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-3'>Tags:</div>
+                                        <div className='columns small-9'>{((metadata.tags || []).length > 0 && metadata.tags.join(', ')) || 'No tags'}</div>
+                                    </div>
+                                </div>
+                                <div className='white-box__details'>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-3'>Author:</div>
+                                        <div className='columns small-9'>{metadata.author}</div>
+                                    </div>
+                                </div>
+                                <div className='white-box__details'>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-3'>Message:</div>
+                                        <div className='columns small-9' style={{display: 'flex', alignItems: 'center'}}>
+                                            <div className='application-details__commit-message'>{renderCommitMessage(metadata.message)}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div key={indx} className='white-box' style={{marginTop: '1.5em'}}>
+                                <div>Source {indx + 1}</div>
+                                {showNonMetadataInfo(aSource, aRevision)}
+                            </div>
+                        )
+                    }
+                </DataLoader>
+            );
+        };
+        const cont: JSX.Element[] = [];
+        const sources: models.ApplicationSource[] = application.spec.sources;
+        if (sources?.length > 0 && revisions) {
+            revisions.forEach((rev, indx) => {
+                if (sources[indx].chart) {
+                    cont.push(getContentForChart(rev, indx, getAppCurrentVersion(application), indx, sources[indx], <div>Source {indx + 1}</div>));
+                } else {
+                    cont.push(getContentForNonChart(rev, indx, getAppCurrentVersion(application), indx, sources[indx], <div>Source {indx + 1}</div>));
+                }
+            });
+            return <>{cont}</>;
+        } else if (application.spec.source) {
+            if (source.chart) {
+                cont.push(getContentForChart(revision, null, null, 0, source));
+            } else {
+                cont.push(getContentForNonChart(revision, null, getAppCurrentVersion(application), 0, source));
+            }
+            return <>{cont}</>;
+        } else {
+            return (
+                <div className='white-box' style={{marginTop: '1.5em'}}>
+                    <div className='white-box__details'>
+                        <div className='row white-box__details-row'>
+                            <div className='columns small-9'>No other information available</div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+    }
+
     public render() {
         return (
             <ObservableQuery>
@@ -151,8 +409,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                         loadingRenderer={() => <Page title='Application Details'>Loading...</Page>}
                         input={this.props.match.params.name}
                         load={name =>
-                            combineLatest([this.loadAppInfo(name, this.appNamespace), services.viewPreferences.getPreferences(), q]).pipe(
+                            combineLatest([this.loadAppInfo(name, this.props.match.params.appnamespace), services.viewPreferences.getPreferences(), q]).pipe(
                                 map(items => {
+                                    const application = items[0].application;
                                     const pref = items[1].appDetails;
                                     const params = items[2];
                                     if (params.get('resource') != null) {
@@ -163,9 +422,26 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                     }
                                     if (params.get('view') != null) {
                                         pref.view = params.get('view') as AppsDetailsViewType;
+                                    } else {
+                                        const appDefaultView = (application.metadata &&
+                                            application.metadata.annotations &&
+                                            application.metadata.annotations[appModels.AnnotationDefaultView]) as AppsDetailsViewType;
+                                        if (appDefaultView != null) {
+                                            pref.view = appDefaultView;
+                                        }
                                     }
                                     if (params.get('orphaned') != null) {
                                         pref.orphanedResources = params.get('orphaned') === 'true';
+                                    }
+                                    if (params.get('podSortMode') != null) {
+                                        pref.podView.sortMode = params.get('podSortMode') as PodGroupType;
+                                    } else {
+                                        const appDefaultPodSort = (application.metadata &&
+                                            application.metadata.annotations &&
+                                            application.metadata.annotations[appModels.AnnotationDefaultPodSort]) as PodGroupType;
+                                        if (appDefaultPodSort != null) {
+                                            pref.podView.sortMode = appDefaultPodSort;
+                                        }
                                     }
                                     return {...items[0], pref};
                                 })
@@ -188,7 +464,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             const conditions = application.status.conditions || [];
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
-
+                            const source = getAppDefaultSource(application);
+                            const showToolTip = pref?.userHelpTipMsgs.find(usrMsg => usrMsg.appName === application.metadata.name);
                             const resourceNodes = (): any[] => {
                                 const statusByKey = new Map<string, models.ResourceStatus>();
                                 application.status.resources.forEach(res => statusByKey.set(AppUtils.nodeKey(res), res));
@@ -204,6 +481,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                             resource.health = status.health;
                                             resource.status = status.status;
                                             resource.hook = status.hook;
+                                            resource.syncWave = status.syncWave;
                                             resource.requiresPruning = status.requiresPruning;
                                         }
                                         resources.set(node.uid || AppUtils.nodeKey(node), resource);
@@ -225,17 +503,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         : []
                                 });
                             };
-
-                            const renderCommitMessage = (message: string) =>
-                                message.split(/\s/).map(part =>
-                                    urlPattern.test(part) ? (
-                                        <a href={part} target='_blank' rel='noopener noreferrer' style={{overflowWrap: 'anywhere', wordBreak: 'break-word'}}>
-                                            {part}{' '}
-                                        </a>
-                                    ) : (
-                                        part + ' '
-                                    )
-                                );
                             const {Tree, Pods, Network, List} = AppsDetailsViewKey;
                             const zoomNum = (pref.zoom * 100).toFixed(0);
                             const setZoom = (s: number) => {
@@ -249,6 +516,17 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             };
                             const setFilterGraph = (filterGraph: any[]) => {
                                 this.setState({filteredGraph: filterGraph});
+                            };
+                            const setShowCompactNodes = (showCompactView: boolean) => {
+                                services.viewPreferences.updatePreferences({appDetails: {...pref, groupNodes: showCompactView}});
+                            };
+                            const updateHelpTipState = (usrHelpTip: models.UserMessages) => {
+                                const existingIndex = pref.userHelpTipMsgs.findIndex(msg => msg.appName === usrHelpTip.appName && msg.msgKey === usrHelpTip.msgKey);
+                                if (existingIndex !== -1) {
+                                    pref.userHelpTipMsgs[existingIndex] = usrHelpTip;
+                                } else {
+                                    (pref.userHelpTipMsgs || []).push(usrHelpTip);
+                                }
                             };
                             const toggleNameDirection = () => {
                                 this.setState({truncateNameOnRight: !this.state.truncateNameOnRight});
@@ -291,8 +569,18 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                     this.setState({collapsedNodes: collapsedNodesList});
                                 }
                             };
+                            const appFullName = AppUtils.nodeKey({
+                                group: 'argoproj.io',
+                                kind: application.kind,
+                                name: application.metadata.name,
+                                namespace: application.metadata.namespace
+                            });
+
+                            const activeStatusExt = this.state.statusExtensionsMap[this.selectedExtension];
+                            const activeTopBarActionMenuExt = this.state.topBarActionMenuExtsMap[this.selectedExtension];
+
                             return (
-                                <div className='application-details'>
+                                <div className={`application-details ${this.props.match.params.name}`}>
                                     <Page
                                         title={this.props.match.params.name + ' - ' + this.getPageTitle(pref.view)}
                                         useTitleOnly={true}
@@ -302,7 +590,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                 {title: 'Applications', path: '/applications'},
                                                 {title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />}
                                             ],
-                                            actionMenu: {items: this.getApplicationActionMenu(application, true)},
+                                            actionMenu: {
+                                                items: [
+                                                    ...this.getApplicationActionMenu(application, true),
+                                                    ...(this.state.topBarActionMenuExts
+                                                        ?.filter(ext => ext.shouldDisplay?.(application))
+                                                        .map(ext => this.renderActionMenuItem(ext, tree, application, this.setExtensionPanelVisible)) || [])
+                                                ]
+                                            },
                                             tools: (
                                                 <React.Fragment key='app-list-tools'>
                                                     <div className='application-details__view-type'>
@@ -338,164 +633,184 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                 services.viewPreferences.updatePreferences({appDetails: {...pref, view: List}});
                                                             }}
                                                         />
+                                                        {this.state.extensions &&
+                                                            (this.state.extensions || []).map(ext => (
+                                                                <i
+                                                                    key={ext.title}
+                                                                    className={classNames(`fa ${ext.icon}`, {selected: pref.view === ext.title})}
+                                                                    title={ext.title}
+                                                                    onClick={() => {
+                                                                        this.appContext.apis.navigation.goto('.', {view: ext.title});
+                                                                        services.viewPreferences.updatePreferences({appDetails: {...pref, view: ext.title}});
+                                                                    }}
+                                                                />
+                                                            ))}
                                                     </div>
                                                 </React.Fragment>
                                             )
                                         }}>
-                                        <div className='application-details__status-panel'>
-                                            <ApplicationStatusPanel
-                                                application={application}
-                                                showOperation={() => this.setOperationStatusVisible(true)}
-                                                showConditions={() => this.setConditionsStatusVisible(true)}
-                                                showMetadataInfo={revision => this.setState({...this.state, revision})}
-                                            />
-                                        </div>
-                                        <div className='application-details__tree'>
-                                            {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
-                                            {((pref.view === 'tree' || pref.view === 'network') && (
-                                                <Filters pref={pref} tree={tree} resourceNodes={this.state.filteredGraph} onSetFilter={setFilter} onClearFilter={clearFilter}>
-                                                    <div className='graph-options-panel'>
-                                                        <a
-                                                            className={`group-nodes-button`}
-                                                            onClick={() => {
-                                                                toggleNameDirection();
-                                                            }}
-                                                            title={this.state.truncateNameOnRight ? 'Truncate resource name right' : 'Truncate resource name left'}>
-                                                            <i
-                                                                className={classNames({
-                                                                    'fa fa-align-right': this.state.truncateNameOnRight,
-                                                                    'fa fa-align-left': !this.state.truncateNameOnRight
-                                                                })}
-                                                            />
-                                                        </a>
-                                                        {(pref.view === 'tree' || pref.view === 'network') && (
-                                                            <a
-                                                                className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
-                                                                title={pref.view === 'tree' ? 'Group Nodes' : 'Collapse Pods'}
-                                                                onClick={() => this.toggleCompactView(pref)}>
-                                                                <i className={classNames('fa fa-object-group fa-fw')} />
-                                                            </a>
-                                                        )}
-                                                        <span className={`separator`} />
-                                                        <a className={`group-nodes-button`} onClick={() => expandAll()} title='Expand all child nodes of all parent nodes'>
-                                                            <i className='fa fa-plus fa-fw' />
-                                                        </a>
-                                                        <a className={`group-nodes-button`} onClick={() => collapseAll()} title='Collapse all child nodes of all parent nodes'>
-                                                            <i className='fa fa-minus fa-fw' />
-                                                        </a>
-                                                        <span className={`separator`} />
-                                                        <a className={`group-nodes-button`} onClick={() => setZoom(0.1)} title='Zoom in'>
-                                                            <i className='fa fa-search-plus fa-fw' />
-                                                        </a>
-                                                        <a className={`group-nodes-button`} onClick={() => setZoom(-0.1)} title='Zoom out'>
-                                                            <i className='fa fa-search-minus fa-fw' />
-                                                        </a>
-                                                        <div className={`zoom-value`}>{zoomNum}%</div>
-                                                    </div>
-                                                    <ApplicationResourceTree
-                                                        nodeFilter={node => this.filterTreeNode(node, treeFilter)}
-                                                        selectedNodeFullName={this.selectedNodeKey}
-                                                        onNodeClick={fullName => this.selectNode(fullName)}
-                                                        nodeMenu={node =>
-                                                            AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
-                                                                this.getApplicationActionMenu(application, false)
-                                                            )
-                                                        }
-                                                        showCompactNodes={pref.groupNodes}
-                                                        tree={tree}
-                                                        app={application}
-                                                        showOrphanedResources={pref.orphanedResources}
-                                                        useNetworkingHierarchy={pref.view === 'network'}
-                                                        onClearFilter={clearFilter}
-                                                        onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
-                                                        zoom={pref.zoom}
-                                                        appContext={this.appContext}
-                                                        nameDirection={this.state.truncateNameOnRight}
-                                                        filters={pref.resourceFilter}
-                                                        setTreeFilterGraph={setFilterGraph}
-                                                        setNodeExpansion={(node, isExpanded) => this.setNodeExpansion(node, isExpanded)}
-                                                        getNodeExpansion={node => this.getNodeExpansion(node)}
-                                                    />
-                                                </Filters>
-                                            )) ||
-                                                (pref.view === 'pods' && (
-                                                    <PodView
-                                                        tree={tree}
-                                                        app={application}
-                                                        onItemClick={fullName => this.selectNode(fullName)}
-                                                        nodeMenu={node =>
-                                                            AppUtils.renderResourceMenu(node, application, tree, this.appContext, this.appChanged, () =>
-                                                                this.getApplicationActionMenu(application, false)
-                                                            )
-                                                        }
-                                                        quickStarts={node => AppUtils.renderResourceButtons(node, application, tree, this.appContext, this.appChanged)}
-                                                    />
-                                                )) || (
-                                                    <DataLoader
-                                                        input={{filteredRes: filteredRes.map(res => AppUtils.nodeKey(res))}}
-                                                        load={async () => {
-                                                            const liveStatePromises = filteredRes.map(async resource => {
-                                                                const resourceRow: any = {...resource, group: resource.group || ''};
-                                                                const liveState =
-                                                                    typeof resource.group !== 'undefined' &&
-                                                                    (await services.applications
-                                                                        .getResource(application.metadata.name, application.metadata.namespace, resource)
-                                                                        .catch(() => null));
-                                                                if (liveState?.metadata?.annotations?.[models.AnnotationHookKey]) {
-                                                                    resourceRow.syncOrder = liveState?.metadata.annotations[models.AnnotationHookKey];
-                                                                    if (liveState?.metadata?.annotations?.[models.AnnotationSyncWaveKey]) {
-                                                                        resourceRow.syncOrder =
-                                                                            resourceRow.syncOrder + ': ' + liveState?.metadata.annotations[models.AnnotationSyncWaveKey];
-                                                                    }
-                                                                } else {
-                                                                    resourceRow.syncOrder = '-';
-                                                                }
-                                                                return resourceRow;
-                                                            });
-                                                            return await Promise.all(liveStatePromises);
-                                                        }}>
-                                                        {(filteredResWithSyncInfo: any[]) => (
-                                                            <div>
-                                                                <Filters
+                                        <div className='application-details__wrapper'>
+                                            <div className='application-details__status-panel'>
+                                                <ApplicationStatusPanel
+                                                    application={application}
+                                                    showDiff={() => this.selectNode(appFullName, 0, 'diff')}
+                                                    showOperation={() => this.setOperationStatusVisible(true)}
+                                                    showConditions={() => this.setConditionsStatusVisible(true)}
+                                                    showExtension={id => this.setExtensionPanelVisible(id)}
+                                                    showMetadataInfo={revision => this.setState({...this.state, revision})}
+                                                />
+                                            </div>
+                                            <div className='application-details__tree'>
+                                                {refreshing && <p className='application-details__refreshing-label'>Refreshing</p>}
+                                                {((pref.view === 'tree' || pref.view === 'network') && (
+                                                    <>
+                                                        <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                            {viewPref => (
+                                                                <ApplicationDetailsFilters
                                                                     pref={pref}
                                                                     tree={tree}
-                                                                    resourceNodes={filteredResWithSyncInfo}
                                                                     onSetFilter={setFilter}
-                                                                    onClearFilter={clearFilter}>
-                                                                    {(filteredResWithSyncInfo.length > 0 && (
-                                                                        <Paginate
-                                                                            page={this.state.page}
-                                                                            data={filteredResWithSyncInfo}
-                                                                            onPageChange={page => this.setState({page})}
-                                                                            preferencesKey='application-details'>
-                                                                            {data => (
-                                                                                <ApplicationResourceList
-                                                                                    onNodeClick={fullName => this.selectNode(fullName)}
-                                                                                    resources={data}
-                                                                                    nodeMenu={node =>
-                                                                                        AppUtils.renderResourceMenu(
-                                                                                            {...node, root: node},
-                                                                                            application,
-                                                                                            tree,
-                                                                                            this.appContext,
-                                                                                            this.appChanged,
-                                                                                            () => this.getApplicationActionMenu(application, false)
-                                                                                        )
-                                                                                    }
-                                                                                />
-                                                                            )}
-                                                                        </Paginate>
-                                                                    )) || (
-                                                                        <EmptyState icon='fa fa-search'>
-                                                                            <h4>No resources found</h4>
-                                                                            <h5>Try to change filter criteria</h5>
-                                                                        </EmptyState>
+                                                                    onClearFilter={clearFilter}
+                                                                    collapsed={viewPref.hideSidebar}
+                                                                    resourceNodes={this.state.filteredGraph}
+                                                                />
+                                                            )}
+                                                        </DataLoader>
+                                                        <div className='graph-options-panel'>
+                                                            <a
+                                                                className={`group-nodes-button`}
+                                                                onClick={() => {
+                                                                    toggleNameDirection();
+                                                                }}
+                                                                title={this.state.truncateNameOnRight ? 'Truncate resource name right' : 'Truncate resource name left'}>
+                                                                <i
+                                                                    className={classNames({
+                                                                        'fa fa-align-right': this.state.truncateNameOnRight,
+                                                                        'fa fa-align-left': !this.state.truncateNameOnRight
+                                                                    })}
+                                                                />
+                                                            </a>
+                                                            {(pref.view === 'tree' || pref.view === 'network') && (
+                                                                <Tooltip
+                                                                    content={AppUtils.userMsgsList[showToolTip?.msgKey] || 'Group Nodes'}
+                                                                    visible={pref.groupNodes && showToolTip !== undefined && !showToolTip?.display}
+                                                                    duration={showToolTip?.duration}
+                                                                    zIndex={1}>
+                                                                    <a
+                                                                        className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
+                                                                        title={pref.view === 'tree' ? 'Group Nodes' : 'Collapse Pods'}
+                                                                        onClick={() => this.toggleCompactView(application.metadata.name, pref)}>
+                                                                        <i className={classNames('fa fa-object-group fa-fw')} />
+                                                                    </a>
+                                                                </Tooltip>
+                                                            )}
+
+                                                            <span className={`separator`} />
+                                                            <a className={`group-nodes-button`} onClick={() => expandAll()} title='Expand all child nodes of all parent nodes'>
+                                                                <i className='fa fa-plus fa-fw' />
+                                                            </a>
+                                                            <a className={`group-nodes-button`} onClick={() => collapseAll()} title='Collapse all child nodes of all parent nodes'>
+                                                                <i className='fa fa-minus fa-fw' />
+                                                            </a>
+                                                            <span className={`separator`} />
+                                                            <span>
+                                                                <a className={`group-nodes-button`} onClick={() => setZoom(0.1)} title='Zoom in'>
+                                                                    <i className='fa fa-search-plus fa-fw' />
+                                                                </a>
+                                                                <a className={`group-nodes-button`} onClick={() => setZoom(-0.1)} title='Zoom out'>
+                                                                    <i className='fa fa-search-minus fa-fw' />
+                                                                </a>
+                                                                <div className={`zoom-value`}>{zoomNum}%</div>
+                                                            </span>
+                                                        </div>
+                                                        <ApplicationResourceTree
+                                                            nodeFilter={node => this.filterTreeNode(node, treeFilter)}
+                                                            selectedNodeFullName={this.selectedNodeKey}
+                                                            onNodeClick={fullName => this.selectNode(fullName)}
+                                                            nodeMenu={node =>
+                                                                AppUtils.renderResourceMenu(node, application, tree, this.appContext.apis, this.appChanged, () =>
+                                                                    this.getApplicationActionMenu(application, false)
+                                                                )
+                                                            }
+                                                            showCompactNodes={pref.groupNodes}
+                                                            userMsgs={pref.userHelpTipMsgs}
+                                                            tree={tree}
+                                                            app={application}
+                                                            showOrphanedResources={pref.orphanedResources}
+                                                            useNetworkingHierarchy={pref.view === 'network'}
+                                                            onClearFilter={clearFilter}
+                                                            onGroupdNodeClick={groupdedNodeIds => openGroupNodeDetails(groupdedNodeIds)}
+                                                            zoom={pref.zoom}
+                                                            podGroupCount={pref.podGroupCount}
+                                                            appContext={this.appContext}
+                                                            nameDirection={this.state.truncateNameOnRight}
+                                                            filters={pref.resourceFilter}
+                                                            setTreeFilterGraph={setFilterGraph}
+                                                            updateUsrHelpTipMsgs={updateHelpTipState}
+                                                            setShowCompactNodes={setShowCompactNodes}
+                                                            setNodeExpansion={(node, isExpanded) => this.setNodeExpansion(node, isExpanded)}
+                                                            getNodeExpansion={node => this.getNodeExpansion(node)}
+                                                        />
+                                                    </>
+                                                )) ||
+                                                    (pref.view === 'pods' && (
+                                                        <PodView
+                                                            tree={tree}
+                                                            app={application}
+                                                            onItemClick={fullName => this.selectNode(fullName)}
+                                                            nodeMenu={node =>
+                                                                AppUtils.renderResourceMenu(node, application, tree, this.appContext.apis, this.appChanged, () =>
+                                                                    this.getApplicationActionMenu(application, false)
+                                                                )
+                                                            }
+                                                            quickStarts={node => AppUtils.renderResourceButtons(node, application, tree, this.appContext.apis, this.appChanged)}
+                                                        />
+                                                    )) ||
+                                                    (this.state.extensionsMap[pref.view] != null && (
+                                                        <ExtensionView extension={this.state.extensionsMap[pref.view]} application={application} tree={tree} />
+                                                    )) || (
+                                                        <div>
+                                                            <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                                {viewPref => (
+                                                                    <ApplicationDetailsFilters
+                                                                        pref={pref}
+                                                                        tree={tree}
+                                                                        onSetFilter={setFilter}
+                                                                        onClearFilter={clearFilter}
+                                                                        collapsed={viewPref.hideSidebar}
+                                                                        resourceNodes={filteredRes}
+                                                                    />
+                                                                )}
+                                                            </DataLoader>
+                                                            {(filteredRes.length > 0 && (
+                                                                <Paginate
+                                                                    page={this.state.page}
+                                                                    data={filteredRes}
+                                                                    onPageChange={page => this.setState({page})}
+                                                                    preferencesKey='application-details'>
+                                                                    {data => (
+                                                                        <ApplicationResourceList
+                                                                            pref={pref}
+                                                                            onNodeClick={fullName => this.selectNode(fullName)}
+                                                                            resources={data}
+                                                                            nodeMenu={node =>
+                                                                                AppUtils.renderResourceMenu(node, application, tree, this.appContext.apis, this.appChanged, () =>
+                                                                                    this.getApplicationActionMenu(application, false)
+                                                                                )
+                                                                            }
+                                                                            tree={tree}
+                                                                        />
                                                                     )}
-                                                                </Filters>
-                                                            </div>
-                                                        )}
-                                                    </DataLoader>
-                                                )}
+                                                                </Paginate>
+                                                            )) || (
+                                                                <EmptyState icon='fa fa-search'>
+                                                                    <h4>No resources found</h4>
+                                                                    <h5>Try to change filter criteria</h5>
+                                                                </EmptyState>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                            </div>
                                         </div>
                                         <SlidingPanel isShown={this.state.groupedResources.length > 0} onClose={() => this.closeGroupedNodesPanel()}>
                                             <div className='application-details__sliding-panel-pagination-wrap'>
@@ -506,13 +821,15 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     preferencesKey='grouped-nodes-details'>
                                                     {data => (
                                                         <ApplicationResourceList
+                                                            pref={pref}
                                                             onNodeClick={fullName => this.selectNode(fullName)}
                                                             resources={data}
                                                             nodeMenu={node =>
-                                                                AppUtils.renderResourceMenu({...node, root: node}, application, tree, this.appContext, this.appChanged, () =>
+                                                                AppUtils.renderResourceMenu(node, application, tree, this.appContext.apis, this.appChanged, () =>
                                                                     this.getApplicationActionMenu(application, false)
                                                                 )
                                                             }
+                                                            tree={tree}
                                                         />
                                                     )}
                                                 </Paginate>
@@ -530,7 +847,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         </SlidingPanel>
                                         <ApplicationSyncPanel
                                             application={application}
-                                            hide={() => AppUtils.showDeploy(null, this.appContext)}
+                                            hide={() => AppUtils.showDeploy(null, null, this.appContext.apis)}
                                             selectedResource={syncResourceKey}
                                         />
                                         <SlidingPanel isShown={this.selectedRollbackDeploymentIndex > -1} onClose={() => this.setRollbackPanelVisible(-1)}>
@@ -549,55 +866,33 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         <SlidingPanel isShown={this.showConditions && !!conditions} onClose={() => this.setConditionsStatusVisible(false)}>
                                             {conditions && <ApplicationConditions conditions={conditions} />}
                                         </SlidingPanel>
-                                        <SlidingPanel isShown={!!this.state.revision} isMiddle={true} onClose={() => this.setState({revision: null})}>
-                                            {this.state.revision && (
-                                                <DataLoader
-                                                    load={() =>
-                                                        services.applications.revisionMetadata(application.metadata.name, application.metadata.namespace, this.state.revision)
-                                                    }>
-                                                    {metadata => (
-                                                        <div className='white-box' style={{marginTop: '1.5em'}}>
-                                                            <div className='white-box__details'>
-                                                                <div className='row white-box__details-row'>
-                                                                    <div className='columns small-3'>SHA:</div>
-                                                                    <div className='columns small-9'>
-                                                                        <Revision repoUrl={application.spec.source.repoURL} revision={this.state.revision} />
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <div className='white-box__details'>
-                                                                <div className='row white-box__details-row'>
-                                                                    <div className='columns small-3'>Date:</div>
-                                                                    <div className='columns small-9'>
-                                                                        <Timestamp date={metadata.date} />
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <div className='white-box__details'>
-                                                                <div className='row white-box__details-row'>
-                                                                    <div className='columns small-3'>Tags:</div>
-                                                                    <div className='columns small-9'>
-                                                                        {((metadata.tags || []).length > 0 && metadata.tags.join(', ')) || 'No tags'}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <div className='white-box__details'>
-                                                                <div className='row white-box__details-row'>
-                                                                    <div className='columns small-3'>Author:</div>
-                                                                    <div className='columns small-9'>{metadata.author}</div>
-                                                                </div>
-                                                            </div>
-                                                            <div className='white-box__details'>
-                                                                <div className='row white-box__details-row'>
-                                                                    <div className='columns small-3'>Message:</div>
-                                                                    <div className='columns small-9' style={{display: 'flex', alignItems: 'center'}}>
-                                                                        <div className='application-details__commit-message'>{renderCommitMessage(metadata.message)}</div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </DataLoader>
+                                        <SlidingPanel
+                                            isShown={this.state.revision === 'SYNC_STATUS_REVISION' || this.state.revision === 'OPERATION_STATE_REVISION'}
+                                            isMiddle={true}
+                                            onClose={() => this.setState({revision: null})}>
+                                            {this.state.revision === 'SYNC_STATUS_REVISION' &&
+                                                (application.status.sync.revisions || application.status.sync.revision) &&
+                                                this.getContent(application, source, application.status.sync.revisions, application.status.sync.revision)}
+                                            {this.state.revision === 'OPERATION_STATE_REVISION' &&
+                                                (application.status.operationState.syncResult.revisions || application.status.operationState.syncResult.revision) &&
+                                                this.getContent(
+                                                    application,
+                                                    source,
+                                                    application.status.operationState.syncResult.revisions,
+                                                    application.status.operationState.syncResult.revision
+                                                )}
+                                        </SlidingPanel>
+                                        <SlidingPanel
+                                            isShown={this.selectedExtension !== '' && activeStatusExt != null && activeStatusExt.flyout != null}
+                                            onClose={() => this.setExtensionPanelVisible('')}>
+                                            {this.selectedExtension !== '' && activeStatusExt?.flyout && <activeStatusExt.flyout application={application} tree={tree} />}
+                                        </SlidingPanel>
+                                        <SlidingPanel
+                                            isMiddle={activeTopBarActionMenuExt?.isMiddle}
+                                            isShown={this.selectedExtension !== '' && activeTopBarActionMenuExt != null && activeTopBarActionMenuExt.flyout != null}
+                                            onClose={() => this.setExtensionPanelVisible('')}>
+                                            {this.selectedExtension !== '' && activeTopBarActionMenuExt?.flyout && (
+                                                <activeTopBarActionMenuExt.flyout application={application} tree={tree} />
                                             )}
                                         </SlidingPanel>
                                     </Page>
@@ -609,7 +904,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             </ObservableQuery>
         );
     }
-
+    private renderActionMenuItem(ext: TopBarActionMenuExt, tree: appModels.ApplicationTree, application: appModels.Application, showExtension?: (id: string) => any): any {
+        return {
+            action: () => this.setExtensionPanelVisible(ext.id),
+            title: <ext.component application={application} tree={tree} openFlyout={() => showExtension && showExtension(ext.id)} />,
+            iconClassName: ext.iconClassName
+        };
+    }
     private getApplicationActionMenu(app: appModels.Application, needOverlapLabelOnNarrowScreen: boolean) {
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
@@ -617,19 +918,19 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         return [
             {
                 iconClassName: 'fa fa-info-circle',
-                title: <ActionMenuItem actionLabel='App Details' />,
+                title: <ActionMenuItem actionLabel='Details' />,
                 action: () => this.selectNode(fullName)
             },
             {
                 iconClassName: 'fa fa-file-medical',
-                title: <ActionMenuItem actionLabel='App Diff' />,
+                title: <ActionMenuItem actionLabel='Diff' />,
                 action: () => this.selectNode(fullName, 0, 'diff'),
                 disabled: app.status.sync.status === appModels.SyncStatuses.Synced
             },
             {
                 iconClassName: 'fa fa-sync',
                 title: <ActionMenuItem actionLabel='Sync' />,
-                action: () => AppUtils.showDeploy('all', this.appContext)
+                action: () => AppUtils.showDeploy('all', null, this.appContext.apis)
             },
             {
                 iconClassName: 'fa fa-info-circle',
@@ -640,7 +941,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             {
                 iconClassName: 'fa fa-history',
                 title: <ActionMenuItem actionLabel='History and rollback' />,
-                action: () => this.setRollbackPanelVisible(0),
+                action: () => {
+                    this.setRollbackPanelVisible(0);
+                },
                 disabled: !app.status.operationState
             },
             {
@@ -682,7 +985,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         const root = node.root || ({} as ResourceTreeNode);
         const hook = root && root.hook;
         if (
-            (filterInput.name.length === 0 || filterInput.name.indexOf(node.name) > -1) &&
+            (filterInput.name.length === 0 || this.nodeNameMatchesWildcardFilters(node.name, filterInput.name)) &&
             (filterInput.kind.length === 0 || filterInput.kind.indexOf(node.kind) > -1) &&
             // include if node's root sync matches filter
             (syncStatuses.length === 0 || hook || (root.status && syncStatuses.indexOf(root.status) > -1)) &&
@@ -697,6 +1000,24 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         }
 
         return false;
+    }
+
+    private nodeNameMatchesWildcardFilters(nodeName: string, filterInputNames: string[]): boolean {
+        const regularExpression = new RegExp(
+            filterInputNames
+                // Escape any regex input to ensure only * can be used
+                .map(pattern => '^' + this.escapeRegex(pattern) + '$')
+                // Replace any escaped * with proper regex
+                .map(pattern => pattern.replace(/\\\*/g, '.*'))
+                // Join all filterInputs to a single regular expression
+                .join('|'),
+            'gi'
+        );
+        return regularExpression.test(nodeName);
+    }
+
+    private escapeRegex(input: string): string {
+        return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     private loadAppInfo(name: string, appNamespace: string): Observable<{application: appModels.Application; tree: appModels.ApplicationTree}> {
@@ -746,7 +1067,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
 
     private onAppDeleted() {
         this.appContext.apis.notifications.show({type: NotificationType.Success, content: `Application '${this.props.match.params.name}' was deleted`});
-        this.appContext.apis.navigation.goto('/applications', {view: 'tiles'});
+        this.appContext.apis.navigation.goto('/applications');
     }
 
     private async updateApp(app: appModels.Application, query: {validate?: boolean}) {
@@ -806,6 +1127,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         this.appContext.apis.navigation.goto('.', {rollback: selectedDeploymentIndex}, {replace: true});
     }
 
+    private setExtensionPanelVisible(selectedExtension = '') {
+        this.appContext.apis.navigation.goto('.', {extension: selectedExtension}, {replace: true});
+    }
+
     private selectNode(fullName: string, containerIndex = 0, tab: string = null) {
         SelectNode(fullName, containerIndex, tab, this.appContext.apis);
     }
@@ -846,3 +1171,8 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
         await AppUtils.deleteApplication(this.props.match.params.name, this.appNamespace, this.appContext.apis);
     }
 }
+
+const ExtensionView = (props: {extension: AppViewExtension; application: models.Application; tree: models.ApplicationTree}) => {
+    const {extension, application, tree} = props;
+    return <extension.component application={application} tree={tree} />;
+};

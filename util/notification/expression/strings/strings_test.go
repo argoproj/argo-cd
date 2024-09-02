@@ -58,5 +58,4 @@ func TestUpperAndLower(t *testing.T) {
 			assert.Equal(t, testCase.expected, actual)
 		})
 	}
-
 }

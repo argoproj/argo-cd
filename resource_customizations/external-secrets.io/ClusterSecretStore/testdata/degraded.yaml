@@ -1,0 +1,16 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ClusterSecretStore
+metadata:
+  name: secretmanager
+spec:
+  provider:
+    aws:
+      region: us-east-1
+      service: SecretsManager
+status:
+  conditions:
+  - lastTransitionTime: "2023-03-21T22:58:01Z"
+    message: unable to validate store
+    reason: ValidationFailed
+    status: "False"
+    type: Ready

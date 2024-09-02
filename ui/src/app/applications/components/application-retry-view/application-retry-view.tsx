@@ -1,7 +1,7 @@
 import * as React from 'react';
 import * as models from '../../../shared/models';
 
-require('./application-retry-view.scss');
+import './application-retry-view.scss';
 
 function buildRetryOptionView(label: string, data: string | number) {
     const result = data || 'not installed';
@@ -21,6 +21,6 @@ const retryOptionsView: Array<(initData: models.RetryStrategy) => React.ReactNod
 ];
 
 export const ApplicationRetryView = ({initValues}: {initValues?: models.RetryStrategy}) => {
-    const result = !initValues ? 'Retry disabled' : retryOptionsView.map((render, i) => render(initValues));
+    const result = !initValues ? 'Retry disabled' : retryOptionsView.map(render => render(initValues));
     return <div className='application-retry-option-view-list'>{result}</div>;
 };

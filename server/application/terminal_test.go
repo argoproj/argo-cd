@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/security"
 )
 
 func TestPodExists(t *testing.T) {
@@ -107,7 +109,7 @@ func TestIsValidPodName(t *testing.T) {
 		},
 	} {
 		t.Run(tcase.name, func(t *testing.T) {
-			result := isValidPodName(tcase.resourceName)
+			result := argo.IsValidPodName(tcase.resourceName)
 			if result != tcase.expectedResult {
 				t.Errorf("Expected result %v, but got %v", tcase.expectedResult, result)
 			}
@@ -138,7 +140,7 @@ func TestIsValidNamespaceName(t *testing.T) {
 		},
 	} {
 		t.Run(tcase.name, func(t *testing.T) {
-			result := isValidNamespaceName(tcase.resourceName)
+			result := argo.IsValidNamespaceName(tcase.resourceName)
 			if result != tcase.expectedResult {
 				t.Errorf("Expected result %v, but got %v", tcase.expectedResult, result)
 			}
@@ -169,7 +171,7 @@ func TestIsValidContainerNameName(t *testing.T) {
 		},
 	} {
 		t.Run(tcase.name, func(t *testing.T) {
-			result := isValidContainerName(tcase.resourceName)
+			result := argo.IsValidContainerName(tcase.resourceName)
 			if result != tcase.expectedResult {
 				t.Errorf("Expected result %v, but got %v", tcase.expectedResult, result)
 			}
@@ -195,24 +197,24 @@ func TestTerminalHandler_ServeHTTP_empty_params(t *testing.T) {
 		for _, testValue := range testValues {
 			testValueCopy := testValue
 
-			t.Run(testKeyCopy+ " " + testValueCopy, func(t *testing.T) {
+			t.Run(testKeyCopy+" "+testValueCopy, func(t *testing.T) {
 				t.Parallel()
 
 				handler := terminalHandler{}
 				params := map[string]string{
-					"pod": "valid",
+					"pod":       "valid",
 					"container": "valid",
-					"app": "valid",
-					"project": "valid",
+					"app":       "valid",
+					"project":   "valid",
 					"namespace": "valid",
 				}
 				params[testKeyCopy] = testValueCopy
 				var paramsArray []string
 				for key, value := range params {
-					paramsArray = append(paramsArray, key + "=" + value)
+					paramsArray = append(paramsArray, key+"="+value)
 				}
 				paramsString := strings.Join(paramsArray, "&")
-				request := httptest.NewRequest("GET", "https://argocd.example.com/api/v1/terminal?" + paramsString, nil)
+				request := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/api/v1/terminal?"+paramsString, nil)
 				recorder := httptest.NewRecorder()
 				handler.ServeHTTP(recorder, request)
 				response := recorder.Result()
@@ -220,4 +222,14 @@ func TestTerminalHandler_ServeHTTP_empty_params(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestTerminalHandler_ServeHTTP_disallowed_namespace(t *testing.T) {
+	handler := terminalHandler{namespace: "argocd", enabledNamespaces: []string{"allowed"}}
+	request := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/api/v1/terminal?pod=valid&container=valid&appName=valid&projectName=valid&namespace=test&appNamespace=disallowed", nil)
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+	response := recorder.Result()
+	assert.Equal(t, http.StatusForbidden, response.StatusCode)
+	assert.Equal(t, security.NamespaceNotPermittedError("disallowed").Error()+"\n", recorder.Body.String())
 }
