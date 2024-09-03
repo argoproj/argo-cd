@@ -2146,6 +2146,7 @@ func (o *ResourceOverride) GetActions() (ResourceActions, error) {
 type ResourceActions struct {
 	ActionDiscoveryLua string                     `json:"discovery.lua,omitempty" yaml:"discovery.lua,omitempty" protobuf:"bytes,1,opt,name=actionDiscoveryLua"`
 	Definitions        []ResourceActionDefinition `json:"definitions,omitempty" protobuf:"bytes,2,rep,name=definitions"`
+	AddBuildInActions  bool                       `json:"addBuiltInActions,omitempty" protobuf:"bytes,3,opt,name=addBuiltInActions"`
 }
 
 // TODO: describe this type
