@@ -631,13 +631,14 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 		revision = "HEAD"
 	}
 
-	semverSha, err := m.resolveSemverRevision(revision, refs)
-	if err != nil {
-		return "", err
-	}
-
-	if semverSha != "" {
-		return semverSha, nil
+	// Check if the revision is a valid semver constraint before attempting to resolve it
+	if constraint, err := semver.NewConstraint(revision); err == nil {
+		semverSha := m.resolveSemverRevision(constraint, refs)
+		if semverSha != "" {
+			return semverSha, nil
+		}
+	} else {
+		log.Debugf("Revision '%s' is not a valid semver constraint, skipping semver resolution.", revision)
 	}
 
 	// refToHash keeps a maps of remote refs to their hash
@@ -694,12 +695,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 // * The revision is "v0.1.*"/"0.1.*" or "0.1.2"/"0.1.2" and there is no tag matching that constraint this function loop and lsRemote loop will run for backward compatibility;
 // * The revision is "custom-tag" only the lsRemote loop will run because that revision is an invalid semver;
 // * The revision is "master-branch" only the lsRemote loop will run because that revision is an invalid semver;
-func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbing.Reference) (string, error) {
-	constraint, err := semver.NewConstraint(revision)
-	if err != nil {
-		return "", nil
-	}
-
+func (m *nativeGitClient) resolveSemverRevision(constraint *semver.Constraints, refs []*plumbing.Reference) string {
 	maxVersion := semver.New(0, 0, 0, "", "")
 	maxVersionHash := plumbing.ZeroHash
 	for _, ref := range refs {
@@ -710,12 +706,9 @@ func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbin
 		tag := ref.Name().Short()
 		version, err := semver.NewVersion(tag)
 		if err != nil {
-			if errors.Is(err, semver.ErrInvalidSemVer) {
-				log.Debugf("Invalid semantic version: %s", tag)
-				continue
-			}
-
-			return "", fmt.Errorf("error parsing version for tag: %w", err)
+			log.Debugf("Error parsing version for tag: '%s': %v", tag, err)
+			// Skip this tag and continue to the next one
+			continue
 		}
 
 		if constraint.Check(version) {
@@ -727,10 +720,10 @@ func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbin
 	}
 
 	if maxVersionHash.IsZero() {
-		return "", nil
+		return ""
 	}
 
-	return maxVersionHash.String(), nil
+	return maxVersionHash.String()
 }
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
