@@ -65,15 +65,15 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                             <a
                                 {...(authSettings?.oidcConfig?.enablePKCEAuthentication
                                     ? {
-                                        onClick: async () => {
-                                            pkceLogin(authSettings.oidcConfig, getPKCERedirectURI().toString()).catch(err => {
-                                                this.appContext.apis.notifications.show({
-                                                    type: NotificationType.Error,
-                                                    content: err?.message || JSON.stringify(err)
-                                                });
-                                            });
-                                        }
-                                    }
+                                          onClick: async () => {
+                                              pkceLogin(authSettings.oidcConfig, getPKCERedirectURI().toString()).catch(err => {
+                                                  this.appContext.apis.notifications.show({
+                                                      type: NotificationType.Error,
+                                                      content: err?.message || JSON.stringify(err)
+                                                  });
+                                              });
+                                          }
+                                      }
                                     : {href: `auth/login?return_url=${encodeURIComponent(this.state.returnUrl)}`})}>
                                 <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
                                     {(authSettings.oidcConfig && <span>Log in via {authSettings.oidcConfig.name}</span>) ||
