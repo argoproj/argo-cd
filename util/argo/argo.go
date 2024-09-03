@@ -882,7 +882,7 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 	if spec.SyncPolicy.IsZero() {
 		spec.SyncPolicy = nil
 	}
-	if spec.Sources != nil && len(spec.Sources) > 0 {
+	if len(spec.Sources) > 0 {
 		for _, source := range spec.Sources {
 			NormalizeSource(&source)
 		}
