@@ -34,11 +34,7 @@
     }
 
     &__show-parameter-details {
-        margin: 30px 0px;
-        font-size: 1.2rem;
-        @include themify($themes) {
-            color: themed('text-2');
-        }
+        margin: 20px 0px;
     }
 
     .white-box {
