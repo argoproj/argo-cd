@@ -1,8 +1,9 @@
 package utils
 
 import (
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func GetLatestAppHistoryId(a *appv1.Application) int64 {

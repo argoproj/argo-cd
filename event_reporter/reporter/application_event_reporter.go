@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/event_reporter/utils"
 	"math"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/event_reporter/utils"
 
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 
@@ -19,19 +20,18 @@ import (
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
 	"github.com/argoproj/argo-cd/v2/util/env"
 
-	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/watch"
+
+	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
-var (
-	resourceEventCacheExpiration = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvResourceEventCacheDuration, 20, 0, math.MaxInt32))
-)
+var resourceEventCacheExpiration = time.Minute * time.Duration(env.ParseNumFromEnv(argocommon.EnvResourceEventCacheDuration, 20, 0, math.MaxInt32))
 
 type applicationEventReporter struct {
 	cache                    *servercache.Cache
@@ -235,13 +235,11 @@ func (s *applicationEventReporter) getAppForResourceReporting(
 	}
 
 	latestAppStatus, err := s.appLister.Applications(a.Namespace).Get(a.Name)
-
 	if err != nil {
 		return a, revisionMetadata
 	}
 
 	revisionMetadataToReport, err := s.getApplicationRevisionDetails(ctx, latestAppStatus, utils.GetOperationRevision(latestAppStatus))
-
 	if err != nil {
 		return a, revisionMetadata
 	}
@@ -278,7 +276,6 @@ func (s *applicationEventReporter) processResource(
 	desiredState := getResourceDesiredState(&rs, desiredManifests, logCtx)
 
 	actualState, err := s.getResourceActualState(ctx, logCtx, metricsEventType, rs, parentApplication, originalApplication)
-
 	if err != nil {
 		return err
 	}
@@ -392,7 +389,7 @@ func (s *applicationEventReporter) ShouldSendApplicationEvent(ae *appv1.Applicat
 	}
 
 	cachedApp.Status.ReconciledAt = ae.Application.Status.ReconciledAt // ignore those in the diff
-	cachedApp.Spec.Project = ae.Application.Spec.Project               // not useing GetProject() so that the comparison will be with the real field values
+	cachedApp.Spec.Project = ae.Application.Spec.Project               // not using GetProject() so that the comparison will be with the real field values
 	for i := range cachedApp.Status.Conditions {
 		cachedApp.Status.Conditions[i].LastTransitionTime = nil
 	}

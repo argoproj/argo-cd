@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -218,7 +218,7 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 					Backoff: &argoappv1.Backoff{
 						Duration:    appOpts.retryBackoffDuration.String(),
 						MaxDuration: appOpts.retryBackoffMaxDuration.String(),
-						Factor:      pointer.Int64(appOpts.retryBackoffFactor),
+						Factor:      ptr.To(appOpts.retryBackoffFactor),
 					},
 				}
 			} else if appOpts.retryLimit == 0 {
@@ -434,10 +434,8 @@ func SetParameterOverrides(app *argoappv1.Application, parameters []string, inde
 		sourceType = *st
 	} else if app.Status.SourceType != "" {
 		sourceType = app.Status.SourceType
-	} else {
-		if len(strings.SplitN(parameters[0], "=", 2)) == 2 {
-			sourceType = argoappv1.ApplicationSourceTypeHelm
-		}
+	} else if len(strings.SplitN(parameters[0], "=", 2)) == 2 {
+		sourceType = argoappv1.ApplicationSourceTypeHelm
 	}
 
 	switch sourceType {
@@ -483,13 +481,12 @@ func readAppsFromStdin(apps *[]*argoappv1.Application) error {
 	}
 	err = readApps(data, apps)
 	if err != nil {
-		return fmt.Errorf("unable to read manifest from stdin: %v", err)
+		return fmt.Errorf("unable to read manifest from stdin: %w", err)
 	}
 	return nil
 }
 
 func readAppsFromURI(fileURL string, apps *[]*argoappv1.Application) error {
-
 	readFilePayload := func() ([]byte, error) {
 		parsedURL, err := url.ParseRequestURI(fileURL)
 		if err != nil || !(parsedURL.Scheme == "http" || parsedURL.Scheme == "https") {

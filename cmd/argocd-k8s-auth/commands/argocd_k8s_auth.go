@@ -9,7 +9,7 @@ const (
 )
 
 func NewCommand() *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:               cliName,
 		Short:             "argocd-k8s-auth a set of commands to generate k8s auth token",
 		DisableAutoGenTag: true,

@@ -65,8 +65,8 @@ func (c *Cache) GetAppManagedResources(appName string, res *[]*appv1.ResourceDif
 	return c.cache.GetAppManagedResources(appName, res)
 }
 
-func (c *Cache) SetRepoConnectionState(repo string, state *appv1.ConnectionState) error {
-	return c.cache.SetItem(repoConnectionStateKey(repo), &state, c.connectionStatusCacheExpiration, state == nil)
+func (c *Cache) SetRepoConnectionState(repo string, project string, state *appv1.ConnectionState) error {
+	return c.cache.SetItem(repoConnectionStateKey(repo, project), &state, c.connectionStatusCacheExpiration, state == nil)
 }
 
 func (c *Cache) SetLastApplicationEvent(a *appv1.Application, exp time.Duration) error {
@@ -96,13 +96,13 @@ func lastResourceEventKey(a *appv1.Application, rs appv1.ResourceStatus, revisio
 		a.Namespace, a.Name, revision, rs.Group, rs.Version, rs.Kind, rs.Name, rs.Namespace)
 }
 
-func repoConnectionStateKey(repo string) string {
-	return fmt.Sprintf("repo|%s|connection-state", repo)
+func repoConnectionStateKey(repo string, project string) string {
+	return fmt.Sprintf("repo|%s|%s|connection-state", repo, project)
 }
 
-func (c *Cache) GetRepoConnectionState(repo string) (appv1.ConnectionState, error) {
+func (c *Cache) GetRepoConnectionState(repo string, project string) (appv1.ConnectionState, error) {
 	res := appv1.ConnectionState{}
-	err := c.cache.GetItem(repoConnectionStateKey(repo), &res)
+	err := c.cache.GetItem(repoConnectionStateKey(repo, project), &res)
 	return res, err
 }
 

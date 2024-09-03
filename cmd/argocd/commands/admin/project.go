@@ -23,7 +23,7 @@ import (
 )
 
 func NewProjectsCommand() *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "proj",
 		Short: "Manage projects configuration",
 		Run: func(c *cobra.Command, args []string) {
@@ -45,7 +45,7 @@ func NewGenProjectSpecCommand() *cobra.Command {
 		outputFormat string
 		inline       bool
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "generate-spec PROJECT",
 		Short: "Generate declarative config for a project",
 		Example: templates.Examples(`  
@@ -151,7 +151,7 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 		permission   string
 		dryRun       bool
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "update-role-policy PROJECT_GLOB MODIFICATION ACTION",
 		Short: "Implement bulk project role update. Useful to back-fill existing project policies or remove obsolete actions.",
 		Example: `  # Add policy that allows executing any action (action/*) to roles which name matches to *deployer* in all projects  

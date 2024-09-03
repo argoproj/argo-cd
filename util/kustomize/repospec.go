@@ -19,7 +19,8 @@ const (
 // https://github.com/someOrg/someRepo?ref=someHash, extract
 // the parts.
 func parseGitURL(n string) (
-	host string, orgRepo string, path string, gitRef string) {
+	host string, orgRepo string, path string, gitRef string,
+) {
 	if strings.Contains(n, gitDelimiter) {
 		index := strings.Index(n, gitDelimiter)
 		// Adding _git/ to host
@@ -82,7 +83,8 @@ func parseHostSpec(n string) (string, string) {
 	for _, p := range []string{
 		// Order matters here.
 		"git::", "gh:", "ssh://", "https://", "http://",
-		"git@", "github.com:", "github.com/"} {
+		"git@", "github.com:", "github.com/",
+	} {
 		if len(p) < len(n) && strings.ToLower(n[:len(p)]) == p {
 			n = n[len(p):]
 			host += p
@@ -105,7 +107,8 @@ func parseHostSpec(n string) (string, string) {
 
 	// If host is a http(s) or ssh URL, grab the domain part.
 	for _, p := range []string{
-		"ssh://", "https://", "http://"} {
+		"ssh://", "https://", "http://",
+	} {
 		if strings.HasSuffix(host, p) {
 			i := strings.Index(n, "/")
 			if i > -1 {

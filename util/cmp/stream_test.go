@@ -69,7 +69,7 @@ func TestReceiveApplicationStream(t *testing.T) {
 		assert.NotEmpty(t, workdir)
 		files, err := os.ReadDir(workdir)
 		require.NoError(t, err)
-		require.Equal(t, 2, len(files))
+		require.Len(t, files, 2)
 		names := []string{}
 		for _, f := range files {
 			names = append(names, f.Name())

@@ -1,12 +1,14 @@
 package utils
 
 import (
+	"testing"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
-	"testing"
 )
 
 func TestGetLatestAppHistoryId(t *testing.T) {
@@ -17,7 +19,7 @@ func TestGetLatestAppHistoryId(t *testing.T) {
 		noStatusHistoryAppMock := v1alpha1.Application{}
 
 		idResult := GetLatestAppHistoryId(&noStatusHistoryAppMock)
-		assert.Equal(t, idResult, int64(0))
+		assert.Equal(t, int64(0), idResult)
 
 		emptyStatusHistoryAppMock := v1alpha1.Application{
 			Status: v1alpha1.ApplicationStatus{
@@ -26,7 +28,7 @@ func TestGetLatestAppHistoryId(t *testing.T) {
 		}
 
 		id2Result := GetLatestAppHistoryId(&emptyStatusHistoryAppMock)
-		assert.Equal(t, id2Result, int64(0))
+		assert.Equal(t, int64(0), id2Result)
 	})
 
 	t.Run("resource revision should be taken from latest history.Id", func(t *testing.T) {

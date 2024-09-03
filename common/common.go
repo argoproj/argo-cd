@@ -120,11 +120,17 @@ const (
 
 	// LegacyShardingAlgorithm is the default value for Sharding Algorithm it uses an `uid` based distribution (non-uniform)
 	LegacyShardingAlgorithm = "legacy"
-	// RoundRobinShardingAlgorithm is a flag value that can be opted for Sharding Algorithm it uses an equal distribution accross all shards
+	// RoundRobinShardingAlgorithm is a flag value that can be opted for Sharding Algorithm it uses an equal distribution across all shards
 	RoundRobinShardingAlgorithm = "round-robin"
 	// AppControllerHeartbeatUpdateRetryCount is the retry count for updating the Shard Mapping to the Shard Mapping ConfigMap used by Application Controller
 	AppControllerHeartbeatUpdateRetryCount = 3
-	DefaultShardingAlgorithm               = LegacyShardingAlgorithm
+
+	// ConsistentHashingWithBoundedLoadsAlgorithm uses an algorithm that tries to use an equal distribution across
+	// all shards but is optimised to handle sharding and/or cluster addition or removal. In case of sharding or
+	// cluster changes, this algorithm minimises the changes between shard and clusters assignments.
+	ConsistentHashingWithBoundedLoadsAlgorithm = "consistent-hashing"
+
+	DefaultShardingAlgorithm = LegacyShardingAlgorithm
 )
 
 // Dex related constants
@@ -203,6 +209,16 @@ const (
 
 // Environment variables for tuning and debugging Argo CD
 const (
+	// EnvApplicationEventCacheDuration controls the expiration of application events cache
+	EnvApplicationEventCacheDuration = "ARGOCD_APP_EVENTS_CACHE_DURATION"
+	// EnvResourceEventCacheDuration controls the expiration of resource events cache
+	EnvResourceEventCacheDuration = "ARGOCD_RESOURCE_EVENTS_CACHE_DURATION"
+	// EnvEventReporterShardingAlgorithm is the distribution sharding algorithm to be used: legacy
+	EnvEventReporterShardingAlgorithm = "EVENT_REPORTER_SHARDING_ALGORITHM"
+	// EnvEventReporterReplicas is the number of EventReporter replicas
+	EnvEventReporterReplicas = "EVENT_REPORTER_REPLICAS"
+	// EnvEventReporterShard is the shard number that should be handled by reporter
+	EnvEventReporterShard = "EVENT_REPORTER_SHARD"
 	// EnvVarSSODebug is an environment variable to enable additional OAuth debugging in the API server
 	EnvVarSSODebug = "ARGOCD_SSO_DEBUG"
 	// EnvVarRBACDebug is an environment variable to enable additional RBAC debugging in the API server
@@ -213,7 +229,7 @@ const (
 	EnvVarTLSDataPath = "ARGOCD_TLS_DATA_PATH"
 	// EnvGitAttemptsCount specifies number of git remote operations attempts count
 	EnvGitAttemptsCount = "ARGOCD_GIT_ATTEMPTS_COUNT"
-	// EnvGitRetryMaxDuration specifices max duration of git remote operation retry
+	// EnvGitRetryMaxDuration specifies max duration of git remote operation retry
 	EnvGitRetryMaxDuration = "ARGOCD_GIT_RETRY_MAX_DURATION"
 	// EnvGitRetryDuration specifies duration of git remote operation retry
 	EnvGitRetryDuration = "ARGOCD_GIT_RETRY_DURATION"
@@ -239,7 +255,7 @@ const (
 	EnvControllerShard = "ARGOCD_CONTROLLER_SHARD"
 	// EnvControllerShardingAlgorithm is the distribution sharding algorithm to be used: legacy or round-robin
 	EnvControllerShardingAlgorithm = "ARGOCD_CONTROLLER_SHARDING_ALGORITHM"
-	//EnvEnableDynamicClusterDistribution enables dynamic sharding (ALPHA)
+	// EnvEnableDynamicClusterDistribution enables dynamic sharding (ALPHA)
 	EnvEnableDynamicClusterDistribution = "ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION"
 	// EnvEnableGRPCTimeHistogramEnv enables gRPC metrics collection
 	EnvEnableGRPCTimeHistogramEnv = "ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM"
@@ -280,17 +296,8 @@ const (
 	// EnvServerSideDiff defines the env var used to enable ServerSide Diff feature.
 	// If defined, value must be "true" or "false".
 	EnvServerSideDiff = "ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF"
-
-	// EnvApplicationEventCacheDuration controls the expiration of application events cache
-	EnvApplicationEventCacheDuration = "ARGOCD_APP_EVENTS_CACHE_DURATION"
-	// EnvResourceEventCacheDuration controls the expiration of resource events cache
-	EnvResourceEventCacheDuration = "ARGOCD_RESOURCE_EVENTS_CACHE_DURATION"
-	// EnvEventReporterShardingAlgorithm is the distribution sharding algorithm to be used: legacy
-	EnvEventReporterShardingAlgorithm = "EVENT_REPORTER_SHARDING_ALGORITHM"
-	// EnvEventReporterReplicas is the number of EventReporter replicas
-	EnvEventReporterReplicas = "EVENT_REPORTER_REPLICAS"
-	// EnvEventReporterShard is the shard number that should be handled by reporter
-	EnvEventReporterShard = "EVENT_REPORTER_SHARD"
+	// EnvGRPCMaxSizeMB is the environment variable to look for a max GRPC message size
+	EnvGRPCMaxSizeMB = "ARGOCD_GRPC_MAX_SIZE_MB"
 )
 
 // Config Management Plugin related constants
@@ -369,7 +376,7 @@ func GetCMPChunkSize() int {
 }
 
 // GetCMPWorkDir will return the full path of the work directory used by the CMP server.
-// This directory and all it's contents will be deleted durring CMP bootstrap.
+// This directory and all it's contents will be deleted during CMP bootstrap.
 func GetCMPWorkDir() string {
 	if workDir := os.Getenv(EnvCMPWorkDir); workDir != "" {
 		return filepath.Join(workDir, DefaultCMPWorkDirName)

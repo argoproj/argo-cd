@@ -4,17 +4,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	appclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"google.golang.org/grpc"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"google.golang.org/grpc"
+
+	appclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	repoapiclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 )
 
-//go:generate go run github.com/vektra/mockery/v2@v2.25.1 --name=ApplicationClient
+//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=ApplicationClient
 
 type ApplicationClient interface {
 	Get(ctx context.Context, in *appclient.ApplicationQuery, opts ...grpc.CallOption) (*v1alpha1.Application, error)

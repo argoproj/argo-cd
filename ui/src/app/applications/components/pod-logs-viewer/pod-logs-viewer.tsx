@@ -39,6 +39,7 @@ export interface PodLogsProps {
     timestamp?: string;
     containerGroups?: any[];
     onClickContainer?: (group: any, i: number, tab: string) => void;
+    fullscreen?: boolean;
 }
 
 // ansi colors, see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
@@ -94,6 +95,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     useEffect(() => {
         // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
         // matchNothing this is chosen instead of empty regexp, because that would match everything and break colored logs
+        // eslint-disable-next-line no-useless-escape
         setHighlight(filter === '' ? matchNothing : new RegExp(filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g'));
     }, [filter]);
 

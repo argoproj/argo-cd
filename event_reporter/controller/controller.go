@@ -2,10 +2,15 @@ package controller
 
 import (
 	"context"
-	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
 	"math"
 	"strings"
 	"time"
+
+	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
+
+	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/tools/cache"
 
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
@@ -17,9 +22,6 @@ import (
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/tools/cache"
 )
 
 var (
@@ -59,9 +61,7 @@ func NewEventReporterController(appInformer cache.SharedIndexInformer, cache *se
 }
 
 func (c *eventReporterController) Run(ctx context.Context) {
-	var (
-		logCtx log.FieldLogger = log.StandardLogger()
-	)
+	var logCtx log.FieldLogger = log.StandardLogger()
 
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
@@ -88,7 +88,7 @@ func (c *eventReporterController) Run(ctx context.Context) {
 		return nil
 	}
 
-	//TODO: move to abstraction
+	// TODO: move to abstraction
 	eventsChannel := make(chan *appv1.ApplicationWatchEvent, watchAPIBufferSize)
 	unsubscribe := c.appBroadcaster.Subscribe(eventsChannel)
 	defer unsubscribe()

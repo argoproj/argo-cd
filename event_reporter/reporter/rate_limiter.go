@@ -2,9 +2,10 @@ package reporter
 
 import (
 	"context"
+	"time"
+
 	"github.com/sethvargo/go-limiter"
 	"github.com/sethvargo/go-limiter/memorystore"
-	"time"
 )
 
 type RateLimiterOpts struct {
@@ -41,7 +42,6 @@ func (rl *RateLimiter) Limit(applicationName string) (bool, error, bool) {
 	}
 
 	_, _, _, ok, err := rl.limiter.Take(context.Background(), applicationName)
-
 	if err != nil {
 		return false, err, rl.opts.LearningMode
 	}

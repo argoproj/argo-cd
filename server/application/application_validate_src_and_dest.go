@@ -3,14 +3,16 @@ package application
 import (
 	"context"
 	"fmt"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	apierr "k8s.io/apimachinery/pkg/api/errors"
 )
 
 func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.ApplicationValidationRequest) (*application.ApplicationValidateResponse, error) {
@@ -67,7 +69,6 @@ func (s *Server) ValidateSrcAndDst(ctx context.Context, requset *application.App
 // validates destination name (argo.ValidateDestination) and server with extra logic
 func validateDestination(ctx context.Context, dest *appv1.ApplicationDestination, db db.ArgoDB) error {
 	err := argo.ValidateDestination(ctx, dest, db)
-
 	if err != nil {
 		return err
 	}

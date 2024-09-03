@@ -4,24 +4,27 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"testing"
+	"time"
+
+	"github.com/aws/smithy-go/ptr"
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/watch"
+
 	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
 	appMocks "github.com/argoproj/argo-cd/v2/event_reporter/application/mocks"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	apiclientapppkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appv1reg "github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/aws/smithy-go/ptr"
-	"github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/watch"
-	"net/http"
-	"testing"
-	"time"
 
-	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	fakeapps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
@@ -192,7 +195,6 @@ func TestShouldSendEvent(t *testing.T) {
 		res := eventReporter.shouldSendResourceEvent(app, rs)
 		assert.True(t, res)
 	})
-
 }
 
 type MockEventing_StartEventSourceServer struct {
@@ -226,7 +228,6 @@ func TestStreamApplicationEvent(t *testing.T) {
 		}
 		_ = eventReporter.StreamApplicationEvents(context.Background(), app, "", false, common.LabelKeyAppInstance, argo.TrackingMethodLabel)
 	})
-
 }
 
 func TestShouldSendApplicationEvent(t *testing.T) {
@@ -258,7 +259,7 @@ func TestShouldSendApplicationEvent(t *testing.T) {
 		}
 
 		err := eventReporter.cache.SetLastApplicationEvent(&appCache, time.Second*5)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		app := v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
@@ -285,7 +286,7 @@ func TestShouldSendApplicationEvent(t *testing.T) {
 		}
 
 		err := eventReporter.cache.SetLastApplicationEvent(&appCache, time.Second*5)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		app := v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
@@ -316,7 +317,7 @@ func TestShouldSendApplicationEvent(t *testing.T) {
 		}
 
 		err := eventReporter.cache.SetLastApplicationEvent(&appCache, time.Second*5)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		app := v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
@@ -376,10 +377,10 @@ func TestGetResourceActualState(t *testing.T) {
 			t.Fatalf("failed to unmarshal manifest: %v", err)
 		}
 
-		assert.Equal(t, appEvent.ObjectMeta.Name, manifestApp.ObjectMeta.Name)
+		assert.Equal(t, manifestApp.ObjectMeta.Name, appEvent.ObjectMeta.Name)
 		// should set type meta
-		assert.Equal(t, appEvent.TypeMeta.Kind, "Application")
-		assert.Equal(t, appEvent.TypeMeta.APIVersion, "argoproj.io/v1alpha1")
+		assert.Equal(t, "Application", appEvent.TypeMeta.Kind)
+		assert.Equal(t, "argoproj.io/v1alpha1", appEvent.TypeMeta.APIVersion)
 	})
 
 	t.Run("should get resource actual state for non-app resources", func(t *testing.T) {

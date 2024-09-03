@@ -15,14 +15,13 @@ import (
 	settings "github.com/argoproj/argo-cd/v2/util/notification/settings"
 	"github.com/argoproj/argo-cd/v2/util/tls"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/notifications-engine/pkg/cmd"
 	"github.com/spf13/cobra"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
-var (
-	applications = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.ApplicationPlural}
-)
+var applications = schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: application.ApplicationPlural}
 
 func NewNotificationsCommand() *cobra.Command {
 	var (

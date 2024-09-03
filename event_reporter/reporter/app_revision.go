@@ -2,6 +2,7 @@ package reporter
 
 import (
 	"context"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )

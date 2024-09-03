@@ -24,6 +24,9 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
   argocd app sync -l '!app.kubernetes.io/instance'
   argocd app sync -l 'app.kubernetes.io/instance notin (my-app,other-app)'
 
+  # Sync a multi-source application for specific revision of specific sources
+  argocd app manifests my-app --revisions 0.0.1 --source-positions 1 --revisions 0.0.2 --source-positions 2
+
   # Sync a specific resource
   # Resource should be formatted as GROUP:KIND:NAME. If no GROUP is specified then :KIND:NAME
   argocd app sync my-app --resource :Service:my-service
@@ -38,6 +41,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
 ### Options
 
 ```
+  -N, --app-namespace string                              Only sync an application in namespace
       --apply-out-of-sync-only                            Sync only out-of-sync resources
       --assumeYes                                         Assume yes as answer for all user queries or prompts
       --async                                             Do not wait for application to sync before continuing
@@ -60,8 +64,10 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --retry-backoff-max-duration duration               Max retry backoff duration. Input needs to be a duration (e.g. 2m, 1h) (default 3m0s)
       --retry-limit int                                   Max number of allowed sync retries
       --revision string                                   Sync to a specific revision. Preserves parameter overrides
+      --revisions stringArray                             Show manifests at specific revisions for source position in source-positions
   -l, --selector string                                   Sync apps that match this label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
       --server-side                                       Use server-side apply while syncing the application
+      --source-positions int64Slice                       List of source positions. Default is empty array. Counting start at 1. (default [])
       --strategy string                                   Sync strategy (one of: apply|hook)
       --timeout uint                                      Time out after this many seconds
 ```

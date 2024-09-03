@@ -17,11 +17,8 @@ argocd app set APPNAME [flags]
   # Set and validate application parameters for "my-app"
   argocd app set my-app --parameter key1=value1 --parameter key2=value2 --validate
   
-  # Set and override application parameters with JSON or YAML file
-  argocd app set my-app --from-file path/to/parameters.json
-  
-  # Set and override application parameters with a parameter file
-  argocd app set my-app --parameter-file path/to/parameter-file.yaml
+  # Set and override application parameters for a source at position 1 under spec.sources of app my-app. source-position starts at 1.
+  argocd app set my-app --source-position 1 --repo https://github.com/argoproj/argocd-example-apps.git
   
   # Set and override application parameters for a source at position 1 under spec.sources of app my-app. source-position starts at 1.
   argocd app set my-app --source-position 1 --repo https://github.com/argoproj/argocd-example-apps.git

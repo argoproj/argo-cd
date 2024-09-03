@@ -7,9 +7,12 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
+	"github.com/stretchr/testify/require"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
 )
 
 type MockRoundTripper struct {
@@ -48,10 +51,10 @@ func TestCodefreshClient_SendEvent(t *testing.T) {
 					assert.Equal(t, "some-token", req.Header.Get("Authorization"), "missing or invalid Authorization header")
 					assert.Equal(t, "application/json", req.Header.Get("Content-Type"), "missing or invalid Content-Type header")
 					reader, err := gzip.NewReader(req.Body)
-					assert.NoError(t, err, "failed to create gzip reader")
+					require.NoError(t, err, "failed to create gzip reader")
 					defer reader.Close()
 					body, err := io.ReadAll(reader)
-					assert.NoError(t, err, "failed to read request body")
+					require.NoError(t, err, "failed to read request body")
 					assert.JSONEq(t, `{"data":{"key":"value"}}`, string(body), "invalid request body")
 				}).Return(&http.Response{
 					StatusCode: 200,

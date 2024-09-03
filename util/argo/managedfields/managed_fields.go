@@ -34,7 +34,7 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 	configCopy := config.DeepCopy()
 	results, err := newTypedResults(liveCopy, configCopy, pt)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error building typed results: %s", err)
+		return nil, nil, fmt.Errorf("error building typed results: %w", err)
 	}
 
 	normalized := false
@@ -42,7 +42,7 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 		if trustedManager(mf.Manager, trustedManagers) {
 			err := normalize(mf, results)
 			if err != nil {
-				return nil, nil, fmt.Errorf("error normalizing manager %s: %s", mf.Manager, err)
+				return nil, nil, fmt.Errorf("error normalizing manager %s: %w", mf.Manager, err)
 			}
 			normalized = true
 		}
@@ -92,21 +92,21 @@ type typedResults struct {
 }
 
 // newTypedResults will convert live and config into a TypedValue using the given pt
-// and compare them. Returns a typedResults with the coverted types and the comparison.
+// and compare them. Returns a typedResults with the converted types and the comparison.
 // If pt is nil, will use the DeducedParseableType.
 func newTypedResults(live, config *unstructured.Unstructured, pt *typed.ParseableType) (*typedResults, error) {
 	typedLive, err := pt.FromUnstructured(live.Object)
 	if err != nil {
-		return nil, fmt.Errorf("error creating typedLive: %s", err)
+		return nil, fmt.Errorf("error creating typedLive: %w", err)
 	}
 
 	typedConfig, err := pt.FromUnstructured(config.Object)
 	if err != nil {
-		return nil, fmt.Errorf("error creating typedConfig: %s", err)
+		return nil, fmt.Errorf("error creating typedConfig: %w", err)
 	}
 	comparison, err := typedLive.Compare(typedConfig)
 	if err != nil {
-		return nil, fmt.Errorf("error comparing typed resources: %s", err)
+		return nil, fmt.Errorf("error comparing typed resources: %w", err)
 	}
 	return &typedResults{
 		live:       typedLive,
@@ -152,8 +152,10 @@ func resolverFromStaticParser(gvk schema.GroupVersionKind, parser *k8smanagedfie
 	return nil
 }
 
-var gvkMap map[schema.GroupVersionKind]string
-var extractOnce sync.Once
+var (
+	gvkMap      map[schema.GroupVersionKind]string
+	extractOnce sync.Once
+)
 
 func getGvkMap(parser *k8smanagedfields.GvkParser) map[schema.GroupVersionKind]string {
 	extractOnce.Do(func() {

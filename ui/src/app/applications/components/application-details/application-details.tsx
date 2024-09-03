@@ -24,7 +24,7 @@ import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters, FiltersProps} from './application-resource-filter';
-import {getAppDefaultSource, urlPattern, helpTip} from '../utils';
+import {getAppDefaultSource, getAppCurrentVersion, urlPattern} from '../utils';
 import {ChartDetails, ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
@@ -34,7 +34,7 @@ import {AppViewExtension, StatusPanelExtension} from '../../../shared/services/e
 
 interface ApplicationDetailsState {
     page: number;
-    revision?: string;
+    revision?: string; // Which type of revision panelto show SYNC_STATUS_REVISION or OPERATION_STATE_REVISION
     groupedResources?: ResourceStatus[];
     slidingPanelPage?: number;
     filteredGraph?: any[];
@@ -180,6 +180,217 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         return '';
     }
 
+    private getContent(application: models.Application, source: models.ApplicationSource, revisions: string[], revision: string) {
+        const renderCommitMessage = (message: string) =>
+            message.split(/\s/).map(part =>
+                urlPattern.test(part) ? (
+                    <a href={part} target='_blank' rel='noopener noreferrer' style={{overflowWrap: 'anywhere', wordBreak: 'break-word'}}>
+                        {part}{' '}
+                    </a>
+                ) : (
+                    part + ' '
+                )
+            );
+
+        const getContentForChart = (
+            aRevision: string,
+            aSourceIndex: number | null,
+            aVersionId: number | null,
+            indx: number,
+            aSource: models.ApplicationSource,
+            sourceHeader?: JSX.Element
+        ) => {
+            const showChartNonMetadataInfo = (aRevision: string, aRepoUrl: string) => {
+                return (
+                    <>
+                        <div className='row white-box__details-row'>
+                            <div className='columns small-3'>Revision:</div>
+                            <div className='columns small-9'>{aRevision}</div>
+                        </div>
+                        <div className='row white-box__details-row'>
+                            <div className='columns small-3'>Chart Source:</div>
+                            <div className='columns small-9'>{aRepoUrl}</div>
+                        </div>
+                    </>
+                );
+            };
+            return (
+                <DataLoader
+                    key={indx}
+                    input={application}
+                    load={input => services.applications.revisionChartDetails(input.metadata.name, input.metadata.namespace, aRevision, aSourceIndex, aVersionId)}>
+                    {(m: ChartDetails) => {
+                        return m ? (
+                            <div className='white-box' style={{marginTop: '1.5em'}}>
+                                {sourceHeader && sourceHeader}
+                                <div className='white-box__details'>
+                                    {showChartNonMetadataInfo(aRevision, aSource.repoURL)}
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-3'>Helm Chart:</div>
+                                        <div className='columns small-9'>
+                                            {aSource.chart}&nbsp;
+                                            {m.home && (
+                                                <a
+                                                    title={m.home}
+                                                    onClick={e => {
+                                                        e.stopPropagation();
+                                                        window.open(m.home);
+                                                    }}>
+                                                    <i className='fa fa-external-link-alt' />
+                                                </a>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {m.description && (
+                                        <div className='row white-box__details-row'>
+                                            <div className='columns small-3'>Description:</div>
+                                            <div className='columns small-9'>{m.description}</div>
+                                        </div>
+                                    )}
+                                    {m.maintainers && m.maintainers.length > 0 && (
+                                        <div className='row white-box__details-row'>
+                                            <div className='columns small-3'>Maintainers:</div>
+                                            <div className='columns small-9'>{m.maintainers.join(', ')}</div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div key={indx} className='white-box' style={{marginTop: '1.5em'}}>
+                                <div>Source {indx + 1}</div>
+                                <div className='white-box__details'>
+                                    {showChartNonMetadataInfo(aRevision, aSource.repoURL)}
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-3'>Helm Chart:</div>
+                                        <div className='columns small-9'>
+                                            {aSource.chart}&nbsp;
+                                            {
+                                                <a
+                                                    title={sources[indx].chart}
+                                                    onClick={e => {
+                                                        e.stopPropagation();
+                                                        window.open(aSource.repoURL);
+                                                    }}>
+                                                    <i className='fa fa-external-link-alt' />
+                                                </a>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    }}
+                </DataLoader>
+            );
+        };
+
+        const getContentForNonChart = (
+            aRevision: string,
+            aSourceIndex: number,
+            aVersionId: number,
+            indx: number,
+            aSource: models.ApplicationSource,
+            sourceHeader?: JSX.Element
+        ) => {
+            const showNonMetadataInfo = (aSource: models.ApplicationSource, aRevision: string) => {
+                return (
+                    <>
+                        <div className='white-box__details'>
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-3'>SHA:</div>
+                                <div className='columns small-9'>
+                                    <Revision repoUrl={aSource.repoURL} revision={aRevision} />
+                                </div>
+                            </div>
+                        </div>
+                        <div className='white-box__details'>
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-3'>Source:</div>
+                                <div className='columns small-9'>{aSource.repoURL}</div>
+                            </div>
+                        </div>
+                    </>
+                );
+            };
+            return (
+                <DataLoader
+                    key={indx}
+                    load={() => services.applications.revisionMetadata(application.metadata.name, application.metadata.namespace, aRevision, aSourceIndex, aVersionId)}>
+                    {metadata =>
+                        metadata ? (
+                            <div key={indx} className='white-box' style={{marginTop: '1.5em'}}>
+                                {sourceHeader && sourceHeader}
+                                {showNonMetadataInfo(aSource, aRevision)}
+                                <div className='white-box__details'>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-3'>Date:</div>
+                                        <div className='columns small-9'>
+                                            <Timestamp date={metadata.date} />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className='white-box__details'>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-3'>Tags:</div>
+                                        <div className='columns small-9'>{((metadata.tags || []).length > 0 && metadata.tags.join(', ')) || 'No tags'}</div>
+                                    </div>
+                                </div>
+                                <div className='white-box__details'>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-3'>Author:</div>
+                                        <div className='columns small-9'>{metadata.author}</div>
+                                    </div>
+                                </div>
+                                <div className='white-box__details'>
+                                    <div className='row white-box__details-row'>
+                                        <div className='columns small-3'>Message:</div>
+                                        <div className='columns small-9' style={{display: 'flex', alignItems: 'center'}}>
+                                            <div className='application-details__commit-message'>{renderCommitMessage(metadata.message)}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div key={indx} className='white-box' style={{marginTop: '1.5em'}}>
+                                <div>Source {indx + 1}</div>
+                                {showNonMetadataInfo(aSource, aRevision)}
+                            </div>
+                        )
+                    }
+                </DataLoader>
+            );
+        };
+        const cont: JSX.Element[] = [];
+        const sources: models.ApplicationSource[] = application.spec.sources;
+        if (sources?.length > 0 && revisions) {
+            revisions.forEach((rev, indx) => {
+                if (sources[indx].chart) {
+                    cont.push(getContentForChart(rev, indx, getAppCurrentVersion(application), indx, sources[indx], <div>Source {indx + 1}</div>));
+                } else {
+                    cont.push(getContentForNonChart(rev, indx, getAppCurrentVersion(application), indx, sources[indx], <div>Source {indx + 1}</div>));
+                }
+            });
+            return <>{cont}</>;
+        } else if (application.spec.source) {
+            if (source.chart) {
+                cont.push(getContentForChart(revision, null, null, 0, source));
+            } else {
+                cont.push(getContentForNonChart(revision, null, getAppCurrentVersion(application), 0, source));
+            }
+            return <>{cont}</>;
+        } else {
+            return (
+                <div className='white-box' style={{marginTop: '1.5em'}}>
+                    <div className='white-box__details'>
+                        <div className='row white-box__details-row'>
+                            <div className='columns small-9'>No other information available</div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+    }
+
     public render() {
         return (
             <ObservableQuery>
@@ -283,17 +494,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         : []
                                 });
                             };
-
-                            const renderCommitMessage = (message: string) =>
-                                message.split(/\s/).map(part =>
-                                    urlPattern.test(part) ? (
-                                        <a href={part} target='_blank' rel='noopener noreferrer' style={{overflowWrap: 'anywhere', wordBreak: 'break-word'}}>
-                                            {part}{' '}
-                                        </a>
-                                    ) : (
-                                        part + ' '
-                                    )
-                                );
                             const {Tree, Pods, Network, List} = AppsDetailsViewKey;
                             const zoomNum = (pref.zoom * 100).toFixed(0);
                             const setZoom = (s: number) => {
@@ -573,16 +773,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                     preferencesKey='application-details'>
                                                                     {data => (
                                                                         <ApplicationResourceList
+                                                                            pref={pref}
                                                                             onNodeClick={fullName => this.selectNode(fullName)}
                                                                             resources={data}
                                                                             nodeMenu={node =>
-                                                                                AppUtils.renderResourceMenu(
-                                                                                    {...node, root: node},
-                                                                                    application,
-                                                                                    tree,
-                                                                                    this.appContext.apis,
-                                                                                    this.appChanged,
-                                                                                    () => this.getApplicationActionMenu(application, false)
+                                                                                AppUtils.renderResourceMenu(node, application, tree, this.appContext.apis, this.appChanged, () =>
+                                                                                    this.getApplicationActionMenu(application, false)
                                                                                 )
                                                                             }
                                                                             tree={tree}
@@ -608,10 +804,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     preferencesKey='grouped-nodes-details'>
                                                     {data => (
                                                         <ApplicationResourceList
+                                                            pref={pref}
                                                             onNodeClick={fullName => this.selectNode(fullName)}
                                                             resources={data}
                                                             nodeMenu={node =>
-                                                                AppUtils.renderResourceMenu({...node, root: node}, application, tree, this.appContext.apis, this.appChanged, () =>
+                                                                AppUtils.renderResourceMenu(node, application, tree, this.appContext.apis, this.appChanged, () =>
                                                                     this.getApplicationActionMenu(application, false)
                                                                 )
                                                             }
@@ -652,102 +849,21 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         <SlidingPanel isShown={this.showConditions && !!conditions} onClose={() => this.setConditionsStatusVisible(false)}>
                                             {conditions && <ApplicationConditions conditions={conditions} />}
                                         </SlidingPanel>
-                                        <SlidingPanel isShown={!!this.state.revision} isMiddle={true} onClose={() => this.setState({revision: null})}>
-                                            {this.state.revision &&
-                                                (source.chart ? (
-                                                    <DataLoader
-                                                        input={application}
-                                                        load={input =>
-                                                            services.applications.revisionChartDetails(input.metadata.name, input.metadata.namespace, this.state.revision)
-                                                        }>
-                                                        {(m: ChartDetails) => (
-                                                            <div className='white-box' style={{marginTop: '1.5em'}}>
-                                                                <div className='white-box__details'>
-                                                                    <div className='row white-box__details-row'>
-                                                                        <div className='columns small-3'>Revision:</div>
-                                                                        <div className='columns small-9'>{this.state.revision}</div>
-                                                                    </div>
-                                                                    <div className='row white-box__details-row'>
-                                                                        <div className='columns small-3'>Helm Chart:</div>
-                                                                        <div className='columns small-9'>
-                                                                            {source.chart}&nbsp;
-                                                                            {m.home && (
-                                                                                <a
-                                                                                    title={m.home}
-                                                                                    onClick={e => {
-                                                                                        e.stopPropagation();
-                                                                                        window.open(m.home);
-                                                                                    }}>
-                                                                                    <i className='fa fa-external-link-alt' />
-                                                                                </a>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                    {m.description && (
-                                                                        <div className='row white-box__details-row'>
-                                                                            <div className='columns small-3'>Description:</div>
-                                                                            <div className='columns small-9'>{m.description}</div>
-                                                                        </div>
-                                                                    )}
-                                                                    {m.maintainers && m.maintainers.length > 0 && (
-                                                                        <div className='row white-box__details-row'>
-                                                                            <div className='columns small-3'>Maintainers:</div>
-                                                                            <div className='columns small-9'>{m.maintainers.join(', ')}</div>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </DataLoader>
-                                                ) : (
-                                                    <DataLoader
-                                                        load={() =>
-                                                            services.applications.revisionMetadata(application.metadata.name, application.metadata.namespace, this.state.revision)
-                                                        }>
-                                                        {metadata => (
-                                                            <div className='white-box' style={{marginTop: '1.5em'}}>
-                                                                <div className='white-box__details'>
-                                                                    <div className='row white-box__details-row'>
-                                                                        <div className='columns small-3'>SHA:</div>
-                                                                        <div className='columns small-9'>
-                                                                            <Revision repoUrl={source.repoURL} revision={this.state.revision} />
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className='white-box__details'>
-                                                                    <div className='row white-box__details-row'>
-                                                                        <div className='columns small-3'>Date:</div>
-                                                                        <div className='columns small-9'>
-                                                                            <Timestamp date={metadata.date} />
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className='white-box__details'>
-                                                                    <div className='row white-box__details-row'>
-                                                                        <div className='columns small-3'>Tags:</div>
-                                                                        <div className='columns small-9'>
-                                                                            {((metadata.tags || []).length > 0 && metadata.tags.join(', ')) || 'No tags'}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className='white-box__details'>
-                                                                    <div className='row white-box__details-row'>
-                                                                        <div className='columns small-3'>Author:</div>
-                                                                        <div className='columns small-9'>{metadata.author}</div>
-                                                                    </div>
-                                                                </div>
-                                                                <div className='white-box__details'>
-                                                                    <div className='row white-box__details-row'>
-                                                                        <div className='columns small-3'>Message:</div>
-                                                                        <div className='columns small-9' style={{display: 'flex', alignItems: 'center'}}>
-                                                                            <div className='application-details__commit-message'>{renderCommitMessage(metadata.message)}</div>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </DataLoader>
-                                                ))}
+                                        <SlidingPanel
+                                            isShown={this.state.revision === 'SYNC_STATUS_REVISION' || this.state.revision === 'OPERATION_STATE_REVISION'}
+                                            isMiddle={true}
+                                            onClose={() => this.setState({revision: null})}>
+                                            {this.state.revision === 'SYNC_STATUS_REVISION' &&
+                                                (application.status.sync.revisions || application.status.sync.revision) &&
+                                                this.getContent(application, source, application.status.sync.revisions, application.status.sync.revision)}
+                                            {this.state.revision === 'OPERATION_STATE_REVISION' &&
+                                                (application.status.operationState.syncResult.revisions || application.status.operationState.syncResult.revision) &&
+                                                this.getContent(
+                                                    application,
+                                                    source,
+                                                    application.status.operationState.syncResult.revisions,
+                                                    application.status.operationState.syncResult.revision
+                                                )}
                                         </SlidingPanel>
                                         <SlidingPanel
                                             isShown={this.selectedExtension !== '' && activeExtension != null && activeExtension.flyout != null}
@@ -770,7 +886,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
-        const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
         return [
             {
                 iconClassName: 'fa fa-info-circle',
@@ -796,18 +911,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             },
             {
                 iconClassName: 'fa fa-history',
-                title: hasMultipleSources ? (
-                    <React.Fragment>
-                        <ActionMenuItem actionLabel=' History and rollback' />
-                        {helpTip('Rollback is not supported for apps with multiple sources')}
-                    </React.Fragment>
-                ) : (
-                    <ActionMenuItem actionLabel='History and rollback' />
-                ),
+                title: <ActionMenuItem actionLabel='History and rollback' />,
                 action: () => {
                     this.setRollbackPanelVisible(0);
                 },
-                disabled: !app.status.operationState || hasMultipleSources
+                disabled: !app.status.operationState
             },
             {
                 iconClassName: 'fa fa-times-circle',

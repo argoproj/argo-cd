@@ -56,20 +56,22 @@ import (
 	tls_util "github.com/argoproj/argo-cd/v2/util/tls"
 )
 
+// These mocks are not currently used, but they are part of the public API of this package.
+//go:generate -command mockery go run github.com/vektra/mockery/v2@v2.40.2
+//go:generate mockery --dir=./session --name=SessionServiceServer --output=./session/mocks
+//go:generate mockery --dir=./session --name=SessionServiceClient --output=./session/mocks
+//go:generate mockery --dir=./cluster --name=ClusterServiceServer --output=./cluster/mocks
+
 const (
 	MetaDataTokenKey = "token"
 	// EnvArgoCDServer is the environment variable to look for an Argo CD server address
 	EnvArgoCDServer = "ARGOCD_SERVER"
 	// EnvArgoCDAuthToken is the environment variable to look for an Argo CD auth token
 	EnvArgoCDAuthToken = "ARGOCD_AUTH_TOKEN"
-	// EnvArgoCDgRPCMaxSizeMB is the environment variable to look for a max gRPC message size
-	EnvArgoCDgRPCMaxSizeMB = "ARGOCD_GRPC_MAX_SIZE_MB"
 )
 
-var (
-	// MaxGRPCMessageSize contains max grpc message size
-	MaxGRPCMessageSize = env.ParseNumFromEnv(EnvArgoCDgRPCMaxSizeMB, 200, 0, math.MaxInt32) * 1024 * 1024
-)
+// MaxGRPCMessageSize contains max grpc message size
+var MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 200, 0, math.MaxInt32) * 1024 * 1024
 
 // Client defines an interface for interaction with an Argo CD server.
 type Client interface {
@@ -338,11 +340,11 @@ func (c *client) OIDCConfig(ctx context.Context, set *settingspkg.Settings) (*oa
 	}
 	provider, err := oidc.NewProvider(ctx, issuerURL)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to query provider %q: %v", issuerURL, err)
+		return nil, nil, fmt.Errorf("Failed to query provider %q: %w", issuerURL, err)
 	}
 	oidcConf, err := oidcutil.ParseConfig(provider)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to parse provider config: %v", err)
+		return nil, nil, fmt.Errorf("Failed to parse provider config: %w", err)
 	}
 	scopes = oidcutil.GetScopesOrDefault(scopes)
 	if oidcutil.OfflineAccess(oidcConf.ScopesSupported) {
@@ -849,7 +851,7 @@ func (c *client) WatchApplicationWithRetry(ctx context.Context, appName string, 
 }
 
 func isCanceledContextErr(err error) bool {
-	if err == context.Canceled {
+	if err != nil && errors.Is(err, context.Canceled) {
 		return true
 	}
 	if stat, ok := status.FromError(err); ok {

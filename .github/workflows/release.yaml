@@ -12,7 +12,7 @@ on:
       - "!release-v0*"
 
 env:
-  GOLANG_VERSION: '1.21' # Note: go-version must also be set in job argocd-image.with.go-version
+  GOLANG_VERSION: '1.22' # Note: go-version must also be set in job argocd-image.with.go-version
   # The name of the tag as supplied by the GitHub event
   SOURCE_TAG: ${{ github.ref }}
   # The image namespace where Docker image will be published to
@@ -45,7 +45,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -156,7 +156,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Golang
-        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
+        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 
@@ -253,7 +253,7 @@ jobs:
       - container-image
     steps:
       - name: Checkout code
-        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -286,7 +286,7 @@ jobs:
           git push origin ${RELEASE_TAG}
 
       - name: Setup Golang
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 

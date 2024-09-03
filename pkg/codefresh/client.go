@@ -14,9 +14,10 @@ import (
 	"os"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/events"
 )
 
 type CodefreshConfig struct {

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	util_session "github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
@@ -16,6 +15,8 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
+
+	util_session "github.com/argoproj/argo-cd/v2/util/session"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -43,7 +44,8 @@ type terminalHandler struct {
 
 // NewHandler returns a new terminal handler.
 func NewHandler(appLister applisters.ApplicationLister, namespace string, enabledNamespaces []string, db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache,
-	appResourceTree AppResourceTreeFn, allowedShells []string, sessionManager *util_session.SessionManager) *terminalHandler {
+	appResourceTree AppResourceTreeFn, allowedShells []string, sessionManager *util_session.SessionManager,
+) *terminalHandler {
 	return &terminalHandler{
 		appLister:         appLister,
 		db:                db,
@@ -154,8 +156,10 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fieldLog := log.WithFields(log.Fields{"application": app, "userName": sessionmgr.Username(ctx), "container": container,
-		"podName": podName, "namespace": namespace, "project": project, "appNamespace": appNamespace})
+	fieldLog := log.WithFields(log.Fields{
+		"application": app, "userName": sessionmgr.Username(ctx), "container": container,
+		"podName": podName, "namespace": namespace, "project": project, "appNamespace": appNamespace,
+	})
 
 	a, err := s.appLister.Applications(ns).Get(app)
 	if err != nil {
@@ -225,7 +229,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	fieldLog.Info("terminal session starting")
 
-	session, err := newTerminalSession(w, r, nil, s.sessionManager)
+	session, err := newTerminalSession(ctx, w, r, nil, s.sessionManager, appRBACName, s.enf)
 	if err != nil {
 		http.Error(w, "Failed to start terminal session", http.StatusBadRequest)
 		return

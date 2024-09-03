@@ -37,10 +37,10 @@ spec:
         runAsUser: 999
         seccompProfile:
           type: RuntimeDefault
-      serviceAccountName: argocd-redis
+      serviceAccountName: argocd-redis        
       containers:
       - name: redis
-        image: public.ecr.aws/docker/library/redis:7.0.14-alpine
+        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
         imagePullPolicy: Always
         args:
         - "--save"

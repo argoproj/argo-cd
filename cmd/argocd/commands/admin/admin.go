@@ -37,11 +37,9 @@ var (
 
 // NewAdminCommand returns a new instance of an argocd command
 func NewAdminCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		pathOpts = clientcmd.NewDefaultPathOptions()
-	)
+	pathOpts := clientcmd.NewDefaultPathOptions()
 
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:               "admin",
 		Short:             "Contains a set of commands useful for Argo CD administrators and requires direct Kubernetes access",
 		DisableAutoGenTag: true,
@@ -183,7 +181,6 @@ func isArgoCDConfigMap(name string) bool {
 		return true
 	}
 	return false
-
 }
 
 // specsEqual returns if the spec, data, labels, annotations, and finalizers of the two

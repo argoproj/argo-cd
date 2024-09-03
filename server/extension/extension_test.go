@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/server/extension"
@@ -56,7 +56,7 @@ func TestValidateHeaders(t *testing.T) {
 		rr, err := extension.ValidateHeaders(r)
 
 		// then
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, rr)
 	})
 	t.Run("will return error if application header is missing", func(t *testing.T) {
@@ -71,7 +71,7 @@ func TestValidateHeaders(t *testing.T) {
 		rr, err := extension.ValidateHeaders(r)
 
 		// then
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, rr)
 	})
 	t.Run("will return error if project header is missing", func(t *testing.T) {
@@ -86,7 +86,7 @@ func TestValidateHeaders(t *testing.T) {
 		rr, err := extension.ValidateHeaders(r)
 
 		// then
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, rr)
 	})
 	t.Run("will return error if invalid namespace", func(t *testing.T) {
@@ -102,7 +102,7 @@ func TestValidateHeaders(t *testing.T) {
 		rr, err := extension.ValidateHeaders(r)
 
 		// then
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, rr)
 	})
 	t.Run("will return error if invalid app name", func(t *testing.T) {
@@ -118,7 +118,7 @@ func TestValidateHeaders(t *testing.T) {
 		rr, err := extension.ValidateHeaders(r)
 
 		// then
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, rr)
 	})
 	t.Run("will return error if invalid project name", func(t *testing.T) {
@@ -134,7 +134,7 @@ func TestValidateHeaders(t *testing.T) {
 		rr, err := extension.ValidateHeaders(r)
 
 		// then
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, rr)
 	})
 }
@@ -167,7 +167,8 @@ func TestRegisterExtensions(t *testing.T) {
 		f.settingsGetterMock.On("Get", mock.Anything).Return(settings, nil)
 		expectedProxyRegistries := []string{
 			"external-backend",
-			"some-backend"}
+			"some-backend",
+		}
 
 		// when
 		err := f.manager.RegisterExtensions()
@@ -179,7 +180,6 @@ func TestRegisterExtensions(t *testing.T) {
 			assert.True(t, found)
 			assert.NotNil(t, proxyRegistry)
 		}
-
 	})
 	t.Run("will return error if extension config is invalid", func(t *testing.T) {
 		// given
@@ -231,7 +231,7 @@ func TestRegisterExtensions(t *testing.T) {
 				err := f.manager.RegisterExtensions()
 
 				// then
-				assert.Error(t, err, fmt.Sprintf("expected error in test %s but got nil", tc.name))
+				require.Error(t, err, "expected error in test %s but got nil", tc.name)
 			})
 		}
 	})
@@ -375,7 +375,6 @@ func TestCallExtension(t *testing.T) {
 			}
 			fmt.Fprintln(w, response)
 		}))
-
 	}
 	newExtensionRequest := func(t *testing.T, method, url string) *http.Request {
 		t.Helper()
@@ -782,6 +781,7 @@ extensions:
     connectionTimeout: 2s
 `
 }
+
 func getExtensionConfigNoName() string {
 	return `
 extensions:
@@ -790,6 +790,7 @@ extensions:
     - url: https://httpbin.org
 `
 }
+
 func getExtensionConfigInvalidName() string {
 	return `
 extensions:

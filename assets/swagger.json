@@ -417,7 +417,7 @@
         "parameters": [
           {
             "type": "string",
-            "description": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional",
+            "description": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names\n+optional",
             "name": "application.metadata.name",
             "in": "path",
             "required": true
@@ -1666,6 +1666,20 @@
             "type": "string",
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "source index (for multi source apps).",
+            "name": "sourceIndex",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "versionId from historical data (for multi source apps).",
+            "name": "versionId",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1715,6 +1729,20 @@
           {
             "type": "string",
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "source index (for multi source apps).",
+            "name": "sourceIndex",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "versionId from historical data (for multi source apps).",
+            "name": "versionId",
             "in": "query"
           }
         ],
@@ -2091,6 +2119,43 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/applicationsetApplicationSetResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applicationsets/{name}/resource-tree": {
+      "get": {
+        "tags": [
+          "ApplicationSetService"
+        ],
+        "summary": "ResourceTree returns resource tree",
+        "operationId": "ApplicationSetService_ResourceTree",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "The application set namespace. Default empty is argocd control plane namespace.",
+            "name": "appsetNamespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ApplicationSetTree"
             }
           },
           "default": {
@@ -3003,7 +3068,7 @@
         "parameters": [
           {
             "type": "string",
-            "description": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional",
+            "description": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names\n+optional",
             "name": "project.metadata.name",
             "in": "path",
             "required": true
@@ -3206,7 +3271,7 @@
         "parameters": [
           {
             "type": "string",
-            "description": "URL is the URL that this credentials matches to",
+            "description": "URL is the URL to which these credentials match",
             "name": "creds.url",
             "in": "path",
             "required": true
@@ -3285,6 +3350,12 @@
             "type": "boolean",
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
             "in": "query"
           }
         ],
@@ -3408,6 +3479,12 @@
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3443,6 +3520,12 @@
             "type": "boolean",
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
             "in": "query"
           }
         ],
@@ -3528,6 +3611,12 @@
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3564,6 +3653,12 @@
             "type": "boolean",
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
             "in": "query"
           }
         ],
@@ -5242,6 +5337,16 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "sourceIndex": {
+          "type": "integer",
+          "format": "int32",
+          "title": "source index (for multi source apps)"
+        },
+        "versionId": {
+          "type": "integer",
+          "format": "int32",
+          "title": "versionId from historical data (for multi source apps)"
         }
       }
     },
@@ -5545,8 +5650,8 @@
       "type": "object",
       "properties": {
         "key": {
-          "type": "string",
-          "title": "key is the label key that the selector applies to.\n+patchMergeKey=key\n+patchStrategy=merge"
+          "description": "key is the label key that the selector applies to.",
+          "type": "string"
         },
         "operator": {
           "description": "operator represents a key's relationship to a set of values.\nValid operators are In, NotIn, Exists and DoesNotExist.",
@@ -5595,6 +5700,10 @@
         "ip": {
           "type": "string",
           "title": "IP is set for load-balancer ingress points that are IP based\n(typically GCE or OpenStack load-balancers)\n+optional"
+        },
+        "ipMode": {
+          "type": "string",
+          "title": "IPMode specifies how the load-balancer IP behaves, and may only be specified when the ip field is specified.\nSetting this to \"VIP\" indicates that traffic is delivered to the node with\nthe destination set to the load-balancer's IP and port.\nSetting this to \"Proxy\" indicates that traffic is delivered to the node or pod with\nthe destination set to the node's IP and node port or the pod's IP and port.\nService implementations may use this information to adjust traffic routing.\n+optional"
         },
         "ports": {
           "type": "array",
@@ -5705,7 +5814,7 @@
       "properties": {
         "annotations": {
           "type": "object",
-          "title": "Annotations is an unstructured key value map stored with a resource that may be\nset by external tools to store and retrieve arbitrary metadata. They are not\nqueryable and should be preserved when modifying objects.\nMore info: http://kubernetes.io/docs/user-guide/annotations\n+optional",
+          "title": "Annotations is an unstructured key value map stored with a resource that may be\nset by external tools to store and retrieve arbitrary metadata. They are not\nqueryable and should be preserved when modifying objects.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations\n+optional",
           "additionalProperties": {
             "type": "string"
           }
@@ -5739,7 +5848,7 @@
         },
         "labels": {
           "type": "object",
-          "title": "Map of string keys and values that can be used to organize and categorize\n(scope and select) objects. May match selectors of replication controllers\nand services.\nMore info: http://kubernetes.io/docs/user-guide/labels\n+optional",
+          "title": "Map of string keys and values that can be used to organize and categorize\n(scope and select) objects. May match selectors of replication controllers\nand services.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels\n+optional",
           "additionalProperties": {
             "type": "string"
           }
@@ -5753,10 +5862,10 @@
         },
         "name": {
           "type": "string",
-          "title": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional"
+          "title": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names\n+optional"
         },
         "namespace": {
-          "description": "Namespace defines the space within which each name must be unique. An empty namespace is\nequivalent to the \"default\" namespace, but \"default\" is the canonical representation.\nNot all objects are required to be scoped to a namespace - the value of this field for\nthose objects will be empty.\n\nMust be a DNS_LABEL.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/namespaces\n+optional",
+          "description": "Namespace defines the space within which each name must be unique. An empty namespace is\nequivalent to the \"default\" namespace, but \"default\" is the canonical representation.\nNot all objects are required to be scoped to a namespace - the value of this field for\nthose objects will be empty.\n\nMust be a DNS_LABEL.\nCannot be updated.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces\n+optional",
           "type": "string"
         },
         "ownerReferences": {
@@ -5775,7 +5884,7 @@
           "title": "Deprecated: selfLink is a legacy read-only field that is no longer populated by the system.\n+optional"
         },
         "uid": {
-          "description": "UID is the unique in time and space value for this object. It is typically generated by\nthe server on successful creation of a resource and is not allowed to change on PUT\noperations.\n\nPopulated by the system.\nRead-only.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids\n+optional",
+          "description": "UID is the unique in time and space value for this object. It is typically generated by\nthe server on successful creation of a resource and is not allowed to change on PUT\noperations.\n\nPopulated by the system.\nRead-only.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids\n+optional",
           "type": "string"
         }
       }
@@ -5836,11 +5945,11 @@
         },
         "name": {
           "type": "string",
-          "title": "Name of the referent.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names"
+          "title": "Name of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names"
         },
         "uid": {
           "type": "string",
-          "title": "UID of the referent.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids"
+          "title": "UID of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids"
         }
       }
     },
@@ -6017,7 +6126,7 @@
     },
     "v1alpha1Application": {
       "type": "object",
-      "title": "Application is a definition of Application resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applications,shortName=app;apps\n+kubebuilder:printcolumn:name=\"Sync Status\",type=string,JSONPath=`.status.sync.status`\n+kubebuilder:printcolumn:name=\"Health Status\",type=string,JSONPath=`.status.health.status`\n+kubebuilder:printcolumn:name=\"Revision\",type=string,JSONPath=`.status.sync.revision`,priority=10",
+      "title": "Application is a definition of Application resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applications,shortName=app;apps\n+kubebuilder:printcolumn:name=\"Sync Status\",type=string,JSONPath=`.status.sync.status`\n+kubebuilder:printcolumn:name=\"Health Status\",type=string,JSONPath=`.status.health.status`\n+kubebuilder:printcolumn:name=\"Revision\",type=string,JSONPath=`.status.sync.revision`,priority=10\n+kubebuilder:printcolumn:name=\"Project\",type=string,JSONPath=`.spec.project`,priority=10",
       "properties": {
         "metadata": {
           "$ref": "#/definitions/v1ObjectMeta"
@@ -6154,12 +6263,19 @@
         "step": {
           "type": "string",
           "title": "Step tracks which step this Application should be updated in"
+        },
+        "targetrevisions": {
+          "description": "TargetRevision tracks the desired revisions the Application should be synced to.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
     "v1alpha1ApplicationSetCondition": {
       "type": "object",
-      "title": "ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning",
+      "title": "ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning",
       "properties": {
         "lastTransitionTime": {
           "$ref": "#/definitions/v1Time"
@@ -6380,6 +6496,13 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationSetCondition"
           }
+        },
+        "resources": {
+          "description": "Resources is a list of Applications resources managed by this application set.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceStatus"
+          }
         }
       }
     },
@@ -6448,6 +6571,19 @@
         },
         "namespace": {
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1ApplicationSetTree": {
+      "type": "object",
+      "title": "ApplicationSetTree holds nodes which belongs to the application\nUsed to build a tree of an ApplicationSet and its children",
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "title": "Nodes contains list of nodes which are directly managed by the applicationset",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceNode"
+          }
         }
       }
     },
@@ -7007,7 +7143,7 @@
         },
         "serverVersion": {
           "type": "string",
-          "title": "DEPRECATED: use Info.ServerVersion field instead.\nThe server version"
+          "title": "Deprecated: use Info.ServerVersion field instead.\nThe server version"
         },
         "shard": {
           "description": "Shard contains optional shard number. Calculated on the fly by the application controller if not specified.",
@@ -8183,7 +8319,7 @@
         },
         "url": {
           "type": "string",
-          "title": "URL is the URL that this credentials matches to"
+          "title": "URL is the URL to which these credentials match"
         },
         "username": {
           "type": "string",
@@ -8269,7 +8405,7 @@
         },
         "project": {
           "type": "string",
-          "title": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity"
+          "title": "Reference between project and repository that allows it to be automatically added as an item inside SourceRepos project entity"
         },
         "proxy": {
           "type": "string",

@@ -2,17 +2,19 @@ package controller
 
 import (
 	"encoding/json"
+	"strings"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"strings"
 )
 
 // for some resource kubectl apply returns 'configured' in message but in fact it was unchanged
-// this func intented to fix this behaviour
+// this func intended to fix this behaviour
 func (m *appStateManager) FixWrongKubectlMessage(resState []common.ResourceSyncResult, state *v1alpha1.OperationState, compareResult *comparisonResult) {
 	diffResultsMap := groupDiffResults(compareResult.diffResultList)
 

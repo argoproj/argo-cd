@@ -49,6 +49,10 @@ var (
 
 func NewCommand() *cobra.Command {
 	var (
+		codefreshUrl                          string
+		codefreshToken                        string
+		codefreshApplicationVersioningEnabled bool
+		codefreshUseApplicationConfiguration  bool
 		parallelismLimit                      int64
 		listenPort                            int
 		listenHost                            string
@@ -71,12 +75,9 @@ func NewCommand() *cobra.Command {
 		helmManifestMaxExtractedSize          string
 		helmRegistryMaxIndexSize              string
 		disableManifestMaxExtractedSize       bool
-		codefreshUrl                          string
-		codefreshToken                        string
-		codefreshApplicationVersioningEnabled bool
-		codefreshUseApplicationConfiguration  bool
+		includeHiddenDirectories              bool
 	)
-	var command = cobra.Command{
+	command := cobra.Command{
 		Use:               cliName,
 		Short:             "Run ArgoCD Repository Server",
 		Long:              "ArgoCD Repository Server is an internal service which maintains a local cache of the Git repository holding the application manifests, and is responsible for generating and returning the Kubernetes manifests.  This command runs Repository Server in the foreground.  It can be configured by following options.",
@@ -123,6 +124,12 @@ func NewCommand() *cobra.Command {
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer)
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
+				CodefreshApplicationVersioningEnabled: codefreshApplicationVersioningEnabled,
+				CodefreshUseApplicationConfiguration:  codefreshUseApplicationConfiguration,
+				CodefreshConfig: codefresh.CodefreshConfig{
+					BaseURL:   codefreshUrl,
+					AuthToken: codefreshToken,
+				},
 				ParallelismLimit: parallelismLimit,
 				PauseGenerationAfterFailedGenerationAttempts: pauseGenerationAfterFailedGenerationAttempts,
 				PauseGenerationOnFailureForMinutes:           pauseGenerationOnFailureForMinutes,
@@ -134,13 +141,8 @@ func NewCommand() *cobra.Command {
 				StreamedManifestMaxExtractedSize:             streamedManifestMaxExtractedSizeQuantity.ToDec().Value(),
 				StreamedManifestMaxTarSize:                   streamedManifestMaxTarSizeQuantity.ToDec().Value(),
 				HelmManifestMaxExtractedSize:                 helmManifestMaxExtractedSizeQuantity.ToDec().Value(),
-				CodefreshApplicationVersioningEnabled:        codefreshApplicationVersioningEnabled,
-				CodefreshUseApplicationConfiguration:         codefreshUseApplicationConfiguration,
-				CodefreshConfig: codefresh.CodefreshConfig{
-					BaseURL:   codefreshUrl,
-					AuthToken: codefreshToken,
-				},
-				HelmRegistryMaxIndexSize: helmRegistryMaxIndexSizeQuantity.ToDec().Value(),
+				HelmRegistryMaxIndexSize:                     helmRegistryMaxIndexSizeQuantity.ToDec().Value(),
+				IncludeHiddenDirectories:                     includeHiddenDirectories,
 			}, askPassServer)
 			errors.CheckError(err)
 
@@ -232,6 +234,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&helmManifestMaxExtractedSize, "helm-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of helm manifest archives when extracted")
 	command.Flags().StringVar(&helmRegistryMaxIndexSize, "helm-registry-max-index-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_INDEX_SIZE", "1G"), "Maximum size of registry index file")
 	command.Flags().BoolVar(&disableManifestMaxExtractedSize, "disable-helm-manifest-max-extracted-size", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE", false), "Disable maximum size of helm manifest archives when extracted")
+	command.Flags().BoolVar(&includeHiddenDirectories, "include-hidden-directories", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES", false), "Include hidden directories from Git")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {

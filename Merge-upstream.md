@@ -37,8 +37,9 @@ This docs include info about places where codefresh made it's customizations:
 2. run `go mod download`
 3. run `go mod vendor`
 4. run `make lint-local`
-5. run `make codegen`
-6. run `make test-local`
+5. run `make protogen-fast` - because sometimes gogen won't work if types from protogen used
+6. run `make codegen`
+7. run `make test-local`
 
 ### Thoughts
 

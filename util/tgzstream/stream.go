@@ -8,8 +8,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/argoproj/argo-cd/v2/util/io/files"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 )
 
 func CloseAndDelete(f *os.File) {
@@ -32,7 +33,7 @@ func CompressFiles(appPath string, included []string, excluded []string) (*os.Fi
 	appName := filepath.Base(appPath)
 	tempDir, err := files.CreateTempDir(os.TempDir())
 	if err != nil {
-		return nil, 0, "", fmt.Errorf("error creating tempDir for compressing files: %s", err)
+		return nil, 0, "", fmt.Errorf("error creating tempDir for compressing files: %w", err)
 	}
 	tgzFile, err := os.CreateTemp(tempDir, appName)
 	if err != nil {

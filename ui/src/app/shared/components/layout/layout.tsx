@@ -9,7 +9,6 @@ export interface LayoutProps {
     onVersionClick?: () => void;
     children?: React.ReactNode;
     pref: ViewPreferences;
-    isExtension?: boolean;
 }
 
 const getBGColor = (theme: string): string => (theme === 'light' ? '#dee6eb' : '#100f0f');
@@ -23,7 +22,7 @@ export const Layout = (props: LayoutProps) => {
 
     return (
         <div className={props.pref.theme ? 'theme-' + props.pref.theme : 'theme-light'}>
-            <div className={`cd-layout ${props.isExtension ? 'cd-layout--extension' : ''}`}>
+            <div className={'cd-layout'}>
                 <Sidebar onVersionClick={props.onVersionClick} navItems={props.navItems} pref={props.pref} />
                 <div className={`cd-layout__content ${props.pref.hideSidebar ? 'cd-layout__content--sb-collapsed' : 'cd-layout__content--sb-expanded'} custom-styles`}>
                     {props.children}

@@ -2,12 +2,13 @@ package handlers
 
 import (
 	"encoding/json"
-	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
-	"github.com/argoproj/argo-cd/v2/event_reporter/sharding"
-	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"net/http"
 	"strconv"
 	"strings"
+
+	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
+	"github.com/argoproj/argo-cd/v2/event_reporter/sharding"
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 )
 
 type RequestHandlers struct {
@@ -36,7 +37,6 @@ func (rH *RequestHandlers) GetAppDistribution(w http.ResponseWriter, r *http.Req
 	}
 
 	apps, err := rH.ApplicationServiceClient.List(r.Context(), &applicationpkg.ApplicationQuery{})
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -74,7 +74,6 @@ func (rH *RequestHandlers) GetAppDistribution(w http.ResponseWriter, r *http.Req
 
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(jsonBytes)
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

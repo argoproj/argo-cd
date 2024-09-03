@@ -130,7 +130,7 @@ func GetKubePublicEndpoint(client kubernetes.Interface) (string, error) {
 	config := &clientcmdapiv1.Config{}
 	err = yaml.Unmarshal([]byte(kubeconfig), config)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse cluster-info kubeconfig: %v", err)
+		return "", fmt.Errorf("failed to parse cluster-info kubeconfig: %w", err)
 	}
 	if len(config.Clusters) == 0 {
 		return "", fmt.Errorf("cluster-info kubeconfig does not have any clusters")

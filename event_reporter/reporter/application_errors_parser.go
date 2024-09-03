@@ -28,8 +28,10 @@ func parseApplicationSyncResultErrors(os *appv1.OperationState) []*events.Object
 	return errors
 }
 
-var syncTaskUnsuccessfullErrorMessage = "one or more synchronization tasks completed unsuccessfully"
-var syncTaskNotValidErrorMessage = "one or more synchronization tasks are not valid"
+var (
+	syncTaskUnsuccessfullErrorMessage = "one or more synchronization tasks completed unsuccessfully"
+	syncTaskNotValidErrorMessage      = "one or more synchronization tasks are not valid"
+)
 
 func parseApplicationSyncResultErrorsFromConditions(status appv1.ApplicationStatus) []*events.ObjectError {
 	var errs []*events.ObjectError
@@ -139,7 +141,6 @@ func parseAggregativeResourcesSyncErrors(resourceResults appv1.ResourceResults) 
 			if rr.HookPhase == common.OperationFailed || rr.HookPhase == common.OperationError {
 				errs = append(errs, &objectError)
 			}
-
 		}
 	}
 

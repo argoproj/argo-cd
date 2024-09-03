@@ -3,10 +3,10 @@ package commands
 import (
 	"context"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
-
 	"math"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 
 	"github.com/argoproj/argo-cd/v2/event_reporter"
 	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
@@ -104,7 +104,7 @@ func NewCommand() *cobra.Command {
 		rateLimiterDuration     time.Duration
 		rateLimiterLearningMode bool
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:               cliName,
 		Short:             "Run the Event Reporter server",
 		Long:              "The Event reporter is a server that listens to Kubernetes events and reports them to the Codefresh server.",

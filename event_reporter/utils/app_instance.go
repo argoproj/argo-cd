@@ -1,10 +1,12 @@
 package utils
 
 import (
+	"strings"
+
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"strings"
 )
 
 const appInstanceNameDelimeter = "_"

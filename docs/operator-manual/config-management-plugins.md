@@ -178,7 +178,7 @@ entrypoint. You can use either off-the-shelf or custom-built plugin image as sid
 containers:
 - name: my-plugin
   command: [/var/run/argocd/argocd-cmp-server] # Entrypoint should be Argo CD lightweight CMP server i.e. argocd-cmp-server
-  image: busybox # This can be off-the-shelf or custom-built image
+  image: ubuntu # This can be off-the-shelf or custom-built image
   securityContext:
     runAsNonRoot: true
     runAsUser: 999
@@ -458,7 +458,7 @@ Plugins configured with argocd-cm ran on the Argo CD image. This gave it access 
 image by default (see the [Dockerfile](https://github.com/argoproj/argo-cd/blob/master/Dockerfile) for base image and
 installed tools).
 
-You can either use a stock image (like busybox, or alpine/k8s) or design your own base image with the tools your plugin needs. For
+You can either use a stock image (like ubuntu, busybox, or alpine/k8s) or design your own base image with the tools your plugin needs. For
 security, avoid using images with more binaries installed than what your plugin actually needs.
 
 ### Test the plugin

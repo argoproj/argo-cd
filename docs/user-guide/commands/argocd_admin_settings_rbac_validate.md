@@ -26,8 +26,8 @@ argocd admin settings rbac validate --policy-file policy.csv
 # i.e. 'policy.csv' and (optionally) 'policy.default'
 argocd admin settings rbac validate --policy-file argocd-rbac-cm.yaml
 
-# If --policy-file is not given, and instead --namespace is giventhe ConfigMap 'argocd-rbac-cm' 
-# from K8s is used. 
+# If --policy-file is not given, and instead --namespace is giventhe ConfigMap 'argocd-rbac-cm'
+# from K8s is used.
 argocd admin settings rbac validate --namespace argocd
 
 # Either --policy-file or --namespace must be given.

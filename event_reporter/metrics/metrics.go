@@ -2,10 +2,11 @@ package metrics
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/event_reporter/sharding"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/event_reporter/sharding"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"

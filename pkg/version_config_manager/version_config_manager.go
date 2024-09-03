@@ -1,10 +1,11 @@
 package version_config_manager
 
 import (
-	"github.com/argoproj/argo-cd/v2/pkg/codefresh"
-	"github.com/argoproj/argo-cd/v2/reposerver/cache"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/v2/pkg/codefresh"
+	"github.com/argoproj/argo-cd/v2/reposerver/cache"
 )
 
 type VersionConfig struct {

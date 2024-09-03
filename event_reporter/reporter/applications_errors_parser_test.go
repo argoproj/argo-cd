@@ -43,9 +43,9 @@ func TestParseResourceSyncResultErrors(t *testing.T) {
 		})
 
 		assert.Len(t, errors, 1)
-		assert.Equal(t, errors[0].Message, "error message, with comma")
-		assert.Equal(t, errors[0].Type, "sync")
-		assert.Equal(t, errors[0].Level, "error")
+		assert.Equal(t, "error message, with comma", errors[0].Message)
+		assert.Equal(t, "sync", errors[0].Type)
+		assert.Equal(t, "error", errors[0].Level)
 	})
 	t.Run("Resource of app contain error", func(t *testing.T) {
 		errors := parseResourceSyncResultErrors(&v1alpha1.ResourceStatus{
@@ -79,9 +79,9 @@ func TestParseResourceSyncResultErrors(t *testing.T) {
 		})
 
 		assert.Len(t, errors, 1)
-		assert.Equal(t, errors[0].Message, "error message")
-		assert.Equal(t, errors[0].Type, "sync")
-		assert.Equal(t, errors[0].Level, "error")
+		assert.Equal(t, "error message", errors[0].Message)
+		assert.Equal(t, "sync", errors[0].Type)
+		assert.Equal(t, "error", errors[0].Level)
 	})
 	t.Run("Resource of app not contain error", func(t *testing.T) {
 		errors := parseResourceSyncResultErrors(&v1alpha1.ResourceStatus{
@@ -114,7 +114,7 @@ func TestParseResourceSyncResultErrors(t *testing.T) {
 			},
 		})
 
-		assert.Len(t, errors, 0)
+		assert.Empty(t, errors)
 	})
 	t.Run("App of app contain error", func(t *testing.T) {
 		errors := parseApplicationSyncResultErrors(&v1alpha1.OperationState{
@@ -127,9 +127,9 @@ func TestParseResourceSyncResultErrors(t *testing.T) {
 		})
 
 		assert.Len(t, errors, 1)
-		assert.Equal(t, errors[0].Message, "error message")
-		assert.Equal(t, errors[0].Type, "sync")
-		assert.Equal(t, errors[0].Level, "error")
+		assert.Equal(t, "error message", errors[0].Message)
+		assert.Equal(t, "sync", errors[0].Type)
+		assert.Equal(t, "error", errors[0].Level)
 	})
 }
 
@@ -145,9 +145,9 @@ func TestParseApplicationSyncResultErrorsFromConditions(t *testing.T) {
 		})
 
 		assert.Len(t, errors, 1)
-		assert.Equal(t, errors[0].Message, "error message")
-		assert.Equal(t, errors[0].Type, "sync")
-		assert.Equal(t, errors[0].Level, "error")
+		assert.Equal(t, "error message", errors[0].Message)
+		assert.Equal(t, "sync", errors[0].Type)
+		assert.Equal(t, "error", errors[0].Level)
 	})
 
 	t.Run("conditions erorr replaced with sync result errors", func(t *testing.T) {
@@ -175,8 +175,8 @@ func TestParseApplicationSyncResultErrorsFromConditions(t *testing.T) {
 						},
 						&v1alpha1.ResourceResult{
 							Kind:      "Job",
-							Name:      "some-succeded-hook",
-							Message:   "job succeded",
+							Name:      "some-succeeded-hook",
+							Message:   "job succeeded",
 							HookPhase: common.OperationSucceeded,
 						},
 						&v1alpha1.ResourceResult{
@@ -191,12 +191,12 @@ func TestParseApplicationSyncResultErrorsFromConditions(t *testing.T) {
 		})
 
 		assert.Len(t, errors, 2)
-		assert.Equal(t, errors[0].Message, fmt.Sprintf("Resource %s(%s): \n %s", "Job", "some-job", "job failed"))
-		assert.Equal(t, errors[0].Type, "sync")
-		assert.Equal(t, errors[0].Level, "error")
-		assert.Equal(t, errors[1].Message, fmt.Sprintf("Resource %s(%s): \n %s", "Pod", "some-pod", "pod failed"))
-		assert.Equal(t, errors[1].Type, "sync")
-		assert.Equal(t, errors[1].Level, "error")
+		assert.Equal(t, fmt.Sprintf("Resource %s(%s): \n %s", "Job", "some-job", "job failed"), errors[0].Message)
+		assert.Equal(t, "sync", errors[0].Type)
+		assert.Equal(t, "error", errors[0].Level)
+		assert.Equal(t, fmt.Sprintf("Resource %s(%s): \n %s", "Pod", "some-pod", "pod failed"), errors[1].Message)
+		assert.Equal(t, "sync", errors[1].Type)
+		assert.Equal(t, "error", errors[1].Level)
 	})
 }
 
@@ -208,6 +208,6 @@ func TestParseAggregativeHealthErrors(t *testing.T) {
 			Namespace: "namespace",
 			Name:      "name",
 		}, nil)
-		assert.Len(t, errs, 0)
+		assert.Empty(t, errs)
 	})
 }

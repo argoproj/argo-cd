@@ -58,7 +58,7 @@ func NewCommand() *cobra.Command {
 		applicationNamespaces          []string
 		selfServiceNotificationEnabled bool
 	)
-	var command = cobra.Command{
+	command := cobra.Command{
 		Use:   "controller",
 		Short: "Starts Argo CD Notifications controller",
 		RunE: func(c *cobra.Command, args []string) error {

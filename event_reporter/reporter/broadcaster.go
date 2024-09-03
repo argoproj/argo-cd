@@ -1,15 +1,17 @@
 package reporter
 
 import (
+	"math"
+	"sync"
+
+	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/watch"
+
 	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/event_reporter/metrics"
 	"github.com/argoproj/argo-cd/v2/event_reporter/sharding"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/env"
-	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/watch"
-	"math"
-	"sync"
 )
 
 type subscriber struct {
@@ -29,7 +31,7 @@ func (s *subscriber) matches(event *appv1.ApplicationWatchEvent) bool {
 // Broadcaster is an interface for broadcasting application informer watch events to multiple subscribers.
 type Broadcaster interface {
 	Subscribe(ch chan *appv1.ApplicationWatchEvent, filters ...func(event *appv1.ApplicationWatchEvent) bool) func()
-	OnAdd(interface{})
+	OnAdd(interface{}, bool)
 	OnUpdate(interface{}, interface{})
 	OnDelete(interface{})
 }
@@ -73,7 +75,6 @@ func (b *broadcasterHandler) notify(event *appv1.ApplicationWatchEvent) {
 
 	for _, s := range subscribers {
 		if s.matches(event) {
-
 			limited, err, learningMode := b.rateLimiter.Limit(event.Application.Name)
 			errorInLearningMode := learningMode && err != nil
 			if err != nil || limited {
@@ -120,7 +121,7 @@ func (b *broadcasterHandler) Subscribe(ch chan *appv1.ApplicationWatchEvent, fil
 	}
 }
 
-func (b *broadcasterHandler) OnAdd(obj interface{}) {
+func (b *broadcasterHandler) OnAdd(obj interface{}, _ bool) {
 	if app, ok := obj.(*appv1.Application); ok {
 		b.notify(&appv1.ApplicationWatchEvent{Application: *app, Type: watch.Added})
 	}

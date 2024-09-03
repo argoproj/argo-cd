@@ -2,30 +2,33 @@ package sharding
 
 import (
 	"fmt"
-	argocommon "github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"hash/fnv"
 	"math"
 	"os"
 	"strconv"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/util/env"
+	argocommon "github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+
 	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/v2/util/env"
 )
 
 var osHostnameFunction = os.Hostname
 
-type DistributionFunction func(c *v1alpha1.Application) int
-type ApplicationFilterFunction func(c *v1alpha1.Application) (bool, int)
+type (
+	DistributionFunction      func(c *v1alpha1.Application) int
+	ApplicationFilterFunction func(c *v1alpha1.Application) (bool, int)
+)
 
 type Sharding interface {
 	GetApplicationFilter(distributionFunction DistributionFunction, shard int) ApplicationFilterFunction
 	GetDistributionFunction(shardingAlgorithm string) DistributionFunction
 }
 
-type sharding struct {
-}
+type sharding struct{}
 
 func NewSharding() Sharding {
 	return &sharding{}
@@ -43,7 +46,7 @@ func (s *sharding) GetApplicationFilter(distributionFunction DistributionFunctio
 // the current datas.
 func (s *sharding) GetDistributionFunction(shardingAlgorithm string) DistributionFunction {
 	log.Infof("Using filter function:  %s", shardingAlgorithm)
-	//TODO: implement switch case for multiple strategies
+	// TODO: implement switch case for multiple strategies
 	return s.LegacyDistributionFunction()
 }
 

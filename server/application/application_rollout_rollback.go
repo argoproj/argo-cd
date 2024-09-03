@@ -3,9 +3,7 @@ package application
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/resource"
+
 	jsonpatch "github.com/evanphx/json-patch"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -15,6 +13,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/resource"
 )
 
 func (s *Server) RollbackApplicationRollout(ctx context.Context, q *application.ApplicationRolloutRollbackRequest) (*application.ApplicationRolloutRollbackResponse, error) {

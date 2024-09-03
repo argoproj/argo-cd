@@ -4,13 +4,21 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
-	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 	"net"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	appclient "github.com/argoproj/argo-cd/v2/event_reporter/application"
+	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
+
+	"github.com/redis/go-redis/v9"
+	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	event_reporter "github.com/argoproj/argo-cd/v2/event_reporter/controller"
@@ -31,12 +39,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
-	"github.com/redis/go-redis/v9"
-	log "github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 )
 
 const (
@@ -219,7 +221,7 @@ func (a *EventReporterServer) Listen() (*Listeners, error) {
 // k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
 // golang/protobuf).
 func (a *EventReporterServer) Run(ctx context.Context, lns *Listeners) {
-	var httpS = a.newHTTPServer(ctx, a.ListenPort)
+	httpS := a.newHTTPServer(ctx, a.ListenPort)
 	tlsConfig := tls.Config{}
 	tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 		return a.settings.Certificate, nil

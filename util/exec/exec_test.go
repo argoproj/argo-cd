@@ -9,6 +9,7 @@ import (
 
 	argoexec "github.com/argoproj/pkg/exec"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_timeout(t *testing.T) {
@@ -25,7 +26,7 @@ func Test_timeout(t *testing.T) {
 
 func TestRun(t *testing.T) {
 	out, err := Run(exec.Command("ls"))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, out)
 }
 

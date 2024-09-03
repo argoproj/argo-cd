@@ -9,9 +9,10 @@ import (
 	"strconv"
 
 	"github.com/PaesslerAG/jsonpath"
-	"github.com/argoproj/argo-cd/v2/pkg/version_config_manager"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
+
+	"github.com/argoproj/argo-cd/v2/pkg/version_config_manager"
 )
 
 type DependenciesMap struct {

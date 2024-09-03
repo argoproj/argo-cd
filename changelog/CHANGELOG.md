@@ -1,2 +1,2 @@
 ### Chore
--  chore: removed v1 reporter
+-  chore: argo-cd update to 2.12.3

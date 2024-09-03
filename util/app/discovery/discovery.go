@@ -128,16 +128,16 @@ func DetectConfigManagementPlugin(ctx context.Context, appPath, repoPath, plugin
 func matchRepositoryCMP(ctx context.Context, appPath, repoPath string, client pluginclient.ConfigManagementPluginServiceClient, env []string, tarExcludedGlobs []string) (bool, bool, error) {
 	matchRepoStream, err := client.MatchRepository(ctx, grpc_retry.Disable())
 	if err != nil {
-		return false, false, fmt.Errorf("error getting stream client: %s", err)
+		return false, false, fmt.Errorf("error getting stream client: %w", err)
 	}
 
 	err = cmp.SendRepoStream(ctx, appPath, repoPath, matchRepoStream, env, tarExcludedGlobs)
 	if err != nil {
-		return false, false, fmt.Errorf("error sending stream: %s", err)
+		return false, false, fmt.Errorf("error sending stream: %w", err)
 	}
 	resp, err := matchRepoStream.CloseAndRecv()
 	if err != nil {
-		return false, false, fmt.Errorf("error receiving stream response: %s", err)
+		return false, false, fmt.Errorf("error receiving stream response: %w", err)
 	}
 	return resp.GetIsSupported(), resp.GetIsDiscoveryEnabled(), nil
 }
@@ -183,7 +183,7 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 		log.WithFields(log.Fields{
 			common.SecurityField:    common.SecurityLow,
 			common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
-		}).Debugf("Reponse from socket file %s does not support %v", fileName, repoPath)
+		}).Debugf("Response from socket file %s does not support %v", fileName, repoPath)
 		io.Close(conn)
 		return nil, nil, false
 	}

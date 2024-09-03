@@ -6,7 +6,7 @@ on:
       - "release-*" # Codefresh change instead of `master`
 
 env:
-  GOLANG_VERSION: "1.19"
+  GOLANG_VERSION: "1.21"
 
 jobs:
   publish:

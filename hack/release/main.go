@@ -63,7 +63,7 @@ func getLatestVersion() (string, error) {
 }
 
 func updateVersion(version string) error {
-	file, err := os.OpenFile("VERSION", os.O_WRONLY|os.O_TRUNC, 0644)
+	file, err := os.OpenFile("VERSION", os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
 		return err
 	}
