@@ -119,7 +119,11 @@ export const ApplicationCreatePanel = (props: {
         } else {
             setDestFormat('URL');
         }
-    }, []);
+
+        return () => {
+            debouncedOnAppChanged.cancel();
+        };
+    }, [debouncedOnAppChanged]);
 
     function normalizeTypeFields(formApi: FormApi, type: models.AppSourceType) {
         const appToNormalize = formApi.getFormState().values;

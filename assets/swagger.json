@@ -6925,6 +6925,11 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceNode"
           }
+        },
+        "shardsCount": {
+          "type": "integer",
+          "format": "int64",
+          "title": "ShardsCount contains total number of shards the application tree is split into"
         }
       }
     },

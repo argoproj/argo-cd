@@ -674,9 +674,11 @@ export class ReposList extends React.Component<
 
     // Forces a reload of configured repositories, circumventing the cache
     private async refreshRepoList(updatedRepo?: string) {
+        // Refresh the credentials template list
+        this.credsLoader.reload();
+
         try {
             await services.repos.listNoCache();
-            await services.repocreds.list();
             this.repoLoader.reload();
             this.appContext.apis.notifications.show({
                 content: updatedRepo ? `Successfully updated ${updatedRepo} repository` : 'Successfully reloaded list of repositories',

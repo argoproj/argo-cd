@@ -685,6 +685,9 @@ message ApplicationTree {
 
   // Hosts holds list of Kubernetes nodes that run application related pods
   repeated HostInfo hosts = 3;
+
+  // ShardsCount contains total number of shards the application tree is split into
+  optional int64 shardsCount = 4;
 }
 
 // ApplicationWatchEvent contains information about application change.
