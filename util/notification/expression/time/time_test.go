@@ -10,6 +10,7 @@ func TestNewTimeExprs(t *testing.T) {
 	funcs := []string{
 		"Parse",
 		"Now",
+		"Format",
 	}
 
 	for _, fn := range funcs {
@@ -17,4 +18,8 @@ func TestNewTimeExprs(t *testing.T) {
 		_, hasFunc := timeExprs[fn]
 		assert.True(t, hasFunc)
 	}
+}
+
+func TestTimeFormat(t *testing.T) {
+	assert.NotEmpty(t, format(now()))
 }
