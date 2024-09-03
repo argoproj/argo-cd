@@ -275,13 +275,13 @@ func cleanReturnedArray(newObj, obj []interface{}) []interface{} {
 	return arrayToReturn
 }
 
-func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, script []string) ([]appv1.ResourceAction, error) {
-	if len(script) == 0 {
+func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scripts []string) ([]appv1.ResourceAction, error) {
+	if len(scripts) == 0 {
 		return nil, fmt.Errorf("no action discovery script provided")
 	}
 	availableActions := make([]appv1.ResourceAction, 0)
 
-	for _, script := range script {
+	for _, script := range scripts {
 		l, err := vm.runLua(obj, script)
 		if err != nil {
 			return nil, err
@@ -290,7 +290,7 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 		if returnValue.Type() == lua.LTTable {
 			jsonBytes, err := luajson.Encode(returnValue)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error in converting to lua table: %w", err)
 			}
 			if noAvailableActions(jsonBytes) {
 				return availableActions, nil
@@ -298,7 +298,7 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 			availableActionsMap := make(map[string]interface{})
 			err = json.Unmarshal(jsonBytes, &availableActionsMap)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error in converting to lua table: %w", err)
 			}
 			for key, value := range availableActionsMap {
 				resourceAction := appv1.ResourceAction{Name: key, Disabled: isActionDisabled(value)}
@@ -306,6 +306,10 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 					availableActions = append(availableActions, resourceAction)
 					continue
 				}
+				if getUniqActions(resourceAction.Name, availableActions) {
+					continue
+				}
+
 				resourceActionBytes, err := json.Marshal(value)
 				if err != nil {
 					return nil, fmt.Errorf("error marshaling resource action: %w", err)
@@ -352,6 +356,15 @@ func emptyResourceActionFromLua(i interface{}) bool {
 func noAvailableActions(jsonBytes []byte) bool {
 	// When the Lua script returns an empty table, it is decoded as a empty array.
 	return string(jsonBytes) == "[]"
+}
+
+func getUniqActions(action string, availableActions []appv1.ResourceAction) bool {
+	for _, a := range availableActions {
+		if a.Name == action {
+			return true
+		}
+	}
+	return false
 }
 
 func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) ([]string, error) {

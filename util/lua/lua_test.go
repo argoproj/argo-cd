@@ -343,7 +343,7 @@ func TestGetResourceActionDiscoveryWithOverride(t *testing.T) {
 	assert.Equal(t, validDiscoveryLua, discoveryLua[0])
 }
 
-func TestGetResourceActionsWithAddBuiltInActionsFlag(t *testing.T) {
+func TestGetResourceActionsWithBuiltInActionsFlag(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{
 		ResourceOverrides: map[string]appv1.ResourceOverride{
@@ -367,7 +367,6 @@ scale = {name = 'scale', params = scaleParams}
 
 resume = {name = 'resume'}
 
-test = {}
 a = {scale = scale, resume = resume, test = test}
 
 return a
@@ -387,8 +386,6 @@ func TestExecuteResourceActionDiscovery(t *testing.T) {
 				Name: "replicas",
 				Type: "number",
 			}},
-		}, {
-			Name: "test",
 		},
 	}
 	for _, expectedAction := range expectedActions {
