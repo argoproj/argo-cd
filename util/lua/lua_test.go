@@ -349,8 +349,8 @@ func TestGetResourceActionsWithAddBuiltInActionsFlag(t *testing.T) {
 		ResourceOverrides: map[string]appv1.ResourceOverride{
 			"argoproj.io/Rollout": {
 				Actions: string(grpc.MustMarshal(appv1.ResourceActions{
-					ActionDiscoveryLua: validDiscoveryLua,
-					AddBuildInActions:  true,
+					ActionDiscoveryLua:  validDiscoveryLua,
+					MergeBuiltinActions: true,
 				})),
 			},
 		},

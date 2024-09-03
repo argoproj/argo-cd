@@ -275,13 +275,13 @@ func cleanReturnedArray(newObj, obj []interface{}) []interface{} {
 	return arrayToReturn
 }
 
-func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scripts []string) ([]appv1.ResourceAction, error) {
-	if len(scripts) == 0 {
+func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, script []string) ([]appv1.ResourceAction, error) {
+	if len(script) == 0 {
 		return nil, fmt.Errorf("no action discovery script provided")
 	}
-
 	availableActions := make([]appv1.ResourceAction, 0)
-	for _, script := range scripts {
+
+	for _, script := range script {
 		l, err := vm.runLua(obj, script)
 		if err != nil {
 			return nil, err
@@ -300,8 +300,7 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 			if err != nil {
 				return nil, err
 			}
-			for key := range availableActionsMap {
-				value := availableActionsMap[key]
+			for key, value := range availableActionsMap {
 				resourceAction := appv1.ResourceAction{Name: key, Disabled: isActionDisabled(value)}
 				if emptyResourceActionFromLua(value) {
 					availableActions = append(availableActions, resourceAction)
@@ -309,18 +308,22 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 				}
 				resourceActionBytes, err := json.Marshal(value)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("error marshaling resource action: %w", err)
 				}
+
 				err = json.Unmarshal(resourceActionBytes, &resourceAction)
 				if err != nil {
-					return nil, err
+					return nil, fmt.Errorf("error marshaling resource action: %w", err)
 				}
 				availableActions = append(availableActions, resourceAction)
 			}
+
 		} else {
 			return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
+
 		}
 	}
+
 	return availableActions, nil
 }
 
@@ -355,13 +358,15 @@ func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) ([]strin
 	key := GetConfigMapKey(obj.GroupVersionKind())
 	var discoveryScripts []string
 
+	// Check if there are resource overrides for the given key
 	override, ok := vm.ResourceOverrides[key]
 	if ok && override.Actions != "" {
 		actions, err := override.GetActions()
 		if err != nil {
 			return nil, err
 		}
-		if actions.AddBuildInActions {
+		// Append the action discovery Lua script if built-in actions are to be included
+		if actions.MergeBuiltinActions {
 			discoveryScripts = append(discoveryScripts, actions.ActionDiscoveryLua)
 		} else {
 			return []string{actions.ActionDiscoveryLua}, nil
@@ -372,7 +377,7 @@ func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) ([]strin
 	discoveryKey := fmt.Sprintf("%s/actions/", key)
 	discoveryScript, err := vm.getPredefinedLuaScripts(discoveryKey, actionDiscoveryScriptFile)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while fetching pre defined lua scripts: %w", err)
 	}
 
 	// Append or return the discovery script based on the presence of built-in actions
@@ -383,9 +388,7 @@ func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) ([]strin
 	}
 
 	return discoveryScripts, nil
-}
-
-// GetResourceAction attempts to read lua script from config and then filesystem for that resource
+} // GetResourceAction attempts to read lua script from config and then filesystem for that resource
 func (vm VM) GetResourceAction(obj *unstructured.Unstructured, actionName string) (appv1.ResourceActionDefinition, error) {
 	key := GetConfigMapKey(obj.GroupVersionKind())
 	override, ok := vm.ResourceOverrides[key]
