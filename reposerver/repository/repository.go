@@ -1986,6 +1986,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 	if cmpManifestsGenerationFromAnnotationPathsEnabled {
 		// Transmit the files under the common root path for all paths related to the manifest generate paths annotation.
 		rootPath = GetApplicationRootPath(q, appPath, repoPath)
+		log.Debugf("common root path calculated for application %s: %s", q.AppName, rootPath)
 	}
 
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
