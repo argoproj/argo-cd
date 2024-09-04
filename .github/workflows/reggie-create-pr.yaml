@@ -23,12 +23,18 @@ jobs:
     name: Automatically generate version and manifests on release-2.5
     runs-on: ubuntu-22.04
     steps:
+
       - name: Checkout code
         uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694  # v4.0.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{ inputs.TARGET_BRANCH }}
+      - name: Create VERSION information
+        run: |
+          set -ue
+          echo "Bumping version from $(cat VERSION) to ${{ inputs.TARGET_VERSION }}"
+          echo "${{ inputs.TARGET_VERSION }}" > VERSION
       - name: Create pull request
         uses: peter-evans/create-pull-request@4320041ed380b20e97d388d56a7fb4f9b8c20e79 # v7.0.0
         with:
