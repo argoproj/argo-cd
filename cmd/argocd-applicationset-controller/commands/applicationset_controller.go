@@ -169,7 +169,7 @@ func NewCommand() *cobra.Command {
 
 			tlsConfig := apiclient.TLSConfiguration{
 				DisableTLS:       repoServerPlaintext,
-				StrictValidation: repoServerPlaintext,
+				StrictValidation: repoServerStrictTLS,
 			}
 
 			if !repoServerPlaintext && repoServerStrictTLS {

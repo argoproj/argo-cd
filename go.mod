@@ -9,6 +9,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.33.0
+	github.com/antonmedv/expr v1.15.1
 	github.com/argoproj/gitops-engine v0.7.1-0.20240823213048-95e00254f82a
 	github.com/argoproj/notifications-engine v0.4.1-0.20240606074338-0802cd427621
 	github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1
@@ -117,7 +118,6 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.1.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.0.0 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v0.5.2 // indirect
-	github.com/antonmedv/expr v1.15.1 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.24.1 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.25.12 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.16.16 // indirect
