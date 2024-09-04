@@ -93,7 +93,7 @@ func (s *Server) CreateRepositoryCredentials(ctx context.Context, q *repocredspk
 		} else if q.Upsert {
 			return s.UpdateRepositoryCredentials(ctx, &repocredspkg.RepoCredsUpdateRequest{Creds: r})
 		} else {
-			return nil, status.Errorf(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("repository credentials", existing, r))
+			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("repository credentials", existing, r))
 		}
 	}
 	return &appsv1.RepoCreds{URL: r.URL}, err
