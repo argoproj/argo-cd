@@ -1035,7 +1035,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 			// upgrade any existing AppStatus that might have been set by an older argo-cd version
 			// note: currentAppStatus.TargetRevisions may be set to empty list earlier during migrations,
 			// to prevent other usage of r.Client.Status().Update to fail before reaching here.
-			if currentAppStatus.TargetRevisions == nil || len(currentAppStatus.TargetRevisions) == 0 {
+			if len(currentAppStatus.TargetRevisions) == 0 {
 				currentAppStatus.TargetRevisions = app.Status.GetRevisions()
 			}
 		}
