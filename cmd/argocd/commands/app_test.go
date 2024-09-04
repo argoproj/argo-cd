@@ -1335,6 +1335,14 @@ func TestFilterAppResources(t *testing.T) {
 			Namespace: "",
 			Exclude:   true,
 		}
+		// apps:ReplicaSet:*
+		includeAllReplicaSetResource = v1alpha1.SyncOperationResource{
+			Group:     "apps",
+			Kind:      "ReplicaSet",
+			Name:      "*",
+			Namespace: "",
+			Exclude:   false,
+		}
 		// apps:ReplicaSet:replicaSet-name1
 		includeReplicaSet1Resource = v1alpha1.SyncOperationResource{
 			Group:     "apps",
@@ -1407,13 +1415,13 @@ func TestFilterAppResources(t *testing.T) {
 		{
 			testName:          "Include ReplicaSet replicaSet-name1 resource and exclude all service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllServiceResources, &includeReplicaSet1Resource},
-			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
+			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1},
 		},
 		// --resource !apps:ReplicaSet:replicaSet-name2 --resource !*:Service:*
 		{
 			testName:          "Exclude ReplicaSet replicaSet-name2 resource and all service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeReplicaSet2Resource, &excludeAllServiceResources},
-			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &service1, &service2, &deployment},
+			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &job, &deployment},
 		},
 		// --resource !apps:ReplicaSet:replicaSet-name2
 		{
@@ -1425,6 +1433,12 @@ func TestFilterAppResources(t *testing.T) {
 		{
 			testName:          "Include ReplicaSet replicaSet-name1 resource",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeReplicaSet1Resource},
+			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1},
+		},
+		// --resource apps:ReplicaSet:* --resource !apps:ReplicaSet:replicaSet-name2
+		{
+			testName:          "Include All ReplicaSet resource and exclude replicaSet-name1 resource",
+			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllReplicaSetResource, &excludeReplicaSet2Resource},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1},
 		},
 		// --resource !*:Service:*

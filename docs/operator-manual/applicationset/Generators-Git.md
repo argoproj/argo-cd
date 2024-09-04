@@ -7,6 +7,8 @@ The Git generator contains two subtypes: the Git directory generator, and Git fi
     If the `project` field in your ApplicationSet is templated, developers may be able to create Applications under Projects with excessive permissions.
     For ApplicationSets with a templated `project` field, [the source of truth _must_ be controlled by admins](./Security.md#templated-project-field)
     - in the case of git generators, PRs must require admin approval.
+    - Git generator does not support Signature Verification For ApplicationSets with a templated `project` field.
+    
 
 ## Git Generator: Directories
 

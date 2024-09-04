@@ -562,5 +562,5 @@ func (p AppProject) IsAppNamespacePermitted(app *Application, controllerNs strin
 		return true
 	}
 
-	return glob.MatchStringInList(p.Spec.SourceNamespaces, app.Namespace, false)
+	return glob.MatchStringInList(p.Spec.SourceNamespaces, app.Namespace, glob.REGEXP)
 }

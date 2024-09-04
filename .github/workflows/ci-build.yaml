@@ -172,7 +172,7 @@ jobs:
       - name: Run all unit tests
         run: make test-local
       - name: Generate test results artifacts
-        uses: actions/upload-artifact@89ef406dd8d7e03cfd12d9e0a4a378f454709029 # v4.3.5
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: test-results
           path: test-results
@@ -236,7 +236,7 @@ jobs:
       - name: Run all unit tests
         run: make test-race-local
       - name: Generate test results artifacts
-        uses: actions/upload-artifact@89ef406dd8d7e03cfd12d9e0a4a378f454709029 # v4.3.5
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: race-results
           path: test-results/
@@ -323,6 +323,8 @@ jobs:
           NODE_ENV: production
           NODE_ONLINE_ENV: online
           HOST_ARCH: amd64
+          # If we're on the master branch, set the codecov token so that we upload bundle analysis
+          CODECOV_TOKEN: ${{ github.ref == 'refs/heads/master' && secrets.CODECOV_TOKEN || '' }}
         working-directory: ui/
       - name: Run ESLint
         run: yarn lint
@@ -364,12 +366,12 @@ jobs:
           name: test-results
           path: test-results
       - name: combine-go-coverage
-        # We generate coverage reports for all Argo CD components, but only the applicationset-controller and
-        # repo-server report contain coverage data. The other components currently don't shut down gracefully, so no
-        # coverage data is produced. Once those components are fixed, we can add references to their coverage output
-        # directories.
+        # We generate coverage reports for all Argo CD components, but only the applicationset-controller,
+        # app-controller, and repo-server report contain coverage data. The other components currently don't shut down
+        # gracefully, so no coverage data is produced. Once those components are fixed, we can add references to their
+        # coverage output directories.
         run: |
-          go tool covdata percent -i=test-results,e2e-code-coverage/applicationset-controller,e2e-code-coverage/repo-server -o test-results/full-coverage.out
+          go tool covdata percent -i=test-results,e2e-code-coverage/applicationset-controller,e2e-code-coverage/repo-server,e2e-code-coverage/app-controller -o test-results/full-coverage.out
       - name: Upload code coverage information to codecov.io
         uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673 # v4.5.0
         with:
@@ -377,6 +379,13 @@ jobs:
           fail_ci_if_error: true
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push' && github.repository == 'argoproj/argo-cd'
+        uses: codecov/test-results-action@1b5b448b98e58ba90d1a1a1d9fcb72ca2263be46 # v1.0.0
+        with:
+          file: test-results/junit.xml
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
       - name: Perform static code analysis using SonarCloud
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -465,7 +474,7 @@ jobs:
           git config --global user.email "john.doe@example.com"
       - name: Pull Docker image required for tests
         run: |
-          docker pull ghcr.io/dexidp/dex:v2.40.0
+          docker pull ghcr.io/dexidp/dex:v2.41.1
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
           docker pull redis:7.0.15-alpine
       - name: Create target directory for binaries in the build-process
@@ -497,13 +506,13 @@ jobs:
           goreman run stop-all || echo "goreman trouble"
           sleep 30
       - name: Upload e2e coverage report
-        uses: actions/upload-artifact@89ef406dd8d7e03cfd12d9e0a4a378f454709029 # v4.3.5
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: e2e-code-coverage
           path: /tmp/coverage
         if: ${{ matrix.k3s.latest }}
       - name: Upload e2e-server logs
-        uses: actions/upload-artifact@89ef406dd8d7e03cfd12d9e0a4a378f454709029 # v4.3.5
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: e2e-server-k8s${{ matrix.k3s.version }}.log
           path: /tmp/e2e-server.log

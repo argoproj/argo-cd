@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+	"k8s.io/apimachinery/pkg/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/argoproj/pkg/stats"
 	log "github.com/sirupsen/logrus"
@@ -142,7 +144,11 @@ func NewCommand() *cobra.Command {
 
 			dynamicClient := dynamic.NewForConfigOrDie(config)
 
-			controllerClient, err := client.New(config, client.Options{})
+			scheme := runtime.NewScheme()
+			_ = clientgoscheme.AddToScheme(scheme)
+			_ = v1alpha1.AddToScheme(scheme)
+
+			controllerClient, err := client.New(config, client.Options{Scheme: scheme})
 			errors.CheckError(err)
 			controllerClient = client.NewDryRunClient(controllerClient)
 

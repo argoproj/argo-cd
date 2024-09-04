@@ -330,6 +330,7 @@ func ValidateRepo(
 		return conditions, nil
 	}
 	config := cluster.RESTConfig()
+	// nolint:staticcheck
 	cluster.ServerVersion, err = kubectl.GetServerVersion(config)
 	if err != nil {
 		return nil, fmt.Errorf("error getting k8s server version: %w", err)
@@ -427,6 +428,7 @@ func validateRepo(ctx context.Context,
 		proj,
 		sources,
 		repoClient,
+		// nolint:staticcheck
 		cluster.ServerVersion,
 		APIResourcesToStrings(apiGroups, true),
 		permittedHelmCredentials,
@@ -509,7 +511,7 @@ func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestina
 	return nil
 }
 
-func validateSourcePermissions(ctx context.Context, source argoappv1.ApplicationSource, proj *argoappv1.AppProject, project string, hasMultipleSources bool) []argoappv1.ApplicationCondition {
+func validateSourcePermissions(source argoappv1.ApplicationSource, hasMultipleSources bool) []argoappv1.ApplicationCondition {
 	var conditions []argoappv1.ApplicationCondition
 	if hasMultipleSources {
 		if source.RepoURL == "" || (source.Path == "" && source.Chart == "" && source.Ref == "") {
@@ -545,7 +547,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 
 	if spec.HasMultipleSources() {
 		for _, source := range spec.Sources {
-			condition := validateSourcePermissions(ctx, source, proj, spec.Project, spec.HasMultipleSources())
+			condition := validateSourcePermissions(source, spec.HasMultipleSources())
 			if len(condition) > 0 {
 				conditions = append(conditions, condition...)
 				return conditions, nil
@@ -559,7 +561,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 			}
 		}
 	} else {
-		conditions = validateSourcePermissions(ctx, spec.GetSource(), proj, spec.Project, spec.HasMultipleSources())
+		conditions = validateSourcePermissions(spec.GetSource(), spec.HasMultipleSources())
 		if len(conditions) > 0 {
 			return conditions, nil
 		}
@@ -753,10 +755,11 @@ func verifyGenerateManifests(
 		}
 		req := apiclient.ManifestRequest{
 			Repo: &argoappv1.Repository{
-				Repo:  source.RepoURL,
-				Type:  repoRes.Type,
-				Name:  repoRes.Name,
-				Proxy: repoRes.Proxy,
+				Repo:    source.RepoURL,
+				Type:    repoRes.Type,
+				Name:    repoRes.Name,
+				Proxy:   repoRes.Proxy,
+				NoProxy: repoRes.NoProxy,
 			},
 			Repos:              helmRepos,
 			Revision:           source.TargetRevision,
@@ -830,20 +833,42 @@ func ContainsSyncResource(name string, namespace string, gvk schema.GroupVersion
 	return false
 }
 
-// IncludeResource checks if an app resource matches atleast one of the filters, then it returns true.
+// IncludeResource The app resource is checked against the include or exclude filters.
+// If exclude filters are present, they are evaluated only after all include filters have been assessed.
 func IncludeResource(resourceName string, resourceNamespace string, gvk schema.GroupVersionKind,
 	syncOperationResources []*argoappv1.SyncOperationResource,
 ) bool {
+	includeResource := false
+	foundIncludeRule := false
+	// Evaluate include filters only in this loop.
 	for _, syncOperationResource := range syncOperationResources {
-		includeResource := syncOperationResource.Compare(resourceName, resourceNamespace, gvk)
 		if syncOperationResource.Exclude {
-			includeResource = !includeResource
+			continue
 		}
+		foundIncludeRule = true
+		includeResource = syncOperationResource.Compare(resourceName, resourceNamespace, gvk)
 		if includeResource {
-			return true
+			break
 		}
 	}
-	return false
+
+	// if a resource is present both in include and in exclude, the exclude wins.
+	// that including it here is a temporary decision for the use case when no include rules exist,
+	// but it still might be excluded later if it matches an exclude rule:
+	if !foundIncludeRule {
+		includeResource = true
+	}
+	// No needs to evaluate exclude filters when the resource is not included.
+	if !includeResource {
+		return false
+	}
+	// Evaluate exclude filters only in this loop.
+	for _, syncOperationResource := range syncOperationResources {
+		if syncOperationResource.Exclude && syncOperationResource.Compare(resourceName, resourceNamespace, gvk) {
+			return false
+		}
+	}
+	return true
 }
 
 // NormalizeApplicationSpec will normalize an application spec to a preferred state. This is used
@@ -1131,7 +1156,7 @@ func GetAppEventLabels(app *argoappv1.Application, projLister applicationsv1.App
 	// Filter out event labels to include
 	inKeys := settingsManager.GetIncludeEventLabelKeys()
 	for k, v := range labels {
-		found := glob.MatchStringInList(inKeys, k, false)
+		found := glob.MatchStringInList(inKeys, k, glob.GLOB)
 		if found {
 			eventLabels[k] = v
 		}
@@ -1140,7 +1165,7 @@ func GetAppEventLabels(app *argoappv1.Application, projLister applicationsv1.App
 	// Remove excluded event labels
 	exKeys := settingsManager.GetExcludeEventLabelKeys()
 	for k := range eventLabels {
-		found := glob.MatchStringInList(exKeys, k, false)
+		found := glob.MatchStringInList(exKeys, k, glob.GLOB)
 		if found {
 			delete(eventLabels, k)
 		}
