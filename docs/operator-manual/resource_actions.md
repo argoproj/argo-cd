@@ -80,23 +80,19 @@ The `discovery.lua` script must return a table where the key name represents the
 
 Each action name must be represented in the list of `definitions` with an accompanying `action.lua` script to control the resource modifications. The `obj` is a global variable which contains the resource. Each action script returns an optionally modified version of the resource. In this example, we are simply setting `.spec.suspend` to either `true` or `false`.
 
-!!! important
-If you might want to retain the prebuilt actions along with your own actions in configmap.
-In such cases, you can provide the key `mergeBuiltinActions` in the `discovery.lua` script and set it to `true`. This
-will merge the custom actions with the built-in actions. If the key is not provided or set to `false`, the default
-behavior is to override the built-in actions with the custom actions.
-
-        resource.customizations.actions.argoproj.io_Rollout: |
-        mergeBuiltinActions: true
-        discovery.lua: |
-        actions = {}
-        actions["custom-action"] = {}
-        return actions
-        definitions:
-        - name: custom-action
-        action.lua: |
-        obj.spec.template.metadata.annotations["date"] = os.date()
-        return obj
+By default, defining a resource action customization will override any built-in action for this resource kind. If you want to retain the built-in actions, you can set the `mergeBuiltinActions` key to `true`. Your custom actions will have precedence over the built-in actions.
+```yaml        
+resource.customizations.actions.argoproj.io_Rollout: |
+  mergeBuiltinActions: true
+  discovery.lua: |
+    actions = {}
+    actions["do-things"] = {}
+    return actions
+  definitions:
+  - name: do-things
+    action.lua: |
+      return obj		
+```
 
 #### Creating new resources with a custom action
 
