@@ -3,8 +3,10 @@
 .application-sync-panel__resource {
     margin-top: 0.5em;
     white-space: nowrap;
+
     &:nth-of-type(odd) {
         background: $argo-color-gray-3;
+
         .theme-dark & {
             background: $argo-color-gray-6;
         }
@@ -19,6 +21,9 @@
         white-space: nowrap;
         display: inline-block;
         margin-right: 0.3em;
+
+        overflow: hidden;
+        text-overflow: ellipsis;
 
         label {
             cursor: pointer;
