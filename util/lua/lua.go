@@ -394,11 +394,7 @@ func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) ([]strin
 	}
 
 	// Append or return the discovery script based on the presence of built-in actions
-	if len(discoveryScripts) > 0 {
-		discoveryScripts = append(discoveryScripts, discoveryScript)
-	} else {
-		return []string{discoveryScript}, nil
-	}
+	discoveryScripts = append(discoveryScripts, discoveryScript)
 
 	return discoveryScripts, nil
 } // GetResourceAction attempts to read lua script from config and then filesystem for that resource
