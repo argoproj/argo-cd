@@ -11,7 +11,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 )
 
-// GetApplicationRootPath returns the common root path among a set of application-related paths for manifest generation.
+// GetApplicationRootPath returns the common root path (shortest shared structure between all paths) among a
+// set of application-related paths for manifest generation. AppPath is the lower possible value
 func GetApplicationRootPath(q *apiclient.ManifestRequest, appPath, repoPath string) string {
 	paths := getPaths(q, appPath, repoPath)
 
@@ -20,11 +21,13 @@ func GetApplicationRootPath(q *apiclient.ManifestRequest, appPath, repoPath stri
 		return repoPath
 	}
 
-	commonParts := strings.Split(paths[0], "/")
+	// the app path must be the lower possible value
+	commonParts := strings.Split(appPath, "/")
 
-	for _, path := range paths[1:] {
+	var disjoint bool
+	for _, path := range paths {
 		parts := strings.Split(path, "/")
-		// Find the minimum length between the current common parts and the current path
+		// find the minimum length between the current common parts and the current path
 		minLen := func(a, b int) int {
 			if a < b {
 				return a
@@ -32,11 +35,18 @@ func GetApplicationRootPath(q *apiclient.ManifestRequest, appPath, repoPath stri
 			return b
 		}(len(commonParts), len(parts))
 
+		// check if diverge /disjoint in some point
 		for i := 0; i < minLen; i++ {
 			if commonParts[i] != parts[i] {
 				commonParts = commonParts[:i]
+				disjoint = true
 				break
 			}
+		}
+
+		// for non-disjoint paths
+		if !disjoint && minLen < len(commonParts) {
+			commonParts = commonParts[:minLen]
 		}
 	}
 	return strings.Join(commonParts, "/")
