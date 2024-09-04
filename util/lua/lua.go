@@ -298,7 +298,7 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 			availableActionsMap := make(map[string]interface{})
 			err = json.Unmarshal(jsonBytes, &availableActionsMap)
 			if err != nil {
-				return nil, fmt.Errorf("error in converting to lua table: %w", err)
+				return nil, fmt.Errorf("error in unmarshaling lua table: %w", err)
 			}
 			for key, value := range availableActionsMap {
 				resourceAction := appv1.ResourceAction{Name: key, Disabled: isActionDisabled(value)}
@@ -317,7 +317,7 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 
 				err = json.Unmarshal(resourceActionBytes, &resourceAction)
 				if err != nil {
-					return nil, fmt.Errorf("error marshaling resource action: %w", err)
+					return nil, fmt.Errorf("error unmarshaling resource action: %w", err)
 				}
 				availableActions = append(availableActions, resourceAction)
 			}
