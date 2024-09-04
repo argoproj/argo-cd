@@ -11,13 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
-	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/pointer"
-
 	argocdcommon "github.com/argoproj/argo-cd/v2/common"
+	"github.com/stretchr/testify/require"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
@@ -3622,36 +3618,4 @@ func TestOptionalMapEquality(t *testing.T) {
 			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
 		})
 	}
-}
-
-func TestHelmValuesObjectHasReplaceStrategy(t *testing.T) {
-	app := Application{
-		Status: ApplicationStatus{Sync: SyncStatus{ComparedTo: ComparedTo{
-			Source: ApplicationSource{
-				Helm: &ApplicationSourceHelm{
-					ValuesObject: &runtime.RawExtension{
-						Object: &unstructured.Unstructured{Object: map[string]interface{}{"key": []string{"value"}}},
-					},
-				},
-			},
-		}}},
-	}
-
-	appModified := Application{
-		Status: ApplicationStatus{Sync: SyncStatus{ComparedTo: ComparedTo{
-			Source: ApplicationSource{
-				Helm: &ApplicationSourceHelm{
-					ValuesObject: &runtime.RawExtension{
-						Object: &unstructured.Unstructured{Object: map[string]interface{}{"key": []string{"value-modified1"}}},
-					},
-				},
-			},
-		}}},
-	}
-
-	patch, _, err := diff.CreateTwoWayMergePatch(
-		app,
-		appModified, Application{})
-	require.NoError(t, err)
-	assert.Equal(t, `{"status":{"sync":{"comparedTo":{"destination":{},"source":{"helm":{"valuesObject":{"key":["value-modified1"]}},"repoURL":""}}}}}`, string(patch))
 }

@@ -143,6 +143,16 @@ func TestNormalize(t *testing.T) {
 		assert.Equal(t, 1, len(vwcConfig.Webhooks))
 		assert.Equal(t, "", string(vwcConfig.Webhooks[0].ClientConfig.CABundle))
 	})
+	t.Run("does not fail if object fails validation schema", func(t *testing.T) {
+		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
+		require.NoError(t, unstructured.SetNestedField(desiredState.Object, "spec", "hello", "world"))
+		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
+
+		pt := parser.Type("io.k8s.api.apps.v1.Deployment")
+
+		_, _, err := managedfields.Normalize(liveState, desiredState, []string{}, &pt)
+		require.NoError(t, err)
+	})
 }
 
 func validateNestedFloat64(t *testing.T, expected float64, obj *unstructured.Unstructured, fields ...string) {
