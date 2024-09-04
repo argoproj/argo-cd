@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/argoproj/argo-cd/v2/util/webhook"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -190,11 +191,6 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func parseRevision(ref string) string {
-	refParts := strings.SplitN(ref, "/", 3)
-	return refParts[len(refParts)-1]
-}
-
 func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 	var (
 		webURL      string
@@ -204,16 +200,16 @@ func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 	switch payload := payload.(type) {
 	case github.PushPayload:
 		webURL = payload.Repository.HTMLURL
-		revision = parseRevision(payload.Ref)
+		revision = webhook.ParseRevision(payload.Ref)
 		touchedHead = payload.Repository.DefaultBranch == revision
 	case gitlab.PushEventPayload:
 		webURL = payload.Project.WebURL
-		revision = parseRevision(payload.Ref)
+		revision = webhook.ParseRevision(payload.Ref)
 		touchedHead = payload.Project.DefaultBranch == revision
 	case azuredevops.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
 		webURL = payload.Resource.Repository.RemoteURL
-		revision = parseRevision(payload.Resource.RefUpdates[0].Name)
+		revision = webhook.ParseRevision(payload.Resource.RefUpdates[0].Name)
 		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
 		// unfortunately, Azure DevOps doesn't provide a list of changed files
 	default:
@@ -373,12 +369,12 @@ func shouldRefreshPluginGenerator(gen *v1alpha1.PluginGenerator) bool {
 }
 
 func genRevisionHasChanged(gen *v1alpha1.GitGenerator, revision string, touchedHead bool) bool {
-	targetRev := parseRevision(gen.Revision)
+	targetRev := webhook.ParseRevision(gen.Revision)
 	if targetRev == "HEAD" || targetRev == "" { // revision is head
 		return touchedHead
 	}
 
-	return targetRev == revision
+	return targetRev == revision || gen.Revision == revision
 }
 
 func gitGeneratorUsesURL(gen *v1alpha1.GitGenerator, webURL string, repoRegexp *regexp.Regexp) bool {
