@@ -165,7 +165,7 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 			} else if q.Upsert {
 				return s.Update(ctx, &cluster.ClusterUpdateRequest{Cluster: c})
 			} else {
-				return nil, status.Errorf(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("cluster", existing, c))
+				return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("cluster", existing, c))
 			}
 		} else {
 			return nil, err
