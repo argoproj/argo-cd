@@ -3,9 +3,10 @@ package util_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/argoproj/argo-cd/v2/util"
 	"github.com/argoproj/argo-cd/v2/util/webhook"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestMakeSignature(t *testing.T) {
