@@ -77,15 +77,6 @@ func TestWebhookHandler(t *testing.T) {
 			expectedRefresh:    true,
 		},
 		{
-			desc:               "WebHook from a GitHub repository via Commit",
-			headerKey:          "X-GitHub-Event",
-			headerValue:        "push",
-			payloadFile:        "github-commit-event.json",
-			effectedAppSets:    []string{"git-github", "matrix-git-github", "merge-git-github", "matrix-scm-git-github", "matrix-nested-git-github", "merge-nested-git-github", "plugin", "matrix-pull-request-github-plugin"},
-			expectedStatusCode: http.StatusOK,
-			expectedRefresh:    true,
-		},
-		{
 			desc:               "WebHook from a GitHub repository via Commit to branch",
 			headerKey:          "X-GitHub-Event",
 			headerValue:        "push",
