@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/argoproj/argo-cd/v2/util/cli"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/rbac"
 )
 
@@ -28,7 +29,7 @@ type rbacTrait struct {
 }
 
 // Provide a mapping of short-hand resource names to their RBAC counterparts
-var resourceMap map[string]string = map[string]string{
+var resourceMap = map[string]string{
 	"account":         rbacpolicy.ResourceAccounts,
 	"app":             rbacpolicy.ResourceApplications,
 	"apps":            rbacpolicy.ResourceApplications,
@@ -52,8 +53,17 @@ var resourceMap map[string]string = map[string]string{
 	"repository":      rbacpolicy.ResourceRepositories,
 }
 
+var projectScoped = map[string]bool{
+	rbacpolicy.ResourceApplications:    true,
+	rbacpolicy.ResourceApplicationSets: true,
+	rbacpolicy.ResourceLogs:            true,
+	rbacpolicy.ResourceExec:            true,
+	rbacpolicy.ResourceClusters:        true,
+	rbacpolicy.ResourceRepositories:    true,
+}
+
 // List of allowed RBAC resources
-var validRBACResourcesActions map[string]actionTraitMap = map[string]actionTraitMap{
+var validRBACResourcesActions = map[string]actionTraitMap{
 	rbacpolicy.ResourceAccounts:        accountsActions,
 	rbacpolicy.ResourceApplications:    applicationsActions,
 	rbacpolicy.ResourceApplicationSets: defaultCRUDActions,
@@ -109,7 +119,7 @@ var extensionActions = actionTraitMap{
 }
 
 // NewRBACCommand is the command for 'rbac'
-func NewRBACCommand() *cobra.Command {
+func NewRBACCommand(cmdCtx commandContext) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "rbac",
 		Short: "Validate and test RBAC configuration",
@@ -117,13 +127,13 @@ func NewRBACCommand() *cobra.Command {
 			c.HelpFunc()(c, args)
 		},
 	}
-	command.AddCommand(NewRBACCanCommand())
+	command.AddCommand(NewRBACCanCommand(cmdCtx))
 	command.AddCommand(NewRBACValidateCommand())
 	return command
 }
 
-// NewRBACCanCommand is the command for 'rbac can-role'
-func NewRBACCanCommand() *cobra.Command {
+// NewRBACCanCommand is the command for 'rbac can'
+func NewRBACCanCommand(cmdCtx commandContext) *cobra.Command {
 	var (
 		policyFile   string
 		defaultRole  string
@@ -175,11 +185,6 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 				subResource = args[3]
 			}
 
-			userPolicy := ""
-			builtinPolicy := ""
-
-			var newDefaultRole string
-
 			namespace, nsOverride, err := clientConfig.Namespace()
 			if err != nil {
 				log.Fatalf("could not create k8s client: %v", err)
@@ -203,6 +208,7 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 			userPolicy, newDefaultRole, matchMode := getPolicy(ctx, policyFile, realClientset, namespace)
 
 			// Use built-in policy as augmentation if requested
+			builtinPolicy := ""
 			if useBuiltin {
 				builtinPolicy = assets.BuiltinPolicyCSV
 			}
@@ -213,7 +219,30 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 				defaultRole = newDefaultRole
 			}
 
-			res := checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode, strict)
+			// Logs RBAC will be enforced only if an internal var serverRBACLogEnforceEnable
+			// (representing server.rbac.log.enforce.enable env var in argocd-cm)
+			// is defined and has a "true" value
+			// Otherwise, no RBAC enforcement for logs will take place (meaning, 'can' request on a logs resource will result in "yes",
+			// even if there is no explicit RBAC allow, or if there is an explicit RBAC deny)
+			var isLogRbacEnforced func() bool
+			if nsOverride && policyFile == "" {
+				if resolveRBACResourceName(resource) == rbacpolicy.ResourceLogs {
+					isLogRbacEnforced = func() bool {
+						if opts, ok := cmdCtx.(*settingsOpts); ok {
+							opts.loadClusterSettings = true
+							opts.clientConfig = clientConfig
+							settingsMgr, err := opts.createSettingsManager(ctx)
+							errors.CheckError(err)
+							logEnforceEnable, err := settingsMgr.GetServerRBACLogEnforceEnable()
+							errors.CheckError(err)
+							return logEnforceEnable
+						}
+						return false
+					}
+				}
+			}
+			res := checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode, strict, isLogRbacEnforced)
+
 			if res {
 				if !quiet {
 					fmt.Println("Yes")
@@ -382,7 +411,7 @@ func getPolicyConfigMap(ctx context.Context, client kubernetes.Interface, namesp
 
 // checkPolicy checks whether given subject is allowed to execute specified
 // action against specified resource
-func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode string, strict bool) bool {
+func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode string, strict bool, isLogRbacEnforced func() bool) bool {
 	enf := rbac.NewEnforcer(nil, "argocd", "argocd-rbac-cm", nil)
 	enf.SetDefaultRole(defaultRole)
 	enf.SetMatchMode(matchMode)
@@ -416,15 +445,19 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 		}
 	}
 
-	// Application resources have a special notation - for simplicity's sake,
+	// Some project scoped resources have a special notation - for simplicity's sake,
 	// if user gives no sub-resource (or specifies simple '*'), we construct
 	// the required notation by setting subresource to '*/*'.
-	if realResource == rbacpolicy.ResourceApplications {
+	if projectScoped[realResource] {
 		if subResource == "*" || subResource == "" {
 			subResource = "*/*"
 		}
 	}
-
+	if realResource == rbacpolicy.ResourceLogs {
+		if isLogRbacEnforced != nil && !isLogRbacEnforced() {
+			return true
+		}
+	}
 	return enf.Enforce(subject, realResource, action, subResource)
 }
 

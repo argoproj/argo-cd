@@ -233,7 +233,7 @@ func (a *ApplicationSpec) GetSources() ApplicationSources {
 }
 
 func (a *ApplicationSpec) HasMultipleSources() bool {
-	return a.Sources != nil && len(a.Sources) > 0
+	return len(a.Sources) > 0
 }
 
 func (a *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *ApplicationSource {
@@ -1640,6 +1640,60 @@ type ApplicationTree struct {
 	OrphanedNodes []ResourceNode `json:"orphanedNodes,omitempty" protobuf:"bytes,2,rep,name=orphanedNodes"`
 	// Hosts holds list of Kubernetes nodes that run application related pods
 	Hosts []HostInfo `json:"hosts,omitempty" protobuf:"bytes,3,rep,name=hosts"`
+	// ShardsCount contains total number of shards the application tree is split into
+	ShardsCount int64 `json:"shardsCount,omitempty" protobuf:"bytes,4,opt,name=shardsCount"`
+}
+
+func (t *ApplicationTree) Merge(other *ApplicationTree) {
+	t.Nodes = append(t.Nodes, other.Nodes...)
+	t.OrphanedNodes = append(t.OrphanedNodes, other.OrphanedNodes...)
+	t.Hosts = append(t.Hosts, other.Hosts...)
+	t.Normalize()
+}
+
+// GetShards split application tree into shards with populated metadata
+func (t *ApplicationTree) GetShards(size int64) []*ApplicationTree {
+	t.Normalize()
+	if size == 0 {
+		return []*ApplicationTree{t}
+	}
+
+	var items []func(*ApplicationTree)
+	for i := range t.Nodes {
+		item := t.Nodes[i]
+		items = append(items, func(shard *ApplicationTree) {
+			shard.Nodes = append(shard.Nodes, item)
+		})
+	}
+	for i := range t.OrphanedNodes {
+		item := t.OrphanedNodes[i]
+		items = append(items, func(shard *ApplicationTree) {
+			shard.OrphanedNodes = append(shard.OrphanedNodes, item)
+		})
+	}
+	for i := range t.Hosts {
+		item := t.Hosts[i]
+		items = append(items, func(shard *ApplicationTree) {
+			shard.Hosts = append(shard.Hosts, item)
+		})
+	}
+	var shards []*ApplicationTree
+	for len(items) > 0 {
+		shard := &ApplicationTree{}
+		shards = append(shards, shard)
+		cnt := 0
+		for i := int64(0); i < size && i < int64(len(items)); i++ {
+			items[i](shard)
+			cnt++
+		}
+		items = items[cnt:]
+	}
+	if len(shards) > 0 {
+		shards[0].ShardsCount = int64(len(shards))
+	} else {
+		shards = []*ApplicationTree{{ShardsCount: 0}}
+	}
+	return shards
 }
 
 // Normalize sorts application tree nodes and hosts. The persistent order allows to
@@ -2291,6 +2345,8 @@ type AppProjectSpec struct {
 	SourceNamespaces []string `json:"sourceNamespaces,omitempty" protobuf:"bytes,12,opt,name=sourceNamespaces"`
 	// PermitOnlyProjectScopedClusters determines whether destinations can only reference clusters which are project-scoped
 	PermitOnlyProjectScopedClusters bool `json:"permitOnlyProjectScopedClusters,omitempty" protobuf:"bytes,13,opt,name=permitOnlyProjectScopedClusters"`
+	// DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.
+	DestinationServiceAccounts []ApplicationDestinationServiceAccount `json:"destinationServiceAccounts,omitempty" protobuf:"bytes,14,name=destinationServiceAccounts"`
 }
 
 // SyncWindows is a collection of sync windows in this project
@@ -2705,6 +2761,16 @@ type KustomizeOptions struct {
 	BuildOptions string `protobuf:"bytes,1,opt,name=buildOptions"`
 	// BinaryPath holds optional path to kustomize binary
 	BinaryPath string `protobuf:"bytes,2,opt,name=binaryPath"`
+}
+
+// ApplicationDestinationServiceAccount holds information about the service account to be impersonated for the application sync operation.
+type ApplicationDestinationServiceAccount struct {
+	// Server specifies the URL of the target cluster's Kubernetes control plane API.
+	Server string `json:"server,omitempty" protobuf:"bytes,1,opt,name=server"`
+	// Namespace specifies the target namespace for the application's resources.
+	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
+	// ServiceAccountName to be used for impersonation during the sync operation
+	DefaultServiceAccount string `json:"defaultServiceAccount,omitempty" protobuf:"bytes,3,opt,name=defaultServiceAccount"`
 }
 
 // CascadedDeletion indicates if the deletion finalizer is set and controller should delete the application and it's cascaded resources

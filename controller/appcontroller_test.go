@@ -155,6 +155,7 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		common.DefaultPortArgoCDMetrics,
 		data.metricsCacheExpiration,
 		[]string{},
+		[]string{},
 		0,
 		true,
 		nil,

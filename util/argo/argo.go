@@ -833,20 +833,42 @@ func ContainsSyncResource(name string, namespace string, gvk schema.GroupVersion
 	return false
 }
 
-// IncludeResource checks if an app resource matches atleast one of the filters, then it returns true.
+// IncludeResource The app resource is checked against the include or exclude filters.
+// If exclude filters are present, they are evaluated only after all include filters have been assessed.
 func IncludeResource(resourceName string, resourceNamespace string, gvk schema.GroupVersionKind,
 	syncOperationResources []*argoappv1.SyncOperationResource,
 ) bool {
+	includeResource := false
+	foundIncludeRule := false
+	// Evaluate include filters only in this loop.
 	for _, syncOperationResource := range syncOperationResources {
-		includeResource := syncOperationResource.Compare(resourceName, resourceNamespace, gvk)
 		if syncOperationResource.Exclude {
-			includeResource = !includeResource
+			continue
 		}
+		foundIncludeRule = true
+		includeResource = syncOperationResource.Compare(resourceName, resourceNamespace, gvk)
 		if includeResource {
-			return true
+			break
 		}
 	}
-	return false
+
+	// if a resource is present both in include and in exclude, the exclude wins.
+	// that including it here is a temporary decision for the use case when no include rules exist,
+	// but it still might be excluded later if it matches an exclude rule:
+	if !foundIncludeRule {
+		includeResource = true
+	}
+	// No needs to evaluate exclude filters when the resource is not included.
+	if !includeResource {
+		return false
+	}
+	// Evaluate exclude filters only in this loop.
+	for _, syncOperationResource := range syncOperationResources {
+		if syncOperationResource.Exclude && syncOperationResource.Compare(resourceName, resourceNamespace, gvk) {
+			return false
+		}
+	}
+	return true
 }
 
 // NormalizeApplicationSpec will normalize an application spec to a preferred state. This is used
@@ -860,7 +882,7 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 	if spec.SyncPolicy.IsZero() {
 		spec.SyncPolicy = nil
 	}
-	if spec.Sources != nil && len(spec.Sources) > 0 {
+	if len(spec.Sources) > 0 {
 		for _, source := range spec.Sources {
 			NormalizeSource(&source)
 		}

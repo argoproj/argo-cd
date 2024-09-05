@@ -8,6 +8,7 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 | Metric | Type | Description |
 |--------|:----:|-------------|
 | `argocd_app_info` | gauge | Information about Applications. It contains labels such as `sync_status` and `health_status` that reflect the application state in Argo CD. |
+| `argocd_app_condition` | gauge | Report Applications conditions. It contains the conditions currently present in the application status. |
 | `argocd_app_k8s_request_total` | counter | Number of Kubernetes requests executed during application reconciliation |
 | `argocd_app_labels` | gauge | Argo Application labels converted to Prometheus labels. Disabled by default. See section below about how to enable it. |
 | `argocd_app_reconcile` | histogram | Application reconciliation performance in seconds. |
@@ -58,6 +59,28 @@ In this case, the metric would look like:
 argocd_app_labels{label_business_unit="bu-id-1",label_team_name="my-team",name="my-app-1",namespace="argocd",project="important-project"} 1
 argocd_app_labels{label_business_unit="bu-id-1",label_team_name="my-team",name="my-app-2",namespace="argocd",project="important-project"} 1
 argocd_app_labels{label_business_unit="bu-id-2",label_team_name="another-team",name="my-app-3",namespace="argocd",project="important-project"} 1
+```
+
+### Exposing Application conditions as Prometheus metrics
+
+There are use-cases where Argo CD Applications contain conditions that are desired to be exposed as Prometheus metrics.
+Some examples are:
+
+* Hunting orphaned resources across all deployed applications
+* Knowing which resources are excluded from ArgoCD
+
+As the Application conditions are specific to each company, this feature is disabled by default. To enable it, add the
+`--metrics-application-conditions` flag to the Argo CD application controller.
+
+The example below will expose the Argo CD Application condition `OrphanedResourceWarning` and `ExcludedResourceWarning` to Prometheus:
+
+    containers:
+    - command:
+      - argocd-application-controller
+      - --metrics-application-conditions
+      - OrphanedResourceWarning
+      - --metrics-application-conditions
+      - ExcludedResourceWarning
 ```
 
 ## API Server Metrics

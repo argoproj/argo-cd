@@ -25,14 +25,14 @@ func Test_gitErrToGRPC(t *testing.T) {
 	assert.Equal(t, defaultError.Error(), defaultErrorMsg)
 
 	grpcErrorMsg := "grpc error"
-	grpcError := gitErrToGRPC(status.Errorf(codes.Unknown, grpcErrorMsg))
+	grpcError := gitErrToGRPC(status.Error(codes.Unknown, grpcErrorMsg))
 	se, ok := grpcError.(interface{ GRPCStatus() *status.Status })
 	assert.True(t, ok)
 	assert.Equal(t, codes.Unknown, se.GRPCStatus().Code())
 	assert.Equal(t, se.GRPCStatus().Message(), grpcErrorMsg)
 
 	notFoundMsg := "repository not found"
-	notFound := gitErrToGRPC(status.Errorf(codes.NotFound, notFoundMsg))
+	notFound := gitErrToGRPC(status.Error(codes.NotFound, notFoundMsg))
 	se1, ok := notFound.(interface{ GRPCStatus() *status.Status })
 	assert.True(t, ok)
 	assert.Equal(t, codes.NotFound, se1.GRPCStatus().Code())

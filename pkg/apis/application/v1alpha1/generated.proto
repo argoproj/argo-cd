@@ -93,6 +93,9 @@ message AppProjectSpec {
 
   // PermitOnlyProjectScopedClusters determines whether destinations can only reference clusters which are project-scoped
   optional bool permitOnlyProjectScopedClusters = 13;
+
+  // DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.
+  repeated ApplicationDestinationServiceAccount destinationServiceAccounts = 14;
 }
 
 // AppProjectStatus contains status information for AppProject CRs
@@ -143,6 +146,18 @@ message ApplicationDestination {
 
   // Name is an alternate way of specifying the target cluster by its symbolic name. This must be set if Server is not set.
   optional string name = 3;
+}
+
+// ApplicationDestinationServiceAccount holds information about the service account to be impersonated for the application sync operation.
+message ApplicationDestinationServiceAccount {
+  // Server specifies the URL of the target cluster's Kubernetes control plane API.
+  optional string server = 1;
+
+  // Namespace specifies the target namespace for the application's resources.
+  optional string namespace = 2;
+
+  // ServiceAccountName to be used for impersonation during the sync operation
+  optional string defaultServiceAccount = 3;
 }
 
 // ApplicationList is list of Application resources
@@ -685,6 +700,9 @@ message ApplicationTree {
 
   // Hosts holds list of Kubernetes nodes that run application related pods
   repeated HostInfo hosts = 3;
+
+  // ShardsCount contains total number of shards the application tree is split into
+  optional int64 shardsCount = 4;
 }
 
 // ApplicationWatchEvent contains information about application change.
