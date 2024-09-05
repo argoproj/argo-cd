@@ -452,7 +452,8 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 		if subResource == "*" || subResource == "" {
 			subResource = "*/*"
 		}
-	} else if realResource == rbacpolicy.ResourceLogs {
+	}
+	if realResource == rbacpolicy.ResourceLogs {
 		if isLogRbacEnforced != nil && !isLogRbacEnforced() {
 			return true
 		}
