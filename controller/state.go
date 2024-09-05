@@ -216,6 +216,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 				Repo:               repo,
 				Revision:           revision,
 				SyncedRevision:     syncedRevision,
+				NoRevisionCache: 	noRevisionCache,
 				Paths:              path.GetAppRefreshPaths(app),
 				AppLabelKey:        appLabelKey,
 				AppName:            app.InstanceName(m.namespace),

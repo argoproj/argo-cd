@@ -279,6 +279,8 @@ message UpdateRevisionForPathsRequest {
     string syncedRevision = 11;
     string revision = 12;
     repeated string paths = 13;
+
+    bool noRevisionCache = 14;
 }
 
 message UpdateRevisionForPathsResponse {

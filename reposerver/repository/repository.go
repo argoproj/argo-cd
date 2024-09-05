@@ -2779,7 +2779,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 		return &apiclient.UpdateRevisionForPathsResponse{}, nil
 	}
 
-	gitClientOpts := git.WithCache(s.cache, true)
+	gitClientOpts := git.WithCache(s.cache, !request.NoRevisionCache)
 	gitClient, revision, err := s.newClientResolveRevision(repo, revision, gitClientOpts)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
