@@ -216,9 +216,11 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, project str
 			return "", nil, fmt.Errorf("expected 1 file, found %v", len(infos))
 		}
 
-		err = os.Rename(filepath.Join(tempDest, infos[0].Name()), cachedChartPath)
+		chartFilePath := filepath.Join(tempDest, infos[0].Name())
+
+		err = os.Rename(chartFilePath, cachedChartPath)
 		if err != nil {
-			return "", nil, fmt.Errorf("error renaming file from %s to %s: %w", filepath.Join(tempDest, infos[0].Name()), cachedChartPath, err)
+			return "", nil, fmt.Errorf("error renaming file from %s to %s: %w", chartFilePath, cachedChartPath, err)
 		}
 	}
 
