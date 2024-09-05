@@ -4489,6 +4489,27 @@
         }
       }
     },
+    "applicationsetApplicationSetGenerateRequest": {
+      "type": "object",
+      "title": "ApplicationSetGetQuery is a query for applicationset resources",
+      "properties": {
+        "applicationSet": {
+          "$ref": "#/definitions/v1alpha1ApplicationSet"
+        }
+      }
+    },
+    "applicationsetApplicationSetGenerateResponse": {
+      "type": "object",
+      "title": "ApplicationSetGenerateResponse is a response for applicationset generate request",
+      "properties": {
+        "applications": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Application"
+          }
+        }
+      }
+    },
     "applicationsetApplicationSetResponse": {
       "type": "object",
       "properties": {
@@ -4511,6 +4532,43 @@
         "value": {
           "type": "string",
           "title": "Value is the value of the variable"
+        }
+      }
+    },
+    "applicationv1alpha1ResourceStatus": {
+      "type": "object",
+      "title": "ResourceStatus holds the current sync and health status of a resource\nTODO: describe members of this type",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "health": {
+          "$ref": "#/definitions/v1alpha1HealthStatus"
+        },
+        "hook": {
+          "type": "boolean"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "requiresPruning": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string"
+        },
+        "syncWave": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "version": {
+          "type": "string"
         }
       }
     },
@@ -4657,6 +4715,9 @@
         },
         "help": {
           "$ref": "#/definitions/clusterHelp"
+        },
+        "impersonationEnabled": {
+          "type": "boolean"
         },
         "kustomizeOptions": {
           "$ref": "#/definitions/v1alpha1KustomizeOptions"
@@ -5464,7 +5525,7 @@
       "properties": {
         "matchExpressions": {
           "type": "array",
-          "title": "matchExpressions is a list of label selector requirements. The requirements are ANDed.\n+optional",
+          "title": "matchExpressions is a list of label selector requirements. The requirements are ANDed.\n+optional\n+listType=atomic",
           "items": {
             "$ref": "#/definitions/v1LabelSelectorRequirement"
           }
@@ -5492,7 +5553,7 @@
         },
         "values": {
           "type": "array",
-          "title": "values is an array of string values. If the operator is In or NotIn,\nthe values array must be non-empty. If the operator is Exists or DoesNotExist,\nthe values array must be empty. This array is replaced during a strategic\nmerge patch.\n+optional",
+          "title": "values is an array of string values. If the operator is In or NotIn,\nthe values array must be non-empty. If the operator is Exists or DoesNotExist,\nthe values array must be empty. This array is replaced during a strategic\nmerge patch.\n+optional\n+listType=atomic",
           "items": {
             "type": "string"
           }
@@ -5616,7 +5677,7 @@
           "type": "string"
         },
         "kubeProxyVersion": {
-          "description": "KubeProxy Version reported by the node.",
+          "description": "Deprecated: KubeProxy Version reported by the node.",
           "type": "string"
         },
         "kubeletVersion": {
@@ -5665,7 +5726,7 @@
         },
         "finalizers": {
           "type": "array",
-          "title": "Must be empty before the object is deleted from the registry. Each entry\nis an identifier for the responsible component that will remove the entry\nfrom the list. If the deletionTimestamp of the object is non-nil, entries\nin this list can only be removed.\nFinalizers may be processed and removed in any order.  Order is NOT enforced\nbecause it introduces significant risk of stuck finalizers.\nfinalizers is a shared field, any actor with permission can reorder it.\nIf the finalizer list is processed in order, then this can lead to a situation\nin which the component responsible for the first finalizer in the list is\nwaiting for a signal (field value, external system, or other) produced by a\ncomponent responsible for a finalizer later in the list, resulting in a deadlock.\nWithout enforced ordering finalizers are free to order amongst themselves and\nare not vulnerable to ordering changes in the list.\n+optional\n+patchStrategy=merge",
+          "title": "Must be empty before the object is deleted from the registry. Each entry\nis an identifier for the responsible component that will remove the entry\nfrom the list. If the deletionTimestamp of the object is non-nil, entries\nin this list can only be removed.\nFinalizers may be processed and removed in any order.  Order is NOT enforced\nbecause it introduces significant risk of stuck finalizers.\nfinalizers is a shared field, any actor with permission can reorder it.\nIf the finalizer list is processed in order, then this can lead to a situation\nin which the component responsible for the first finalizer in the list is\nwaiting for a signal (field value, external system, or other) produced by a\ncomponent responsible for a finalizer later in the list, resulting in a deadlock.\nWithout enforced ordering finalizers are free to order amongst themselves and\nare not vulnerable to ordering changes in the list.\n+optional\n+patchStrategy=merge\n+listType=set",
           "items": {
             "type": "string"
           }
@@ -5687,7 +5748,7 @@
           }
         },
         "managedFields": {
-          "description": "ManagedFields maps workflow-id and version to the set of fields\nthat are managed by that workflow. This is mostly for internal\nhousekeeping, and users typically shouldn't need to set or\nunderstand this field. A workflow can be the user's name, a\ncontroller's name, or the name of a specific apply path like\n\"ci-cd\". The set of fields is always in the version that the\nworkflow used when modifying the object.\n\n+optional",
+          "description": "ManagedFields maps workflow-id and version to the set of fields\nthat are managed by that workflow. This is mostly for internal\nhousekeeping, and users typically shouldn't need to set or\nunderstand this field. A workflow can be the user's name, a\ncontroller's name, or the name of a specific apply path like\n\"ci-cd\". The set of fields is always in the version that the\nworkflow used when modifying the object.\n\n+optional\n+listType=atomic",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1ManagedFieldsEntry"
@@ -5703,7 +5764,7 @@
         },
         "ownerReferences": {
           "type": "array",
-          "title": "List of objects depended by this object. If ALL objects in the list have\nbeen deleted, this object will be garbage collected. If this object is managed by a controller,\nthen an entry in this list will point to this controller, with the controller field set to true.\nThere cannot be more than one managing controller.\n+optional\n+patchMergeKey=uid\n+patchStrategy=merge",
+          "title": "List of objects depended by this object. If ALL objects in the list have\nbeen deleted, this object will be garbage collected. If this object is managed by a controller,\nthen an entry in this list will point to this controller, with the controller field set to true.\nThere cannot be more than one managing controller.\n+optional\n+patchMergeKey=uid\n+patchStrategy=merge\n+listType=map\n+listMapKey=uid",
           "items": {
             "$ref": "#/definitions/v1OwnerReference"
           }
@@ -5879,6 +5940,13 @@
           "type": "string",
           "title": "Description contains optional project description"
         },
+        "destinationServiceAccounts": {
+          "description": "DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationDestinationServiceAccount"
+          }
+        },
         "destinations": {
           "type": "array",
           "title": "Destinations contains list of destinations available for deployment",
@@ -6006,6 +6074,24 @@
         },
         "server": {
           "description": "Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.",
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ApplicationDestinationServiceAccount": {
+      "description": "ApplicationDestinationServiceAccount holds information about the service account to be impersonated for the application sync operation.",
+      "type": "object",
+      "properties": {
+        "defaultServiceAccount": {
+          "type": "string",
+          "title": "ServiceAccountName to be used for impersonation during the sync operation"
+        },
+        "namespace": {
+          "description": "Namespace specifies the target namespace for the application's resources.",
+          "type": "string"
+        },
+        "server": {
+          "description": "Server specifies the URL of the target cluster's Kubernetes control plane API.",
           "type": "string"
         }
       }
@@ -6334,7 +6420,7 @@
           "description": "Resources is a list of Applications resources managed by this application set.",
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1ResourceStatus"
+            "$ref": "#/definitions/applicationv1alpha1ResourceStatus"
           }
         }
       }
@@ -6801,7 +6887,7 @@
           "type": "array",
           "title": "Resources is a list of Kubernetes resources managed by this application",
           "items": {
-            "$ref": "#/definitions/v1alpha1ResourceStatus"
+            "$ref": "#/definitions/applicationv1alpha1ResourceStatus"
           }
         },
         "sourceType": {
@@ -6867,6 +6953,11 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceNode"
           }
+        },
+        "shardsCount": {
+          "type": "integer",
+          "format": "int64",
+          "title": "ShardsCount contains total number of shards the application tree is split into"
         }
       }
     },
@@ -8687,43 +8778,6 @@
         "version": {
           "type": "string",
           "title": "Version specifies the API version of the resource"
-        }
-      }
-    },
-    "v1alpha1ResourceStatus": {
-      "type": "object",
-      "title": "ResourceStatus holds the current sync and health status of a resource\nTODO: describe members of this type",
-      "properties": {
-        "group": {
-          "type": "string"
-        },
-        "health": {
-          "$ref": "#/definitions/v1alpha1HealthStatus"
-        },
-        "hook": {
-          "type": "boolean"
-        },
-        "kind": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "namespace": {
-          "type": "string"
-        },
-        "requiresPruning": {
-          "type": "boolean"
-        },
-        "status": {
-          "type": "string"
-        },
-        "syncWave": {
-          "type": "integer",
-          "format": "int64"
-        },
-        "version": {
-          "type": "string"
         }
       }
     },

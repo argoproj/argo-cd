@@ -191,7 +191,7 @@ func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.R
 			}
 			out, err := json.Marshal(jwks)
 			require.NoError(t, err)
-			_, err = io.WriteString(w, string(out))
+			_, err = w.Write(out)
 			require.NoError(t, err)
 		default:
 			w.WriteHeader(http.StatusNotFound)
