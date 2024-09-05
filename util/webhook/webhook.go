@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strings"
 	"sync"
 
 	azureDevOps "github.com/go-playground/webhooks/v6/azuredevops"
@@ -22,7 +23,7 @@ import (
 )
 
 type WebhookPayloadHandler interface {
-	HandlePayload(payload interface{}, webhook *Webhook)
+	HandlePayload(payload interface{})
 }
 
 type Webhook struct {
@@ -120,7 +121,7 @@ func (webhook *Webhook) startWorkerPool() {
 					return
 				}
 
-				webhook.payloadHandler.HandlePayload(payload, webhook)
+				webhook.payloadHandler.HandlePayload(payload)
 			}
 		}()
 	}
@@ -245,4 +246,10 @@ func (webhook *Webhook) HandleRequest(writer http.ResponseWriter, request *http.
 func (webhook *Webhook) CloseAndWait() {
 	close(webhook.payloadQueue)
 	webhook.Wait()
+}
+
+func ParseRevision(ref string) string {
+	refParts := strings.SplitN(ref, "/", 3)
+
+	return refParts[len(refParts)-1]
 }

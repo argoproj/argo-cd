@@ -42,12 +42,6 @@ type changeInfo struct {
 	shaAfter  string
 }
 
-func parseRevision(ref string) string {
-	refParts := strings.SplitN(ref, "/", 3)
-
-	return refParts[len(refParts)-1]
-}
-
 // affectedRevisionInfo examines a payload from a webhook event, and extracts the repo web URL, the
 // revision, and whether or not this affected origin/HEAD (the default branch of the repository).
 func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
@@ -55,17 +49,17 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 	case azureDevOps.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
 		webURLs = append(webURLs, payload.Resource.Repository.RemoteURL)
-		revision = parseRevision(payload.Resource.RefUpdates[0].Name)
-		change.shaAfter = parseRevision(payload.Resource.RefUpdates[0].NewObjectID)
-		change.shaBefore = parseRevision(payload.Resource.RefUpdates[0].OldObjectID)
+		revision = webhook.ParseRevision(payload.Resource.RefUpdates[0].Name)
+		change.shaAfter = webhook.ParseRevision(payload.Resource.RefUpdates[0].NewObjectID)
+		change.shaBefore = webhook.ParseRevision(payload.Resource.RefUpdates[0].OldObjectID)
 		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
 		// Unfortunately, Azure DevOps doesn't provide a list of changed files.
 	case gitHub.PushPayload:
 		// See: https://developer.github.com/v3/activity/events/types/#pushevent
 		webURLs = append(webURLs, payload.Repository.HTMLURL)
-		revision = parseRevision(payload.Ref)
-		change.shaAfter = parseRevision(payload.After)
-		change.shaBefore = parseRevision(payload.Before)
+		revision = webhook.ParseRevision(payload.Ref)
+		change.shaAfter = webhook.ParseRevision(payload.After)
+		change.shaBefore = webhook.ParseRevision(payload.Before)
 		touchedHead = bool(payload.Repository.DefaultBranch == revision)
 
 		for _, commit := range payload.Commits {
@@ -76,9 +70,9 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 	case gitLab.PushEventPayload:
 		// See: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html
 		webURLs = append(webURLs, payload.Project.WebURL)
-		revision = parseRevision(payload.Ref)
-		change.shaAfter = parseRevision(payload.After)
-		change.shaBefore = parseRevision(payload.Before)
+		revision = webhook.ParseRevision(payload.Ref)
+		change.shaAfter = webhook.ParseRevision(payload.After)
+		change.shaBefore = webhook.ParseRevision(payload.Before)
 		touchedHead = bool(payload.Project.DefaultBranch == revision)
 
 		for _, commit := range payload.Commits {
@@ -90,9 +84,9 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 		// See: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html
 		// NOTE: This is untested.
 		webURLs = append(webURLs, payload.Project.WebURL)
-		revision = parseRevision(payload.Ref)
-		change.shaAfter = parseRevision(payload.After)
-		change.shaBefore = parseRevision(payload.Before)
+		revision = webhook.ParseRevision(payload.Ref)
+		change.shaAfter = webhook.ParseRevision(payload.After)
+		change.shaBefore = webhook.ParseRevision(payload.Before)
 		touchedHead = bool(payload.Project.DefaultBranch == revision)
 
 		for _, commit := range payload.Commits {
@@ -131,7 +125,7 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 		// TODO: Bitbucket includes multiple changes as part of a single event. We only pick the first
 		// but need to consider how to handle multiple.
 		for _, change := range payload.Changes {
-			revision = parseRevision(change.Reference.ID)
+			revision = webhook.ParseRevision(change.Reference.ID)
 
 			break
 		}
@@ -144,9 +138,9 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 		// update changedFiles for this type of payload.
 	case gogsClient.PushPayload:
 		webURLs = append(webURLs, payload.Repo.HTMLURL)
-		revision = parseRevision(payload.Ref)
-		change.shaAfter = parseRevision(payload.After)
-		change.shaBefore = parseRevision(payload.Before)
+		revision = webhook.ParseRevision(payload.Ref)
+		change.shaAfter = webhook.ParseRevision(payload.After)
+		change.shaBefore = webhook.ParseRevision(payload.Before)
 		touchedHead = bool(payload.Repo.DefaultBranch == revision)
 
 		for _, commit := range payload.Commits {
@@ -160,7 +154,7 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 }
 
 func sourceRevisionHasChanged(source v1alpha1.ApplicationSource, revision string, touchedHead bool) bool {
-	targetRev := parseRevision(source.TargetRevision)
+	targetRev := webhook.ParseRevision(source.TargetRevision)
 
 	if targetRev == "HEAD" || targetRev == "" { // revision is head
 		return touchedHead
@@ -189,7 +183,7 @@ func sourceUsesURL(source v1alpha1.ApplicationSource, webURL string, repoRegexp 
 	return true
 }
 
-func (handler *ApplicationWebhookPayloadHandler) HandlePayload(payload interface{}, handlerWebhook *webhook.Webhook) {
+func (handler *ApplicationWebhookPayloadHandler) HandlePayload(payload interface{}) {
 	webURLs, revision, change, touchedHead, changedFiles := affectedRevisionInfo(payload)
 
 	// NOTE: The webURL does not include the .git extension.
