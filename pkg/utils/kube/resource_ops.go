@@ -155,6 +155,9 @@ func kubeCmdFactory(kubeconfig, ns string, config *rest.Config) cmdutil.Factory 
 	kubeConfigFlags.KubeConfig = &kubeconfig
 	kubeConfigFlags.WithDiscoveryBurst(config.Burst)
 	kubeConfigFlags.WithDiscoveryQPS(config.QPS)
+	kubeConfigFlags.Impersonate = &config.Impersonate.UserName
+	kubeConfigFlags.ImpersonateUID = &config.Impersonate.UID
+	kubeConfigFlags.ImpersonateGroup = &config.Impersonate.Groups
 	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
 	return cmdutil.NewFactory(matchVersionKubeConfigFlags)
 }
