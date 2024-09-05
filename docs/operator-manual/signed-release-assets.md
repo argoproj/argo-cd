@@ -32,7 +32,8 @@ Argo CD container images are signed by [cosign](https://github.com/sigstore/cosi
 cosign verify \
 --certificate-identity-regexp https://github.com/argoproj/argo-cd/.github/workflows/image-reuse.yaml@refs/tags/v \
 --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-quay.io/argoproj/argocd:v2.7.0 | jq
+--certificate-github-workflow-repository "argoproj/argo-cd" \
+quay.io/argoproj/argocd:v2.11.3 | jq
 ```
 The command should output the following if the container image was correctly verified:
 ```bash

@@ -32,7 +32,7 @@ export class YamlEditor<T> extends React.Component<
 
     public render() {
         const props = this.props;
-        const yaml = props.input ? jsYaml.safeDump(props.input) : '';
+        const yaml = props.input ? jsYaml.dump(props.input) : '';
 
         return (
             <div className='yaml-editor'>
@@ -74,7 +74,7 @@ export class YamlEditor<T> extends React.Component<
                                         </button>{' '}
                                         <button
                                             onClick={() => {
-                                                this.model.setValue(jsYaml.safeDump(props.input));
+                                                this.model.setValue(jsYaml.dump(props.input));
                                                 this.setState({editing: !this.state.editing});
                                                 if (props.onCancel) {
                                                     props.onCancel();

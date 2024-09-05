@@ -408,8 +408,8 @@ func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	}
 }
 
-func generateManifestHash(un *unstructured.Unstructured, ignores []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride) (string, error) {
-	normalizer, err := normalizers.NewIgnoreNormalizer(ignores, overrides)
+func generateManifestHash(un *unstructured.Unstructured, ignores []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride, opts normalizers.IgnoreNormalizerOpts) (string, error) {
+	normalizer, err := normalizers.NewIgnoreNormalizer(ignores, overrides, opts)
 	if err != nil {
 		return "", fmt.Errorf("error creating normalizer: %w", err)
 	}

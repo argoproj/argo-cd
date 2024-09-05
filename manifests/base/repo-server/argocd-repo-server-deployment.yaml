@@ -24,6 +24,11 @@ spec:
         args:
           - /usr/local/bin/argocd-repo-server
         env:
+          - name: REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: auth
+                name: argocd-redis
           - name: ARGOCD_RECONCILIATION_TIMEOUT
             valueFrom:
               configMapKeyRef:
@@ -202,6 +207,12 @@ spec:
             valueFrom:
               configMapKeyRef:
                 key: reposerver.grpc.max.size
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.include.hidden.directories
                 name: argocd-cmd-params-cm
                 optional: true
           - name: HELM_CACHE_HOME

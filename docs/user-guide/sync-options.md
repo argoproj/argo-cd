@@ -165,6 +165,21 @@ metadata:
     argocd.argoproj.io/sync-options: Replace=true
 ```
 
+## Force Sync
+
+For certain resources you might want to delete and recreate. e.g. job resources that should run every time when syncing.
+
+!!! warning
+      During the sync process, the resources will be synchronized using the 'kubectl delete/create' command.
+      This sync option has a destructive action, which could cause an outage for your application.
+
+In such cases you might use `Force=true` sync option in target resources annotation:
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: Force=true,Replace=true
+```
+
 ## Server-Side Apply
 
 This option enables Kubernetes

@@ -6,10 +6,10 @@ import (
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
-	"github.com/antonmedv/expr"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/expr-lang/expr"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -105,8 +105,8 @@ func EvaluateDeepLinksResponse(obj map[string]interface{}, name string, links []
 			case bool:
 				if resOut {
 					finalLinks = append(finalLinks, &application.LinkInfo{
-						Title:       pointer.String(link.Title),
-						Url:         pointer.String(finalURL.String()),
+						Title:       ptr.To(link.Title),
+						Url:         ptr.To(finalURL.String()),
 						Description: link.Description,
 						IconClass:   link.IconClass,
 					})
@@ -117,8 +117,8 @@ func EvaluateDeepLinksResponse(obj map[string]interface{}, name string, links []
 			}
 		} else {
 			finalLinks = append(finalLinks, &application.LinkInfo{
-				Title:       pointer.String(link.Title),
-				Url:         pointer.String(finalURL.String()),
+				Title:       ptr.To(link.Title),
+				Url:         ptr.To(finalURL.String()),
 				Description: link.Description,
 				IconClass:   link.IconClass,
 			})

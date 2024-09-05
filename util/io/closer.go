@@ -2,11 +2,9 @@ package io
 
 import log "github.com/sirupsen/logrus"
 
-var (
-	NopCloser = NewCloser(func() error {
-		return nil
-	})
-)
+var NopCloser = NewCloser(func() error {
+	return nil
+})
 
 type Closer interface {
 	Close() error

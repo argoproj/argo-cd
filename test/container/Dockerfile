@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:7.2.4@sha256:7dd707032d90c6eaafd566f62a00f5b0116ae08fd7d6cbbb0f311b82b47171a2 as redis
+FROM docker.io/library/redis:7.2.5@sha256:5a82749600e03e4c4208276283f1f39d2dfde31700582c5a0b3e4ab48a2ddf7e as redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
@@ -6,15 +6,15 @@ FROM docker.io/library/redis:7.2.4@sha256:7dd707032d90c6eaafd566f62a00f5b0116ae0
 RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 
 # Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
-FROM docker.io/library/node:21.7.1@sha256:b9ccc4aca32eebf124e0ca0fd573dacffba2b9236987a1d4d2625ce3c162ecc8 as node
+FROM docker.io/library/node:22.8.0@sha256:8ec02324cb37718197de92e51677781be9f1345c709f31a1f44440c6036d24a2 as node
 
-FROM docker.io/library/golang:1.21.9@sha256:7d0dcbe5807b1ad7272a598fbf9d7af15b5e2bed4fd6c4c2b5b3684df0b317dd as golang
+FROM docker.io/library/golang:1.23@sha256:613a108a4a4b1dfb6923305db791a19d088f77632317cfc3446825c54fb862cd as golang
 
-FROM docker.io/library/registry:2.8@sha256:fb9c9aef62af3955f6014613456551c92e88a67dcf1fc51f5f91bcbd1832813f as registry
+FROM docker.io/library/registry:2.8@sha256:12120425f07de11a1b899e418d4b0ea174c8d4d572d45bdb640f93bc7ca06a3d as registry
 
-FROM docker.io/bitnami/kubectl:1.27@sha256:14ab746e857d96c105df4989cc2bf841292f2d143f7c60f9d7f549ae660eab43 as kubectl
+FROM docker.io/bitnami/kubectl:1.31@sha256:96ef4d3e505d81223c08ed45116ef31e836bcca7de670bc13f5b8a5a8ad88f5c as kubectl
 
-FROM docker.io/library/ubuntu:22.04@sha256:77906da86b60585ce12215807090eb327e7386c8fafb5402369e421f44eff17e
+FROM docker.io/library/ubuntu:24.04@sha256:3f85b7caad41a95462cf5b787d8a04604c8262cdcdf9a472b8c52ef83375fe15
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN  apt-get update && apt-get install --fix-missing -y \
@@ -85,7 +85,7 @@ COPY --from=registry /etc/docker/registry/config.yml /etc/docker/registry/config
 # Copy node binaries
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
 COPY --from=node /usr/local/bin/node /usr/local/bin
-COPY --from=node /opt/yarn-v1.22.19 /opt/yarn-v1.22.19
+COPY --from=node /opt/yarn-v1.22.22 /opt/yarn-v1.22.22
 
 # Entrypoint is required for container's user management
 COPY ./test/container/entrypoint.sh /usr/local/bin
@@ -93,7 +93,8 @@ COPY ./test/container/entrypoint.sh /usr/local/bin
 ARG UID
 
 # Prepare user configuration & build environments
-RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
+RUN userdel -r ubuntu && \
+	useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user && \
     mkdir -p /home/user/.kube && \
     mkdir -p /home/user/.cache && \
@@ -101,6 +102,7 @@ RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     chgrp -R user /home/user && \
     HOME=/home/user git config --global user.name "ArgoCD Test User" && \
     HOME=/home/user git config --global user.email "noreply@example.com" && \
+    HOME=/home/user git config --global --add safe.directory '*' && \
     mkdir -p /go/pkg && \
     mkdir -p /var/run/sshd && \
     mkdir -p /root/.ssh && \
@@ -111,8 +113,8 @@ RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     ln -s /usr/local/bin/node /usr/local/bin/nodejs && \
     ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
     ln -s /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
-    ln -s /opt/yarn-v1.22.19/bin/yarn /usr/local/bin/yarn && \
-    ln -s /opt/yarn-v1.22.19/bin/yarnpkg /usr/local/bin/yarnpkg && \
+    ln -s /opt/yarn-v1.22.22/bin/yarn /usr/local/bin/yarn && \
+    ln -s /opt/yarn-v1.22.22/bin/yarnpkg /usr/local/bin/yarnpkg && \
     mkdir -p /var/lib/registry
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

@@ -133,6 +133,7 @@
                      requestedIDTokenClaims:
                         groups:
                            essential: true
+                           value: "SecurityGroup"
                      requestedScopes:
                         - openid
                         - profile
@@ -160,7 +161,7 @@
                p, role:org-admin, repositories, delete, *, allow
                g, "84ce98d1-e359-4f3b-85af-985b458de3c6", role:org-admin
 
-4. Mapping role from jwt token to argo
+4. Mapping role from jwt token to argo.  
    If you want to map the roles from the jwt token to match the default roles (readonly and admin) then you must change the scope variable in the rbac-configmap.
 
             policy.default: role:readonly

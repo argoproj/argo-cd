@@ -17,7 +17,7 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 )
 
 // The contents of this file are from
@@ -55,16 +55,14 @@ func ValidateDestination(ctx context.Context, dest *appv1.ApplicationDestination
 		if dest.Server == "" {
 			server, err := getDestinationServer(ctx, dest.Name, clientset, argoCDNamespace)
 			if err != nil {
-				return fmt.Errorf("unable to find destination server: %v", err)
+				return fmt.Errorf("unable to find destination server: %w", err)
 			}
 			if server == "" {
 				return fmt.Errorf("application references destination cluster %s which does not exist", dest.Name)
 			}
 			dest.SetInferredServer(server)
-		} else {
-			if !dest.IsServerInferred() {
-				return fmt.Errorf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server)
-			}
+		} else if !dest.IsServerInferred() {
+			return fmt.Errorf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server)
 		}
 	}
 	return nil
@@ -93,7 +91,6 @@ func getDestinationServer(ctx context.Context, clusterName string, clientset kub
 }
 
 func ListClusters(ctx context.Context, clientset kubernetes.Interface, namespace string) (*appv1.ClusterList, error) {
-
 	clusterSecretsList, err := clientset.CoreV1().Secrets(namespace).List(ctx,
 		metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster})
 	if err != nil {
@@ -114,7 +111,7 @@ func ListClusters(ctx context.Context, clientset kubernetes.Interface, namespace
 		// This line has changed from the original Argo CD code: now receives an error, and handles it
 		cluster, err := secretToCluster(&clusterSecret)
 		if err != nil || cluster == nil {
-			return nil, fmt.Errorf("unable to convert cluster secret to cluster object '%s': %v", clusterSecret.Name, err)
+			return nil, fmt.Errorf("unable to convert cluster secret to cluster object '%s': %w", clusterSecret.Name, err)
 		}
 
 		clusterList.Items[i] = *cluster
@@ -135,9 +132,12 @@ func getLocalCluster(clientset kubernetes.Interface) *appv1.Cluster {
 	initLocalCluster.Do(func() {
 		info, err := clientset.Discovery().ServerVersion()
 		if err == nil {
+			// nolint:staticcheck
 			localCluster.ServerVersion = fmt.Sprintf("%s.%s", info.Major, info.Minor)
+			// nolint:staticcheck
 			localCluster.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
 		} else {
+			// nolint:staticcheck
 			localCluster.ConnectionState = appv1.ConnectionState{
 				Status:  appv1.ConnectionStatusFailed,
 				Message: err.Error(),
@@ -146,6 +146,7 @@ func getLocalCluster(clientset kubernetes.Interface) *appv1.Cluster {
 	})
 	cluster := localCluster.DeepCopy()
 	now := metav1.Now()
+	// nolint:staticcheck
 	cluster.ConnectionState.ModifiedAt = &now
 	return cluster
 }
@@ -180,7 +181,7 @@ func secretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
 		if val, err := strconv.Atoi(string(shardStr)); err != nil {
 			log.Warnf("Error while parsing shard in cluster secret '%s': %v", s.Name, err)
 		} else {
-			shard = pointer.Int64(int64(val))
+			shard = ptr.To(int64(val))
 		}
 	}
 	cluster := appv1.Cluster{

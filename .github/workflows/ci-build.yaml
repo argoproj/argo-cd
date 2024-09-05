@@ -13,7 +13,7 @@ on:
 
 env:
   # Golang version to use across CI steps
-  GOLANG_VERSION: '1.21'
+  GOLANG_VERSION: '1.22'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -28,9 +28,10 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend_any_changed }}
       frontend: ${{ steps.filter.outputs.frontend_any_changed }}
+      docs: ${{ steps.filter.outputs.docs_any_changed }}
     steps:
       - uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
-      - uses: tj-actions/changed-files@90a06d6ba9543371ab4df8eeca0be07ca6054959 # v42.0.2
+      - uses: tj-actions/changed-files@c65cd883420fd2eb864698a825fc4162dd94482c # v44.5.7
         id: filter
         with:
           # Any file which is not under docs/, ui/ or is not a markdown file is counted as a backend file
@@ -43,6 +44,8 @@ jobs:
             frontend:
               - 'ui/**'
               - Dockerfile
+            docs:
+              - 'docs/**'
   check-go:
     name: Ensure Go modules synchronicity
     if: ${{ needs.changes.outputs.backend == 'true' }}
@@ -53,7 +56,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
       - name: Setup Golang
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.0.0
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Download all Go modules
@@ -74,11 +77,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
       - name: Setup Golang
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.0.0
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Restore go build cache
-        uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2
+        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -101,14 +104,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
       - name: Setup Golang
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.0.0
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@3a919529898de77ec3da873e3063ca4b10e7f5cc # v3.7.0
+        uses: golangci/golangci-lint-action@aaa42aa0628b4ae2578232a66b541047968fac86 # v6.1.0
         with:
-          version: v1.54.0
-          args: --enable gofmt --timeout 10m --exclude SA5011 --verbose --max-issues-per-linter 0 --max-same-issues 0
+          version: v1.58.2
+          args: --verbose
 
   test-go:
     name: Run unit tests for Go packages
@@ -128,7 +131,7 @@ jobs:
       - name: Create symlink in GOPATH
         run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.0.0
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Install required packages
@@ -148,7 +151,7 @@ jobs:
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build cache
-        uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2
+        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -168,16 +171,11 @@ jobs:
           go mod download
       - name: Run all unit tests
         run: make test-local
-      - name: Generate code coverage artifacts
-        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
-        with:
-          name: code-coverage
-          path: coverage.out
       - name: Generate test results artifacts
-        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: test-results
-          path: test-results/
+          path: test-results
 
   test-go-race:
     name: Run unit tests with -race for Go packages
@@ -197,7 +195,7 @@ jobs:
       - name: Create symlink in GOPATH
         run: ln -s $(pwd) ~/go/src/github.com/argoproj/argo-cd
       - name: Setup Golang
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.0.0
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Install required packages
@@ -217,7 +215,7 @@ jobs:
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
       - name: Restore go build cache
-        uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2
+        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -238,14 +236,14 @@ jobs:
       - name: Run all unit tests
         run: make test-race-local
       - name: Generate test results artifacts
-        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: race-results
           path: test-results/
 
   codegen:
     name: Check changes to generated code
-    if: ${{ needs.changes.outputs.backend == 'true' }}
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.docs == 'true'}}
     runs-on: ubuntu-22.04
     needs:
       - changes
@@ -253,7 +251,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
       - name: Setup Golang
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.0.0
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: Create symlink in GOPATH
@@ -296,7 +294,8 @@ jobs:
 
   build-ui:
     name: Build, test & lint UI code
-    if: ${{ needs.changes.outputs.frontend == 'true' }}
+    # We run UI logic for backend changes so that we have a complete set of coverage documents to send to codecov.
+    if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' }}
     runs-on: ubuntu-22.04
     needs:
       - changes
@@ -304,12 +303,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
       - name: Setup NodeJS
-        uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
+        uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b # v4.0.3
         with:
           node-version: '21.6.1'
       - name: Restore node dependency cache
         id: cache-dependencies
-        uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2
+        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
         with:
           path: ui/node_modules
           key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
@@ -324,6 +323,8 @@ jobs:
           NODE_ENV: production
           NODE_ONLINE_ENV: online
           HOST_ARCH: amd64
+          # If we're on the master branch, set the codecov token so that we upload bundle analysis
+          CODECOV_TOKEN: ${{ github.ref == 'refs/heads/master' && secrets.CODECOV_TOKEN || '' }}
         working-directory: ui/
       - name: Run ESLint
         run: yarn lint
@@ -337,6 +338,7 @@ jobs:
       - test-go
       - build-ui
       - changes
+      - test-e2e
     env:
       sonar_secret: ${{ secrets.SONAR_TOKEN }}
     steps:
@@ -346,57 +348,50 @@ jobs:
           fetch-depth: 0
       - name: Restore node dependency cache
         id: cache-dependencies
-        uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2
+        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
         with:
           path: ui/node_modules
           key: ${{ runner.os }}-node-dep-v2-${{ hashFiles('**/yarn.lock') }}
       - name: Remove other node_modules directory
         run: |
           rm -rf ui/node_modules/argo-ui/node_modules
-      - name: Create test-results directory
-        run: |
-          mkdir -p test-results
-      - name: Get code coverage artifact
-        uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
+      - name: Get e2e code coverage
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: code-coverage
-      - name: Get test result artifact
-        uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
+          name: e2e-code-coverage
+          path: e2e-code-coverage
+      - name: Get unit test code coverage
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: test-results
           path: test-results
+      - name: combine-go-coverage
+        # We generate coverage reports for all Argo CD components, but only the applicationset-controller,
+        # app-controller, and repo-server report contain coverage data. The other components currently don't shut down
+        # gracefully, so no coverage data is produced. Once those components are fixed, we can add references to their
+        # coverage output directories.
+        run: |
+          go tool covdata percent -i=test-results,e2e-code-coverage/applicationset-controller,e2e-code-coverage/repo-server,e2e-code-coverage/app-controller -o test-results/full-coverage.out
       - name: Upload code coverage information to codecov.io
-        uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d # v3.1.4
+        uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673 # v4.5.0
         with:
-          file: coverage.out
+          file: test-results/full-coverage.out
+          fail_ci_if_error: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload test results to Codecov
+        if: github.ref == 'refs/heads/master' && github.event_name == 'push' && github.repository == 'argoproj/argo-cd'
+        uses: codecov/test-results-action@1b5b448b98e58ba90d1a1a1d9fcb72ca2263be46 # v1.0.0
+        with:
+          file: test-results/junit.xml
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
       - name: Perform static code analysis using SonarCloud
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SCANNER_VERSION: 4.2.0.1873
-          SCANNER_PATH: /tmp/cache/scanner
-          OS: linux
-        run: |
-          # We do not use the provided action, because it does contain an old
-          # version of the scanner, and also takes time to build.
-          set -e
-          mkdir -p ${SCANNER_PATH}
-          export SONAR_USER_HOME=${SCANNER_PATH}/.sonar
-          if [[ ! -x "${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner" ]]; then
-            curl -Ol https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip
-            unzip -qq -o sonar-scanner-cli-${SCANNER_VERSION}-${OS}.zip -d ${SCANNER_PATH}
-          fi
-          
-          chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
-          chmod +x ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/jre/bin/java
-          
-          # Explicitly set NODE_MODULES
-          export NODE_MODULES=${PWD}/ui/node_modules
-          export NODE_PATH=${PWD}/ui/node_modules
-          
-          ${SCANNER_PATH}/sonar-scanner-${SCANNER_VERSION}-${OS}/bin/sonar-scanner
+        uses: SonarSource/sonarqube-scan-action@aecaf43ae57e412bd97d70ef9ce6076e672fe0a9 # v2.2
         if: env.sonar_secret != ''
-
   test-e2e:
     name: Run end-to-end tests
     if: ${{ needs.changes.outputs.backend == 'true' }}
@@ -404,7 +399,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        k3s-version: [v1.29.1, v1.28.6, v1.27.10, v1.26.13, v1.25.16]
+        k3s:
+          - version: v1.30.2
+            # We designate the latest version because we only collect code coverage for that version.
+            latest: true
+          - version: v1.29.6
+            latest: false
+          - version: v1.28.11
+            latest: false
+          - version: v1.27.15
+            latest: false
     needs:
       - build-go
       - changes
@@ -425,7 +429,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
       - name: Setup Golang
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.0.0
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
           go-version: ${{ env.GOLANG_VERSION }}
       - name: GH actions workaround - Kill XSP4 process
@@ -433,7 +437,7 @@ jobs:
           sudo pkill mono || true
       - name: Install K3S
         env:
-          INSTALL_K3S_VERSION: ${{ matrix.k3s-version }}+k3s1
+          INSTALL_K3S_VERSION: ${{ matrix.k3s.version }}+k3s1
         run: |
           set -x
           curl -sfL https://get.k3s.io | sh -
@@ -444,7 +448,7 @@ jobs:
           sudo chmod go-r $HOME/.kube/config
           kubectl version
       - name: Restore go build cache
-        uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2
+        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
         with:
           path: ~/.cache/go-build
           key: ${{ runner.os }}-go-build-v1-${{ github.run_id }}
@@ -470,9 +474,9 @@ jobs:
           git config --global user.email "john.doe@example.com"
       - name: Pull Docker image required for tests
         run: |
-          docker pull ghcr.io/dexidp/dex:v2.38.0
+          docker pull ghcr.io/dexidp/dex:v2.41.1
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
-          docker pull redis:7.0.14-alpine
+          docker pull redis:7.0.15-alpine
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist
@@ -485,7 +489,7 @@ jobs:
           # port 8080 which is not visible in netstat -tulpen, but still there
           # with a HTTP listener. We have API server listening on port 8088
           # instead.
-          make start-e2e-local 2>&1 | sed -r "s/[[:cntrl:]]\[[0-9]{1,3}m//g" > /tmp/e2e-server.log &
+          make start-e2e-local COVERAGE_ENABLED=true 2>&1 | sed -r "s/[[:cntrl:]]\[[0-9]{1,3}m//g" > /tmp/e2e-server.log &
           count=1
           until curl -f http://127.0.0.1:8088/healthz; do
             sleep 10;
@@ -499,10 +503,18 @@ jobs:
         run: |
           set -x
           make test-e2e-local
-      - name: Upload e2e-server logs
-        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
+          goreman run stop-all || echo "goreman trouble"
+          sleep 30
+      - name: Upload e2e coverage report
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
-          name: e2e-server-k8s${{ matrix.k3s-version }}.log
+          name: e2e-code-coverage
+          path: /tmp/coverage
+        if: ${{ matrix.k3s.latest }}
+      - name: Upload e2e-server logs
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        with:
+          name: e2e-server-k8s${{ matrix.k3s.version }}.log
           path: /tmp/e2e-server.log
         if: ${{ failure() }}
 

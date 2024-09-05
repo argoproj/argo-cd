@@ -1,4 +1,9 @@
 # Triggers and Templates Catalog
+## Getting Started
+* Install Triggers and Templates from the catalog
+  ```bash
+  kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/notifications_catalog/install.yaml
+  ```
 ## Triggers
 |          NAME          |                          DESCRIPTION                          |                      TEMPLATE                       |
 |------------------------|---------------------------------------------------------------|-----------------------------------------------------|
