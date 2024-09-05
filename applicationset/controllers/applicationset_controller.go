@@ -423,6 +423,7 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 
 	if needToUpdateConditions || len(applicationSet.Status.Conditions) < len(newConditions) {
 		// fetch updated Application Set object before updating it
+		// DefaultRetry will retry 5 times with a backoff factor of 1, jitter of 0.1 and a duration of 10ms
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			namespacedName := types.NamespacedName{Namespace: applicationSet.Namespace, Name: applicationSet.Name}
 			updatedAppset := &argov1alpha1.ApplicationSet{}
@@ -1253,6 +1254,7 @@ func (r *ApplicationSetReconciler) migrateStatus(ctx context.Context, appset *ar
 	}
 
 	if update {
+		// DefaultRetry will retry 5 times with a backoff factor of 1, jitter of 0.1 and a duration of 10ms
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
 			updatedAppset := &argov1alpha1.ApplicationSet{}
@@ -1289,6 +1291,7 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 		statuses = append(statuses, status)
 	}
 	appset.Status.Resources = statuses
+	// DefaultRetry will retry 5 times with a backoff factor of 1, jitter of 0.1 and a duration of 10ms
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
 		updatedAppset := &argov1alpha1.ApplicationSet{}
@@ -1347,7 +1350,7 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 		for i := range applicationStatuses {
 			applicationSet.Status.SetApplicationStatus(applicationStatuses[i])
 		}
-
+		// DefaultRetry will retry 5 times with a backoff factor of 1, jitter of 0.1 and a duration of 10ms
 		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			updatedAppset := &argov1alpha1.ApplicationSet{}
 			if err := r.Get(ctx, namespacedName, updatedAppset); err != nil {
