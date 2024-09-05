@@ -338,15 +338,18 @@ spec:
   generators:
   - pullRequest:
       # ...
-      # Include any pull request ending with "argocd". (optional)
       filters:
+      # Include any pull request branches ending with "argocd". (optional)
       - branchMatch: ".*-argocd"
+      # Include only pull requests with files that end with .yml
+      - fileMatch: "*.yml"
   template:
   # ...
 ```
 
 * `branchMatch`: A regexp matched against source branch names.
 * `targetBranchMatch`: A regexp matched against target branch names.
+* `fileMatch`: A regexp to filter PRs against files specified. (only supported on github/gitea/gitlab)
 
 [GitHub](#github) and [GitLab](#gitlab) also support a `labels` filter.
 
