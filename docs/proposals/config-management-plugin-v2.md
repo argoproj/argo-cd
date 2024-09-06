@@ -21,6 +21,7 @@ for using additional tools such as cdk8s, Tanka, jkcfg, QBEC, Dhall, pulumi, etc
 ## Summary
 
 Currently, Argo CD provides first-class support for Helm, Kustomize and Jsonnet/YAML. The support includes:
+
 - Bundled binaries (maintainers periodically upgrade binaries)
 - An ability to override parameters using UI/CLI
 - The applications are discovered in Git repository and auto-suggested during application creation in UI
@@ -41,6 +42,7 @@ The goals for config management plugin enhancement are,
 
 #### Improve Installation Experience
 The current Config Management plugin installation experience requires two changes:
+
 - An entry in configManagementPlugins in the Argo CD configmap (i.e.  argocd-cm)
 - Either an init container with a volume mount that adds a new binary into Argo CD repo server pod, or a rebuild of the argocd image, which contains the necessary tooling
 
@@ -66,13 +68,14 @@ to additional config management tools.
 
 ### Non-Goals
 
-* We aren't planning on changing the existing support for native plugins as of now. 
+- We aren't planning on changing the existing support for native plugins as of now. 
 
 ## Proposal
 
 We have drafted the solution to the problem statement as **running configuration management plugin tools as sidecar in the argocd-repo-server**. 
 
 All it means that Argo CD Config Management Plugin 2.0 will be,
+
 - A user-supplied container image with all the necessary tooling installed in it. 
 - It will run as a sidecar in the repo server deployment and will have shared access to the git repositories.
 - It will contain a CMP YAML specification file describing how to render manifests.
@@ -80,6 +83,7 @@ All it means that Argo CD Config Management Plugin 2.0 will be,
 based on the CMP specification file.
 
 This mechanism will provide the following benefits over the existing solution,
+
 - Plugin owners control their execution environment, packaging whatever dependent binaries required.
 - An  Argo CD user who wants to use additional config management tools does not have to go through the hassle of building 
 a customized argocd-repo-server in order to install required dependencies. 
@@ -87,9 +91,9 @@ a customized argocd-repo-server in order to install required dependencies.
 
 ### Use cases
 
-* UC1: As an Argo CD user, I would like to use first-class support provided for additional tools to generate and manage deployable kubernetes manifests
-* UC2: As an Argo CD operator, I want to have smooth experience while installing additional tools such as  cdk8s, Tanka, jkcfg, QBEC, Dhall, pulumi, etc.
-* UC3: As a plugin owner, I want to have some control over the execution environment as I want to package whatever dependent binaries required. 
+- UC1: As an Argo CD user, I would like to use first-class support provided for additional tools to generate and manage deployable kubernetes manifests
+- UC2: As an Argo CD operator, I want to have smooth experience while installing additional tools such as  cdk8s, Tanka, jkcfg, QBEC, Dhall, pulumi, etc.
+- UC3: As a plugin owner, I want to have some control over the execution environment as I want to package whatever dependent binaries required. 
 
 ### Implementation Details
 
@@ -143,6 +147,7 @@ volumes:
 Plugins will be configured via a ConfigManagementPlugin manifest located inside the plugin container, placed at a 
 well-known location (e.g. /home/argocd/plugins/plugin.yaml). Argo CD is agnostic to the mechanism of how the plugin.yaml would be placed, 
 but various options can be used on how to place this file, including: 
+
 - Baking the file into the plugin image as part of docker build
 - Volume mapping the file through a configmap.
 
@@ -262,26 +267,27 @@ volumes:
   
 After upgrading to CMP v2, an Argo CD operator will have to make following changes,
 
-* In order to install a plugin, an Argo CD operator will simply have to patch argocd-repo-server 
+- In order to install a plugin, an Argo CD operator will simply have to patch argocd-repo-server 
 to run config management plugin container as a sidecar, with argocd-cmp-server as it’s entrypoint:
 
-```bash
-# A plugin is a container image which runs as a sidecar, with the execution environment
-# necessary to render manifests. To install a plugin, 
-containers:
-- name: cdk8s
-  command: [/var/run/argocd/argocd-cmp-server]
-  image: docker.ui/cdk8s/cdk8s:latest
-  volumeMounts:
-  - mountPath: /var/run/argocd
-    name: var-files
-```
+    ```bash
+    # A plugin is a container image which runs as a sidecar, with the execution environment
+    # necessary to render manifests. To install a plugin, 
+    containers:
+    - name: cdk8s
+      command: [/var/run/argocd/argocd-cmp-server]
+      image: docker.ui/cdk8s/cdk8s:latest
+      volumeMounts:
+      - mountPath: /var/run/argocd
+        name: var-files
+    ```
 
-* Plugins will be configured via a ConfigManagementPlugin manifest located inside the plugin container, placed at a 
+- Plugins will be configured via a ConfigManagementPlugin manifest located inside the plugin container, placed at a 
 well-known location (e.g. /plugin.yaml). Argo CD is agnostic to the mechanism of how the plugin.yaml would be placed, 
 but various options can be used on how to place this file, including: 
     - Baking the file into the plugin image as part of docker build
     - Volume mapping the file through a configmap.
+
 (For more details please refer to [implementation details](#configuration))
 
 ## Drawbacks
@@ -290,34 +296,34 @@ There aren't any major drawbacks to this proposal. Also, the advantages supersed
 
 However following are few minor drawbacks,
 
-* With addition of plugin.yaml, there will be more yamls to manage
-* Operators need to be aware of the modified Kubernetes manifests in the subsequent version.
-* The format of the CMP manifest is a new "contract" that would need to adhere the usual Argo CD compatibility promises in future.
-
+- With addition of plugin.yaml, there will be more yamls to manage
+- Operators need to be aware of the modified Kubernetes manifests in the subsequent version.
+- The format of the CMP manifest is a new "contract" that would need to adhere the usual Argo CD compatibility promises in future.
 
 ## Alternatives
 
 1. ConfigManagementPlugin as CRD. Have a CR which the human operator creates:
 
-```bash
-apiVersion: argoproj.io/v1alpha1
-kind: ConfigManagementPlugin
-metadata:
-  name: cdk8s
-spec:
-  name: cdk8s
-  image: docker.ui/cdk8s/cdk8s:latest
-  version: v1.0
-  init:
-    command: [cdk8s, init]
-  generate:
-    command: [sh, -c, "cdk8s synth && cat dist/*.yaml"]
-  discovery:
-    find:
-    - command: [find . -name main.ts]
-      glob: "**/*/main.ts"
-    check:
-    - command: [-f ./main.ts]
-      glob: "main.ts"
-```
+    ```bash
+    apiVersion: argoproj.io/v1alpha1
+    kind: ConfigManagementPlugin
+    metadata:
+      name: cdk8s
+    spec:
+      name: cdk8s
+      image: docker.ui/cdk8s/cdk8s:latest
+      version: v1.0
+      init:
+        command: [cdk8s, init]
+      generate:
+        command: [sh, -c, "cdk8s synth && cat dist/*.yaml"]
+        discovery:
+        find:
+        - command: [find . -name main.ts]
+          glob: "**/*/main.ts"
+          check:
+        - command: [-f ./main.ts]
+          glob: "main.ts"
+    ```
+
 2. Something magically patches the relevant manifest to add the sidecar.

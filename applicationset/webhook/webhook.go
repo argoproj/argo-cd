@@ -2,7 +2,6 @@ package webhook
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"html"
 	"net/http"
@@ -20,6 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/argoproj/argo-cd/v2/util/webhook"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/github"
@@ -29,18 +29,15 @@ import (
 
 const payloadQueueSize = 50000
 
-var errBasicAuthVerificationFailed = errors.New("basic auth verification failed")
-
 type WebhookHandler struct {
-	sync.WaitGroup         // for testing
-	namespace              string
-	github                 *github.Webhook
-	gitlab                 *gitlab.Webhook
-	azuredevops            *azuredevops.Webhook
-	azuredevopsAuthHandler func(r *http.Request) error
-	client                 client.Client
-	generators             map[string]generators.Generator
-	queue                  chan interface{}
+	sync.WaitGroup // for testing
+	namespace      string
+	github         *github.Webhook
+	gitlab         *gitlab.Webhook
+	azuredevops    *azuredevops.Webhook
+	client         client.Client
+	generators     map[string]generators.Generator
+	queue          chan interface{}
 }
 
 type gitGeneratorInfo struct {
@@ -85,29 +82,19 @@ func NewWebhookHandler(namespace string, webhookParallelism int, argocdSettingsM
 	if err != nil {
 		return nil, fmt.Errorf("Unable to init GitLab webhook: %w", err)
 	}
-	azuredevopsHandler, err := azuredevops.New()
+	azuredevopsHandler, err := azuredevops.New(azuredevops.Options.BasicAuth(argocdSettings.WebhookAzureDevOpsUsername, argocdSettings.WebhookAzureDevOpsPassword))
 	if err != nil {
 		return nil, fmt.Errorf("Unable to init Azure DevOps webhook: %w", err)
 	}
-	azuredevopsAuthHandler := func(r *http.Request) error {
-		if argocdSettings.WebhookAzureDevOpsUsername != "" && argocdSettings.WebhookAzureDevOpsPassword != "" {
-			username, password, ok := r.BasicAuth()
-			if !ok || username != argocdSettings.WebhookAzureDevOpsUsername || password != argocdSettings.WebhookAzureDevOpsPassword {
-				return errBasicAuthVerificationFailed
-			}
-		}
-		return nil
-	}
 
 	webhookHandler := &WebhookHandler{
-		namespace:              namespace,
-		github:                 githubHandler,
-		gitlab:                 gitlabHandler,
-		azuredevops:            azuredevopsHandler,
-		azuredevopsAuthHandler: azuredevopsAuthHandler,
-		client:                 client,
-		generators:             generators,
-		queue:                  make(chan interface{}, payloadQueueSize),
+		namespace:   namespace,
+		github:      githubHandler,
+		gitlab:      gitlabHandler,
+		azuredevops: azuredevopsHandler,
+		client:      client,
+		generators:  generators,
+		queue:       make(chan interface{}, payloadQueueSize),
 	}
 
 	webhookHandler.startWorkerPool(webhookParallelism)
@@ -179,13 +166,7 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	case r.Header.Get("X-Gitlab-Event") != "":
 		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents)
 	case r.Header.Get("X-Vss-Activityid") != "":
-		if err = h.azuredevopsAuthHandler(r); err != nil {
-			if errors.Is(err, errBasicAuthVerificationFailed) {
-				log.WithField(common.SecurityField, common.SecurityHigh).Infof("Azure DevOps webhook basic auth verification failed")
-			}
-		} else {
-			payload, err = h.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
-		}
+		payload, err = h.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
 	default:
 		log.Debug("Ignoring unknown webhook event")
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
@@ -210,11 +191,6 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func parseRevision(ref string) string {
-	refParts := strings.SplitN(ref, "/", 3)
-	return refParts[len(refParts)-1]
-}
-
 func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 	var (
 		webURL      string
@@ -224,16 +200,16 @@ func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 	switch payload := payload.(type) {
 	case github.PushPayload:
 		webURL = payload.Repository.HTMLURL
-		revision = parseRevision(payload.Ref)
+		revision = webhook.ParseRevision(payload.Ref)
 		touchedHead = payload.Repository.DefaultBranch == revision
 	case gitlab.PushEventPayload:
 		webURL = payload.Project.WebURL
-		revision = parseRevision(payload.Ref)
+		revision = webhook.ParseRevision(payload.Ref)
 		touchedHead = payload.Project.DefaultBranch == revision
 	case azuredevops.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
 		webURL = payload.Resource.Repository.RemoteURL
-		revision = parseRevision(payload.Resource.RefUpdates[0].Name)
+		revision = webhook.ParseRevision(payload.Resource.RefUpdates[0].Name)
 		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
 		// unfortunately, Azure DevOps doesn't provide a list of changed files
 	default:
@@ -393,12 +369,12 @@ func shouldRefreshPluginGenerator(gen *v1alpha1.PluginGenerator) bool {
 }
 
 func genRevisionHasChanged(gen *v1alpha1.GitGenerator, revision string, touchedHead bool) bool {
-	targetRev := parseRevision(gen.Revision)
+	targetRev := webhook.ParseRevision(gen.Revision)
 	if targetRev == "HEAD" || targetRev == "" { // revision is head
 		return touchedHead
 	}
 
-	return targetRev == revision
+	return targetRev == revision || gen.Revision == revision
 }
 
 func gitGeneratorUsesURL(gen *v1alpha1.GitGenerator, webURL string, repoRegexp *regexp.Regexp) bool {

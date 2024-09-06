@@ -345,7 +345,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                             .map(item => item.split('|'))
                             .map((parts, i) => (
                                 <div className='application-summary__links-row'>
-                                    <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='__blank'>
+                                    <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='_blank'>
                                         {parts[0]} &nbsp;
                                     </a>
                                 </div>
