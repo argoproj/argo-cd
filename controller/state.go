@@ -184,7 +184,9 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 
 	// by default should be for regular sync, if application has no AnnotationKeyManifestGeneratePaths , it should work as before
-	revisionUpdated := true
+	revisionUpdated := false
+
+	keyManifestGenerateAnnotationVal, keyManifestGenerateAnnotationExists := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 
 	for i, source := range sources {
 		if len(revisions) < len(sources) || revisions[i] == "" {
@@ -210,8 +212,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 
 		revision := revisions[i]
 
-		val, ok := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
-		if !source.IsHelm() && syncedRevision != "" && ok && val != "" {
+		if !source.IsHelm() && syncedRevision != "" && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
 			// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
 			updateRevisionResult, err := repoClient.UpdateRevisionForPaths(context.Background(), &apiclient.UpdateRevisionForPathsRequest{
 				Repo:               repo,
@@ -285,6 +286,12 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	}
 	logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 	logCtx.Info("GetRepoObjs stats")
+
+	// in case if annotation not exists, we should always execute selfheal if manifests changed
+	if !keyManifestGenerateAnnotationExists || keyManifestGenerateAnnotationVal == "" {
+		revisionUpdated = true
+	}
+
 	return targetObjs, manifestInfos, revisionUpdated, nil
 }
 
