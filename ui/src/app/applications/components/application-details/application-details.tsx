@@ -842,6 +842,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                 isAppSelected={isAppSelected}
                                                 updateApp={(app: models.Application, query: {validate?: boolean}) => this.updateApp(app, query)}
                                                 selectedNode={selectedNode}
+                                                appCxt={this.context}
                                                 tab={tab}
                                             />
                                         </SlidingPanel>
