@@ -15,7 +15,7 @@
 Need help? Start with the [Contributors FAQ](faq/)
 
 ## Contributing to the Documentation
-* [Building and Running Documentation Site Locally](site/)
+* [Building and Running Documentation Site Locally](docs-site/)
 
 ## Extensions and Third-Party Applications
 * [UI Extensions](ui-extensions/)
