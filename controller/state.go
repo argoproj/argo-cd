@@ -183,7 +183,8 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		return nil, nil, false, fmt.Errorf("failed to get ref sources: %w", err)
 	}
 
-	var revisionUpdated bool
+	// by default should be for regular sync, if application has no AnnotationKeyManifestGeneratePaths , it should work as before
+	revisionUpdated := true
 
 	for i, source := range sources {
 		if len(revisions) < len(sources) || revisions[i] == "" {
