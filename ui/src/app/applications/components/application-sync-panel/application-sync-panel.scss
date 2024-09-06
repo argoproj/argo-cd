@@ -17,13 +17,11 @@
     }
 
     .container {
-        max-width: 32em;
+        max-width: 30em;
         white-space: nowrap;
         display: inline-block;
         margin-right: 0.3em;
 
-        overflow: hidden;
-        text-overflow: ellipsis;
 
         label {
             cursor: pointer;
