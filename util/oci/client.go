@@ -10,7 +10,9 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"oras.land/oras-go/v2/content/oci"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -47,6 +49,7 @@ type Client interface {
 	GetTags(ctx context.Context, noCache bool) (*TagsList, error)
 	ResolveDigest(ctx context.Context, revision string) (string, error)
 	ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error)
+	DigestMetadata(ctx context.Context, digest, project string) (*v1.Descriptor, error)
 	CleanCache(revision string, project string) error
 	Extract(ctx context.Context, revision string, project string, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error)
 	TestRepo(ctx context.Context) (bool, error)
@@ -151,43 +154,16 @@ func (c *nativeOCIClient) Extract(ctx context.Context, digest string, project st
 	c.repoLock.Lock(cachedPath)
 	defer c.repoLock.Unlock(cachedPath)
 
-	exists, err := fileExist(cachedPath)
+	exists, err := fileExists(cachedPath)
 	if err != nil {
 		return "", nil, err
 	}
 
 	if !exists {
-		tempDir, err := files.CreateTempDir(os.TempDir())
+		err := saveCompressedImageToPath(ctx, digest, c.repo, cachedPath)
 		if err != nil {
 			return "", nil, err
 		}
-		defer os.RemoveAll(tempDir)
-
-		store, err := newTarFileStore(tempDir, cachedPath)
-		if err != nil {
-			return "", nil, err
-		}
-
-		// Copy remote repo at the given digest to the scratch dir.
-		_, err = oras.Copy(ctx, c.repo, digest, store, digest, oras.DefaultCopyOptions)
-		if err != nil {
-			return "", nil, err
-		}
-	}
-
-	manifestsDir, err := files.CreateTempDir(os.TempDir())
-	if err != nil {
-		return manifestsDir, nil, err
-	}
-
-	closer, err := file.New(manifestsDir)
-	if err != nil {
-		return manifestsDir, closer, err
-	}
-
-	gzippedFile, err := os.Open(cachedPath)
-	if err != nil {
-		return "", nil, err
 	}
 
 	maxSize := manifestMaxExtractedSize
@@ -195,13 +171,12 @@ func (c *nativeOCIClient) Extract(ctx context.Context, digest string, project st
 		maxSize = math.MaxInt64
 	}
 
-	err = files.Untgz(manifestsDir, gzippedFile, maxSize, false)
+	manifestsDir, err := extractContentToManifestsDir(ctx, cachedPath, digest, maxSize)
 	if err != nil {
-		return "", nil, err
+		return manifestsDir, nil, err
 	}
 
 	return manifestsDir, argoio.NewCloser(func() error {
-		closer.Close()
 		return os.RemoveAll(manifestsDir)
 	}), nil
 }
@@ -229,6 +204,24 @@ func (c *nativeOCIClient) ResolveDigest(ctx context.Context, revision string) (s
 	}
 
 	return descriptor.Digest.String(), nil
+}
+
+func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest, project string) (*v1.Descriptor, error) {
+	path, err := c.getCachedPath(digest, project)
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := oci.NewFromTar(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+
+	metadata, err := f.Resolve(ctx, digest)
+	if err != nil {
+		return nil, err
+	}
+	return &metadata, nil
 }
 
 func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
@@ -320,7 +313,7 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-func fileExist(filePath string) (bool, error) {
+func fileExists(filePath string) (bool, error) {
 	if _, err := os.Stat(filePath); err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
@@ -331,38 +324,125 @@ func fileExist(filePath string) (bool, error) {
 	return true, nil
 }
 
-type tarFileStore struct {
+type compressedLayerExtracterStore struct {
 	*file.Store
-	dest    string
 	tempDir string
+	dest    string
+	maxSize int64
 }
 
-func newTarFileStore(tempDir, dest string) (*tarFileStore, error) {
+func newTarFileStore(dest, tempDir string, maxSize int64) (*compressedLayerExtracterStore, error) {
 	f, err := file.New(tempDir)
 	if err != nil {
 		return nil, err
 	}
 
-	return &tarFileStore{f, dest, tempDir}, nil
+	return &compressedLayerExtracterStore{f, tempDir, dest, maxSize}, nil
 }
 
-func (s *tarFileStore) Push(ctx context.Context, desc v1.Descriptor, content io.Reader) error {
-	if isTar(desc.MediaType) {
-		dest, err := os.Create(s.dest)
+func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc v1.Descriptor, content io.Reader) error {
+	if isCompressedLayer(desc.MediaType) {
+		tempDir, err := files.CreateTempDir(os.TempDir())
 		if err != nil {
 			return err
 		}
-		defer dest.Close()
+		defer os.RemoveAll(tempDir)
 
-		_, err = io.Copy(dest, content)
-		return err
+		err = files.Untgz(tempDir, content, s.maxSize, false)
+		if err != nil {
+			return err
+		}
+
+		err = os.Remove(s.dest)
+		if err != nil {
+			return err
+		}
+
+		// Helm charts are extracted into a single directory - we want the contents within that directory.
+		if desc.MediaType == "application/vnd.cncf.helm.chart.content.v1.tar+gzip" {
+			infos, err := os.ReadDir(tempDir)
+			if err != nil {
+				return err
+			}
+
+			if len(infos) != 1 {
+				return fmt.Errorf("expected 1 file, found %v", len(infos))
+			}
+
+			return os.Rename(filepath.Join(tempDir, infos[0].Name()), s.dest)
+		}
+
+		// For any other OCI content, we assume that this should be rendered as-is
+		return os.Rename(tempDir, s.dest)
 	}
 
-	err := s.Store.Push(ctx, desc, content)
+	return s.Store.Push(ctx, desc, content)
+}
+
+func isCompressedLayer(mediaType string) bool {
+	return strings.HasSuffix(mediaType, "tar+gzip")
+}
+
+func createTarFile(from, to string) error {
+	f, err := os.Create(to)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = files.Tar(from, nil, nil, f)
+	if err != nil {
+		_ = os.RemoveAll(to)
+	}
 	return err
 }
 
-func isTar(mediaType string) bool {
-	return strings.HasSuffix(mediaType, "tar+gzip")
-	// return mediaType == "application/vnd.oci.image.layer.v1.tar+gzip"
+func saveCompressedImageToPath(ctx context.Context, digest string, repo *remote.Repository, cachedPath string) error {
+	tempDir, err := files.CreateTempDir(os.TempDir())
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tempDir)
+
+	store, err := oci.New(tempDir)
+	if err != nil {
+		return err
+	}
+
+	// Copy remote repo at the given digest to the scratch dir.
+	_, err = oras.Copy(ctx, repo, digest, store, digest, oras.DefaultCopyOptions)
+	if err != nil {
+		return err
+	}
+
+	// Save contents to tar file
+	return createTarFile(tempDir, cachedPath)
+}
+
+func extractContentToManifestsDir(ctx context.Context, cachedPath, digest string, maxSize int64) (string, error) {
+	manifestsDir, err := files.CreateTempDir(os.TempDir())
+	if err != nil {
+		return manifestsDir, err
+	}
+
+	ociReadOnlyStore, err := oci.NewFromTar(ctx, cachedPath)
+	if err != nil {
+		return manifestsDir, err
+	}
+
+	tempDir, err := files.CreateTempDir(os.TempDir())
+	if err != nil {
+		return manifestsDir, err
+	}
+	defer os.RemoveAll(tempDir)
+
+	fs, err := newTarFileStore(manifestsDir, tempDir, maxSize)
+	if err != nil {
+		return manifestsDir, err
+	}
+	defer fs.Close()
+
+	// copy the whole artifact, here customFileStore.Push will be called
+	_, err = oras.Copy(ctx, ociReadOnlyStore, digest, fs, digest, oras.DefaultCopyOptions)
+	return manifestsDir, err
 }

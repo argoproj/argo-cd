@@ -360,6 +360,11 @@ service ApplicationService {
 		option (google.api.http).get = "/api/v1/applications/{name}/revisions/{revision}/chartdetails";
 	}
 
+	// Get the chart metadata (description, maintainers, home) for a specific revision of the application
+	rpc GetOCIMetadata (RevisionMetadataQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.OCIMetadata) {
+		option (google.api.http).get = "/api/v1/applications/{name}/revisions/{revision}/ocimetadata";
+	}
+
 	// GetManifests returns application manifests
 	rpc GetManifests (ApplicationManifestQuery) returns (repository.ManifestResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/manifests";
