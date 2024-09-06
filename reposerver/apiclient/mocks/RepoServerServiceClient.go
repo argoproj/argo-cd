@@ -243,8 +243,8 @@ func (_m *RepoServerServiceClient) GetHelmCharts(ctx context.Context, in *apicli
 	return r0, r1
 }
 
-// GetOciMetadata provides a mock function with given fields: ctx, in, opts
-func (_m *RepoServerServiceClient) GetOciMetadata(ctx context.Context, in *apiclient.RepoServerRevisionChartDetailsRequest, opts ...grpc.CallOption) (*v1alpha1.ChartDetails, error) {
+// GetOCIMetadata provides a mock function with given fields: ctx, in, opts
+func (_m *RepoServerServiceClient) GetOCIMetadata(ctx context.Context, in *apiclient.RepoServerRevisionChartDetailsRequest, opts ...grpc.CallOption) (*v1alpha1.OCIMetadata, error) {
 	_va := make([]interface{}, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
@@ -255,19 +255,19 @@ func (_m *RepoServerServiceClient) GetOciMetadata(ctx context.Context, in *apicl
 	ret := _m.Called(_ca...)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetOciMetadata")
+		panic("no return value specified for GetOCIMetadata")
 	}
 
-	var r0 *v1alpha1.ChartDetails
+	var r0 *v1alpha1.OCIMetadata
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.RepoServerRevisionChartDetailsRequest, ...grpc.CallOption) (*v1alpha1.ChartDetails, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.RepoServerRevisionChartDetailsRequest, ...grpc.CallOption) (*v1alpha1.OCIMetadata, error)); ok {
 		return rf(ctx, in, opts...)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.RepoServerRevisionChartDetailsRequest, ...grpc.CallOption) *v1alpha1.ChartDetails); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *apiclient.RepoServerRevisionChartDetailsRequest, ...grpc.CallOption) *v1alpha1.OCIMetadata); ok {
 		r0 = rf(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*v1alpha1.ChartDetails)
+			r0 = ret.Get(0).(*v1alpha1.OCIMetadata)
 		}
 	}
 
