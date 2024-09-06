@@ -1729,6 +1729,70 @@
         }
       }
     },
+    "/api/v1/applications/{name}/revisions/{revision}/ocimetadata": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Get the chart metadata (description, maintainers, home) for a specific revision of the application",
+        "operationId": "ApplicationService_GetOCIMetadata",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "the application's name",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "the revision of the app",
+            "name": "revision",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "the application's namespace.",
+            "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "source index (for multi source apps).",
+            "name": "sourceIndex",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "versionId from historical data (for multi source apps).",
+            "name": "versionId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1OCIMetadata"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/rollback": {
       "post": {
         "tags": [
@@ -8432,6 +8496,33 @@
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
+        }
+      }
+    },
+    "v1alpha1OCIMetadata": {
+      "type": "object",
+      "title": "OCIMetadata contains metadata for a specific revision in an OCI repository",
+      "properties": {
+        "authors": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "docsUrl": {
+          "type": "string"
+        },
+        "imageUrl": {
+          "type": "string"
+        },
+        "sourceUrl": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
         }
       }
     },

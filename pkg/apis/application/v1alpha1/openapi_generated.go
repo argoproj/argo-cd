@@ -108,6 +108,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.MergeGenerator":                          schema_pkg_apis_application_v1alpha1_MergeGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.NestedMatrixGenerator":                   schema_pkg_apis_application_v1alpha1_NestedMatrixGenerator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.NestedMergeGenerator":                    schema_pkg_apis_application_v1alpha1_NestedMergeGenerator(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OCIMetadata":                             schema_pkg_apis_application_v1alpha1_OCIMetadata(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.Operation":                               schema_pkg_apis_application_v1alpha1_Operation(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationInitiator":                      schema_pkg_apis_application_v1alpha1_OperationInitiator(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.OperationState":                          schema_pkg_apis_application_v1alpha1_OperationState(ref),
@@ -4751,6 +4752,61 @@ func schema_pkg_apis_application_v1alpha1_NestedMergeGenerator(ref common.Refere
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTerminalGenerator"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_OCIMetadata(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "OCIMetadata contains metadata for a specific revision in an OCI repository",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"createdAt": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"authors": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"imageUrl": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"docsUrl": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"sourceUrl": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"version": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"description": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 

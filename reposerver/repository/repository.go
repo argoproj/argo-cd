@@ -2402,9 +2402,28 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 	return metadata, nil
 }
 
-func (s *Service) GetOciMetadata(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.ChartDetails, error) {
-	// TODO: Create a real implementation of OCI metadata!!!
-	return s.GetRevisionChartDetails(ctx, q)
+func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.OCIMetadata, error) {
+	client, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy)
+	if err != nil {
+		return nil, err
+	}
+
+	metadata, err := client.DigestMetadata(ctx, q.Revision, q.Repo.Project)
+	if err != nil {
+		return nil, err
+	}
+
+	a := metadata.Annotations
+
+	return &v1alpha1.OCIMetadata{
+		CreatedAt:   a["org.opencontainers.image.created"],
+		Authors:     a["org.opencontainers.image.authors"],
+		ImageURL:    a["org.opencontainers.image.url"],
+		DocsURL:     a["org.opencontainers.image.documentation"],
+		SourceURL:   a["org.opencontainers.image.source"],
+		Version:     a["org.opencontainers.image.version"],
+		Description: a["org.opencontainers.image.description"],
+	}, nil
 }
 
 // GetRevisionChartDetails returns the helm chart details of a given version
