@@ -488,7 +488,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         const sources: models.ApplicationSource[] = application.spec.sources;
         if (sources?.length > 0 && revisions) {
             revisions.forEach((rev, indx) => {
-                if (sources[indx].repoURL.startsWith("oci://")) {
+                if (sources[indx].repoURL.startsWith('oci://')) {
                     cont.push(getContentForOci(rev, indx, getAppCurrentVersion(application), indx, sources[indx], <div>Source {indx + 1}</div>));
                 } else if (sources[indx].chart) {
                     cont.push(getContentForChart(rev, indx, getAppCurrentVersion(application), indx, sources[indx], <div>Source {indx + 1}</div>));
@@ -498,7 +498,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             });
             return <>{cont}</>;
         } else if (application.spec.source) {
-            if (source.repoURL.startsWith("oci://")) {
+            if (source.repoURL.startsWith('oci://')) {
                 cont.push(getContentForOci(revision, null, null, 0, source));
             } else if (source.chart) {
                 cont.push(getContentForChart(revision, null, null, 0, source));

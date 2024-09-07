@@ -5,7 +5,7 @@ import {ApplicationSource, RevisionMetadata, ChartDetails} from '../../../shared
 import {services} from '../../../shared/services';
 
 export const RevisionMetadataRows = (props: {applicationName: string; applicationNamespace: string; source: ApplicationSource; index: number; versionId: number | null}) => {
-    if (props?.source?.repoURL?.startsWith("oci://")) {
+    if (props?.source?.repoURL?.startsWith('oci://')) {
         return (
             <DataLoader
                 input={props}
