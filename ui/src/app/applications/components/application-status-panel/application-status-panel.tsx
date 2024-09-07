@@ -82,7 +82,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
     const errors = cntByCategory.get('error');
     const source = getAppDefaultSource(application);
     const hasMultipleSources = application.spec.sources?.length > 0;
-    const revisionType = source?.repoURL?.startsWith("oci://") ? "oci" : source?.chart ? "helm" : "git"
+    const revisionType = source?.repoURL?.startsWith('oci://') ? 'oci' : source?.chart ? 'helm' : 'git';
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item'>

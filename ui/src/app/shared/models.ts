@@ -95,13 +95,13 @@ export interface RevisionMetadata {
 }
 
 export interface OCIMetadata {
-    createdAt: string
-    authors:   string
-    imageUrl:  string
-    docsUrl:   string
-    sourceUrl: string
-    version:   string
-    description:   string
+    createdAt: string;
+    authors: string;
+    imageUrl: string;
+    docsUrl: string;
+    sourceUrl: string;
+    version: string;
+    description: string;
 }
 
 export interface ChartDetails {
