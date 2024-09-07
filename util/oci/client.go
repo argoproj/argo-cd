@@ -10,6 +10,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/oci"
 	"os"
 	"path/filepath"
@@ -49,7 +50,7 @@ type Client interface {
 	GetTags(ctx context.Context, noCache bool) (*TagsList, error)
 	ResolveDigest(ctx context.Context, revision string) (string, error)
 	ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error)
-	DigestMetadata(ctx context.Context, digest, project string) (*v1.Descriptor, error)
+	DigestMetadata(ctx context.Context, digest, project string) (*v1.Manifest, error)
 	CleanCache(revision string, project string) error
 	Extract(ctx context.Context, revision string, project string, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error)
 	TestRepo(ctx context.Context) (bool, error)
@@ -206,7 +207,7 @@ func (c *nativeOCIClient) ResolveDigest(ctx context.Context, revision string) (s
 	return descriptor.Digest.String(), nil
 }
 
-func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest, project string) (*v1.Descriptor, error) {
+func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest, project string) (*v1.Manifest, error) {
 	path, err := c.getCachedPath(digest, project)
 	if err != nil {
 		return nil, err
@@ -217,11 +218,28 @@ func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest, project st
 		return nil, err
 	}
 
-	metadata, err := f.Resolve(ctx, digest)
+	desc, err := f.Resolve(ctx, digest)
 	if err != nil {
 		return nil, err
 	}
-	return &metadata, nil
+
+	rc, err := f.Fetch(ctx, desc)
+	if err != nil {
+		return nil, err
+	}
+
+	str, err := content.ReadAll(rc, desc)
+	if err != nil {
+		return nil, err
+	}
+
+	manifest := v1.Manifest{}
+	err = json.Unmarshal(str, &manifest)
+	if err != nil {
+		return nil, err
+	}
+
+	return &manifest, nil
 }
 
 func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {

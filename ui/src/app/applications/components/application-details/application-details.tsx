@@ -25,7 +25,7 @@ import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters, FiltersProps} from './application-resource-filter';
 import {getAppDefaultSource, getAppCurrentVersion, urlPattern} from '../utils';
-import {ChartDetails, ResourceStatus} from '../../../shared/models';
+import {ChartDetails, OCIMetadata, ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
@@ -251,22 +251,22 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                     key={indx}
                     input={application}
                     load={input => services.applications.ociMetadata(input.metadata.name, input.metadata.namespace, aRevision, aSourceIndex, aVersionId)}>
-                    {(m: ChartDetails) => {
+                    {(m: OCIMetadata) => {
                         return m ? (
                             <div className='white-box' style={{marginTop: '1.5em'}}>
                                 {sourceHeader && sourceHeader}
                                 <div className='white-box__details'>
                                     {showChartNonMetadataInfo(aRevision, aSource.repoURL)}
                                     <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>Helm Chart:</div>
+                                        <div className='columns small-3'>Image URL:</div>
                                         <div className='columns small-9'>
                                             {aSource.chart}&nbsp;
-                                            {m.home && (
+                                            {m.imageUrl && (
                                                 <a
-                                                    title={m.home}
+                                                    title={m.imageUrl}
                                                     onClick={e => {
                                                         e.stopPropagation();
-                                                        window.open(m.home);
+                                                        window.open(m.imageUrl);
                                                     }}>
                                                     <i className='fa fa-external-link-alt' />
                                                 </a>
@@ -279,10 +279,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                             <div className='columns small-9'>{m.description}</div>
                                         </div>
                                     )}
-                                    {m.maintainers && m.maintainers.length > 0 && (
+                                    {m.authors && m.authors.length > 0 && (
                                         <div className='row white-box__details-row'>
                                             <div className='columns small-3'>Maintainers:</div>
-                                            <div className='columns small-9'>{m.maintainers.join(', ')}</div>
+                                            <div className='columns small-9'>{m.authors}</div>
                                         </div>
                                     )}
                                 </div>

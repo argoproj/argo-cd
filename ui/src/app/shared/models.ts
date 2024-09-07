@@ -94,6 +94,16 @@ export interface RevisionMetadata {
     signatureInfo?: string;
 }
 
+export interface OCIMetadata {
+    createdAt: string
+    authors:   string
+    imageUrl:  string
+    docsUrl:   string
+    sourceUrl: string
+    version:   string
+    description:   string
+}
+
 export interface ChartDetails {
     description?: string;
     maintainers?: string[];
