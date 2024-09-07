@@ -294,8 +294,8 @@ export class ReposList extends React.Component<
                 }}>
                 <div className='repos-list'>
                     <div className='argo-container'>
-                        <div style={{display: 'flex', margin: '20px 0', justifyContent: 'space-between'}}>
-                            <div style={{display: 'flex', gap: '10px', width: '50%'}}>
+                        <div>
+                            <div>
                                 <DropDownMenu
                                     items={[
                                         {
@@ -321,39 +321,16 @@ export class ReposList extends React.Component<
                                     )}
                                     qeId='type-menu'
                                 />
-                                <DataLoader load={services.repos.list} ref={loader => (this.repoLoader = loader)}>
-                                    {(repos: models.Repository[]) => {
-                                        const projectValues = Array.from(new Set(repos.map(repo => repo.project)));
-
-                                        const projectItems = [
-                                            {
-                                                title: 'all',
-                                                action: () => this.setState({projectProperty: 'all'})
-                                            },
-                                            ...projectValues
-                                                .filter(project => project && project.trim() !== '')
-                                                .map(project => ({
-                                                    title: project,
-                                                    action: () => this.setState({projectProperty: project})
-                                                }))
-                                        ];
-
-                                        return (
-                                            <DropDownMenu
-                                                items={projectItems}
-                                                anchor={() => (
-                                                    <>
-                                                        <a>
-                                                            Project: {this.state.projectProperty} <i className='fa fa-caret-down' />
-                                                        </a>
-                                                        &nbsp;
-                                                    </>
-                                                )}
-                                                qeId='project-menu'
-                                            />
-                                        );
-                                    }}
-                                </DataLoader>
+                                <DropDownMenu
+                                    items={[
+                                        {
+                                            title: 'all',
+                                            action: () => this.setState({projectProperty: 'all'})
+                                        }
+                                    ]}
+                                    anchor={() => <button className='argo-button argo-button--base'>PROJECT</button>}
+                                    qeId='project-menu'
+                                />
                                 <DropDownMenu
                                     items={[
                                         {
@@ -384,13 +361,21 @@ export class ReposList extends React.Component<
                                     qeId='status-menu'
                                 />
                             </div>
-                            <div className='search-bar' style={{display: 'flex', alignItems: 'flex-end', width: '50%'}}>
-                                <input type='text' className='argo-field' placeholder='Search Name' value={this.state.name} onChange={e => this.setState({name: e.target.value})} />
-                            </div>
+                            <div className='search-bar'></div>
+                            <input type='text' className='argo-field' placeholder='Search...' />
                         </div>
                         <DataLoader load={services.repos.list} ref={loader => (this.repoLoader = loader)}>
                             {(repos: models.Repository[]) => {
-                                const filteredRepos = this.filteredRepos(repos, this.state.typeProperty, this.state.projectProperty, this.state.statusProperty, this.state.name);
+                                const projectValues = Array.from(new Set(repos.map(repo => repo.project)));
+                                console.log('projects : ', projectValues);
+
+                                const filteredRepos = this.filteredRepos(
+                                    repos,
+                                    this.state.typeProperty,
+                                    this.state.projectProperty,
+                                    this.state.statusProperty,
+                                    this.state.sortProperty
+                                );
 
                                 return (
                                     (filteredRepos.length > 0 && (
@@ -1020,13 +1005,8 @@ export class ReposList extends React.Component<
     }
 
     // filtering function
-    private filteredRepos(repos: models.Repository[], type: string, project: string, status: string, name: string) {
+    private filteredRepos(repos: models.Repository[], type: string, project: string, status: string, sort: string) {
         let newRepos = repos;
-
-        if (name && name.trim() !== '') {
-            const response = this.filteredName(newRepos, name);
-            newRepos = response;
-        }
 
         if (type !== 'all') {
             const response = this.filteredType(newRepos, type);
@@ -1052,6 +1032,12 @@ export class ReposList extends React.Component<
             return repos;
         }
         const newRepos = repos.filter(repo => repo.name && repo.name.toLowerCase().includes(trimmedName.toLowerCase()));
+        return newRepos;
+    }
+
+    private filteredName(repos: models.Repository[], name: string) {
+        const trimmedName = name.trim();
+        const newRepos = repos.filter(repo => repo.name.toLowerCase().includes(trimmedName.toLowerCase()));
         return newRepos;
     }
 
