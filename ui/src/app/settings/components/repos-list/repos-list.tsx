@@ -469,9 +469,13 @@ export class ReposList extends React.Component<
                                                 <div className='white-box'>
                                                     <p>CONNECT REPO USING HTTPS</p>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Type' field='type'
-                                                                   component={FormSelect}
-                                                                   componentProps={{options: ['git', 'helm', 'oci']}}/>
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label='Type'
+                                                            field='type'
+                                                            component={FormSelect}
+                                                            componentProps={{options: ['git', 'helm', 'oci']}}
+                                                        />
                                                     </div>
                                                     {(formApi.getFormState().values.type === 'helm' || formApi.getFormState().values.type === 'git') && (
                                                         <div className='argo-form-row'>

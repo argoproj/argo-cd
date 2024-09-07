@@ -10,12 +10,13 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"oras.land/oras-go/v2/content"
-	"oras.land/oras-go/v2/content/oci"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"oras.land/oras-go/v2/content"
+	"oras.land/oras-go/v2/content/oci"
 
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 

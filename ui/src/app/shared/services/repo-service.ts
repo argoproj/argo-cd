@@ -51,7 +51,23 @@ export class RepositoriesService {
     }): Promise<models.Repository> {
         return requests
             .post('/repositories')
-            .send({type, name, repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs, proxy, noProxy, project, forceHttpBasicAuth, enableOCI, insecureHttpOnly})
+            .send({
+                type,
+                name,
+                repo: url,
+                username,
+                password,
+                tlsClientCertData,
+                tlsClientCertKey,
+                insecure,
+                enableLfs,
+                proxy,
+                noProxy,
+                project,
+                forceHttpBasicAuth,
+                enableOCI,
+                insecureHttpOnly
+            })
             .then(res => res.body as models.Repository);
     }
 
