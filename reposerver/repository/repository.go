@@ -2403,7 +2403,8 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 }
 
 func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.OCIMetadata, error) {
-	client, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy)
+	client, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, oci.WithIndexCache(s.cache), oci.WithChartPaths(s.chartPaths))
+
 	if err != nil {
 		return nil, err
 	}
