@@ -157,13 +157,13 @@ func (cg *ClusterGenerator) getClusterServerUri(namespace string, releaseSuffix 
 		return "", err
 	}
 	// TODO: should be moved to service instead pod
-	log.Printf("Get service for https://" + pod.Status.PodIP + ":8443")
+	log.Printf("Get service for https://%s:8443", pod.Status.PodIP)
 	return "https://" + pod.Status.PodIP + ":8443", nil
 }
 
 func (cg *ClusterGenerator) retrieveClusterUri(namespace, releaseSuffix string) string {
 	for i := 0; i < 10; i++ {
-		log.Printf("Attempting to get cluster uri")
+		log.Print("Attempting to get cluster uri")
 		uri, err := cg.getClusterServerUri(namespace, releaseSuffix)
 		if err != nil {
 			log.Printf("Failed to get cluster uri due to %s", err.Error())

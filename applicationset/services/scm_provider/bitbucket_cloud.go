@@ -46,7 +46,7 @@ func (c *ExtendedClient) GetContents(repo *Repository, path string) (bool, error
 		return true, nil
 	}
 
-	return false, fmt.Errorf(resp.Status)
+	return false, fmt.Errorf("%s", resp.Status)
 }
 
 var _ SCMProviderService = &BitBucketCloudProvider{}

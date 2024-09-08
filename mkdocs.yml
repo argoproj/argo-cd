@@ -210,7 +210,7 @@ nav:
   - developer-guide/dependencies.md
   - developer-guide/ci.md
   - developer-guide/releasing.md
-  - developer-guide/site.md
+  - developer-guide/docs-site.md
   - developer-guide/static-code-analysis.md
   - Extensions:
     - developer-guide/extensions/ui-extensions.md

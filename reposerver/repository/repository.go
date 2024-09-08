@@ -2779,7 +2779,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 		return &apiclient.UpdateRevisionForPathsResponse{}, nil
 	}
 
-	gitClientOpts := git.WithCache(s.cache, true)
+	gitClientOpts := git.WithCache(s.cache, !request.NoRevisionCache)
 	gitClient, revision, err := s.newClientResolveRevision(repo, revision, gitClientOpts)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
@@ -2793,7 +2793,9 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 
 	// No need to compare if it is the same revision
 	if revision == syncedRevision {
-		return &apiclient.UpdateRevisionForPathsResponse{}, nil
+		return &apiclient.UpdateRevisionForPathsResponse{
+			Revision: revision,
+		}, nil
 	}
 
 	s.metricsServer.IncPendingRepoRequest(repo.Repo)
@@ -2824,14 +2826,21 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 		if err != nil {
 			// Only warn with the error, no need to block anything if there is a caching error.
 			logCtx.Warnf("error updating cached revision for repo %s with revision %s: %v", repo.Repo, revision, err)
-			return &apiclient.UpdateRevisionForPathsResponse{}, nil
+			return &apiclient.UpdateRevisionForPathsResponse{
+				Revision: revision,
+			}, nil
 		}
 
-		return &apiclient.UpdateRevisionForPathsResponse{}, nil
+		return &apiclient.UpdateRevisionForPathsResponse{
+			Revision: revision,
+		}, nil
 	}
 
 	logCtx.Debugf("changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, syncedRevision, revision)
-	return &apiclient.UpdateRevisionForPathsResponse{}, nil
+	return &apiclient.UpdateRevisionForPathsResponse{
+		Revision: revision,
+		Changes:  true,
+	}, nil
 }
 
 func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, gitClientOpts git.ClientOpts) error {
