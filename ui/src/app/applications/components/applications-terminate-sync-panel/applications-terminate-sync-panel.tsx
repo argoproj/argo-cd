@@ -47,7 +47,6 @@ export const ApplicationsTerminateSyncPanel = ({show, apps, hide}: {show: boolea
         }
     };
 
-    apps.forEach(item => console.log(item.status.operationState.phase));
     return (
         <Consumer>
             {ctx => (
