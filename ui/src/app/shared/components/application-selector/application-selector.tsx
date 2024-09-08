@@ -5,13 +5,21 @@ import * as models from '../../models';
 import {appInstanceName, appQualifiedName, ComparisonStatusIcon, HealthStatusIcon, OperationPhaseIcon} from '../../../applications/components/utils';
 import {AuthSettingsCtx} from '../../context';
 
-export const ApplicationSelector = ({apps, formApi}: {apps: models.Application[]; formApi: FormFunctionProps}) => {
+export const ApplicationSelector = ({apps, formApi, terminate}: {apps: models.Application[]; formApi: FormFunctionProps; terminate?: boolean}) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     return (
         <>
             <label>
                 Apps (<a onClick={() => apps.forEach((_, i) => formApi.setValue('app/' + i, true))}>all</a>/
-                <a onClick={() => apps.forEach((app, i) => formApi.setValue('app/' + i, app.status.sync.status === models.SyncStatuses.OutOfSync))}>out of sync</a>/
+                {terminate ? (
+                    <>
+                        <a onClick={() => apps.forEach((app, i) => formApi.setValue('app/' + i, app.status?.operationState?.phase === models.OperationPhases.Running))}>syncing</a>/
+                    </>
+                ) : (
+                    <>
+                        <a onClick={() => apps.forEach((app, i) => formApi.setValue('app/' + i, app.status.sync.status === models.SyncStatuses.OutOfSync))}>out of sync</a>/
+                    </>
+                )}
                 <a onClick={() => apps.forEach((_, i) => formApi.setValue('app/' + i, false))}>none</a>
                 ):
             </label>

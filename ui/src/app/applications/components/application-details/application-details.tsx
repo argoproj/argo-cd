@@ -949,19 +949,18 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             }
         ];
 
-        // Show Terminate Sync if operation is running
-        if ((!app.status.operationState?.finishedAt || app.status.operationState?.phase === 'Running') && app.status.operationState?.phase !== 'Terminating') {
+        if (!app.status.operationState?.finishedAt || app.status.operationState?.phase === 'Running') {
             actionMenus.push({
                 iconClassName: 'fa fa-stop',
                 title: <ActionMenuItem actionLabel='Terminate Sync' />,
                 action: async () => {
-                    const confirmed = await this.context.apis.popup.confirm('Terminate operation', 'Are you sure you want to terminate operation?');
+                    const confirmed = await this.context.apis.popup.confirm('Terminate Sync', 'Are you sure you want to terminate sync?');
                     if (confirmed) {
                         try {
                             await services.applications.terminateOperation(app.metadata.name, app.metadata.namespace);
                         } catch (e) {
                             this.context.apis.notifications.show({
-                                content: <ErrorNotification title='Unable to terminate operation' e={e} />,
+                                content: <ErrorNotification title='Unable to Terminate Sync operation' e={e} />,
                                 type: NotificationType.Error
                             });
                         }
