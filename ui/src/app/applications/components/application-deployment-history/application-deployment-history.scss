@@ -3,7 +3,6 @@
 
 .application-deployment-history {
     &__item {
-        cursor: pointer;
         position: relative;
         @include themify($themes) {
             background: themed('background-2');
@@ -32,6 +31,10 @@
         position: absolute;
         top: 1em;
         right: 1em;
+    }
+
+    &__show-parameter-details {
+        margin: 20px 0px;
     }
 
     .white-box {
