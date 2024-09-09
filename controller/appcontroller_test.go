@@ -511,7 +511,7 @@ func createFakeAppWithHealthAndTime(testApp string, status health.HealthStatusCo
 	app := createFakeApp(testApp)
 	app.Status.Health = v1alpha1.HealthStatus{
 		Status:             status,
-		LastTransitionTime: timestamp,
+		LastTransitionTime: &timestamp,
 	}
 	return app
 }
@@ -1785,7 +1785,7 @@ apps/Deployment:
 			require.NoError(t, err)
 			assert.NotEmpty(t, apps)
 			assert.Equal(t, tc.expectedStatus, apps[0].Status.Health.Status)
-			assert.NotEqual(t, testTimestamp, apps[0].Status.Health.LastTransitionTime)
+			assert.NotEqual(t, testTimestamp, *apps[0].Status.Health.LastTransitionTime)
 		})
 	}
 }
@@ -1885,7 +1885,7 @@ apps/Deployment:
 			require.NoError(t, err)
 			if assert.NotEmpty(t, apps) {
 				assert.Equal(t, tc.expectedStatus, apps[0].Status.Health.Status)
-				assert.NotEqual(t, testTimestamp, apps[0].Status.Health.LastTransitionTime)
+				assert.NotEqual(t, testTimestamp, *apps[0].Status.Health.LastTransitionTime)
 			}
 
 			ctrl.requestAppRefresh(app.Name, nil, nil)

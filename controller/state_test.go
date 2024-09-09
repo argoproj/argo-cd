@@ -752,7 +752,7 @@ func TestPreserveStatusTimestamp(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, health.HealthStatusHealthy, compRes.healthStatus.Status)
-	assert.Equal(t, timestamp, compRes.healthStatus.LastTransitionTime)
+	assert.Equal(t, timestamp, *compRes.healthStatus.LastTransitionTime)
 }
 
 func TestSetHealthSelfReferencedApp(t *testing.T) {

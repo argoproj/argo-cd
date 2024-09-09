@@ -22,15 +22,8 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 	var savedErr error
 	var errCount uint
 
-	lastTransitionTime := app.Status.Health.LastTransitionTime
-	if lastTransitionTime.IsZero() {
-		lastTransitionTime = metav1.Now()
-		log.WithField("application", app.QualifiedName()).Warn("no last transition time for health state set, setting it now")
-	}
-
 	appHealth := appv1.HealthStatus{Status: health.HealthStatusHealthy}
 	for i, res := range resources {
-		now := metav1.Now()
 		if res.Target != nil && hookutil.Skip(res.Target) {
 			continue
 		}
@@ -67,12 +60,7 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 		}
 
 		if persistResourceHealth {
-			// If the status didn't change, we don't want to update the timestamp
-			if healthStatus.Status == statuses[i].Health.Status {
-				now = lastTransitionTime
-			}
-
-			resHealth := appv1.HealthStatus{Status: healthStatus.Status, Message: healthStatus.Message, LastTransitionTime: now}
+			resHealth := appv1.HealthStatus{Status: healthStatus.Status, Message: healthStatus.Message}
 			statuses[i].Health = &resHealth
 		} else {
 			statuses[i].Health = nil
@@ -94,10 +82,12 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 	}
 	if persistResourceHealth {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationInline
-		if app.Status.Health.Status == appHealth.Status {
-			appHealth.LastTransitionTime = lastTransitionTime
+		// if the status didn't change, don't update the timestamp
+		if app.Status.Health.Status == appHealth.Status && app.Status.Health.LastTransitionTime != nil {
+			appHealth.LastTransitionTime = app.Status.Health.LastTransitionTime
 		} else {
-			appHealth.LastTransitionTime = metav1.Now()
+			now := metav1.Now()
+			appHealth.LastTransitionTime = &now
 		}
 	} else {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationAppTree
