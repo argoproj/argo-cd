@@ -1,9 +1,12 @@
 issues:
   exclude:
-    - SA1019
     - SA5011
   max-issues-per-linter: 0
   max-same-issues: 0
+  exclude-rules:
+    - path: '(.+)_test\.go'
+      linters:
+        - unparam
 linters:
   enable:
     - errcheck
@@ -17,6 +20,7 @@ linters:
     - misspell
     - staticcheck
     - testifylint
+    - unparam
     - unused
     - whitespace 
 linters-settings:

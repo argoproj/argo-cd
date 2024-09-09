@@ -1710,3 +1710,49 @@ func TestUseDiffCache(t *testing.T) {
 		})
 	}
 }
+
+func TestCompareAppStateDefaultRevisionUpdated(t *testing.T) {
+	app := newFakeApp()
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(&data, nil)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	require.NoError(t, err)
+	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
+	assert.True(t, compRes.revisionUpdated)
+}
+
+func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
+	app := newFakeMultiSourceApp()
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(&data, nil)
+	sources := make([]argoappv1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
+	require.NoError(t, err)
+	assert.NotNil(t, compRes)
+	assert.NotNil(t, compRes.syncStatus)
+	assert.True(t, compRes.revisionUpdated)
+}

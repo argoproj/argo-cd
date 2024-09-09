@@ -741,15 +741,20 @@ func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
 }
 
 func RunCli(args ...string) (string, error) {
-	return RunCliWithStdin("", args...)
+	return RunCliWithStdin("", false, args...)
 }
 
-func RunCliWithStdin(stdin string, args ...string) (string, error) {
+func RunCliWithStdin(stdin string, isKubeConextOnlyCli bool, args ...string) (string, error) {
 	if plainText {
 		args = append(args, "--plaintext")
 	}
 
-	args = append(args, "--server", apiServerAddress, "--auth-token", token, "--insecure")
+	// For commands executed with Kubernetes context server argument causes a conflict (for those commands server argument is for KubeAPI server), also authentication is not required
+	if !isKubeConextOnlyCli {
+		args = append(args, "--server", apiServerAddress, "--auth-token", token)
+	}
+
+	args = append(args, "--insecure")
 
 	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
 }
@@ -1009,4 +1014,12 @@ func RecordTestRun(t *testing.T) {
 	if _, err := f.WriteString(fmt.Sprintf("%s\n", t.Name())); err != nil {
 		t.Fatalf("could not write to %s: %v", rf, err)
 	}
+}
+
+func GetApiServerAddress() string {
+	return apiServerAddress
+}
+
+func GetToken() string {
+	return token
 }

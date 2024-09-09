@@ -5,10 +5,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"testing"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -50,6 +54,16 @@ func fixtures(data map[string]string, opts ...func(secret *v1.Secret)) (*fake.Cl
 	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 
 	return kubeClient, settingsManager
+}
+
+func TestDocumentedArgoCDConfigMapIsValid(t *testing.T) {
+	var argocdCM *v1.ConfigMap
+	settings := ArgoCDSettings{}
+	data, err := os.ReadFile("../../docs/operator-manual/argocd-cm.yaml")
+	require.NoError(t, err)
+	err = yaml.Unmarshal(data, &argocdCM)
+	require.NoError(t, err)
+	updateSettingsFromConfigMap(&settings, argocdCM)
 }
 
 func TestGetRepositories(t *testing.T) {
@@ -1601,4 +1615,113 @@ func TestReplaceStringSecret(t *testing.T) {
 
 	result = ReplaceStringSecret("my-value", secretValues)
 	assert.Equal(t, "my-value", result)
+}
+
+func TestRedirectURLForRequest(t *testing.T) {
+	generateRequest := func(url string) *http.Request {
+		r, err := http.NewRequest(http.MethodPost, url, nil)
+		require.NoError(t, err)
+		return r
+	}
+
+	testCases := []struct {
+		Name        string
+		Settings    *ArgoCDSettings
+		Request     *http.Request
+		ExpectedURL string
+		ExpectError bool
+	}{
+		{
+			Name: "Single URL",
+			Settings: &ArgoCDSettings{
+				URL: "https://example.org",
+			},
+			Request:     generateRequest("https://example.org/login"),
+			ExpectedURL: "https://example.org/auth/callback",
+			ExpectError: false,
+		},
+		{
+			Name: "Request does not match configured URL.",
+			Settings: &ArgoCDSettings{
+				URL: "https://otherhost.org",
+			},
+			Request:     generateRequest("https://example.org/login"),
+			ExpectedURL: "https://otherhost.org/auth/callback",
+			ExpectError: false,
+		},
+		{
+			Name: "Cannot parse URL.",
+			Settings: &ArgoCDSettings{
+				URL: ":httpsotherhostorg",
+			},
+			Request:     generateRequest("https://example.org/login"),
+			ExpectedURL: "",
+			ExpectError: true,
+		},
+		{
+			Name: "Match extended URL in settings.URL.",
+			Settings: &ArgoCDSettings{
+				URL:            "https://otherhost.org",
+				AdditionalURLs: []string{"https://anotherhost.org"},
+			},
+			Request:     generateRequest("https://anotherhost.org/login"),
+			ExpectedURL: "https://anotherhost.org/auth/callback",
+			ExpectError: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result, err := tc.Settings.RedirectURLForRequest(tc.Request)
+			assert.Equal(t, tc.ExpectedURL, result)
+			if tc.ExpectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestRedirectAdditionalURLs(t *testing.T) {
+	testCases := []struct {
+		Name           string
+		Settings       *ArgoCDSettings
+		ExpectedResult []string
+		ExpectedError  bool
+	}{
+		{
+			Name: "Good case with two AdditionalURLs",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org", "https://yetanother.org"},
+			},
+			ExpectedResult: []string{
+				"https://anotherhost.org/auth/callback",
+				"https://yetanother.org/auth/callback",
+			},
+			ExpectedError: false,
+		},
+		{
+			Name: "Bad URL causes error",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{":httpsotherhostorg"},
+			},
+			ExpectedResult: []string{},
+			ExpectedError:  true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			result, err := tc.Settings.RedirectAdditionalURLs()
+			if tc.ExpectedError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.ExpectedResult, result)
+		})
+	}
 }

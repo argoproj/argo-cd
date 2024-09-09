@@ -68,6 +68,15 @@ func TestWebhookHandler(t *testing.T) {
 			expectedRefresh:    true,
 		},
 		{
+			desc:               "WebHook from a GitHub repository via Commit shorthand",
+			headerKey:          "X-GitHub-Event",
+			headerValue:        "push",
+			payloadFile:        "github-commit-event-feature-branch.json",
+			effectedAppSets:    []string{"github-shorthand", "matrix-pull-request-github-plugin", "plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
 			desc:               "WebHook from a GitHub repository via Commit to branch",
 			headerKey:          "X-GitHub-Event",
 			headerValue:        "push",
@@ -192,6 +201,7 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithGitGenerator("git-github", namespace, "https://github.com/org/repo"),
 				fakeAppWithGitGenerator("git-gitlab", namespace, "https://gitlab/group/name"),
 				fakeAppWithGitGenerator("git-azure-devops", namespace, "https://dev.azure.com/fabrikam-fiber-inc/DefaultCollection/_git/Fabrikam-Fiber-Git"),
+				fakeAppWithGitGeneratorWithRevision("github-shorthand", namespace, "https://github.com/org/repo", "env/dev"),
 				fakeAppWithGithubPullRequestGenerator("pull-request-github", namespace, "CodErTOcat", "Hello-World"),
 				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab", namespace, "100500"),
 				fakeAppWithAzureDevOpsPullRequestGenerator("pull-request-azure-devops", namespace, "DefaultCollection", "Fabrikam"),
@@ -302,14 +312,62 @@ func mockGenerators() map[string]generators.Generator {
 }
 
 func TestGenRevisionHasChanged(t *testing.T) {
-	assert.True(t, genRevisionHasChanged(&v1alpha1.GitGenerator{}, "master", true))
-	assert.False(t, genRevisionHasChanged(&v1alpha1.GitGenerator{}, "master", false))
-
-	assert.True(t, genRevisionHasChanged(&v1alpha1.GitGenerator{Revision: "dev"}, "dev", true))
-	assert.False(t, genRevisionHasChanged(&v1alpha1.GitGenerator{Revision: "dev"}, "master", false))
-
-	assert.True(t, genRevisionHasChanged(&v1alpha1.GitGenerator{Revision: "refs/heads/dev"}, "dev", true))
-	assert.False(t, genRevisionHasChanged(&v1alpha1.GitGenerator{Revision: "refs/heads/dev"}, "master", false))
+	type args struct {
+		gen         *v1alpha1.GitGenerator
+		revision    string
+		touchedHead bool
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{name: "touchedHead", args: args{
+			gen:         &v1alpha1.GitGenerator{},
+			revision:    "main",
+			touchedHead: true,
+		}, want: true},
+		{name: "didntTouchHead", args: args{
+			gen:         &v1alpha1.GitGenerator{},
+			revision:    "main",
+			touchedHead: false,
+		}, want: false},
+		{name: "foundEqualShort", args: args{
+			gen:         &v1alpha1.GitGenerator{Revision: "dev"},
+			revision:    "dev",
+			touchedHead: true,
+		}, want: true},
+		{name: "foundEqualLongGen", args: args{
+			gen:         &v1alpha1.GitGenerator{Revision: "refs/heads/dev"},
+			revision:    "dev",
+			touchedHead: true,
+		}, want: true},
+		{name: "foundNotEqualLongGen", args: args{
+			gen:         &v1alpha1.GitGenerator{Revision: "refs/heads/dev"},
+			revision:    "main",
+			touchedHead: true,
+		}, want: false},
+		{name: "foundNotEqualShort", args: args{
+			gen:         &v1alpha1.GitGenerator{Revision: "dev"},
+			revision:    "main",
+			touchedHead: false,
+		}, want: false},
+		{name: "foundEqualTag", args: args{
+			gen:         &v1alpha1.GitGenerator{Revision: "v3.14.1"},
+			revision:    "v3.14.1",
+			touchedHead: false,
+		}, want: true},
+		{name: "foundEqualTagLongGen", args: args{
+			gen:         &v1alpha1.GitGenerator{Revision: "refs/tags/v3.14.1"},
+			revision:    "v3.14.1",
+			touchedHead: false,
+		}, want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, genRevisionHasChanged(tt.args.gen, tt.args.revision, tt.args.touchedHead), "genRevisionHasChanged(%v, %v, %v)", tt.args.gen, tt.args.revision, tt.args.touchedHead)
+		})
+	}
 }
 
 func fakeAppWithGitGenerator(name, namespace, repo string) *v1alpha1.ApplicationSet {
@@ -329,6 +387,12 @@ func fakeAppWithGitGenerator(name, namespace, repo string) *v1alpha1.Application
 			},
 		},
 	}
+}
+
+func fakeAppWithGitGeneratorWithRevision(name, namespace, repo, revision string) *v1alpha1.ApplicationSet {
+	appSet := fakeAppWithGitGenerator(name, namespace, repo)
+	appSet.Spec.Generators[0].Git.Revision = revision
+	return appSet
 }
 
 func fakeAppWithGitlabPullRequestGenerator(name, namespace, projectId string) *v1alpha1.ApplicationSet {
@@ -711,7 +775,7 @@ func fakeAppWithMatrixAndPullRequestGeneratorWithPluginGenerator(name, namespace
 func newFakeClient(ns string) *kubefake.Clientset {
 	s := runtime.NewScheme()
 	s.AddKnownTypes(v1alpha1.SchemeGroupVersion, &v1alpha1.ApplicationSet{})
-	return kubefake.NewSimpleClientset(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-cm", Namespace: ns, Labels: map[string]string{
+	return kubefake.NewClientset(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "argocd-cm", Namespace: ns, Labels: map[string]string{
 		"app.kubernetes.io/part-of": "argocd",
 	}}}, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

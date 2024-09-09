@@ -10,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/utils/pointer"
-
 	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -2654,7 +2652,10 @@ func TestIsApplicationPermitted(t *testing.T) {
 }
 
 func TestAppNamespaceRestrictions(t *testing.T) {
+	t.Parallel()
+
 	t.Run("List applications in controller namespace", func(t *testing.T) {
+		t.Parallel()
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
 		apps, err := appServer.List(context.TODO(), &application.ApplicationQuery{})
@@ -2663,6 +2664,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 	})
 
 	t.Run("List applications with non-allowed apps existing", func(t *testing.T) {
+		t.Parallel()
 		testApp1 := newTestApp()
 		testApp1.Namespace = "argocd-1"
 		appServer := newTestAppServer(t, testApp1)
@@ -2672,6 +2674,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 	})
 
 	t.Run("List applications with non-allowed apps existing and explicit ns request", func(t *testing.T) {
+		t.Parallel()
 		testApp1 := newTestApp()
 		testApp2 := newTestApp()
 		testApp2.Namespace = "argocd-1"
@@ -2682,6 +2685,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 	})
 
 	t.Run("List applications with allowed apps in other namespaces", func(t *testing.T) {
+		t.Parallel()
 		testApp1 := newTestApp()
 		testApp1.Namespace = "argocd-1"
 		appServer := newTestAppServer(t, testApp1)
@@ -2692,6 +2696,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 	})
 
 	t.Run("Get application in control plane namespace", func(t *testing.T) {
+		t.Parallel()
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
 		app, err := appServer.Get(context.TODO(), &application.ApplicationQuery{
@@ -2701,6 +2706,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		assert.Equal(t, "test-app", app.GetName())
 	})
 	t.Run("Get application in other namespace when forbidden", func(t *testing.T) {
+		t.Parallel()
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		appServer := newTestAppServer(t, testApp)
@@ -2713,6 +2719,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		require.Nil(t, app)
 	})
 	t.Run("Get application in other namespace when allowed", func(t *testing.T) {
+		t.Parallel()
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
@@ -2736,6 +2743,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		require.Equal(t, "test-app", app.Name)
 	})
 	t.Run("Get application in other namespace when project is not allowed", func(t *testing.T) {
+		t.Parallel()
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
@@ -2758,6 +2766,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		require.ErrorContains(t, err, "app is not allowed in project")
 	})
 	t.Run("Create application in other namespace when allowed", func(t *testing.T) {
+		t.Parallel()
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
@@ -2781,6 +2790,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 	})
 
 	t.Run("Create application in other namespace when not allowed by project", func(t *testing.T) {
+		t.Parallel()
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
@@ -2803,6 +2813,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 	})
 
 	t.Run("Create application in other namespace when not allowed by configuration", func(t *testing.T) {
+		t.Parallel()
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
@@ -2824,6 +2835,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		require.ErrorContains(t, err, "namespace 'argocd-1' is not permitted")
 	})
 	t.Run("Get application sync window in other namespace when project is allowed", func(t *testing.T) {
+		t.Parallel()
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
@@ -2842,6 +2854,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		assert.Empty(t, active.ActiveWindows)
 	})
 	t.Run("Get application sync window in other namespace when project is not allowed", func(t *testing.T) {
+		t.Parallel()
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
@@ -2861,6 +2874,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		require.ErrorContains(t, err, "app is not allowed in project")
 	})
 	t.Run("Get list of links in other namespace when project is not allowed", func(t *testing.T) {
+		t.Parallel()
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
@@ -2883,6 +2897,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		require.ErrorContains(t, err, "app is not allowed in project")
 	})
 	t.Run("Get list of links in other namespace when project is allowed", func(t *testing.T) {
+		t.Parallel()
 		testApp := newTestApp()
 		testApp.Namespace = "argocd-1"
 		testApp.Spec.Project = "other-ns"
@@ -3029,6 +3044,8 @@ func TestServer_ResolveSourceRevisions_SingleSource(t *testing.T) {
 }
 
 func Test_RevisionMetadata(t *testing.T) {
+	t.Parallel()
+
 	singleSourceApp := newTestApp()
 	singleSourceApp.Name = "single-source-app"
 	singleSourceApp.Spec = appv1.ApplicationSpec{
@@ -3088,19 +3105,19 @@ func Test_RevisionMetadata(t *testing.T) {
 		{
 			name:                "single-source app without history, no source index, missing version ID",
 			multiSource:         false,
-			versionId:           pointer.Int32(999),
-			expectErrorContains: pointer.String("the app has no history"),
+			versionId:           ptr.To(int32(999)),
+			expectErrorContains: ptr.To("the app has no history"),
 		},
 		{
 			name:        "single source app without history, present source index, no version ID",
 			multiSource: false,
-			sourceIndex: pointer.Int32(0),
+			sourceIndex: ptr.To(int32(0)),
 		},
 		{
 			name:                "single source app without history, invalid source index, no version ID",
 			multiSource:         false,
-			sourceIndex:         pointer.Int32(999),
-			expectErrorContains: pointer.String("source index 999 not found"),
+			sourceIndex:         ptr.To(int32(999)),
+			expectErrorContains: ptr.To("source index 999 not found"),
 		},
 		{
 			name:        "single source app with matching history, no source index, no version ID",
@@ -3111,14 +3128,14 @@ func Test_RevisionMetadata(t *testing.T) {
 			name:                "single source app with matching history, no source index, missing version ID",
 			multiSource:         false,
 			history:             &struct{ matchesSourceType bool }{true},
-			versionId:           pointer.Int32(999),
-			expectErrorContains: pointer.String("history not found for version ID 999"),
+			versionId:           ptr.To(int32(999)),
+			expectErrorContains: ptr.To("history not found for version ID 999"),
 		},
 		{
 			name:        "single source app with matching history, no source index, present version ID",
 			multiSource: false,
 			history:     &struct{ matchesSourceType bool }{true},
-			versionId:   pointer.Int32(1),
+			versionId:   ptr.To(int32(1)),
 		},
 		{
 			name:        "single source app with multi-source history, no source index, no version ID",
@@ -3129,37 +3146,37 @@ func Test_RevisionMetadata(t *testing.T) {
 			name:                "single source app with multi-source history, no source index, missing version ID",
 			multiSource:         false,
 			history:             &struct{ matchesSourceType bool }{false},
-			versionId:           pointer.Int32(999),
-			expectErrorContains: pointer.String("history not found for version ID 999"),
+			versionId:           ptr.To(int32(999)),
+			expectErrorContains: ptr.To("history not found for version ID 999"),
 		},
 		{
 			name:        "single source app with multi-source history, no source index, present version ID",
 			multiSource: false,
 			history:     &struct{ matchesSourceType bool }{false},
-			versionId:   pointer.Int32(1),
+			versionId:   ptr.To(int32(1)),
 		},
 		{
 			name:        "single-source app with multi-source history, source index 1, no version ID",
 			multiSource: false,
-			sourceIndex: pointer.Int32(1),
+			sourceIndex: ptr.To(int32(1)),
 			history:     &struct{ matchesSourceType bool }{false},
 			// Since the user requested source index 1, but no version ID, we'll get an error when looking at the live
 			// source, because the live source is single-source.
-			expectErrorContains: pointer.String("there is only 1 source"),
+			expectErrorContains: ptr.To("there is only 1 source"),
 		},
 		{
 			name:                "single-source app with multi-source history, invalid source index, no version ID",
 			multiSource:         false,
-			sourceIndex:         pointer.Int32(999),
+			sourceIndex:         ptr.To(int32(999)),
 			history:             &struct{ matchesSourceType bool }{false},
-			expectErrorContains: pointer.String("source index 999 not found"),
+			expectErrorContains: ptr.To("source index 999 not found"),
 		},
 		{
 			name:        "single-source app with multi-source history, valid source index, present version ID",
 			multiSource: false,
-			sourceIndex: pointer.Int32(1),
+			sourceIndex: ptr.To(int32(1)),
 			history:     &struct{ matchesSourceType bool }{false},
-			versionId:   pointer.Int32(1),
+			versionId:   ptr.To(int32(1)),
 		},
 		{
 			name:        "multi-source app without history, no source index, no version ID",
@@ -3168,19 +3185,19 @@ func Test_RevisionMetadata(t *testing.T) {
 		{
 			name:                "multi-source app without history, no source index, missing version ID",
 			multiSource:         true,
-			versionId:           pointer.Int32(999),
-			expectErrorContains: pointer.String("the app has no history"),
+			versionId:           ptr.To(int32(999)),
+			expectErrorContains: ptr.To("the app has no history"),
 		},
 		{
 			name:        "multi-source app without history, present source index, no version ID",
 			multiSource: true,
-			sourceIndex: pointer.Int32(1),
+			sourceIndex: ptr.To(int32(1)),
 		},
 		{
 			name:                "multi-source app without history, invalid source index, no version ID",
 			multiSource:         true,
-			sourceIndex:         pointer.Int32(999),
-			expectErrorContains: pointer.String("source index 999 not found"),
+			sourceIndex:         ptr.To(int32(999)),
+			expectErrorContains: ptr.To("source index 999 not found"),
 		},
 		{
 			name:        "multi-source app with matching history, no source index, no version ID",
@@ -3191,14 +3208,14 @@ func Test_RevisionMetadata(t *testing.T) {
 			name:                "multi-source app with matching history, no source index, missing version ID",
 			multiSource:         true,
 			history:             &struct{ matchesSourceType bool }{true},
-			versionId:           pointer.Int32(999),
-			expectErrorContains: pointer.String("history not found for version ID 999"),
+			versionId:           ptr.To(int32(999)),
+			expectErrorContains: ptr.To("history not found for version ID 999"),
 		},
 		{
 			name:        "multi-source app with matching history, no source index, present version ID",
 			multiSource: true,
 			history:     &struct{ matchesSourceType bool }{true},
-			versionId:   pointer.Int32(1),
+			versionId:   ptr.To(int32(1)),
 		},
 		{
 			name:        "multi-source app with single-source history, no source index, no version ID",
@@ -3209,51 +3226,53 @@ func Test_RevisionMetadata(t *testing.T) {
 			name:                "multi-source app with single-source history, no source index, missing version ID",
 			multiSource:         true,
 			history:             &struct{ matchesSourceType bool }{false},
-			versionId:           pointer.Int32(999),
-			expectErrorContains: pointer.String("history not found for version ID 999"),
+			versionId:           ptr.To(int32(999)),
+			expectErrorContains: ptr.To("history not found for version ID 999"),
 		},
 		{
 			name:        "multi-source app with single-source history, no source index, present version ID",
 			multiSource: true,
 			history:     &struct{ matchesSourceType bool }{false},
-			versionId:   pointer.Int32(1),
+			versionId:   ptr.To(int32(1)),
 		},
 		{
 			name:        "multi-source app with single-source history, source index 1, no version ID",
 			multiSource: true,
-			sourceIndex: pointer.Int32(1),
+			sourceIndex: ptr.To(int32(1)),
 			history:     &struct{ matchesSourceType bool }{false},
 		},
 		{
 			name:                "multi-source app with single-source history, invalid source index, no version ID",
 			multiSource:         true,
-			sourceIndex:         pointer.Int32(999),
+			sourceIndex:         ptr.To(int32(999)),
 			history:             &struct{ matchesSourceType bool }{false},
-			expectErrorContains: pointer.String("source index 999 not found"),
+			expectErrorContains: ptr.To("source index 999 not found"),
 		},
 		{
 			name:        "multi-source app with single-source history, valid source index, present version ID",
 			multiSource: true,
-			sourceIndex: pointer.Int32(0),
+			sourceIndex: ptr.To(int32(0)),
 			history:     &struct{ matchesSourceType bool }{false},
-			versionId:   pointer.Int32(1),
+			versionId:   ptr.To(int32(1)),
 		},
 		{
 			name:                "multi-source app with single-source history, source index 1, present version ID",
 			multiSource:         true,
-			sourceIndex:         pointer.Int32(1),
+			sourceIndex:         ptr.To(int32(1)),
 			history:             &struct{ matchesSourceType bool }{false},
-			versionId:           pointer.Int32(1),
-			expectErrorContains: pointer.String("source index 1 not found"),
+			versionId:           ptr.To(int32(1)),
+			expectErrorContains: ptr.To("source index 1 not found"),
 		},
 	}
 
 	for _, tc := range testCases {
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
-			app := singleSourceApp
+			t.Parallel()
+
+			app := singleSourceApp.DeepCopy()
 			if tcc.multiSource {
-				app = multiSourceApp
+				app = multiSourceApp.DeepCopy()
 			}
 			if tcc.history != nil {
 				if tcc.history.matchesSourceType {
@@ -3274,8 +3293,8 @@ func Test_RevisionMetadata(t *testing.T) {
 			s := newTestAppServer(t, app)
 
 			request := &application.RevisionMetadataQuery{
-				Name:        pointer.String(app.Name),
-				Revision:    pointer.String("HEAD"),
+				Name:        ptr.To(app.Name),
+				Revision:    ptr.To("HEAD"),
 				SourceIndex: tcc.sourceIndex,
 				VersionId:   tcc.versionId,
 			}

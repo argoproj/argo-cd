@@ -77,7 +77,7 @@ jobs:
           fi
 
       - name: Setup Golang
-        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 
@@ -153,7 +153,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Golang
-        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 
@@ -197,7 +197,7 @@ jobs:
           echo "hashes=$(sha256sum /tmp/sbom.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
       
       - name: Upload SBOM
-        uses: softprops/action-gh-release@a74c6b72af54cfa997e81df42d94703d6313a2d0 # v2.0.6
+        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2.0.8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -295,7 +295,7 @@ jobs:
         if: ${{ env.UPDATE_VERSION == 'true' }}
 
       - name: Create PR to update VERSION on master branch
-        uses: peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6.1.0
+        uses: peter-evans/create-pull-request@8867c4aba1b742c39f8d0ba35429c2dfa4b6cb20 # v7.0.1
         with:
           commit-message: Bump version in master
           title: "chore: Bump version in master"

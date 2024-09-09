@@ -5,6 +5,10 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -115,7 +119,7 @@ func NewCommand() *cobra.Command {
 			helmRegistryMaxIndexSizeQuantity, err := resource.ParseQuantity(helmRegistryMaxIndexSize)
 			errors.CheckError(err)
 
-			askPassServer := askpass.NewServer()
+			askPassServer := askpass.NewServer(askpass.SocketPath)
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer)
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
@@ -173,7 +177,7 @@ func NewCommand() *cobra.Command {
 			})
 			http.Handle("/metrics", metricsServer.GetHandler())
 			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf("%s:%d", metricsHost, metricsPort), nil)) }()
-			go func() { errors.CheckError(askPassServer.Run(askpass.SocketPath)) }()
+			go func() { errors.CheckError(askPassServer.Run()) }()
 
 			if gpg.IsGPGEnabled() {
 				log.Infof("Initializing GnuPG keyring at %s", common.GetGnuPGHomePath())
@@ -192,8 +196,27 @@ func NewCommand() *cobra.Command {
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
+
+			// Graceful shutdown code adapted from https://gist.github.com/embano1/e0bf49d24f1cdd07cffad93097c04f0a
+			sigCh := make(chan os.Signal, 1)
+			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				s := <-sigCh
+				log.Printf("got signal %v, attempting graceful shutdown", s)
+				grpc.GracefulStop()
+				wg.Done()
+			}()
+
+			log.Println("starting grpc server")
 			err = grpc.Serve(listener)
-			errors.CheckError(err)
+			if err != nil {
+				log.Fatalf("could not serve: %v", err)
+			}
+			wg.Wait()
+			log.Println("clean shutdown")
+
 			return nil
 		},
 	}
