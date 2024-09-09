@@ -76,13 +76,25 @@ message ObjectSource {
 }
 
 /**
-* Holds error information
+* Holds error information; present only when error sent with application but not resource itself
 */
 message ObjectError {
     optional string type = 1 [(gogoproto.nullable) = false];
     optional string level = 2 [(gogoproto.nullable) = false];
     optional string message = 3 [(gogoproto.nullable) = false];
     optional k8s.io.apimachinery.pkg.apis.meta.v1.Time lastSeen = 4 [(gogoproto.nullable) = false];
+    optional ErrorSourceReference sourceReference = 5 [(gogoproto.nullable) = false];
+}
+
+/**
+* Holds application resource metadata to which the error related
+*/
+message ErrorSourceReference {
+    optional string group = 1 [(gogoproto.nullable) = false];
+    optional string version = 2 [(gogoproto.nullable) = false];
+    required string kind = 3 [(gogoproto.nullable) = false];
+    required string name = 4 [(gogoproto.nullable) = false];
+    optional string namespace = 5 [(gogoproto.nullable) = false];
 }
 
 message Dependencies {

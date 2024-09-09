@@ -128,6 +128,10 @@ func getResourceEventPayload(
 		errors = append(errors, parseApplicationSyncResultErrorsFromConditions(originalApplication.Status)...)
 	}
 
+	if originalApplication != nil {
+		errors = append(errors, parseAggregativeHealthErrorsOfApplication(originalApplication, apptree)...)
+	}
+
 	if len(desiredState.RawManifest) == 0 && len(desiredState.CompiledManifest) != 0 {
 		// for handling helm defined resources, etc...
 		y, err := yaml.JSONToYAML([]byte(desiredState.CompiledManifest))
@@ -172,7 +176,7 @@ func getResourceEventPayload(
 		source.HealthStatus = (*string)(&rs.Health.Status)
 		source.HealthMessage = &rs.Health.Message
 		if rs.Health.Status != health.HealthStatusHealthy {
-			errors = append(errors, parseAggregativeHealthErrors(rs, apptree)...)
+			errors = append(errors, parseAggregativeHealthErrors(rs, apptree, false)...)
 		}
 	}
 
@@ -197,6 +201,7 @@ func getResourceEventPayload(
 func (s *applicationEventReporter) getApplicationEventPayload(
 	ctx context.Context,
 	a *appv1.Application,
+	appTree *appv1.ApplicationTree,
 	ts string,
 	appInstanceLabelKey string,
 	trackingMethod appv1.TrackingMethod,
@@ -206,6 +211,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 		syncStarted  = metav1.Now()
 		syncFinished *metav1.Time
 		logCtx       = log.WithField("application", a.Name)
+		errors       = []*events.ObjectError{}
 	)
 
 	obj := appv1.Application{}
@@ -281,11 +287,14 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 		TrackingMethod:        string(trackingMethod),
 	}
 
+	errors = append(errors, parseApplicationSyncResultErrorsFromConditions(a.Status)...)
+	errors = append(errors, parseAggregativeHealthErrorsOfApplication(a, appTree)...)
+
 	payload := events.EventPayload{
 		Timestamp:   ts,
 		Object:      object,
 		Source:      source,
-		Errors:      parseApplicationSyncResultErrorsFromConditions(a.Status),
+		Errors:      errors,
 		AppVersions: applicationVersionsEvents,
 	}
 

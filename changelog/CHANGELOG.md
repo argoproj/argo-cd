@@ -1,2 +1,2 @@
-### Chore
--  chore: argo-cd update to 2.12.3
+### Features
+-  feat: event-reporter: report resource health status errors with application event

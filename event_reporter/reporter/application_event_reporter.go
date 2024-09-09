@@ -183,7 +183,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 	} else {
 		logCtx.Info("processing as root application")
 		// will get here only for root applications (not managed as a resource by another application)
-		appEvent, err := s.getApplicationEventPayload(ctx, a, ts, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
+		appEvent, err := s.getApplicationEventPayload(ctx, a, appTree, ts, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricParentAppEventType, metrics.MetricEventGetPayloadErrorType, a.Name)
 			return fmt.Errorf("failed to get application event: %w", err)

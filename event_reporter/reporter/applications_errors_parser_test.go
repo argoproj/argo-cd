@@ -3,6 +3,10 @@ package reporter
 import (
 	"fmt"
 	"testing"
+	"time"
+
+	"github.com/argoproj/gitops-engine/pkg/health"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
@@ -207,7 +211,84 @@ func TestParseAggregativeHealthErrors(t *testing.T) {
 			Kind:      "application",
 			Namespace: "namespace",
 			Name:      "name",
-		}, nil)
+		}, nil, false)
 		assert.Empty(t, errs)
+	})
+
+	t.Run("should set sourceReference", func(t *testing.T) {
+		rsName := "test-deployment"
+		ns := "test"
+		errMessage := "backoff pulling image test/test:0.1"
+		rsRef := v1alpha1.ResourceRef{
+			Group:     "g",
+			Version:   "v",
+			Kind:      "ReplicaSet",
+			Name:      rsName + "1",
+			Namespace: ns,
+		}
+
+		deployRef := v1alpha1.ResourceRef{
+			Group:     "g",
+			Version:   "v",
+			Kind:      "Deployment",
+			Name:      rsName,
+			Namespace: ns,
+		}
+
+		appTree := v1alpha1.ApplicationTree{
+			Nodes: []v1alpha1.ResourceNode{
+				{ // Pod
+					Health: &v1alpha1.HealthStatus{
+						Status:  health.HealthStatusDegraded,
+						Message: errMessage,
+					},
+					ResourceRef: v1alpha1.ResourceRef{
+						Group:     "g",
+						Version:   "v",
+						Kind:      "Pod",
+						Name:      rsName + "1-3n235j5",
+						Namespace: ns,
+					},
+					ParentRefs: []v1alpha1.ResourceRef{rsRef},
+					CreatedAt: &metav1.Time{
+						Time: time.Now(),
+					},
+				},
+				{ // ReplicaSet
+					Health: &v1alpha1.HealthStatus{
+						Status:  health.HealthStatusProgressing,
+						Message: "",
+					},
+					ResourceRef: rsRef,
+					ParentRefs:  []v1alpha1.ResourceRef{deployRef},
+					CreatedAt: &metav1.Time{
+						Time: time.Now(),
+					},
+				},
+				{ // Deployment
+					Health: &v1alpha1.HealthStatus{
+						Status:  health.HealthStatusDegraded,
+						Message: "",
+					},
+					ResourceRef: deployRef,
+					ParentRefs:  []v1alpha1.ResourceRef{},
+					CreatedAt: &metav1.Time{
+						Time: time.Now(),
+					},
+				},
+			},
+		}
+
+		errs := parseAggregativeHealthErrors(&v1alpha1.ResourceStatus{
+			Group:     deployRef.Group,
+			Version:   deployRef.Version,
+			Kind:      deployRef.Kind,
+			Name:      deployRef.Name,
+			Namespace: deployRef.Namespace,
+		}, &appTree, true)
+		assert.Len(t, errs, 1)
+		assert.Equal(t, errMessage, errs[0].Message)
+		assert.NotNil(t, errs[0].SourceReference)
+		assert.Equal(t, deployRef.Name, errs[0].SourceReference.Name)
 	})
 }
