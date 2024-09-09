@@ -8,7 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-
+	"strings"
 	log "github.com/sirupsen/logrus"
 )
 
