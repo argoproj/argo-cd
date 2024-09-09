@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/security"
+	"github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -273,6 +274,34 @@ func (p *DefaultProjectGetter) GetClusters(project string) ([]*v1alpha1.Cluster,
 	return p.db.GetProjectClusters(context.TODO(), project)
 }
 
+// UserGetter defines the contract to retrieve info from the logged in user.
+type UserGetter interface {
+	GetUser(ctx context.Context) string
+	GetGroups(ctx context.Context) []string
+}
+
+// DefaultUserGetter is the main UserGetter implementation.
+type DefaultUserGetter struct {
+	policyEnf *rbacpolicy.RBACPolicyEnforcer
+}
+
+// NewDefaultUserGetter return a new default UserGetter
+func NewDefaultUserGetter(policyEnf *rbacpolicy.RBACPolicyEnforcer) *DefaultUserGetter {
+	return &DefaultUserGetter{
+		policyEnf: policyEnf,
+	}
+}
+
+// GetUser will return the current logged in user
+func (u *DefaultUserGetter) GetUser(ctx context.Context) string {
+	return session.Username(ctx)
+}
+
+// GetGroups will return the groups associated with the logged in user.
+func (u *DefaultUserGetter) GetGroups(ctx context.Context) []string {
+	return session.Groups(ctx, u.policyEnf.GetScopes())
+}
+
 // ApplicationGetter defines the contract to retrieve the application resource.
 type ApplicationGetter interface {
 	Get(ns, name string) (*v1alpha1.Application, error)
@@ -310,18 +339,8 @@ type Manager struct {
 	rbac        RbacEnforcer
 	registry    ExtensionRegistry
 	metricsReg  ExtensionMetricsRegistry
-	username    UsernameGetterFunc
-	groupsClaim GroupsClaimGetterFunc
+	userGetter  UserGetter
 }
-
-// UsernameGetterFunc defines the function signature to retrieve the username
-// from the context.Context. The real implementation is defined in session.Username()
-type UsernameGetterFunc func(context.Context) string
-
-// GroupsClaimGetterFunc defines the function signature to retrieve the 'groups'
-// claim from the context.Context. The real implementation is defined in
-// session.Groups()
-type GroupsClaimGetterFunc func(ctx context.Context, scopes []string) []string
 
 // ExtensionMetricsRegistry exposes operations to update http metrics in the Argo CD
 // API server.
@@ -336,15 +355,14 @@ type ExtensionMetricsRegistry interface {
 }
 
 // NewManager will initialize a new manager.
-func NewManager(log *log.Entry, sg SettingsGetter, ag ApplicationGetter, pg ProjectGetter, rbac RbacEnforcer, userFn UsernameGetterFunc, groupsFn GroupsClaimGetterFunc) *Manager {
+func NewManager(log *log.Entry, sg SettingsGetter, ag ApplicationGetter, pg ProjectGetter, rbac RbacEnforcer, ug UserGetter) *Manager {
 	return &Manager{
 		log:         log,
 		settings:    sg,
 		application: ag,
 		project:     pg,
 		rbac:        rbac,
-		username:    userFn,
-		groupsClaim: groupsFn,
+		userGetter:  ug,
 	}
 }
 
@@ -720,8 +738,9 @@ func (m *Manager) CallExtension() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		groups := m.groupsClaim(r.Context(), []string{"groups"})
-		prepareRequest(r, extName, app, m.username(r.Context()), groups)
+		user := m.userGetter.GetUser(r.Context())
+		groups := m.userGetter.GetGroups(r.Context())
+		prepareRequest(r, extName, app, user, groups)
 		m.log.Debugf("proxing request for extension %q", extName)
 		// httpsnoop package is used to properly wrap the responseWriter
 		// and avoid optional intefaces issue:
