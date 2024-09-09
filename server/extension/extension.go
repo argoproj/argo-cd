@@ -68,6 +68,10 @@ const (
 	// HeaderArgoCDUsername is the header name that defines the logged
 	// in user authenticated by Argo CD.
 	HeaderArgoCDUsername = "Argocd-Username"
+
+	// HeaderArgoCDGroups is the header name that provides the 'groups'
+	// claim from the users authenticated in Argo CD.
+	HeaderArgoCDGroups = "Argocd-User-Groups"
 )
 
 // RequestResources defines the authorization scope for
@@ -307,11 +311,17 @@ type Manager struct {
 	registry    ExtensionRegistry
 	metricsReg  ExtensionMetricsRegistry
 	username    UsernameGetterFunc
+	groupsClaim GroupsClaimGetterFunc
 }
 
 // UsernameGetterFunc defines the function signature to retrieve the username
 // from the context.Context. The real implementation is defined in session.Username()
 type UsernameGetterFunc func(context.Context) string
+
+// GroupsClaimGetterFunc defines the function signature to retrieve the 'groups'
+// claim from the context.Context. The real implementation is defined in
+// session.Groups()
+type GroupsClaimGetterFunc func(ctx context.Context, scopes []string) []string
 
 // ExtensionMetricsRegistry exposes operations to update http metrics in the Argo CD
 // API server.
@@ -326,7 +336,7 @@ type ExtensionMetricsRegistry interface {
 }
 
 // NewManager will initialize a new manager.
-func NewManager(log *log.Entry, sg SettingsGetter, ag ApplicationGetter, pg ProjectGetter, rbac RbacEnforcer, userFn UsernameGetterFunc) *Manager {
+func NewManager(log *log.Entry, sg SettingsGetter, ag ApplicationGetter, pg ProjectGetter, rbac RbacEnforcer, userFn UsernameGetterFunc, groupsFn GroupsClaimGetterFunc) *Manager {
 	return &Manager{
 		log:         log,
 		settings:    sg,
@@ -334,6 +344,7 @@ func NewManager(log *log.Entry, sg SettingsGetter, ag ApplicationGetter, pg Proj
 		project:     pg,
 		rbac:        rbac,
 		username:    userFn,
+		groupsClaim: groupsFn,
 	}
 }
 
@@ -709,7 +720,8 @@ func (m *Manager) CallExtension() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		prepareRequest(r, extName, app, m.username(r.Context()))
+		groups := m.groupsClaim(r.Context(), []string{"groups"})
+		prepareRequest(r, extName, app, m.username(r.Context()), groups)
 		m.log.Debugf("proxing request for extension %q", extName)
 		// httpsnoop package is used to properly wrap the responseWriter
 		// and avoid optional intefaces issue:
@@ -735,7 +747,7 @@ func registerMetrics(extName string, metrics httpsnoop.Metrics, extensionMetrics
 //   - Cluster destination name
 //   - Cluster destination server
 //   - Argo CD authenticated username
-func prepareRequest(r *http.Request, extName string, app *v1alpha1.Application, username string) {
+func prepareRequest(r *http.Request, extName string, app *v1alpha1.Application, username string, groups []string) {
 	r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s/%s", URLPrefix, extName))
 	if app.Spec.Destination.Name != "" {
 		r.Header.Set(HeaderArgoCDTargetClusterName, app.Spec.Destination.Name)
@@ -745,6 +757,9 @@ func prepareRequest(r *http.Request, extName string, app *v1alpha1.Application, 
 	}
 	if username != "" {
 		r.Header.Set(HeaderArgoCDUsername, username)
+	}
+	if len(groups) > 0 {
+		r.Header.Set(HeaderArgoCDGroups, strings.Join(groups, ","))
 	}
 }
 

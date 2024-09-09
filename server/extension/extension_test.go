@@ -150,7 +150,7 @@ func TestRegisterExtensions(t *testing.T) {
 
 		logger, _ := test.NewNullLogger()
 		logEntry := logger.WithContext(context.Background())
-		m := extension.NewManager(logEntry, settMock, nil, nil, nil, nil)
+		m := extension.NewManager(logEntry, settMock, nil, nil, nil, nil, nil)
 
 		return &fixture{
 			settingsGetterMock: settMock,
@@ -253,6 +253,10 @@ func TestCallExtension(t *testing.T) {
 		return "loggedinUser"
 	}
 
+	groupsFn := func(ctx context.Context, scopes []string) []string {
+		return []string{"group1", "group2"}
+	}
+
 	setup := func() *fixture {
 		appMock := &mocks.ApplicationGetter{}
 		settMock := &mocks.SettingsGetter{}
@@ -262,7 +266,7 @@ func TestCallExtension(t *testing.T) {
 
 		logger, _ := test.NewNullLogger()
 		logEntry := logger.WithContext(context.Background())
-		m := extension.NewManager(logEntry, settMock, appMock, projMock, rbacMock, usernameFn)
+		m := extension.NewManager(logEntry, settMock, appMock, projMock, rbacMock, usernameFn, groupsFn)
 		m.AddMetricsRegistry(metricsMock)
 
 		mux := http.NewServeMux()
@@ -442,6 +446,7 @@ func TestCallExtension(t *testing.T) {
 		assert.Equal(t, clusterURL, resp.Header.Get(extension.HeaderArgoCDTargetClusterURL))
 		assert.Equal(t, "Bearer some-bearer-token", resp.Header.Get("Authorization"))
 		assert.Equal(t, "loggedinUser", resp.Header.Get(extension.HeaderArgoCDUsername))
+		assert.Equal(t, "group1,group2", resp.Header.Get(extension.HeaderArgoCDGroups))
 
 		// waitgroup is necessary to make sure assertions aren't executed before
 		// the goroutine initiated by extension.CallExtension concludes which would
