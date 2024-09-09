@@ -2411,7 +2411,6 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 
 func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.OCIMetadata, error) {
 	client, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, oci.WithIndexCache(s.cache), oci.WithChartPaths(s.chartPaths))
-
 	if err != nil {
 		return nil, err
 	}
