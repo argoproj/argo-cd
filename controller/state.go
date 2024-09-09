@@ -185,6 +185,8 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 
 	revisionUpdated := false
 
+	atLeastOneRevisionIsNotPossibleToBeUpdated := false
+
 	keyManifestGenerateAnnotationVal, keyManifestGenerateAnnotationExists := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 
 	for i, source := range sources {
@@ -240,6 +242,9 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			if updateRevisionResult.Revision != "" {
 				revision = updateRevisionResult.Revision
 			}
+		} else {
+			// revisionUpdated is set to true if at least one revision is not possible to be updated,
+			atLeastOneRevisionIsNotPossibleToBeUpdated = true
 		}
 
 		log.Debugf("Generating Manifest for source %s revision %s", source, revision)
@@ -287,7 +292,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	logCtx.Info("GetRepoObjs stats")
 
 	// in case if annotation not exists, we should always execute selfheal if manifests changed
-	if !keyManifestGenerateAnnotationExists || keyManifestGenerateAnnotationVal == "" {
+	if atLeastOneRevisionIsNotPossibleToBeUpdated {
 		revisionUpdated = true
 	}
 
