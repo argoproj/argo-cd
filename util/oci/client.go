@@ -15,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/oci"
 
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -140,6 +139,7 @@ type nativeOCIClient struct {
 	repoCachePaths argoio.TempPaths
 }
 
+// TestRepo verifies that the remote OCI repo can be connected to.
 func (c *nativeOCIClient) TestRepo(ctx context.Context) (bool, error) {
 	err := c.repo.Tags(ctx, "", func(tags []string) error {
 		return nil
@@ -191,6 +191,7 @@ func (c *nativeOCIClient) getCachedPath(version, project string) (string, error)
 	return c.repoCachePaths.GetPath(string(keyData))
 }
 
+// CleanCache is invoked on a hard-refresh or when the manifest cache has expired. This removes the OCI image from the cached path.
 func (c *nativeOCIClient) CleanCache(revision, project string) error {
 	cachePath, err := c.getCachedPath(revision, project)
 	if err != nil {
@@ -199,6 +200,7 @@ func (c *nativeOCIClient) CleanCache(revision, project string) error {
 	return os.RemoveAll(cachePath)
 }
 
+// ResolveDigest resolves a digest from a tag.
 func (c *nativeOCIClient) ResolveDigest(ctx context.Context, revision string) (string, error) {
 	descriptor, err := c.repo.Resolve(ctx, revision)
 	if err != nil {
@@ -208,6 +210,7 @@ func (c *nativeOCIClient) ResolveDigest(ctx context.Context, revision string) (s
 	return descriptor.Digest.String(), nil
 }
 
+// DigestMetadata extracts the OCI manifest for a given revision and returns it to the caller.
 func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest, project string) (*v1.Manifest, error) {
 	path, err := c.getCachedPath(digest, project)
 	if err != nil {
@@ -229,13 +232,9 @@ func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest, project st
 		return nil, err
 	}
 
-	str, err := content.ReadAll(rc, desc)
-	if err != nil {
-		return nil, err
-	}
-
 	manifest := v1.Manifest{}
-	err = json.Unmarshal(str, &manifest)
+	decoder := json.NewDecoder(rc)
+	err = decoder.Decode(&manifest)
 	if err != nil {
 		return nil, err
 	}
@@ -343,59 +342,8 @@ func fileExists(filePath string) (bool, error) {
 	return true, nil
 }
 
-type compressedLayerExtracterStore struct {
-	*file.Store
-	tempDir string
-	dest    string
-	maxSize int64
-}
-
-func newTarFileStore(dest, tempDir string, maxSize int64) (*compressedLayerExtracterStore, error) {
-	f, err := file.New(tempDir)
-	if err != nil {
-		return nil, err
-	}
-
-	return &compressedLayerExtracterStore{f, tempDir, dest, maxSize}, nil
-}
-
-func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc v1.Descriptor, content io.Reader) error {
-	if isCompressedLayer(desc.MediaType) {
-		tempDir, err := files.CreateTempDir(os.TempDir())
-		if err != nil {
-			return err
-		}
-		defer os.RemoveAll(tempDir)
-
-		err = files.Untgz(tempDir, content, s.maxSize, false)
-		if err != nil {
-			return err
-		}
-
-		err = os.Remove(s.dest)
-		if err != nil {
-			return err
-		}
-
-		// Helm charts are extracted into a single directory - we want the contents within that directory.
-		if desc.MediaType == "application/vnd.cncf.helm.chart.content.v1.tar+gzip" {
-			infos, err := os.ReadDir(tempDir)
-			if err != nil {
-				return err
-			}
-
-			if len(infos) != 1 {
-				return fmt.Errorf("expected 1 file, found %v", len(infos))
-			}
-
-			return os.Rename(filepath.Join(tempDir, infos[0].Name()), s.dest)
-		}
-
-		// For any other OCI content, we assume that this should be rendered as-is
-		return os.Rename(tempDir, s.dest)
-	}
-
-	return s.Store.Push(ctx, desc, content)
+func isHelmOCI(mediaType string) bool {
+	return mediaType == "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
 }
 
 func isCompressedLayer(mediaType string) bool {
@@ -416,6 +364,7 @@ func createTarFile(from, to string) error {
 	return err
 }
 
+// saveCompressedImageToPath downloads a remote OCI image on a given digest and stores it as a TAR file in cachedPath.
 func saveCompressedImageToPath(ctx context.Context, digest string, repo *remote.Repository, cachedPath string) error {
 	tempDir, err := files.CreateTempDir(os.TempDir())
 	if err != nil {
@@ -438,6 +387,8 @@ func saveCompressedImageToPath(ctx context.Context, digest string, repo *remote.
 	return createTarFile(tempDir, cachedPath)
 }
 
+// extractContentToManifestsDir looks up a locally stored OCI image, and extracts the embedded compressed layer which contains
+// K8s manifests to a temporary directory
 func extractContentToManifestsDir(ctx context.Context, cachedPath, digest string, maxSize int64) (string, error) {
 	manifestsDir, err := files.CreateTempDir(os.TempDir())
 	if err != nil {
@@ -455,13 +406,71 @@ func extractContentToManifestsDir(ctx context.Context, cachedPath, digest string
 	}
 	defer os.RemoveAll(tempDir)
 
-	fs, err := newTarFileStore(manifestsDir, tempDir, maxSize)
+	fs, err := newCompressedLayerFileStore(manifestsDir, tempDir, maxSize)
 	if err != nil {
 		return manifestsDir, err
 	}
 	defer fs.Close()
 
-	// copy the whole artifact, here customFileStore.Push will be called
+	// copies the whole artifact to the tempdir, here compressedLayerFileStore.Push will be called
 	_, err = oras.Copy(ctx, ociReadOnlyStore, digest, fs, digest, oras.DefaultCopyOptions)
 	return manifestsDir, err
+}
+
+type compressedLayerExtracterStore struct {
+	*file.Store
+	tempDir string
+	dest    string
+	maxSize int64
+}
+
+func newCompressedLayerFileStore(dest, tempDir string, maxSize int64) (*compressedLayerExtracterStore, error) {
+	f, err := file.New(tempDir)
+	if err != nil {
+		return nil, err
+	}
+
+	return &compressedLayerExtracterStore{f, tempDir, dest, maxSize}, nil
+}
+
+// Push looks in all the layers of an OCI image. Once it finds a layer that is compressed, it extracts the layer to a tempDir
+// and then renames the temp dir to the directory where the repo-server expects to find k8s manifests.
+func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc v1.Descriptor, content io.Reader) error {
+	if isCompressedLayer(desc.MediaType) {
+		tempDir, err := files.CreateTempDir(os.TempDir())
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(tempDir)
+
+		err = files.Untgz(tempDir, content, s.maxSize, false)
+		if err != nil {
+			return err
+		}
+
+		err = os.Remove(s.dest)
+		if err != nil {
+			return err
+		}
+
+		// Helm charts are extracted into a single directory - we want the contents within that directory.
+		if isHelmOCI(desc.MediaType) {
+			infos, err := os.ReadDir(tempDir)
+			if err != nil {
+				return err
+			}
+
+			// For a Helm chart we expect a single tarfile in the directory
+			if len(infos) != 1 {
+				return fmt.Errorf("expected 1 file, found %v", len(infos))
+			}
+
+			return os.Rename(filepath.Join(tempDir, infos[0].Name()), s.dest)
+		}
+
+		// For any other OCI content, we assume that this should be rendered as-is
+		return os.Rename(tempDir, s.dest)
+	}
+
+	return s.Store.Push(ctx, desc, content)
 }
