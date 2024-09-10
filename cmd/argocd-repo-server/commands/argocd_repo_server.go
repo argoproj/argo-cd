@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"runtime/debug"
 	"sync"
 	"syscall"
@@ -77,6 +78,7 @@ func NewCommand() *cobra.Command {
 		disableManifestMaxExtractedSize   bool
 		includeHiddenDirectories          bool
 		cmpUseManifestGeneratePaths       bool
+		ociLayerMediaTypes                string
 	)
 	command := cobra.Command{
 		Use:               cliName,
@@ -128,6 +130,11 @@ func NewCommand() *cobra.Command {
 			helmRegistryMaxIndexSizeQuantity, err := resource.ParseQuantity(helmRegistryMaxIndexSize)
 			errors.CheckError(err)
 
+			var ociMediaTypesList []string
+			if ociLayerMediaTypes != "" {
+				ociMediaTypesList = strings.Split(ociLayerMediaTypes, ";")
+			}
+
 			askPassServer := askpass.NewServer(askpass.SocketPath)
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer, nil)
@@ -146,6 +153,7 @@ func NewCommand() *cobra.Command {
 				HelmRegistryMaxIndexSize:                     helmRegistryMaxIndexSizeQuantity.ToDec().Value(),
 				IncludeHiddenDirectories:                     includeHiddenDirectories,
 				CMPUseManifestGeneratePaths:                  cmpUseManifestGeneratePaths,
+				OCIMediaTypes:                                ociMediaTypesList,
 			}, askPassServer)
 			errors.CheckError(err)
 
@@ -252,6 +260,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&disableManifestMaxExtractedSize, "disable-helm-manifest-max-extracted-size", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE", false), "Disable maximum size of helm manifest archives when extracted")
 	command.Flags().BoolVar(&includeHiddenDirectories, "include-hidden-directories", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES", false), "Include hidden directories from Git")
 	command.Flags().BoolVar(&cmpUseManifestGeneratePaths, "plugin-use-manifest-generate-paths", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS", false), "Pass the resources described in argocd.argoproj.io/manifest-generate-paths value to the cmpserver to generate the application manifests.")
+	command.Flags().StringVar(&ociLayerMediaTypes, "oci-layer-media-types", env.StringFromEnv("ARGOCD_REPO_SERVER_OCI_LAYER_MEDIA_TYPES", "application/vnd.oci.image.layer.v1.tar+gzip;application/vnd.cncf.helm.chart.content.v1.tar+gzip"), "Semicolon separated list of allowed media types for OCI media types. This only accounts for media types within layers.")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {

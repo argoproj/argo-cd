@@ -29,6 +29,7 @@ argocd-repo-server [flags]
       --max-combined-directory-manifests-size string   Max combined size of manifest files in a directory-type Application (default "10M")
       --metrics-address string                         Listen on given address for metrics (default "0.0.0.0")
       --metrics-port int                               Start metrics server on given port (default 8084)
+      --oci-layer-media-types string                   Semicolon separated list of allowed media types for OCI media types. This only accounts for media types within layers. (default "application/vnd.oci.image.layer.v1.tar+gzip;application/vnd.cncf.helm.chart.content.v1.tar+gzip")
       --otlp-address string                            OpenTelemetry collector address to send traces to
       --otlp-attrs strings                             List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)
       --otlp-headers stringToString                    List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2) (default [])

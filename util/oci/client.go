@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -20,13 +21,12 @@ import (
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/argoproj/pkg/sync"
-	log "github.com/sirupsen/logrus"
-
 	"github.com/argoproj/argo-cd/v2/util/cache"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/argoproj/argo-cd/v2/util/proxy"
+	"github.com/argoproj/pkg/sync"
+	log "github.com/sirupsen/logrus"
 
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/file"
@@ -81,11 +81,11 @@ func WithChartPaths(repoCachePaths argoio.TempPaths) ClientOpts {
 	}
 }
 
-func NewClient(repoURL string, creds Creds, proxy, noProxy string, opts ...ClientOpts) (Client, error) {
-	return NewClientWithLock(repoURL, creds, globalLock, proxy, noProxy, opts...)
+func NewClient(repoURL string, creds Creds, proxy, noProxy string, layerMediaTypes []string, opts ...ClientOpts) (Client, error) {
+	return NewClientWithLock(repoURL, creds, globalLock, proxy, noProxy, layerMediaTypes, opts...)
 }
 
-func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxyUrl, noProxy string, opts ...ClientOpts) (Client, error) {
+func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxyUrl, noProxy string, layerMediaTypes []string, opts ...ClientOpts) (Client, error) {
 	ociRepo := strings.TrimPrefix(repoURL, "oci://")
 	repo, err := remote.NewRepository(ociRepo)
 	if err != nil {
@@ -117,11 +117,12 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 	}
 
 	c := &nativeOCIClient{
-		creds:    creds,
-		repoURL:  ociRepo,
-		proxy:    proxyUrl,
-		repoLock: repoLock,
-		repo:     repo,
+		creds:             creds,
+		repoURL:           ociRepo,
+		proxy:             proxyUrl,
+		repoLock:          repoLock,
+		repo:              repo,
+		allowedMediaTypes: layerMediaTypes,
 	}
 	for i := range opts {
 		opts[i](c)
@@ -131,13 +132,14 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 
 // nativeOCIClient implements Client interface using oras-go
 type nativeOCIClient struct {
-	creds          Creds
-	repoURL        string
-	proxy          string
-	repo           *remote.Repository
-	repoLock       sync.KeyLock
-	indexCache     indexCache
-	repoCachePaths argoio.TempPaths
+	creds             Creds
+	repoURL           string
+	proxy             string
+	repo              *remote.Repository
+	repoLock          sync.KeyLock
+	indexCache        indexCache
+	repoCachePaths    argoio.TempPaths
+	allowedMediaTypes []string
 }
 
 // TestRepo verifies that the remote OCI repo can be connected to.
@@ -163,7 +165,20 @@ func (c *nativeOCIClient) Extract(ctx context.Context, digest string, project st
 	}
 
 	if !exists {
-		err := saveCompressedImageToPath(ctx, digest, c.repo, cachedPath)
+		ociManifest, err := getOCIManifest(ctx, digest, c.repo)
+		if err != nil {
+			return "", nil, err
+		}
+
+		if len(ociManifest.Layers) != 1 {
+			return "", nil, fmt.Errorf("expected only a single oci layer, got %d", len(ociManifest.Layers))
+		}
+
+		if !slices.Contains(c.allowedMediaTypes, ociManifest.Layers[0].MediaType) {
+			return "", nil, fmt.Errorf("oci layer media type %s is not in the list of allowed media types", ociManifest.Layers[0].MediaType)
+		}
+
+		err = saveCompressedImageToPath(ctx, digest, c.repo, cachedPath)
 		if err != nil {
 			return "", nil, err
 		}
@@ -174,7 +189,7 @@ func (c *nativeOCIClient) Extract(ctx context.Context, digest string, project st
 		maxSize = math.MaxInt64
 	}
 
-	manifestsDir, err := extractContentToManifestsDir(ctx, cachedPath, digest, maxSize)
+	manifestsDir, err := extractContentToManifestsDir(ctx, cachedPath, digest, maxSize, c.allowedMediaTypes)
 	if err != nil {
 		return manifestsDir, nil, err
 	}
@@ -218,29 +233,12 @@ func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest, project st
 		return nil, err
 	}
 
-	f, err := oci.NewFromTar(ctx, path)
+	repo, err := oci.NewFromTar(ctx, path)
 	if err != nil {
 		return nil, err
 	}
 
-	desc, err := f.Resolve(ctx, digest)
-	if err != nil {
-		return nil, err
-	}
-
-	rc, err := f.Fetch(ctx, desc)
-	if err != nil {
-		return nil, err
-	}
-
-	manifest := v1.Manifest{}
-	decoder := json.NewDecoder(rc)
-	err = decoder.Decode(&manifest)
-	if err != nil {
-		return nil, err
-	}
-
-	return &manifest, nil
+	return getOCIManifest(ctx, digest, repo)
 }
 
 func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
@@ -356,13 +354,12 @@ func createTarFile(from, to string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
 	_, err = files.Tar(from, nil, nil, f)
 	if err != nil {
 		_ = os.RemoveAll(to)
 	}
-	return err
+	return f.Close()
 }
 
 // saveCompressedImageToPath downloads a remote OCI image on a given digest and stores it as a TAR file in cachedPath.
@@ -390,7 +387,7 @@ func saveCompressedImageToPath(ctx context.Context, digest string, repo *remote.
 
 // extractContentToManifestsDir looks up a locally stored OCI image, and extracts the embedded compressed layer which contains
 // K8s manifests to a temporary directory
-func extractContentToManifestsDir(ctx context.Context, cachedPath, digest string, maxSize int64) (string, error) {
+func extractContentToManifestsDir(ctx context.Context, cachedPath, digest string, maxSize int64, allowedMediaTypes []string) (string, error) {
 	manifestsDir, err := files.CreateTempDir(os.TempDir())
 	if err != nil {
 		return manifestsDir, err
@@ -407,7 +404,7 @@ func extractContentToManifestsDir(ctx context.Context, cachedPath, digest string
 	}
 	defer os.RemoveAll(tempDir)
 
-	fs, err := newCompressedLayerFileStore(manifestsDir, tempDir, maxSize)
+	fs, err := newCompressedLayerFileStore(manifestsDir, tempDir, maxSize, allowedMediaTypes)
 	if err != nil {
 		return manifestsDir, err
 	}
@@ -420,18 +417,19 @@ func extractContentToManifestsDir(ctx context.Context, cachedPath, digest string
 
 type compressedLayerExtracterStore struct {
 	*file.Store
-	tempDir string
-	dest    string
-	maxSize int64
+	tempDir           string
+	dest              string
+	maxSize           int64
+	allowedMediaTypes []string
 }
 
-func newCompressedLayerFileStore(dest, tempDir string, maxSize int64) (*compressedLayerExtracterStore, error) {
+func newCompressedLayerFileStore(dest, tempDir string, maxSize int64, allowedMediaTypes []string) (*compressedLayerExtracterStore, error) {
 	f, err := file.New(tempDir)
 	if err != nil {
 		return nil, err
 	}
 
-	return &compressedLayerExtracterStore{f, tempDir, dest, maxSize}, nil
+	return &compressedLayerExtracterStore{f, tempDir, dest, maxSize, allowedMediaTypes}, nil
 }
 
 // Push looks in all the layers of an OCI image. Once it finds a layer that is compressed, it extracts the layer to a tempDir
@@ -474,4 +472,25 @@ func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc v1.Descri
 	}
 
 	return s.Store.Push(ctx, desc, content)
+}
+
+func getOCIManifest(ctx context.Context, digest string, repo oras.ReadOnlyTarget) (*v1.Manifest, error) {
+	desc, err := repo.Resolve(ctx, digest)
+	if err != nil {
+		return nil, err
+	}
+
+	rc, err := repo.Fetch(ctx, desc)
+	if err != nil {
+		return nil, err
+	}
+
+	manifest := v1.Manifest{}
+	decoder := json.NewDecoder(rc)
+	err = decoder.Decode(&manifest)
+	if err != nil {
+		return nil, err
+	}
+
+	return &manifest, nil
 }
