@@ -97,7 +97,7 @@
     "babel-loader": "^8.0.6",
     "codecov": "^3.8.3",
     "copy-webpack-plugin": "^6.1.1",
-    "esbuild-loader": "^2.18.0",
+    "esbuild-loader": "^4.2.2",
     "eslint": "^9.1.1",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.3",
