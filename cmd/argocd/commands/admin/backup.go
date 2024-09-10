@@ -136,6 +136,7 @@ func NewImportCommand() *cobra.Command {
 		dryRun                   bool
 		verbose                  bool
 		stopOperation            bool
+		ignoreTracking           bool
 		applicationNamespaces    []string
 		applicationsetNamespaces []string
 	)
@@ -264,6 +265,13 @@ func NewImportCommand() *cobra.Command {
 						continue
 					}
 				}
+
+				// If there is a live object, remove the tracking annotations/label that might conflict
+				// when argo is managed with an application.
+				if ignoreTracking && exists {
+					updateTracking(bakObj, &liveObj)
+				}
+
 				if !exists {
 					isForbidden := false
 					if !dryRun {
@@ -349,6 +357,7 @@ func NewImportCommand() *cobra.Command {
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Print what will be performed")
 	command.Flags().BoolVar(&prune, "prune", false, "Prune secrets, applications and projects which do not appear in the backup")
+	command.Flags().BoolVar(&ignoreTracking, "ignore-tracking", false, "Do not update the tracking annotation if the resource is already tracked")
 	command.Flags().BoolVar(&verbose, "verbose", false, "Verbose output (versus only changed output)")
 	command.Flags().BoolVar(&stopOperation, "stop-operation", false, "Stop any existing operations")
 	command.Flags().StringSliceVarP(&applicationNamespaces, "application-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs to which import of applications is allowed. If not provided value from '%s' in %s will be used,if it's not defined only applications without an explicit namespace will be imported to the Argo CD namespace", applicationNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
@@ -421,4 +430,33 @@ func updateLive(bak, live *unstructured.Unstructured, stopOperation bool) *unstr
 		newLive.Object["spec"] = bak.Object["spec"]
 	}
 	return newLive
+}
+
+// updateTracking will update the tracking label and annotation in the bak resources to the
+// value of the live resource.
+func updateTracking(bak, live *unstructured.Unstructured) {
+	// update the common annotation
+	bakAnnotations := bak.GetAnnotations()
+	liveAnnotations := live.GetAnnotations()
+	if liveAnnotations != nil && bakAnnotations != nil {
+		if v, ok := liveAnnotations[common.AnnotationKeyAppInstance]; ok {
+			if _, ok := bakAnnotations[common.AnnotationKeyAppInstance]; ok {
+				bakAnnotations[common.AnnotationKeyAppInstance] = v
+				bak.SetAnnotations(bakAnnotations)
+			}
+		}
+	}
+
+	// update the common label
+	// A custom label can be set, but it is impossible to know which instance is managing the application
+	bakLabels := bak.GetLabels()
+	liveLabels := live.GetLabels()
+	if liveLabels != nil && bakLabels != nil {
+		if v, ok := liveLabels[common.LabelKeyAppInstance]; ok {
+			if _, ok := bakLabels[common.LabelKeyAppInstance]; ok {
+				bakLabels[common.LabelKeyAppInstance] = v
+				bak.SetLabels(bakLabels)
+			}
+		}
+	}
 }
