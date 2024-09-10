@@ -21,6 +21,9 @@ Not recommended for production use. This type of installation is typically used 
   in (i.e. kubernetes.svc.default). It will still be able to deploy to external clusters with inputted
   credentials.
 
+  > Note: The ClusterRoleBinding in the installation manifest is bound to a ServiceAccount in the argocd namespace. 
+  > Be cautious when modifying the namespace, as changing it may cause permission-related errors unless the ClusterRoleBinding is correctly adjusted to reflect the new namespace.
+
 * [namespace-install.yaml](https://github.com/argoproj/argo-cd/blob/master/manifests/namespace-install.yaml) - Installation of Argo CD which requires only
   namespace level privileges (does not need cluster roles). Use this manifest set if you do not
   need Argo CD to deploy applications in the same cluster that Argo CD runs in, and will rely solely
