@@ -21,12 +21,13 @@ import (
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/argoproj/pkg/sync"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/argoproj/argo-cd/v2/util/cache"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/argoproj/argo-cd/v2/util/proxy"
-	"github.com/argoproj/pkg/sync"
-	log "github.com/sirupsen/logrus"
 
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/file"
