@@ -45,7 +45,7 @@
     "react-moment": "^0.9.7",
     "react-paginate": "^8.2.0",
     "react-router": "^4.3.1",
-    "react-router-dom": "^4.2.2",
+    "react-router-dom": "^6.26.2",
     "react-svg-piechart": "^2.4.2",
     "react-virtualized": "^9.22.3",
     "redoc": "^2.0.0-rc.64",
