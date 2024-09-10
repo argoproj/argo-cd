@@ -18,7 +18,7 @@ spec:
   destination:
     namespace: default
     server: 'https://kubernetes.default.svc'
-
+```
 If the `kustomization.yaml` file exists at the location pointed to by `repoURL` and `path`, Argo CD will render the manifests using Kustomize.
 
 The following configuration options are available for Kustomize:
