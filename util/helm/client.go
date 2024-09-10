@@ -157,6 +157,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, project str
 
 	cachedChartPath, err := c.getCachedChartPath(chart, version, project)
 	if err != nil {
+		_ = os.RemoveAll(tempDir)
 		return "", nil, err
 	}
 
@@ -166,6 +167,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, project str
 	// check if chart tar is already downloaded
 	exists, err := fileExist(cachedChartPath)
 	if err != nil {
+		_ = os.RemoveAll(tempDir)
 		return "", nil, err
 	}
 
@@ -173,6 +175,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, project str
 		// create empty temp directory to extract chart from the registry
 		tempDest, err := files.CreateTempDir(os.TempDir())
 		if err != nil {
+			_ = os.RemoveAll(tempDir)
 			return "", nil, err
 		}
 		defer func() { _ = os.RemoveAll(tempDest) }()
@@ -181,6 +184,7 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, project str
 			if c.creds.Password != "" && c.creds.Username != "" {
 				_, err = helmCmd.RegistryLogin(c.repoURL, c.creds)
 				if err != nil {
+					_ = os.RemoveAll(tempDir)
 					return "", nil, err
 				}
 
@@ -192,11 +196,13 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, project str
 			// 'helm pull' ensures that chart is downloaded into temp directory
 			_, err = helmCmd.PullOCI(c.repoURL, chart, version, tempDest, c.creds)
 			if err != nil {
+				_ = os.RemoveAll(tempDir)
 				return "", nil, err
 			}
 		} else {
 			_, err = helmCmd.Fetch(c.repoURL, chart, version, tempDest, c.creds, passCredentials)
 			if err != nil {
+				_ = os.RemoveAll(tempDir)
 				return "", nil, err
 			}
 		}
