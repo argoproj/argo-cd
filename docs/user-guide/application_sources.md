@@ -6,13 +6,14 @@ Argo CD supports several different ways in which Kubernetes manifests can be def
 
 * [Kustomize](kustomize.md) applications
 * [Helm](helm.md) charts
+* [OCI](oci.md) images
 * A directory of YAML/JSON/Jsonnet manifests, including [Jsonnet](jsonnet.md).
 * Any [custom config management tool](../operator-manual/config-management-plugins.md) configured as a config management plugin
 
 ## Development
 Argo CD also supports uploading local manifests directly. Since this is an anti-pattern of the
 GitOps paradigm, this should only be done for development purposes. A user with an `override` permission is required
-to upload manifests locally (typically an admin). All of the different Kubernetes deployment tools above are supported.
+to upload manifests locally (typically an admin). All the different Kubernetes deployment tools mentioned above are supported.
 To upload a local application:
 
 ```bash
