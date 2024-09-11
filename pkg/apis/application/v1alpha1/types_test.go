@@ -883,6 +883,153 @@ func TestAppSourceEquality(t *testing.T) {
 	assert.False(t, left.Equals(right))
 }
 
+func TestAppSource_GetKubeVersionOrDefault(t *testing.T) {
+	defaultKV := "999.999.999"
+	cases := []struct {
+		name   string
+		source *ApplicationSource
+		expect string
+	}{
+		{
+			"nil source returns default",
+			nil,
+			defaultKV,
+		},
+		{
+			"source without Helm or Kustomize returns default",
+			&ApplicationSource{},
+			defaultKV,
+		},
+		{
+			"source with empty Helm returns default",
+			&ApplicationSource{Helm: &ApplicationSourceHelm{}},
+			defaultKV,
+		},
+		{
+			"source with empty Kustomize returns default",
+			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{}},
+			defaultKV,
+		},
+		{
+			"source with Helm override returns override",
+			&ApplicationSource{Helm: &ApplicationSourceHelm{KubeVersion: "1.2.3"}},
+			"1.2.3",
+		},
+		{
+			"source with Kustomize override returns override",
+			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{KubeVersion: "1.2.3"}},
+			"1.2.3",
+		},
+	}
+
+	for _, tc := range cases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			kv := tcc.source.GetKubeVersionOrDefault(defaultKV)
+			assert.Equal(t, tcc.expect, kv)
+		})
+	}
+}
+
+func TestAppSource_GetAPIVersionsOrDefault(t *testing.T) {
+	defaultAPIVersions := []string{"v1", "v2"}
+	cases := []struct {
+		name   string
+		source *ApplicationSource
+		expect []string
+	}{
+		{
+			"nil source returns default",
+			nil,
+			defaultAPIVersions,
+		},
+		{
+			"source without Helm or Kustomize returns default",
+			&ApplicationSource{},
+			defaultAPIVersions,
+		},
+		{
+			"source with empty Helm returns default",
+			&ApplicationSource{Helm: &ApplicationSourceHelm{}},
+			defaultAPIVersions,
+		},
+		{
+			"source with empty Kustomize returns default",
+			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{}},
+			defaultAPIVersions,
+		},
+		{
+			"source with Helm override returns override",
+			&ApplicationSource{Helm: &ApplicationSourceHelm{APIVersions: []string{"v3", "v4"}}},
+			[]string{"v3", "v4"},
+		},
+		{
+			"source with Kustomize override returns override",
+			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{APIVersions: []string{"v3", "v4"}}},
+			[]string{"v3", "v4"},
+		},
+	}
+
+	for _, tc := range cases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			kv := tcc.source.GetAPIVersionsOrDefault(defaultAPIVersions)
+			assert.Equal(t, tcc.expect, kv)
+		})
+	}
+}
+
+func TestAppSource_GetNamespaceOrDefault(t *testing.T) {
+	defaultNS := "default"
+	cases := []struct {
+		name   string
+		source *ApplicationSource
+		expect string
+	}{
+		{
+			"nil source returns default",
+			nil,
+			defaultNS,
+		},
+		{
+			"source without Helm or Kustomize returns default",
+			&ApplicationSource{},
+			defaultNS,
+		},
+		{
+			"source with empty Helm returns default",
+			&ApplicationSource{Helm: &ApplicationSourceHelm{}},
+			defaultNS,
+		},
+		{
+			"source with empty Kustomize returns default",
+			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{}},
+			defaultNS,
+		},
+		{
+			"source with Helm override returns override",
+			&ApplicationSource{Helm: &ApplicationSourceHelm{Namespace: "not-default"}},
+			"not-default",
+		},
+		{
+			"source with Kustomize override returns override",
+			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{Namespace: "not-default"}},
+			"not-default",
+		},
+	}
+
+	for _, tc := range cases {
+		tcc := tc
+		t.Run(tcc.name, func(t *testing.T) {
+			t.Parallel()
+			kv := tcc.source.GetNamespaceOrDefault(defaultNS)
+			assert.Equal(t, tcc.expect, kv)
+		})
+	}
+}
+
 func TestAppDestinationEquality(t *testing.T) {
 	left := &ApplicationDestination{
 		Server:    "https://kubernetes.default.svc",
@@ -1121,6 +1268,7 @@ func TestRepository_CopyCredentialsFrom(t *testing.T) {
 		{"SourceSSHPrivateKey", &Repository{}, &RepoCreds{SSHPrivateKey: "foo"}, Repository{SSHPrivateKey: "foo"}},
 		{"SourceTLSClientCertData", &Repository{}, &RepoCreds{TLSClientCertData: "foo"}, Repository{TLSClientCertData: "foo"}},
 		{"SourceTLSClientCertKey", &Repository{}, &RepoCreds{TLSClientCertKey: "foo"}, Repository{TLSClientCertKey: "foo"}},
+		{"SourceContainsProxy", &Repository{}, &RepoCreds{Proxy: "http://proxy.argoproj.io:3128", NoProxy: ".example.com"}, Repository{Proxy: "http://proxy.argoproj.io:3128", NoProxy: ".example.com"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -3239,18 +3387,25 @@ func TestGetCAPath(t *testing.T) {
 		"https://foo.example.com",
 		"oci://foo.example.com",
 		"foo.example.com",
+		"foo.example.com/charts",
+		"https://foo.example.com:5000",
+		"foo.example.com:5000",
+		"foo.example.com:5000/charts",
+		"ssh://foo.example.com",
 	}
 	invalidpath := []string{
 		"https://bar.example.com",
 		"oci://bar.example.com",
 		"bar.example.com",
-		"ssh://foo.example.com",
-		"git@example.com:organization/reponame.git",
+		"ssh://bar.example.com",
+		"git@foo.example.com:organization/reponame.git",
+		"ssh://git@foo.example.com:organization/reponame.git",
 		"/some/invalid/thing",
 		"../another/invalid/thing",
 		"./also/invalid",
 		"$invalid/as/well",
 		"..",
+		"://invalid",
 	}
 
 	for _, str := range validcert {
@@ -3733,4 +3888,74 @@ func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
 			assert.Equal(t, tc.expected, actual)
 		})
 	}
+}
+
+func TestApplicationTree_GetShards(t *testing.T) {
+	tree := &ApplicationTree{
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}}, {ResourceRef: ResourceRef{Name: "node 3"}},
+		},
+		OrphanedNodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "orph-node 1"}}, {ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}},
+		},
+		Hosts: []HostInfo{
+			{Name: "host 1"}, {Name: "host 2"}, {Name: "host 3"},
+		},
+	}
+
+	shards := tree.GetShards(2)
+	require.Len(t, shards, 5)
+	require.Equal(t, &ApplicationTree{
+		ShardsCount: 5,
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}},
+		},
+	}, shards[0])
+	require.Equal(t, &ApplicationTree{
+		Nodes:         []ResourceNode{{ResourceRef: ResourceRef{Name: "node 3"}}},
+		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 1"}}},
+	}, shards[1])
+	require.Equal(t, &ApplicationTree{
+		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}}},
+	}, shards[2])
+	require.Equal(t, &ApplicationTree{
+		Hosts: []HostInfo{{Name: "host 1"}, {Name: "host 2"}},
+	}, shards[3])
+	require.Equal(t, &ApplicationTree{
+		Hosts: []HostInfo{{Name: "host 3"}},
+	}, shards[4])
+}
+
+func TestApplicationTree_Merge(t *testing.T) {
+	tree := &ApplicationTree{}
+	tree.Merge(&ApplicationTree{
+		ShardsCount: 5,
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}},
+		},
+	})
+	tree.Merge(&ApplicationTree{
+		Nodes:         []ResourceNode{{ResourceRef: ResourceRef{Name: "node 3"}}},
+		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 1"}}},
+	})
+	tree.Merge(&ApplicationTree{
+		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}}},
+	})
+	tree.Merge(&ApplicationTree{
+		Hosts: []HostInfo{{Name: "host 1"}, {Name: "host 2"}},
+	})
+	tree.Merge(&ApplicationTree{
+		Hosts: []HostInfo{{Name: "host 3"}},
+	})
+	require.Equal(t, &ApplicationTree{
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}}, {ResourceRef: ResourceRef{Name: "node 3"}},
+		},
+		OrphanedNodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "orph-node 1"}}, {ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}},
+		},
+		Hosts: []HostInfo{
+			{Name: "host 1"}, {Name: "host 2"}, {Name: "host 3"},
+		},
+	}, tree)
 }

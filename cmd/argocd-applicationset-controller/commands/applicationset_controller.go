@@ -35,6 +35,7 @@ import (
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
+	appsetmetrics "github.com/argoproj/argo-cd/v2/applicationset/metrics"
 	"github.com/argoproj/argo-cd/v2/applicationset/services"
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
@@ -69,6 +70,7 @@ func NewCommand() *cobra.Command {
 		allowedScmProviders          []string
 		globalPreservedAnnotations   []string
 		globalPreservedLabels        []string
+		metricsAplicationsetLabels   []string
 		enableScmProviders           bool
 		webhookParallelism           int
 	)
@@ -167,7 +169,7 @@ func NewCommand() *cobra.Command {
 
 			tlsConfig := apiclient.TLSConfiguration{
 				DisableTLS:       repoServerPlaintext,
-				StrictValidation: repoServerPlaintext,
+				StrictValidation: repoServerStrictTLS,
 			}
 
 			if !repoServerPlaintext && repoServerStrictTLS {
@@ -194,6 +196,13 @@ func NewCommand() *cobra.Command {
 				startWebhookServer(webhookHandler, webhookAddr)
 			}
 
+			metrics := appsetmetrics.NewApplicationsetMetrics(
+				utils.NewAppsetLister(mgr.GetClient()),
+				metricsAplicationsetLabels,
+				func(appset *appv1alpha1.ApplicationSet) bool {
+					return utils.IsNamespaceAllowed(applicationSetNamespaces, appset.Namespace)
+				})
+
 			if err = (&controllers.ApplicationSetReconciler{
 				Generators:                 topLevelGenerators,
 				Client:                     mgr.GetClient(),
@@ -211,7 +220,7 @@ func NewCommand() *cobra.Command {
 				SCMRootCAPath:              scmRootCAPath,
 				GlobalPreservedAnnotations: globalPreservedAnnotations,
 				GlobalPreservedLabels:      globalPreservedLabels,
-				Cache:                      mgr.GetCache(),
+				Metrics:                    &metrics,
 			}).SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)
@@ -253,6 +262,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&globalPreservedAnnotations, "preserved-annotations", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS", []string{}, ","), "Sets global preserved field values for annotations")
 	command.Flags().StringSliceVar(&globalPreservedLabels, "preserved-labels", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS", []string{}, ","), "Sets global preserved field values for labels")
 	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
+	command.Flags().StringSliceVar(&metricsAplicationsetLabels, "metrics-applicationset-labels", []string{}, "List of Application labels that will be added to the argocd_applicationset_labels metric")
 	return &command
 }
 
@@ -260,7 +270,7 @@ func startWebhookServer(webhookHandler *webhook.WebhookHandler, webhookAddr stri
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/webhook", webhookHandler.Handler)
 	go func() {
-		log.Info("Starting webhook server")
+		log.Infof("Starting webhook server %s", webhookAddr)
 		err := http.ListenAndServe(webhookAddr, mux)
 		if err != nil {
 			log.Error(err, "failed to start webhook server")

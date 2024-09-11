@@ -2,11 +2,14 @@ package dex
 
 import (
 	"fmt"
+	"os"
 
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTls bool) ([]byte, error) {
@@ -35,6 +38,20 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTls b
 			"https":   "0.0.0.0:5556",
 			"tlsCert": "/tmp/tls.crt",
 			"tlsKey":  "/tmp/tls.key",
+		}
+	}
+
+	if loggerCfg, found := dexCfg["logger"].(map[string]interface{}); found {
+		if _, found := loggerCfg["level"]; !found {
+			loggerCfg["level"] = slogLevelFromLogrus(os.Getenv(common.EnvLogLevel))
+		}
+		if _, found := loggerCfg["format"]; !found {
+			loggerCfg["format"] = os.Getenv(common.EnvLogFormat)
+		}
+	} else {
+		dexCfg["logger"] = map[string]interface{}{
+			"level":  slogLevelFromLogrus(os.Getenv(common.EnvLogLevel)),
+			"format": os.Getenv(common.EnvLogFormat),
 		}
 	}
 
@@ -129,4 +146,24 @@ func needsRedirectURI(connectorType string) bool {
 		return true
 	}
 	return false
+}
+
+func slogLevelFromLogrus(level string) string {
+	logrusLevel, err := log.ParseLevel(level)
+	if err != nil {
+		return level
+	}
+
+	switch logrusLevel {
+	case log.DebugLevel, log.TraceLevel:
+		return "DEBUG"
+	case log.InfoLevel:
+		return "INFO"
+	case log.WarnLevel:
+		return "WARN"
+	case log.ErrorLevel, log.FatalLevel, log.PanicLevel:
+		return "ERROR"
+	}
+	// return the logrus level and let slog parse it
+	return level
 }

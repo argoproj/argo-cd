@@ -116,11 +116,11 @@ type ApplicationController struct {
 	applicationClientset appclientset.Interface
 	auditLogger          *argo.AuditLogger
 	// queue contains app namespace/name
-	appRefreshQueue workqueue.RateLimitingInterface
+	appRefreshQueue workqueue.TypedRateLimitingInterface[string]
 	// queue contains app namespace/name/comparisonType and used to request app refresh with the predefined comparison type
-	appComparisonTypeRefreshQueue workqueue.RateLimitingInterface
-	appOperationQueue             workqueue.RateLimitingInterface
-	projectRefreshQueue           workqueue.RateLimitingInterface
+	appComparisonTypeRefreshQueue workqueue.TypedRateLimitingInterface[string]
+	appOperationQueue             workqueue.TypedRateLimitingInterface[string]
+	projectRefreshQueue           workqueue.TypedRateLimitingInterface[string]
 	appInformer                   cache.SharedIndexInformer
 	appLister                     applisters.ApplicationLister
 	projInformer                  cache.SharedIndexInformer
@@ -164,6 +164,7 @@ func NewApplicationController(
 	metricsPort int,
 	metricsCacheExpiration time.Duration,
 	metricsApplicationLabels []string,
+	metricsApplicationConditions []string,
 	kubectlParallelismLimit int64,
 	persistResourceHealth bool,
 	clusterSharding sharding.ClusterShardingCache,
@@ -186,10 +187,10 @@ func NewApplicationController(
 		kubectl:                           kubectl,
 		applicationClientset:              applicationClientset,
 		repoClientset:                     repoClientset,
-		appRefreshQueue:                   workqueue.NewRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.RateLimitingQueueConfig{Name: "app_reconciliation_queue"}),
-		appOperationQueue:                 workqueue.NewRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.RateLimitingQueueConfig{Name: "app_operation_processing_queue"}),
-		projectRefreshQueue:               workqueue.NewRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.RateLimitingQueueConfig{Name: "project_reconciliation_queue"}),
-		appComparisonTypeRefreshQueue:     workqueue.NewRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig)),
+		appRefreshQueue:                   workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "app_reconciliation_queue"}),
+		appOperationQueue:                 workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "app_operation_processing_queue"}),
+		projectRefreshQueue:               workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "project_reconciliation_queue"}),
+		appComparisonTypeRefreshQueue:     workqueue.NewTypedRateLimitingQueue(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig)),
 		db:                                db,
 		statusRefreshTimeout:              appResyncPeriod,
 		statusHardRefreshTimeout:          appHardResyncPeriod,
@@ -279,7 +280,7 @@ func NewApplicationController(
 
 	metricsAddr := fmt.Sprintf("0.0.0.0:%d", metricsPort)
 
-	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessApp, readinessHealthCheck, metricsApplicationLabels)
+	ctrl.metricsServer, err = metrics.NewMetricsServer(metricsAddr, appLister, ctrl.canProcessApp, readinessHealthCheck, metricsApplicationLabels, metricsApplicationConditions)
 	if err != nil {
 		return nil, err
 	}
@@ -940,7 +941,7 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		ctrl.appOperationQueue.Done(appKey)
 	}()
 
-	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey.(string))
+	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey)
 	if err != nil {
 		log.Errorf("Failed to get application '%s' from informer index: %+v", appKey, err)
 		return
@@ -1012,8 +1013,8 @@ func (ctrl *ApplicationController) processAppComparisonTypeQueueItem() (processN
 		return
 	}
 
-	if parts := strings.Split(key.(string), "/"); len(parts) != 3 {
-		log.Warnf("Unexpected key format in appComparisonTypeRefreshTypeQueue. Key should consists of namespace/name/comparisonType but got: %s", key.(string))
+	if parts := strings.Split(key, "/"); len(parts) != 3 {
+		log.Warnf("Unexpected key format in appComparisonTypeRefreshTypeQueue. Key should consists of namespace/name/comparisonType but got: %s", key)
 	} else {
 		if compareWith, err := strconv.Atoi(parts[2]); err != nil {
 			log.Warnf("Unable to parse comparison type: %v", err)
@@ -1039,7 +1040,7 @@ func (ctrl *ApplicationController) processProjectQueueItem() (processNext bool) 
 		processNext = false
 		return
 	}
-	obj, exists, err := ctrl.projInformer.GetIndexer().GetByKey(key.(string))
+	obj, exists, err := ctrl.projInformer.GetIndexer().GetByKey(key)
 	if err != nil {
 		log.Errorf("Failed to get project '%s' from informer index: %+v", key, err)
 		return
@@ -1551,7 +1552,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		ctrl.appOperationQueue.AddRateLimited(appKey)
 		ctrl.appRefreshQueue.Done(appKey)
 	}()
-	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey.(string))
+	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey)
 	if err != nil {
 		log.Errorf("Failed to get application '%s' from informer index: %+v", appKey, err)
 		return
@@ -1690,7 +1691,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 
 	if project.Spec.SyncWindows.Matches(app).CanSync(false) {
-		syncErrCond, opMS := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources)
+		syncErrCond, opMS := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources, compareResult.revisionUpdated)
 		setOpMs = opMS
 		if syncErrCond != nil {
 			app.Status.SetConditions(
@@ -1913,7 +1914,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 }
 
 // autoSync will initiate a sync operation for an application configured with automated sync
-func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus) (*appv1.ApplicationCondition, time.Duration) {
+func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus, revisionUpdated bool) (*appv1.ApplicationCondition, time.Duration) {
 	logCtx := getAppLog(app)
 	ts := stats.NewTimingStats()
 	defer func() {
@@ -1957,11 +1958,18 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		}
 	}
 
+	selfHeal := app.Spec.SyncPolicy.Automated.SelfHeal
+	// Multi-Source Apps with selfHeal disabled should not trigger an autosync if
+	// the last sync revision and the new sync revision is the same.
+	if app.Spec.HasMultipleSources() && !selfHeal && reflect.DeepEqual(app.Status.Sync.Revisions, syncStatus.Revisions) {
+		logCtx.Infof("Skipping auto-sync: selfHeal disabled and sync caused by object update")
+		return nil, 0
+	}
+
 	desiredCommitSHA := syncStatus.Revision
 	desiredCommitSHAsMS := syncStatus.Revisions
-	alreadyAttempted, attemptPhase := alreadyAttemptedSync(app, desiredCommitSHA, desiredCommitSHAsMS, app.Spec.HasMultipleSources())
+	alreadyAttempted, attemptPhase := alreadyAttemptedSync(app, desiredCommitSHA, desiredCommitSHAsMS, app.Spec.HasMultipleSources(), revisionUpdated)
 	ts.AddCheckpoint("already_attempted_sync_ms")
-	selfHeal := app.Spec.SyncPolicy.Automated.SelfHeal
 	op := appv1.Operation{
 		Sync: &appv1.SyncOperation{
 			Revision:    desiredCommitSHA,
@@ -2015,7 +2023,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		}
 		if bAllNeedPrune {
 			message := fmt.Sprintf("Skipping sync attempt to %s: auto-sync will wipe out all resources", desiredCommitSHA)
-			logCtx.Warnf(message)
+			logCtx.Warn(message)
 			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}, 0
 		}
 	}
@@ -2055,17 +2063,26 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 
 // alreadyAttemptedSync returns whether the most recent sync was performed against the
 // commitSHA and with the same app source config which are currently set in the app
-func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS []string, hasMultipleSources bool) (bool, synccommon.OperationPhase) {
+func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS []string, hasMultipleSources bool, revisionUpdated bool) (bool, synccommon.OperationPhase) {
 	if app.Status.OperationState == nil || app.Status.OperationState.Operation.Sync == nil || app.Status.OperationState.SyncResult == nil {
 		return false, ""
 	}
 	if hasMultipleSources {
-		if !reflect.DeepEqual(app.Status.OperationState.SyncResult.Revisions, commitSHAsMS) {
-			return false, ""
+		if revisionUpdated {
+			if !reflect.DeepEqual(app.Status.OperationState.SyncResult.Revisions, commitSHAsMS) {
+				return false, ""
+			}
+		} else {
+			log.WithField("application", app.Name).Debugf("Skipping auto-sync: commitSHA %s has no changes", commitSHA)
 		}
 	} else {
-		if app.Status.OperationState.SyncResult.Revision != commitSHA {
-			return false, ""
+		if revisionUpdated {
+			log.WithField("application", app.Name).Infof("Executing compare of syncResult.Revision and commitSha because manifest changed: %v", commitSHA)
+			if app.Status.OperationState.SyncResult.Revision != commitSHA {
+				return false, ""
+			}
+		} else {
+			log.WithField("application", app.Name).Debugf("Skipping auto-sync: commitSHA %s has no changes", commitSHA)
 		}
 	}
 
@@ -2109,7 +2126,7 @@ func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application) (bool,
 // isAppNamespaceAllowed returns whether the application is allowed in the
 // namespace it's residing in.
 func (ctrl *ApplicationController) isAppNamespaceAllowed(app *appv1.Application) bool {
-	return app.Namespace == ctrl.namespace || glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, false)
+	return app.Namespace == ctrl.namespace || glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, glob.REGEXP)
 }
 
 func (ctrl *ApplicationController) canProcessApp(obj interface{}) bool {

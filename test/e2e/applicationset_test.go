@@ -845,7 +845,10 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 		Spec: v1alpha1.ApplicationSetSpec{
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook-sync-policy-create-update"},
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:       "{{.cluster}}-guestbook-sync-policy-create-update",
+					Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
 					Source: &argov1alpha1.ApplicationSource{
@@ -913,9 +916,11 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 		// verify the ApplicationSet status conditions were set correctly
 		Expect(ApplicationSetHasConditions("sync-policy-create-update", ExpectedConditions)).
 
-		// Delete the ApplicationSet, and verify it deletes the Applications
+		// Delete the ApplicationSet, and verify it not deletes the Applications
+		// As policy is create-update, AppSet controller will remove all generated applications's ownerReferences on delete AppSet
+		// So AppSet deletion will be reflected, but all the applications it generates will still exist
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewMetadata}))
+		Delete().Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestSyncPolicyCreateDelete(t *testing.T) {
@@ -1052,7 +1057,10 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 		Spec: v1alpha1.ApplicationSetSpec{
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook-sync-policy-create-only"},
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name:       "{{.cluster}}-guestbook-sync-policy-create-only",
+					Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
 					Source: &argov1alpha1.ApplicationSource{
@@ -1111,9 +1119,11 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 		// verify the ApplicationSet status conditions were set correctly
 		Expect(ApplicationSetHasConditions("sync-policy-create-only", ExpectedConditions)).
 
-		// Delete the ApplicationSet, and verify it deletes the Applications
+		// Delete the ApplicationSet, and verify it not deletes the Applications
+		// As policy is create-update, AppSet controller will remove all generated applications's ownerReferences on delete AppSet
+		// So AppSet deletion will be reflected, but all the applications it generates will still exist
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewNamespace}))
+		Delete().Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace}))
 }
 
 func TestSimpleGitDirectoryGenerator(t *testing.T) {

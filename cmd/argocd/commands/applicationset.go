@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -53,6 +54,7 @@ func NewAppSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewApplicationSetCreateCommand(clientOpts))
 	command.AddCommand(NewApplicationSetListCommand(clientOpts))
 	command.AddCommand(NewApplicationSetDeleteCommand(clientOpts))
+	command.AddCommand(NewApplicationSetGenerateCommand(clientOpts))
 	return command
 }
 
@@ -204,6 +206,75 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 	}
 	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override ApplicationSet with the same name even if supplied ApplicationSet spec is different from existing spec")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Allows to evaluate the ApplicationSet template on the server to get a preview of the applications that would be created")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
+	return command
+}
+
+// NewApplicationSetGenerateCommand returns a new instance of an `argocd appset generate` command
+func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var output string
+	command := &cobra.Command{
+		Use:   "generate",
+		Short: "Generate apps of ApplicationSet rendered templates",
+		Example: templates.Examples(`
+	# Generate apps of ApplicationSet rendered templates
+	argocd appset generate <filename or URL> (<filename or URL>...)
+`),
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			if len(args) == 0 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			argocdClient := headless.NewClientOrDie(clientOpts, c)
+			fileUrl := args[0]
+			appsets, err := cmdutil.ConstructApplicationSet(fileUrl)
+			errors.CheckError(err)
+
+			if len(appsets) != 1 {
+				fmt.Printf("Input file must contain one ApplicationSet")
+				os.Exit(1)
+			}
+			appset := appsets[0]
+			if appset.Name == "" {
+				err := fmt.Errorf("Error generating apps for ApplicationSet %s. ApplicationSet does not have Name field set", appset)
+				errors.CheckError(err)
+			}
+
+			conn, appIf := argocdClient.NewApplicationSetClientOrDie()
+			defer argoio.Close(conn)
+
+			req := applicationset.ApplicationSetGenerateRequest{
+				ApplicationSet: appset,
+			}
+			resp, err := appIf.Generate(ctx, &req)
+			errors.CheckError(err)
+
+			var appsList []arogappsetv1.Application
+			for i := range resp.Applications {
+				appsList = append(appsList, *resp.Applications[i])
+			}
+
+			switch output {
+			case "yaml", "json":
+				var resources []interface{}
+				for i := range appsList {
+					app := appsList[i]
+					// backfill api version and kind because k8s client always return empty values for these fields
+					app.APIVersion = arogappsetv1.ApplicationSchemaGroupVersionKind.GroupVersion().String()
+					app.Kind = arogappsetv1.ApplicationSchemaGroupVersionKind.Kind
+					resources = append(resources, app)
+				}
+
+				cobra.CheckErr(admin.PrintResources(output, os.Stdout, resources...))
+			case "wide", "":
+				printApplicationTable(appsList, &output)
+			default:
+				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
+			}
+		},
+	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	return command
 }

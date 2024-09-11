@@ -171,6 +171,12 @@ export interface ApplicationDestination {
     name: string;
 }
 
+export interface ApplicationDestinationServiceAccount {
+    server: string;
+    namespace: string;
+    defaultServiceAccount: string;
+}
+
 export interface OrphanedResource {
     group: string;
     kind: string;
@@ -535,6 +541,7 @@ export interface Repository {
     tlsClientCertData?: string;
     tlsClientCertKey?: string;
     proxy?: string;
+    noProxy?: string;
     insecure?: boolean;
     enableLfs?: boolean;
     githubAppId?: string;
@@ -720,6 +727,7 @@ export interface ProjectSpec {
     sourceRepos: string[];
     sourceNamespaces: string[];
     destinations: ApplicationDestination[];
+    destinationServiceAccounts: ApplicationDestinationServiceAccount[];
     description: string;
     roles: ProjectRole[];
     clusterResourceWhitelist: GroupKind[];

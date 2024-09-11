@@ -80,12 +80,12 @@ func TestProjectCreation(t *testing.T) {
 	require.NoError(t, err)
 
 	// fail without upsert flag
-	_, err = fixture.RunCliWithStdin(stdinString, "proj", "create",
+	_, err = fixture.RunCliWithStdin(stdinString, false, "proj", "create",
 		"-f", "-")
 	require.Error(t, err)
 
 	// succeed with the upsert flag
-	_, err = fixture.RunCliWithStdin(stdinString, "proj", "create",
+	_, err = fixture.RunCliWithStdin(stdinString, false, "proj", "create",
 		"-f", "-", "--upsert")
 	require.NoError(t, err)
 	proj, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})

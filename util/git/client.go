@@ -107,6 +107,8 @@ type nativeGitClient struct {
 	loadRefFromCache bool
 	// HTTP/HTTPS proxy used to access repository
 	proxy string
+	// list of targets that shouldn't use the proxy, applies only if the proxy is set
+	noProxy string
 }
 
 type runOpts struct {
@@ -152,7 +154,7 @@ func WithEventHandlers(handlers EventHandlers) ClientOpts {
 	}
 }
 
-func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, opts ...ClientOpts) (Client, error) {
+func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
 	r := regexp.MustCompile("(/|:)")
 	normalizedGitURL := NormalizeGitURL(rawRepoURL)
 	if normalizedGitURL == "" {
@@ -162,10 +164,10 @@ func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, pr
 	if root == os.TempDir() {
 		return nil, fmt.Errorf("repository %q cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
 	}
-	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, opts...)
+	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, noProxy, opts...)
 }
 
-func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, proxy string, opts ...ClientOpts) (Client, error) {
+func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
 	client := &nativeGitClient{
 		repoURL:   rawRepoURL,
 		root:      root,
@@ -173,6 +175,7 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 		insecure:  insecure,
 		enableLfs: enableLfs,
 		proxy:     proxy,
+		noProxy:   noProxy,
 	}
 	for i := range opts {
 		opts[i](client)
@@ -190,7 +193,7 @@ var gitClientTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15
 //     a client with those certificates in the list of root CAs used to verify
 //     the server's certificate.
 //   - Otherwise (and on non-fatal errors), a default HTTP client is returned.
-func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string) *http.Client {
+func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string, noProxy string) *http.Client {
 	// Default HTTP client
 	customHTTPClient := &http.Client{
 		// 15 second timeout by default
@@ -201,7 +204,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 		},
 	}
 
-	proxyFunc := proxy.GetCallback(proxyURL)
+	proxyFunc := proxy.GetCallback(proxyURL, noProxy)
 
 	// Callback function to return any configured client certificate
 	// We never return err, but an empty cert instead.
@@ -548,7 +551,7 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 	if err != nil {
 		return nil, err
 	}
-	res, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds, m.proxy)
+	res, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds, m.proxy, m.noProxy)
 	if err == nil && m.gitRefCache != nil {
 		if err := m.gitRefCache.SetGitReferences(m.repoURL, res); err != nil {
 			log.Warnf("Failed to store git references to cache: %v", err)
@@ -628,13 +631,14 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 		revision = "HEAD"
 	}
 
-	semverSha, err := m.resolveSemverRevision(revision, refs)
-	if err != nil {
-		return "", err
-	}
-
-	if semverSha != "" {
-		return semverSha, nil
+	// Check if the revision is a valid semver constraint before attempting to resolve it
+	if constraint, err := semver.NewConstraint(revision); err == nil {
+		semverSha := m.resolveSemverRevision(constraint, refs)
+		if semverSha != "" {
+			return semverSha, nil
+		}
+	} else {
+		log.Debugf("Revision '%s' is not a valid semver constraint, skipping semver resolution.", revision)
 	}
 
 	// refToHash keeps a maps of remote refs to their hash
@@ -691,12 +695,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 // * The revision is "v0.1.*"/"0.1.*" or "0.1.2"/"0.1.2" and there is no tag matching that constraint this function loop and lsRemote loop will run for backward compatibility;
 // * The revision is "custom-tag" only the lsRemote loop will run because that revision is an invalid semver;
 // * The revision is "master-branch" only the lsRemote loop will run because that revision is an invalid semver;
-func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbing.Reference) (string, error) {
-	constraint, err := semver.NewConstraint(revision)
-	if err != nil {
-		return "", nil
-	}
-
+func (m *nativeGitClient) resolveSemverRevision(constraint *semver.Constraints, refs []*plumbing.Reference) string {
 	maxVersion := semver.New(0, 0, 0, "", "")
 	maxVersionHash := plumbing.ZeroHash
 	for _, ref := range refs {
@@ -707,12 +706,9 @@ func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbin
 		tag := ref.Name().Short()
 		version, err := semver.NewVersion(tag)
 		if err != nil {
-			if errors.Is(err, semver.ErrInvalidSemVer) {
-				log.Debugf("Invalid semantic version: %s", tag)
-				continue
-			}
-
-			return "", fmt.Errorf("error parsing version for tag: %w", err)
+			log.Debugf("Error parsing version for tag: '%s': %v", tag, err)
+			// Skip this tag and continue to the next one
+			continue
 		}
 
 		if constraint.Check(version) {
@@ -724,10 +720,10 @@ func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbin
 	}
 
 	if maxVersionHash.IsZero() {
-		return "", nil
+		return ""
 	}
 
-	return maxVersionHash.String(), nil
+	return maxVersionHash.String()
 }
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
@@ -873,7 +869,7 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 			}
 		}
 	}
-	cmd.Env = proxy.UpsertEnv(cmd, m.proxy)
+	cmd.Env = proxy.UpsertEnv(cmd, m.proxy, m.noProxy)
 	opts := executil.ExecRunOpts{
 		TimeoutBehavior: argoexec.TimeoutBehavior{
 			Signal:     syscall.SIGTERM,

@@ -24,13 +24,16 @@ import (
 var _ Generator = (*GitGenerator)(nil)
 
 type GitGenerator struct {
-	repos services.Repos
+	repos     services.Repos
+	namespace string
 }
 
-func NewGitGenerator(repos services.Repos) Generator {
+func NewGitGenerator(repos services.Repos, namespace string) Generator {
 	g := &GitGenerator{
-		repos: repos,
+		repos:     repos,
+		namespace: namespace,
 	}
+
 	return g
 }
 
@@ -59,20 +62,24 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 
 	noRevisionCache := appSet.RefreshRequired()
 
-	var project string
-	if strings.Contains(appSet.Spec.Template.Spec.Project, "{{") {
-		project = appSetGenerator.Git.Template.Spec.Project
-	} else {
-		project = appSet.Spec.Template.Spec.Project
-	}
+	verifyCommit := false
 
-	appProject := &argoprojiov1alpha1.AppProject{}
-	if err := client.Get(context.TODO(), types.NamespacedName{Name: appSet.Spec.Template.Spec.Project, Namespace: appSet.Namespace}, appProject); err != nil {
-		return nil, fmt.Errorf("error getting project %s: %w", project, err)
+	// When the project field is templated, the contents of the git repo are required to run the git generator and get the templated value,
+	// but git generator cannot be called without verifying the commit signature.
+	// In this case, we skip the signature verification.
+	if !strings.Contains(appSet.Spec.Template.Spec.Project, "{{") {
+		project := appSet.Spec.Template.Spec.Project
+		appProject := &argoprojiov1alpha1.AppProject{}
+		namespace := g.namespace
+		if namespace == "" {
+			namespace = appSet.Namespace
+		}
+		if err := client.Get(context.TODO(), types.NamespacedName{Name: project, Namespace: namespace}, appProject); err != nil {
+			return nil, fmt.Errorf("error getting project %s: %w", project, err)
+		}
+		// we need to verify the signature on the Git revision if GPG is enabled
+		verifyCommit = len(appProject.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled()
 	}
-
-	// we need to verify the signature on the Git revision if GPG is enabled
-	verifyCommit := appProject.Spec.SignatureKeys != nil && len(appProject.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled()
 
 	var err error
 	var res []map[string]interface{}

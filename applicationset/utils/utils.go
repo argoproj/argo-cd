@@ -23,6 +23,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 )
 
 var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
@@ -45,6 +46,10 @@ type Renderer interface {
 }
 
 type Render struct{}
+
+func IsNamespaceAllowed(namespaces []string, namespace string) bool {
+	return glob.MatchStringInList(namespaces, namespace, glob.REGEXP)
+}
 
 func copyValueIntoUnexported(destination, value reflect.Value) {
 	reflect.NewAt(destination.Type(), unsafe.Pointer(destination.UnsafeAddr())).
@@ -268,7 +273,7 @@ func (r *Render) RenderTemplateParams(tmpl *argoappsv1.Application, syncPolicy *
 	// b) there IS a syncPolicy, but preserveResourcesOnDeletion is set to false
 	// See TestRenderTemplateParamsFinalizers in util_test.go for test-based definition of behaviour
 	if (syncPolicy == nil || !syncPolicy.PreserveResourcesOnDeletion) &&
-		(replacedTmpl.ObjectMeta.Finalizers == nil || len(replacedTmpl.ObjectMeta.Finalizers) == 0) {
+		len(replacedTmpl.ObjectMeta.Finalizers) == 0 {
 		replacedTmpl.ObjectMeta.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
 	}
 

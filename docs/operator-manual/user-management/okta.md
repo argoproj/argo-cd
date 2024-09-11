@@ -1,7 +1,7 @@
 # Okta
 
 !!! note "Are you using this? Please contribute!"
-    If you're using this IdP please consider [contributing](../../developer-guide/site.md) to this document.
+    If you're using this IdP please consider [contributing](../../developer-guide/docs-site.md) to this document.
 
 A working Single Sign-On configuration using Okta via at least two methods was achieved using:
 
