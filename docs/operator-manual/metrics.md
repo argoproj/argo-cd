@@ -74,6 +74,7 @@ As the Application conditions are specific to each company, this feature is disa
 
 The example below will expose the Argo CD Application condition `OrphanedResourceWarning` and `ExcludedResourceWarning` to Prometheus:
 
+```yaml
     containers:
     - command:
       - argocd-application-controller
