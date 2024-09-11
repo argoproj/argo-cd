@@ -728,7 +728,9 @@ func printParams(app *argoappv1.Application, sourcePosition int) {
 		source = &src
 	}
 
-	printHelmParams(source.Helm)
+	if source.Helm != nil {
+		printHelmParams(source.Helm)
+	}
 }
 
 func printHelmParams(helm *argoappv1.ApplicationSourceHelm) {
