@@ -29,6 +29,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Arctiq Inc.](https://www.arctiq.ca)
 2. [Arturia](https://www.arturia.com)
 1. [ARZ Allgemeines Rechenzentrum GmbH](https://www.arz.at/)
+1. [Augury](https://www.augury.com/)
 1. [Autodesk](https://www.autodesk.com)
 1. [Axians ACSP](https://www.axians.fr)
 1. [Axual B.V.](https://axual.com)

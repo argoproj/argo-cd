@@ -41,7 +41,7 @@ func NewCmd(workDir string, version string, proxy string, noProxy string) (*Cmd,
 func NewCmdWithVersion(workDir string, isHelmOci bool, proxy string, noProxy string) (*Cmd, error) {
 	tmpDir, err := os.MkdirTemp("", "helm")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create temporary directory for helm: %w", err)
 	}
 	return &Cmd{WorkDir: workDir, helmHome: tmpDir, IsHelmOci: isHelmOci, proxy: proxy, noProxy: noProxy}, err
 }
@@ -70,7 +70,10 @@ func (c Cmd) run(args ...string) (string, string, error) {
 
 	out, err := executil.RunWithRedactor(cmd, redactor)
 	fullCommand := executil.GetCommandArgsToLog(cmd)
-	return out, fullCommand, err
+	if err != nil {
+		return out, fullCommand, fmt.Errorf("failed to get command args to log: %w", err)
+	}
+	return out, fullCommand, nil
 }
 
 func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
@@ -92,7 +95,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 	if len(creds.CertData) > 0 {
 		filePath, closer, err := writeToTmp(creds.CertData)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
 		}
 		defer argoio.Close(closer)
 		args = append(args, "--cert-file", filePath)
@@ -101,7 +104,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 	if len(creds.KeyData) > 0 {
 		filePath, closer, err := writeToTmp(creds.KeyData)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
 		}
 		defer argoio.Close(closer)
 		args = append(args, "--key-file", filePath)
@@ -111,20 +114,26 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 		args = append(args, "--insecure")
 	}
 	out, _, err := c.run(args...)
-	return out, err
+	if err != nil {
+		return "", fmt.Errorf("failed to login to registry: %w", err)
+	}
+	return out, nil
 }
 
 func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
 	args := []string{"registry", "logout"}
 	args = append(args, repo)
 	out, _, err := c.run(args...)
-	return out, err
+	if err != nil {
+		return "", fmt.Errorf("failed to logout from registry: %w", err)
+	}
+	return out, nil
 }
 
 func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool) (string, error) {
 	tmp, err := os.MkdirTemp("", "helm")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to create temporary directory for repo: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(tmp) }()
 
@@ -149,11 +158,11 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 	if len(opts.CertData) > 0 {
 		certFile, err := os.CreateTemp("", "helm")
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to create temporary certificate file: %w", err)
 		}
 		_, err = certFile.Write(opts.CertData)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to write certificate data: %w", err)
 		}
 		defer certFile.Close()
 		args = append(args, "--cert-file", certFile.Name())
@@ -162,11 +171,11 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 	if len(opts.KeyData) > 0 {
 		keyFile, err := os.CreateTemp("", "helm")
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to create temporary key file: %w", err)
 		}
 		_, err = keyFile.Write(opts.KeyData)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to write key data: %w", err)
 		}
 		defer keyFile.Close()
 		args = append(args, "--key-file", keyFile.Name())
@@ -179,18 +188,21 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 	args = append(args, name, url)
 
 	out, _, err := c.run(args...)
+	if err != nil {
+		return "", fmt.Errorf("failed to add repository: %w", err)
+	}
 	return out, err
 }
 
 func writeToTmp(data []byte) (string, argoio.Closer, error) {
 	file, err := os.CreateTemp("", "")
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("failed to create temporary file: %w", err)
 	}
 	err = os.WriteFile(file.Name(), data, 0o644)
 	if err != nil {
 		_ = os.RemoveAll(file.Name())
-		return "", nil, err
+		return "", nil, fmt.Errorf("failed to write data to temporary file: %w", err)
 	}
 	defer func() {
 		if err = file.Close(); err != nil {
@@ -228,7 +240,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 	if len(creds.CertData) > 0 {
 		filePath, closer, err := writeToTmp(creds.CertData)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
 		}
 		defer argoio.Close(closer)
 		args = append(args, "--cert-file", filePath)
@@ -236,7 +248,7 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 	if len(creds.KeyData) > 0 {
 		filePath, closer, err := writeToTmp(creds.KeyData)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
 		}
 		defer argoio.Close(closer)
 		args = append(args, "--key-file", filePath)
@@ -246,7 +258,10 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 	}
 
 	out, _, err := c.run(args...)
-	return out, err
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch chart: %w", err)
+	}
+	return out, nil
 }
 
 func (c *Cmd) PullOCI(repo string, chart string, version string, destination string, creds Creds) (string, error) {
@@ -263,7 +278,7 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 	if len(creds.CertData) > 0 {
 		filePath, closer, err := writeToTmp(creds.CertData)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
 		}
 		defer argoio.Close(closer)
 		args = append(args, "--cert-file", filePath)
@@ -272,7 +287,7 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 	if len(creds.KeyData) > 0 {
 		filePath, closer, err := writeToTmp(creds.KeyData)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
 		}
 		defer argoio.Close(closer)
 		args = append(args, "--key-file", filePath)
@@ -282,22 +297,34 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 		args = append(args, "--insecure-skip-tls-verify")
 	}
 	out, _, err := c.run(args...)
-	return out, err
+	if err != nil {
+		return "", fmt.Errorf("failed to pull OCI chart: %w", err)
+	}
+	return out, nil
 }
 
 func (c *Cmd) dependencyBuild() (string, error) {
 	out, _, err := c.run("dependency", "build")
-	return out, err
+	if err != nil {
+		return "", fmt.Errorf("failed to build dependencies: %w", err)
+	}
+	return out, nil
 }
 
 func (c *Cmd) inspectValues(values string) (string, error) {
 	out, _, err := c.run("show", "values", values)
-	return out, err
+	if err != nil {
+		return "", fmt.Errorf("failed to inspect values: %w", err)
+	}
+	return out, nil
 }
 
 func (c *Cmd) InspectChart() (string, error) {
 	out, _, err := c.run("show", "chart", ".")
-	return out, err
+	if err != nil {
+		return "", fmt.Errorf("failed to inspect chart: %w", err)
+	}
+	return out, nil
 }
 
 type TemplateOpts struct {
@@ -332,7 +359,7 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, string, er
 	if callback, err := cleanupChartLockFile(filepath.Clean(path.Join(c.WorkDir, chartPath))); err == nil {
 		defer callback()
 	} else {
-		return "", "", err
+		return "", "", fmt.Errorf("failed to clean up chart lock file: %w", err)
 	}
 
 	args := []string{"template", chartPath, "--name-template", opts.Name}
@@ -387,7 +414,7 @@ func cleanupChartLockFile(chartPath string) (func(), error) {
 		if os.IsNotExist(err) {
 			exists = false
 		} else {
-			return nil, err
+			return nil, fmt.Errorf("failed to check lock file status: %w", err)
 		}
 	}
 	return func() {
@@ -399,7 +426,10 @@ func cleanupChartLockFile(chartPath string) (func(), error) {
 
 func (c *Cmd) Freestyle(args ...string) (string, error) {
 	out, _, err := c.run(args...)
-	return out, err
+	if err != nil {
+		return "", fmt.Errorf("failed to execute freestyle helm command: %w", err)
+	}
+	return out, nil
 }
 
 func (c *Cmd) Close() {

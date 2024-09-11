@@ -1777,6 +1777,8 @@ message ResourceActions {
   optional string actionDiscoveryLua = 1;
 
   repeated ResourceActionDefinition definitions = 2;
+
+  optional bool mergeBuiltinActions = 3;
 }
 
 // ResourceDiff holds the diff of a live and target resource object

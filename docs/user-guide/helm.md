@@ -233,7 +233,7 @@ source:
   helm:
     fileParameters:
       - name: some.key
-        value: path/to/file.ext
+        path: path/to/file.ext
 ```
 
 ## Helm Release Name

@@ -43,6 +43,7 @@ argocd repocreds add REPOURL [flags]
       --github-app-private-key-path string      private key of the GitHub Application
   -h, --help                                    help for add
       --password string                         password to the repository
+      --proxy-url string                        If provided, this URL will be used to connect via proxy
       --ssh-private-key-path string             path to the private ssh key (e.g. ~/.ssh/id_rsa)
       --tls-client-cert-key-path string         path to the TLS client cert's key path (must be PEM format)
       --tls-client-cert-path string             path to the TLS client cert (must be PEM format)
