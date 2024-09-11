@@ -67,7 +67,7 @@ To create an OCI artifact compatible with Argo CD, there are a multitude of tool
 use [ORAS](https://oras.land/). Navigate to the directory where your manifests are located and run `oras push`.
 
 ```shell
-oras push <registry-url> .
+oras push <registry-url>/guestbook:latest .
 ```
 
 ORAS will take care of packaging the directory to a single layer and setting the `mediaType` to 
@@ -99,5 +99,5 @@ oras push -a "org.opencontainers.image.authors=some author" \
           -a "org.opencontainers.image.version=some-version" \
           -a "org.opencontainers.image.source=http://some-source" \
           -a "org.opencontainers.image.description=some description" \
-          localhost:5000/guestbook:latest .
+          <registry-url>/guestbook:latest .
 ```
