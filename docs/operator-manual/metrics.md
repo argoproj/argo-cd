@@ -92,15 +92,15 @@ The Application Set controller exposes the following metrics for application set
 
 | Metric | Type | Description |
 |--------|:----:|-------------|
-| `argocd_appset_info` | gauge | Information about Application Sets. It contains labels for name and namespace of an application set as well as `Resource_update_status`  that reflects the `ResourcesUpToDate` property |
-| `argocd_appset_reconcile` | histogram | Application reconciliation performance in seconds. It contains labels for name and namespace of an applicationset |
+| `argocd_appset_info` | gauge | Information about Application Sets. It contains labels for the name and namespace of an application set as well as `Resource_update_status`  that reflects the `ResourcesUpToDate` property |
+| `argocd_appset_reconcile` | histogram | Application reconciliation performance in seconds. It contains labels for the name and namespace of an applicationset |
 | `argocd_appset_labels` | gauge | Applicationset labels translated to Prometheus labels. Disabled by default |
-| `argocd_appset_owned_applications` | gauge | Number of applications owned by the applicationset. It contains labels for name and namespace of an applicationset. |
+| `argocd_appset_owned_applications` | gauge | Number of applications owned by the applicationset. It contains labels for the name and namespace of an applicationset. |
 
-Similar to the same metric in application controller (`argocd_app_labels`) the metric `argocd_appset_labels` is disabled by default. You can enable it by providing the `–metrics-applicationset-labels` argument to the application set controller.
+Similar to the same metric in application controller (`argocd_app_labels`) the metric `argocd_appset_labels` is disabled by default. You can enable it by providing the `–metrics-applicationset-labels` argument to the applicationset controller.
 
 Once enabled it works exactly the same as application controller metrics (label_ appended to normalized label name).
-The labels available will be: Name, Namespace + all labels enabled by the command line options and their value (exactly like application controller metrics described in the previous section).
+Available labels include Name, Namespace + all labels enabled by the command line options and their value (exactly like application controller metrics described in the previous section).
 
 
 ## API Server Metrics
