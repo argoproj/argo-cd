@@ -100,7 +100,6 @@ patches:
         value: <your-custom-namespace>
     target:
       kind: ClusterRoleBinding
-      name: <name-of-clusterrolebinding>
 ```
 
 This patch ensures that the ClusterRoleBinding correctly maps to the ServiceAccount in your custom namespace, preventing any permission-related issues during the deployment.
