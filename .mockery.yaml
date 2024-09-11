@@ -43,6 +43,7 @@ packages:
       ProjectGetter:
       RbacEnforcer:
       SettingsGetter:
+      UserGetter:
   github.com/argoproj/argo-cd/v2/util/db:
     interfaces:
       ArgoDB:
