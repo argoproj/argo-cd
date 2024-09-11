@@ -245,13 +245,10 @@ func TestCallExtension(t *testing.T) {
 		rbacMock           *mocks.RbacEnforcer
 		projMock           *mocks.ProjectGetter
 		metricsMock        *mocks.ExtensionMetricsRegistry
+		userMock           *mocks.UserGetter
 		manager            *extension.Manager
 	}
 	defaultProjectName := "project-name"
-
-	usernameFn := func(context.Context) string {
-		return "loggedinUser"
-	}
 
 	setup := func() *fixture {
 		appMock := &mocks.ApplicationGetter{}
@@ -259,10 +256,11 @@ func TestCallExtension(t *testing.T) {
 		rbacMock := &mocks.RbacEnforcer{}
 		projMock := &mocks.ProjectGetter{}
 		metricsMock := &mocks.ExtensionMetricsRegistry{}
+		userMock := &mocks.UserGetter{}
 
 		logger, _ := test.NewNullLogger()
 		logEntry := logger.WithContext(context.Background())
-		m := extension.NewManager(logEntry, settMock, appMock, projMock, rbacMock, usernameFn)
+		m := extension.NewManager(logEntry, settMock, appMock, projMock, rbacMock, userMock)
 		m.AddMetricsRegistry(metricsMock)
 
 		mux := http.NewServeMux()
@@ -276,6 +274,7 @@ func TestCallExtension(t *testing.T) {
 			rbacMock:           rbacMock,
 			projMock:           projMock,
 			metricsMock:        metricsMock,
+			userMock:           userMock,
 			manager:            m,
 		}
 	}
@@ -351,6 +350,11 @@ func TestCallExtension(t *testing.T) {
 		f.rbacMock.On("EnforceErr", mock.Anything, rbacpolicy.ResourceExtensions, rbacpolicy.ActionInvoke, mock.Anything).Return(extAccessError)
 	}
 
+	withUser := func(f *fixture, username string, groups []string) {
+		f.userMock.On("GetUser", mock.Anything).Return(username)
+		f.userMock.On("GetGroups", mock.Anything).Return(groups)
+	}
+
 	withExtensionConfig := func(configYaml string, f *fixture) {
 		secrets := make(map[string]string)
 		secrets["extension.auth.header"] = "Bearer some-bearer-token"
@@ -407,6 +411,7 @@ func TestCallExtension(t *testing.T) {
 		}))
 		defer backendSrv.Close()
 		withRbac(f, true, true)
+		withUser(f, "some-user", []string{"group1", "group2"})
 		withExtensionConfig(getExtensionConfig(backendEndpoint, backendSrv.URL), f)
 		ts := startTestServer(t, f)
 		defer ts.Close()
@@ -441,7 +446,8 @@ func TestCallExtension(t *testing.T) {
 		assert.Equal(t, backendResponse, actual)
 		assert.Equal(t, clusterURL, resp.Header.Get(extension.HeaderArgoCDTargetClusterURL))
 		assert.Equal(t, "Bearer some-bearer-token", resp.Header.Get("Authorization"))
-		assert.Equal(t, "loggedinUser", resp.Header.Get(extension.HeaderArgoCDUsername))
+		assert.Equal(t, "some-user", resp.Header.Get(extension.HeaderArgoCDUsername))
+		assert.Equal(t, "group1,group2", resp.Header.Get(extension.HeaderArgoCDGroups))
 
 		// waitgroup is necessary to make sure assertions aren't executed before
 		// the goroutine initiated by extension.CallExtension concludes which would
@@ -457,6 +463,7 @@ func TestCallExtension(t *testing.T) {
 		withExtensionConfig(getExtensionConfigString(), f)
 		withRbac(f, true, true)
 		withMetrics(f)
+		withUser(f, "some-user", []string{"group1", "group2"})
 		cluster1Name := "cluster1"
 		f.appGetterMock.On("Get", "namespace", "app-name").Return(getApp(cluster1Name, "", defaultProjectName), nil)
 		withProject(getProjectWithDestinations("project-name", []string{cluster1Name}, []string{"some-url"}), f)
@@ -497,6 +504,7 @@ func TestCallExtension(t *testing.T) {
 		withExtensionConfig(getExtensionConfigWith2Backends(extName, beSrv1.URL, cluster1Name, beSrv2.URL, cluster2URL), f)
 		withProject(getProjectWithDestinations("project-name", []string{cluster1Name}, []string{cluster2URL}), f)
 		withMetrics(f)
+		withUser(f, "some-user", []string{"group1", "group2"})
 
 		ts := startTestServer(t, f)
 		defer ts.Close()
@@ -543,6 +551,7 @@ func TestCallExtension(t *testing.T) {
 		withRbac(f, allowApp, allowExtension)
 		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
 		withMetrics(f)
+		withUser(f, "some-user", []string{"group1", "group2"})
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
@@ -566,6 +575,7 @@ func TestCallExtension(t *testing.T) {
 		withRbac(f, allowApp, allowExtension)
 		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
 		withMetrics(f)
+		withUser(f, "some-user", []string{"group1", "group2"})
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
@@ -590,6 +600,7 @@ func TestCallExtension(t *testing.T) {
 		withRbac(f, allowApp, allowExtension)
 		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
 		withMetrics(f)
+		withUser(f, "some-user", []string{"group1", "group2"})
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
@@ -615,6 +626,7 @@ func TestCallExtension(t *testing.T) {
 		withRbac(f, allowApp, allowExtension)
 		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
 		withMetrics(f)
+		withUser(f, "some-user", []string{"group1", "group2"})
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
@@ -640,6 +652,7 @@ func TestCallExtension(t *testing.T) {
 		withRbac(f, allowApp, allowExtension)
 		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
 		withMetrics(f)
+		withUser(f, "some-user", []string{"group1", "group2"})
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/%s/", ts.URL, extName))
@@ -671,6 +684,7 @@ func TestCallExtension(t *testing.T) {
 		withExtensionConfig(getExtensionConfigWith2Backends(extName, "url1", "clusterName", "url2", "clusterURL"), f)
 		withProject(getProjectWithDestinations("project-name", nil, []string{"srv1", destinationServer}), f)
 		withMetrics(f)
+		withUser(f, "some-user", []string{"group1", "group2"})
 
 		ts := startTestServer(t, f)
 		defer ts.Close()
@@ -704,6 +718,7 @@ func TestCallExtension(t *testing.T) {
 		withRbac(f, allowApp, allowExtension)
 		withExtensionConfig(getExtensionConfig(extName, "http://fake"), f)
 		withMetrics(f)
+		withUser(f, "some-user", []string{"group1", "group2"})
 		ts := startTestServer(t, f)
 		defer ts.Close()
 		r := newExtensionRequest(t, "Get", fmt.Sprintf("%s/extensions/", ts.URL))
