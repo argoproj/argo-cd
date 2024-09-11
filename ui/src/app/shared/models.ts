@@ -127,6 +127,10 @@ export interface ResourceResult {
     hookPhase: OperationPhase;
 }
 
+export type SyncResourceResult = ResourceResult & {
+    health?: HealthStatus;
+};
+
 export const AnnotationRefreshKey = 'argocd.argoproj.io/refresh';
 export const AnnotationHookKey = 'argocd.argoproj.io/hook';
 export const AnnotationSyncWaveKey = 'argocd.argoproj.io/sync-wave';
