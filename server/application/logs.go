@@ -144,8 +144,8 @@ func mergeLogStreams(streams []chan logEntry, bufferingDuration time.Duration) c
 
 		_ = send(true)
 
-		close(merged)
 		ticker.Stop()
+		close(merged)
 	}()
 	return merged
 }
