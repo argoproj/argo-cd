@@ -1075,6 +1075,9 @@ message HealthStatus {
 
   // LastTransitionTime is the time the HealthStatus was set or updated
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
+
+  // ObservedAt is a timestamp that is periodically updated to reflect the freshness of the observed state.
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 4;
 }
 
 // HelmFileParameter is a file parameter that's passed to helm template during manifest generation
