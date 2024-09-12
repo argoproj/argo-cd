@@ -499,7 +499,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             return <>{cont}</>;
         } else if (application.spec.source) {
             if (source.repoURL.startsWith('oci://')) {
-                cont.push(getContentForOci(revision, null, null, 0, source));
+                cont.push(getContentForOci(revision, null, getAppCurrentVersion(application), 0, source));
             } else if (source.chart) {
                 cont.push(getContentForChart(revision, null, null, 0, source));
             } else {
