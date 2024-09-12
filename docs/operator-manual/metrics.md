@@ -31,6 +31,8 @@ to deleted resources, you can schedule a metrics reset to clean the
 history with an application controller flag. Example:
 `--metrics-cache-expiration="24h0m0s"`.
 
+
+
 ### Exposing Application labels as Prometheus metrics
 
 There are use-cases where Argo CD Applications contain labels that are desired to be exposed as Prometheus metrics.
@@ -74,6 +76,7 @@ As the Application conditions are specific to each company, this feature is disa
 
 The example below will expose the Argo CD Application condition `OrphanedResourceWarning` and `ExcludedResourceWarning` to Prometheus:
 
+```yaml
     containers:
     - command:
       - argocd-application-controller
@@ -82,6 +85,22 @@ The example below will expose the Argo CD Application condition `OrphanedResourc
       - --metrics-application-conditions
       - ExcludedResourceWarning
 ```
+
+## Application Set Controller metrics
+
+The Application Set controller exposes the following metrics for application sets.
+
+| Metric | Type | Description |
+|--------|:----:|-------------|
+| `argocd_appset_info` | gauge | Information about Application Sets. It contains labels for the name and namespace of an application set as well as `Resource_update_status`  that reflects the `ResourcesUpToDate` property |
+| `argocd_appset_reconcile` | histogram | Application reconciliation performance in seconds. It contains labels for the name and namespace of an applicationset |
+| `argocd_appset_labels` | gauge | Applicationset labels translated to Prometheus labels. Disabled by default |
+| `argocd_appset_owned_applications` | gauge | Number of applications owned by the applicationset. It contains labels for the name and namespace of an applicationset. |
+
+Similar to the same metric in application controller (`argocd_app_labels`) the metric `argocd_appset_labels` is disabled by default. You can enable it by providing the `–metrics-applicationset-labels` argument to the applicationset controller.
+
+Once enabled it works exactly the same as application controller metrics (label_ appended to normalized label name).
+Available labels include Name, Namespace + all labels enabled by the command line options and their value (exactly like application controller metrics described in the previous section).
 
 ## API Server Metrics
 Metrics about API Server API request and response activity (request totals, response codes, etc...).
