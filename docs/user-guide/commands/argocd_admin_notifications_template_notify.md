@@ -37,7 +37,7 @@ argocd admin notifications template notify app-sync-succeeded guestbook
       --as string                       Username to impersonate for the operation
       --as-group stringArray            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                   UID to impersonate for the operation
-      --auth-token string               Authentication token
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --certificate-authority string    Path to a cert file for the certificate authority
       --client-certificate string       Path to a client certificate file for TLS
       --client-crt string               Client certificate file
