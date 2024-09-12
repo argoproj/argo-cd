@@ -349,19 +349,14 @@ func (s *Service) runRepoOperation(
 	}
 
 	if source.IsOCI() {
-		digest, err := ociClient.ResolveDigest(ctx, revision)
-		if err != nil {
-			return err
-		}
-
 		if settings.noCache {
-			err = ociClient.CleanCache(digest, repo.Project)
+			err = ociClient.CleanCache(revision, repo.Project)
 			if err != nil {
 				return err
 			}
 		}
 
-		ociPath, closer, err := ociClient.Extract(ctx, digest, repo.Project, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
+		ociPath, closer, err := ociClient.Extract(ctx, revision, repo.Project, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
 		if err != nil {
 			return err
 		}
@@ -375,7 +370,7 @@ func (s *Service) runRepoOperation(
 					log.WithFields(log.Fields{
 						common.SecurityField: common.SecurityHigh,
 						"repo":               repo.Repo,
-						"digest":             digest,
+						"digest":             revision,
 						"file":               oobError.File,
 					}).Warn("oci image contains out-of-bounds symlink")
 					return fmt.Errorf("oci image contains out-of-bounds symlinks. file: %s", oobError.File)
@@ -384,7 +379,7 @@ func (s *Service) runRepoOperation(
 				}
 			}
 		}
-		return operation(ociPath, digest, revision, func() (*operationContext, error) {
+		return operation(ociPath, revision, revision, func() (*operationContext, error) {
 			return &operationContext{ociPath, ""}, nil
 		})
 	} else if source.IsHelm() {

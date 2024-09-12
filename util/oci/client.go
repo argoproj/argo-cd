@@ -50,7 +50,6 @@ type indexCache interface {
 // Client is a generic oci client interface
 type Client interface {
 	GetTags(ctx context.Context, noCache bool) (*TagsList, error)
-	ResolveDigest(ctx context.Context, revision string) (string, error)
 	ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error)
 	DigestMetadata(ctx context.Context, digest, project string) (*v1.Manifest, error)
 	CleanCache(revision string, project string) error
@@ -217,16 +216,6 @@ func (c *nativeOCIClient) CleanCache(revision, project string) error {
 	return os.RemoveAll(cachePath)
 }
 
-// ResolveDigest resolves a digest from a tag.
-func (c *nativeOCIClient) ResolveDigest(ctx context.Context, revision string) (string, error) {
-	descriptor, err := c.repo.Resolve(ctx, revision)
-	if err != nil {
-		return "", fmt.Errorf("cannot get digest: %w", err)
-	}
-
-	return descriptor.Digest.String(), nil
-}
-
 // DigestMetadata extracts the OCI manifest for a given revision and returns it to the caller.
 func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest, project string) (*v1.Manifest, error) {
 	path, err := c.getCachedPath(digest, project)
@@ -253,10 +242,10 @@ func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, 
 		if err != nil {
 			return "", fmt.Errorf("no version for constraints: %w", err)
 		}
-		return version.String(), nil
+		return c.resolveDigest(ctx, version.String())
 	}
 
-	return revision, nil
+	return c.resolveDigest(ctx, revision)
 }
 
 func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) (*TagsList, error) {
@@ -302,6 +291,16 @@ func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) (*TagsList,
 	}
 
 	return tags, nil
+}
+
+// resolveDigest resolves a digest from a tag.
+func (c *nativeOCIClient) resolveDigest(ctx context.Context, revision string) (string, error) {
+	descriptor, err := c.repo.Resolve(ctx, revision)
+	if err != nil {
+		return "", fmt.Errorf("cannot get digest: %w", err)
+	}
+
+	return descriptor.Digest.String(), nil
 }
 
 func newTLSConfig(creds Creds) (*tls.Config, error) {
