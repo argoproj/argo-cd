@@ -818,9 +818,9 @@ stringData:
       }        
     }
 ```
-This will instruct ArgoCD to read the file at the provided path and use the credentials defined within to authenticate to
-AWS. The profile must be mounted in order for this to work. For example, the following values can be defined in a Helm
-based ArgoCD deployment:
+This will instruct Argo CD to read the file at the provided path and use the credentials defined within to authenticate to AWS. 
+The profile must be mounted in both the `argocd-server` and `argocd-application-controller` components in order for this to work.
+For example, the following values can be defined in a Helm-based Argo CD deployment:
 
 ```yaml
 controller:

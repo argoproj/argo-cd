@@ -190,7 +190,11 @@ func isArgoCDConfigMap(name string) bool {
 // specsEqual returns if the spec, data, labels, annotations, and finalizers of the two
 // supplied objects are equal, indicating that no update is necessary during importing
 func specsEqual(left, right unstructured.Unstructured) bool {
-	if !reflect.DeepEqual(left.GetAnnotations(), right.GetAnnotations()) {
+	leftAnnotation := left.GetAnnotations()
+	rightAnnotation := right.GetAnnotations()
+	delete(leftAnnotation, apiv1.LastAppliedConfigAnnotation)
+	delete(rightAnnotation, apiv1.LastAppliedConfigAnnotation)
+	if !reflect.DeepEqual(leftAnnotation, rightAnnotation) {
 		return false
 	}
 	if !reflect.DeepEqual(left.GetLabels(), right.GetLabels()) {

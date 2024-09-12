@@ -29,7 +29,7 @@ type rbacTrait struct {
 }
 
 // Provide a mapping of short-hand resource names to their RBAC counterparts
-var resourceMap map[string]string = map[string]string{
+var resourceMap = map[string]string{
 	"account":         rbacpolicy.ResourceAccounts,
 	"app":             rbacpolicy.ResourceApplications,
 	"apps":            rbacpolicy.ResourceApplications,
@@ -53,8 +53,17 @@ var resourceMap map[string]string = map[string]string{
 	"repository":      rbacpolicy.ResourceRepositories,
 }
 
+var projectScoped = map[string]bool{
+	rbacpolicy.ResourceApplications:    true,
+	rbacpolicy.ResourceApplicationSets: true,
+	rbacpolicy.ResourceLogs:            true,
+	rbacpolicy.ResourceExec:            true,
+	rbacpolicy.ResourceClusters:        true,
+	rbacpolicy.ResourceRepositories:    true,
+}
+
 // List of allowed RBAC resources
-var validRBACResourcesActions map[string]actionTraitMap = map[string]actionTraitMap{
+var validRBACResourcesActions = map[string]actionTraitMap{
 	rbacpolicy.ResourceAccounts:        accountsActions,
 	rbacpolicy.ResourceApplications:    applicationsActions,
 	rbacpolicy.ResourceApplicationSets: defaultCRUDActions,
@@ -436,14 +445,15 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 		}
 	}
 
-	// Application resources have a special notation - for simplicity's sake,
+	// Some project scoped resources have a special notation - for simplicity's sake,
 	// if user gives no sub-resource (or specifies simple '*'), we construct
 	// the required notation by setting subresource to '*/*'.
-	if realResource == rbacpolicy.ResourceApplications {
+	if projectScoped[realResource] {
 		if subResource == "*" || subResource == "" {
 			subResource = "*/*"
 		}
-	} else if realResource == rbacpolicy.ResourceLogs {
+	}
+	if realResource == rbacpolicy.ResourceLogs {
 		if isLogRbacEnforced != nil && !isLogRbacEnforced() {
 			return true
 		}
