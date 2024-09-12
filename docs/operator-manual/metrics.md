@@ -102,7 +102,6 @@ Similar to the same metric in application controller (`argocd_app_labels`) the m
 Once enabled it works exactly the same as application controller metrics (label_ appended to normalized label name).
 Available labels include Name, Namespace + all labels enabled by the command line options and their value (exactly like application controller metrics described in the previous section).
 
-
 ## API Server Metrics
 Metrics about API Server API request and response activity (request totals, response codes, etc...).
 Scraped at the `argocd-server-metrics:8083/metrics` endpoint.
