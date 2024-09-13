@@ -1,7 +1,4 @@
-import React from 'react';
 import {diffLines, formatLines} from 'unidiff';
-import {parseDiff} from 'react-diff-view';
-import {IndividualDiffSection} from './individual-diff-section';
 
 const calcMaxTime = 100;
 
@@ -28,10 +25,6 @@ export interface AsyncDiffModel {
     params: any;
     resolve?: CallableFunction;
     reject?: CallableFunction;
-}
-
-interface DiffFileModel {
-    [key: string]: any;
 }
 
 export const diffQueue: AsyncDiffModel[] = [];
@@ -93,52 +86,6 @@ export function processQueue() {
     }
 
     if (enabled) {
-        requestAnimationFrame(processQueue);
+        requestIdleCallback(processQueue);
     }
 }
-
-export interface ApplicationResourcesDiffItemProps {
-    compactDiff: boolean;
-    inlineDiff: boolean;
-    a: string;
-    b: string;
-    name: string;
-    whiteBox: string;
-    showPath: boolean;
-    hook: boolean;
-}
-
-export const ApplicationResourcesDiffItem = (props: ApplicationResourcesDiffItemProps) => {
-    const {showPath, whiteBox, inlineDiff} = props;
-    const viewType = inlineDiff ? 'unified' : 'split';
-    const [loading, updateLoading] = React.useState(true);
-    const [diffFile, setDiffFile] = React.useState<DiffFileModel>({});
-
-    let isExit = false;
-
-    React.useEffect(() => {
-        updateLoading(true);
-        addQueueItem({
-            compactDiff: props.compactDiff,
-            a: props.a,
-            b: props.b,
-            name: props.name
-        }).then((diffText: string) => {
-            const files = parseDiff(diffText);
-            if (isExit) {
-                return;
-            }
-            setDiffFile({
-                ...files[0]
-            });
-
-            updateLoading(false);
-        });
-
-        return () => {
-            isExit = true;
-        };
-    }, [showPath, inlineDiff, props.compactDiff, props.a, props.b, props.name]);
-
-    return <IndividualDiffSection file={diffFile} showPath={showPath} loading={loading} whiteBox={whiteBox} viewType={viewType} />;
-};

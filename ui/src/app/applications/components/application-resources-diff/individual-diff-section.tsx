@@ -11,9 +11,10 @@ export interface IndividualDiffSectionProps {
     whiteBox: string;
     viewType: string;
     loading?: boolean;
+    dataIndex?: number;
 }
 
-export const IndividualDiffSection = (props: IndividualDiffSectionProps) => {
+export const IndividualDiffSection = React.forwardRef<HTMLDivElement, IndividualDiffSectionProps>((props: IndividualDiffSectionProps, ref) => {
     const {file, showPath, whiteBox, viewType, loading} = props;
     const [collapsed, setCollapsed] = useState(false);
     const options = {
@@ -23,7 +24,7 @@ export const IndividualDiffSection = (props: IndividualDiffSectionProps) => {
     const token = tokenize(file.hunks, options);
 
     return (
-        <div className={`${whiteBox} application-component-diff__diff`}>
+        <div data-index={props.dataIndex} ref={ref} className={`${whiteBox} application-component-diff__diff`}>
             {showPath && (
                 <p className='application-resources-diff__diff__title'>
                     {file.newPath}
@@ -40,4 +41,4 @@ export const IndividualDiffSection = (props: IndividualDiffSectionProps) => {
                 ))}
         </div>
     );
-};
+});
