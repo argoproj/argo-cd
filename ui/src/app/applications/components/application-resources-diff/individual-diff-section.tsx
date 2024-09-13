@@ -10,10 +10,11 @@ export interface IndividualDiffSectionProps {
     showPath: boolean;
     whiteBox: string;
     viewType: string;
+    loading?: boolean;
 }
 
 export const IndividualDiffSection = (props: IndividualDiffSectionProps) => {
-    const {file, showPath, whiteBox, viewType} = props;
+    const {file, showPath, whiteBox, viewType, loading} = props;
     const [collapsed, setCollapsed] = useState(false);
     const options = {
         highlight: false,
@@ -29,11 +30,14 @@ export const IndividualDiffSection = (props: IndividualDiffSectionProps) => {
                     <i className={`fa fa-caret-${collapsed ? 'down' : 'up'} diff__collapse`} onClick={() => setCollapsed(!collapsed)} />
                 </p>
             )}
-            {!collapsed && (
-                <Diff viewType={viewType} diffType={file.type} hunks={file.hunks} tokens={token}>
-                    {(hunks: any) => hunks.map((hunk: any) => <Hunk className={'custom-diff-hunk'} key={hunk.content} hunk={hunk} />)}
-                </Diff>
-            )}
+            {!collapsed &&
+                (!loading ? (
+                    <Diff viewType={viewType} diffType={file.type} hunks={file.hunks} tokens={token}>
+                        {(hunks: any) => hunks.map((hunk: any) => <Hunk className={'custom-diff-hunk'} key={hunk.content} hunk={hunk} />)}
+                    </Diff>
+                ) : (
+                    <>loading...</>
+                ))}
         </div>
     );
 };
