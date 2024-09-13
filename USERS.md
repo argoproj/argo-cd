@@ -11,6 +11,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [7shifts](https://www.7shifts.com/)
 1. [Adevinta](https://www.adevinta.com/)
 1. [Adfinis](https://adfinis.com)
+1. [Adobe](https://www.adobe.com/)
 1. [Adventure](https://jp.adventurekk.com/)
 1. [Adyen](https://www.adyen.com)
 1. [AirQo](https://airqo.net/)
