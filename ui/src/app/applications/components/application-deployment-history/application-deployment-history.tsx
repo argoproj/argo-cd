@@ -24,7 +24,7 @@ export const ApplicationDeploymentHistory = ({
     const recentDeployments = deployments.map((info, i) => {
         const nextDeployedAt = i === 0 ? null : deployments[i - 1].deployedAt;
         const runEnd = nextDeployedAt ? moment(nextDeployedAt) : moment();
-        return {...info, nextDeployedAt, durationMs: runEnd.diff(moment(info.deployedAt)) / 1000};
+        return {...info, nextDeployedAt, durationS: runEnd.diff(moment(info.deployedAt)) / 1000};
     });
     return (
         <div className='application-deployment-history'>
@@ -40,7 +40,7 @@ export const ApplicationDeploymentHistory = ({
                             <br />
                             <i className='fa fa-hourglass-half' /> <span className='show-for-large'>Time to deploy:</span>
                             <br />
-                            {(info.deployStartedAt && <Duration durationS={moment(info.deployedAt).diff(moment(info.deployStartedAt)) / 1000} durationMs={0} />) || 'Unknown'}
+                            {(info.deployStartedAt && <Duration durationS={moment(info.deployedAt).diff(moment(info.deployStartedAt)) / 1000} />) || 'Unknown'}
                         </div>
                         <div>
                             <br />
@@ -52,7 +52,7 @@ export const ApplicationDeploymentHistory = ({
                             <br />
                             Active for:
                             <br />
-                            <Duration durationS={info.durationMs} durationMs={0} />
+                            <Duration durationS={info.durationS} />
                         </div>
                     </div>
                     <div className='columns small-9'>
