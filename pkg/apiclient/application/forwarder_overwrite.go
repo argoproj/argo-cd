@@ -116,9 +116,11 @@ func init() {
 		if req.URL.Query().Get("download") == "true" {
 			w.Header().Set("Content-Type", "application/octet-stream")
 			fileName := "log"
-			if container := req.URL.Query().Get("container"); len(container) > 0 && kube.IsValidResourceName(container) {
-				fileName = container
-			}
+			if appNamespace = req.URL.Query().Get("appNamespace"); len(appNamespace) > 0 &&
+			podName = req.URL.Query().Get("podName"); len(podName) > 0 &&
+			kube.IsValidResourceName(appNamespace) && kube.IsValidResourceName(podName) {
+			 fileName = fmt.Sprintf("%s-%s", appNamespace, podName)
+		 	}		 
 			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s.log"`, fileName))
 			for {
 				msg, err := recv()
