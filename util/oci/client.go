@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/opencontainers/go-digest"
 	"oras.land/oras-go/v2/content/oci"
 
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -49,7 +50,6 @@ type indexCache interface {
 
 // Client is a generic oci client interface
 type Client interface {
-	GetTags(ctx context.Context, noCache bool) (*TagsList, error)
 	ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error)
 	DigestMetadata(ctx context.Context, digest, project string) (*v1.Manifest, error)
 	CleanCache(revision string, project string) error
@@ -116,26 +116,38 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 		}),
 	}
 
+	return newClientWithLock(ociRepo, creds, repoLock, repo, func(ctx context.Context, last string) ([]string, error) {
+		var t []string
+		err := repo.Tags(ctx, last, func(tags []string) error {
+			t = append(t, tags...)
+			return nil
+		})
+
+		return t, err
+	}, layerMediaTypes, opts...), nil
+}
+
+func newClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, repo oras.ReadOnlyTarget, tagsFunc func(context.Context, string) ([]string, error), layerMediaTypes []string, opts ...ClientOpts) Client {
 	c := &nativeOCIClient{
 		creds:             creds,
-		repoURL:           ociRepo,
-		proxy:             proxyUrl,
+		repoURL:           repoURL,
 		repoLock:          repoLock,
 		repo:              repo,
+		tagsFunc:          tagsFunc,
 		allowedMediaTypes: layerMediaTypes,
 	}
 	for i := range opts {
 		opts[i](c)
 	}
-	return c, nil
+	return c
 }
 
 // nativeOCIClient implements Client interface using oras-go
 type nativeOCIClient struct {
 	creds             Creds
 	repoURL           string
-	proxy             string
-	repo              *remote.Repository
+	repo              oras.ReadOnlyTarget
+	tagsFunc          func(context.Context, string) ([]string, error)
 	repoLock          sync.KeyLock
 	indexCache        indexCache
 	repoCachePaths    argoio.TempPaths
@@ -144,9 +156,7 @@ type nativeOCIClient struct {
 
 // TestRepo verifies that the remote OCI repo can be connected to.
 func (c *nativeOCIClient) TestRepo(ctx context.Context) (bool, error) {
-	err := c.repo.Tags(ctx, "", func(tags []string) error {
-		return nil
-	})
+	_, err := c.tagsFunc(ctx, "")
 	return err == nil, err
 }
 
@@ -234,7 +244,7 @@ func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest, project st
 func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error) {
 	constraints, err := semver.NewConstraint(revision)
 	if err == nil {
-		tags, err := c.GetTags(ctx, noCache)
+		tags, err := c.getTags(ctx, noCache)
 		if err != nil {
 			return "", fmt.Errorf("error fetching tags: %w", err)
 		}
@@ -248,7 +258,7 @@ func (c *nativeOCIClient) ResolveRevision(ctx context.Context, revision string, 
 	return c.resolveDigest(ctx, revision)
 }
 
-func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) (*TagsList, error) {
+func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) (*TagsList, error) {
 	indexLock.Lock(c.repoURL)
 	defer indexLock.Unlock(c.repoURL)
 
@@ -262,18 +272,17 @@ func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) (*TagsList,
 	tags := &TagsList{}
 	if len(data) == 0 {
 		start := time.Now()
-		err := c.repo.Tags(ctx, "", func(tagsResult []string) error {
-			for _, tag := range tagsResult {
-				// By convention: Change underscore (_) back to plus (+) to get valid SemVer
-				convertedTag := strings.ReplaceAll(tag, "_", "+")
-				tags.Tags = append(tags.Tags, convertedTag)
-			}
-
-			return nil
-		})
+		result, err := c.tagsFunc(ctx, "")
 		if err != nil {
 			return nil, fmt.Errorf("failed to get tags: %w", err)
 		}
+
+		for _, tag := range result {
+			// By convention: Change underscore (_) back to plus (+) to get valid SemVer
+			convertedTag := strings.ReplaceAll(tag, "_", "+")
+			tags.Tags = append(tags.Tags, convertedTag)
+		}
+
 		log.WithFields(
 			log.Fields{"seconds": time.Since(start).Seconds(), "repo": c.repoURL},
 		).Info("took to get tags")
@@ -297,6 +306,10 @@ func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) (*TagsList,
 func (c *nativeOCIClient) resolveDigest(ctx context.Context, revision string) (string, error) {
 	descriptor, err := c.repo.Resolve(ctx, revision)
 	if err != nil {
+		exists, _ := c.repo.Exists(ctx, v1.Descriptor{Digest: digest.Digest(revision)})
+		if exists {
+			return revision, nil
+		}
 		return "", fmt.Errorf("cannot get digest: %w", err)
 	}
 
@@ -363,7 +376,7 @@ func createTarFile(from, to string) error {
 }
 
 // saveCompressedImageToPath downloads a remote OCI image on a given digest and stores it as a TAR file in cachedPath.
-func saveCompressedImageToPath(ctx context.Context, digest string, repo *remote.Repository, cachedPath string) error {
+func saveCompressedImageToPath(ctx context.Context, digest string, repo oras.ReadOnlyTarget, cachedPath string) error {
 	tempDir, err := files.CreateTempDir(os.TempDir())
 	if err != nil {
 		return err
