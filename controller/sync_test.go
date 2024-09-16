@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"strconv"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/sync"
@@ -9,6 +10,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -641,6 +643,733 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		env0 := env[0].(map[string]interface{})
 		assert.Equal(t, "EV", env0["name"])
 		assert.Equal(t, "here", env0["value"])
+	})
+}
+
+func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
+	type fixture struct {
+		project     *v1alpha1.AppProject
+		application *v1alpha1.Application
+	}
+
+	setup := func(destinationServiceAccounts []v1alpha1.ApplicationDestinationServiceAccount, destinationNamespace, destinationServerURL, applicationNamespace string) *fixture {
+		project :=
+			&v1alpha1.AppProject{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "argocd-ns",
+					Name:      "testProj",
+				},
+				Spec: v1alpha1.AppProjectSpec{
+					DestinationServiceAccounts: destinationServiceAccounts,
+				},
+			}
+		app :=
+			&v1alpha1.Application{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: applicationNamespace,
+					Name:      "testApp",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "testProj",
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    destinationServerURL,
+						Namespace: destinationNamespace,
+					},
+				},
+			}
+		return &fixture{
+			project:     project,
+			application: app,
+		}
+	}
+
+	t.Run("empty destination service accounts", func(t *testing.T) {
+		// given app sync impersonation feature is enabled and has a project no matching service account
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := ""
+		expectedErrMsg := "no matching service account found for destination server https://kubernetes.svc.local and namespace testns"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := deriveServiceAccountName(f.project, f.application)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, app sync should fail
+		assert.EqualError(t, err, expectedErrMsg)
+	})
+
+	t.Run("exact match of destination namespace", func(t *testing.T) {
+		// given app sync impersonation feature is enabled and has a project no matching service account
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := deriveServiceAccountName(f.project, f.application)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, app sync should not fail
+		assert.NoError(t, err)
+	})
+
+	t.Run("exact one match with multiple destination service accounts", func(t *testing.T) {
+		// given app sync impersonation feature is enabled and has a project no matching service account
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "guestbook",
+				DefaultServiceAccount: "guestbook-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "guestbook-test",
+				DefaultServiceAccount: "guestbook-test-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "default",
+				DefaultServiceAccount: "default-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := deriveServiceAccountName(f.project, f.application)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, app sync should not fail
+		assert.NoError(t, err)
+	})
+
+	t.Run("first match to be used when multiple matches are available", func(t *testing.T) {
+		// given app sync impersonation feature is enabled and has a project no matching service account
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa-2",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa-3",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "guestbook",
+				DefaultServiceAccount: "guestbook-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := deriveServiceAccountName(f.project, f.application)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, app sync should fail
+		assert.NoError(t, err)
+	})
+
+	t.Run("first match to be used when glob pattern is used", func(t *testing.T) {
+		// given app sync impersonation feature is enabled and has a project no matching service account
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "test*",
+				DefaultServiceAccount: "test-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa-2",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "default",
+				DefaultServiceAccount: "default-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := deriveServiceAccountName(f.project, f.application)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, app sync should not fail
+		assert.NoError(t, err)
+	})
+
+	t.Run("no match among a valid list", func(t *testing.T) {
+		// given app sync impersonation feature is enabled and has a project no matching service account
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "test1",
+				DefaultServiceAccount: "test-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "test2",
+				DefaultServiceAccount: "test-sa-2",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "default",
+				DefaultServiceAccount: "default-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := ""
+		expectedErrMsg := "no matching service account found for destination server https://kubernetes.svc.local and namespace testns"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := deriveServiceAccountName(f.project, f.application)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, app sync should fail
+		assert.EqualError(t, err, expectedErrMsg)
+	})
+
+	t.Run("app destination namespace is empty", func(t *testing.T) {
+		// given app sync impersonation feature is enabled and has a project no matching service account
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				DefaultServiceAccount: "test-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "*",
+				DefaultServiceAccount: "test-sa-2",
+			},
+		}
+		destinationNamespace := ""
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:argocd-ns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := deriveServiceAccountName(f.project, f.application)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, app sync should fail
+		assert.NoError(t, err)
+	})
+
+	t.Run("match done via catch all glob pattern", func(t *testing.T) {
+		// given app sync impersonation feature is enabled and has a project no matching service account
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns1",
+				DefaultServiceAccount: "test-sa-2",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "default",
+				DefaultServiceAccount: "default-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "*",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := deriveServiceAccountName(f.project, f.application)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, app sync should fail
+		assert.NoError(t, err)
+	})
+
+	t.Run("sa specified with a namespace", func(t *testing.T) {
+		// given app sync impersonation feature is enabled and has a project no matching service account
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "myns:test-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "default",
+				DefaultServiceAccount: "default-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "*",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:myns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := deriveServiceAccountName(f.project, f.application)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, app sync should fail
+		assert.NoError(t, err)
+	})
+
+}
+
+func TestDeriveServiceAccountMatchingServers(t *testing.T) {
+	type fixture struct {
+		project     *v1alpha1.AppProject
+		application *v1alpha1.Application
+	}
+
+	setup := func(destinationServiceAccounts []v1alpha1.ApplicationDestinationServiceAccount, destinationNamespace, destinationServerURL, applicationNamespace string) *fixture {
+		project :=
+			&v1alpha1.AppProject{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: "argocd-ns",
+					Name:      "testProj",
+				},
+				Spec: v1alpha1.AppProjectSpec{
+					DestinationServiceAccounts: destinationServiceAccounts,
+				},
+			}
+		app :=
+			&v1alpha1.Application{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: applicationNamespace,
+					Name:      "testApp",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "testProj",
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    destinationServerURL,
+						Namespace: destinationNamespace,
+					},
+				},
+			}
+		return &fixture{
+			project:     project,
+			application: app,
+		}
+	}
+
+	t.Run("exact one match with multiple destination service accounts", func(t *testing.T) {
+		// given app sync impersonation feature is enabled and has a project no matching service account
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "guestbook",
+				DefaultServiceAccount: "guestbook-sa",
+			},
+			{
+				Server:                "https://abc.svc.local",
+				Namespace:             "guestbook",
+				DefaultServiceAccount: "guestbook-test-sa",
+			},
+			{
+				Server:                "https://cde.svc.local",
+				Namespace:             "guestbook",
+				DefaultServiceAccount: "default-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := deriveServiceAccountName(f.project, f.application)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, app sync should fail
+		assert.NoError(t, err)
+	})
+
+	t.Run("first match to be used when multiple matches are available", func(t *testing.T) {
+		// given app sync impersonation feature is enabled and has a project no matching service account
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa-2",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "default",
+				DefaultServiceAccount: "default-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "guestbook",
+				DefaultServiceAccount: "guestbook-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := deriveServiceAccountName(f.project, f.application)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, app sync should not fail
+		assert.NoError(t, err)
+	})
+
+	t.Run("first match to be used when glob pattern is used", func(t *testing.T) {
+		// given app sync impersonation feature is enabled and has a project no matching service account
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "test*",
+				DefaultServiceAccount: "test-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa-2",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "default",
+				DefaultServiceAccount: "default-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := deriveServiceAccountName(f.project, f.application)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, app sync should not fail
+		assert.NoError(t, err)
+	})
+
+	t.Run("no match among a valid list", func(t *testing.T) {
+		// given app sync impersonation feature is enabled and has a project no matching service account
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa",
+			},
+			{
+				Server:                "https://abc.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa-2",
+			},
+			{
+				Server:                "https://cde.svc.local",
+				Namespace:             "default",
+				DefaultServiceAccount: "default-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://xyz.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := ""
+		expectedErr := "no matching service account found for destination server https://xyz.svc.local and namespace testns"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := deriveServiceAccountName(f.project, f.application)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, app sync should fail
+		assert.EqualError(t, err, expectedErr)
+	})
+
+	t.Run("match done via catch all glob pattern", func(t *testing.T) {
+		// given app sync impersonation feature is enabled and has a project no matching service account
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns1",
+				DefaultServiceAccount: "test-sa-2",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "default",
+				DefaultServiceAccount: "default-sa",
+			},
+			{
+				Server:                "*",
+				Namespace:             "*",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://localhost:6443"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := deriveServiceAccountName(f.project, f.application)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, app sync should not fail
+		assert.NoError(t, err)
+	})
+
+	t.Run("sa specified with a namespace", func(t *testing.T) {
+		// given app sync impersonation feature is enabled and has a project no matching service account
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://abc.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "myns:test-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "default",
+				DefaultServiceAccount: "default-sa",
+			},
+			{
+				Server:                "*",
+				Namespace:             "*",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://abc.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:myns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := deriveServiceAccountName(f.project, f.application)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, app sync should fail
+		assert.NoError(t, err)
+	})
+
+}
+
+func TestSyncWithImpersonate(t *testing.T) {
+	type fixture struct {
+		project     *v1alpha1.AppProject
+		application *v1alpha1.Application
+		controller  *ApplicationController
+	}
+
+	setup := func(impersonationEnabled bool, destinationNamespace, serviceAccountName string) *fixture {
+		app := newFakeApp()
+		app.Status.OperationState = nil
+		app.Status.History = nil
+		project := &v1alpha1.AppProject{
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: test.FakeArgoCDNamespace,
+				Name:      "default",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				DestinationServiceAccounts: []v1alpha1.
+					ApplicationDestinationServiceAccount{
+					{
+						Server:                "https://localhost:6443",
+						Namespace:             destinationNamespace,
+						DefaultServiceAccount: serviceAccountName,
+					},
+				},
+			},
+		}
+		additionalObjs := []runtime.Object{}
+		if serviceAccountName != "" {
+			syncServiceAccount := &corev1.ServiceAccount{
+				ObjectMeta: v1.ObjectMeta{
+					Name:      serviceAccountName,
+					Namespace: test.FakeDestNamespace,
+				},
+			}
+			additionalObjs = append(additionalObjs, syncServiceAccount)
+		}
+		data := fakeData{
+			apps: []runtime.Object{app, project},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    "https://localhost:6443",
+				Revision:  "abc123",
+			},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+			configMapData: map[string]string{
+				"application.sync.impersonation.enabled": strconv.FormatBool(impersonationEnabled),
+			},
+			additionalsObjs: additionalObjs,
+		}
+		ctrl := newFakeController(&data, nil)
+		return &fixture{
+			project:     project,
+			application: app,
+			controller:  ctrl,
+		}
+	}
+
+	t.Run("sync with impersonation and no matching service account", func(t *testing.T) {
+		// given app sync impersonation feature is enabled and has a project no matching service account
+		t.Parallel()
+		f := setup(true, test.FakeArgoCDNamespace, "")
+		opMessage := "failed to find a matching service account to impersonate: no matching service account found for destination server https://localhost:6443 and namespace fake-dest-ns"
+
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+				},
+			},
+			Phase: common.OperationRunning,
+		}
+		// when
+		f.controller.appStateManager.SyncAppState(f.application, opState)
+
+		// then, app sync should fail
+		assert.Equal(t, common.OperationError, opState.Phase)
+		assert.Contains(t, opState.Message, opMessage)
+	})
+
+	t.Run("sync with impersonation and empty service account match", func(t *testing.T) {
+		// given a project with an active deny sync window and an operation in progress
+		t.Parallel()
+		f := setup(true, test.FakeDestNamespace, "")
+		opMessage := "failed to find a matching service account to impersonate: default service account cannot be an empty string"
+
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+				},
+			},
+			Phase: common.OperationRunning,
+		}
+		// when
+		f.controller.appStateManager.SyncAppState(f.application, opState)
+
+		// then
+		assert.Equal(t, common.OperationError, opState.Phase)
+		assert.Contains(t, opState.Message, opMessage)
+	})
+
+	t.Run("sync with impersonation and matching sa", func(t *testing.T) {
+		// given a project with an active deny sync window and an operation in progress
+		t.Parallel()
+		f := setup(true, test.FakeDestNamespace, "test-sa")
+		opMessage := "successfully synced (no more tasks)"
+
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+				},
+			},
+			Phase: common.OperationRunning,
+		}
+		// when
+		f.controller.appStateManager.SyncAppState(f.application, opState)
+
+		// then
+		assert.Equal(t, common.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, opMessage)
+	})
+
+	t.Run("sync without impersonation", func(t *testing.T) {
+		// given a project with an active deny sync window and an operation in progress
+		t.Parallel()
+		f := setup(false, test.FakeDestNamespace, "")
+		opMessage := "successfully synced (no more tasks)"
+
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+				},
+			},
+			Phase: common.OperationRunning,
+		}
+		// when
+		f.controller.appStateManager.SyncAppState(f.application, opState)
+
+		// then
+		assert.Equal(t, common.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, opMessage)
 	})
 }
 

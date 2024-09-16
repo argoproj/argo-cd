@@ -287,7 +287,12 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
 
-	if m.settingsMgr.IsImpersonationEnabled() {
+	impersonationEnabled, err := m.settingsMgr.IsImpersonationEnabled()
+	if err != nil {
+		log.Errorf("could not get impersonation feature flag: %v", err)
+		return
+	}
+	if impersonationEnabled {
 		serviceAccountToImpersonate, err := deriveServiceAccountName(proj, app)
 		if err != nil {
 			state.Phase = common.OperationError
@@ -572,7 +577,9 @@ func deriveServiceAccountName(project *v1alpha1.AppProject, application *v1alpha
 		dstServerMatched := glob.Match(item.Server, application.Spec.Destination.Server)
 		dstNamespaceMatched := glob.Match(item.Namespace, application.Spec.Destination.Namespace)
 		if dstServerMatched && dstNamespaceMatched {
-			if strings.Contains(item.DefaultServiceAccount, ":") {
+			if item.DefaultServiceAccount == "" {
+				return "", fmt.Errorf("default service account cannot be an empty string")
+			} else if strings.Contains(item.DefaultServiceAccount, ":") {
 				// service account is specified along with its namespace.
 				return fmt.Sprintf("system:serviceaccount:%s", item.DefaultServiceAccount), nil
 			} else {
