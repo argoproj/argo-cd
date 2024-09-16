@@ -664,12 +664,6 @@ func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, e
 		}
 	}
 
-	predictedLive := &unstructured.Unstructured{}
-	err = json.Unmarshal(predictedLiveBytes, predictedLive)
-	if err != nil {
-		return nil, err
-	}
-
 	return buildDiffResult(predictedLiveBytes, liveBytes), nil
 }
 
