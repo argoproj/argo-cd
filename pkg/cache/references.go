@@ -3,11 +3,11 @@ package cache
 import (
 	"encoding/json"
 	"fmt"
-        "regexp"
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
+	"regexp"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 )
@@ -25,7 +25,7 @@ func (c *clusterCache) resolveResourceReferences(un *unstructured.Unstructured) 
 	switch {
 
 	// Special case for endpoint. Remove after https://github.com/kubernetes/kubernetes/issues/28483 is fixed
-	case gvk.Group == "" && gvk.Kind == kube.EndpointsKind && len(un.GetOwnerReferences()) == 0:
+	case gvk.Group == "" && gvk.Kind == kube.EndpointsKind && len(ownerRefs) == 0:
 		ownerRefs = append(ownerRefs, metav1.OwnerReference{
 			Name:       un.GetName(),
 			Kind:       kube.ServiceKind,
@@ -33,7 +33,7 @@ func (c *clusterCache) resolveResourceReferences(un *unstructured.Unstructured) 
 		})
 
 	// Special case for Operator Lifecycle Manager ClusterServiceVersion:
-	case un.GroupVersionKind().Group == "operators.coreos.com" && un.GetKind() == "ClusterServiceVersion":
+	case gvk.Group == "operators.coreos.com" && gvk.Kind == "ClusterServiceVersion":
 		if un.GetAnnotations()["olm.operatorGroup"] != "" {
 			ownerRefs = append(ownerRefs, metav1.OwnerReference{
 				Name:       un.GetAnnotations()["olm.operatorGroup"],
@@ -43,12 +43,12 @@ func (c *clusterCache) resolveResourceReferences(un *unstructured.Unstructured) 
 		}
 
 	// Edge case: consider auto-created service account tokens as a child of service account objects
-	case un.GetKind() == kube.SecretKind && un.GroupVersionKind().Group == "":
+	case gvk.Kind == kube.SecretKind && gvk.Group == "":
 		if yes, ref := isServiceAccountTokenSecret(un); yes {
 			ownerRefs = append(ownerRefs, ref)
 		}
 
-	case (un.GroupVersionKind().Group == "apps" || un.GroupVersionKind().Group == "extensions") && un.GetKind() == kube.StatefulSetKind:
+	case (gvk.Group == "apps" || gvk.Group == "extensions") && gvk.Kind == kube.StatefulSetKind:
 		if refs, err := isStatefulSetChild(un); err != nil {
 			c.log.Error(err, fmt.Sprintf("Failed to extract StatefulSet %s/%s PVC references", un.GetNamespace(), un.GetName()))
 		} else {
@@ -74,7 +74,7 @@ func isStatefulSetChild(un *unstructured.Unstructured) (func(kube.ResourceKey) b
 	return func(key kube.ResourceKey) bool {
 		if key.Kind == kube.PersistentVolumeClaimKind && key.GroupKind().Group == "" {
 			for _, templ := range templates {
-				if match, _ := regexp.MatchString(fmt.Sprintf(`%s-%s-\d+$`, templ.Name, un.GetName()), key.Name); match  {
+				if match, _ := regexp.MatchString(fmt.Sprintf(`%s-%s-\d+$`, templ.Name, un.GetName()), key.Name); match {
 					return true
 				}
 			}
