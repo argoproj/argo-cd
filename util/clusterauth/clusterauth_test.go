@@ -242,10 +242,6 @@ func TestGetServiceAccountBearerToken(t *testing.T) {
 			Name:      dockercfgSecret.Name,
 			Namespace: dockercfgSecret.Namespace,
 		},
-		{
-			Name:      tokenSecret.Name,
-			Namespace: tokenSecret.Namespace,
-		},
 	}
 	kubeclientset := fake.NewClientset(sa, dockercfgSecret, tokenSecret)
 
@@ -293,7 +289,7 @@ func Test_getOrCreateServiceAccountTokenSecret_NoSecretForSA(t *testing.T) {
 	require.NoError(t, err, "ServiceAccount %s not found but was expected to be found", ArgoCDManagerServiceAccount)
 
 	sa := obj.(*corev1.ServiceAccount)
-	assert.Len(t, sa.Secrets, 1)
+	assert.Empty(t, sa.Secrets, 0)
 }
 
 func Test_getOrCreateServiceAccountTokenSecret_SAHasSecret(t *testing.T) {

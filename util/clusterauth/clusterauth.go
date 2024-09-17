@@ -2,7 +2,6 @@ package clusterauth
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -13,7 +12,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 
@@ -314,19 +312,6 @@ func createServiceAccountToken(clientset kubernetes.Interface, serviceAccount *c
 	}
 
 	log.Infof("Created bearer token secret for ServiceAccount %q", serviceAccount.Name)
-	serviceAccount.Secrets = []corev1.ObjectReference{{
-		Name:      secret.Name,
-		Namespace: secret.Namespace,
-	}}
-	patch, err := json.Marshal(serviceAccount)
-	if err != nil {
-		return "", fmt.Errorf("failed marshaling patch for serviceaccount %q: %w", serviceAccount.Name, err)
-	}
-
-	_, err = clientset.CoreV1().ServiceAccounts(serviceAccount.Namespace).Patch(ctx, serviceAccount.Name, types.StrategicMergePatchType, patch, metav1.PatchOptions{})
-	if err != nil {
-		return "", fmt.Errorf("failed to patch serviceaccount %q with bearer token secret: %w", serviceAccount.Name, err)
-	}
 
 	return secret.Name, nil
 }
