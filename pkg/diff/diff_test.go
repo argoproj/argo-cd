@@ -1127,6 +1127,14 @@ metadata:
 }
 
 func TestRemarshalResources(t *testing.T) {
+	getRequests := func(un *unstructured.Unstructured) map[string]interface{} {
+		return un.Object["spec"].(map[string]interface{})["containers"].([]interface{})[0].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
+	}
+
+	setRequests := func(un *unstructured.Unstructured, requests map[string]interface{}) {
+		un.Object["spec"].(map[string]interface{})["containers"].([]interface{})[0].(map[string]interface{})["resources"].(map[string]interface{})["requests"] = requests
+	}
+
 	manifest := []byte(`
 apiVersion: v1
 kind: Pod
@@ -1142,14 +1150,27 @@ spec:
 `)
 	un := unstructured.Unstructured{}
 	err := yaml.Unmarshal(manifest, &un)
-	assert.NoError(t, err)
-	requestsBefore := un.Object["spec"].(map[string]interface{})["containers"].([]interface{})[0].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
-	t.Log(requestsBefore)
-	newUn := remarshal(&un, applyOptions(diffOptionsForTest()))
-	requestsAfter := newUn.Object["spec"].(map[string]interface{})["containers"].([]interface{})[0].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})
-	t.Log(requestsAfter)
-	assert.Equal(t, float64(0.2), requestsBefore["cpu"])
-	assert.Equal(t, "200m", requestsAfter["cpu"])
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name        string
+		cpu         any
+		expectedCPU any
+	}{
+		{"from float", 0.2, "200m"},
+		{"from float64", float64(0.2), "200m"},
+		{"from string", "0.2", "200m"},
+		{"from invalid", "invalid", "invalid"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			setRequests(&un, map[string]interface{}{"cpu": tc.cpu})
+			newUn := remarshal(&un, applyOptions(diffOptionsForTest()))
+			requestsAfter := getRequests(newUn)
+			assert.Equal(t, tc.expectedCPU, requestsAfter["cpu"])
+		})
+	}
 }
 
 func ExampleDiff() {

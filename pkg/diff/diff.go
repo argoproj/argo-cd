@@ -667,22 +667,6 @@ func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, e
 	return buildDiffResult(predictedLiveBytes, liveBytes), nil
 }
 
-// stripTypeInformation strips any type information (e.g. float64 vs. int) from the unstructured
-// object by remarshalling the object. This is important for diffing since it will cause godiff
-// to report a false difference.
-func stripTypeInformation(un *unstructured.Unstructured) *unstructured.Unstructured {
-	unBytes, err := json.Marshal(un)
-	if err != nil {
-		panic(err)
-	}
-	var newUn unstructured.Unstructured
-	err = json.Unmarshal(unBytes, &newUn)
-	if err != nil {
-		panic(err)
-	}
-	return &newUn
-}
-
 // removeNamespaceAnnotation remove the namespace and an empty annotation map from the metadata.
 // The namespace field is present in live (namespaced) objects, but not necessarily present in
 // config or last-applied. This results in a diff which we don't care about. We delete the two so
@@ -1081,11 +1065,20 @@ func toString(val interface{}) string {
 // Remarshalling also strips any type information (e.g. float64 vs. int) from the unstructured
 // object. This is important for diffing since it will cause godiff to report a false difference.
 func remarshal(obj *unstructured.Unstructured, o options) *unstructured.Unstructured {
-	obj = stripTypeInformation(obj)
 	data, err := json.Marshal(obj)
 	if err != nil {
 		panic(err)
 	}
+
+	// Unmarshal again to strip type information (e.g. float64 vs. int) from the unstructured
+	// object. This is important for diffing since it will cause godiff to report a false difference.
+	var newUn unstructured.Unstructured
+	err = json.Unmarshal(data, &newUn)
+	if err != nil {
+		panic(err)
+	}
+	obj = &newUn
+
 	gvk := obj.GroupVersionKind()
 	item, err := scheme.Scheme.New(obj.GroupVersionKind())
 	if err != nil {
