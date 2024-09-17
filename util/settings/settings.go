@@ -2341,7 +2341,7 @@ func (mgr *SettingsManager) GetMaxWebhookPayloadSize() int64 {
 func (mgr *SettingsManager) IsImpersonationEnabled() (bool, error) {
 	cm, err := mgr.getConfigMap()
 	if err != nil {
-		return false, fmt.Errorf("error checking %s property in configmap: %w", impersonationEnabledKey, err)
+		return defaultImpersonationEnabledFlag, fmt.Errorf("error checking %s property in configmap: %w", impersonationEnabledKey, err)
 	}
 	return cm.Data[impersonationEnabledKey] == "true", nil
 }
