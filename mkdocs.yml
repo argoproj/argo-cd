@@ -47,6 +47,7 @@ nav:
     - snyk/index.md
     - operator-manual/signed-release-assets.md
   - operator-manual/tls.md
+  - operator-manual/cluster-management.md
   - operator-manual/cluster-bootstrapping.md
   - operator-manual/secret-management.md
   - operator-manual/disaster_recovery.md
