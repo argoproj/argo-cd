@@ -19,7 +19,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	cache2 "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/utils/ptr"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
 	"github.com/argoproj/argo-cd/v2/common"
@@ -46,6 +46,7 @@ type forwardCacheClient struct {
 	err              error
 	redisHaProxyName string
 	redisName        string
+	redisPassword    string
 }
 
 func (c *forwardCacheClient) doLazy(action func(client cache.CacheClient) error) error {
@@ -62,7 +63,7 @@ func (c *forwardCacheClient) doLazy(action func(client cache.CacheClient) error)
 			return
 		}
 
-		redisClient := redis.NewClient(&redis.Options{Addr: fmt.Sprintf("localhost:%d", redisPort)})
+		redisClient := redis.NewClient(&redis.Options{Addr: fmt.Sprintf("localhost:%d", redisPort), Password: c.redisPassword})
 		c.client = cache.NewRedisCache(redisClient, time.Hour, c.compression)
 	})
 	if c.err != nil {
@@ -237,12 +238,12 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	if err != nil {
 		return fmt.Errorf("error running miniredis: %w", err)
 	}
-	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: compression, redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName}), time.Hour)
-
 	redisOptions := &redis.Options{Addr: mr.Addr()}
 	if err = common.SetOptionalRedisPasswordFromKubeConfig(ctx, kubeClientset, namespace, redisOptions); err != nil {
 		log.Warnf("Failed to fetch & set redis password for namespace %s: %v", namespace, err)
 	}
+
+	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: compression, redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName, redisPassword: redisOptions.Password}), time.Hour)
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
 		EnableGZip:           false,
 		Namespace:            namespace,
@@ -256,7 +257,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		ListenHost:           *address,
 		RepoClientset:        &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName, kubeClientset: kubeClientset},
 		EnableProxyExtension: false,
-	})add optional password setting for headless redis client (#19035) (#19039))
+	})
 	srv.Init(ctx)
 
 	lns, err := srv.Listen()
