@@ -3,20 +3,13 @@
 # Default values for environment variables
 REDIS_PORT="${ARGOCD_E2E_REDIS_PORT:-6379}"
 REDIS_IMAGE_TAG=$(grep 'image: redis' manifests/base/redis/argocd-redis-deployment.yaml | cut -d':' -f3)
-if [ "$ARGOCD_REDIS_LOCAL" = 'true' ] && ! command -v redis-server &>/dev/null; then
-    echo "Redis server is not installed locally. Please install Redis or set ARGOCD_REDIS_LOCAL to false."
-    exit 1
-fi
-# Check if ARGOCD_REDIS_LOCAL is 'true'
+
 if [ "$ARGOCD_REDIS_LOCAL" = 'true' ]; then
     if ! command -v redis-server &>/dev/null; then
-        echo "Redis server is not installed locally. Please install Redis or set ARGOCD_REDIS_LOCAL to false."
-        exit 1
+      echo "Redis server is not installed locally. Please install Redis or set ARGOCD_REDIS_LOCAL to false."
+      exit 1
     fi
 
-    # Start local Redis server with or without password
-    echo "Redis server is not installed locally. Please install Redis or set ARGOCD_REDIS_LOCAL to false."
-    exit 1;
     # Start local Redis server with password if defined
     if [ -z "$REDIS_PASSWORD" ]; then
         echo "Starting local Redis server without password."
