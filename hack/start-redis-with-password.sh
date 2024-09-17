@@ -8,7 +8,13 @@ if [ "$ARGOCD_REDIS_LOCAL" = 'true' ] && ! command -v redis-server &>/dev/null; 
     exit 1
 fi
 # Check if ARGOCD_REDIS_LOCAL is 'true'
-if [ "$ARGOCD_REDIS_LOCAL" = 'true' ] && ! command -v redis-server &>/dev/null; then
+if [ "$ARGOCD_REDIS_LOCAL" = 'true' ]; then
+    if ! command -v redis-server &>/dev/null; then
+        echo "Redis server is not installed locally. Please install Redis or set ARGOCD_REDIS_LOCAL to false."
+        exit 1
+    fi
+
+    # Start local Redis server with or without password
     echo "Redis server is not installed locally. Please install Redis or set ARGOCD_REDIS_LOCAL to false."
     exit 1;
     # Start local Redis server with password if defined
