@@ -23,6 +23,7 @@ const (
 	ArgoCDManagerServiceAccount     = "argocd-manager"
 	ArgoCDManagerClusterRole        = "argocd-manager-role"
 	ArgoCDManagerClusterRoleBinding = "argocd-manager-role-binding"
+	SATokenSecretSuffix             = "-long-lived-token"
 )
 
 // ArgoCDManagerPolicyRules are the policies to give argocd-manager
@@ -249,56 +250,18 @@ func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns string, sa 
 	return string(secret.Data[corev1.ServiceAccountTokenKey]), nil
 }
 
-// getOrCreateServiceAccountTokenSecret will check if a ServiceAccount
-// already has a kubernetes.io/service-account-token secret associated
-// with it or creates one if the ServiceAccount doesn't have one. This
-// was added to help add k8s v1.24+ clusters.
-func getOrCreateServiceAccountTokenSecret(clientset kubernetes.Interface, sa, ns string) (string, error) {
-	// Wait for sa to have secret, but don't wait too
-	// long for 1.24+ clusters
-	var serviceAccount *corev1.ServiceAccount
-	err := wait.PollUntilContextTimeout(context.Background(), 500*time.Millisecond, 30*time.Second, true, func(ctx context.Context) (bool, error) {
-		ctx, cancel := context.WithTimeout(ctx, common.ClusterAuthRequestTimeout)
-		defer cancel()
-		var getErr error
-		serviceAccount, getErr = clientset.CoreV1().ServiceAccounts(ns).Get(ctx, sa, metav1.GetOptions{})
-		if getErr != nil {
-			return false, fmt.Errorf("failed to get serviceaccount %q: %w", sa, getErr)
-		}
-		return true, nil
-	})
-	if err != nil && !wait.Interrupted(err) {
-		return "", fmt.Errorf("failed to get serviceaccount token secret: %w", err)
-	}
-	if serviceAccount == nil {
-		log.Errorf("Unexpected nil serviceaccount '%s/%s' with no error returned", ns, sa)
-		return "", fmt.Errorf("failed to create serviceaccount token secret: nil serviceaccount returned for '%s/%s' with no error", ns, sa)
-	}
-
-	outerCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	for _, s := range serviceAccount.Secrets {
-		innerCtx, cancel := context.WithTimeout(outerCtx, common.ClusterAuthRequestTimeout)
-		defer cancel()
-		existingSecret, err := clientset.CoreV1().Secrets(ns).Get(innerCtx, s.Name, metav1.GetOptions{})
-		if err != nil {
-			return "", fmt.Errorf("failed to retrieve secret %q: %w", s.Name, err)
-		}
-		if existingSecret.Type == corev1.SecretTypeServiceAccountToken {
-			return existingSecret.Name, nil
-		}
-	}
-
-	return createServiceAccountToken(clientset, serviceAccount)
-}
-
-func createServiceAccountToken(clientset kubernetes.Interface, serviceAccount *corev1.ServiceAccount) (string, error) {
+// getOrCreateServiceAccountTokenSecret will create a
+// kubernetes.io/service-account-token secret associated with a
+// ServiceAccount named '<service account name>-long-lived-token', or
+// use the existing one with that name.
+// This was added to help add k8s v1.24+ clusters.
+func getOrCreateServiceAccountTokenSecret(clientset kubernetes.Interface, serviceaccount, namespace string) (string, error) {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: serviceAccount.Name + "-token-",
-			Namespace:    serviceAccount.Namespace,
+			Name:      serviceaccount + SATokenSecretSuffix,
+			Namespace: namespace,
 			Annotations: map[string]string{
-				corev1.ServiceAccountNameKey: serviceAccount.Name,
+				corev1.ServiceAccountNameKey: serviceaccount,
 			},
 		},
 		Type: corev1.SecretTypeServiceAccountToken,
@@ -306,12 +269,16 @@ func createServiceAccountToken(clientset kubernetes.Interface, serviceAccount *c
 
 	ctx, cancel := context.WithTimeout(context.Background(), common.ClusterAuthRequestTimeout)
 	defer cancel()
-	secret, err := clientset.CoreV1().Secrets(serviceAccount.Namespace).Create(ctx, secret, metav1.CreateOptions{})
-	if err != nil {
-		return "", fmt.Errorf("failed to create secret for serviceaccount %q: %w", serviceAccount.Name, err)
-	}
+	_, err := clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 
-	log.Infof("Created bearer token secret for ServiceAccount %q", serviceAccount.Name)
+	switch {
+	case apierrors.IsAlreadyExists(err):
+		log.Infof("Using existing bearer token secret %q for ServiceAccount %q", secret.Name, serviceaccount)
+	case err != nil:
+		return "", fmt.Errorf("failed to create secret %q for serviceaccount %q: %w", secret.Name, serviceaccount, err)
+	default:
+		log.Infof("Created bearer token secret %q for ServiceAccount %q", secret.Name, serviceaccount)
+	}
 
 	return secret.Name, nil
 }

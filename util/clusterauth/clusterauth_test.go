@@ -282,7 +282,7 @@ func Test_getOrCreateServiceAccountTokenSecret_NoSecretForSA(t *testing.T) {
 
 	got, err := getOrCreateServiceAccountTokenSecret(cs, ArgoCDManagerServiceAccount, ns.Name)
 	require.NoError(t, err)
-	assert.Contains(t, got, "argocd-manager-token-")
+	assert.Equal(t, ArgoCDManagerServiceAccount+SATokenSecretSuffix, got)
 
 	obj, err := cs.Tracker().Get(schema.GroupVersionResource{Version: "v1", Resource: "serviceaccounts"},
 		ns.Name, ArgoCDManagerServiceAccount)
@@ -331,7 +331,7 @@ func Test_getOrCreateServiceAccountTokenSecret_SAHasSecret(t *testing.T) {
 
 	got, err := getOrCreateServiceAccountTokenSecret(cs, ArgoCDManagerServiceAccount, ns.Name)
 	require.NoError(t, err)
-	assert.Equal(t, "sa-secret", got)
+	assert.Equal(t, ArgoCDManagerServiceAccount+SATokenSecretSuffix, got)
 
 	obj, err := cs.Tracker().Get(schema.GroupVersionResource{Version: "v1", Resource: "serviceaccounts"},
 		ns.Name, ArgoCDManagerServiceAccount)
