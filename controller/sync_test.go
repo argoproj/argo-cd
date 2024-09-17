@@ -684,7 +684,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 	}
 
 	t.Run("empty destination service accounts", func(t *testing.T) {
-		// given app sync impersonation feature is enabled and has a project no matching service account
+		// given an application referring a project with no destination service accounts
 		t.Parallel()
 		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{}
 		destinationNamespace := "testns"
@@ -698,12 +698,12 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		sa, err := deriveServiceAccountName(f.project, f.application)
 		assert.Equal(t, expectedSA, sa)
 
-		// then, app sync should fail
+		// then, there should be an error saying no valid match was found
 		assert.EqualError(t, err, expectedErrMsg)
 	})
 
 	t.Run("exact match of destination namespace", func(t *testing.T) {
-		// given app sync impersonation feature is enabled and has a project no matching service account
+		// given an application referring a project with exactly one destination service account that matches the application destination,
 		t.Parallel()
 		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
 			{
@@ -720,14 +720,14 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
 		sa, err := deriveServiceAccountName(f.project, f.application)
-		assert.Equal(t, expectedSA, sa)
 
-		// then, app sync should not fail
+		// then, there should be no error and should use the right service account for impersonation
 		assert.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
 	})
 
 	t.Run("exact one match with multiple destination service accounts", func(t *testing.T) {
-		// given app sync impersonation feature is enabled and has a project no matching service account
+		// given an application referring a project with multiple destination service accounts having one exact match for application destination
 		t.Parallel()
 		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
 			{
@@ -759,14 +759,14 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
 		sa, err := deriveServiceAccountName(f.project, f.application)
-		assert.Equal(t, expectedSA, sa)
 
-		// then, app sync should not fail
+		// then, there should be no error and should use the right service account for impersonation
 		assert.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
 	})
 
 	t.Run("first match to be used when multiple matches are available", func(t *testing.T) {
-		// given app sync impersonation feature is enabled and has a project no matching service account
+		// given an application referring a project with multiple destination service accounts having multiple match for application destination
 		t.Parallel()
 		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
 			{
@@ -798,14 +798,14 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
 		sa, err := deriveServiceAccountName(f.project, f.application)
-		assert.Equal(t, expectedSA, sa)
 
-		// then, app sync should fail
+		// then, there should be no error and it should use the first matching service account for impersonation
 		assert.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
 	})
 
 	t.Run("first match to be used when glob pattern is used", func(t *testing.T) {
-		// given app sync impersonation feature is enabled and has a project no matching service account
+		// given an application referring a project with multiple destination service accounts with glob patterns matching the application destination
 		t.Parallel()
 		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
 			{
@@ -832,14 +832,14 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
 		sa, err := deriveServiceAccountName(f.project, f.application)
-		assert.Equal(t, expectedSA, sa)
 
-		// then, app sync should not fail
+		// then, there should not be any error and should use the first matching glob pattern service account for impersonation
 		assert.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
 	})
 
 	t.Run("no match among a valid list", func(t *testing.T) {
-		// given app sync impersonation feature is enabled and has a project no matching service account
+		// given an application referring a project with multiple destination service accounts with no matches for application destination
 		t.Parallel()
 		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
 			{
@@ -867,14 +867,14 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
 		sa, err := deriveServiceAccountName(f.project, f.application)
-		assert.Equal(t, expectedSA, sa)
 
-		// then, app sync should fail
+		// then, there should be an error saying no match was found
 		assert.EqualError(t, err, expectedErrMsg)
+		assert.Equal(t, expectedSA, sa)
 	})
 
 	t.Run("app destination namespace is empty", func(t *testing.T) {
-		// given app sync impersonation feature is enabled and has a project no matching service account
+		// given an application referring a project with multiple destination service accounts with empty application destination namespace
 		t.Parallel()
 		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
 			{
@@ -895,14 +895,14 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
 		sa, err := deriveServiceAccountName(f.project, f.application)
-		assert.Equal(t, expectedSA, sa)
 
-		// then, app sync should fail
+		// then, there should not be any error and the service account configured for with empty namespace should be used.
 		assert.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
 	})
 
 	t.Run("match done via catch all glob pattern", func(t *testing.T) {
-		// given app sync impersonation feature is enabled and has a project no matching service account
+		// given an application referring a project with multiple destination service accounts having a catch all glob pattern
 		t.Parallel()
 		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
 			{
@@ -929,14 +929,14 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
 		sa, err := deriveServiceAccountName(f.project, f.application)
-		assert.Equal(t, expectedSA, sa)
 
-		// then, app sync should fail
+		// then, there should not be any error and the catch all service account should be returned
 		assert.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
 	})
 
 	t.Run("sa specified with a namespace", func(t *testing.T) {
-		// given app sync impersonation feature is enabled and has a project no matching service account
+		// given an application referring a project with multiple destination service accounts having a matching service account specified with its namespace
 		t.Parallel()
 		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
 			{
@@ -965,7 +965,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		sa, err := deriveServiceAccountName(f.project, f.application)
 		assert.Equal(t, expectedSA, sa)
 
-		// then, app sync should fail
+		// then, there should not be any error and the service account with its namespace should be returned.
 		assert.NoError(t, err)
 	})
 
@@ -1009,7 +1009,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 	}
 
 	t.Run("exact one match with multiple destination service accounts", func(t *testing.T) {
-		// given app sync impersonation feature is enabled and has a project no matching service account
+		// given an application referring a project with multiple destination service accounts and one exact match for application destination
 		t.Parallel()
 		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
 			{
@@ -1041,14 +1041,14 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
 		sa, err := deriveServiceAccountName(f.project, f.application)
-		assert.Equal(t, expectedSA, sa)
 
-		// then, app sync should fail
+		// then, there should not be any error and the right service account must be returned.
 		assert.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
 	})
 
 	t.Run("first match to be used when multiple matches are available", func(t *testing.T) {
-		// given app sync impersonation feature is enabled and has a project no matching service account
+		// given an application referring a project with multiple destination service accounts and multiple matches for application destination
 		t.Parallel()
 		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
 			{
@@ -1080,14 +1080,14 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
 		sa, err := deriveServiceAccountName(f.project, f.application)
-		assert.Equal(t, expectedSA, sa)
 
-		// then, app sync should not fail
+		// then, there should not be any error and first matching service account should be used
 		assert.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
 	})
 
 	t.Run("first match to be used when glob pattern is used", func(t *testing.T) {
-		// given app sync impersonation feature is enabled and has a project no matching service account
+		// given an application referring a project with multiple destination service accounts with a matching glob pattern and exact match
 		t.Parallel()
 		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
 			{
@@ -1116,12 +1116,12 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 		sa, err := deriveServiceAccountName(f.project, f.application)
 		assert.Equal(t, expectedSA, sa)
 
-		// then, app sync should not fail
+		// then, there should not be any error and the service account of the glob pattern, being the first match should be returned.
 		assert.NoError(t, err)
 	})
 
 	t.Run("no match among a valid list", func(t *testing.T) {
-		// given app sync impersonation feature is enabled and has a project no matching service account
+		// given an application referring a project with multiple destination service accounts with no match
 		t.Parallel()
 		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
 			{
@@ -1149,14 +1149,14 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
 		sa, err := deriveServiceAccountName(f.project, f.application)
-		assert.Equal(t, expectedSA, sa)
 
-		// then, app sync should fail
+		// then, there an error with appropriate message must be returned
 		assert.EqualError(t, err, expectedErr)
+		assert.Equal(t, expectedSA, sa)
 	})
 
 	t.Run("match done via catch all glob pattern", func(t *testing.T) {
-		// given app sync impersonation feature is enabled and has a project no matching service account
+		// given an application referring a project with multiple destination service accounts with matching catch all glob pattern
 		t.Parallel()
 		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
 			{
@@ -1183,14 +1183,14 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
 		sa, err := deriveServiceAccountName(f.project, f.application)
-		assert.Equal(t, expectedSA, sa)
 
-		// then, app sync should not fail
+		// then, there should not be any error and the service account of the glob pattern match must be returned.
 		assert.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
 	})
 
 	t.Run("sa specified with a namespace", func(t *testing.T) {
-		// given app sync impersonation feature is enabled and has a project no matching service account
+		// given app sync impersonation feature is enabled and matching service account is prefixed with a namespace
 		t.Parallel()
 		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
 			{
@@ -1217,10 +1217,10 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
 		// when
 		sa, err := deriveServiceAccountName(f.project, f.application)
-		assert.Equal(t, expectedSA, sa)
 
-		// then, app sync should fail
+		// then, there should not be any error and the service account with the given namespace prefix must be returned.
 		assert.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
 	})
 
 }
@@ -1285,7 +1285,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 	}
 
 	t.Run("sync with impersonation and no matching service account", func(t *testing.T) {
-		// given app sync impersonation feature is enabled and has a project no matching service account
+		// given app sync impersonation feature is enabled with an application referring a project no matching service account
 		t.Parallel()
 		f := setup(true, test.FakeArgoCDNamespace, "")
 		opMessage := "failed to find a matching service account to impersonate: no matching service account found for destination server https://localhost:6443 and namespace fake-dest-ns"
@@ -1301,13 +1301,13 @@ func TestSyncWithImpersonate(t *testing.T) {
 		// when
 		f.controller.appStateManager.SyncAppState(f.application, opState)
 
-		// then, app sync should fail
+		// then, app sync should fail with expected error message in operation state
 		assert.Equal(t, common.OperationError, opState.Phase)
 		assert.Contains(t, opState.Message, opMessage)
 	})
 
 	t.Run("sync with impersonation and empty service account match", func(t *testing.T) {
-		// given a project with an active deny sync window and an operation in progress
+		// given app sync impersonation feature is enabled with an application referring a project matching service account that is an empty string
 		t.Parallel()
 		f := setup(true, test.FakeDestNamespace, "")
 		opMessage := "failed to find a matching service account to impersonate: default service account cannot be an empty string"
@@ -1323,13 +1323,13 @@ func TestSyncWithImpersonate(t *testing.T) {
 		// when
 		f.controller.appStateManager.SyncAppState(f.application, opState)
 
-		// then
+		// then app sync should fail with expected error message in operation state
 		assert.Equal(t, common.OperationError, opState.Phase)
 		assert.Contains(t, opState.Message, opMessage)
 	})
 
 	t.Run("sync with impersonation and matching sa", func(t *testing.T) {
-		// given a project with an active deny sync window and an operation in progress
+		// given app sync impersonation feature is enabled with an application referring a project matching service account
 		t.Parallel()
 		f := setup(true, test.FakeDestNamespace, "test-sa")
 		opMessage := "successfully synced (no more tasks)"
@@ -1345,13 +1345,13 @@ func TestSyncWithImpersonate(t *testing.T) {
 		// when
 		f.controller.appStateManager.SyncAppState(f.application, opState)
 
-		// then
+		// then app sync should not fail
 		assert.Equal(t, common.OperationSucceeded, opState.Phase)
 		assert.Contains(t, opState.Message, opMessage)
 	})
 
 	t.Run("sync without impersonation", func(t *testing.T) {
-		// given a project with an active deny sync window and an operation in progress
+		// given app sync impersonation feature is disabled with an application referring a project matching service account
 		t.Parallel()
 		f := setup(false, test.FakeDestNamespace, "")
 		opMessage := "successfully synced (no more tasks)"
@@ -1367,7 +1367,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 		// when
 		f.controller.appStateManager.SyncAppState(f.application, opState)
 
-		// then
+		// then application sync should pass using the control plane service account
 		assert.Equal(t, common.OperationSucceeded, opState.Phase)
 		assert.Contains(t, opState.Message, opMessage)
 	})
