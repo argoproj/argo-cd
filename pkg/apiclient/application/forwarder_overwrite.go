@@ -115,11 +115,12 @@ func init() {
 	logsForwarder := func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w gohttp.ResponseWriter, req *gohttp.Request, recv func() (proto.Message, error), opts ...func(context.Context, gohttp.ResponseWriter, proto.Message) error) {
 		if req.URL.Query().Get("download") == "true" {
 			w.Header().Set("Content-Type", "application/octet-stream")
+			fileName := "log"
 			namespace := req.URL.Query().Get("namespace")
 			podName := req.URL.Query().Get("podName")
-			fileName := "log"
-			if kube.IsValidResourceName(namespace) && kube.IsValidResourceName(podName) {
-				fileName = fmt.Sprintf("%s-%s", namespace, podName)
+			container := req.URL.Query().Get("container")
+			if kube.IsValidResourceName(namespace) && kube.IsValidResourceName(podName) && kube.IsValidResourceName(container) {
+				fileName = fmt.Sprintf("%s-%s-%s", namespace, podName, container)
 			}
 			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s.log"`, fileName))
 			for {
