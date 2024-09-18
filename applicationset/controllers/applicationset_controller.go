@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -1295,6 +1296,9 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 	for _, status := range statusMap {
 		statuses = append(statuses, status)
 	}
+	sort.Slice(statuses, func(i, j int) bool {
+		return statuses[i].Name < statuses[j].Name
+	})
 	appset.Status.Resources = statuses
 	// DefaultRetry will retry 5 times with a backoff factor of 1, jitter of 0.1 and a duration of 10ms
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {

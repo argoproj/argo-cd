@@ -40,6 +40,27 @@ You need to check your argocd-notifications controller version. For instance, th
 
 You have not defined `xxxx` in `argocd-notifications-cm` or to fail to parse settings.
 
+### GitHub.repoURL (\u003cno value\u003e) does not have a / using the configuration
+
+You probably have an Application with [multiple sources](https://argo-cd.readthedocs.io/en/stable/user-guide/multiple_sources/):
+
+```yaml
+spec:
+  sources:  # <- multiple sources
+  - repoURL: https://github.com/exampleOrg/first.git
+    path: sources/example
+  - repoURL: https://github.com/exampleOrg/second.git
+    targetRevision: "{{branch}}"
+```
+
+So standard notification template won't work (`{{.app.spec.source.repoURL}}`). You should choose a single source instead:
+
+```yaml
+template.example: |
+  github:
+    repoURLPath: "{{ (index .app.spec.sources 0).repoURL }}"
+```
+
 ## config referenced xxx, but key does not exist in secret
 
 - If you are using a custom secret, check that the secret is in the same namespace
