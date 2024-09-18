@@ -3,7 +3,6 @@ package argo
 import (
 	"context"
 	"fmt"
-	"sort"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -191,10 +190,6 @@ func NewAuditLogger(ns string, kIf kubernetes.Interface, component string, enabl
 
 func setK8sEventList(enableK8sEvent []string) map[string]bool {
 	enableK8sEventList := make(map[string]bool)
-
-	sort.Slice(enableK8sEvent, func(i, j int) bool {
-		return enableK8sEvent[i] > enableK8sEvent[j]
-	})
 
 	for _, event := range enableK8sEvent {
 		if event == "all" {
