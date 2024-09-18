@@ -103,7 +103,6 @@ export interface ChartDetails {
 export interface SyncOperationResult {
     resources: ResourceResult[];
     revision: string;
-    revisions: string[];
 }
 
 export type ResultCode = 'Synced' | 'SyncFailed' | 'Pruned' | 'PruneSkipped';
@@ -171,12 +170,6 @@ export interface ApplicationDestination {
     name: string;
 }
 
-export interface ApplicationDestinationServiceAccount {
-    server: string;
-    namespace: string;
-    defaultServiceAccount: string;
-}
-
 export interface OrphanedResource {
     group: string;
     kind: string;
@@ -204,8 +197,6 @@ export interface ApplicationSource {
     plugin?: ApplicationSourcePlugin;
 
     directory?: ApplicationSourceDirectory;
-
-    ref?: string;
 }
 
 export interface ApplicationSourceHelm {
@@ -306,7 +297,6 @@ export interface RevisionHistory {
     sources: ApplicationSource[];
     deployStartedAt: models.Time;
     deployedAt: models.Time;
-    initiatedBy: OperationInitiator;
 }
 
 export type SyncStatusCode = 'Unknown' | 'Synced' | 'OutOfSync';
@@ -541,7 +531,6 @@ export interface Repository {
     tlsClientCertData?: string;
     tlsClientCertKey?: string;
     proxy?: string;
-    noProxy?: string;
     insecure?: boolean;
     enableLfs?: boolean;
     githubAppId?: string;
@@ -727,7 +716,6 @@ export interface ProjectSpec {
     sourceRepos: string[];
     sourceNamespaces: string[];
     destinations: ApplicationDestination[];
-    destinationServiceAccounts: ApplicationDestinationServiceAccount[];
     description: string;
     roles: ProjectRole[];
     clusterResourceWhitelist: GroupKind[];

@@ -20,7 +20,7 @@ func init() {
 	gob.Register([]interface{}{})
 }
 
-// compile-time validation of adherence of the CacheClient contract
+// compile-time validation of adherance of the CacheClient contract
 var _ CacheClient = &InMemoryCache{}
 
 type InMemoryCache struct {
@@ -33,22 +33,7 @@ func (i *InMemoryCache) Set(item *Item) error {
 	if err != nil {
 		return err
 	}
-	if item.CacheActionOpts.DisableOverwrite {
-		// go-redis doesn't throw an error on Set with NX, so absorbing here to keep the interface consistent
-		_ = i.memCache.Add(item.Key, buf, item.CacheActionOpts.Expiration)
-	} else {
-		i.memCache.Set(item.Key, buf, item.CacheActionOpts.Expiration)
-	}
-	return nil
-}
-
-func (i *InMemoryCache) Rename(oldKey string, newKey string, expiration time.Duration) error {
-	bufIf, found := i.memCache.Get(oldKey)
-	if !found {
-		return ErrCacheMiss
-	}
-	i.memCache.Set(newKey, bufIf, expiration)
-	i.memCache.Delete(oldKey)
+	i.memCache.Set(item.Key, buf, item.Expiration)
 	return nil
 }
 
@@ -100,9 +85,11 @@ func (i *InMemoryCache) NotifyUpdated(key string) error {
 // Items return a list of items in the cache; requires passing a constructor function
 // so that the items can be decoded from gob format.
 func (i *InMemoryCache) Items(createNewObject func() interface{}) (map[string]interface{}, error) {
+
 	result := map[string]interface{}{}
 
 	for key, value := range i.memCache.Items() {
+
 		buf := value.Object.(bytes.Buffer)
 		obj := createNewObject()
 		err := gob.NewDecoder(&buf).Decode(obj)
@@ -111,6 +98,7 @@ func (i *InMemoryCache) Items(createNewObject func() interface{}) (map[string]in
 		}
 
 		result[key] = obj
+
 	}
 
 	return result, nil

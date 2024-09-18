@@ -8,10 +8,9 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 | Metric | Type | Description |
 |--------|:----:|-------------|
 | `argocd_app_info` | gauge | Information about Applications. It contains labels such as `sync_status` and `health_status` that reflect the application state in Argo CD. |
-| `argocd_app_condition` | gauge | Report Applications conditions. It contains the conditions currently present in the application status. |
 | `argocd_app_k8s_request_total` | counter | Number of Kubernetes requests executed during application reconciliation |
 | `argocd_app_labels` | gauge | Argo Application labels converted to Prometheus labels. Disabled by default. See section below about how to enable it. |
-| `argocd_app_reconcile` | histogram | Application reconciliation performance in seconds. |
+| `argocd_app_reconcile` | histogram | Application reconciliation performance. |
 | `argocd_app_sync_total` | counter | Counter for application sync history |
 | `argocd_cluster_api_resource_objects` | gauge | Number of k8s resource objects in the cache. |
 | `argocd_cluster_api_resources` | gauge | Number of monitored Kubernetes API resources. |
@@ -61,28 +60,6 @@ argocd_app_labels{label_business_unit="bu-id-1",label_team_name="my-team",name="
 argocd_app_labels{label_business_unit="bu-id-2",label_team_name="another-team",name="my-app-3",namespace="argocd",project="important-project"} 1
 ```
 
-### Exposing Application conditions as Prometheus metrics
-
-There are use-cases where Argo CD Applications contain conditions that are desired to be exposed as Prometheus metrics.
-Some examples are:
-
-* Hunting orphaned resources across all deployed applications
-* Knowing which resources are excluded from ArgoCD
-
-As the Application conditions are specific to each company, this feature is disabled by default. To enable it, add the
-`--metrics-application-conditions` flag to the Argo CD application controller.
-
-The example below will expose the Argo CD Application condition `OrphanedResourceWarning` and `ExcludedResourceWarning` to Prometheus:
-
-    containers:
-    - command:
-      - argocd-application-controller
-      - --metrics-application-conditions
-      - OrphanedResourceWarning
-      - --metrics-application-conditions
-      - ExcludedResourceWarning
-```
-
 ## API Server Metrics
 Metrics about API Server API request and response activity (request totals, response codes, etc...).
 Scraped at the `argocd-server-metrics:8083/metrics` endpoint.
@@ -93,8 +70,6 @@ Scraped at the `argocd-server-metrics:8083/metrics` endpoint.
 | `argocd_redis_request_total` | counter | Number of Kubernetes requests executed during application reconciliation. |
 | `grpc_server_handled_total` | counter | Total number of RPCs completed on the server, regardless of success or failure. |
 | `grpc_server_msg_sent_total` | counter | Total number of gRPC stream messages sent by the server. |
-| `argocd_proxy_extension_request_total` | counter | Number of requests sent to the configured proxy extensions. |
-| `argocd_proxy_extension_request_duration_seconds` | histogram | Request duration in seconds between the Argo CD API server and the proxy extension backend. |
 
 ## Repo Server Metrics
 Metrics about the Repo Server.
@@ -104,7 +79,6 @@ Scraped at the `argocd-repo-server:8084/metrics` endpoint.
 |--------|:----:|-------------|
 | `argocd_git_request_duration_seconds` | histogram | Git requests duration seconds. |
 | `argocd_git_request_total` | counter | Number of git requests performed by repo server |
-| `argocd_git_fetch_fail_total` | counter | Number of git fetch requests failures by repo server |
 | `argocd_redis_request_duration_seconds` | histogram | Redis requests duration seconds. |
 | `argocd_redis_request_total` | counter | Number of Kubernetes requests executed during application reconciliation. |
 | `argocd_repo_pending_request_total` | gauge | Number of pending requests requiring repository lock |
@@ -194,8 +168,6 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: argocd-redis-haproxy-metrics
-  labels:
-    release: prometheus-operator
 spec:
   selector:
     matchLabels:
@@ -204,7 +176,7 @@ spec:
   - port: http-exporter-port
 ```
 
-For notifications controller, you need to additionally add following:
+For notifications controller, you need to additionally add following: 
 
 ```yaml
 apiVersion: monitoring.coreos.com/v1

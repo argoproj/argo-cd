@@ -28,19 +28,16 @@ argocd app delete APPNAME [flags]
 ### Options
 
 ```
-  -N, --app-namespace string        Namespace where the application will be deleted from
       --cascade                     Perform a cascaded deletion of all application resources (default true)
   -h, --help                        help for delete
   -p, --propagation-policy string   Specify propagation policy for deletion of application's resources. One of: foreground|background (default "foreground")
   -l, --selector string             Delete all apps with matching label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
-      --wait                        Wait until deletion of the application(s) completes
   -y, --yes                         Turn off prompting to confirm cascaded deletion of application resources
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --argocd-context string           The name of the Argo-CD server context to use
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file

@@ -73,7 +73,6 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 
 ```
       --argocd-cm-path string           Path to local argocd-cm.yaml file
-      --argocd-context string           The name of the Argo-CD server context to use
       --argocd-secret-path string       Path to local argocd-secret.yaml file
       --auth-token string               Authentication token
       --client-crt string               Client certificate file

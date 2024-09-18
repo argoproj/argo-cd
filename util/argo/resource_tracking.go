@@ -1,9 +1,7 @@
 package argo
 
 import (
-	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -21,11 +19,8 @@ const (
 	TrackingMethodAnnotationAndLabel v1alpha1.TrackingMethod = "annotation+label"
 )
 
-var (
-	WrongResourceTrackingFormat = fmt.Errorf("wrong resource tracking format, should be <application-name>:<group>/<kind>:<namespace>/<name>")
-	LabelMaxLength              = 63
-	OkEndPattern                = regexp.MustCompile("[a-zA-Z0-9]$")
-)
+var WrongResourceTrackingFormat = fmt.Errorf("wrong resource tracking format, should be <application-name>:<group>/<kind>:<namespace>/<name>")
+var LabelMaxLength = 63
 
 // ResourceTracking defines methods which allow setup and retrieve tracking information to resource
 type ResourceTracking interface {
@@ -46,7 +41,8 @@ type AppInstanceValue struct {
 	Name            string
 }
 
-type resourceTracking struct{}
+type resourceTracking struct {
+}
 
 func NewResourceTracking() ResourceTracking {
 	return &resourceTracking{}
@@ -65,7 +61,7 @@ func IsOldTrackingMethod(trackingMethod string) bool {
 	return trackingMethod == "" || trackingMethod == string(TrackingMethodLabel)
 }
 
-func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured) *AppInstanceValue {
+func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) *AppInstanceValue {
 	appInstanceAnnotation, err := argokube.GetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance)
 	if err != nil {
 		return nil
@@ -80,7 +76,7 @@ func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured) *
 // GetAppName retrieve application name base on tracking method
 func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string {
 	retrieveAppInstanceValue := func() string {
-		value := rt.getAppInstanceValue(un)
+		value := rt.getAppInstanceValue(un, key, trackingMethod)
 		if value != nil {
 			return value.ApplicationName
 		}
@@ -112,7 +108,7 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 func (rt *resourceTracking) GetAppInstance(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) *AppInstanceValue {
 	switch trackingMethod {
 	case TrackingMethodAnnotation, TrackingMethodAnnotationAndLabel:
-		return rt.getAppInstanceValue(un)
+		return rt.getAppInstanceValue(un, key, trackingMethod)
 	default:
 		return nil
 	}
@@ -159,14 +155,6 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		}
 		if len(val) > LabelMaxLength {
 			val = val[:LabelMaxLength]
-			// Prevent errors if the truncated name ends in a special character.
-			// See https://github.com/argoproj/argo-cd/issues/18237.
-			for !OkEndPattern.MatchString(val) {
-				if len(val) <= 1 {
-					return errors.New("failed to set app instance label: unable to truncate label to not end with a special character")
-				}
-				val = val[:len(val)-1]
-			}
 		}
 		err = argokube.SetAppInstanceLabel(un, key, val)
 		if err != nil {
@@ -210,7 +198,7 @@ func (rt *resourceTracking) ParseAppInstanceValue(value string) (*AppInstanceVal
 	return &appInstanceValue, nil
 }
 
-// Normalize updates live resource and removes diff caused by missing annotation or extra tracking label.
+// Normalize updates live resource and removes diff caused but missing annotation or extra tracking label.
 // The normalization is required to ensure smooth transition to new tracking method.
 func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, labelKey, trackingMethod string) error {
 	if IsOldTrackingMethod(trackingMethod) {

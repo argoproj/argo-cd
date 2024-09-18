@@ -1,26 +1,5 @@
 # Kustomize
 
-## Declarative
-
-You can define a Kustomize application manifest in the declarative GitOps way. Here is an example:
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: kustomize-example
-spec:
-  project: default
-  source:
-    path: examples/helloWorld
-    repoURL: 'https://github.com/kubernetes-sigs/kustomize'
-    targetRevision: HEAD
-  destination:
-    namespace: default
-    server: 'https://kubernetes.default.svc'
-```
-If the `kustomization.yaml` file exists at the location pointed to by `repoURL` and `path`, Argo CD will render the manifests using Kustomize.
-
 The following configuration options are available for Kustomize:
 
 * `namePrefix` is a prefix appended to resources for Kustomize apps
@@ -28,7 +7,6 @@ The following configuration options are available for Kustomize:
 * `images` is a list of Kustomize image overrides
 * `replicas` is a list of Kustomize replica overrides
 * `commonLabels` is a string map of additional labels
-* `labelWithoutSelector` is a boolean value which defines if the common label(s) should be applied to resource selectors and templates.
 * `forceCommonLabels` is a boolean value which defines if it's allowed to override existing labels
 * `commonAnnotations` is a string map of additional annotations
 * `namespace` is a Kubernetes resources namespace
@@ -53,7 +31,7 @@ metadata:
   name: kustomize-inline-example
 namespace: test1
 resources:
-  - https://github.com/argoproj/argocd-example-apps//kustomize-guestbook/
+  - https://raw.githubusercontent.com/argoproj/argocd-example-apps/master/kustomize-guestbook/
 patches:
   - target:
       kind: Deployment
@@ -184,9 +162,6 @@ data:
     kustomize.buildOptions: --load-restrictor LoadRestrictionsNone
     kustomize.buildOptions.v4.4.0: --output /tmp
 ```
-
-After modifying `kustomize.buildOptions`, you may need to restart ArgoCD for the changes to take effect.
-
 ## Custom Kustomize versions
 
 Argo CD supports using multiple Kustomize versions simultaneously and specifies required version per application.
@@ -233,7 +208,7 @@ argocd app set <appName> --kustomize-version v3.5.4
 
 ## Build Environment
 
-Kustomize apps have access to the [standard build environment](build-environment.md) which can be used in combination with a [config management plugin](../operator-manual/config-management-plugins.md) to alter the rendered manifests.
+Kustomize apps have access to the [standard build environment](build-environment.md) which can be used in combination with a [config managment plugin](../operator-manual/config-management-plugins.md) to alter the rendered manifests.
 
 You can use these build environment variables in your Argo CD Application manifests. You can enable this by setting `.spec.source.kustomize.commonAnnotationsEnvsubst` to `true` in your Application manifest.
 

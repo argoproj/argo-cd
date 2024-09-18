@@ -7,13 +7,12 @@
 [![Integration tests](https://github.com/argoproj/argo-cd/workflows/Integration%20tests/badge.svg?branch=master)](https://github.com/argoproj/argo-cd/actions?query=workflow%3A%22Integration+tests%22)
 [![codecov](https://codecov.io/gh/argoproj/argo-cd/branch/master/graph/badge.svg)](https://codecov.io/gh/argoproj/argo-cd)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/4486/badge)](https://bestpractices.coreinfrastructure.org/projects/4486)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/argoproj/argo-cd/badge)](https://scorecard.dev/viewer/?uri=github.com/argoproj/argo-cd)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/argoproj/argo-cd/badge)](https://api.securityscorecards.dev/projects/github.com/argoproj/argo-cd)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fargoproj%2Fargo-cd.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fargoproj%2Fargo-cd?ref=badge_shield)
 
 **Social:**
 [![Twitter Follow](https://img.shields.io/twitter/follow/argoproj?style=social)](https://twitter.com/argoproj)
 [![Slack](https://img.shields.io/badge/slack-argoproj-brightgreen.svg?logo=slack)](https://argoproj.github.io/community/join-slack)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-argoproj-blue.svg?logo=linkedin)](https://www.linkedin.com/company/argoproj/)
 
 # Argo CD - Declarative Continuous Delivery for Kubernetes
 
@@ -86,5 +85,4 @@ Participation in the Argo CD project is governed by the [CNCF Code of Conduct](h
 1. [Getting Started with ArgoCD for GitOps Deployments](https://youtu.be/AvLuplh1skA)
 1. [Using Argo CD & Datree for Stable Kubernetes CI/CD Deployments](https://youtu.be/17894DTru2Y)
 1. [How to create Argo CD Applications Automatically using ApplicationSet? "Automation of GitOps"](https://amralaayassen.medium.com/how-to-create-argocd-applications-automatically-using-applicationset-automation-of-the-gitops-59455eaf4f72)
-1. [Progressive Delivery with Service Mesh – Argo Rollouts with Istio](https://www.cncf.io/blog/2022/12/16/progressive-delivery-with-service-mesh-argo-rollouts-with-istio/)
 

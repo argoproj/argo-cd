@@ -1,7 +1,6 @@
 import * as React from 'react';
 
 import * as monacoEditor from 'monaco-editor';
-import {services} from '../services';
 
 export interface EditorInput {
     text: string;
@@ -28,16 +27,6 @@ const MonacoEditorLazy = React.lazy(() =>
     import('monaco-editor').then(monaco => {
         const Component = (props: MonacoProps) => {
             const [height, setHeight] = React.useState(0);
-
-            React.useEffect(() => {
-                const subscription = services.viewPreferences.getPreferences().subscribe(preferences => {
-                    monaco.editor.setTheme(preferences.theme === 'dark' ? 'vs-dark' : 'vs');
-                });
-
-                return () => {
-                    subscription.unsubscribe();
-                };
-            }, []);
 
             return (
                 <div

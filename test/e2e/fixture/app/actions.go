@@ -106,7 +106,6 @@ func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	a.runCli(args...)
 	return a
 }
-
 func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string) *Actions {
 	a.context.t.Helper()
 	app := &Application{
@@ -301,9 +300,9 @@ func (a *Actions) PatchApp(patch string) *Actions {
 func (a *Actions) PatchAppHttp(patch string) *Actions {
 	a.context.t.Helper()
 	var application Application
-	patchType := "merge"
-	appName := a.context.AppQualifiedName()
-	appNamespace := a.context.AppNamespace()
+	var patchType = "merge"
+	var appName = a.context.AppQualifiedName()
+	var appNamespace = a.context.AppNamespace()
 	patchRequest := &client.ApplicationPatchRequest{
 		Name:         &appName,
 		PatchType:    &patchType,
@@ -415,12 +414,6 @@ func (a *Actions) Delete(cascade bool) *Actions {
 func (a *Actions) DeleteBySelector(selector string) *Actions {
 	a.context.t.Helper()
 	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes")
-	return a
-}
-
-func (a *Actions) DeleteBySelectorWithWait(selector string) *Actions {
-	a.context.t.Helper()
-	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes", "--wait")
 	return a
 }
 

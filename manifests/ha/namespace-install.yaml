@@ -149,8 +149,6 @@ rules:
   - appprojects
   verbs:
   - get
-  - list
-  - watch
 - apiGroups:
   - argoproj.io
   resources:
@@ -1688,13 +1686,7 @@ spec:
               key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.webhook.parallelism.limit
-              name: argocd-cmd-params-cm
-              optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.10.16
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -1782,25 +1774,13 @@ spec:
         - /shared/argocd-dex
         - rundex
         env:
-        - name: ARGOCD_DEX_SERVER_LOGFORMAT
-          valueFrom:
-            configMapKeyRef:
-              key: dexserver.log.format
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_DEX_SERVER_LOGLEVEL
-          valueFrom:
-            configMapKeyRef:
-              key: dexserver.log.level
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_DEX_SERVER_DISABLE_TLS
           valueFrom:
             configMapKeyRef:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.41.1
+        image: ghcr.io/dexidp/dex:v2.37.0
         imagePullPolicy: Always
         name: dex
         ports:
@@ -1829,7 +1809,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.10.16
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -1911,13 +1891,7 @@ spec:
               key: notificationscontroller.selfservice.enabled
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_PLAINTEXT
-          valueFrom:
-            configMapKeyRef:
-              key: notificationscontroller.repo.server.plaintext
-              name: argocd-cmd-params-cm
-              optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.10.16
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
@@ -1997,7 +1971,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/haproxy:2.6.17-alpine
+        image: haproxy:2.6.14-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -2036,7 +2010,7 @@ spec:
         - argocd
         - admin
         - redis-initial-password
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.10.16
         imagePullPolicy: IfNotPresent
         name: secret-init
         securityContext:
@@ -2052,7 +2026,7 @@ spec:
         - /readonly/haproxy_init.sh
         command:
         - sh
-        image: public.ecr.aws/docker/library/haproxy:2.6.17-alpine
+        image: haproxy:2.6.14-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:
@@ -2275,12 +2249,6 @@ spec:
               key: reposerver.disable.helm.manifest.max.extracted.size
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_REVISION_CACHE_LOCK_TIMEOUT
-          valueFrom:
-            configMapKeyRef:
-              key: reposerver.revision.cache.lock.timeout
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_GIT_MODULES_ENABLED
           valueFrom:
             configMapKeyRef:
@@ -2299,25 +2267,13 @@ spec:
               key: reposerver.git.request.timeout
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_GRPC_MAX_SIZE_MB
-          valueFrom:
-            configMapKeyRef:
-              key: reposerver.grpc.max.size
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES
-          valueFrom:
-            configMapKeyRef:
-              key: reposerver.include.hidden.directories
-              name: argocd-cmd-params-cm
-              optional: true
         - name: HELM_CACHE_HOME
           value: /helm-working-dir
         - name: HELM_CONFIG_HOME
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.10.16
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -2369,7 +2325,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.10.16
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -2693,37 +2649,7 @@ spec:
               key: server.api.content.types
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT
-          valueFrom:
-            configMapKeyRef:
-              key: server.webhook.parallelism.limit
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.enable.new.git.file.globbing
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.scm.root.ca.path
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.allowed.scm.providers
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.enable.scm.providers
-              name: argocd-cmd-params-cm
-              optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.10.16
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -2764,8 +2690,6 @@ spec:
           name: plugins-home
         - mountPath: /tmp
           name: tmp
-        - mountPath: /home/argocd/params
-          name: argocd-cmd-params-cm
       serviceAccountName: argocd-server
       volumes:
       - emptyDir: {}
@@ -2798,13 +2722,6 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-dex-server-tls
-      - configMap:
-          items:
-          - key: server.profile.enabled
-            path: profiler.enabled
-          name: argocd-cmd-params-cm
-          optional: true
-        name: argocd-cmd-params-cm
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -3031,7 +2948,7 @@ spec:
               key: controller.ignore.normalizer.jq.timeout
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.10.16
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
@@ -3056,8 +2973,6 @@ spec:
           name: argocd-repo-server-tls
         - mountPath: /home/argocd
           name: argocd-home
-        - mountPath: /home/argocd/params
-          name: argocd-cmd-params-cm
         workingDir: /home/argocd
       serviceAccountName: argocd-application-controller
       volumes:
@@ -3074,13 +2989,6 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
-      - configMap:
-          items:
-          - key: controller.profile.enabled
-            path: profiler.enabled
-          name: argocd-cmd-params-cm
-          optional: true
-        name: argocd-cmd-params-cm
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -3123,7 +3031,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -3183,7 +3091,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         lifecycle: {}
         livenessProbe:
@@ -3241,7 +3149,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         name: split-brain-fix
         resources: {}
@@ -3276,7 +3184,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
+        image: redis:7.0.15-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:

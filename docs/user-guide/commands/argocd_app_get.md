@@ -26,9 +26,6 @@ argocd app get APPNAME [flags]
   # Show application parameters and overrides
   argocd app get my-app --show-params
   
-  # Show application parameters and overrides for a source at position 1 under spec.sources of app my-app
-  argocd app get my-app --show-params --source-position 1
-  
   # Refresh application data when retrieving
   argocd app get my-app --refresh
   
@@ -45,20 +42,17 @@ argocd app get APPNAME [flags]
 ### Options
 
 ```
-  -N, --app-namespace string   Only get application from namespace
-      --hard-refresh           Refresh application data as well as target manifests cache
-  -h, --help                   help for get
-  -o, --output string          Output format. One of: json|yaml|wide|tree (default "wide")
-      --refresh                Refresh application data when retrieving
-      --show-operation         Show application operation
-      --show-params            Show application parameters and overrides
-      --source-position int    Position of the source from the list of sources of the app. Counting starts at 1. (default -1)
+      --hard-refresh     Refresh application data as well as target manifests cache
+  -h, --help             help for get
+  -o, --output string    Output format. One of: json|yaml|wide|tree (default "wide")
+      --refresh          Refresh application data when retrieving
+      --show-operation   Show application operation
+      --show-params      Show application parameters and overrides
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --argocd-context string           The name of the Argo-CD server context to use
       --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
