@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+
 	"github.com/argoproj/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/dynamic"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/applicationsets/utils"
 )
 
@@ -25,7 +27,6 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 }
 
 func (c *Consequences) ExpectWithDuration(e Expectation, timeout time.Duration) *Consequences {
-
 	// this invocation makes sure this func is not reported as the cause of the failure - we are a "test helper"
 	c.context.t.Helper()
 	var message string
@@ -60,7 +61,7 @@ func (c *Consequences) When() *Actions {
 	return c.actions
 }
 
-func (c *Consequences) app(name string) *argov1alpha1.Application {
+func (c *Consequences) app(name string) *v1alpha1.Application {
 	apps := c.apps()
 
 	for index, app := range apps {
@@ -72,23 +73,37 @@ func (c *Consequences) app(name string) *argov1alpha1.Application {
 	return nil
 }
 
-func (c *Consequences) apps() []argov1alpha1.Application {
+func (c *Consequences) apps() []v1alpha1.Application {
+	var namespace string
+	if c.context.switchToNamespace != "" {
+		namespace = string(c.context.switchToNamespace)
+	} else {
+		namespace = fixture.TestNamespace()
+	}
 
 	fixtureClient := utils.GetE2EFixtureK8sClient()
-	list, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(utils.ArgoCDNamespace).List(context.Background(), metav1.ListOptions{})
+	list, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).List(context.Background(), metav1.ListOptions{})
 	errors.CheckError(err)
 
 	if list == nil {
-		list = &argov1alpha1.ApplicationList{}
+		list = &v1alpha1.ApplicationList{}
 	}
 
 	return list.Items
 }
 
 func (c *Consequences) applicationSet(applicationSetName string) *v1alpha1.ApplicationSet {
-
 	fixtureClient := utils.GetE2EFixtureK8sClient()
-	list, err := fixtureClient.AppSetClientset.Get(context.Background(), c.actions.context.name, metav1.GetOptions{})
+
+	var appSetClientSet dynamic.ResourceInterface
+
+	if c.context.switchToNamespace != "" {
+		appSetClientSet = fixtureClient.ExternalAppSetClientsets[c.context.switchToNamespace]
+	} else {
+		appSetClientSet = fixtureClient.AppSetClientset
+	}
+
+	list, err := appSetClientSet.Get(context.Background(), c.actions.context.name, metav1.GetOptions{})
 	errors.CheckError(err)
 
 	var appSet v1alpha1.ApplicationSet

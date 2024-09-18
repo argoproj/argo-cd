@@ -1,6 +1,7 @@
 package path
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -25,11 +26,11 @@ func resolveSymbolicLinkRecursive(path string, maxDepth int) (string, error) {
 	resolved, err := os.Readlink(path)
 	if err != nil {
 		// path is not a symbolic link
-		_, ok := err.(*os.PathError)
-		if ok {
+		var pathErr *os.PathError
+		if errors.As(err, &pathErr) {
 			return path, nil
 		}
-		// Other error has occured
+		// Other error has occurred
 		return "", err
 	}
 

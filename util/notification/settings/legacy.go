@@ -11,9 +11,9 @@ import (
 	"github.com/argoproj/notifications-engine/pkg/triggers"
 	"github.com/argoproj/notifications-engine/pkg/util/text"
 	jsonpatch "github.com/evanphx/json-patch"
-	"github.com/ghodss/yaml"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/yaml"
 )
 
 type legacyTemplate struct {
@@ -150,7 +150,7 @@ func (c *legacyServicesConfig) merge(cfg *api.Config) {
 	}
 	for i := range c.Webhook {
 		opts := c.Webhook[i]
-		cfg.Services[fmt.Sprintf(opts.Name)] = func() (services.NotificationService, error) {
+		cfg.Services[opts.Name] = func() (services.NotificationService, error) {
 			return services.NewWebhookService(opts.WebhookOptions), nil
 		}
 	}

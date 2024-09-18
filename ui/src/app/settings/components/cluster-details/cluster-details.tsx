@@ -28,9 +28,9 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}>) => 
         <DataLoader ref={loaderRef} input={server} load={(url: string) => timer(0, 1000).pipe(mergeMap(() => from(services.clusters.get(url, ''))))}>
             {(cluster: Cluster) => (
                 <Page
-                    title={server}
+                    title='Clusters'
                     toolbar={{
-                        breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Cluster', path: '/settings/clusters'}, {title: server}],
+                        breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Clusters', path: '/settings/clusters'}, {title: server}],
                         actionMenu: {
                             items: [
                                 {

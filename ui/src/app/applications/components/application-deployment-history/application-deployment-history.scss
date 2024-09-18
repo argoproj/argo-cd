@@ -3,7 +3,6 @@
 
 .application-deployment-history {
     &__item {
-        cursor: pointer;
         position: relative;
         @include themify($themes) {
             background: themed('background-2');
@@ -34,6 +33,10 @@
         right: 1em;
     }
 
+    &__show-parameter-details {
+        margin: 20px 0px;
+    }
+
     .white-box {
         margin-top: 1em;
         padding: 0;
@@ -42,5 +45,12 @@
 
     .white-box__details p {
         margin-left: -1em;
+    }
+
+    .separator {
+        height: 2px;
+        margin: 1em 0;
+        width: 100%;
+        background-color: $argo-color-gray-5;
     }
 }

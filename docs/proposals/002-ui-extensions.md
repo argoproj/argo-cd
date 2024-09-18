@@ -63,7 +63,7 @@ As an operator, I would like to configure Argo CD to perform pre-defined actions
 
 ## Proposal
  
-A new `ArgoCDExtension` CRD would be introduced which will allow operators configure Argo CD to understand how to handle and visualize custom resources. Visualizing a object requires javascript to render the object, and health/actions require lua scripts. Aas such, the extension CR would need to point to some location where the javascript/lua code would be hosted.
+A new `ArgoCDExtension` CRD would be introduced which will allow operators configure Argo CD to understand how to handle and visualize custom resources. Visualizing a object requires javascript to render the object, and health/actions require lua scripts. As such, the extension CR would need to point to some location where the javascript/lua code would be hosted.
 
 It is proposed that a git repository be used to contain the javascript code, as well as the lua scripts necessary to assess health or perform actions of a resource.
 

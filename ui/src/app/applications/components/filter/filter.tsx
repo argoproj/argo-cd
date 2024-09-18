@@ -56,14 +56,13 @@ export const FiltersGroup = (props: {children?: React.ReactNode; content: React.
     return (
         !props.collapsed && (
             <div className='filters-group'>
-                <div className='filters-group__header'>
-                    FILTERS{' '}
-                    {props.appliedFilter?.length > 0 && props.onClearFilter && (
+                {props.appliedFilter?.length > 0 && props.onClearFilter && (
+                    <div className='filters-group__header'>
                         <button onClick={() => props.onClearFilter()} className='argo-button argo-button--base argo-button--sm'>
-                            CLEAR ALL
+                            <i className='fa fa-times-circle' /> CLEAR ALL
                         </button>
-                    )}
-                </div>
+                    </div>
+                )}
                 <>{props.children}</>
                 <div className='filters-group__content'>{props.content}</div>
             </div>
@@ -149,7 +148,7 @@ export const Filter = (props: FilterProps) => {
                                     setValues(update);
                                 }}
                                 style={{width: '100%'}}
-                                inputStyle={{marginBottom: '0.5em', backgroundColor: 'black', border: 'none'}}
+                                inputStyle={{marginBottom: '0.5em', backgroundColor: 'black', border: 'none', color: '#fff'}}
                             />
                         )}
                         {((props.field ? tags : options) || []).map((opt, i) => (

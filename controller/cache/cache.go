@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os/exec"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -25,11 +26,15 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
+	"github.com/argoproj/argo-cd/v2/controller/sharding"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	logutils "github.com/argoproj/argo-cd/v2/util/log"
@@ -44,22 +49,29 @@ const (
 	// EnvClusterCacheWatchResyncDuration is the env variable that holds cluster cache watch re-sync duration
 	EnvClusterCacheWatchResyncDuration = "ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_DURATION"
 
-	// EnvClusterRetryTimeoutDuration is the env variable that holds cluster retry duration when sync error happens
+	// EnvClusterSyncRetryTimeoutDuration is the env variable that holds cluster retry duration when sync error happens
 	EnvClusterSyncRetryTimeoutDuration = "ARGOCD_CLUSTER_SYNC_RETRY_TIMEOUT_DURATION"
 
 	// EnvClusterCacheListPageSize is the env variable to control size of the list page size when making K8s queries
 	EnvClusterCacheListPageSize = "ARGOCD_CLUSTER_CACHE_LIST_PAGE_SIZE"
+
+	// EnvClusterCacheListPageBufferSize is the env variable to control the number of pages to buffer when making a K8s query to list resources
+	EnvClusterCacheListPageBufferSize = "ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE"
 
 	// EnvClusterCacheListSemaphore is the env variable to control size of the list semaphore
 	// This is used to limit the number of concurrent memory consuming operations on the
 	// k8s list queries results across all clusters to avoid memory spikes during cache initialization.
 	EnvClusterCacheListSemaphore = "ARGOCD_CLUSTER_CACHE_LIST_SEMAPHORE"
 
-	// EnvClusterCacheRetryLimit is the env variable to control the retry limit for listing resources during cluster cache sync
+	// EnvClusterCacheAttemptLimit is the env variable to control the retry limit for listing resources during cluster cache sync
 	EnvClusterCacheAttemptLimit = "ARGOCD_CLUSTER_CACHE_ATTEMPT_LIMIT"
 
 	// EnvClusterCacheRetryUseBackoff is the env variable to control whether to use a backoff strategy with the retry during cluster cache sync
 	EnvClusterCacheRetryUseBackoff = "ARGOCD_CLUSTER_CACHE_RETRY_USE_BACKOFF"
+
+	// AnnotationIgnoreResourceUpdates when set to true on an untracked resource,
+	// argo will apply `ignoreResourceUpdates` configuration on it.
+	AnnotationIgnoreResourceUpdates = "argocd.argoproj.io/ignore-resource-updates"
 )
 
 // GitOps engine cluster cache tuning options
@@ -82,6 +94,9 @@ var (
 	// 500 is equal to kubectl's size
 	clusterCacheListPageSize int64 = 500
 
+	// clusterCacheListPageBufferSize is the number of pages to buffer when performing K8s list requests
+	clusterCacheListPageBufferSize int32 = 1
+
 	// clusterCacheRetryLimit sets a retry limit for failed requests during cluster cache sync
 	// If set to 1, retries are disabled.
 	clusterCacheAttemptLimit int32 = 1
@@ -95,8 +110,9 @@ func init() {
 	clusterCacheWatchResyncDuration = env.ParseDurationFromEnv(EnvClusterCacheWatchResyncDuration, clusterCacheWatchResyncDuration, 0, math.MaxInt64)
 	clusterSyncRetryTimeoutDuration = env.ParseDurationFromEnv(EnvClusterSyncRetryTimeoutDuration, clusterSyncRetryTimeoutDuration, 0, math.MaxInt64)
 	clusterCacheListPageSize = env.ParseInt64FromEnv(EnvClusterCacheListPageSize, clusterCacheListPageSize, 0, math.MaxInt64)
+	clusterCacheListPageBufferSize = int32(env.ParseNumFromEnv(EnvClusterCacheListPageBufferSize, int(clusterCacheListPageBufferSize), 1, math.MaxInt32))
 	clusterCacheListSemaphoreSize = env.ParseInt64FromEnv(EnvClusterCacheListSemaphore, clusterCacheListSemaphoreSize, 0, math.MaxInt64)
-	clusterCacheAttemptLimit = int32(env.ParseInt64FromEnv(EnvClusterCacheAttemptLimit, 1, 1, math.MaxInt32))
+	clusterCacheAttemptLimit = int32(env.ParseNumFromEnv(EnvClusterCacheAttemptLimit, int(clusterCacheAttemptLimit), 1, math.MaxInt32))
 	clusterCacheRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false)
 }
 
@@ -109,6 +125,8 @@ type LiveStateCache interface {
 	GetClusterCache(server string) (clustercache.ClusterCache, error)
 	// Executes give callback against resource specified by the key and all its children
 	IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error
+	// Executes give callback against resources specified by the keys and all its children
+	IterateHierarchyV2(server string, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error
 	// Returns state of live nodes which correspond for target nodes of specified application.
 	GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// IterateResources iterates all resource stored in cache
@@ -148,6 +166,8 @@ type ResourceInfo struct {
 	PodInfo *PodInfo
 	// NodeInfo is available for nodes only
 	NodeInfo *NodeInfo
+
+	manifestHash string
 }
 
 func NewLiveStateCache(
@@ -157,9 +177,9 @@ func NewLiveStateCache(
 	kubectl kube.Kubectl,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
-	clusterFilter func(cluster *appv1.Cluster) bool,
-	resourceTracking argo.ResourceTracking) LiveStateCache {
-
+	clusterSharding sharding.ClusterShardingCache,
+	resourceTracking argo.ResourceTracking,
+) LiveStateCache {
 	return &liveStateCache{
 		appInformer:      appInformer,
 		db:               db,
@@ -168,7 +188,7 @@ func NewLiveStateCache(
 		kubectl:          kubectl,
 		settingsMgr:      settingsMgr,
 		metricsServer:    metricsServer,
-		clusterFilter:    clusterFilter,
+		clusterSharding:  clusterSharding,
 		resourceTracking: resourceTracking,
 	}
 }
@@ -177,17 +197,23 @@ type cacheSettings struct {
 	clusterSettings     clustercache.Settings
 	appInstanceLabelKey string
 	trackingMethod      appv1.TrackingMethod
+	// resourceOverrides provides a list of ignored differences to ignore watched resource updates
+	resourceOverrides map[string]appv1.ResourceOverride
+
+	// ignoreResourceUpdates is a flag to enable resource-ignore rules.
+	ignoreResourceUpdatesEnabled bool
 }
 
 type liveStateCache struct {
-	db               db.ArgoDB
-	appInformer      cache.SharedIndexInformer
-	onObjectUpdated  ObjectUpdatedHandler
-	kubectl          kube.Kubectl
-	settingsMgr      *settings.SettingsManager
-	metricsServer    *metrics.MetricsServer
-	clusterFilter    func(cluster *appv1.Cluster) bool
-	resourceTracking argo.ResourceTracking
+	db                   db.ArgoDB
+	appInformer          cache.SharedIndexInformer
+	onObjectUpdated      ObjectUpdatedHandler
+	kubectl              kube.Kubectl
+	settingsMgr          *settings.SettingsManager
+	metricsServer        *metrics.MetricsServer
+	clusterSharding      sharding.ClusterShardingCache
+	resourceTracking     argo.ResourceTracking
+	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
 
 	clusters      map[string]clustercache.ClusterCache
 	cacheSettings cacheSettings
@@ -196,6 +222,14 @@ type liveStateCache struct {
 
 func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	appInstanceLabelKey, err := c.settingsMgr.GetAppInstanceLabelKey()
+	if err != nil {
+		return nil, err
+	}
+	resourceUpdatesOverrides, err := c.settingsMgr.GetIgnoreResourceUpdatesOverrides()
+	if err != nil {
+		return nil, err
+	}
+	ignoreResourceUpdatesEnabled, err := c.settingsMgr.GetIsIgnoreResourceUpdatesEnabled()
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +245,8 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 		ResourceHealthOverride: lua.ResourceHealthOverrides(resourceOverrides),
 		ResourcesFilter:        resourcesFilter,
 	}
-	return &cacheSettings{clusterSettings, appInstanceLabelKey, argo.GetTrackingMethod(c.settingsMgr)}, nil
+
+	return &cacheSettings{clusterSettings, appInstanceLabelKey, argo.GetTrackingMethod(c.settingsMgr), resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
 }
 
 func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
@@ -220,10 +255,10 @@ func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
 		gv = schema.GroupVersion{}
 	}
 	parentRefs := make([]appv1.ResourceRef, len(r.OwnerRefs))
-	for _, ownerRef := range r.OwnerRefs {
+	for i, ownerRef := range r.OwnerRefs {
 		ownerGvk := schema.FromAPIVersionAndKind(ownerRef.APIVersion, ownerRef.Kind)
 		ownerKey := kube.NewResourceKey(ownerGvk.Group, ownerRef.Kind, r.Ref.Namespace, ownerRef.Name)
-		parentRefs[0] = appv1.ResourceRef{Name: ownerRef.Name, Kind: ownerKey.Kind, Namespace: r.Ref.Namespace, Group: ownerKey.Group, UID: string(ownerRef.UID)}
+		parentRefs[i] = appv1.ResourceRef{Name: ownerRef.Name, Kind: ownerKey.Kind, Namespace: r.Ref.Namespace, Group: ownerKey.Group, UID: string(ownerRef.UID)}
 	}
 	var resHealth *appv1.HealthStatus
 	resourceInfo := resInfo(r)
@@ -262,7 +297,8 @@ func isRootAppNode(r *clustercache.Resource) bool {
 }
 
 func getApp(r *clustercache.Resource, ns map[kube.ResourceKey]*clustercache.Resource) string {
-	return getAppRecursive(r, ns, map[kube.ResourceKey]bool{})
+	name, _ := getAppRecursive(r, ns, map[kube.ResourceKey]bool{})
+	return name
 }
 
 func ownerRefGV(ownerRef metav1.OwnerReference) schema.GroupVersion {
@@ -273,39 +309,79 @@ func ownerRefGV(ownerRef metav1.OwnerReference) schema.GroupVersion {
 	return gv
 }
 
-func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clustercache.Resource, visited map[kube.ResourceKey]bool) string {
+func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clustercache.Resource, visited map[kube.ResourceKey]bool) (string, bool) {
 	if !visited[r.ResourceKey()] {
 		visited[r.ResourceKey()] = true
 	} else {
 		log.Warnf("Circular dependency detected: %v.", visited)
-		return resInfo(r).AppName
+		return resInfo(r).AppName, false
 	}
 
 	if resInfo(r).AppName != "" {
-		return resInfo(r).AppName
+		return resInfo(r).AppName, true
 	}
 	for _, ownerRef := range r.OwnerRefs {
 		gv := ownerRefGV(ownerRef)
 		if parent, ok := ns[kube.NewResourceKey(gv.Group, ownerRef.Kind, r.Ref.Namespace, ownerRef.Name)]; ok {
-			app := getAppRecursive(parent, ns, visited)
-			if app != "" {
-				return app
+			visited_branch := make(map[kube.ResourceKey]bool, len(visited))
+			for k, v := range visited {
+				visited_branch[k] = v
+			}
+			app, ok := getAppRecursive(parent, ns, visited_branch)
+			if app != "" || !ok {
+				return app, ok
 			}
 		}
 	}
-	return ""
+	return "", true
 }
 
-var (
-	ignoredRefreshResources = map[string]bool{
-		"/" + kube.EndpointsKind: true,
-	}
-)
+var ignoredRefreshResources = map[string]bool{
+	"/" + kube.EndpointsKind: true,
+}
 
 // skipAppRequeuing checks if the object is an API type which we want to skip requeuing against.
 // We ignore API types which have a high churn rate, and/or whose updates are irrelevant to the app
 func skipAppRequeuing(key kube.ResourceKey) bool {
 	return ignoredRefreshResources[key.Group+"/"+key.Kind]
+}
+
+func skipResourceUpdate(oldInfo, newInfo *ResourceInfo) bool {
+	if oldInfo == nil || newInfo == nil {
+		return false
+	}
+	isSameHealthStatus := (oldInfo.Health == nil && newInfo.Health == nil) || oldInfo.Health != nil && newInfo.Health != nil && oldInfo.Health.Status == newInfo.Health.Status
+	isSameManifest := oldInfo.manifestHash != "" && newInfo.manifestHash != "" && oldInfo.manifestHash == newInfo.manifestHash
+	return isSameHealthStatus && isSameManifest
+}
+
+// shouldHashManifest validates if the API resource needs to be hashed.
+// If there's an app name from resource tracking, or if this is itself an app, we should generate a hash.
+// Otherwise, the hashing should be skipped to save CPU time.
+func shouldHashManifest(appName string, gvk schema.GroupVersionKind, un *unstructured.Unstructured) bool {
+	// Only hash if the resource belongs to an app OR argocd.argoproj.io/ignore-resource-updates is present and set to true
+	// Best      - Only hash for resources that are part of an app or their dependencies
+	// (current) - Only hash for resources that are part of an app + all apps that might be from an ApplicationSet
+	// Orphan    - If orphan is enabled, hash should be made on all resource of that namespace and a config to disable it
+	// Worst     - Hash all resources watched by Argo
+	isTrackedResource := appName != "" || (gvk.Group == application.Group && gvk.Kind == application.ApplicationKind)
+
+	// If the resource is not a tracked resource, we will look up argocd.argoproj.io/ignore-resource-updates and decide
+	// whether we generate hash or not.
+	// If argocd.argoproj.io/ignore-resource-updates is presented and is true, return true
+	// Else return false
+	if !isTrackedResource {
+		if val, ok := un.GetAnnotations()[AnnotationIgnoreResourceUpdates]; ok {
+			applyResourcesUpdate, err := strconv.ParseBool(val)
+			if err != nil {
+				applyResourcesUpdate = false
+			}
+			return applyResourcesUpdate
+		}
+		return false
+	}
+
+	return isTrackedResource
 }
 
 // isRetryableError is a helper method to see whether an error
@@ -325,7 +401,12 @@ func isRetryableError(err error) bool {
 		isResourceQuotaConflictErr(err) ||
 		isTransientNetworkErr(err) ||
 		isExceededQuotaErr(err) ||
+		isHTTP2GoawayErr(err) ||
 		errors.Is(err, syscall.ECONNRESET)
+}
+
+func isHTTP2GoawayErr(err error) bool {
+	return strings.Contains(err.Error(), "http2: server sent GOAWAY and closed the connection")
 }
 
 func isExceededQuotaErr(err error) bool {
@@ -337,12 +418,17 @@ func isResourceQuotaConflictErr(err error) bool {
 }
 
 func isTransientNetworkErr(err error) bool {
-	switch err.(type) {
-	case net.Error:
-		switch err.(type) {
-		case *net.DNSError, *net.OpError, net.UnknownNetworkError:
+	var netErr net.Error
+	switch {
+	case errors.As(err, &netErr):
+		var dnsErr *net.DNSError
+		var opErr *net.OpError
+		var unknownNetworkErr net.UnknownNetworkError
+		var urlErr *url.Error
+		switch {
+		case errors.As(err, &dnsErr), errors.As(err, &opErr), errors.As(err, &unknownNetworkErr):
 			return true
-		case *url.Error:
+		case errors.As(err, &urlErr):
 			// For a URL error, where it replies "connection closed"
 			// retry again.
 			return strings.Contains(err.Error(), "Connection closed by foreign host")
@@ -350,7 +436,8 @@ func isTransientNetworkErr(err error) bool {
 	}
 
 	errorString := err.Error()
-	if exitErr, ok := err.(*exec.ExitError); ok {
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
 		errorString = fmt.Sprintf("%s %s", errorString, exitErr.Stderr)
 	}
 	if strings.Contains(errorString, "net/http: TLS handshake timeout") ||
@@ -385,6 +472,10 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}
 
+	if c.clusterSharding == nil {
+		return nil, fmt.Errorf("unable to handle cluster %s: cluster sharding is not configured", cluster.Server)
+	}
+
 	if !c.canHandleCluster(cluster) {
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
 	}
@@ -394,9 +485,29 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("error getting custom label: %w", err)
 	}
 
+	respectRBAC, err := c.settingsMgr.RespectRBAC()
+	if err != nil {
+		return nil, fmt.Errorf("error getting value for %v: %w", settings.RespectRBAC, err)
+	}
+
+	clusterCacheConfig := cluster.RESTConfig()
+	// Controller dynamically fetches all resource types available on the cluster
+	// using a discovery API that may contain deprecated APIs.
+	// This causes log flooding when managing a large number of clusters.
+	// https://github.com/argoproj/argo-cd/issues/11973
+	// However, we can safely suppress deprecation warnings
+	// because we do not rely on resources with a particular API group or version.
+	// https://kubernetes.io/blog/2020/09/03/warnings/#customize-client-handling
+	//
+	// Completely suppress warning logs only for log levels that are less than Debug.
+	if log.GetLevel() < log.DebugLevel {
+		clusterCacheConfig.WarningHandler = rest.NoWarnings{}
+	}
+
 	clusterCacheOpts := []clustercache.UpdateSettingsFunc{
 		clustercache.SetListSemaphore(semaphore.NewWeighted(clusterCacheListSemaphoreSize)),
 		clustercache.SetListPageSize(clusterCacheListPageSize),
+		clustercache.SetListPageBufferSize(clusterCacheListPageBufferSize),
 		clustercache.SetWatchResyncTimeout(clusterCacheWatchResyncDuration),
 		clustercache.SetClusterSyncRetryTimeout(clusterSyncRetryTimeoutDuration),
 		clustercache.SetResyncTimeout(clusterCacheResyncDuration),
@@ -409,13 +520,24 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 			c.lock.RLock()
 			cacheSettings := c.cacheSettings
 			c.lock.RUnlock()
+
 			res.Health, _ = health.GetResourceHealth(un, cacheSettings.clusterSettings.ResourceHealthOverride)
 
 			appName := c.resourceTracking.GetAppName(un, cacheSettings.appInstanceLabelKey, cacheSettings.trackingMethod)
 			if isRoot && appName != "" {
 				res.AppName = appName
 			}
+
 			gvk := un.GroupVersionKind()
+
+			if cacheSettings.ignoreResourceUpdatesEnabled && shouldHashManifest(appName, gvk, un) {
+				hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides, c.ignoreNormalizerOpts)
+				if err != nil {
+					log.Errorf("Failed to generate manifest hash: %v", err)
+				} else {
+					res.manifestHash = hash
+				}
+			}
 
 			// edge case. we do not label CRDs, so they miss the tracking label we inject. But we still
 			// want the full resource to be available in our cache (to diff), so we store all CRDs
@@ -423,9 +545,10 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		}),
 		clustercache.SetLogr(logutils.NewLogrusLogger(log.WithField("server", cluster.Server))),
 		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
+		clustercache.SetRespectRBAC(respectRBAC),
 	}
 
-	clusterCache = clustercache.NewClusterCache(cluster.RESTConfig(), clusterCacheOpts...)
+	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
 
 	_ = clusterCache.OnResourceUpdated(func(newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
 		toNotify := make(map[string]bool)
@@ -435,6 +558,30 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		} else {
 			ref = oldRes.Ref
 		}
+
+		c.lock.RLock()
+		cacheSettings := c.cacheSettings
+		c.lock.RUnlock()
+
+		if cacheSettings.ignoreResourceUpdatesEnabled && oldRes != nil && newRes != nil && skipResourceUpdate(resInfo(oldRes), resInfo(newRes)) {
+			// Additional check for debug level so we don't need to evaluate the
+			// format string in case of non-debug scenarios
+			if log.GetLevel() >= log.DebugLevel {
+				namespace := ref.Namespace
+				if ref.Namespace == "" {
+					namespace = "(cluster-scoped)"
+				}
+				log.WithFields(log.Fields{
+					"server":      cluster.Server,
+					"namespace":   namespace,
+					"name":        ref.Name,
+					"api-version": ref.APIVersion,
+					"kind":        ref.Kind,
+				}).Debug("Ignoring change of object because none of the watched resource fields have changed")
+			}
+			return
+		}
+
 		for _, r := range []*clustercache.Resource{newRes, oldRes} {
 			if r == nil {
 				continue
@@ -473,10 +620,11 @@ func (c *liveStateCache) getSyncedCluster(server string) (clustercache.ClusterCa
 func (c *liveStateCache) invalidate(cacheSettings cacheSettings) {
 	log.Info("invalidating live state cache")
 	c.lock.Lock()
-	defer c.lock.Unlock()
-
 	c.cacheSettings = cacheSettings
-	for _, clust := range c.clusters {
+	clusters := c.clusters
+	c.lock.Unlock()
+
+	for _, clust := range clusters {
 		clust.Invalidate(clustercache.SetSettings(cacheSettings.clusterSettings))
 	}
 	log.Info("live state cache invalidated")
@@ -496,6 +644,17 @@ func (c *liveStateCache) IterateHierarchy(server string, key kube.ResourceKey, a
 		return err
 	}
 	clusterInfo.IterateHierarchy(key, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
+		return action(asResourceNode(resource), getApp(resource, namespaceResources))
+	})
+	return nil
+}
+
+func (c *liveStateCache) IterateHierarchyV2(server string, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error {
+	clusterInfo, err := c.getSyncedCluster(server)
+	if err != nil {
+		return err
+	}
+	clusterInfo.IterateHierarchyV2(keys, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
 		return action(asResourceNode(resource), getApp(resource, namespaceResources))
 	})
 	return nil
@@ -531,7 +690,7 @@ func (c *liveStateCache) GetNamespaceTopLevelResources(server string, namespace 
 func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
 	clusterInfo, err := c.getSyncedCluster(a.Spec.Destination.Server)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get cluster info for %q: %w", a.Spec.Destination.Server, err)
 	}
 	return clusterInfo.GetManagedLiveObjs(targetObjs, func(r *clustercache.Resource) bool {
 		return resInfo(r).AppName == a.InstanceName(c.settingsMgr.GetNamespace())
@@ -541,7 +700,7 @@ func (c *liveStateCache) GetManagedLiveObjs(a *appv1.Application, targetObjs []*
 func (c *liveStateCache) GetVersionsInfo(serverURL string) (string, []kube.APIResourceInfo, error) {
 	clusterInfo, err := c.getSyncedCluster(serverURL)
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("failed to get cluster info for %q: %w", serverURL, err)
 	}
 	return clusterInfo.GetServerVersion(), clusterInfo.GetAPIResources(), nil
 }
@@ -619,22 +778,24 @@ func (c *liveStateCache) Run(ctx context.Context) error {
 }
 
 func (c *liveStateCache) canHandleCluster(cluster *appv1.Cluster) bool {
-	if c.clusterFilter == nil {
-		return true
-	}
-	return c.clusterFilter(cluster)
+	return c.clusterSharding.IsManagedCluster(cluster)
 }
 
 func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
+	c.clusterSharding.Add(cluster)
 	if !c.canHandleCluster(cluster) {
 		log.Infof("Ignoring cluster %s", cluster.Server)
 		return
 	}
-
 	c.lock.Lock()
 	_, ok := c.clusters[cluster.Server]
 	c.lock.Unlock()
 	if !ok {
+		log.Debugf("Checking if cache %v / cluster %v has appInformer %v", c, cluster, c.appInformer)
+		if c.appInformer == nil {
+			log.Warn("Cannot get a cluster appInformer. Cache may not be started this time")
+			return
+		}
 		if c.isClusterHasApps(c.appInformer.GetStore().List(), cluster) {
 			go func() {
 				// warm up cache for cluster with apps
@@ -645,6 +806,7 @@ func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
 }
 
 func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *appv1.Cluster) {
+	c.clusterSharding.Update(oldCluster, newCluster)
 	c.lock.Lock()
 	cluster, ok := c.clusters[newCluster.Server]
 	c.lock.Unlock()
@@ -682,16 +844,18 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 			}()
 		}
 	}
-
 }
 
 func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
+	c.clusterSharding.Delete(clusterServer)
 	cluster, ok := c.clusters[clusterServer]
+	c.lock.RUnlock()
 	if ok {
 		cluster.Invalidate()
+		c.lock.Lock()
 		delete(c.clusters, clusterServer)
+		c.lock.Unlock()
 	}
 }
 

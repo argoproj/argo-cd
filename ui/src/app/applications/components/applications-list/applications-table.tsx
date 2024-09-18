@@ -83,7 +83,7 @@ export const ApplicationsTable = (props: {
                                                                     />
                                                                 </button>
                                                             </Tooltip>
-                                                            <ApplicationURLs urls={AppUtils.getExternalUrls(app.metadata.annotations, app.status.summary.externalURLs)} />
+                                                            <ApplicationURLs urls={app.status.summary.externalURLs} />
                                                         </div>
                                                     </div>
                                                     <div className='show-for-xxlarge columns small-4'>Project:</div>
@@ -140,9 +140,21 @@ export const ApplicationsTable = (props: {
                                                         </button>
                                                     )}
                                                     items={[
-                                                        {title: 'Sync', action: () => props.syncApplication(app.metadata.name, app.metadata.namespace)},
-                                                        {title: 'Refresh', action: () => props.refreshApplication(app.metadata.name, app.metadata.namespace)},
-                                                        {title: 'Delete', action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)}
+                                                        {
+                                                            title: 'Sync',
+                                                            iconClassName: 'fa fa-fw fa-sync',
+                                                            action: () => props.syncApplication(app.metadata.name, app.metadata.namespace)
+                                                        },
+                                                        {
+                                                            title: 'Refresh',
+                                                            iconClassName: 'fa fa-fw fa-redo',
+                                                            action: () => props.refreshApplication(app.metadata.name, app.metadata.namespace)
+                                                        },
+                                                        {
+                                                            title: 'Delete',
+                                                            iconClassName: 'fa fa-fw fa-times-circle',
+                                                            action: () => props.deleteApplication(app.metadata.name, app.metadata.namespace)
+                                                        }
                                                     ]}
                                                 />
                                             </div>

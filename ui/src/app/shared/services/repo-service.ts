@@ -27,7 +27,10 @@ export class RepositoriesService {
         insecure,
         enableLfs,
         proxy,
-        project
+        noProxy,
+        project,
+        forceHttpBasicAuth,
+        enableOCI
     }: {
         type: string;
         name: string;
@@ -39,11 +42,14 @@ export class RepositoriesService {
         insecure: boolean;
         enableLfs: boolean;
         proxy: string;
+        noProxy: string;
         project?: string;
+        forceHttpBasicAuth?: boolean;
+        enableOCI: boolean;
     }): Promise<models.Repository> {
         return requests
             .post('/repositories')
-            .send({type, name, repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs, proxy, project})
+            .send({type, name, repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs, proxy, noProxy, project, forceHttpBasicAuth, enableOCI})
             .then(res => res.body as models.Repository);
     }
 
@@ -58,7 +64,10 @@ export class RepositoriesService {
         insecure,
         enableLfs,
         proxy,
-        project
+        noProxy,
+        project,
+        forceHttpBasicAuth,
+        enableOCI
     }: {
         type: string;
         name: string;
@@ -70,11 +79,14 @@ export class RepositoriesService {
         insecure: boolean;
         enableLfs: boolean;
         proxy: string;
+        noProxy: string;
         project?: string;
+        forceHttpBasicAuth?: boolean;
+        enableOCI: boolean;
     }): Promise<models.Repository> {
         return requests
             .put(`/repositories/${encodeURIComponent(url)}`)
-            .send({type, name, repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs, proxy, project})
+            .send({type, name, repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs, proxy, noProxy, project, forceHttpBasicAuth, enableOCI})
             .then(res => res.body as models.Repository);
     }
 
@@ -86,6 +98,7 @@ export class RepositoriesService {
         insecure,
         enableLfs,
         proxy,
+        noProxy,
         project
     }: {
         type: string;
@@ -95,11 +108,12 @@ export class RepositoriesService {
         insecure: boolean;
         enableLfs: boolean;
         proxy: string;
+        noProxy: string;
         project?: string;
     }): Promise<models.Repository> {
         return requests
             .post('/repositories')
-            .send({type, name, repo: url, sshPrivateKey, insecure, enableLfs, proxy, project})
+            .send({type, name, repo: url, sshPrivateKey, insecure, enableLfs, proxy, noProxy, project})
             .then(res => res.body as models.Repository);
     }
 
@@ -116,6 +130,7 @@ export class RepositoriesService {
         insecure,
         enableLfs,
         proxy,
+        noProxy,
         project
     }: {
         type: string;
@@ -130,6 +145,7 @@ export class RepositoriesService {
         insecure: boolean;
         enableLfs: boolean;
         proxy: string;
+        noProxy: string;
         project?: string;
     }): Promise<models.Repository> {
         return requests
@@ -147,6 +163,7 @@ export class RepositoriesService {
                 insecure,
                 enableLfs,
                 proxy,
+                noProxy,
                 project
             })
             .then(res => res.body as models.Repository);
@@ -158,6 +175,7 @@ export class RepositoriesService {
         url,
         gcpServiceAccountKey,
         proxy,
+        noProxy,
         project
     }: {
         type: string;
@@ -165,6 +183,7 @@ export class RepositoriesService {
         url: string;
         gcpServiceAccountKey: string;
         proxy: string;
+        noProxy: string;
         project?: string;
     }): Promise<models.Repository> {
         return requests
@@ -175,14 +194,15 @@ export class RepositoriesService {
                 repo: url,
                 gcpServiceAccountKey,
                 proxy,
+                noProxy,
                 project
             })
             .then(res => res.body as models.Repository);
     }
 
-    public delete(url: string): Promise<models.Repository> {
+    public delete(url: string, project: string): Promise<models.Repository> {
         return requests
-            .delete(`/repositories/${encodeURIComponent(url)}`)
+            .delete(`/repositories/${encodeURIComponent(url)}?appProject=${project}`)
             .send()
             .then(res => res.body as models.Repository);
     }
@@ -204,10 +224,10 @@ export class RepositoriesService {
         return requests.get(`/repositories/${encodeURIComponent(repo)}/helmcharts`).then(res => (res.body.items as models.HelmChart[]) || []);
     }
 
-    public appDetails(source: models.ApplicationSource, appName: string, appProject: string): Promise<models.RepoAppDetails> {
+    public appDetails(source: models.ApplicationSource, appName: string, appProject: string, sourceIndex: number, versionId: number): Promise<models.RepoAppDetails> {
         return requests
             .post(`/repositories/${encodeURIComponent(source.repoURL)}/appdetails`)
-            .send({source, appName, appProject})
+            .send({source, appName, appProject, sourceIndex, versionId})
             .then(res => res.body as models.RepoAppDetails);
     }
 }

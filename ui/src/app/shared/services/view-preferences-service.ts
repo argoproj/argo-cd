@@ -2,6 +2,7 @@ import * as deepMerge from 'deepmerge';
 import {BehaviorSubject, Observable} from 'rxjs';
 
 import {PodGroupType} from '../../applications/components/application-pod-view/pod-view';
+import {UserMessages} from '../models';
 
 export type AppsDetailsViewType = 'tree' | 'network' | 'list' | 'pods';
 
@@ -14,7 +15,7 @@ export enum AppsDetailsViewKey {
 
 export interface AppDetailsPreferences {
     resourceFilter: string[];
-    view: AppsDetailsViewType;
+    view: AppsDetailsViewType | string;
     resourceView: 'manifest' | 'diff' | 'desiredManifest';
     inlineDiff: boolean;
     compactDiff: boolean;
@@ -27,6 +28,8 @@ export interface AppDetailsPreferences {
     wrapLines: boolean;
     groupNodes?: boolean;
     zoom: number;
+    podGroupCount: number;
+    userHelpTipMsgs: UserMessages[];
 }
 
 export interface PodViewPreferences {
@@ -91,6 +94,7 @@ export interface ViewPreferences {
     appDetails: AppDetailsPreferences;
     appList: AppsListPreferences;
     pageSizes: {[key: string]: number};
+    sortOptions?: {[key: string]: string};
     hideBannerContent: string;
     hideSidebar: boolean;
     position: string;
@@ -119,7 +123,9 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         darkMode: false,
         followLogs: false,
         wrapLines: false,
-        zoom: 1.0
+        zoom: 1.0,
+        podGroupCount: 15.0,
+        userHelpTipMsgs: []
     },
     appList: {
         view: 'tiles' as AppsListViewType,

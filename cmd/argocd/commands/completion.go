@@ -146,6 +146,7 @@ __argocd_custom_func() {
 			;;
 		argocd_cluster_get | \
 		argocd_cluster_rm | \
+		argocd_cluster_set | \
 		argocd_login | \
 		argocd_cluster_add)
 			__argocd_list_servers
@@ -193,18 +194,35 @@ __argocd_custom_func() {
 )
 
 func NewCompletionCommand() *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "completion SHELL",
-		Short: "output shell completion code for the specified shell (bash or zsh)",
-		Long: `Write bash or zsh shell completion code to standard output.
+		Short: "output shell completion code for the specified shell (bash, zsh or fish)",
+		Long: `Write bash, zsh or fish shell completion code to standard output.
 
 For bash, ensure you have bash completions installed and enabled.
 To access completions in your current shell, run
 $ source <(argocd completion bash)
 Alternatively, write it to a file and source in .bash_profile
 
-For zsh, output to a file in a directory referenced by the $fpath shell
-variable.
+For zsh, add the following to your ~/.zshrc file:
+source <(argocd completion zsh)
+compdef _argocd argocd
+
+Optionally, also add the following, in case you are getting errors involving compdef & compinit such as command not found: compdef:
+autoload -Uz compinit
+compinit 
+`,
+		Example: `# For bash
+$ source <(argocd completion bash)
+
+# For zsh
+$ argocd completion zsh > _argocd
+$ source _argocd
+
+# For fish
+$ argocd completion fish > ~/.config/fish/completions/argocd.fish
+$ source ~/.config/fish/completions/argocd.fish
+
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			if len(args) != 1 {
@@ -214,20 +232,33 @@ variable.
 			shell := args[0]
 			rootCommand := NewCommand()
 			rootCommand.BashCompletionFunction = bashCompletionFunc
-			availableCompletions := map[string]func(io.Writer) error{
-				"bash": rootCommand.GenBashCompletion,
-				"zsh":  rootCommand.GenZshCompletion,
+			availableCompletions := map[string]func(out io.Writer, cmd *cobra.Command) error{
+				"bash": runCompletionBash,
+				"zsh":  runCompletionZsh,
+				"fish": runCompletionFish,
 			}
 			completion, ok := availableCompletions[shell]
 			if !ok {
-				fmt.Printf("Invalid shell '%s'. The supported shells are bash and zsh.\n", shell)
+				fmt.Printf("Invalid shell '%s'. The supported shells are bash, zsh and fish.\n", shell)
 				os.Exit(1)
 			}
-			if err := completion(os.Stdout); err != nil {
+			if err := completion(os.Stdout, rootCommand); err != nil {
 				log.Fatal(err)
 			}
 		},
 	}
 
 	return command
+}
+
+func runCompletionBash(out io.Writer, cmd *cobra.Command) error {
+	return cmd.GenBashCompletion(out)
+}
+
+func runCompletionZsh(out io.Writer, cmd *cobra.Command) error {
+	return cmd.GenZshCompletion(out)
+}
+
+func runCompletionFish(out io.Writer, cmd *cobra.Command) error {
+	return cmd.GenFishCompletion(out, true)
 }

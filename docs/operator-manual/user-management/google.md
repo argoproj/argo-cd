@@ -142,17 +142,6 @@ data:
 
 ## OpenID Connect plus Google Groups using Dex
 
----
-!!! warning "Limited group information"
-
-    When using this feature you'll only receive the list of groups the user is a direct member.
-
-    So, lets say you have this hierarchy of groups and subgroups:  
-    `all@example.com --> tech@example.com --> devs@example.com --> you@example.com`  
-    The only group you would receive through Dex would be `devs@example.com`
-
----
-
 We're going to use Dex's `google` connector to get additional Google Groups information from your users, allowing you to use group membership on your RBAC, i.e., giving `admin` role to the whole `sysadmins@yourcompany.com` group.
 
 This connector uses two different credentials:
@@ -211,7 +200,7 @@ Go through the same steps as in [OpenID Connect using Dex](#openid-connect-using
                 defaultMode: 420
                 secretName: argocd-google-groups-json
 
-3. Edit `argocd-cm` and add the following `dex.config` to the data section, replacing `clientID` and `clientSecret` with the values you saved before, `adminEmail` with the address for the admin user you're going to impersonate, and editing `redirectURI` with your Argo CD domain:
+3. Edit `argocd-cm` and add the following `dex.config` to the data section, replacing `clientID` and `clientSecret` with the values you saved before, `adminEmail` with the address for the admin user you're going to impersonate, and editing `redirectURI` with your Argo CD domain (note that the `type` is now `google` instead of `oidc`):
 
         dex.config: |
           connectors:
@@ -229,6 +218,20 @@ Go through the same steps as in [OpenID Connect using Dex](#openid-connect-using
 5. Login to Argo CD and go to the "User info" section, were you should see the groups you're member  
   ![User info](../../assets/google-groups-membership.png)
 6. Now you can use groups email addresses to give RBAC permissions
+7. Dex (> v2.31.0) can also be configure to fetch transitive group membership as follows:
+
+        dex.config: |
+          connectors:
+          - config:
+              redirectURI: https://argocd.example.com/api/dex/callback
+              clientID: XXXXXXXXXXXXX.apps.googleusercontent.com
+              clientSecret: XXXXXXXXXXXXX
+              serviceAccountFilePath: /tmp/oidc/googleAuth.json
+              adminEmail: admin-email@example.com
+              fetchTransitiveGroupMembership: True
+            type: google
+            id: google
+            name: Google
 
 ### References
 

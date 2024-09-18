@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -87,10 +88,29 @@ func NoConditions() Expectation {
 	}
 }
 
+func NoStatus() Expectation {
+	return func(c *Consequences) (state, string) {
+		message := "no status"
+		if reflect.ValueOf(c.app().Status).IsZero() {
+			return succeeded, message
+		}
+		return pending, message
+	}
+}
+
+func StatusExists() Expectation {
+	return func(c *Consequences) (state, string) {
+		message := "status exists"
+		if !reflect.ValueOf(c.app().Status).IsZero() {
+			return succeeded, message
+		}
+		return pending, message
+	}
+}
+
 func Namespace(name string, block func(app *Application, ns *v1.Namespace)) Expectation {
 	return func(c *Consequences) (state, string) {
 		ns, err := namespace(name)
-
 		if err != nil {
 			return failed, fmt.Sprintf("namespace not found %s", err.Error())
 		}
@@ -113,6 +133,7 @@ func ResourceSyncStatusIs(kind, resource string, expected SyncStatusCode) Expect
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' sync status should be %s, is %s", kind, resource, expected, actual))
 	}
 }
+
 func ResourceSyncStatusWithNamespaceIs(kind, resource, namespace string, expected SyncStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.resource(kind, resource, namespace).Status
@@ -122,16 +143,32 @@ func ResourceSyncStatusWithNamespaceIs(kind, resource, namespace string, expecte
 
 func ResourceHealthIs(kind, resource string, expected health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
-		actual := c.resource(kind, resource, "").Health.Status
+		var actual health.HealthStatusCode
+		resourceHealth := c.resource(kind, resource, "").Health
+		if resourceHealth != nil {
+			actual = resourceHealth.Status
+		} else {
+			// Some resources like ConfigMap may not have health status when they are okay
+			actual = health.HealthStatusHealthy
+		}
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' health should be %s, is %s", kind, resource, expected, actual))
 	}
 }
+
 func ResourceHealthWithNamespaceIs(kind, resource, namespace string, expected health.HealthStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
-		actual := c.resource(kind, resource, namespace).Health.Status
+		var actual health.HealthStatusCode
+		resourceHealth := c.resource(kind, resource, namespace).Health
+		if resourceHealth != nil {
+			actual = resourceHealth.Status
+		} else {
+			// Some resources like ConfigMap may not have health status when they are okay
+			actual = health.HealthStatusHealthy
+		}
 		return simple(actual == expected, fmt.Sprintf("resource '%s/%s' health should be %s, is %s", kind, resource, expected, actual))
 	}
 }
+
 func ResourceResultNumbering(num int) Expectation {
 	return func(c *Consequences) (state, string) {
 		actualNum := len(c.app().Status.OperationState.SyncResult.Resources)
@@ -195,6 +232,19 @@ func DoesNotExist() Expectation {
 	}
 }
 
+func DoesNotExistNow() Expectation {
+	return func(c *Consequences) (state, string) {
+		_, err := c.get()
+		if err != nil {
+			if apierr.IsNotFound(err) {
+				return succeeded, "app does not exist"
+			}
+			return failed, err.Error()
+		}
+		return failed, "app should not exist"
+	}
+}
+
 func Pod(predicate func(p v1.Pod) bool) Expectation {
 	return func(c *Consequences) (state, string) {
 		pods, err := pods()
@@ -234,7 +284,6 @@ func pods() (*v1.PodList, error) {
 func NoNamespace(name string) Expectation {
 	return func(c *Consequences) (state, string) {
 		_, err := namespace(name)
-
 		if err != nil {
 			return succeeded, "namespace not found"
 		}
@@ -271,20 +320,31 @@ func event(namespace string, reason string, message string) Expectation {
 }
 
 func Event(reason string, message string) Expectation {
-	return event(fixture.ArgoCDNamespace, reason, message)
+	return event(fixture.TestNamespace(), reason, message)
 }
 
 func NamespacedEvent(namespace string, reason string, message string) Expectation {
 	return event(namespace, reason, message)
 }
 
-// asserts that the last command was successful
-func Success(message string) Expectation {
+// Success asserts that the last command was successful and that the output contains the given message.
+func Success(message string, matchers ...func(string, string) bool) Expectation {
+	if len(matchers) == 0 {
+		matchers = append(matchers, strings.Contains)
+	}
+	match := func(actual, expected string) bool {
+		for i := range matchers {
+			if !matchers[i](actual, expected) {
+				return false
+			}
+		}
+		return true
+	}
 	return func(c *Consequences) (state, string) {
 		if c.actions.lastError != nil {
 			return failed, "error"
 		}
-		if !strings.Contains(c.actions.lastOutput, message) {
+		if !match(c.actions.lastOutput, message) {
 			return failed, fmt.Sprintf("output did not contain '%s'", message)
 		}
 		return succeeded, fmt.Sprintf("no error and output contained '%s'", message)
@@ -321,6 +381,13 @@ func Error(message, err string, matchers ...func(string, string) bool) Expectati
 // ErrorRegex asserts that the last command was an error that matches given regex epxression
 func ErrorRegex(messagePattern, err string) Expectation {
 	return Error(messagePattern, err, func(actual, expected string) bool {
+		return regexp.MustCompile(expected).MatchString(actual)
+	})
+}
+
+// SuccessRegex asserts that the last command was successful and output matches given regex expression
+func SuccessRegex(messagePattern string) Expectation {
+	return Success(messagePattern, func(actual, expected string) bool {
 		return regexp.MustCompile(expected).MatchString(actual)
 	})
 }

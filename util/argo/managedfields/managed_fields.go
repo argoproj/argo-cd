@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
+	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
@@ -28,17 +29,20 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 
 	liveCopy := live.DeepCopy()
 	configCopy := config.DeepCopy()
+	normalized := false
+
 	results, err := newTypedResults(liveCopy, configCopy, pt)
+	// error might happen if the resources are not parsable and so cannot be normalized
 	if err != nil {
-		return nil, nil, fmt.Errorf("error building typed results: %s", err)
+		log.Debugf("error building typed results: %v", err)
+		return liveCopy, configCopy, nil
 	}
 
-	normalized := false
 	for _, mf := range live.GetManagedFields() {
 		if trustedManager(mf.Manager, trustedManagers) {
 			err := normalize(mf, results)
 			if err != nil {
-				return nil, nil, fmt.Errorf("error normalizing manager %s: %s", mf.Manager, err)
+				return nil, nil, fmt.Errorf("error normalizing manager %s: %w", mf.Manager, err)
 			}
 			normalized = true
 		}
@@ -88,21 +92,21 @@ type typedResults struct {
 }
 
 // newTypedResults will convert live and config into a TypedValue using the given pt
-// and compare them. Returns a typedResults with the coverted types and the comparison.
+// and compare them. Returns a typedResults with the converted types and the comparison.
 // If pt is nil, will use the DeducedParseableType.
 func newTypedResults(live, config *unstructured.Unstructured, pt *typed.ParseableType) (*typedResults, error) {
 	typedLive, err := pt.FromUnstructured(live.Object)
 	if err != nil {
-		return nil, fmt.Errorf("error creating typedLive: %s", err)
+		return nil, fmt.Errorf("error creating typedLive: %w", err)
 	}
 
 	typedConfig, err := pt.FromUnstructured(config.Object)
 	if err != nil {
-		return nil, fmt.Errorf("error creating typedConfig: %s", err)
+		return nil, fmt.Errorf("error creating typedConfig: %w", err)
 	}
 	comparison, err := typedLive.Compare(typedConfig)
 	if err != nil {
-		return nil, fmt.Errorf("error comparing typed resources: %s", err)
+		return nil, fmt.Errorf("error comparing typed resources: %w", err)
 	}
 	return &typedResults{
 		live:       typedLive,

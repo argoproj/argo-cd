@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "PredictorConfigurationReady is Unknown\nPredictorReady is Unknown, since RevisionMissing. Configuration \"hello-world-predictor-default\" is waiting for a Revision to become ready.\nPredictorRouteReady is Unknown, since RevisionMissing. Configuration \"hello-world-predictor-default\" is waiting for a Revision to become ready.\nReady is Unknown, since RevisionMissing. Configuration \"hello-world-predictor-default\" is waiting for a Revision to become ready.\n"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: "IngressReady is False, since Predictor ingress not created.\nPredictorConfigurationReady is False, since RevisionFailed. Revision \"helloworld-00002\" failed with message: Container failed with: container exited with no error.\nPredictorReady is False, since RevisionFailed. Revision \"helloworld-00002\" failed with message: Container failed with: container exited with no error.\nReady is False, since Predictor ingress not created.\n"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: Inference Service is healthy.
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Healthy
+    message: Inference Service is healthy.
+  inputPath: testdata/healthy_raw.yaml

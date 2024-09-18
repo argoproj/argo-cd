@@ -14,6 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/spf13/cobra"
@@ -22,7 +23,7 @@ import (
 )
 
 func NewProjectsCommand() *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "proj",
 		Short: "Manage projects configuration",
 		Run: func(c *cobra.Command, args []string) {
@@ -44,9 +45,20 @@ func NewGenProjectSpecCommand() *cobra.Command {
 		outputFormat string
 		inline       bool
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "generate-spec PROJECT",
 		Short: "Generate declarative config for a project",
+		Example: templates.Examples(`  
+  # Generate a YAML configuration for a project named "myproject"
+  argocd admin projects generate-spec myproject
+	  
+  # Generate a JSON configuration for a project named "anotherproject" and specify an output file
+  argocd admin projects generate-spec anotherproject --output json --file config.json
+	  
+  # Generate a YAML configuration for a project named "someproject" and write it back to the input file
+  argocd admin projects generate-spec someproject --inline  
+  		`),
+
 		Run: func(c *cobra.Command, args []string) {
 			proj, err := cmdutil.ConstructAppProj(fileURL, args, opts, c)
 			errors.CheckError(err)
@@ -139,7 +151,7 @@ func NewUpdatePolicyRuleCommand() *cobra.Command {
 		permission   string
 		dryRun       bool
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "update-role-policy PROJECT_GLOB MODIFICATION ACTION",
 		Short: "Implement bulk project role update. Useful to back-fill existing project policies or remove obsolete actions.",
 		Example: `  # Add policy that allows executing any action (action/*) to roles which name matches to *deployer* in all projects  
