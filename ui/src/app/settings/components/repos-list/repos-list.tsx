@@ -357,14 +357,7 @@ export class ReposList extends React.Component<
                                             action: () => this.setState({statusProperty: 'Unknown'})
                                         }
                                     ]}
-                                    anchor={() => (
-                                        <>
-                                            <a>
-                                                Status: {this.state.statusProperty} <i className='fa fa-caret-down' />
-                                            </a>
-                                            &nbsp;
-                                        </>
-                                    )}
+                                    anchor={() => <button className='argo-button argo-button--base'>STATUS</button>}
                                     qeId='status-menu'
                                 />
                             </div>
