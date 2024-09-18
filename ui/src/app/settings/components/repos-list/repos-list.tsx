@@ -314,16 +314,30 @@ export class ReposList extends React.Component<
                                     anchor={() => <button className='argo-button argo-button--base'>TYPE</button>}
                                     qeId='type-menu'
                                 />
-                                <DropDownMenu
-                                    items={[
-                                        {
-                                            title: 'all',
-                                            action: () => this.setState({projectProperty: 'all'})
-                                        }
-                                    ]}
-                                    anchor={() => <button className='argo-button argo-button--base'>PROJECT</button>}
-                                    qeId='project-menu'
-                                />
+                                <DataLoader load={services.repos.list} ref={loader => (this.repoLoader = loader)}>
+                                    {(repos: models.Repository[]) => {
+                                        const projectValues = Array.from(new Set(repos.map(repo => repo.project)));
+
+                                        const projectItems = [
+                                            {
+                                                title: 'all',
+                                                action: () => this.setState({projectProperty: 'all'})
+                                            },
+                                            ...projectValues.map(project => ({
+                                                title: project,
+                                                action: () => this.setState({projectProperty: project})
+                                            }))
+                                        ];
+
+                                        return (
+                                            <DropDownMenu
+                                                items={projectItems}
+                                                anchor={() => <button className='argo-button argo-button--base'>PROJECT</button>}
+                                                qeId='project-menu'
+                                            />
+                                        );
+                                    }}
+                                </DataLoader>
                                 <DropDownMenu
                                     items={[
                                         {
