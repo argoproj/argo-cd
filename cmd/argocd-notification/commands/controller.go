@@ -163,6 +163,7 @@ func NewCommand() *cobra.Command {
 			}()
 
 			go ctrl.Run(ctx, processorsCount)
+			<-ctx.Done()
 			return nil
 		},
 	}
