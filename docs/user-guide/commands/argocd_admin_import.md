@@ -11,37 +11,41 @@ argocd admin import SOURCE [flags]
 ### Options
 
 ```
-      --as string                      Username to impersonate for the operation
-      --as-group stringArray           Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
-      --as-uid string                  UID to impersonate for the operation
-      --certificate-authority string   Path to a cert file for the certificate authority
-      --client-certificate string      Path to a client certificate file for TLS
-      --client-key string              Path to a client key file for TLS
-      --cluster string                 The name of the kubeconfig cluster to use
-      --context string                 The name of the kubeconfig context to use
-      --disable-compression            If true, opt-out of response compression for all requests to the server
-      --dry-run                        Print what will be performed
-  -h, --help                           help for import
-      --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
-      --kubeconfig string              Path to a kube config. Only required if out-of-cluster
-  -n, --namespace string               If present, the namespace scope for this CLI request
-      --password string                Password for basic authentication to the API server
-      --proxy-url string               If provided, this URL will be used to connect via proxy
-      --prune                          Prune secrets, applications and projects which do not appear in the backup
-      --request-timeout string         The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
-      --server string                  The address and port of the Kubernetes API server
-      --stop-operation                 Stop any existing operations
-      --tls-server-name string         If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
-      --token string                   Bearer token for authentication to the API server
-      --user string                    The name of the kubeconfig user to use
-      --username string                Username for basic authentication to the API server
-      --verbose                        Verbose output (versus only changed output)
+      --application-namespaces strings      Comma separated list of namespace globs to which import of applications is allowed. If not provided value from 'application.namespaces' in argocd-cmd-params-cm will be used,if it's not defined only applications without an explicit namespace will be imported to the Argo CD namespace
+      --applicationset-namespaces strings   Comma separated list of namespace globs which import of applicationsets is allowed. If not provided value from 'applicationsetcontroller.namespaces' in argocd-cmd-params-cm will be used,if it's not defined only applicationsets without an explicit namespace will be imported to the Argo CD namespace
+      --as string                           Username to impersonate for the operation
+      --as-group stringArray                Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --as-uid string                       UID to impersonate for the operation
+      --certificate-authority string        Path to a cert file for the certificate authority
+      --client-certificate string           Path to a client certificate file for TLS
+      --client-key string                   Path to a client key file for TLS
+      --cluster string                      The name of the kubeconfig cluster to use
+      --context string                      The name of the kubeconfig context to use
+      --disable-compression                 If true, opt-out of response compression for all requests to the server
+      --dry-run                             Print what will be performed
+  -h, --help                                help for import
+      --ignore-tracking                     Do not update the tracking annotation if the resource is already tracked
+      --insecure-skip-tls-verify            If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
+      --kubeconfig string                   Path to a kube config. Only required if out-of-cluster
+  -n, --namespace string                    If present, the namespace scope for this CLI request
+      --password string                     Password for basic authentication to the API server
+      --proxy-url string                    If provided, this URL will be used to connect via proxy
+      --prune                               Prune secrets, applications and projects which do not appear in the backup
+      --request-timeout string              The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
+      --server string                       The address and port of the Kubernetes API server
+      --stop-operation                      Stop any existing operations
+      --tls-server-name string              If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
+      --token string                        Bearer token for authentication to the API server
+      --user string                         The name of the kubeconfig user to use
+      --username string                     Username for basic authentication to the API server
+      --verbose                             Verbose output (versus only changed output)
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token
+      --argocd-context string           The name of the Argo-CD server context to use
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")

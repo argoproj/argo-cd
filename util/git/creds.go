@@ -37,8 +37,6 @@ var (
 )
 
 const (
-	// ASKPASS_NONCE_ENV is the environment variable that is used to pass the nonce to the askpass script
-	ASKPASS_NONCE_ENV = "ARGOCD_GIT_ASKPASS_NONCE"
 	// githubAccessTokenUsername is a username that is used to with the github access token
 	githubAccessTokenUsername = "x-access-token"
 	forceBasicAuthHeaderEnv   = "ARGOCD_GIT_AUTH_HEADER"
@@ -57,8 +55,7 @@ func init() {
 	googleCloudTokenSource = gocache.New(gocache.NoExpiration, 0)
 }
 
-type NoopCredsStore struct {
-}
+type NoopCredsStore struct{}
 
 func (d NoopCredsStore) Add(username string, password string) string {
 	return ""
@@ -67,27 +64,23 @@ func (d NoopCredsStore) Add(username string, password string) string {
 func (d NoopCredsStore) Remove(id string) {
 }
 
+func (d NoopCredsStore) Environ(id string) []string {
+	return []string{}
+}
+
 type CredsStore interface {
 	Add(username string, password string) string
 	Remove(id string)
+	// Environ returns the environment variables that should be set to use the credentials for the given credential ID.
+	Environ(id string) []string
 }
 
 type Creds interface {
 	Environ() (io.Closer, []string, error)
 }
 
-func getGitAskPassEnv(id string) []string {
-	return []string{
-		fmt.Sprintf("GIT_ASKPASS=%s", "argocd"),
-		fmt.Sprintf("%s=%s", ASKPASS_NONCE_ENV, id),
-		"GIT_TERMINAL_PROMPT=0",
-		"ARGOCD_BINARY_NAME=argocd-git-ask-pass",
-	}
-}
-
 // nop implementation
-type NopCloser struct {
-}
+type NopCloser struct{}
 
 func (c NopCloser) Close() error {
 	return nil
@@ -95,8 +88,7 @@ func (c NopCloser) Close() error {
 
 var _ Creds = NopCreds{}
 
-type NopCreds struct {
-}
+type NopCreds struct{}
 
 func (c NopCreds) Environ() (io.Closer, []string, error) {
 	return NopCloser{}, nil, nil
@@ -127,13 +119,15 @@ type HTTPSCreds struct {
 	clientCertKey string
 	// HTTP/HTTPS proxy used to access repository
 	proxy string
+	// list of targets that shouldn't use the proxy, applies only if the proxy is set
+	noProxy string
 	// temporal credentials store
 	store CredsStore
 	// whether to force usage of basic auth
 	forceBasicAuth bool
 }
 
-func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool, proxy string, store CredsStore, forceBasicAuth bool) GenericHTTPSCreds {
+func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore, forceBasicAuth bool) GenericHTTPSCreds {
 	return HTTPSCreds{
 		username,
 		password,
@@ -141,6 +135,7 @@ func NewHTTPSCreds(username string, password string, clientCertData string, clie
 		clientCertData,
 		clientCertKey,
 		proxy,
+		noProxy,
 		store,
 		forceBasicAuth,
 	}
@@ -217,7 +212,7 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 		env = append(env, fmt.Sprintf("%s=%s", forceBasicAuthHeaderEnv, c.BasicAuthHeader()))
 	}
 	nonce := c.store.Add(text.FirstNonEmpty(c.username, githubAccessTokenUsername), c.password)
-	env = append(env, getGitAskPassEnv(nonce)...)
+	env = append(env, c.store.Environ(nonce)...)
 	return argoioutils.NewCloser(func() error {
 		c.store.Remove(nonce)
 		return httpCloser.Close()
@@ -243,10 +238,11 @@ type SSHCreds struct {
 	insecure      bool
 	store         CredsStore
 	proxy         string
+	noProxy       string
 }
 
-func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool, store CredsStore, proxy string) SSHCreds {
-	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey, store, proxy}
+func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool, store CredsStore, proxy string, noProxy string) SSHCreds {
+	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey, store, proxy, noProxy}
 }
 
 type sshPrivateKeyFile string
@@ -277,6 +273,9 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+
+	sshCloser := sshPrivateKeyFile(file.Name())
+
 	defer func() {
 		if err = file.Close(); err != nil {
 			log.WithFields(log.Fields{
@@ -288,6 +287,7 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 
 	_, err = file.WriteString(c.sshPrivateKey + "\n")
 	if err != nil {
+		sshCloser.Close()
 		return nil, nil, err
 	}
 
@@ -310,6 +310,7 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	if c.proxy != "" {
 		parsedProxyURL, err := url.Parse(c.proxy)
 		if err != nil {
+			sshCloser.Close()
 			return nil, nil, fmt.Errorf("failed to set environment variables related to socks5 proxy, could not parse proxy URL '%s': %w", c.proxy, err)
 		}
 		args = append(args, "-o", fmt.Sprintf("ProxyCommand='connect-proxy -S %s:%s -5 %%h %%p'",
@@ -324,7 +325,7 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	}
 	env = append(env, []string{fmt.Sprintf("GIT_SSH_COMMAND=%s", strings.Join(args, " "))}...)
 	env = append(env, proxyEnv...)
-	return sshPrivateKeyFile(file.Name()), env, nil
+	return sshCloser, env, nil
 }
 
 // GitHubAppCreds to authenticate as GitHub application
@@ -338,12 +339,13 @@ type GitHubAppCreds struct {
 	clientCertKey  string
 	insecure       bool
 	proxy          string
+	noProxy        string
 	store          CredsStore
 }
 
 // NewGitHubAppCreds provide github app credentials
-func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, repoURL string, clientCertData string, clientCertKey string, insecure bool, proxy string, store CredsStore) GenericHTTPSCreds {
-	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, repoURL: repoURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, store: store}
+func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, repoURL string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore) GenericHTTPSCreds {
+	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, repoURL: repoURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, noProxy: noProxy, store: store}
 }
 
 func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
@@ -403,10 +405,9 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 		}
 		// GIT_SSL_KEY is the full path to a client certificate's key to be used
 		env = append(env, fmt.Sprintf("GIT_SSL_KEY=%s", keyFile.Name()))
-
 	}
 	nonce := g.store.Add(githubAccessTokenUsername, token)
-	env = append(env, getGitAskPassEnv(nonce)...)
+	env = append(env, g.store.Environ(nonce)...)
 	return argoioutils.NewCloser(func() error {
 		g.store.Remove(nonce)
 		return httpCloser.Close()
@@ -443,7 +444,7 @@ func (g GitHubAppCreds) getAccessToken() (string, error) {
 	}
 
 	// Create a new GitHub transport
-	c := GetRepoHTTPClient(baseUrl, g.insecure, g, g.proxy)
+	c := GetRepoHTTPClient(baseUrl, g.insecure, g, g.proxy, g.noProxy)
 	itr, err := ghinstallation.New(c.Transport,
 		g.appID,
 		g.appInstallId,
@@ -499,7 +500,7 @@ func (c GoogleCloudCreds) Environ() (io.Closer, []string, error) {
 	}
 
 	nonce := c.store.Add(username, token)
-	env := getGitAskPassEnv(nonce)
+	env := c.store.Environ(nonce)
 
 	return argoioutils.NewCloser(func() error {
 		c.store.Remove(nonce)

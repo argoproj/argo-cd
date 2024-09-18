@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/proxy"
 	"google.golang.org/grpc"
@@ -18,6 +17,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/status"
+
+	"github.com/argoproj/argo-cd/v2/common"
 )
 
 // PanicLoggerUnaryServerInterceptor returns a new unary server interceptor for recovering from panics and returning error
@@ -64,7 +65,6 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 	}
 
 	dialer := func(ctx context.Context, address string) (net.Conn, error) {
-
 		conn, err := proxy.Dial(ctx, network, address)
 		if err != nil {
 			writeResult(err)
@@ -86,12 +86,15 @@ func BlockingDial(ctx context.Context, network, address string, creds credential
 	// channel to either get the channel or fail-fast.
 	go func() {
 		opts = append(opts,
+			// nolint:staticcheck
 			grpc.WithBlock(),
+			// nolint:staticcheck
 			grpc.FailOnNonTempDialError(true),
 			grpc.WithContextDialer(dialer),
 			grpc.WithTransportCredentials(insecure.NewCredentials()), // we are handling TLS, so tell grpc not to
 			grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: common.GetGRPCKeepAliveTime()}),
 		)
+		// nolint:staticcheck
 		conn, err := grpc.DialContext(ctx, address, opts...)
 		var res interface{}
 		if err != nil {

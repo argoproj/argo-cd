@@ -19,6 +19,7 @@ import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 import {AuthSettings} from './shared/models';
 import {PKCEVerification} from './login/components/pkce-verify';
+import {SystemLevelExtension} from './shared/services/extensions-service';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -26,7 +27,7 @@ const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
 export const history = createBrowserHistory({basename: base});
 requests.setBaseHRef(base);
 
-type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean; extension?: boolean}};
+type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}};
 
 const routes: Routes = {
     '/login': {component: login.component as any, noLayout: true},
@@ -98,10 +99,7 @@ requests.onError.subscribe(async err => {
         }
         // Query for basehref and remove trailing /.
         // If basehref is the default `/` it will become an empty string.
-        const basehref = document
-            .querySelector('head > base')
-            .getAttribute('href')
-            .replace(/\/$/, '');
+        const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
         if (isSSO) {
             window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
         } else {
@@ -137,6 +135,7 @@ export class App extends React.Component<
         this.navigationManager = new NavigationManager(history);
         this.navItems = navItems;
         this.routes = routes;
+        services.extensions.addEventListener('systemLevel', this.onAddSystemLevelExtension.bind(this));
     }
 
     public async componentDidMount() {
@@ -165,32 +164,7 @@ export class App extends React.Component<
             document.head.appendChild(link);
         }
 
-        const systemExtensions = services.extensions.getSystemExtensions();
-        const extendedNavItems = this.navItems;
-        const extendedRoutes = this.routes;
-        for (const extension of systemExtensions) {
-            extendedNavItems.push({
-                title: extension.title,
-                path: extension.path,
-                iconClassName: `fa ${extension.icon}`
-            });
-            const component = () => (
-                <>
-                    <Helmet>
-                        <title>{extension.title} - Argo CD</title>
-                    </Helmet>
-                    <Page title={extension.title}>
-                        <extension.component />
-                    </Page>
-                </>
-            );
-            extendedRoutes[extension.path] = {
-                component: component as React.ComponentType<React.ComponentProps<any>>,
-                extension: true
-            };
-        }
-
-        this.setState({...this.state, navItems: extendedNavItems, routes: extendedRoutes, extensionsLoaded: true, authSettings});
+        this.setState({...this.state, navItems: this.navItems, routes: this.routes, extensionsLoaded: false, authSettings});
     }
 
     public render() {
@@ -240,11 +214,7 @@ export class App extends React.Component<
                                                     ) : (
                                                         <DataLoader load={() => services.viewPreferences.getPreferences()}>
                                                             {pref => (
-                                                                <Layout
-                                                                    onVersionClick={() => this.setState({showVersionPanel: true})}
-                                                                    navItems={this.navItems}
-                                                                    pref={pref}
-                                                                    isExtension={route.extension}>
+                                                                <Layout onVersionClick={() => this.setState({showVersionPanel: true})} navItems={this.navItems} pref={pref}>
                                                                     <Banner>
                                                                         <route.component {...routeProps} />
                                                                     </Banner>
@@ -270,5 +240,29 @@ export class App extends React.Component<
 
     public getChildContext() {
         return {history, apis: {popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager}};
+    }
+
+    private onAddSystemLevelExtension(extension: SystemLevelExtension) {
+        const extendedNavItems = this.navItems;
+        const extendedRoutes = this.routes;
+        extendedNavItems.push({
+            title: extension.title,
+            path: extension.path,
+            iconClassName: `fa ${extension.icon}`
+        });
+        const component = () => (
+            <>
+                <Helmet>
+                    <title>{extension.title} - Argo CD</title>
+                </Helmet>
+                <Page title={extension.title}>
+                    <extension.component />
+                </Page>
+            </>
+        );
+        extendedRoutes[extension.path] = {
+            component: component as React.ComponentType<React.ComponentProps<any>>
+        };
+        this.setState({...this.state, navItems: extendedNavItems, routes: extendedRoutes, extensionsLoaded: true});
     }
 }

@@ -13,7 +13,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/env"
 )
 
-var ErrCacheMiss = cacheutil.ErrCacheMiss
+var (
+	ErrCacheMiss  = cacheutil.ErrCacheMiss
+	treeShardSize = env.ParseInt64FromEnv("ARGOCD_APPLICATION_TREE_SHARD_SIZE", 0, 0, 1000)
+)
 
 const (
 	clusterInfoCacheExpiration = 10 * time.Minute
@@ -49,7 +52,7 @@ func (c *Cache) GetItem(key string, item interface{}) error {
 }
 
 func (c *Cache) SetItem(key string, item interface{}, expiration time.Duration, delete bool) error {
-	return c.Cache.SetItem(key, item, expiration, delete)
+	return c.Cache.SetItem(key, item, &cacheutil.CacheActionOpts{Expiration: expiration, Delete: delete})
 }
 
 func appManagedResourcesKey(appName string) string {
@@ -68,8 +71,12 @@ func (c *Cache) SetAppManagedResources(appName string, managedResources []*appv1
 	return c.SetItem(appManagedResourcesKey(appName), managedResources, c.appStateCacheExpiration, managedResources == nil)
 }
 
-func appResourcesTreeKey(appName string) string {
-	return fmt.Sprintf("app|resources-tree|%s", appName)
+func appResourcesTreeKey(appName string, shard int64) string {
+	key := fmt.Sprintf("app|resources-tree|%s", appName)
+	if shard > 0 {
+		key = fmt.Sprintf("%s|%d", key, shard)
+	}
+	return key
 }
 
 func clusterInfoKey(server string) string {
@@ -77,7 +84,16 @@ func clusterInfoKey(server string) string {
 }
 
 func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) error {
-	err := c.GetItem(appResourcesTreeKey(appName), &res)
+	err := c.GetItem(appResourcesTreeKey(appName, 0), &res)
+	if res.ShardsCount > 1 {
+		for i := int64(1); i < res.ShardsCount; i++ {
+			var shard appv1.ApplicationTree
+			if err = c.GetItem(appResourcesTreeKey(appName, i), &shard); err != nil {
+				return err
+			}
+			res.Merge(&shard)
+		}
+	}
 	return err
 }
 
@@ -86,13 +102,21 @@ func (c *Cache) OnAppResourcesTreeChanged(ctx context.Context, appName string, c
 }
 
 func (c *Cache) SetAppResourcesTree(appName string, resourcesTree *appv1.ApplicationTree) error {
-	if resourcesTree != nil {
-		resourcesTree.Normalize()
+	if resourcesTree == nil {
+		if err := c.SetItem(appResourcesTreeKey(appName, 0), resourcesTree, c.appStateCacheExpiration, true); err != nil {
+			return err
+		}
+	} else {
+		// Splitting resource tree into shards reduces number of Redis SET calls and therefore amount of traffic sent
+		// from controller to Redis. Controller still stores each shard in cache but util/cache/twolevelclient.go
+		// forwards request to Redis only if shard actually changes.
+		for i, shard := range resourcesTree.GetShards(treeShardSize) {
+			if err := c.SetItem(appResourcesTreeKey(appName, int64(i)), shard, c.appStateCacheExpiration, false); err != nil {
+				return err
+			}
+		}
 	}
-	err := c.SetItem(appResourcesTreeKey(appName), resourcesTree, c.appStateCacheExpiration, resourcesTree == nil)
-	if err != nil {
-		return err
-	}
+
 	return c.Cache.NotifyUpdated(appManagedResourcesKey(appName))
 }
 

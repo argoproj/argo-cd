@@ -4,7 +4,8 @@ By default, an Argo CD Application is refreshed every time a resource that belon
 
 Kubernetes controllers often update the resources they watch periodically, causing continuous reconcile operation on the Application
 and a high CPU usage on the `argocd-application-controller`. Argo CD allows you to optionally ignore resource updates on specific fields
-for [tracked resources](../user-guide/resource_tracking.md).
+for [tracked resources](../user-guide/resource_tracking.md). 
+For untracked resources, you can [use the argocd.argoproj.io/ignore-resource-updates annotations](#ignoring-updates-for-untracked-resources)
 
 When a resource update is ignored, if the resource's [health status](./health.md) does not change, the Application that this resource belongs to will not be reconciled.
 
@@ -110,4 +111,56 @@ data:
     # Ignore lastTransitionTime for conditions; helpful when SharedResourceWarnings are being regularly updated but not
     # actually changing in content.
     - .status.conditions[].lastTransitionTime
+```
+
+## Ignoring updates for untracked resources
+
+ArgoCD will only apply `ignoreResourceUpdates` configuration to tracked resources of an application. This means dependant resources, such as a `ReplicaSet` and `Pod` created by a `Deployment`, will not ignore any updates and trigger a reconcile of the application for any changes.
+
+If you want to apply the `ignoreResourceUpdates` configuration to an untracked resource, you can add the
+`argocd.argoproj.io/ignore-resource-updates=true` annotation in the dependent resources manifest.
+
+## Example
+
+### CronJob
+
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hello
+  namespace: test-cronjob
+spec:
+  schedule: "* * * * *"
+  jobTemplate:
+    metadata:
+      annotations:
+        argocd.argoproj.io/ignore-resource-updates: "true"
+    spec:
+      template:
+        metadata:
+          annotations:
+            argocd.argoproj.io/ignore-resource-updates: "true"
+        spec:
+          containers:
+          - name: hello
+            image: busybox:1.28
+            imagePullPolicy: IfNotPresent
+            command:
+            - /bin/sh
+            - -c
+            - date; echo Hello from the Kubernetes cluster
+          restartPolicy: OnFailure
+```
+
+The resource updates will be ignored based on your the `ignoreResourceUpdates` configuration in the `argocd-cm` configMap:
+
+`argocd-cm`:
+```yaml
+resource.customizations.ignoreResourceUpdates.batch_Job: |
+    jsonPointers:
+      - /status
+resource.customizations.ignoreResourceUpdates.Pod: |
+    jsonPointers:
+      - /status      
 ```

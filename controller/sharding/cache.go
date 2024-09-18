@@ -3,9 +3,10 @@ package sharding
 import (
 	"sync"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/db"
-	log "github.com/sirupsen/logrus"
 )
 
 type ClusterShardingCache interface {
@@ -51,7 +52,7 @@ func NewClusterSharding(_ db.ArgoDB, shard, replicas int, shardingAlgorithm stri
 	return clusterSharding
 }
 
-// IsManagedCluster returns wheter or not the cluster should be processed by a given shard.
+// IsManagedCluster returns whether or not the cluster should be processed by a given shard.
 func (s *ClusterSharding) IsManagedCluster(c *v1alpha1.Cluster) bool {
 	s.lock.RLock()
 	defer s.lock.RUnlock()

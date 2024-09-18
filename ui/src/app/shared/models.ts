@@ -103,6 +103,7 @@ export interface ChartDetails {
 export interface SyncOperationResult {
     resources: ResourceResult[];
     revision: string;
+    revisions: string[];
 }
 
 export type ResultCode = 'Synced' | 'SyncFailed' | 'Pruned' | 'PruneSkipped';
@@ -125,6 +126,10 @@ export interface ResourceResult {
     hookType: HookType;
     hookPhase: OperationPhase;
 }
+
+export type SyncResourceResult = ResourceResult & {
+    health?: HealthStatus;
+};
 
 export const AnnotationRefreshKey = 'argocd.argoproj.io/refresh';
 export const AnnotationHookKey = 'argocd.argoproj.io/hook';
@@ -170,6 +175,12 @@ export interface ApplicationDestination {
     name: string;
 }
 
+export interface ApplicationDestinationServiceAccount {
+    server: string;
+    namespace: string;
+    defaultServiceAccount: string;
+}
+
 export interface OrphanedResource {
     group: string;
     kind: string;
@@ -197,6 +208,8 @@ export interface ApplicationSource {
     plugin?: ApplicationSourcePlugin;
 
     directory?: ApplicationSourceDirectory;
+
+    ref?: string;
 }
 
 export interface ApplicationSourceHelm {
@@ -532,6 +545,7 @@ export interface Repository {
     tlsClientCertData?: string;
     tlsClientCertKey?: string;
     proxy?: string;
+    noProxy?: string;
     insecure?: boolean;
     enableLfs?: boolean;
     githubAppId?: string;
@@ -717,6 +731,7 @@ export interface ProjectSpec {
     sourceRepos: string[];
     sourceNamespaces: string[];
     destinations: ApplicationDestination[];
+    destinationServiceAccounts: ApplicationDestinationServiceAccount[];
     description: string;
     roles: ProjectRole[];
     clusterResourceWhitelist: GroupKind[];

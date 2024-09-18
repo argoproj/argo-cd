@@ -77,10 +77,12 @@ metadata:
 data:
   token: "$plugin.myplugin.token" # Alternatively $<some_K8S_secret>:plugin.myplugin.token
   baseUrl: "http://myplugin.plugin-ns.svc.cluster.local."
+  requestTimeout: "60"
 ```
 
 - `token`: Pre-shared token used to authenticate HTTP request (points to the right key you created in the `argocd-secret` Secret)
 - `baseUrl`: BaseUrl of the k8s service exposing your plugin in the cluster.
+- `requestTimeout`: Timeout of the request to the plugin in seconds (default: 30)
 
 ### Store credentials
 

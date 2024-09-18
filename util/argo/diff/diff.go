@@ -11,6 +11,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
@@ -34,7 +35,7 @@ func NewDiffConfigBuilder() *DiffConfigBuilder {
 }
 
 // WithDiffSettings will set the diff settings in the builder.
-func (b *DiffConfigBuilder) WithDiffSettings(id []v1alpha1.ResourceIgnoreDifferences, o map[string]v1alpha1.ResourceOverride, ignoreAggregatedRoles bool) *DiffConfigBuilder {
+func (b *DiffConfigBuilder) WithDiffSettings(id []v1alpha1.ResourceIgnoreDifferences, o map[string]v1alpha1.ResourceOverride, ignoreAggregatedRoles bool, ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts) *DiffConfigBuilder {
 	ignores := id
 	if ignores == nil {
 		ignores = []v1alpha1.ResourceIgnoreDifferences{}
@@ -47,6 +48,7 @@ func (b *DiffConfigBuilder) WithDiffSettings(id []v1alpha1.ResourceIgnoreDiffere
 	}
 	b.diffConfig.overrides = overrides
 	b.diffConfig.ignoreAggregatedRoles = ignoreAggregatedRoles
+	b.diffConfig.ignoreNormalizerOpts = ignoreNormalizerOpts
 	return b
 }
 
@@ -161,6 +163,8 @@ type DiffConfig interface {
 	ServerSideDiff() bool
 	ServerSideDryRunner() diff.ServerSideDryRunner
 	IgnoreMutationWebhook() bool
+
+	IgnoreNormalizerOpts() normalizers.IgnoreNormalizerOpts
 }
 
 // diffConfig defines the configurations used while applying diffs.
@@ -180,52 +184,71 @@ type diffConfig struct {
 	serverSideDiff        bool
 	serverSideDryRunner   diff.ServerSideDryRunner
 	ignoreMutationWebhook bool
+	ignoreNormalizerOpts  normalizers.IgnoreNormalizerOpts
 }
 
 func (c *diffConfig) Ignores() []v1alpha1.ResourceIgnoreDifferences {
 	return c.ignores
 }
+
 func (c *diffConfig) Overrides() map[string]v1alpha1.ResourceOverride {
 	return c.overrides
 }
+
 func (c *diffConfig) AppLabelKey() string {
 	return c.appLabelKey
 }
+
 func (c *diffConfig) TrackingMethod() string {
 	return c.trackingMethod
 }
+
 func (c *diffConfig) AppName() string {
 	return c.appName
 }
+
 func (c *diffConfig) NoCache() bool {
 	return c.noCache
 }
+
 func (c *diffConfig) StateCache() *appstatecache.Cache {
 	return c.stateCache
 }
+
 func (c *diffConfig) IgnoreAggregatedRoles() bool {
 	return c.ignoreAggregatedRoles
 }
+
 func (c *diffConfig) Logger() *logr.Logger {
 	return c.logger
 }
+
 func (c *diffConfig) GVKParser() *k8smanagedfields.GvkParser {
 	return c.gvkParser
 }
+
 func (c *diffConfig) StructuredMergeDiff() bool {
 	return c.structuredMergeDiff
 }
+
 func (c *diffConfig) Manager() string {
 	return c.manager
 }
+
 func (c *diffConfig) ServerSideDryRunner() diff.ServerSideDryRunner {
 	return c.serverSideDryRunner
 }
+
 func (c *diffConfig) ServerSideDiff() bool {
 	return c.serverSideDiff
 }
+
 func (c *diffConfig) IgnoreMutationWebhook() bool {
 	return c.ignoreMutationWebhook
+}
+
+func (c *diffConfig) IgnoreNormalizerOpts() normalizers.IgnoreNormalizerOpts {
+	return c.ignoreNormalizerOpts
 }
 
 // Validate will check the current state of this diffConfig and return
@@ -279,7 +302,7 @@ func StateDiffs(lives, configs []*unstructured.Unstructured, diffConfig DiffConf
 		return nil, fmt.Errorf("failed to perform pre-diff normalization: %w", err)
 	}
 
-	diffNormalizer, err := newDiffNormalizer(diffConfig.Ignores(), diffConfig.Overrides())
+	diffNormalizer, err := newDiffNormalizer(diffConfig.Ignores(), diffConfig.Overrides(), diffConfig.IgnoreNormalizerOpts())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create diff normalizer: %w", err)
 	}
@@ -392,7 +415,7 @@ func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig Di
 	}
 	err := diffConfig.Validate()
 	if err != nil {
-		return nil, fmt.Errorf("preDiffNormalize error: %s", err)
+		return nil, fmt.Errorf("preDiffNormalize error: %w", err)
 	}
 
 	results := &NormalizationResult{}

@@ -4,7 +4,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"math"
 	"time"
+
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/env"
 
 	grpc_middleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
@@ -17,12 +21,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
-//go:generate go run github.com/vektra/mockery/v2@v2.15.0 --name=RepoServerServiceClient
-
-const (
-	// MaxGRPCMessageSize contains max grpc message size
-	MaxGRPCMessageSize = 100 * 1024 * 1024
-)
+// MaxGRPCMessageSize contains max grpc message size
+var MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 100, 0, math.MaxInt32) * 1024 * 1024
 
 // TLSConfiguration describes parameters for TLS configuration to be used by a repo server API client
 type TLSConfiguration struct {
@@ -82,6 +82,7 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
+	// nolint:staticcheck
 	conn, err := grpc.Dial(address, opts...)
 	if err != nil {
 		log.Errorf("Unable to connect to repository service with address %s", address)

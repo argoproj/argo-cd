@@ -29,7 +29,7 @@ Impersonation is a feature in Kubernetes and enabled in the `kubectl` CLI client
 
 Impersonation requests first authenticate as the requesting user, then switch to the impersonated user info.
 
-```
+```shell
 kubectl --as <user-to-impersonate> ...
 kubectl --as <user-to-impersonate> --as-group <group-to-impersonate> ...
 ```
@@ -68,8 +68,9 @@ This proposal would allow ArgoCD administrators to manage the cluster permission
 
 ### Goals
 - Applications may only impersonate ServiceAccounts that live in the same namespace as the destination namespace configured in the application.If the service account is created in a different namespace, then the user can provide the service account name in the format `<namespace>:<service_account_name>` . ServiceAccount to be used for syncing each application is determined by the target destination configured in the `AppProject` associated with the `Application`.
-- If impersonation feature is enabled, and no service account name is provided in the associated `AppProject`, then the default service account of the destination namespace of the `Application` should be used.
+- If impersonation feature is enabled, and no service account name is provided in the associated `AppProject`, then the sync operation would fail with an appropriate error message. Users can configure a catch all service account matching all destinations to avoid such sync errors.
 - Access restrictions implemented through properties in AppProject (if done) must have the existing behavior. From a security standpoint, any restrictions that were available before switching to a service account based approach should continue to exist even when the impersonation feature is enabled.
+- The feature can be enabled/disabled only at the system level. Once enabled/disabled, it is applicable to all ArgoCD `Applications`.
 
 ### Non-Goals
 
@@ -81,9 +82,9 @@ As part of this proposal, it would be possible for an ArgoCD Admin to specify a 
 
 When applications gets synced, based on its destination (target cluster and namespace combination), the `defaultServiceAccount` configured in the `AppProject` will be selected and used for impersonation when executing the kubectl commands for the sync operation.
 
-We would be introducing a new element `destinationServiceAccounts` in `AppProject.spec`. This element is used for the sole purpose of specifying the impersonation configuration. The `defaultServiceAccount` configured for the `AppProject` would be used for the sync operation for a particular destination cluster and namespace. If impersonation feature is enabled and no specific service account is provided in the `AppProject` CR, then the `default` service account in the destination namespace would be used for impersonation.
+We would be introducing a new element `destinationServiceAccounts` in `AppProject.spec`. This element is used for the sole purpose of specifying the impersonation configuration. The `defaultServiceAccount` configured for the `AppProject` would be used for the sync operation for a particular destination cluster and namespace. If impersonation feature is enabled and no specific service account is provided in the `AppProject` CR, then the sync operation will fail with an error. Users can configure a catch all service account matching all destinations to avoid such sync errors.
 
-```
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
@@ -97,7 +98,7 @@ spec:
   sourceRepos:
     - '*'
   destinations:
-    - *
+    - '*'
   destinationServiceAccounts:
     - server: https://kubernetes.default.svc
       namespace: guestbook
@@ -108,6 +109,9 @@ spec:
     - server: https://kubernetes.default.svc
       namespace: guestbook-stage
       defaultServiceAccount: guestbook-stage-deployer
+    - server: '*
+      namespace: '*'
+      defaultServiceAccount: default # catch all service account to be used when all other matches fail.
 ```
 
 ### Structure of DestinationServiceAccount:
@@ -157,10 +161,7 @@ So that, I can use a generic convention of naming service accounts and avoid ass
 
 #### Component: ArgoCD Application Controller
 
-- Provide a configuration in `argocd-cm`  which can be modified to enable the Impersonation feature. Set `applicationcontroller.enable.impersonation: true` in the Argo CD ConfigMap. Default value of `applicationcontroller.enable.impersonation` would be `false` and user has to explicitly override it to use this feature.
-- Provide an option to override the Impersonation feature using environment variables.
-Set `ARGOCD_APPLICATION_CONTROLLER_ENABLE_IMPERSONATION=true` in the Application controller environment variables. Default value of the environment variable must be `false` and user has to explicitly set it to `true` to use this feature.
-- Provide an option to enable this feature using a command line flag `--enable-impersonation`. This new argument option needs to be added to the Application controller args.
+- Provide a configuration in `argocd-cm`  which can be modified to enable the Impersonation feature. Set `application.sync.impersonation.enabled: "true"` in the Argo CD ConfigMap. Default value of `application.sync.impersonation.enabled` would be `"false"` and user has to explicitly override it to use this feature.
 - Fix Application Controller `sync.go` to set the Impersonate configuration from the AppProject CR to the `SyncContext` Object (rawConfig and restConfig field, need to understand which config is used for the actual sync and if both configs need to be impersonated.)
 
 #### Component: ArgoCD UI
@@ -189,13 +190,13 @@ Set `ARGOCD_APPLICATION_CONTROLLER_ENABLE_IMPERSONATION=true` in the Application
 In this specific scenario, service account name `generic-deployer` will get used for the application sync as the namespace `guestbook` matches the glob pattern `*`.
 
 - Install ArgoCD in the `argocd` namespace.
-```
+```shell
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml -n argocd
 ```
 
 - Enable the impersonation feature in ArgoCD.
-```
-kubectl set env statefulset/argocd-application-controller ARGOCD_APPLICATION_CONTROLLER_ENABLE_IMPERSONATION=true
+```shell
+kubectl patch cm argocd-cm -n argocd --type json --patch '[{ "op": "add", "path": "/data/application.sync.impersonation.enabled", "value": "true" }]'
 ```
 
 - Create a namespace called `guestbook` and a service account called `guestbook-deployer`.
@@ -205,13 +206,13 @@ kubectl create serviceaccount guestbook-deployer
 ```
 
 - Create Role and RoleBindings and configure RBAC access for creating `Service` and `Deployment` objects in namespace `guestbook` for service account `guestbook-deployer`.
-```
+```shell
 kubectl create role guestbook-deployer-role --verb get,list,update,delete --resource pods,deployment,service
 kubectl create rolebinding guestbook-deployer-rb --serviceaccount guestbook-deployer --role guestbook-deployer-role
 ```
 
 - Create the `Application` in the `argocd` namespace and the required `AppProject` as below 
-```
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -240,10 +241,10 @@ spec:
   sourceRepos:
     - '*'
   destinations:
-    - namespace: *
+    - namespace: '*'
       server: https://kubernetes.default.svc
   destinationServiceAccounts:
-    - namespace: *
+    - namespace: '*'
       server: https://kubernetes.default.svc 
       defaultServiceAccount: generic-deployer
 ```
@@ -253,28 +254,28 @@ spec:
 In this specific scenario, service account name `guestbook-deployer` will get used for the application sync as the namespace `guestbook` matches the target namespace `guestbook`.
 
 - Install ArgoCD in the `argocd` namespace.
-```
+```shell
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml -n argocd
 ```
 
 - Enable the impersonation feature in ArgoCD.
-```
-kubectl set env statefulset/argocd-application-controller ARGOCD_APPLICATION_CONTROLLER_ENABLE_IMPERSONATION=true
+```shell
+kubectl patch cm argocd-cm -n argocd --type json --patch '[{ "op": "add", "path": "/data/application.sync.impersonation.enabled", "value": "true" }]'
 ```
 
 - Create a namespace called `guestbook` and a service account called `guestbook-deployer`.
-```
+```shell
 kubectl create namespace guestbook
 kubectl create serviceaccount guestbook-deployer
 ```
 - Create Role and RoleBindings and configure RBAC access for creating `Service` and `Deployment` objects in namespace `guestbook` for service account `guestbook-deployer`.
-```
+```shell
 kubectl create role guestbook-deployer-role --verb get,list,update,delete --resource pods,deployment,service
 kubectl create rolebinding guestbook-deployer-rb --serviceaccount guestbook-deployer --role guestbook-deployer-role
 ```
 
 In this specific scenario, service account name `guestbook-deployer` will get used as it matches to the specific namespace `guestbook`.
-```
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -321,23 +322,23 @@ spec:
 **Note**: In this example, we are relying on the default service account `argocd-manager` with `cluster-admin` privileges which gets created when adding a remote cluster destination using the ArgoCD CLI.
 
 - Install ArgoCD in the `argocd` namespace.
-```
+```shell
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml -n argocd
 ```
 
 - Enable the impersonation feature in ArgoCD.
-```
-kubectl set env statefulset/argocd-application-controller ARGOCD_APPLICATION_CONTROLLER_ENABLE_IMPERSONATION=true
+```shell
+kubectl patch cm argocd-cm -n argocd --type json --patch '[{ "op": "add", "path": "/data/application.sync.impersonation.enabled", "value": "true" }]'
 ```
 
 - Add the remote cluster as a destination to argocd
-```
+```shell
 argocd cluster add remote-cluster --name remote-cluster
 ```
 **Note:** The above command would create a service account named `argocd-manager` in `kube-system` namespace and `ClusterRole` named `argocd-manager-role` with full cluster admin access and a `ClusterRoleBinding` named `argocd-manager-role-binding` mapping the `argocd-manager-role` to the service account `remote-cluster`
 
 - In the remote cluster, create a namespace called `guestbook` and a service account called `guestbook-deployer`.
-```
+```shell
 kubectl ctx remote-cluster
 kubectl create namespace guestbook
 kubectl create serviceaccount guestbook-deployer
@@ -345,14 +346,14 @@ kubectl create serviceaccount guestbook-deployer
 
 - In the remote cluster, create `Role` and `RoleBindings` and configure RBAC access for creating `Service` and `Deployment` objects in namespace `guestbook` for service account `guestbook-deployer`.
 
-```
+```shell
 kubectl ctx remote-cluster
 kubectl create role guestbook-deployer-role --verb get,list,update,delete --resource pods,deployment,service
 kubectl create rolebinding guestbook-deployer-rb --serviceaccount guestbook-deployer --role guestbook-deployer-role
 ```
 
 - Create the `Application` and `AppProject` for the `guestbook` application.
-```
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -383,7 +384,6 @@ spec:
   destinations:
     - namespace: guestbook
       server: https://kubernetes.default.svc
-      serviceAccountName: guestbook-deployer
   destinationServiceAccounts:
     - namespace: guestbook
       server: https://kubernetes.default.svc
@@ -395,17 +395,17 @@ spec:
 **Note**: In this example, we are relying on a non default service account `guestbook` created in the target cluster and namespace for the sync operation. This use case is for handling scenarios where the remote cluster is managed by a different administrator and providing a service account with `cluster-admin` level access is not feasible.
 
 - Install ArgoCD in the `argocd` namespace.
-```
+```shell
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/master/manifests/install.yaml -n argocd
 ```
 
 - Enable the impersonation feature in ArgoCD.
-```
-kubectl set env statefulset/argocd-application-controller ARGOCD_APPLICATION_CONTROLLER_ENABLE_IMPERSONATION=true
+```shell
+kubectl patch cm argocd-cm -n argocd --type json --patch '[{ "op": "add", "path": "/data/application.sync.impersonation.enabled", "value": "true" }]'
 ```
 
 - In the remote cluster, create a service account called `argocd-admin`
-```
+```shell
 kubectl ctx remote-cluster
 kubectl create serviceaccount argocd-admin
 kubectl create clusterrole argocd-admin-role --verb=impersonate --resource="users,groups,serviceaccounts"
@@ -415,20 +415,20 @@ kubectl create clusterrolebinding argocd-admin-access-review-role-binding --serv
 ```
 
 - In the remote cluster, create a namespace called `guestbook` and a service account called `guestbook-deployer`.
-```
+```shell
 kubectl ctx remote-cluster
 kubectl create namespace guestbook
 kubectl create serviceaccount guestbook-deployer
 ```
 
 - In the remote cluster, create `Role` and `RoleBindings` and configure RBAC access for creating `Service` and `Deployment` objects in namespace `guestbook` for service account `guestbook-deployer`.
-```
+```shell
 kubectl create role guestbook-deployer-role --verb get,list,update,delete --resource pods,deployment,service
 kubectl create rolebinding guestbook-deployer-rb --serviceaccount guestbook-deployer --role guestbook-deployer-role
 ```
 
 In this specific scenario, service account name `guestbook-deployer` will get used as it matches to the specific namespace `guestbook`.
-```
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -476,11 +476,11 @@ spec:
 
 By default, the service account would be looked up in the Application's destination namespace configured through `Application.Spec.Destination.Namespace` field. If the service account is in a different namespace, then users can provide the namespace of the service account explicitly in the format <namespace>:<service_account_name>
 eg:
-```
+```yaml
   ...
   destinationServiceAccounts:
     - server: https://kubernetes.default.svc
-      namespace: *
+      namespace: '*'
       defaultServiceAccount: mynamespace:guestbook-deployer
   ...
 ```
@@ -491,17 +491,17 @@ If there are multiple matches for a given destination, the first valid match in 
 
 eg:
 Lets assume that the `AppProject` has the below `destinationServiceAccounts` configured.
-```
+```yaml
   ...
   destinationServiceAccounts:
     - server: https://kubernetes.default.svc
       namespace: guestbook-prod
       defaultServiceAccount: guestbook-prod-deployer
     - server: https://kubernetes.default.svc
-      namespace: guestbook-*
+      namespace: 'guestbook-*'
       defaultServiceAccount: guestbook-generic-deployer
     - server: https://kubernetes.default.svc
-      namespace: *
+      namespace: '*'
       defaultServiceAccount: generic-deployer
   ...
 ```
@@ -513,6 +513,55 @@ Lets assume that the `AppProject` has the below `destinationServiceAccounts` con
 If application resources have hardcoded namespaces in the git repository, would different service accounts be used for each resource during the sync operation ?
 
 The service account to be used for impersonation is determined on a per Application level rather than on per resource level. The value specified in `Application.spec.destination.namespace` would be used to determine the service account to be used for the sync operation of all resources present in the `Application`.
+
+#### Application does not have a `spec.destination.namespace` field
+`spec.destination.namespace` is an optional field in an `Application`. If the user does not specify it, the application controller will use the service account in the Application's namespace for the sync operation. User's also have the option of specifying the service account along with its namespace, in which case the service account in the user specified namespace will be used for the sync operation.
+
+eg:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  project: my-project
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+  destination:
+    server: https://kubernetes.default.svc
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: my-project
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Example Project
+  # Allow manifests to deploy from any Git repos
+  sourceRepos:
+    - '*'
+  destinations:
+    - namespace: guestbook
+      server: https://kubernetes.default.svc
+    - namespace: guestbook-ui
+      server: https://kubernetes.default.svc
+  destinationServiceAccounts:
+    - namespace: guestbook
+      server: https://kubernetes.default.svc
+      defaultServiceAccount: guestbook-deployer
+    - namespace: guestbook-ui
+      server: https://kubernetes.default.svc
+      defaultServiceAccount: guestbook-ui-deployer
+```
+In the above example, since `spec.destination.namespace` is not specified, Application's namespace `argocd` is used for scoping the service account. So the service account `system:serviceaccount:argocd:guestbook-deployer` will be used for the sync operation.
+
+In the above example, If the matching service account is specified with a namespace, eg: `guestbook:guestbook-deployer`, then the service account `system:serviceaccount:guestbook:guestbook-deployer` will be used for the sync operation.
 
 ### Security Considerations
 
@@ -553,7 +602,7 @@ Consider the following in developing an upgrade/downgrade strategy for this enha
 ### Option 1
 Allow all options available in the `ImpersonationConfig` available to the user through the `AppProject` CRs.
 
-```
+```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
@@ -565,7 +614,7 @@ spec:
   sourceRepos:
   - '*'
   destinations:
-  - namespace: *
+  - namespace: '*'
     server: https://kubernetes.default.svc
     namespace: guestbook
     impersonate:

@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	apierr "k8s.io/apimachinery/pkg/api/errors"
@@ -18,12 +20,14 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/cache/mocks"
 	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
 	"github.com/argoproj/argo-cd/v2/controller/sharding"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
@@ -126,7 +130,7 @@ func TestHandleAddEvent_ClusterExcluded(t *testing.T) {
 		Config: appv1.ClusterConfig{Username: "bar"},
 	})
 
-	assert.Len(t, clustersCache.clusters, 0)
+	assert.Empty(t, clustersCache.clusters)
 }
 
 func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
@@ -319,6 +323,216 @@ func Test_asResourceNode_owner_refs(t *testing.T) {
 	assert.Equal(t, expected, resNode)
 }
 
+func Test_getAppRecursive(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		r        *cache.Resource
+		ns       map[kube.ResourceKey]*cache.Resource
+		wantName string
+		wantOK   assert.BoolAssertionFunc
+	}{
+		{
+			name: "ok: cm1->app1",
+			r: &cache.Resource{
+				Ref: v1.ObjectReference{
+					Name: "cm1",
+				},
+				OwnerRefs: []metav1.OwnerReference{
+					{Name: "app1"},
+				},
+			},
+			ns: map[kube.ResourceKey]*cache.Resource{
+				kube.NewResourceKey("", "", "", "app1"): {
+					Info: &ResourceInfo{
+						AppName: "app1",
+					},
+				},
+			},
+			wantName: "app1",
+			wantOK:   assert.True,
+		},
+		{
+			name: "ok: cm1->cm2->app1",
+			r: &cache.Resource{
+				Ref: v1.ObjectReference{
+					Name: "cm1",
+				},
+				OwnerRefs: []metav1.OwnerReference{
+					{Name: "cm2"},
+				},
+			},
+			ns: map[kube.ResourceKey]*cache.Resource{
+				kube.NewResourceKey("", "", "", "cm2"): {
+					Ref: v1.ObjectReference{
+						Name: "cm2",
+					},
+					OwnerRefs: []metav1.OwnerReference{
+						{Name: "app1"},
+					},
+				},
+				kube.NewResourceKey("", "", "", "app1"): {
+					Info: &ResourceInfo{
+						AppName: "app1",
+					},
+				},
+			},
+			wantName: "app1",
+			wantOK:   assert.True,
+		},
+		{
+			name: "cm1->cm2->app1 & cm1->cm3->app1",
+			r: &cache.Resource{
+				Ref: v1.ObjectReference{
+					Name: "cm1",
+				},
+				OwnerRefs: []metav1.OwnerReference{
+					{Name: "cm2"},
+					{Name: "cm3"},
+				},
+			},
+			ns: map[kube.ResourceKey]*cache.Resource{
+				kube.NewResourceKey("", "", "", "cm2"): {
+					Ref: v1.ObjectReference{
+						Name: "cm2",
+					},
+					OwnerRefs: []metav1.OwnerReference{
+						{Name: "app1"},
+					},
+				},
+				kube.NewResourceKey("", "", "", "cm3"): {
+					Ref: v1.ObjectReference{
+						Name: "cm3",
+					},
+					OwnerRefs: []metav1.OwnerReference{
+						{Name: "app1"},
+					},
+				},
+				kube.NewResourceKey("", "", "", "app1"): {
+					Info: &ResourceInfo{
+						AppName: "app1",
+					},
+				},
+			},
+			wantName: "app1",
+			wantOK:   assert.True,
+		},
+		{
+			// Nothing cycle.
+			// Issue #11699, fixed #12667.
+			name: "ok: cm1->cm2 & cm1->cm3->cm2 & cm1->cm3->app1",
+			r: &cache.Resource{
+				Ref: v1.ObjectReference{
+					Name: "cm1",
+				},
+				OwnerRefs: []metav1.OwnerReference{
+					{Name: "cm2"},
+					{Name: "cm3"},
+				},
+			},
+			ns: map[kube.ResourceKey]*cache.Resource{
+				kube.NewResourceKey("", "", "", "cm2"): {
+					Ref: v1.ObjectReference{
+						Name: "cm2",
+					},
+				},
+				kube.NewResourceKey("", "", "", "cm3"): {
+					Ref: v1.ObjectReference{
+						Name: "cm3",
+					},
+					OwnerRefs: []metav1.OwnerReference{
+						{Name: "cm2"},
+						{Name: "app1"},
+					},
+				},
+				kube.NewResourceKey("", "", "", "app1"): {
+					Info: &ResourceInfo{
+						AppName: "app1",
+					},
+				},
+			},
+			wantName: "app1",
+			wantOK:   assert.True,
+		},
+		{
+			name: "cycle: cm1<->cm2",
+			r: &cache.Resource{
+				Ref: v1.ObjectReference{
+					Name: "cm1",
+				},
+				OwnerRefs: []metav1.OwnerReference{
+					{Name: "cm2"},
+				},
+			},
+			ns: map[kube.ResourceKey]*cache.Resource{
+				kube.NewResourceKey("", "", "", "cm1"): {
+					Ref: v1.ObjectReference{
+						Name: "cm1",
+					},
+					OwnerRefs: []metav1.OwnerReference{
+						{Name: "cm2"},
+					},
+				},
+				kube.NewResourceKey("", "", "", "cm2"): {
+					Ref: v1.ObjectReference{
+						Name: "cm2",
+					},
+					OwnerRefs: []metav1.OwnerReference{
+						{Name: "cm1"},
+					},
+				},
+			},
+			wantName: "",
+			wantOK:   assert.False,
+		},
+		{
+			name: "cycle: cm1->cm2->cm3->cm1",
+			r: &cache.Resource{
+				Ref: v1.ObjectReference{
+					Name: "cm1",
+				},
+				OwnerRefs: []metav1.OwnerReference{
+					{Name: "cm2"},
+				},
+			},
+			ns: map[kube.ResourceKey]*cache.Resource{
+				kube.NewResourceKey("", "", "", "cm1"): {
+					Ref: v1.ObjectReference{
+						Name: "cm1",
+					},
+					OwnerRefs: []metav1.OwnerReference{
+						{Name: "cm2"},
+					},
+				},
+				kube.NewResourceKey("", "", "", "cm2"): {
+					Ref: v1.ObjectReference{
+						Name: "cm2",
+					},
+					OwnerRefs: []metav1.OwnerReference{
+						{Name: "cm3"},
+					},
+				},
+				kube.NewResourceKey("", "", "", "cm3"): {
+					Ref: v1.ObjectReference{
+						Name: "cm3",
+					},
+					OwnerRefs: []metav1.OwnerReference{
+						{Name: "cm1"},
+					},
+				},
+			},
+			wantName: "",
+			wantOK:   assert.False,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			visited := map[kube.ResourceKey]bool{}
+			got, ok := getAppRecursive(tt.r, tt.ns, visited)
+			assert.Equal(t, tt.wantName, got)
+			tt.wantOK(t, ok)
+		})
+	}
+}
+
 func TestSkipResourceUpdate(t *testing.T) {
 	var (
 		hash1_x string = "x"
@@ -378,7 +592,8 @@ func TestSkipResourceUpdate(t *testing.T) {
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1_x,
 			Health: &health.HealthStatus{
-				Status: health.HealthStatusHealthy},
+				Status: health.HealthStatusHealthy,
+			},
 		}, &ResourceInfo{
 			manifestHash: hash3_x,
 			Health:       nil,
@@ -440,4 +655,80 @@ func TestSkipResourceUpdate(t *testing.T) {
 			},
 		}))
 	})
+}
+
+func TestShouldHashManifest(t *testing.T) {
+	tests := []struct {
+		name        string
+		appName     string
+		gvk         schema.GroupVersionKind
+		un          *unstructured.Unstructured
+		annotations map[string]string
+		want        bool
+	}{
+		{
+			name:    "appName not empty gvk matches",
+			appName: "MyApp",
+			gvk:     schema.GroupVersionKind{Group: application.Group, Kind: application.ApplicationKind},
+			un:      &unstructured.Unstructured{},
+			want:    true,
+		},
+		{
+			name:    "appName empty",
+			appName: "",
+			gvk:     schema.GroupVersionKind{Group: application.Group, Kind: application.ApplicationKind},
+			un:      &unstructured.Unstructured{},
+			want:    true,
+		},
+		{
+			name:    "appName empty group not match",
+			appName: "",
+			gvk:     schema.GroupVersionKind{Group: "group1", Kind: application.ApplicationKind},
+			un:      &unstructured.Unstructured{},
+			want:    false,
+		},
+		{
+			name:    "appName empty kind not match",
+			appName: "",
+			gvk:     schema.GroupVersionKind{Group: application.Group, Kind: "kind1"},
+			un:      &unstructured.Unstructured{},
+			want:    false,
+		},
+		{
+			name:        "argocd.argoproj.io/ignore-resource-updates=true",
+			appName:     "",
+			gvk:         schema.GroupVersionKind{Group: application.Group, Kind: "kind1"},
+			un:          &unstructured.Unstructured{},
+			annotations: map[string]string{"argocd.argoproj.io/ignore-resource-updates": "true"},
+			want:        true,
+		},
+		{
+			name:        "argocd.argoproj.io/ignore-resource-updates=invalid",
+			appName:     "",
+			gvk:         schema.GroupVersionKind{Group: application.Group, Kind: "kind1"},
+			un:          &unstructured.Unstructured{},
+			annotations: map[string]string{"argocd.argoproj.io/ignore-resource-updates": "invalid"},
+			want:        false,
+		},
+		{
+			name:        "argocd.argoproj.io/ignore-resource-updates=false",
+			appName:     "",
+			gvk:         schema.GroupVersionKind{Group: application.Group, Kind: "kind1"},
+			un:          &unstructured.Unstructured{},
+			annotations: map[string]string{"argocd.argoproj.io/ignore-resource-updates": "false"},
+			want:        false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.annotations != nil {
+				test.un.SetAnnotations(test.annotations)
+			}
+			got := shouldHashManifest(test.appName, test.gvk, test.un)
+			if test.want != got {
+				t.Fatalf("test=%v want %v got %v", test.name, test.want, got)
+			}
+		})
+	}
 }
