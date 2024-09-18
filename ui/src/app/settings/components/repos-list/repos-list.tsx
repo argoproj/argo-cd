@@ -311,14 +311,7 @@ export class ReposList extends React.Component<
                                             action: () => this.setState({typeProperty: 'helm'})
                                         }
                                     ]}
-                                    anchor={() => (
-                                        <>
-                                            <a>
-                                                Type: {this.state.typeProperty} <i className='fa fa-caret-down' />
-                                            </a>
-                                            &nbsp;
-                                        </>
-                                    )}
+                                    anchor={() => <button className='argo-button argo-button--base'>TYPE</button>}
                                     qeId='type-menu'
                                 />
                                 <DropDownMenu
