@@ -106,13 +106,36 @@ func TestCreateServiceAccount(t *testing.T) {
 	})
 }
 
+func _MockK8STokenController(objects kubetesting.ObjectTracker) kubetesting.ReactionFunc {
+	return (func(action kubetesting.Action) (bool, runtime.Object, error) {
+		secret, ok := action.(kubetesting.CreateAction).GetObject().(*corev1.Secret)
+		if !ok {
+			return false, nil, nil
+		}
+		_, err := objects.Get(schema.GroupVersionResource{Version: "v1", Resource: "serviceaccounts"},
+			secret.Namespace,
+			secret.Annotations[corev1.ServiceAccountNameKey],
+			metav1.GetOptions{})
+		if err != nil {
+			return false, nil, nil
+		}
+		if secret.Data == nil {
+			secret.Data = map[string][]byte{}
+		}
+		if secret.Data[corev1.ServiceAccountTokenKey] == nil {
+			secret.Data[corev1.ServiceAccountTokenKey] = []byte(testToken)
+		}
+		return false, secret, nil
+	})
+}
+
 func TestInstallClusterManagerRBAC(t *testing.T) {
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test",
 		},
 	}
-	secret := &corev1.Secret{
+	legacyAutoSecret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "sa-secret",
 			Namespace: "test",
@@ -129,25 +152,39 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 		},
 		Secrets: []corev1.ObjectReference{
 			{
-				Kind:            secret.GetObjectKind().GroupVersionKind().Kind,
-				APIVersion:      secret.APIVersion,
-				Name:            secret.GetName(),
-				Namespace:       secret.GetNamespace(),
-				UID:             secret.GetUID(),
-				ResourceVersion: secret.GetResourceVersion(),
+				Kind:            legacyAutoSecret.GetObjectKind().GroupVersionKind().Kind,
+				APIVersion:      legacyAutoSecret.APIVersion,
+				Name:            legacyAutoSecret.GetName(),
+				Namespace:       legacyAutoSecret.GetNamespace(),
+				UID:             legacyAutoSecret.GetUID(),
+				ResourceVersion: legacyAutoSecret.GetResourceVersion(),
 			},
+		},
+	}
+	longLivedSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      sa.Name + SATokenSecretSuffix,
+			Namespace: "test",
+			Annotations: map[string]string{
+				corev1.ServiceAccountNameKey: sa.Name,
+			},
+		},
+		Type: corev1.SecretTypeServiceAccountToken,
+		Data: map[string][]byte{
+			"token": []byte("barfoo"),
 		},
 	}
 
 	t.Run("Cluster Scope - Success", func(t *testing.T) {
-		cs := fake.NewClientset(ns, secret, sa)
+		cs := fake.NewClientset(ns, legacyAutoSecret, sa)
+		cs.PrependReactor("create", "secrets", _MockK8STokenController(cs.Tracker()))
 		token, err := InstallClusterManagerRBAC(cs, "test", nil, testBearerTokenTimeout)
 		require.NoError(t, err)
-		assert.Equal(t, "foobar", token)
+		assert.Equal(t, testToken, token)
 	})
 
 	t.Run("Cluster Scope - Missing data in secret", func(t *testing.T) {
-		nsecret := secret.DeepCopy()
+		nsecret := legacyAutoSecret.DeepCopy()
 		nsecret.Data = make(map[string][]byte)
 		cs := fake.NewClientset(ns, nsecret, sa)
 		token, err := InstallClusterManagerRBAC(cs, "test", nil, testBearerTokenTimeout)
@@ -156,14 +193,15 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 	})
 
 	t.Run("Namespace Scope - Success", func(t *testing.T) {
-		cs := fake.NewClientset(ns, secret, sa)
+		cs := fake.NewClientset(ns, sa, longLivedSecret)
+		cs.PrependReactor("create", "secrets", _MockK8STokenController(cs.Tracker()))
 		token, err := InstallClusterManagerRBAC(cs, "test", []string{"nsa"}, testBearerTokenTimeout)
 		require.NoError(t, err)
-		assert.Equal(t, "foobar", token)
+		assert.Equal(t, "barfoo", token)
 	})
 
 	t.Run("Namespace Scope - Missing data in secret", func(t *testing.T) {
-		nsecret := secret.DeepCopy()
+		nsecret := legacyAutoSecret.DeepCopy()
 		nsecret.Data = make(map[string][]byte)
 		cs := fake.NewClientset(ns, nsecret, sa)
 		token, err := InstallClusterManagerRBAC(cs, "test", []string{"nsa"}, testBearerTokenTimeout)
