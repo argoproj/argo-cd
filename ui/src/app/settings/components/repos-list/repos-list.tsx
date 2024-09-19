@@ -387,15 +387,13 @@ export class ReposList extends React.Component<
                         </div>
                         <DataLoader load={services.repos.list} ref={loader => (this.repoLoader = loader)}>
                             {(repos: models.Repository[]) => {
-                                const projectValues = Array.from(new Set(repos.map(repo => repo.project)));
-                                console.log('projects : ', projectValues);
-
                                 const filteredRepos = this.filteredRepos(
                                     repos,
                                     this.state.typeProperty,
                                     this.state.projectProperty,
                                     this.state.statusProperty,
-                                    this.state.sortProperty
+                                    this.state.sortProperty,
+                                    this.state.name
                                 );
 
                                 return (
@@ -1026,7 +1024,7 @@ export class ReposList extends React.Component<
     }
 
     // filtering function
-    private filteredRepos(repos: models.Repository[], type: string, project: string, status: string, sort: string) {
+    private filteredRepos(repos: models.Repository[], type: string, project: string, status: string, sort: string, name: string) {
         let newRepos = repos;
 
         if (type !== 'all') {
