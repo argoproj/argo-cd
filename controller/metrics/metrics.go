@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"slices"
 	"strconv"
 	"time"
 
@@ -54,7 +55,8 @@ const (
 var (
 	descAppDefaultLabels = []string{"namespace", "name", "project"}
 
-	descAppLabels *prometheus.Desc
+	descAppLabels     *prometheus.Desc
+	descAppConditions *prometheus.Desc
 
 	descAppInfo = prometheus.NewDesc(
 		"argocd_app_info",
@@ -62,6 +64,7 @@ var (
 		append(descAppDefaultLabels, "autosync_enabled", "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation"),
 		nil,
 	)
+
 	// Deprecated
 	descAppCreated = prometheus.NewDesc(
 		"argocd_app_created_time",
@@ -144,7 +147,7 @@ var (
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
-func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, healthCheck func(r *http.Request) error, appLabels []string) (*MetricsServer, error) {
+func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string) (*MetricsServer, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
@@ -160,8 +163,17 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		)
 	}
 
+	if len(appConditions) > 0 {
+		descAppConditions = prometheus.NewDesc(
+			"argocd_app_condition",
+			"Report application conditions.",
+			append(descAppDefaultLabels, "condition"),
+			nil,
+		)
+	}
+
 	mux := http.NewServeMux()
-	registry := NewAppRegistry(appLister, appFilter, appLabels)
+	registry := NewAppRegistry(appLister, appFilter, appLabels, appConditions)
 
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
@@ -293,24 +305,26 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 }
 
 type appCollector struct {
-	store     applister.ApplicationLister
-	appFilter func(obj interface{}) bool
-	appLabels []string
+	store         applister.ApplicationLister
+	appFilter     func(obj interface{}) bool
+	appLabels     []string
+	appConditions []string
 }
 
 // NewAppCollector returns a prometheus collector for application metrics
-func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, appLabels []string) prometheus.Collector {
+func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, appLabels []string, appConditions []string) prometheus.Collector {
 	return &appCollector{
-		store:     appLister,
-		appFilter: appFilter,
-		appLabels: appLabels,
+		store:         appLister,
+		appFilter:     appFilter,
+		appLabels:     appLabels,
+		appConditions: appConditions,
 	}
 }
 
 // NewAppRegistry creates a new prometheus registry that collects applications
-func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, appLabels []string) *prometheus.Registry {
+func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, appLabels []string, appConditions []string) *prometheus.Registry {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels))
+	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions))
 	return registry
 }
 
@@ -318,6 +332,9 @@ func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj in
 func (c *appCollector) Describe(ch chan<- *prometheus.Desc) {
 	if len(c.appLabels) > 0 {
 		ch <- descAppLabels
+	}
+	if len(c.appConditions) > 0 {
+		ch <- descAppConditions
 	}
 	ch <- descAppInfo
 	ch <- descAppSyncStatusCode
@@ -381,6 +398,19 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 			labelValues = append(labelValues, value)
 		}
 		addGauge(descAppLabels, 1, labelValues...)
+	}
+
+	if len(c.appConditions) > 0 {
+		conditionCount := make(map[string]int)
+		for _, condition := range app.Status.Conditions {
+			if slices.Contains(c.appConditions, condition.Type) {
+				conditionCount[condition.Type]++
+			}
+		}
+
+		for conditionType, count := range conditionCount {
+			addGauge(descAppConditions, float64(count), conditionType)
+		}
 	}
 
 	// Deprecated controller metrics

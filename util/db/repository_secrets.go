@@ -39,11 +39,11 @@ func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, reposit
 		if apierr.IsAlreadyExists(err) {
 			hasLabel, err := s.hasRepoTypeLabel(secName)
 			if err != nil {
-				return nil, status.Errorf(codes.Internal, err.Error())
+				return nil, status.Error(codes.Internal, err.Error())
 			}
 			if !hasLabel {
 				msg := fmt.Sprintf("secret %q doesn't have the proper %q label: please fix the secret or delete it", secName, common.LabelKeySecretType)
-				return nil, status.Errorf(codes.InvalidArgument, msg)
+				return nil, status.Error(codes.InvalidArgument, msg)
 			}
 			return nil, status.Errorf(codes.AlreadyExists, "repository %q already exists", repository.Repo)
 		}

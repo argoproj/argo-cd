@@ -426,3 +426,6 @@ data:
                 server: https://some-cluster
   # The maximum size of the payload that can be sent to the webhook server.
   webhook.maxPayloadSizeMB: 1024
+
+  # application.sync.impersonation.enabled indicates whether the application sync can be decoupled from control plane service account using impersonation.
+  application.sync.impersonation.enabled: "false"

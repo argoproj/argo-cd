@@ -324,7 +324,7 @@ func TestGetResourceActionDiscoveryNoPredefined(t *testing.T) {
 	vm := VM{}
 	discoveryLua, err := vm.GetResourceActionDiscovery(testObj)
 	require.NoError(t, err)
-	assert.Empty(t, discoveryLua)
+	assert.Equal(t, "", discoveryLua[0])
 }
 
 func TestGetResourceActionDiscoveryWithOverride(t *testing.T) {
@@ -340,7 +340,25 @@ func TestGetResourceActionDiscoveryWithOverride(t *testing.T) {
 	}
 	discoveryLua, err := vm.GetResourceActionDiscovery(testObj)
 	require.NoError(t, err)
-	assert.Equal(t, validDiscoveryLua, discoveryLua)
+	assert.Equal(t, validDiscoveryLua, discoveryLua[0])
+}
+
+func TestGetResourceActionsWithBuiltInActionsFlag(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{
+		ResourceOverrides: map[string]appv1.ResourceOverride{
+			"argoproj.io/Rollout": {
+				Actions: string(grpc.MustMarshal(appv1.ResourceActions{
+					ActionDiscoveryLua:  validDiscoveryLua,
+					MergeBuiltinActions: true,
+				})),
+			},
+		},
+	}
+
+	discoveryLua, err := vm.GetResourceActionDiscovery(testObj)
+	require.NoError(t, err)
+	assert.Equal(t, validDiscoveryLua, discoveryLua[0])
 }
 
 const validDiscoveryLua = `
@@ -349,8 +367,17 @@ scale = {name = 'scale', params = scaleParams}
 
 resume = {name = 'resume'}
 
-test = {}
-a = {scale = scale, resume = resume, test = test}
+a = {scale = scale, resume = resume}
+
+return a
+`
+
+const additionalValidDiscoveryLua = `
+scaleParams = { {name = "override", type = "number"} }
+scale = {name = 'scale', params = scaleParams}
+prebuilt = {prebuilt = 'prebuilt', type = 'number'}
+
+a = {scale = scale, prebuilt = prebuilt}
 
 return a
 `
@@ -358,7 +385,7 @@ return a
 func TestExecuteResourceActionDiscovery(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	actions, err := vm.ExecuteResourceActionDiscovery(testObj, validDiscoveryLua)
+	actions, err := vm.ExecuteResourceActionDiscovery(testObj, []string{validDiscoveryLua})
 	require.NoError(t, err)
 	expectedActions := []appv1.ResourceAction{
 		{
@@ -369,8 +396,31 @@ func TestExecuteResourceActionDiscovery(t *testing.T) {
 				Name: "replicas",
 				Type: "number",
 			}},
-		}, {
-			Name: "test",
+		},
+	}
+	for _, expectedAction := range expectedActions {
+		assert.Contains(t, actions, expectedAction)
+	}
+}
+
+func TestExecuteResourceActionDiscoveryWithDuplicationActions(t *testing.T) {
+	testObj := StrToUnstructured(objJSON)
+	vm := VM{}
+	actions, err := vm.ExecuteResourceActionDiscovery(testObj, []string{validDiscoveryLua, additionalValidDiscoveryLua})
+	require.NoError(t, err)
+	expectedActions := []appv1.ResourceAction{
+		{
+			Name: "resume",
+		},
+		{
+			Name: "scale",
+			Params: []appv1.ResourceActionParam{{
+				Name: "replicas",
+				Type: "number",
+			}},
+		},
+		{
+			Name: "prebuilt",
 		},
 	}
 	for _, expectedAction := range expectedActions {
@@ -386,7 +436,7 @@ return a`
 func TestExecuteResourceActionDiscoveryInvalidResourceAction(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	actions, err := vm.ExecuteResourceActionDiscovery(testObj, discoveryLuaWithInvalidResourceAction)
+	actions, err := vm.ExecuteResourceActionDiscovery(testObj, []string{discoveryLuaWithInvalidResourceAction})
 	require.Error(t, err)
 	assert.Nil(t, actions)
 }
@@ -399,7 +449,7 @@ return a
 func TestExecuteResourceActionDiscoveryInvalidReturn(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	actions, err := vm.ExecuteResourceActionDiscovery(testObj, invalidDiscoveryLua)
+	actions, err := vm.ExecuteResourceActionDiscovery(testObj, []string{invalidDiscoveryLua})
 	assert.Nil(t, actions)
 	require.Error(t, err)
 }

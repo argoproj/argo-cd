@@ -169,7 +169,7 @@ func NewCommand() *cobra.Command {
 
 			tlsConfig := apiclient.TLSConfiguration{
 				DisableTLS:       repoServerPlaintext,
-				StrictValidation: repoServerPlaintext,
+				StrictValidation: repoServerStrictTLS,
 			}
 
 			if !repoServerPlaintext && repoServerStrictTLS {
@@ -270,7 +270,7 @@ func startWebhookServer(webhookHandler *webhook.WebhookHandler, webhookAddr stri
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/webhook", webhookHandler.Handler)
 	go func() {
-		log.Info("Starting webhook server")
+		log.Infof("Starting webhook server %s", webhookAddr)
 		err := http.ListenAndServe(webhookAddr, mux)
 		if err != nil {
 			log.Error(err, "failed to start webhook server")
