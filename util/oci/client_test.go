@@ -3,26 +3,158 @@ package oci
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/pkg/sync"
+	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/specs-go"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"oras.land/oras-go/v2"
+	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/memory"
 )
 
+type layerConf struct {
+	desc v1.Descriptor
+	string
+}
+
+func generateManifest(t *testing.T, store *memory.Store, layerDescs ...layerConf) string {
+	configBlob := []byte("Hello config")
+	configDesc := content.NewDescriptorFromBytes(v1.MediaTypeImageConfig, configBlob)
+
+	var layers []v1.Descriptor
+
+	for _, layer := range layerDescs {
+		layers = append(layers, layer.desc)
+	}
+
+	manifestBlob, err := json.Marshal(v1.Manifest{
+		Config:    configDesc,
+		Layers:    layers,
+		Versioned: specs.Versioned{SchemaVersion: 2},
+	})
+	require.NoError(t, err)
+	manifestDesc := content.NewDescriptorFromBytes(v1.MediaTypeImageManifest, manifestBlob)
+
+	for _, layer := range layerDescs {
+		require.NoError(t, store.Push(context.Background(), layer.desc, bytes.NewReader([]byte(layer.string))))
+	}
+
+	require.NoError(t, store.Push(context.Background(), configDesc, bytes.NewReader(configBlob)))
+	require.NoError(t, store.Push(context.Background(), manifestDesc, bytes.NewReader(manifestBlob)))
+	require.NoError(t, store.Tag(context.Background(), manifestDesc, manifestDesc.Digest.String()))
+
+	return manifestDesc.Digest.String()
+}
+
+func Test_nativeOCIClient_Extract(t *testing.T) {
+	layerBlob := "Hello layer"
+
+	type fields struct {
+		creds             Creds
+		repoURL           string
+		tagsFunc          func(context.Context, string) (tags []string, err error)
+		repoLock          sync.KeyLock
+		indexCache        indexCache
+		repoCachePaths    io.TempPaths
+		allowedMediaTypes []string
+	}
+	type args struct {
+		project                         string
+		manifestMaxExtractedSize        int64
+		disableManifestMaxExtractedSize bool
+		digestFunc                      func(*memory.Store) string
+	}
+	tests := []struct {
+		name          string
+		fields        fields
+		args          args
+		wantPath      string
+		expectedError error
+	}{
+		{
+			name: "extraction fails due to size limit",
+			fields: fields{
+				allowedMediaTypes: []string{v1.MediaTypeImageLayerGzip},
+			},
+			args: args{
+				digestFunc: func(store *memory.Store) string {
+					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(v1.MediaTypeImageLayerGzip, []byte(layerBlob)), layerBlob})
+				},
+				project:                         "test-project",
+				manifestMaxExtractedSize:        1,
+				disableManifestMaxExtractedSize: false,
+			},
+			expectedError: fmt.Errorf("extracted content too large"),
+		},
+		{
+			name: "extraction fails due to invalid media type",
+			fields: fields{
+				allowedMediaTypes: []string{"application/vnd.different.media.type"},
+			},
+			args: args{
+				digestFunc: func(store *memory.Store) string {
+					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(v1.MediaTypeImageLayerGzip, []byte(layerBlob)), layerBlob})
+				},
+				project:                         "test-project",
+				manifestMaxExtractedSize:        1000,
+				disableManifestMaxExtractedSize: false,
+			},
+			expectedError: fmt.Errorf("oci layer media type application/vnd.oci.image.layer.v1.tar+gzip is not in the list of allowed media types"),
+		},
+		{
+			name: "extraction fails due to non-existent digest",
+			fields: fields{
+				allowedMediaTypes: []string{"application/vnd.cncf.helm.chart.content.v1.tar+gzip"},
+			},
+			args: args{
+				digestFunc: func(store *memory.Store) string {
+					return "sha256:nonexistentdigest"
+				},
+				project:                         "test-project",
+				manifestMaxExtractedSize:        1000,
+				disableManifestMaxExtractedSize: false,
+			},
+			expectedError: fmt.Errorf("not found"),
+		},
+	}
+
+	for _, tt := range tests {
+		tempDir := t.TempDir()
+		t.Run(tt.name, func(t *testing.T) {
+			store := memory.New()
+			c := newClientWithLock(tt.fields.repoURL, tt.fields.creds, globalLock, store, tt.fields.tagsFunc, tt.fields.allowedMediaTypes, WithChartPaths(io.NewRandomizedTempPaths(tempDir)))
+			gotPath, gotCloser, err := c.Extract(context.Background(), tt.args.digestFunc(store), tt.args.project, tt.args.manifestMaxExtractedSize, tt.args.disableManifestMaxExtractedSize)
+
+			if tt.expectedError != nil {
+				require.EqualError(t, err, tt.expectedError.Error())
+				return
+			}
+
+			require.NoError(t, err)
+			require.Equal(t, tt.wantPath, gotPath)
+			require.NotNil(t, gotCloser)
+			require.NoError(t, gotCloser.Close())
+		})
+	}
+}
+
 func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 	store := memory.New()
+	data := []byte("")
 	descriptor := v1.Descriptor{
 		MediaType: "",
-		Digest:    "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+		Digest:    digest.FromBytes(data),
 	}
-	assert.NoError(t, store.Push(context.Background(), descriptor, bytes.NewReader([]byte(""))))
-	assert.NoError(t, store.Tag(context.Background(), descriptor, "latest"))
-	assert.NoError(t, store.Tag(context.Background(), descriptor, "1.2.0"))
+	require.NoError(t, store.Push(context.Background(), descriptor, bytes.NewReader(data)))
+	require.NoError(t, store.Tag(context.Background(), descriptor, "latest"))
+	require.NoError(t, store.Tag(context.Background(), descriptor, "1.2.0"))
+	require.NoError(t, store.Tag(context.Background(), descriptor, descriptor.Digest.String()))
 
 	type fields struct {
 		creds             Creds
@@ -30,8 +162,6 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 		repo              oras.ReadOnlyTarget
 		tagsFunc          func(context.Context, string) (tags []string, err error)
 		repoLock          sync.KeyLock
-		indexCache        indexCache
-		repoCachePaths    io.TempPaths
 		allowedMediaTypes []string
 	}
 	tests := []struct {
@@ -90,7 +220,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			}},
 			expectedError: fmt.Errorf("cannot get digest: not found"),
 		},
-		//new tests
+		// new tests
 		{
 			name:     "resolve latest tag",
 			revision: "latest",
@@ -129,9 +259,11 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			c := newClientWithLock(tt.fields.repoURL, tt.fields.creds, tt.fields.repoLock, tt.fields.repo, tt.fields.tagsFunc, tt.fields.allowedMediaTypes)
 			got, err := c.ResolveRevision(context.Background(), tt.revision, tt.noCache)
 			if tt.expectedError != nil {
-				assert.EqualError(t, err, tt.expectedError.Error())
+				require.EqualError(t, err, tt.expectedError.Error())
 				return
 			}
+
+			require.NoError(t, err)
 			if got != tt.expectedDigest {
 				t.Errorf("ResolveRevision() got = %v, expectedDigest %v", got, tt.expectedDigest)
 			}

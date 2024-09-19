@@ -747,7 +747,7 @@ export function syncStatusMessage(app: appModels.Application) {
         if (source.chart) {
             message += ' (' + revision + ')';
         } else if (revision.length >= 7 && !revision.startsWith(source.targetRevision)) {
-            if(source.repoURL.startsWith("oci://")) {
+            if (source.repoURL.startsWith('oci://')) {
                 message += ' (' + revision.substring(0, 14) + ')';
             } else {
                 message += ' (' + revision.substring(0, 7) + ')';
