@@ -314,7 +314,7 @@ export class ReposList extends React.Component<
                                     anchor={() =>   (
                                         <>
                                             <a>
-                                                Type: <i className='fa fa-caret-down' />
+                                                Type: {this.state.typeProperty} <i className='fa fa-caret-down' />
                                             </a>
                                             &nbsp;
                                         </>
@@ -342,7 +342,7 @@ export class ReposList extends React.Component<
                                                anchor={() => (
                                                     <>
                                                         <a>
-                                                            Project: <i className='fa fa-caret-down' />
+                                                            Project: {this.state.projectProperty} <i className='fa fa-caret-down' />
                                                         </a>
                                                         &nbsp;
                                                     </>
@@ -374,7 +374,7 @@ export class ReposList extends React.Component<
                                  anchor={() =>  (
                                         <>
                                             <a>
-                                                Status: <i className='fa fa-caret-down' />
+                                                Status: {this.state.statusProperty} <i className='fa fa-caret-down' />
                                             </a>
                                             &nbsp;
                                         </>
