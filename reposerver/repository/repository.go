@@ -1195,9 +1195,6 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 	for i, j := range templateOpts.Set {
 		templateOpts.Set[i] = env.Envsubst(j)
 	}
-	for i, j := range templateOpts.SetString {
-		templateOpts.SetString[i] = env.Envsubst(j)
-	}
 
 	var proxy string
 	if q.Repo != nil {
