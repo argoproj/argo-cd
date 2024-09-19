@@ -14,12 +14,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubefake "k8s.io/client-go/kubernetes/fake"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -39,7 +37,7 @@ func (g *generatorMock) GetTemplate(appSetGenerator *v1alpha1.ApplicationSetGene
 	return &v1alpha1.ApplicationSetTemplate{}
 }
 
-func (g *generatorMock) GenerateParams(appSetGenerator *v1alpha1.ApplicationSetGenerator, _ *v1alpha1.ApplicationSet, client client.Client) ([]map[string]interface{}, error) {
+func (g *generatorMock) GenerateParams(appSetGenerator *v1alpha1.ApplicationSetGenerator, _ *v1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
 	return []map[string]interface{}{}, nil
 }
 
@@ -178,13 +176,12 @@ func TestWebhookHandler(t *testing.T) {
 	}
 
 	namespace := "test"
-	webhookParallelism := 10
 	fakeClient := newFakeClient(namespace)
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
+	assert.Nil(t, err)
 	err = v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
+	assert.Nil(t, err)
 
 	for _, test := range tt {
 		t.Run(test.desc, func(t *testing.T) {
@@ -207,24 +204,22 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithMergeAndNestedGitGenerator("merge-nested-git-github", namespace, "https://github.com/org/repo"),
 			).Build()
 			set := argosettings.NewSettingsManager(context.TODO(), fakeClient, namespace)
-			h, err := NewWebhookHandler(namespace, webhookParallelism, set, fc, mockGenerators())
-			require.NoError(t, err)
+			h, err := NewWebhookHandler(namespace, set, fc, mockGenerators())
+			assert.Nil(t, err)
 
 			req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 			req.Header.Set(test.headerKey, test.headerValue)
 			eventJSON, err := os.ReadFile(filepath.Join("testdata", test.payloadFile))
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			req.Body = io.NopCloser(bytes.NewReader(eventJSON))
 			w := httptest.NewRecorder()
 
 			h.Handler(w, req)
-			close(h.queue)
-			h.Wait()
-			assert.Equal(t, test.expectedStatusCode, w.Code)
+			assert.Equal(t, w.Code, test.expectedStatusCode)
 
 			list := &v1alpha1.ApplicationSetList{}
 			err = fc.List(context.TODO(), list)
-			require.NoError(t, err)
+			assert.Nil(t, err)
 			effectedAppSetsAsExpected := make(map[string]bool)
 			for _, appSetName := range test.effectedAppSets {
 				effectedAppSetsAsExpected[appSetName] = false

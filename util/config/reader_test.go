@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestUnmarshalLocalFile(t *testing.T) {
@@ -126,9 +125,9 @@ func TestUnmarshalReader(t *testing.T) {
 	value := "test-reader"
 	instance := testStruct{value}
 	data, err := json.Marshal(instance)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	var reader io.Reader = bytes.NewReader(data)
 	err = UnmarshalReader(reader, &instance)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, value, instance.Value)
 }

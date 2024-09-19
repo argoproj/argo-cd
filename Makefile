@@ -153,13 +153,6 @@ DEV_IMAGE?=false
 ARGOCD_GPG_ENABLED?=true
 ARGOCD_E2E_APISERVER_PORT?=8080
 
-ifeq (${COVERAGE_ENABLED}, true)
-# We use this in the cli-local target to enable code coverage for e2e tests.
-COVERAGE_FLAG=-cover
-else
-COVERAGE_FLAG=
-endif
-
 override LDFLAGS += \
   -X ${PACKAGE}.version=${VERSION} \
   -X ${PACKAGE}.buildDate=${BUILD_DATE} \
@@ -192,14 +185,10 @@ endif
 .PHONY: all
 all: cli image
 
-.PHONY: mockgen
-mockgen:
-	./hack/generate-mock.sh
-
 .PHONY: gogen
 gogen:
 	export GO111MODULE=off
-	go generate ./...
+	go generate ./util/argo/...
 
 .PHONY: protogen
 protogen: mod-vendor-local protogen-fast
@@ -233,16 +222,13 @@ clientgen:
 clidocsgen:
 	go run tools/cmd-docs/main.go
 
-.PHONY: actionsdocsgen
-actionsdocsgen:
-	hack/generate-actions-list.sh
 
 .PHONY: codegen-local
-codegen-local: mod-vendor-local mockgen gogen protogen clientgen openapigen clidocsgen actionsdocsgen manifests-local notification-docs notification-catalog
+codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
 	rm -rf vendor/
 
 .PHONY: codegen-local-fast
-codegen-local-fast: mockgen gogen protogen-fast clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
+codegen-local-fast: gogen protogen-fast clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
 
 .PHONY: codegen
 codegen: test-tools-image
@@ -254,7 +240,7 @@ cli: test-tools-image
 
 .PHONY: cli-local
 cli-local: clean-debug
-	CGO_ENABLED=${CGO_FLAG} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build $(COVERAGE_FLAG) -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
+	CGO_ENABLED=${CGO_FLAG} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
 
 .PHONY: gen-resources-cli-local
 gen-resources-cli-local: clean-debug
@@ -371,7 +357,7 @@ lint-local:
 	golangci-lint --version
 	# NOTE: If you get a "Killed" OOM message, try reducing the value of GOGC
 	# See https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
-	GOGC=$(ARGOCD_LINT_GOGC) GOMAXPROCS=2 golangci-lint run --fix --verbose
+	GOGC=$(ARGOCD_LINT_GOGC) GOMAXPROCS=2 golangci-lint run --enable gofmt --fix --verbose --timeout 3000s --max-issues-per-linter 0 --max-same-issues 0
 
 .PHONY: lint-ui
 lint-ui: test-tools-image
@@ -405,9 +391,9 @@ test: test-tools-image
 .PHONY: test-local
 test-local:
 	if test "$(TEST_MODULE)" = ""; then \
-		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -args -test.gocoverdir="$(PWD)/test-results"; \
+		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -coverprofile=coverage.out; \
 	else \
-		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES="$(TEST_MODULE)" ./hack/test.sh -args -test.gocoverdir="$(PWD)/test-results" "$(TEST_MODULE)"; \
+		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES="$(TEST_MODULE)" ./hack/test.sh -coverprofile=coverage.out "$(TEST_MODULE)"; \
 	fi
 
 .PHONY: test-race
@@ -419,9 +405,9 @@ test-race: test-tools-image
 .PHONY: test-race-local
 test-race-local:
 	if test "$(TEST_MODULE)" = ""; then \
-		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -race -args -test.gocoverdir="$(PWD)/test-results"; \
+		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -race -coverprofile=coverage.out; \
 	else \
-		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES="$(TEST_MODULE)" ./hack/test.sh -race -args -test.gocoverdir="$(PWD)/test-results"; \
+		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES="$(TEST_MODULE)" ./hack/test.sh -race -coverprofile=coverage.out; \
 	fi
 
 # Run the E2E test suite. E2E test servers (see start-e2e target) must be
@@ -435,7 +421,7 @@ test-e2e:
 test-e2e-local: cli-local
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
-	DIST_DIR=${DIST_DIR} RERUN_FAILS=5 PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v -args -test.gocoverdir="$(PWD)/test-results"
+	DIST_DIR=${DIST_DIR} RERUN_FAILS=5 PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server: test-tools-image
@@ -466,12 +452,6 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	mkdir -p /tmp/argo-e2e/app/config/gpg/keys && chmod 0700 /tmp/argo-e2e/app/config/gpg/keys
 	mkdir -p /tmp/argo-e2e/app/config/gpg/source && chmod 0700 /tmp/argo-e2e/app/config/gpg/source
 	mkdir -p /tmp/argo-e2e/app/config/plugin && chmod 0700 /tmp/argo-e2e/app/config/plugin
-	# create folders to hold go coverage results for each component
-	mkdir -p /tmp/coverage/app-controller
-	mkdir -p /tmp/coverage/api-server
-	mkdir -p /tmp/coverage/repo-server
-	mkdir -p /tmp/coverage/applicationset-controller
-	mkdir -p /tmp/coverage/notification
 	# set paths for locally managed ssh known hosts and tls certs data
 	ARGOCD_SSH_DATA_PATH=/tmp/argo-e2e/app/config/ssh \
 	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \
@@ -489,7 +469,6 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS=http://127.0.0.1:8341,http://127.0.0.1:8342,http://127.0.0.1:8343,http://127.0.0.1:8344 \
 	ARGOCD_E2E_TEST=true \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
-	ls -lrt /tmp/coverage
 
 # Cleans VSCode debug.test files from sub-dirs to prevent them from being included in by golang embed
 .PHONY: clean-debug
@@ -515,7 +494,6 @@ start-local: mod-vendor-local dep-ui-local cli-local
 	mkdir -p /tmp/argocd-local
 	mkdir -p /tmp/argocd-local/gpg/keys && chmod 0700 /tmp/argocd-local/gpg/keys
 	mkdir -p /tmp/argocd-local/gpg/source
-	REDIS_PASSWORD=$(shell kubectl get secret argocd-redis -o jsonpath='{.data.auth}' | base64 -d) \
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=false \
 	ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \

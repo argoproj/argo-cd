@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"os"
 	"strings"
 	"testing"
+
+	"net/http"
+	"net/http/httptest"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,23 +36,23 @@ func (f *fakeIndexCache) GetHelmIndex(_ string, indexData *[]byte) error {
 
 func TestIndex(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
-		client := NewClient("", Creds{}, false, "", "")
+		client := NewClient("", Creds{}, false, "")
 		_, err := client.GetIndex(false, 10000)
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 	t.Run("Stable", func(t *testing.T) {
-		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", "")
+		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
 		index, err := client.GetIndex(false, 10000)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.NotNil(t, index)
 	})
 	t.Run("BasicAuth", func(t *testing.T) {
 		client := NewClient("https://argoproj.github.io/argo-helm", Creds{
 			Username: "my-password",
 			Password: "my-username",
-		}, false, "", "")
+		}, false, "")
 		index, err := client.GetIndex(false, 10000)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.NotNil(t, index)
 	})
 
@@ -61,15 +62,15 @@ func TestIndex(t *testing.T) {
 		err := yaml.NewEncoder(&data).Encode(fakeIndex)
 		require.NoError(t, err)
 
-		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", "", WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
+		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
 		index, err := client.GetIndex(false, 10000)
 
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, fakeIndex, *index)
 	})
 
 	t.Run("Limited", func(t *testing.T) {
-		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", "")
+		client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
 		_, err := client.GetIndex(false, 100)
 
 		assert.ErrorContains(t, err, "unexpected end of stream")
@@ -77,59 +78,59 @@ func TestIndex(t *testing.T) {
 }
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", "", false, math.MaxInt64, true)
-	require.NoError(t, err)
+	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
+	assert.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.True(t, info.IsDir())
 }
 
 func Test_nativeHelmChart_ExtractChartWithLimiter(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "", "")
-	_, _, err := client.ExtractChart("argo-cd", "0.7.1", "", false, 100, false)
-	require.Error(t, err, "error while iterating on tar reader: unexpected EOF")
+	client := NewClient("https://argoproj.github.io/argo-helm", Creds{}, false, "")
+	_, _, err := client.ExtractChart("argo-cd", "0.7.1", false, 100, false)
+	assert.Error(t, err, "error while iterating on tar reader: unexpected EOF")
 }
 
 func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
-	client := NewClient("https://argoproj.github.io/argo-helm", Creds{InsecureSkipVerify: true}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", "", false, math.MaxInt64, true)
-	require.NoError(t, err)
+	client := NewClient("https://argoproj.github.io/argo-helm", Creds{InsecureSkipVerify: true}, false, "")
+	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
+	assert.NoError(t, err)
 	defer io.Close(closer)
 	info, err := os.Stat(path)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.True(t, info.IsDir())
 }
 
 func Test_normalizeChartName(t *testing.T) {
 	t.Run("Test non-slashed name", func(t *testing.T) {
 		n := normalizeChartName("mychart")
-		assert.Equal(t, "mychart", n)
+		assert.Equal(t, n, "mychart")
 	})
 	t.Run("Test single-slashed name", func(t *testing.T) {
 		n := normalizeChartName("myorg/mychart")
-		assert.Equal(t, "mychart", n)
+		assert.Equal(t, n, "mychart")
 	})
 	t.Run("Test chart name with suborg", func(t *testing.T) {
 		n := normalizeChartName("myorg/mysuborg/mychart")
-		assert.Equal(t, "mychart", n)
+		assert.Equal(t, n, "mychart")
 	})
 	t.Run("Test double-slashed name", func(t *testing.T) {
 		n := normalizeChartName("myorg//mychart")
-		assert.Equal(t, "mychart", n)
+		assert.Equal(t, n, "mychart")
 	})
 	t.Run("Test invalid chart name - ends with slash", func(t *testing.T) {
 		n := normalizeChartName("myorg/")
-		assert.Equal(t, "myorg/", n)
+		assert.Equal(t, n, "myorg/")
 	})
 	t.Run("Test invalid chart name - is dot", func(t *testing.T) {
 		n := normalizeChartName("myorg/.")
-		assert.Equal(t, "myorg/.", n)
+		assert.Equal(t, n, "myorg/.")
 	})
 	t.Run("Test invalid chart name - is two dots", func(t *testing.T) {
 		n := normalizeChartName("myorg/..")
-		assert.Equal(t, "myorg/..", n)
+		assert.Equal(t, n, "myorg/..")
 	})
 }
 
@@ -147,20 +148,20 @@ func TestGetIndexURL(t *testing.T) {
 		want := rawURL + "/index.yaml"
 		got, err := getIndexURL(rawURL)
 		assert.Equal(t, want, got)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 	t.Run("URL with escaped characters", func(t *testing.T) {
 		rawURL := fmt.Sprintf(urlTemplate, "mygroup%2Fmyproject")
 		want := rawURL + "/index.yaml"
 		got, err := getIndexURL(rawURL)
 		assert.Equal(t, want, got)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 	t.Run("URL with invalid escaped characters", func(t *testing.T) {
 		rawURL := fmt.Sprintf(urlTemplate, "mygroup%**myproject")
 		got, err := getIndexURL(rawURL)
 		assert.Equal(t, "", got)
-		require.Error(t, err)
+		assert.Error(t, err)
 	})
 }
 
@@ -190,10 +191,10 @@ func TestGetTagsFromUrl(t *testing.T) {
 			}
 		}))
 
-		client := NewClient(server.URL, Creds{InsecureSkipVerify: true}, true, "", "")
+		client := NewClient(server.URL, Creds{InsecureSkipVerify: true}, true, "")
 
 		tags, err := client.GetTags("mychart", true)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.ElementsMatch(t, tags.Tags, []string{
 			"first",
 			"second",
@@ -206,7 +207,7 @@ func TestGetTagsFromUrl(t *testing.T) {
 	})
 
 	t.Run("should return an error not when oci is not enabled", func(t *testing.T) {
-		client := NewClient("example.com", Creds{}, false, "", "")
+		client := NewClient("example.com", Creds{}, false, "")
 
 		_, err := client.GetTags("my-chart", true)
 		assert.ErrorIs(t, OCINotEnabledErr, err)
@@ -246,7 +247,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	serverURL, err := url.Parse(server.URL)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	testCases := []struct {
 		name    string
@@ -276,11 +277,11 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 				InsecureSkipVerify: true,
 				Username:           "my-username",
 				Password:           "my-password",
-			}, true, "", "")
+			}, true, "")
 
 			tags, err := client.GetTags("mychart", true)
 
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			assert.ElementsMatch(t, tags.Tags, []string{
 				"2.8.0",
 				"2.8.0-prerelease",

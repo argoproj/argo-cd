@@ -7,12 +7,11 @@ import (
 	"log"
 	"strings"
 
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/clusterauth"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 
 	clusterpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -58,6 +57,7 @@ func (a *Actions) Create(args ...string) *Actions {
 		},
 		Upsert: a.context.upsert,
 	})
+
 	if err != nil {
 		if !a.ignoreErrors {
 			log.Fatalf(fmt.Sprintf("Failed to upsert cluster %v", err.Error()))

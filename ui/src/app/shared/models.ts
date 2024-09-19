@@ -103,7 +103,6 @@ export interface ChartDetails {
 export interface SyncOperationResult {
     resources: ResourceResult[];
     revision: string;
-    revisions: string[];
 }
 
 export type ResultCode = 'Synced' | 'SyncFailed' | 'Pruned' | 'PruneSkipped';
@@ -198,8 +197,6 @@ export interface ApplicationSource {
     plugin?: ApplicationSourcePlugin;
 
     directory?: ApplicationSourceDirectory;
-
-    ref?: string;
 }
 
 export interface ApplicationSourceHelm {
@@ -535,7 +532,6 @@ export interface Repository {
     tlsClientCertData?: string;
     tlsClientCertKey?: string;
     proxy?: string;
-    noProxy?: string;
     insecure?: boolean;
     enableLfs?: boolean;
     githubAppId?: string;

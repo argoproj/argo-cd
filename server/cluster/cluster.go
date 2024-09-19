@@ -243,8 +243,8 @@ func (s *Server) getCluster(ctx context.Context, q *cluster.ClusterQuery) (*appv
 		return c, nil
 	}
 
-	// we only get the name when we specify Name in ApplicationDestination and next
-	// we want to find the server in order to populate ApplicationDestination.Server
+	//we only get the name when we specify Name in ApplicationDestination and next
+	//we want to find the server in order to populate ApplicationDestination.Server
 	if q.Name != "" {
 		clusterList, err := s.db.ListClusters(ctx)
 		if err != nil {
@@ -294,6 +294,7 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 		Name:   q.Cluster.Name,
 		Id:     q.Id,
 	}, rbacpolicy.ActionUpdate)
+
 	if err != nil {
 		return nil, err
 	}
@@ -471,9 +472,7 @@ func (s *Server) toAPIResponse(clust *appv1.Cluster) *appv1.Cluster {
 		clust.Config.ExecProviderConfig.Args = nil
 	}
 	// populate deprecated fields for backward compatibility
-	// nolint:staticcheck
 	clust.ServerVersion = clust.Info.ServerVersion
-	// nolint:staticcheck
 	clust.ConnectionState = clust.Info.ConnectionState
 	return clust
 }

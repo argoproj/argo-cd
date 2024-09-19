@@ -50,13 +50,6 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
             });
         }
 
-        if (repository.noProxy) {
-            items.push({
-                title: 'NoProxy (optional)',
-                view: repository.noProxy
-            });
-        }
-
         return items;
     };
 
@@ -71,7 +64,6 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
         insecure: repo.insecure || false,
         enableLfs: repo.enableLfs || false,
         proxy: repo.proxy || '',
-        noProxy: repo.noProxy || '',
         project: repo.project || '',
         enableOCI: repo.enableOCI || false,
         forceHttpBasicAuth: repo.forceHttpBasicAuth || false

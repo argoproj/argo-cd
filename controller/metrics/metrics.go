@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -21,7 +22,6 @@ import (
 	applister "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
-	metricsutil "github.com/argoproj/argo-cd/v2/util/metrics"
 	"github.com/argoproj/argo-cd/v2/util/profile"
 
 	ctrl_metrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -62,21 +62,21 @@ var (
 		append(descAppDefaultLabels, "autosync_enabled", "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation"),
 		nil,
 	)
-	// Deprecated
+	// DEPRECATED
 	descAppCreated = prometheus.NewDesc(
 		"argocd_app_created_time",
 		"Creation time in unix timestamp for an application.",
 		descAppDefaultLabels,
 		nil,
 	)
-	// Deprecated: superseded by sync_status label in argocd_app_info
+	// DEPRECATED: superseded by sync_status label in argocd_app_info
 	descAppSyncStatusCode = prometheus.NewDesc(
 		"argocd_app_sync_status",
 		"The application current sync status.",
 		append(descAppDefaultLabels, "sync_status"),
 		nil,
 	)
-	// Deprecated: superseded by health_status label in argocd_app_info
+	// DEPRECATED: superseded by health_status label in argocd_app_info
 	descAppHealthStatus = prometheus.NewDesc(
 		"argocd_app_health_status",
 		"The application current health status.",
@@ -113,7 +113,7 @@ var (
 	reconcileHistogram = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "argocd_app_reconcile",
-			Help: "Application reconciliation performance in seconds.",
+			Help: "Application reconciliation performance.",
 			// Buckets chosen after observing a ~2100ms mean reconcile time
 			Buckets: []float64{0.25, .5, 1, 2, 4, 8, 16},
 		},
@@ -151,7 +151,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	}
 
 	if len(appLabels) > 0 {
-		normalizedLabels := metricsutil.NormalizeLabels("label", appLabels)
+		normalizedLabels := normalizeLabels("label", appLabels)
 		descAppLabels = prometheus.NewDesc(
 			"argocd_app_labels",
 			"Argo Application labels converted to Prometheus labels",
@@ -201,6 +201,20 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		// so there is no possibility of panic, but we will add a chain to keep robfig/cron v1 behavior.
 		cron: cron.New(cron.WithChain(cron.Recover(cron.PrintfLogger(log.StandardLogger())))),
 	}, nil
+}
+
+// Prometheus invalid labels, more info: https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels.
+var invalidPromLabelChars = regexp.MustCompile(`[^a-zA-Z0-9_]`)
+
+func normalizeLabels(prefix string, appLabels []string) []string {
+	results := []string{}
+	for _, label := range appLabels {
+		//prometheus labels don't accept dash in their name
+		curr := invalidPromLabelChars.ReplaceAllString(label, "_")
+		result := fmt.Sprintf("%s_%s", prefix, curr)
+		results = append(results, result)
+	}
+	return results
 }
 
 func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo) {

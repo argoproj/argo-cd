@@ -1,7 +1,6 @@
 package db
 
 import (
-	"context"
 	"fmt"
 	"hash/fnv"
 	"net/netip"
@@ -9,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"context"
 
 	log "github.com/sirupsen/logrus"
 	apiv1 "k8s.io/api/core/v1"
@@ -111,8 +112,8 @@ func (db *db) watchSecrets(ctx context.Context,
 	secretType string,
 	handleAddEvent func(secret *apiv1.Secret),
 	handleModEvent func(oldSecret *apiv1.Secret, newSecret *apiv1.Secret),
-	handleDeleteEvent func(secret *apiv1.Secret),
-) {
+	handleDeleteEvent func(secret *apiv1.Secret)) {
+
 	secretListOptions := func(options *metav1.ListOptions) {
 		labelSelector := fields.ParseSelectorOrDie(common.LabelKeySecretType + "=" + secretType)
 		options.LabelSelector = labelSelector.String()
