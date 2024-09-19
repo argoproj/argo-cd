@@ -295,7 +295,7 @@ export class ReposList extends React.Component<
                 <div className='repos-list'>
                     <div className='argo-container'>
                         <div style={{display: 'flex', margin: '20px 0', justifyContent: 'space-between'}}>
-                            <div style={{display: 'flex', gap: '8px'}}>
+                            <div style={{display: 'flex', gap: '8px', width:  '50%'}}>
                                 <DropDownMenu
                                     items={[
                                         {
@@ -311,7 +311,14 @@ export class ReposList extends React.Component<
                                             action: () => this.setState({typeProperty: 'helm'})
                                         }
                                     ]}
-                                    anchor={() => <button className='argo-button argo-button--base'>TYPE</button>}
+                                    anchor={() =>   (
+                                        <>
+                                            <a>
+                                                Type: <i className='fa fa-caret-down' />
+                                            </a>
+                                            &nbsp;
+                                        </>
+                                    )}
                                     qeId='type-menu'
                                 />
                                 <DataLoader load={services.repos.list} ref={loader => (this.repoLoader = loader)}>
@@ -332,7 +339,14 @@ export class ReposList extends React.Component<
                                         return (
                                             <DropDownMenu
                                                 items={projectItems}
-                                                anchor={() => <button className='argo-button argo-button--base'>PROJECT</button>}
+                                               anchor={() => (
+                                                    <>
+                                                        <a>
+                                                            Project: <i className='fa fa-caret-down' />
+                                                        </a>
+                                                        &nbsp;
+                                                    </>
+                                                )}
                                                 qeId='project-menu'
                                             />
                                         );
@@ -357,12 +371,19 @@ export class ReposList extends React.Component<
                                             action: () => this.setState({statusProperty: 'Unknown'})
                                         }
                                     ]}
-                                    anchor={() => <button className='argo-button argo-button--base'>STATUS</button>}
+                                 anchor={() =>  (
+                                        <>
+                                            <a>
+                                                Status: <i className='fa fa-caret-down' />
+                                            </a>
+                                            &nbsp;
+                                        </>
+                                    )}                                             
                                     qeId='status-menu'
                                 />
                             </div>
-                            <div className='search-bar'></div>
-                            <input type='text' className='argo-field' placeholder='Search...' />
+                            <div className='search-bar' style={{display: 'flex', alignItems: 'flex-end', width: '100%'}}></div>
+                            <input type='text' className='argo-field' placeholder='Search Name' value={this.state.name} onChange={e => this.setState({name: e.target.value})} />
                         </div>
                         <DataLoader load={services.repos.list} ref={loader => (this.repoLoader = loader)}>
                             {(repos: models.Repository[]) => {
@@ -1040,7 +1061,7 @@ export class ReposList extends React.Component<
 >>>>>>> 0a23f1847 (refactor : delete sort dropdown and fix eslint)
     private filteredName(repos: models.Repository[], name: string) {
         const trimmedName = name.trim();
-        const newRepos = repos.filter(repo => !repo.name ||  repo.name.toLowerCase().includes(trimmedName.toLowerCase()));
+        const newRepos = repos.filter(repo => !repo.name || repo.name.toLowerCase().includes(trimmedName.toLowerCase()));
         return newRepos;
     }
 
