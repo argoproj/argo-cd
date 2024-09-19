@@ -237,7 +237,7 @@ func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns string, sa 
 			return false, fmt.Errorf("failed to get secret %q for serviceaccount %q: %w", secretName, sa, err)
 		}
 
-		_, ok := secret.Data["token"]
+		_, ok := secret.Data[corev1.ServiceAccountTokenKey]
 		if !ok {
 			return false, nil
 		}
@@ -248,7 +248,7 @@ func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns string, sa 
 		return "", fmt.Errorf("failed to get token for serviceaccount %q: %w", sa, err)
 	}
 
-	return string(secret.Data["token"]), nil
+	return string(secret.Data[corev1.ServiceAccountTokenKey]), nil
 }
 
 // getOrCreateServiceAccountTokenSecret will check if a ServiceAccount
