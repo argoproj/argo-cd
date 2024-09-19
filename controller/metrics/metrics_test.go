@@ -380,7 +380,7 @@ func assertMetricsNotPrinted(t *testing.T, expectedLines, body string) {
 		if line == "" {
 			continue
 		}
-		assert.NotContains(t, body, expectedLines)
+		assert.False(t, strings.Contains(body, expectedLines))
 	}
 }
 
@@ -462,18 +462,18 @@ func TestWorkqueueMetrics(t *testing.T) {
 
 	expectedMetrics := `
 # TYPE workqueue_adds_total counter
-workqueue_adds_total{controller="test",name="test"}
+workqueue_adds_total{name="test"}
 
 # TYPE workqueue_depth gauge
-workqueue_depth{controller="test",name="test"}
+workqueue_depth{name="test"}
 
 # TYPE workqueue_longest_running_processor_seconds gauge
-workqueue_longest_running_processor_seconds{controller="test",name="test"}
+workqueue_longest_running_processor_seconds{name="test"}
 
 # TYPE workqueue_queue_duration_seconds histogram
 
 # TYPE workqueue_unfinished_work_seconds gauge
-workqueue_unfinished_work_seconds{controller="test",name="test"}
+workqueue_unfinished_work_seconds{name="test"}
 
 # TYPE workqueue_work_duration_seconds histogram
 `

@@ -1,13 +1,10 @@
 package admin
 
 import (
-	"context"
 	"reflect"
-	"strings"
 
 	"github.com/spf13/cobra"
 	apiv1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -86,12 +83,11 @@ func newArgoCDClientsets(config *rest.Config, namespace string) *argoCDClientset
 	dynamicIf, err := dynamic.NewForConfig(config)
 	errors.CheckError(err)
 	return &argoCDClientsets{
-		configMaps: dynamicIf.Resource(configMapResource).Namespace(namespace),
-		secrets:    dynamicIf.Resource(secretResource).Namespace(namespace),
-		// To support applications and applicationsets in any namespace we will watch all namespaces and filter them afterwards
-		applications:    dynamicIf.Resource(applicationsResource),
+		configMaps:      dynamicIf.Resource(configMapResource).Namespace(namespace),
+		secrets:         dynamicIf.Resource(secretResource).Namespace(namespace),
+		applications:    dynamicIf.Resource(applicationsResource).Namespace(namespace),
 		projects:        dynamicIf.Resource(appprojectsResource).Namespace(namespace),
-		applicationSets: dynamicIf.Resource(appplicationSetResource),
+		applicationSets: dynamicIf.Resource(appplicationSetResource).Namespace(namespace),
 	}
 }
 
@@ -223,51 +219,34 @@ func specsEqual(left, right unstructured.Unstructured) bool {
 	return false
 }
 
-type argocdAdditonalNamespaces struct {
-	applicationNamespaces    []string
-	applicationsetNamespaces []string
-}
-
-const (
-	applicationsetNamespacesCmdParamsKey = "applicationsetcontroller.namespaces"
-	applicationNamespacesCmdParamsKey    = "application.namespaces"
-)
-
-// Get additional namespaces from argocd-cmd-params
-func getAdditionalNamespaces(ctx context.Context, argocdClientsets *argoCDClientsets) *argocdAdditonalNamespaces {
-	applicationNamespaces := make([]string, 0)
-	applicationsetNamespaces := make([]string, 0)
-
-	un, err := argocdClientsets.configMaps.Get(ctx, common.ArgoCDCmdParamsConfigMapName, v1.GetOptions{})
-	errors.CheckError(err)
-	var cm apiv1.ConfigMap
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
-	errors.CheckError(err)
-
-	namespacesListFromString := func(namespaces string) []string {
-		listOfNamespaces := []string{}
-
-		ss := strings.Split(namespaces, ",")
-
-		for _, namespace := range ss {
-			if namespace != "" {
-				listOfNamespaces = append(listOfNamespaces, strings.TrimSpace(namespace))
+func iterateStringFields(obj interface{}, callback func(name string, val string) string) {
+	if mapField, ok := obj.(map[string]interface{}); ok {
+		for field, val := range mapField {
+			if strVal, ok := val.(string); ok {
+				mapField[field] = callback(field, strVal)
+			} else {
+				iterateStringFields(val, callback)
 			}
 		}
-
-		return listOfNamespaces
+	} else if arrayField, ok := obj.([]interface{}); ok {
+		for i := range arrayField {
+			iterateStringFields(arrayField[i], callback)
+		}
 	}
+}
 
-	if strNamespaces, ok := cm.Data[applicationNamespacesCmdParamsKey]; ok {
-		applicationNamespaces = namespacesListFromString(strNamespaces)
-	}
-
-	if strNamespaces, ok := cm.Data[applicationsetNamespacesCmdParamsKey]; ok {
-		applicationsetNamespaces = namespacesListFromString(strNamespaces)
-	}
-
-	return &argocdAdditonalNamespaces{
-		applicationNamespaces:    applicationNamespaces,
-		applicationsetNamespaces: applicationsetNamespaces,
-	}
+func redactor(dirtyString string) string {
+	config := make(map[string]interface{})
+	err := yaml.Unmarshal([]byte(dirtyString), &config)
+	errors.CheckError(err)
+	iterateStringFields(config, func(name string, val string) string {
+		if name == "clientSecret" || name == "secret" || name == "bindPW" {
+			return "********"
+		} else {
+			return val
+		}
+	})
+	data, err := yaml.Marshal(config)
+	errors.CheckError(err)
+	return string(data)
 }

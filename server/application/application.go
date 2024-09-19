@@ -2444,7 +2444,7 @@ func (s *Server) RunResourceAction(ctx context.Context, q *application.ResourceA
 	// the dry-run for relevant apply/delete operation would have to be invoked as well.
 	for _, impactedResource := range newObjects {
 		newObj := impactedResource.UnstructuredObj
-		err := s.verifyResourcePermitted(app, proj, newObj)
+		err := s.verifyResourcePermitted(ctx, app, proj, newObj)
 		if err != nil {
 			return nil, err
 		}
@@ -2537,7 +2537,7 @@ func (s *Server) patchResource(ctx context.Context, config *rest.Config, liveObj
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) verifyResourcePermitted(app *appv1.Application, proj *appv1.AppProject, obj *unstructured.Unstructured) error {
+func (s *Server) verifyResourcePermitted(ctx context.Context, app *appv1.Application, proj *appv1.AppProject, obj *unstructured.Unstructured) error {
 	permitted, err := proj.IsResourcePermitted(schema.GroupKind{Group: obj.GroupVersionKind().Group, Kind: obj.GroupVersionKind().Kind}, obj.GetNamespace(), app.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
 		clusters, err := s.db.GetProjectClusters(context.TODO(), project)
 		if err != nil {
@@ -2674,7 +2674,7 @@ func (s *Server) isNamespaceEnabled(namespace string) bool {
 	return security.IsNamespaceEnabled(namespace, s.ns, s.enabledNamespaces)
 }
 
-// getProjectsFromApplicationQuery gets the project names from a query. If the legacy "project" field was specified, use
+// getProjectFromApplicationQuery gets the project names from a query. If the legacy "project" field was specified, use
 // that. Otherwise, use the newer "projects" field.
 func getProjectsFromApplicationQuery(q application.ApplicationQuery) []string {
 	if q.Project != nil {

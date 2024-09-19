@@ -23,7 +23,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/glob"
 )
 
 var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
@@ -46,10 +45,6 @@ type Renderer interface {
 }
 
 type Render struct{}
-
-func IsNamespaceAllowed(namespaces []string, namespace string) bool {
-	return glob.MatchStringInList(namespaces, namespace, glob.REGEXP)
-}
 
 func copyValueIntoUnexported(destination, value reflect.Value) {
 	reflect.NewAt(destination.Type(), unsafe.Pointer(destination.UnsafeAddr())).
@@ -488,7 +483,7 @@ func SlugifyName(args ...interface{}) string {
 	return urlSlug
 }
 
-func getTlsConfigWithCACert(scmRootCAPath string, caCerts []byte) *tls.Config {
+func getTlsConfigWithCACert(scmRootCAPath string) *tls.Config {
 	tlsConfig := &tls.Config{}
 
 	if scmRootCAPath != "" {
@@ -502,12 +497,8 @@ func getTlsConfigWithCACert(scmRootCAPath string, caCerts []byte) *tls.Config {
 			log.Errorf("error reading certificate from file '%s', proceeding without custom rootCA : %s", scmRootCAPath, err)
 			return tlsConfig
 		}
-		caCerts = append(caCerts, rootCA...)
-	}
-
-	if len(caCerts) > 0 {
 		certPool := x509.NewCertPool()
-		ok := certPool.AppendCertsFromPEM(caCerts)
+		ok := certPool.AppendCertsFromPEM([]byte(rootCA))
 		if !ok {
 			log.Errorf("failed to append certificates from PEM: proceeding without custom rootCA")
 		} else {
@@ -517,8 +508,8 @@ func getTlsConfigWithCACert(scmRootCAPath string, caCerts []byte) *tls.Config {
 	return tlsConfig
 }
 
-func GetTlsConfig(scmRootCAPath string, insecure bool, caCerts []byte) *tls.Config {
-	tlsConfig := getTlsConfigWithCACert(scmRootCAPath, caCerts)
+func GetTlsConfig(scmRootCAPath string, insecure bool) *tls.Config {
+	tlsConfig := getTlsConfigWithCACert(scmRootCAPath)
 
 	if insecure {
 		tlsConfig.InsecureSkipVerify = true

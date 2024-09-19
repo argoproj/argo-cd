@@ -193,16 +193,14 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 	mockStateCache.On("GetNamespaceTopLevelResources", mock.Anything, mock.Anything).Return(response, nil)
 	mockStateCache.On("IterateResources", mock.Anything, mock.Anything).Return(nil)
 	mockStateCache.On("GetClusterCache", mock.Anything).Return(&clusterCacheMock, nil)
-	mockStateCache.On("IterateHierarchyV2", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
-		keys := args[1].([]kube.ResourceKey)
+	mockStateCache.On("IterateHierarchy", mock.Anything, mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+		key := args[1].(kube.ResourceKey)
 		action := args[2].(func(child v1alpha1.ResourceNode, appName string) bool)
-		for _, key := range keys {
-			appName := ""
-			if res, ok := data.namespacedResources[key]; ok {
-				appName = res.AppName
-			}
-			_ = action(v1alpha1.ResourceNode{ResourceRef: v1alpha1.ResourceRef{Kind: key.Kind, Group: key.Group, Namespace: key.Namespace, Name: key.Name}}, appName)
+		appName := ""
+		if res, ok := data.namespacedResources[key]; ok {
+			appName = res.AppName
 		}
+		_ = action(v1alpha1.ResourceNode{ResourceRef: v1alpha1.ResourceRef{Kind: key.Kind, Group: key.Group, Namespace: key.Namespace, Name: key.Name}}, appName)
 	}).Return(nil)
 	return ctrl
 }
@@ -561,42 +559,6 @@ func TestAutoSync(t *testing.T) {
 	assert.NotNil(t, app.Operation)
 	assert.NotNil(t, app.Operation.Sync)
 	assert.False(t, app.Operation.Sync.Prune)
-}
-
-func TestMultiSourceSelfHeal(t *testing.T) {
-	// Simulate OutOfSync caused by object change in cluster
-	// So our Sync Revisions and SyncStatus Revisions should deep equal
-	t.Run("ClusterObjectChangeShouldNotTriggerAutoSync", func(t *testing.T) {
-		app := newFakeMultiSourceApp()
-		app.Spec.SyncPolicy.Automated.SelfHeal = false
-		app.Status.Sync.Revisions = []string{"z", "x", "v"}
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
-		syncStatus := v1alpha1.SyncStatus{
-			Status:    v1alpha1.SyncStatusCodeOutOfSync,
-			Revisions: []string{"z", "x", "v"},
-		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}})
-		assert.Nil(t, cond)
-		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
-		require.NoError(t, err)
-		assert.Nil(t, app.Operation)
-	})
-
-	t.Run("NewRevisionChangeShouldTriggerAutoSync", func(t *testing.T) {
-		app := newFakeMultiSourceApp()
-		app.Spec.SyncPolicy.Automated.SelfHeal = false
-		app.Status.Sync.Revisions = []string{"a", "b", "c"}
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app}}, nil)
-		syncStatus := v1alpha1.SyncStatus{
-			Status:    v1alpha1.SyncStatusCodeOutOfSync,
-			Revisions: []string{"z", "x", "v"},
-		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}})
-		assert.Nil(t, cond)
-		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(context.Background(), "my-app", metav1.GetOptions{})
-		require.NoError(t, err)
-		assert.NotNil(t, app.Operation)
-	})
 }
 
 func TestAutoSyncNotAllowEmpty(t *testing.T) {
@@ -1804,7 +1766,7 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
 	assert.Contains(t, message, "Retrying attempt #1")
 	retryCount, _, _ := unstructured.NestedFloat64(receivedPatch, "status", "operationState", "retryCount")
-	assert.InEpsilon(t, float64(1), retryCount, 0.0001)
+	assert.Equal(t, float64(1), retryCount)
 }
 
 func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {

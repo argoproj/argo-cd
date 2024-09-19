@@ -12,7 +12,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	logutils "github.com/argoproj/argo-cd/v2/util/log"
 	"github.com/argoproj/argo-cd/v2/util/tls"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/controllers"
@@ -35,7 +34,6 @@ import (
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	appsetmetrics "github.com/argoproj/argo-cd/v2/applicationset/metrics"
 	"github.com/argoproj/argo-cd/v2/applicationset/services"
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
@@ -70,9 +68,7 @@ func NewCommand() *cobra.Command {
 		allowedScmProviders          []string
 		globalPreservedAnnotations   []string
 		globalPreservedLabels        []string
-		metricsAplicationsetLabels   []string
 		enableScmProviders           bool
-		webhookParallelism           int
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -97,8 +93,6 @@ func NewCommand() *cobra.Command {
 
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
-
-			ctrl.SetLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()))
 
 			restConfig, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
@@ -132,14 +126,7 @@ func NewCommand() *cobra.Command {
 				}
 			}
 
-			cfg := ctrl.GetConfigOrDie()
-			err = appv1alpha1.SetK8SConfigDefaults(cfg)
-			if err != nil {
-				log.Error(err, "Unable to apply K8s REST config defaults")
-				os.Exit(1)
-			}
-
-			mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+			mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 				Scheme: scheme,
 				Metrics: metricsserver.Options{
 					BindAddress: metricsAddr,
@@ -165,7 +152,9 @@ func NewCommand() *cobra.Command {
 			appSetConfig := appclientset.NewForConfigOrDie(mgr.GetConfig())
 			argoCDDB := db.NewDB(namespace, argoSettingsMgr, k8sClient)
 
-			scmConfig := generators.NewSCMConfig(scmRootCAPath, allowedScmProviders, enableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)))
+			scmAuth := generators.SCMAuthProviders{
+				GitHubApps: github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)),
+			}
 
 			tlsConfig := apiclient.TLSConfiguration{
 				DisableTLS:       repoServerPlaintext,
@@ -185,23 +174,48 @@ func NewCommand() *cobra.Command {
 			argoCDService, err := services.NewArgoCDService(argoCDDB.GetRepository, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
 			errors.CheckError(err)
 
-			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig)
+			terminalGenerators := map[string]generators.Generator{
+				"List":                    generators.NewListGenerator(),
+				"Clusters":                generators.NewClusterGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
+				"Git":                     generators.NewGitGenerator(argoCDService, namespace),
+				"SCMProvider":             generators.NewSCMProviderGenerator(mgr.GetClient(), scmAuth, scmRootCAPath, allowedScmProviders, enableScmProviders),
+				"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, dynamicClient, k8sClient, namespace),
+				"PullRequest":             generators.NewPullRequestGenerator(mgr.GetClient(), scmAuth, scmRootCAPath, allowedScmProviders, enableScmProviders),
+				"Plugin":                  generators.NewPluginGenerator(mgr.GetClient(), ctx, k8sClient, namespace),
+			}
+
+			nestedGenerators := map[string]generators.Generator{
+				"List":                    terminalGenerators["List"],
+				"Clusters":                terminalGenerators["Clusters"],
+				"Git":                     terminalGenerators["Git"],
+				"SCMProvider":             terminalGenerators["SCMProvider"],
+				"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
+				"PullRequest":             terminalGenerators["PullRequest"],
+				"Plugin":                  terminalGenerators["Plugin"],
+				"Matrix":                  generators.NewMatrixGenerator(terminalGenerators),
+				"Merge":                   generators.NewMergeGenerator(terminalGenerators),
+			}
+
+			topLevelGenerators := map[string]generators.Generator{
+				"List":                    terminalGenerators["List"],
+				"Clusters":                terminalGenerators["Clusters"],
+				"Git":                     terminalGenerators["Git"],
+				"SCMProvider":             terminalGenerators["SCMProvider"],
+				"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
+				"PullRequest":             terminalGenerators["PullRequest"],
+				"Plugin":                  terminalGenerators["Plugin"],
+				"Matrix":                  generators.NewMatrixGenerator(nestedGenerators),
+				"Merge":                   generators.NewMergeGenerator(nestedGenerators),
+			}
 
 			// start a webhook server that listens to incoming webhook payloads
-			webhookHandler, err := webhook.NewWebhookHandler(namespace, webhookParallelism, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
+			webhookHandler, err := webhook.NewWebhookHandler(namespace, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
 			if err != nil {
 				log.Error(err, "failed to create webhook handler")
 			}
 			if webhookHandler != nil {
 				startWebhookServer(webhookHandler, webhookAddr)
 			}
-
-			metrics := appsetmetrics.NewApplicationsetMetrics(
-				utils.NewAppsetLister(mgr.GetClient()),
-				metricsAplicationsetLabels,
-				func(appset *appv1alpha1.ApplicationSet) bool {
-					return utils.IsNamespaceAllowed(applicationSetNamespaces, appset.Namespace)
-				})
 
 			if err = (&controllers.ApplicationSetReconciler{
 				Generators:                 topLevelGenerators,
@@ -220,7 +234,6 @@ func NewCommand() *cobra.Command {
 				SCMRootCAPath:              scmRootCAPath,
 				GlobalPreservedAnnotations: globalPreservedAnnotations,
 				GlobalPreservedLabels:      globalPreservedLabels,
-				Metrics:                    &metrics,
 			}).SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)
@@ -244,7 +257,7 @@ func NewCommand() *cobra.Command {
 			"Enabling this will ensure there is only one active controller manager.")
 	command.Flags().StringSliceVar(&applicationSetNamespaces, "applicationset-namespaces", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES", []string{}, ","), "Argo CD applicationset namespaces")
 	command.Flags().StringVar(&argocdRepoServer, "argocd-repo-server", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER", common.DefaultRepoServerAddr), "Argo CD repo server address")
-	command.Flags().StringVar(&policy, "policy", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_POLICY", ""), "Modify how application is synced between the generator and the cluster. Default is '' (empty), which means AppSets default to 'sync', but they may override that default. Setting an explicit value prevents AppSet-level overrides, unless --allow-policy-override is enabled. Explicit options are: 'sync' (create & update & delete), 'create-only', 'create-update' (no deletion), 'create-delete' (no update)")
+	command.Flags().StringVar(&policy, "policy", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_POLICY", ""), "Modify how application is synced between the generator and the cluster. Default is 'sync' (create & update & delete), options: 'create-only', 'create-update' (no deletion), 'create-delete' (no update)")
 	command.Flags().BoolVar(&enablePolicyOverride, "enable-policy-override", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE", policy == ""), "For security reason if 'policy' is set, it is not possible to override it at applicationSet level. 'allow-policy-override' allows user to define their own policy")
 	command.Flags().BoolVar(&debugLog, "debug", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_DEBUG", false), "Print debug logs. Takes precedence over loglevel")
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
@@ -261,8 +274,6 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&scmRootCAPath, "scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")
 	command.Flags().StringSliceVar(&globalPreservedAnnotations, "preserved-annotations", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS", []string{}, ","), "Sets global preserved field values for annotations")
 	command.Flags().StringSliceVar(&globalPreservedLabels, "preserved-labels", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS", []string{}, ","), "Sets global preserved field values for labels")
-	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
-	command.Flags().StringSliceVar(&metricsAplicationsetLabels, "metrics-applicationset-labels", []string{}, "List of Application labels that will be added to the argocd_applicationset_labels metric")
 	return &command
 }
 

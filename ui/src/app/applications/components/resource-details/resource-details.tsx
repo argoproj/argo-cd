@@ -149,7 +149,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     title: tabExtensions.title,
                     key: `extension-${i}`,
                     content: (
-                        <ErrorBoundary message={`Something went wrong with Extension for ${state?.kind || 'resource of unknown kind'}`}>
+                        <ErrorBoundary message={`Something went wrong with Extension for ${state.kind}`}>
                             <tabExtensions.component tree={tree} resource={state} application={application} />
                         </ErrorBoundary>
                     ),

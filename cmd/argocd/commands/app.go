@@ -2167,7 +2167,7 @@ func getAppNamesBySelector(ctx context.Context, appIf application.ApplicationSer
 	return appNames, nil
 }
 
-// ResourceState tracks the state of a resource when waiting on an application status.
+// ResourceDiff tracks the state of a resource when waiting on an application status.
 type resourceState struct {
 	Group     string
 	Kind      string
@@ -2359,10 +2359,6 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	// time when the sync status lags behind when an operation completes
 	refresh := false
 
-	// printSummary controls whether we print the app summary table, OperationState, and ResourceState
-	// We don't want to print these when output type is json or yaml, as the output would become unparsable.
-	printSummary := output != "json" && output != "yaml"
-
 	appRealName, appNs := argo.ParseFromQualifiedName(appName, "")
 
 	printFinalStatus := func(app *argoappv1.Application) *argoappv1.Application {
@@ -2379,13 +2375,11 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			_ = conn.Close()
 		}
 
-		if printSummary {
-			fmt.Println()
-			printAppSummaryTable(app, appURL(ctx, acdClient, appName), nil)
-			fmt.Println()
-			if watch.operation {
-				printOperationResult(app.Status.OperationState)
-			}
+		fmt.Println()
+		printAppSummaryTable(app, appURL(ctx, acdClient, appName), nil)
+		fmt.Println()
+		if watch.operation {
+			printOperationResult(app.Status.OperationState)
 		}
 
 		switch output {
@@ -2400,13 +2394,13 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 				_ = w.Flush()
 			}
 		case "tree":
-			mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appRealName, appNs)
+			mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
 			if len(mapUidToNode) > 0 {
 				fmt.Println()
 				printTreeView(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
 			}
 		case "tree=detailed":
-			mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appRealName, appNs)
+			mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
 			if len(mapUidToNode) > 0 {
 				fmt.Println()
 				printTreeViewDetailed(mapUidToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
@@ -2425,26 +2419,17 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
-
-			if printSummary {
-				fmt.Println()
-				fmt.Println("This is the state of the app after `wait` timed out:")
-			}
-
+			fmt.Println()
+			fmt.Println("This is the state of the app after `wait` timed out:")
 			printFinalStatus(app)
 			cancel()
-
-			if printSummary {
-				fmt.Println()
-				fmt.Println("The command timed out waiting for the conditions to be met.")
-			}
+			fmt.Println()
+			fmt.Println("The command timed out waiting for the conditions to be met.")
 		})
 	}
 
 	w := tabwriter.NewWriter(os.Stdout, 5, 0, 2, ' ', 0)
-	if printSummary {
-		_, _ = fmt.Fprintf(w, waitFormatString, "TIMESTAMP", "GROUP", "KIND", "NAMESPACE", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
-	}
+	_, _ = fmt.Fprintf(w, waitFormatString, "TIMESTAMP", "GROUP", "KIND", "NAMESPACE", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
 
 	prevStates := make(map[string]*resourceState)
 	conn, appClient := acdClient.NewApplicationClientOrDie()
@@ -2528,7 +2513,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 				prevStates[stateKey] = newState
 				doPrint = true
 			}
-			if doPrint && printSummary {
+			if doPrint {
 				_, _ = fmt.Fprintf(w, waitFormatString, prevStates[stateKey].FormatItems()...)
 			}
 		}
@@ -2849,7 +2834,6 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 					errors.CheckError(err)
 
 					proj := getProject(c, clientOpts, ctx, app.Spec.Project)
-					// nolint:staticcheck
 					unstructureds = getLocalObjects(context.Background(), app, proj.Project, local, localRepoRoot, argoSettings.AppLabelKey, cluster.ServerVersion, cluster.Info.APIVersions, argoSettings.KustomizeOptions, argoSettings.TrackingMethod)
 				} else if len(revisions) > 0 && len(sourcePositions) > 0 {
 					q := application.ApplicationManifestQuery{

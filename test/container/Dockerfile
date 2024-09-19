@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:7.2.5@sha256:5a82749600e03e4c4208276283f1f39d2dfde31700582c5a0b3e4ab48a2ddf7e as redis
+FROM docker.io/library/redis:7.2.5@sha256:e422889e156ebea83856b6ff973bfe0c86bce867d80def228044eeecf925592b as redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
@@ -6,13 +6,13 @@ FROM docker.io/library/redis:7.2.5@sha256:5a82749600e03e4c4208276283f1f39d2dfde3
 RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 
 # Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
-FROM docker.io/library/node:22.5.1@sha256:86915971d2ce1548842315fcce7cda0da59319a4dab6b9fc0827e762ef04683a as node
+FROM docker.io/library/node:22.3.0@sha256:5e4044ff6001d06e7748e35bfa4f80c73cf5f5a7360a1b782995e038a01b0585 as node
 
-FROM docker.io/library/golang:1.23@sha256:613a108a4a4b1dfb6923305db791a19d088f77632317cfc3446825c54fb862cd as golang
+FROM docker.io/library/golang:1.22.4@sha256:c2010b9c2342431a24a2e64e33d9eb2e484af49e72c820e200d332d214d5e61f as golang
 
-FROM docker.io/library/registry:2.8@sha256:12120425f07de11a1b899e418d4b0ea174c8d4d572d45bdb640f93bc7ca06a3d as registry
+FROM docker.io/library/registry:2.8@sha256:4fac7a8257b1d7a86599043fcc181dfbdf9c8f57e337db763ac94b0e67c6cfb5 as registry
 
-FROM docker.io/bitnami/kubectl:1.31@sha256:44f99aa45e3410dae8e288f43800daa8a1bdb4cac204dad1de59c94f9c999bde as kubectl
+FROM docker.io/bitnami/kubectl:1.30@sha256:e704ebf9f6974d506d2dbff33dea28b6e996887e60c4ab298c78e10a3d81e249 as kubectl
 
 FROM docker.io/library/ubuntu:24.04@sha256:3f85b7caad41a95462cf5b787d8a04604c8262cdcdf9a472b8c52ef83375fe15
 
@@ -93,8 +93,7 @@ COPY ./test/container/entrypoint.sh /usr/local/bin
 ARG UID
 
 # Prepare user configuration & build environments
-RUN userdel -r ubuntu && \
-	useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
+RUN useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user && \
     mkdir -p /home/user/.kube && \
     mkdir -p /home/user/.cache && \
@@ -102,7 +101,6 @@ RUN userdel -r ubuntu && \
     chgrp -R user /home/user && \
     HOME=/home/user git config --global user.name "ArgoCD Test User" && \
     HOME=/home/user git config --global user.email "noreply@example.com" && \
-    HOME=/home/user git config --global --add safe.directory '*' && \
     mkdir -p /go/pkg && \
     mkdir -p /var/run/sshd && \
     mkdir -p /root/.ssh && \

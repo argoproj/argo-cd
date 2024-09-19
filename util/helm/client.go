@@ -32,6 +32,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
+//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=Client
+
 var (
 	globalLock = sync.NewKeyLock()
 	indexLock  = sync.NewKeyLock()
@@ -75,18 +77,17 @@ func WithChartPaths(chartPaths argoio.TempPaths) ClientOpts {
 	}
 }
 
-func NewClient(repoURL string, creds Creds, enableOci bool, proxy string, noProxy string, opts ...ClientOpts) Client {
-	return NewClientWithLock(repoURL, creds, globalLock, enableOci, proxy, noProxy, opts...)
+func NewClient(repoURL string, creds Creds, enableOci bool, proxy string, opts ...ClientOpts) Client {
+	return NewClientWithLock(repoURL, creds, globalLock, enableOci, proxy, opts...)
 }
 
-func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool, proxy string, noProxy string, opts ...ClientOpts) Client {
+func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool, proxy string, opts ...ClientOpts) Client {
 	c := &nativeHelmChart{
 		repoURL:         repoURL,
 		creds:           creds,
 		repoLock:        repoLock,
 		enableOci:       enableOci,
 		proxy:           proxy,
-		noProxy:         noProxy,
 		chartCachePaths: argoio.NewRandomizedTempPaths(os.TempDir()),
 	}
 	for i := range opts {
@@ -105,7 +106,6 @@ type nativeHelmChart struct {
 	enableOci       bool
 	indexCache      indexCache
 	proxy           string
-	noProxy         string
 }
 
 func fileExist(filePath string) (bool, error) {
@@ -143,11 +143,16 @@ func untarChart(tempDir string, cachedChartPath string, manifestMaxExtractedSize
 
 func (c *nativeHelmChart) ExtractChart(chart string, version string, project string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error) {
 	// always use Helm V3 since we don't have chart content to determine correct Helm version
-	helmCmd, err := NewCmdWithVersion("", c.enableOci, c.proxy, c.noProxy)
+	helmCmd, err := NewCmdWithVersion("", HelmV3, c.enableOci, c.proxy)
 	if err != nil {
 		return "", nil, err
 	}
 	defer helmCmd.Close()
+
+	_, err = helmCmd.Init()
+	if err != nil {
+		return "", nil, err
+	}
 
 	// throw away temp directory that stores extracted chart and should be deleted as soon as no longer needed by returned closer
 	tempDir, err := files.CreateTempDir(os.TempDir())
@@ -271,7 +276,7 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 	}
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 
-	helmCmd, err := NewCmdWithVersion(tmpDir, c.enableOci, c.proxy, c.noProxy)
+	helmCmd, err := NewCmdWithVersion(tmpDir, HelmV3, c.enableOci, c.proxy)
 	if err != nil {
 		return false, err
 	}
@@ -314,7 +319,7 @@ func (c *nativeHelmChart) loadRepoIndex(maxIndexSize int64) ([]byte, error) {
 	}
 
 	tr := &http.Transport{
-		Proxy:             proxy.GetCallback(c.proxy, c.noProxy),
+		Proxy:             proxy.GetCallback(c.proxy),
 		TLSClientConfig:   tlsConf,
 		DisableKeepAlives: true,
 	}
@@ -427,7 +432,7 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 			return nil, fmt.Errorf("failed setup tlsConfig: %w", err)
 		}
 		client := &http.Client{Transport: &http.Transport{
-			Proxy:             proxy.GetCallback(c.proxy, c.noProxy),
+			Proxy:             proxy.GetCallback(c.proxy),
 			TLSClientConfig:   tlsConf,
 			DisableKeepAlives: true,
 		}}

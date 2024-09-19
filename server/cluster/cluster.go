@@ -471,9 +471,7 @@ func (s *Server) toAPIResponse(clust *appv1.Cluster) *appv1.Cluster {
 		clust.Config.ExecProviderConfig.Args = nil
 	}
 	// populate deprecated fields for backward compatibility
-	// nolint:staticcheck
 	clust.ServerVersion = clust.Info.ServerVersion
-	// nolint:staticcheck
 	clust.ConnectionState = clust.Info.ConnectionState
 	return clust
 }
