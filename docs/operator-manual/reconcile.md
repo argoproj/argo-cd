@@ -110,7 +110,7 @@ data:
     jqPathExpressions:
     # Ignore lastTransitionTime for conditions; helpful when SharedResourceWarnings are being regularly updated but not
     # actually changing in content.
-    - .status.conditions[].lastTransitionTime
+    - .status?.conditions[]?.lastTransitionTime
 ```
 
 ## Ignoring updates for untracked resources
