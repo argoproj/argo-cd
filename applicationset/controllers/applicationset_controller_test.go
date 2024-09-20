@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -6132,6 +6133,104 @@ func TestUpdateResourceStatus(t *testing.T) {
 			err := r.updateResourcesStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
 
 			require.NoError(t, err, "expected no errors, but errors occurred")
+			assert.Equal(t, cc.expectedResources, cc.appSet.Status.Resources, "expected resources did not match actual")
+		})
+	}
+}
+
+func generateNAppResourceStatuses(n int) []v1alpha1.ResourceStatus {
+	var r []v1alpha1.ResourceStatus
+	for i := 0; i < n; i++ {
+		r = append(r, v1alpha1.ResourceStatus{
+			Name:   "app" + strconv.Itoa(i),
+			Status: v1alpha1.SyncStatusCodeSynced,
+			Health: &v1alpha1.HealthStatus{
+				Status:  health.HealthStatusHealthy,
+				Message: "OK",
+			},
+		},
+		)
+	}
+	return r
+}
+
+func generateNHealthyApps(n int) []v1alpha1.Application {
+	var r []v1alpha1.Application
+	for i := 0; i < n; i++ {
+		r = append(r, v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app" + strconv.Itoa(i),
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Status: v1alpha1.SyncStatusCodeSynced,
+				},
+				Health: v1alpha1.HealthStatus{
+					Status:  health.HealthStatusHealthy,
+					Message: "OK",
+				},
+			},
+		})
+	}
+	return r
+}
+
+func TestResourceStatusAreOrdered(t *testing.T) {
+	scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+
+	err = v1alpha1.AddToScheme(scheme)
+	require.NoError(t, err)
+	for _, cc := range []struct {
+		name              string
+		appSet            v1alpha1.ApplicationSet
+		apps              []v1alpha1.Application
+		expectedResources []v1alpha1.ResourceStatus
+	}{
+		{
+			name: "Ensures AppSet is always ordered",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					Resources: []v1alpha1.ResourceStatus{},
+				},
+			},
+			apps:              generateNHealthyApps(10),
+			expectedResources: generateNAppResourceStatuses(10),
+		},
+	} {
+		t.Run(cc.name, func(t *testing.T) {
+			kubeclientset := kubefake.NewSimpleClientset([]runtime.Object{}...)
+			argoDBMock := dbmocks.ArgoDB{}
+			argoObjs := []runtime.Object{}
+
+			client := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&cc.appSet).WithObjects(&cc.appSet).Build()
+			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
+
+			r := ApplicationSetReconciler{
+				Client:           client,
+				Scheme:           scheme,
+				Recorder:         record.NewFakeRecorder(1),
+				Generators:       map[string]generators.Generator{},
+				ArgoDB:           &argoDBMock,
+				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
+				KubeClientset:    kubeclientset,
+				Metrics:          metrics,
+			}
+
+			err := r.updateResourcesStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
+			require.NoError(t, err, "expected no errors, but errors occurred")
+
+			err = r.updateResourcesStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
+			require.NoError(t, err, "expected no errors, but errors occurred")
+
+			err = r.updateResourcesStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
+			require.NoError(t, err, "expected no errors, but errors occurred")
+
 			assert.Equal(t, cc.expectedResources, cc.appSet.Status.Resources, "expected resources did not match actual")
 		})
 	}
