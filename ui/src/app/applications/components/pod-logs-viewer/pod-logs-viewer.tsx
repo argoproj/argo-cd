@@ -107,11 +107,12 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const setTailWithQueryParams = setWithQueryParams('tail', setTail);
     const setFilterWithQueryParams = setWithQueryParams('filterText', setFilter);
 
-    useEffect(() => {
-        if (viewPodNames) {
+    const onToggleViewPodNames = (val: boolean) => {
+        setViewPodNamesWithQueryParams(val);
+        if (val) {
             setViewTimestampsWithQueryParams(false);
         }
-    }, [viewPodNames]);
+    };
 
     useEffect(() => {
         // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
@@ -203,7 +204,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             <Spacer />
                             <span>
                                 <WrapLinesButton prefs={prefs} />
-                                <PodNamesToggleButton viewPodNames={viewPodNames} setViewPodNames={setViewPodNamesWithQueryParams} />
+                                <PodNamesToggleButton viewPodNames={viewPodNames} setViewPodNames={onToggleViewPodNames} />
                                 <TimestampsToggleButton setViewTimestamps={setViewTimestampsWithQueryParams} viewTimestamps={viewTimestamps} timestamp={timestamp} />
                                 <DarkModeToggleButton prefs={prefs} />
                             </span>
