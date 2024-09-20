@@ -1123,6 +1123,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		Set:         map[string]string{},
 		SetString:   map[string]string{},
 		SetFile:     map[string]pathutil.ResolvedFilePath{},
+		SkipTests:   true,
 	}
 
 	appHelm := q.ApplicationSource.Helm
@@ -1188,6 +1189,10 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		}
 		passCredentials = appHelm.PassCredentials
 		templateOpts.SkipCrds = appHelm.SkipCrds
+
+		if appHelm.SkipTests != nil {
+			templateOpts.SkipTests = *appHelm.SkipTests
+		}
 	}
 	if templateOpts.Name == "" {
 		templateOpts.Name = q.AppName

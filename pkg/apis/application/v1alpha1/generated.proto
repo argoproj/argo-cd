@@ -501,20 +501,23 @@ message ApplicationSourceHelm {
   // SkipCrds skips custom resource definition installation step (Helm's --skip-crds)
   optional bool skipCrds = 9;
 
+  // SkipTests skips test manifest installation step (Helm's --skip-tests). By default, Argo CD assumes it is set to true.
+  optional bool skipTests = 10;
+
   // ValuesObject specifies Helm values to be passed to helm template, defined as a map. This takes precedence over Values.
   // +kubebuilder:pruning:PreserveUnknownFields
-  optional .k8s.io.apimachinery.pkg.runtime.RawExtension valuesObject = 10;
+  optional .k8s.io.apimachinery.pkg.runtime.RawExtension valuesObject = 11;
 
   // Namespace is an optional namespace to template with. If left empty, defaults to the app's destination namespace.
-  optional string namespace = 11;
+  optional string namespace = 12;
 
   // KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
   // uses the Kubernetes version of the target cluster.
-  optional string kubeVersion = 12;
+  optional string kubeVersion = 13;
 
   // APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
   // Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-  repeated string apiVersions = 13;
+  repeated string apiVersions = 14;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet

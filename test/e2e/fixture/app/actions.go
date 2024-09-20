@@ -269,6 +269,9 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	if a.context.helmSkipCrds {
 		args = append(args, "--helm-skip-crds")
 	}
+	if a.context.helmSkipTests {
+		args = append(args, "--skip-tests")
+	}
 	return args
 }
 

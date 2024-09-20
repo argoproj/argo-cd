@@ -498,3 +498,25 @@ spec:
     helm:
       skipCrds: true
 ```
+
+
+## Helm `--skip-tests`
+
+By default, Helm includes test manifests located in the ./templates/tests directory when rendering templates. These manifests are typically not needed in production deployments.
+
+Argo CD will assume that skipTests is true unless it is explicitly set to false within the Argo CD Application (see below).
+
+If needed, it is possible to specifically include the test manifests by setting the helm-skip-tests flag on the CLI to false:
+
+```bash
+argocd app set helm-guestbook --helm-skip-tests false
+```
+
+Or using declarative syntax:
+
+```yaml
+spec:
+  source:
+    helm:
+       skipTests: false  # Set to true to include test manifests
+```
