@@ -127,10 +127,6 @@ export interface ResourceResult {
     hookPhase: OperationPhase;
 }
 
-export type SyncResourceResult = ResourceResult & {
-    health?: HealthStatus;
-};
-
 export const AnnotationRefreshKey = 'argocd.argoproj.io/refresh';
 export const AnnotationHookKey = 'argocd.argoproj.io/hook';
 export const AnnotationSyncWaveKey = 'argocd.argoproj.io/sync-wave';
@@ -173,12 +169,6 @@ export interface ApplicationDestination {
      * Name of the destination cluster which can be used instead of server (url) field
      */
     name: string;
-}
-
-export interface ApplicationDestinationServiceAccount {
-    server: string;
-    namespace: string;
-    defaultServiceAccount: string;
 }
 
 export interface OrphanedResource {
@@ -545,7 +535,6 @@ export interface Repository {
     tlsClientCertData?: string;
     tlsClientCertKey?: string;
     proxy?: string;
-    noProxy?: string;
     insecure?: boolean;
     enableLfs?: boolean;
     githubAppId?: string;
@@ -731,7 +720,6 @@ export interface ProjectSpec {
     sourceRepos: string[];
     sourceNamespaces: string[];
     destinations: ApplicationDestination[];
-    destinationServiceAccounts: ApplicationDestinationServiceAccount[];
     description: string;
     roles: ProjectRole[];
     clusterResourceWhitelist: GroupKind[];

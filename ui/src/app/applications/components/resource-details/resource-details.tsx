@@ -4,7 +4,7 @@ import {useState} from 'react';
 import {EventsList, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
-import {AppContext, Context} from '../../../shared/context';
+import {Context} from '../../../shared/context';
 import {Application, ApplicationTree, Event, ResourceNode, State, SyncStatuses} from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceTabExtension} from '../../../shared/services/extensions-service';
@@ -31,7 +31,6 @@ interface ResourceDetailsProps {
     isAppSelected: boolean;
     tree: ApplicationTree;
     tab?: string;
-    appCxt: AppContext;
 }
 
 export const ResourceDetails = (props: ResourceDetailsProps) => {
@@ -150,7 +149,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     title: tabExtensions.title,
                     key: `extension-${i}`,
                     content: (
-                        <ErrorBoundary message={`Something went wrong with Extension for ${state?.kind || 'resource of unknown kind'}`}>
+                        <ErrorBoundary message={`Something went wrong with Extension for ${state.kind}`}>
                             <tabExtensions.component tree={tree} resource={state} application={application} />
                         </ErrorBoundary>
                     ),
@@ -179,7 +178,6 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         setPageNumber={setPageNumber}
                         collapsedSources={collapsedSources}
                         handleCollapse={handleCollapse}
-                        appContext={props.appCxt}
                     />
                 )
             },
