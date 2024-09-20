@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -17,6 +16,8 @@ import (
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/memory"
+
+	"github.com/argoproj/argo-cd/v2/util/io"
 )
 
 type layerConf struct {
@@ -60,7 +61,7 @@ func createGzippedTarWithContent(t *testing.T, filename, content string) []byte 
 
 	require.NoError(t, tw.WriteHeader(&tar.Header{
 		Name: filename,
-		Mode: 0644,
+		Mode: 0o644,
 		Size: int64(len(content)),
 	}))
 	_, err := tw.Write([]byte(content))
