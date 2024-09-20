@@ -40,6 +40,7 @@ export interface PodLogsProps {
     containerGroups?: any[];
     onClickContainer?: (group: any, i: number, tab: string) => void;
     fullscreen?: boolean;
+    viewPodNames?: boolean;
 }
 
 // ansi colors, see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
@@ -85,6 +86,12 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const [scrollToBottom, setScrollToBottom] = useState(true);
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const logsContainerRef = useRef(null);
+
+    const setViewPodNamesWithQueryParams = (value: boolean) => {
+        setViewPodNames(value);
+        queryParams.set('viewPodNames', value.toString());
+        history.replaceState(null, '', `${location.pathname}?${queryParams}`);
+    };
 
     useEffect(() => {
         if (viewPodNames) {
@@ -182,7 +189,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             <Spacer />
                             <span>
                                 <WrapLinesButton prefs={prefs} />
-                                <PodNamesToggleButton viewPodNames={viewPodNames} setViewPodNames={setViewPodNames} />
+                                <PodNamesToggleButton viewPodNames={viewPodNames} setViewPodNames={setViewPodNamesWithQueryParams} />
                                 <TimestampsToggleButton setViewTimestamps={setViewTimestamps} viewTimestamps={viewTimestamps} timestamp={timestamp} />
                                 <DarkModeToggleButton prefs={prefs} />
                             </span>
@@ -190,7 +197,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             <span>
                                 <CopyLogsButton logs={logs} />
                                 <DownloadLogsButton {...props} />
-                                <FullscreenButton {...props} />
+                                <FullscreenButton {...props} viewPodNames={viewPodNames} />
                             </span>
                         </div>
                         <div className={classNames('pod-logs-viewer', {'pod-logs-viewer--inverted': prefs.appDetails.darkMode})} onWheel={handleScroll}>
