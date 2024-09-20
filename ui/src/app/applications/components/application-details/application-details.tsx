@@ -855,7 +855,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                             {this.selectedRollbackDeploymentIndex > -1 && (
                                                 <ApplicationDeploymentHistory
                                                     app={application}
-                                                    selectedRollbackDeploymentIndex={this.selectedRollbackDeploymentIndex}
                                                     rollbackApp={info => this.rollbackApplication(info, application)}
                                                     selectDeployment={i => this.setRollbackPanelVisible(i)}
                                                 />
