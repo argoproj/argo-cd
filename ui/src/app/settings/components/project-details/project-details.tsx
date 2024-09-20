@@ -220,7 +220,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                         },
                                                         {
                                                             key: 'windows',
-                                                            title: 'Windows',
+                                                            title: 'Sync Windows',
                                                             content: this.SyncWindowsTab(proj, ctx)
                                                         },
                                                         {
