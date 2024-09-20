@@ -494,7 +494,7 @@ func (c GoogleCloudCreds) Environ() (io.Closer, []string, error) {
 	if err != nil {
 		return NopCloser{}, nil, fmt.Errorf("failed to get username from creds: %w", err)
 	}
-	token, err := c.getAccessToken()
+	token, err := c.GetAccessToken()
 	if err != nil {
 		return NopCloser{}, nil, fmt.Errorf("failed to get access token from creds: %w", err)
 	}
@@ -532,7 +532,7 @@ func (c GoogleCloudCreds) getUsername() (string, error) {
 	return f.ClientEmail, nil
 }
 
-func (c GoogleCloudCreds) getAccessToken() (string, error) {
+func (c GoogleCloudCreds) GetAccessToken() (string, error) {
 	if c.creds == nil {
 		return "", errors.New("credentials for Google Cloud Source repositories are invalid")
 	}

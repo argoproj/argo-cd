@@ -300,7 +300,7 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to get username from creds: %w", err)
 		}
-		token, err := creds.getAccessToken()
+		token, err := creds.GetAccessToken()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get access token from creds: %w", err)
 		}

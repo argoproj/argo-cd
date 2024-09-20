@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/git"
 	"io"
 	"net/http"
 	"net/url"
@@ -40,12 +41,13 @@ var (
 )
 
 type Creds struct {
-	Username           string
-	Password           string
-	CAPath             string
-	CertData           []byte
-	KeyData            []byte
-	InsecureSkipVerify bool
+	Username             string
+	Password             string
+	CAPath               string
+	CertData             []byte
+	KeyData              []byte
+	InsecureSkipVerify   bool
+	GCPServiceAccountKey *git.GoogleCloudCreds
 }
 
 type indexCache interface {
@@ -446,13 +448,21 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 			DisableKeepAlives: true,
 		}}
 
+		var password = c.creds.Password
+		if c.creds.GCPServiceAccountKey != nil {
+			err := error(nil)
+			password, err = c.creds.GCPServiceAccountKey.GetAccessToken()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get access token from creds: %w", err)
+			}
+		}
 		repoHost, _, _ := strings.Cut(tagsURL, "/")
 		repo.Client = &auth.Client{
 			Client: client,
 			Cache:  nil,
 			Credential: auth.StaticCredential(repoHost, auth.Credential{
 				Username: c.creds.Username,
-				Password: c.creds.Password,
+				Password: password,
 			}),
 		}
 

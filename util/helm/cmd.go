@@ -85,7 +85,15 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 	}
 
 	if creds.Password != "" {
-		args = append(args, "--password", creds.Password)
+		var password = creds.Password
+		if creds.GCPServiceAccountKey != nil {
+			err := error(nil)
+			password, err = creds.GCPServiceAccountKey.GetAccessToken()
+			if err != nil {
+				return "", fmt.Errorf("failed to get access token from creds: %w", err)
+			}
+		}
+		args = append(args, "--password", password)
 	}
 
 	if creds.CAPath != "" {
