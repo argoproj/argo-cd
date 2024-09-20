@@ -10,10 +10,6 @@ data:
   # Argo CD's externally facing base URL (optional). Required when configuring SSO
   url: https://argo-cd-demo.argoproj.io
 
-  # Additional externally facing base URLs (optional)
-  additionalUrls: |
-    - https://argo-cd-demo2.argoproj.io
-
   # Enables application status badge feature
   statusbadge.enabled: "true"
 
@@ -225,16 +221,6 @@ data:
   # An optional comma-separated list of metadata.labels to observe in the UI.
   resource.customLabels: tier
 
-  # An optional comma-separated list of metadata.labels keys to add to Kubernetes events generated for Applications.
-  # The keys are compared against the Application and its AppProject. If matched,
-  # the corresponding labels are added to the generated event.
-  # In case of a conflict between labels on the Application and AppProject,
-  # the Application label values are prioritized and added to the event. Supports wildcards.
-  resource.includeEventLabelKeys: team,env*
-  # An optional comma-separated list of metadata.labels keys to exclude from Kubernetes events generated for Applications. Supports wildcards.
-  resource.excludeEventLabelKeys: environment,bu
-
-
   resource.compareoptions: |
     # if ignoreAggregatedRoles set to true then differences caused by aggregated roles in RBAC resources are ignored.
     ignoreAggregatedRoles: true
@@ -251,9 +237,9 @@ data:
 
   # A set of settings that allow enabling or disabling the config management tool.
   # If unset, each defaults to "true".
-  kustomize.enabled: "true"
-  jsonnet.enabled: "true"
-  helm.enabled: "true"
+  kustomize.enabled: true
+  jsonnet.enabled: true
+  helm.enabled: true
 
   # Build options/parameters to use with `kustomize build` (optional)
   kustomize.buildOptions: --load_restrictor none
@@ -369,7 +355,7 @@ data:
     - url: https://mycompany.splunk.com?search={{.spec.destination.namespace}}
       title: Splunk
     # conditionally show link e.g. for specific project
-    # github.com/expr-lang/expr is used for evaluation of conditions
+    # github.com/antonmedv/expr is used for evaluation of conditions
     - url: https://mycompany.splunk.com?search={{.spec.destination.namespace}}
       title: Splunk
       if: spec.project == "default"
@@ -424,8 +410,6 @@ data:
               cluster:
                 name: some-cluster
                 server: https://some-cluster
-  # The maximum size of the payload that can be sent to the webhook server.
-  webhook.maxPayloadSizeMB: 1024
-
-  # application.sync.impersonation.enabled indicates whether the application sync can be decoupled from control plane service account using impersonation.
-  application.sync.impersonation.enabled: "false"
+          
+          # The maximum size of the payload that can be sent to the webhook server.
+          webhook.maxPayloadSizeMB: 1024

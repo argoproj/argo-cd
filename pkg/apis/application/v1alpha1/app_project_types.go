@@ -112,6 +112,7 @@ func (p *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*J
 				return &token, i, nil
 			}
 		}
+
 	}
 
 	if issuedAt != -1 {
@@ -143,10 +144,10 @@ func (p AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) err
 	}
 
 	if err1 == nil || err2 == nil {
-		// If we find this token from either places, we can say there are no error
+		//If we find this token from either places, we can say there are no error
 		return nil
 	} else {
-		// If we could not locate this taken from either places, we can return any of the errors
+		//If we could not locate this taken from either places, we can return any of the errors
 		return err2
 	}
 }
@@ -263,23 +264,6 @@ func (p *AppProject) ValidateProject() error {
 			}
 			existingWindows[window.Kind+window.Schedule+window.Duration] = true
 		}
-	}
-
-	destServiceAccts := make(map[string]bool)
-	for _, destServiceAcct := range p.Spec.DestinationServiceAccounts {
-		if destServiceAcct.Server == "!*" {
-			return status.Errorf(codes.InvalidArgument, "server has an invalid format, '!*'")
-		}
-
-		if destServiceAcct.Namespace == "!*" {
-			return status.Errorf(codes.InvalidArgument, "namespace has an invalid format, '!*'")
-		}
-
-		key := fmt.Sprintf("%s/%s", destServiceAcct.Server, destServiceAcct.Namespace)
-		if _, ok := destServiceAccts[key]; ok {
-			return status.Errorf(codes.InvalidArgument, "destinationServiceAccount '%s' already added", key)
-		}
-		destServiceAccts[key] = true
 	}
 
 	return nil
@@ -444,7 +428,7 @@ func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination, projec
 	if destinationMatched && proj.Spec.PermitOnlyProjectScopedClusters {
 		clusters, err := projectClusters(proj.Name)
 		if err != nil {
-			return false, fmt.Errorf("could not retrieve project clusters: %w", err)
+			return false, fmt.Errorf("could not retrieve project clusters: %s", err)
 		}
 
 		for _, cluster := range clusters {
@@ -579,5 +563,5 @@ func (p AppProject) IsAppNamespacePermitted(app *Application, controllerNs strin
 		return true
 	}
 
-	return glob.MatchStringInList(p.Spec.SourceNamespaces, app.Namespace, glob.REGEXP)
+	return glob.MatchStringInList(p.Spec.SourceNamespaces, app.Namespace, false)
 }

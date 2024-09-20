@@ -10,7 +10,6 @@ interface RevisionFormFieldProps {
     helpIconTop?: string;
     hideLabel?: boolean;
     repoURL: string;
-    fieldValue?: string;
 }
 
 export class RevisionFormField extends React.PureComponent<RevisionFormFieldProps, {filterType: string}> {
@@ -50,7 +49,7 @@ export class RevisionFormField extends React.PureComponent<RevisionFormFieldProp
                                 <FormField
                                     formApi={this.props.formApi}
                                     label={this.props.hideLabel ? undefined : 'Revision'}
-                                    field={this.props.fieldValue ? this.props.fieldValue : 'spec.source.targetRevision'}
+                                    field='spec.source.targetRevision'
                                     component={AutocompleteField}
                                     componentProps={{
                                         items: revisions,

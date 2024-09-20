@@ -27,8 +27,6 @@ export const ApplicationDeploymentHistory = ({
         return {...info, nextDeployedAt, durationMs: runEnd.diff(moment(info.deployedAt)) / 1000};
     });
 
-    const [showParameterDetails, setShowParameterDetails] = React.useState(Boolean);
-
     return (
         <div className='application-deployment-history'>
             {recentDeployments.map((info, index) => (
@@ -60,7 +58,9 @@ export const ApplicationDeploymentHistory = ({
                     </div>
                     <div className='columns small-9'>
                         <div className='row'>
+                            <div className='columns small-3'>Revision:</div>
                             <div className='columns small-9'>
+                                <Revision repoUrl={info.source.repoURL} revision={info.revision} />
                                 <div className='application-deployment-history__item-menu'>
                                     <DropDownMenu
                                         anchor={() => (
@@ -79,103 +79,29 @@ export const ApplicationDeploymentHistory = ({
                             </div>
                         </div>
                         {selectedRollbackDeploymentIndex === index ? (
-                            info.sources === undefined ? (
-                                <React.Fragment>
-                                    <div>
-                                        <div className='row'>
-                                            <div className='columns small-3'>Revision:</div>
-                                            <div className='columns small-9'>
-                                                <Revision repoUrl={info.source.repoURL} revision={info.revision} />
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <RevisionMetadataRows
-                                        applicationName={app.metadata.name}
-                                        applicationNamespace={app.metadata.namespace}
-                                        source={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
-                                        index={0}
-                                        versionId={recentDeployments[index].id}
-                                    />
-                                    <button
-                                        type='button'
-                                        className='argo-button argo-button--base application-deployment-history__show-parameter-details'
-                                        onClick={() => setShowParameterDetails(!showParameterDetails)}>
-                                        {showParameterDetails ? 'Hide details' : 'Show details'}
-                                    </button>
-
-                                    {showParameterDetails && (
-                                        <DataLoader
-                                            input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision, appName: app.metadata.name}}
-                                            load={src => services.repos.appDetails(src, src.appName, app.spec.project, 0, recentDeployments[index].id)}>
-                                            {(details: models.RepoAppDetails) => (
-                                                <div>
-                                                    <ApplicationParameters
-                                                        application={{
-                                                            ...app,
-                                                            spec: {...app.spec, source: recentDeployments[index].source}
-                                                        }}
-                                                        details={details}
-                                                    />
-                                                </div>
-                                            )}
-                                        </DataLoader>
-                                    )}
-                                </React.Fragment>
-                            ) : (
-                                info.sources.map((source, i) => (
-                                    <React.Fragment key={`${index}_${i}`}>
-                                        {i > 0 ? <div className='separator' /> : null}
+                            <React.Fragment>
+                                <RevisionMetadataRows
+                                    applicationName={app.metadata.name}
+                                    applicationNamespace={app.metadata.namespace}
+                                    source={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
+                                />
+                                <DataLoader
+                                    input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision, appName: app.metadata.name}}
+                                    load={src => services.repos.appDetails(src, src.appName, app.spec.project)}>
+                                    {(details: models.RepoAppDetails) => (
                                         <div>
-                                            <div className='row'>
-                                                <div className='columns small-3'>Revision:</div>
-                                                <div className='columns small-9'>
-                                                    <Revision repoUrl={source.repoURL} revision={info.revisions[i]} />
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <RevisionMetadataRows
-                                            applicationName={app.metadata.name}
-                                            applicationNamespace={app.metadata.namespace}
-                                            source={{...source, targetRevision: recentDeployments[index].revisions[i]}}
-                                            index={i}
-                                            versionId={recentDeployments[index].id}
-                                        />
-                                        <button
-                                            type='button'
-                                            className='argo-button argo-button--base application-deployment-history__show-parameter-details'
-                                            onClick={() => setShowParameterDetails(!showParameterDetails)}>
-                                            {showParameterDetails ? 'Hide details' : 'Show details'}
-                                        </button>
-
-                                        {showParameterDetails && (
-                                            <DataLoader
-                                                input={{
-                                                    ...source,
-                                                    targetRevision: recentDeployments[index].revisions[i],
-                                                    index: i,
-                                                    versionId: recentDeployments[index].id,
-                                                    appName: app.metadata.name
+                                            <ApplicationParameters
+                                                application={{
+                                                    ...app,
+                                                    spec: {...app.spec, source: recentDeployments[index].source}
                                                 }}
-                                                load={src => services.repos.appDetails(src, src.appName, app.spec.project, i, recentDeployments[index].id)}>
-                                                {(details: models.RepoAppDetails) => (
-                                                    <div>
-                                                        <ApplicationParameters
-                                                            application={{
-                                                                ...app,
-                                                                spec: {...app.spec, source}
-                                                            }}
-                                                            details={details}
-                                                        />
-                                                    </div>
-                                                )}
-                                            </DataLoader>
-                                        )}
-                                    </React.Fragment>
-                                ))
-                            )
-                        ) : (
-                            <p>Click to see source details.</p>
-                        )}
+                                                details={details}
+                                            />
+                                        </div>
+                                    )}
+                                </DataLoader>
+                            </React.Fragment>
+                        ) : null}
                     </div>
                 </div>
             ))}

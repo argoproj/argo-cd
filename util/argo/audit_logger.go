@@ -45,7 +45,7 @@ const (
 	EventReasonOperationCompleted = "OperationCompleted"
 )
 
-func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, info EventInfo, message string, logFields map[string]string, eventLabels map[string]string) {
+func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, info EventInfo, message string, logFields map[string]string) {
 	logCtx := log.WithFields(log.Fields{
 		"type":   info.Type,
 		"reason": info.Reason,
@@ -66,7 +66,6 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 	event := v1.Event{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        fmt.Sprintf("%v.%x", objMeta.Name, t.UnixNano()),
-			Labels:      eventLabels,
 			Annotations: logFields,
 		},
 		Source: v1.EventSource{
@@ -95,7 +94,7 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 	}
 }
 
-func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info EventInfo, message, user string, eventLabels map[string]string) {
+func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info EventInfo, message, user string) {
 	objectMeta := ObjectRef{
 		Name:            app.ObjectMeta.Name,
 		Namespace:       app.ObjectMeta.Namespace,
@@ -109,7 +108,7 @@ func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info EventInfo, mes
 	if user != "" {
 		fields["user"] = user
 	}
-	l.logEvent(objectMeta, v1alpha1.ApplicationSchemaGroupVersionKind, info, message, fields, eventLabels)
+	l.logEvent(objectMeta, v1alpha1.ApplicationSchemaGroupVersionKind, info, message, fields)
 }
 
 func (l *AuditLogger) LogAppSetEvent(app *v1alpha1.ApplicationSet, info EventInfo, message, user string) {
@@ -123,7 +122,7 @@ func (l *AuditLogger) LogAppSetEvent(app *v1alpha1.ApplicationSet, info EventInf
 	if user != "" {
 		fields["user"] = user
 	}
-	l.logEvent(objectMeta, v1alpha1.ApplicationSetSchemaGroupVersionKind, info, message, fields, nil)
+	l.logEvent(objectMeta, v1alpha1.ApplicationSetSchemaGroupVersionKind, info, message, fields)
 }
 
 func (l *AuditLogger) LogResourceEvent(res *v1alpha1.ResourceNode, info EventInfo, message, user string) {
@@ -141,7 +140,7 @@ func (l *AuditLogger) LogResourceEvent(res *v1alpha1.ResourceNode, info EventInf
 		Group:   res.Group,
 		Version: res.Version,
 		Kind:    res.Kind,
-	}, info, message, fields, nil)
+	}, info, message, fields)
 }
 
 func (l *AuditLogger) LogAppProjEvent(proj *v1alpha1.AppProject, info EventInfo, message, user string) {
@@ -155,7 +154,7 @@ func (l *AuditLogger) LogAppProjEvent(proj *v1alpha1.AppProject, info EventInfo,
 	if user != "" {
 		fields["user"] = user
 	}
-	l.logEvent(objectMeta, v1alpha1.AppProjectSchemaGroupVersionKind, info, message, nil, nil)
+	l.logEvent(objectMeta, v1alpha1.AppProjectSchemaGroupVersionKind, info, message, nil)
 }
 
 func NewAuditLogger(ns string, kIf kubernetes.Interface, component string) *AuditLogger {

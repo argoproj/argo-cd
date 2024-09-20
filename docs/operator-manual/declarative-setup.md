@@ -468,9 +468,9 @@ data:
 
 ### Configure repositories with proxy
 
-Proxy for your repository can be specified in the `proxy` field of the repository secret, along with a corresponding `noProxy` config. Argo CD uses this proxy/noProxy config to access the repository and do related helm/kustomize operations. Argo CD looks for the standard proxy environment variables in the repository server if the custom proxy config is absent.
+Proxy for your repository can be specified in the `proxy` field of the repository secret, along with other repository configurations. Argo CD uses this proxy to access the repository. Argo CD looks for the standard proxy environment variables in the repository server if the custom proxy is absent.
 
-An example repository with proxy and noProxy:
+An example repository with proxy:
 
 ```yaml
 apiVersion: v1
@@ -484,12 +484,9 @@ stringData:
   type: git
   url: https://github.com/argoproj/private-repo
   proxy: https://proxy-server-url:8888
-  noProxy: ".internal.example.com,company.org,10.123.0.0/16"
   password: my-password
   username: my-username
 ```
-
-A note on noProxy: Argo CD uses exec to interact with different tools such as helm and kustomize. Not all of these tools support the same noProxy syntax as the [httpproxy go package](https://cs.opensource.google/go/x/net/+/internal-branch.go1.21-vendor:http/httpproxy/proxy.go;l=38-50) does. In case you run in trouble with noProxy not beeing respected you might want to try using the full domain instead of a wildcard pattern or IP range to find a common syntax that all tools support.
 
 ### Legacy behaviour
 
@@ -818,9 +815,9 @@ stringData:
       }        
     }
 ```
-This will instruct Argo CD to read the file at the provided path and use the credentials defined within to authenticate to AWS. 
-The profile must be mounted in both the `argocd-server` and `argocd-application-controller` components in order for this to work.
-For example, the following values can be defined in a Helm-based Argo CD deployment:
+This will instruct ArgoCD to read the file at the provided path and use the credentials defined within to authenticate to
+AWS. The profile must be mounted in order for this to work. For example, the following values can be defined in a Helm
+based ArgoCD deployment:
 
 ```yaml
 controller:
@@ -932,9 +929,7 @@ If your AKS cluster utilizes the [Mutating Admission Webhook](https://azure.gith
 
 2. **Create Federated Identity Credential**: Generate an Azure federated identity credential for the `argocd-application-controller` and `argocd-server` service accounts. Refer to the [Federated Identity Credential](https://azure.github.io/azure-workload-identity/docs/topics/federated-identity-credential.html) documentation for detailed instructions.
 
-3. **Add Annotations to Service Account** Add `"azure.workload.identity/client-id": "$CLIENT_ID"` and `"azure.workload.identity/tenant-id": "$TENANT_ID"` annotations to the `argocd-application-controller` and `argocd-server` service accounts using the details from the federated credential.
-
-4. **Set the AZURE_CLIENT_ID**: Update the `AZURE_CLIENT_ID` in the cluster secret to match the client id of the newly created federated identity credential.
+3. **Set the AZURE_CLIENT_ID**: Update the `AZURE_CLIENT_ID` in the cluster secret to match the client id of the newly created federated identity credential.
 
 
 ```yaml
@@ -1134,22 +1129,6 @@ data:
 ## Resource Custom Labels
 
 Custom Labels configured with `resource.customLabels` (comma separated string) will be displayed in the UI (for any resource that defines them).
-
-## Labels on Application Events
-
-An optional comma-separated list of `metadata.labels` keys can be configured with `resource.includeEventLabelKeys` to add to Kubernetes events generated for Argo CD Applications. When events are generated for Applications containing the specified labels, the controller adds the matching labels to the event. This establishes an easy link between the event and the application, allowing for filtering using labels. In case of conflict between labels on the Application and AppProject, the Application label values are prioritized and added to the event.
-
-```yaml
-  resource.includeEventLabelKeys: team,env*
-```
-
-To exclude certain labels from events, use the `resource.excludeEventLabelKeys` key, which takes a comma-separated list of `metadata.labels` keys.
-
-```yaml
-  resource.excludeEventLabelKeys: environment,bu
-```
-
-Both `resource.includeEventLabelKeys` and `resource.excludeEventLabelKeys` support wildcards.
 
 ## SSO & RBAC
 

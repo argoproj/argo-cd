@@ -39,7 +39,6 @@ export interface PodLogsProps {
     timestamp?: string;
     containerGroups?: any[];
     onClickContainer?: (group: any, i: number, tab: string) => void;
-    fullscreen?: boolean;
 }
 
 // ansi colors, see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
@@ -95,7 +94,6 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     useEffect(() => {
         // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
         // matchNothing this is chosen instead of empty regexp, because that would match everything and break colored logs
-        // eslint-disable-next-line no-useless-escape
         setHighlight(filter === '' ? matchNothing : new RegExp(filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g'));
     }, [filter]);
 
@@ -145,7 +143,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         // show the pod name if there are multiple pods, pad with spaces to align
         (viewPodNames ? (lineNum === 0 || logs[lineNum - 1].podName !== log.podName ? podColor(podName) + log.podName + reset : ' '.repeat(log.podName.length)) + ' ' : '') +
         // show the timestamp if requested, pad with spaces to align
-        (viewTimestamps ? (lineNum === 0 || logs[lineNum - 1].timeStamp !== log.timeStamp ? log.timeStampStr : '').padEnd(30) + ' ' : '') +
+        (viewTimestamps ? (lineNum === 0 || (logs[lineNum - 1].timeStamp !== log.timeStamp ? log.timeStampStr : '').padEnd(30)) + ' ' : '') +
         // show the log content, highlight the filter text
         log.content?.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
     const logsContent = (width: number, height: number, isWrapped: boolean) => (
