@@ -1,14 +1,15 @@
 package oci
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v2/util/io"
-	"github.com/argoproj/pkg/sync"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -19,8 +20,8 @@ import (
 )
 
 type layerConf struct {
-	desc v1.Descriptor
-	string
+	desc  v1.Descriptor
+	bytes []byte
 }
 
 func generateManifest(t *testing.T, store *memory.Store, layerDescs ...layerConf) string {
@@ -42,7 +43,7 @@ func generateManifest(t *testing.T, store *memory.Store, layerDescs ...layerConf
 	manifestDesc := content.NewDescriptorFromBytes(v1.MediaTypeImageManifest, manifestBlob)
 
 	for _, layer := range layerDescs {
-		require.NoError(t, store.Push(context.Background(), layer.desc, bytes.NewReader([]byte(layer.string))))
+		require.NoError(t, store.Push(context.Background(), layer.desc, bytes.NewReader(layer.bytes)))
 	}
 
 	require.NoError(t, store.Push(context.Background(), configDesc, bytes.NewReader(configBlob)))
@@ -52,16 +53,29 @@ func generateManifest(t *testing.T, store *memory.Store, layerDescs ...layerConf
 	return manifestDesc.Digest.String()
 }
 
-func Test_nativeOCIClient_Extract(t *testing.T) {
-	layerBlob := "Hello layer"
+func createGzippedTarWithContent(t *testing.T, filename, content string) []byte {
+	var buf bytes.Buffer
+	gzw := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gzw)
 
+	require.NoError(t, tw.WriteHeader(&tar.Header{
+		Name: filename,
+		Mode: 0644,
+		Size: int64(len(content)),
+	}))
+	_, err := tw.Write([]byte(content))
+	require.NoError(t, err)
+	require.NoError(t, tw.Close())
+	require.NoError(t, gzw.Close())
+
+	return buf.Bytes()
+}
+
+func Test_nativeOCIClient_Extract(t *testing.T) {
 	type fields struct {
 		creds             Creds
 		repoURL           string
 		tagsFunc          func(context.Context, string) (tags []string, err error)
-		repoLock          sync.KeyLock
-		indexCache        indexCache
-		repoCachePaths    io.TempPaths
 		allowedMediaTypes []string
 	}
 	type args struct {
@@ -84,13 +98,14 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 			},
 			args: args{
 				digestFunc: func(store *memory.Store) string {
-					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(v1.MediaTypeImageLayerGzip, []byte(layerBlob)), layerBlob})
+					layerBlob := createGzippedTarWithContent(t, "some-path", "some content")
+					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(v1.MediaTypeImageLayerGzip, layerBlob), layerBlob})
 				},
 				project:                         "test-project",
-				manifestMaxExtractedSize:        1,
+				manifestMaxExtractedSize:        10,
 				disableManifestMaxExtractedSize: false,
 			},
-			expectedError: fmt.Errorf("extracted content too large"),
+			expectedError: fmt.Errorf("error while iterating on tar reader: unexpected EOF"),
 		},
 		{
 			name: "extraction fails due to invalid media type",
@@ -99,7 +114,8 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 			},
 			args: args{
 				digestFunc: func(store *memory.Store) string {
-					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(v1.MediaTypeImageLayerGzip, []byte(layerBlob)), layerBlob})
+					layerBlob := "Hello layer"
+					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(v1.MediaTypeImageLayerGzip, []byte(layerBlob)), []byte(layerBlob)})
 				},
 				project:                         "test-project",
 				manifestMaxExtractedSize:        1000,
@@ -161,7 +177,6 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 		repoURL           string
 		repo              oras.ReadOnlyTarget
 		tagsFunc          func(context.Context, string) (tags []string, err error)
-		repoLock          sync.KeyLock
 		allowedMediaTypes []string
 	}
 	tests := []struct {
@@ -256,7 +271,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := newClientWithLock(tt.fields.repoURL, tt.fields.creds, tt.fields.repoLock, tt.fields.repo, tt.fields.tagsFunc, tt.fields.allowedMediaTypes)
+			c := newClientWithLock(tt.fields.repoURL, tt.fields.creds, globalLock, tt.fields.repo, tt.fields.tagsFunc, tt.fields.allowedMediaTypes)
 			got, err := c.ResolveRevision(context.Background(), tt.revision, tt.noCache)
 			if tt.expectedError != nil {
 				require.EqualError(t, err, tt.expectedError.Error())
