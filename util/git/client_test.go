@@ -331,7 +331,7 @@ func Test_nativeGitClient_RevisionMetadata(t *testing.T) {
 	metadata, err := client.RevisionMetadata("HEAD")
 	require.NoError(t, err)
 	require.Equal(t, &RevisionMetadata{
-		Author:  `FooBar ||| something <foo@foo.com>`,
+		Author:  `FooBar ||| somethingelse <foo@foo.com>`,
 		Date:    time.Date(2021, time.June, 5, 20, 0, 0, 0, time.UTC).Local(),
 		Tags:    []string{},
 		Message: "| Initial commit |\n\n(╯°□°)╯︵ ┻━┻",
