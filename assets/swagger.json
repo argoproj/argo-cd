@@ -8053,6 +8053,13 @@
           "description": "The Azure DevOps API URL to talk to. If blank, use https://dev.azure.com/.",
           "type": "string"
         },
+        "caRef": {
+          "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
+        },
+        "insecure": {
+          "type": "boolean",
+          "title": "Allow self-signed TLS / Certificates; default: false"
+        },
         "labels": {
           "type": "array",
           "title": "Labels is used to filter the PRs that you want to target",
@@ -8956,6 +8963,13 @@
         "api": {
           "description": "The URL to Azure DevOps. If blank, use https://dev.azure.com.",
           "type": "string"
+        },
+        "caRef": {
+          "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
+        },
+        "insecure": {
+          "type": "boolean",
+          "title": "Allow self-signed TLS / Certificates; default: false"
         },
         "organization": {
           "description": "Azure Devops organization. Required. E.g. \"my-organization\".",

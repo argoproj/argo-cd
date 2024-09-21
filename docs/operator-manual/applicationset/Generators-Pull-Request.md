@@ -322,6 +322,10 @@ spec:
 * `tokenRef`: A `Secret` name and key containing the Azure DevOps access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
 
+In case self-signed Azure DevOps certificates, the following options can be usefully:
+* `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
+* `caRef`: Optional `ConfigMap` name and key containing the Azure DevOps certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs. Will be concatenated with the ArgoCD trusted CM.
+
 ## Filters
 
 Filters allow selecting which pull requests to generate for. Each filter can declare one or more conditions, all of which must pass. If multiple filters are present, any can match for a repository to be included. If no filters are specified, all pull requests will be processed.
