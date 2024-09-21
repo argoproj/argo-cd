@@ -109,6 +109,23 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 			expectedError: fmt.Errorf("error while iterating on tar reader: unexpected EOF"),
 		},
 		{
+			name: "extraction fails due to multiple layers",
+			fields: fields{
+				allowedMediaTypes: []string{v1.MediaTypeImageLayerGzip},
+			},
+			args: args{
+				digestFunc: func(store *memory.Store) string {
+					layerBlob := createGzippedTarWithContent(t, "some-path", "some content")
+					otherLayerBlob := createGzippedTarWithContent(t, "some-other-ath", "some other content")
+					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(v1.MediaTypeImageLayerGzip, layerBlob), layerBlob}, layerConf{content.NewDescriptorFromBytes(v1.MediaTypeImageLayerGzip, otherLayerBlob), otherLayerBlob})
+				},
+				project:                         "test-project",
+				manifestMaxExtractedSize:        1000,
+				disableManifestMaxExtractedSize: false,
+			},
+			expectedError: fmt.Errorf("expected only a single oci layer, got 2"),
+		},
+		{
 			name: "extraction fails due to invalid media type",
 			fields: fields{
 				allowedMediaTypes: []string{"application/vnd.different.media.type"},
