@@ -352,6 +352,7 @@ func cleanSetParameters(val string) string {
 	if strings.HasPrefix(val, `{`) && strings.HasSuffix(val, `}`) {
 		return val
 	}
+	re := regexp.MustCompile(`,`)
 	return re.ReplaceAllString(val, `$1\,`)
 }
 
