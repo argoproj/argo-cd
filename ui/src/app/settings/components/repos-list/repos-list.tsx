@@ -331,10 +331,10 @@ export class ReposList extends React.Component<
                                                 action: () => this.setState({projectProperty: 'all'})
                                             },
                                             ...projectValues
-                                                .filter(project => project && project.trim() !== '')  
+                                                .filter(project => project && project.trim() !== '')
                                                 .map(project => ({
                                                     title: project,
-                                                    action: () => this.setState({ projectProperty: project })
+                                                    action: () => this.setState({projectProperty: project})
                                                 }))
                                         ];
 
@@ -1066,7 +1066,7 @@ export class ReposList extends React.Component<
 >>>>>>> 0a23f1847 (refactor : delete sort dropdown and fix eslint)
     private filteredName(repos: models.Repository[], name: string) {
         const trimmedName = name.trim();
-          if (trimmedName === ''){
+        if (trimmedName === '') {
             return repos;
         }
         const newRepos = repos.filter(repo => repo.name && repo.name.toLowerCase().includes(trimmedName.toLowerCase()));
