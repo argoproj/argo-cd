@@ -2399,8 +2399,16 @@ func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
 		var active SyncWindows
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 		for _, w := range *s {
-			schedule, _ := specParser.Parse(w.Schedule)
-			duration, _ := time.ParseDuration(w.Duration)
+			schedule, sErr := specParser.Parse(w.Schedule)
+			if sErr != nil {
+				log.Warnf("invalid sync window schedule '%v': %s", w.Schedule, sErr)
+				continue
+			}
+			duration, dErr := time.ParseDuration(w.Duration)
+			if dErr != nil {
+				log.Warnf("invalid sync window duration '%v': %s", w.Duration, dErr)
+				continue
+			}
 
 			// Offset the nextWindow time to consider the timeZone of the sync window
 			timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
@@ -2434,12 +2442,20 @@ func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
 		for _, w := range *s {
 			if w.Kind == "allow" {
 				schedule, sErr := specParser.Parse(w.Schedule)
+				if sErr != nil {
+					log.Warnf("invalid sync window schedule '%v': %s", w.Schedule, sErr)
+					continue
+				}
 				duration, dErr := time.ParseDuration(w.Duration)
+				if dErr != nil {
+					log.Warnf("invalid sync window duration '%v': %s", w.Duration, dErr)
+					continue
+				}
 				// Offset the nextWindow time to consider the timeZone of the sync window
 				timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
 				nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
 
-				if !nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) && sErr == nil && dErr == nil {
+				if !nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) {
 					inactive = append(inactive, w)
 				}
 			}
@@ -2646,8 +2662,16 @@ func (w SyncWindow) active(currentTime time.Time) bool {
 	currentTime = currentTime.UTC()
 
 	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-	schedule, _ := specParser.Parse(w.Schedule)
-	duration, _ := time.ParseDuration(w.Duration)
+	schedule, sErr := specParser.Parse(w.Schedule)
+	if sErr != nil {
+		log.Warnf("invalid sync window schedule '%v': %s", w.Schedule, sErr)
+		return false
+	}
+	duration, dErr := time.ParseDuration(w.Duration)
+	if dErr != nil {
+		log.Warnf("invalid sync window duration '%v': %s", w.Duration, dErr)
+		return false
+	}
 
 	// Offset the nextWindow time to consider the timeZone of the sync window
 	timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
