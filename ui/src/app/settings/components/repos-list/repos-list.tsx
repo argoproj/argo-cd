@@ -330,10 +330,12 @@ export class ReposList extends React.Component<
                                                 title: 'all',
                                                 action: () => this.setState({projectProperty: 'all'})
                                             },
-                                            ...projectValues.map(project => ({
-                                                title: project,
-                                                action: () => this.setState({projectProperty: project})
-                                            }))
+                                            ...projectValues
+                                                .filter(project => project && project.trim() !== '')  
+                                                .map(project => ({
+                                                    title: project,
+                                                    action: () => this.setState({ projectProperty: project })
+                                                }))
                                         ];
 
                                         return (
