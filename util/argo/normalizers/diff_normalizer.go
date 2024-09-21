@@ -3,6 +3,7 @@ package normalizers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -84,7 +85,7 @@ func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {
 		return nil, fmt.Errorf("JQ patch did not return any data")
 	}
 	if err, ok = first.(error); ok {
-		if err == context.DeadlineExceeded {
+		if errors.Is(err, context.DeadlineExceeded) {
 			return nil, fmt.Errorf("JQ patch execution timed out (%v)", np.jqExecutionTimeout.String())
 		}
 		return nil, fmt.Errorf("JQ patch returned error: %w", err)
@@ -193,7 +194,6 @@ func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 			glob.Match(patch.GetGroupKind().Kind, groupKind.Kind) &&
 			(patch.GetName() == "" || patch.GetName() == un.GetName()) &&
 			(patch.GetNamespace() == "" || patch.GetNamespace() == un.GetNamespace()) {
-
 			matched = append(matched, patch)
 		}
 	}

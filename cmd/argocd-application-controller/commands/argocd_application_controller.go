@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -59,6 +62,7 @@ func NewCommand() *cobra.Command {
 		metricsPort                      int
 		metricsCacheExpiration           time.Duration
 		metricsAplicationLabels          []string
+		metricsAplicationConditions      []string
 		kubectlParallelismLimit          int64
 		cacheSource                      func() (*appstatecache.Cache, error)
 		redisClient                      *redis.Client
@@ -75,7 +79,7 @@ func NewCommand() *cobra.Command {
 		serverSideDiff                   bool
 		ignoreNormalizerOpts             normalizers.IgnoreNormalizerOpts
 	)
-	var command = cobra.Command{
+	command := cobra.Command{
 		Use:               cliName,
 		Short:             "Run ArgoCD Application Controller",
 		Long:              "ArgoCD application controller is a Kubernetes controller that continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo). This command runs Application Controller in the foreground.  It can be configured by following options.",
@@ -164,6 +168,7 @@ func NewCommand() *cobra.Command {
 				metricsPort,
 				metricsCacheExpiration,
 				metricsAplicationLabels,
+				metricsAplicationConditions,
 				kubectlParallelismLimit,
 				persistResourceHealth,
 				clusterSharding,
@@ -188,10 +193,22 @@ func NewCommand() *cobra.Command {
 				defer closeTracer()
 			}
 
+			// Graceful shutdown code
+			sigCh := make(chan os.Signal, 1)
+			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+			go func() {
+				s := <-sigCh
+				log.Printf("got signal %v, attempting graceful shutdown", s)
+				cancel()
+			}()
+
 			go appController.Run(ctx, statusProcessors, operationProcessors)
 
-			// Wait forever
-			select {}
+			<-ctx.Done()
+
+			log.Println("clean shutdown")
+
+			return nil
 		},
 	}
 
@@ -214,6 +231,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Disable TLS on connections to repo server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
 	command.Flags().StringSliceVar(&metricsAplicationLabels, "metrics-application-labels", []string{}, "List of Application labels that will be added to the argocd_application_labels metric")
+	command.Flags().StringSliceVar(&metricsAplicationConditions, "metrics-application-conditions", []string{}, "List of Application conditions that will be added to the argocd_application_conditions metric")
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
 	command.Flags().BoolVar(&otlpInsecure, "otlp-insecure", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_INSECURE", true), "OpenTelemetry collector insecure mode")
 	command.Flags().StringToStringVar(&otlpHeaders, "otlp-headers", env.ParseStringToStringFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_HEADERS", map[string]string{}, ","), "List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2)")

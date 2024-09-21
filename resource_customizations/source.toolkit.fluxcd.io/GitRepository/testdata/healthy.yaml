@@ -1,0 +1,24 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  interval: 5m
+  url: https://github.com/stefanprodan/podinfo
+  ref:
+    branch: master
+status:
+  conditions:
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: stored artifact for revision 'master@sha1:08238eada746de8114efa36d36e2aa93bd76cfab'
+      observedGeneration: 1
+      reason: Succeeded
+      status: "True"
+      type: Ready
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: stored artifact for revision 'master@sha1:08238eada746de8114efa36d36e2aa93bd76cfab'
+      observedGeneration: 1
+      reason: Succeeded
+      status: "True"
+      type: ArtifactInStorage

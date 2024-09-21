@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -102,7 +104,6 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 	}
 	returnValue := l.Get(-1)
 	if returnValue.Type() == lua.LTTable {
-
 		jsonBytes, err := luajson.Encode(returnValue)
 		if err != nil {
 			return nil, err
@@ -110,6 +111,11 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 		healthStatus := &health.HealthStatus{}
 		err = json.Unmarshal(jsonBytes, healthStatus)
 		if err != nil {
+			// Validate if the error is caused by an empty object
+			typeError := &json.UnmarshalTypeError{Value: "array", Type: reflect.TypeOf(healthStatus)}
+			if errors.As(err, &typeError) {
+				return &health.HealthStatus{}, nil
+			}
 			return nil, err
 		}
 		if !isValidHealthStatusCode(healthStatus.Status) {
@@ -120,6 +126,8 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 		}
 
 		return healthStatus, nil
+	} else if returnValue.Type() == lua.LTNil {
+		return &health.HealthStatus{}, nil
 	}
 	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
 }
@@ -157,7 +165,6 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 	returnValue := l.Get(-1)
 	if returnValue.Type() == lua.LTTable {
 		jsonBytes, err := luajson.Encode(returnValue)
-
 		if err != nil {
 			return nil, err
 		}
@@ -193,7 +200,6 @@ func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string
 			if impactedResource.K8SOperation == PatchOperation {
 				impactedResource.UnstructuredObj.Object = cleanReturnedObj(impactedResource.UnstructuredObj.Object, obj.Object)
 			}
-
 		}
 		return impactedResources, nil
 	}
@@ -269,49 +275,62 @@ func cleanReturnedArray(newObj, obj []interface{}) []interface{} {
 	return arrayToReturn
 }
 
-func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, script string) ([]appv1.ResourceAction, error) {
-	l, err := vm.runLua(obj, script)
-	if err != nil {
-		return nil, err
+func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scripts []string) ([]appv1.ResourceAction, error) {
+	if len(scripts) == 0 {
+		return nil, fmt.Errorf("no action discovery script provided")
 	}
-	returnValue := l.Get(-1)
-	if returnValue.Type() == lua.LTTable {
+	availableActionsMap := make(map[string]appv1.ResourceAction)
 
-		jsonBytes, err := luajson.Encode(returnValue)
+	for _, script := range scripts {
+		l, err := vm.runLua(obj, script)
 		if err != nil {
 			return nil, err
 		}
-		availableActions := make([]appv1.ResourceAction, 0)
-		if noAvailableActions(jsonBytes) {
-			return availableActions, nil
-		}
-		availableActionsMap := make(map[string]interface{})
-		err = json.Unmarshal(jsonBytes, &availableActionsMap)
-		if err != nil {
-			return nil, err
-		}
-		for key := range availableActionsMap {
-			value := availableActionsMap[key]
-			resourceAction := appv1.ResourceAction{Name: key, Disabled: isActionDisabled(value)}
-			if emptyResourceActionFromLua(value) {
-				availableActions = append(availableActions, resourceAction)
+		returnValue := l.Get(-1)
+		if returnValue.Type() == lua.LTTable {
+			jsonBytes, err := luajson.Encode(returnValue)
+			if err != nil {
+				return nil, fmt.Errorf("error in converting to lua table: %w", err)
+			}
+			if noAvailableActions(jsonBytes) {
 				continue
 			}
-			resourceActionBytes, err := json.Marshal(value)
+			actionsMap := make(map[string]interface{})
+			err = json.Unmarshal(jsonBytes, &actionsMap)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("error unmarshaling action table: %w", err)
 			}
+			for key, value := range actionsMap {
+				resourceAction := appv1.ResourceAction{Name: key, Disabled: isActionDisabled(value)}
+				if _, exist := availableActionsMap[key]; exist {
+					continue
+				}
+				if emptyResourceActionFromLua(value) {
+					availableActionsMap[key] = resourceAction
+					continue
+				}
+				resourceActionBytes, err := json.Marshal(value)
+				if err != nil {
+					return nil, fmt.Errorf("error marshaling resource action: %w", err)
+				}
 
-			err = json.Unmarshal(resourceActionBytes, &resourceAction)
-			if err != nil {
-				return nil, err
+				err = json.Unmarshal(resourceActionBytes, &resourceAction)
+				if err != nil {
+					return nil, fmt.Errorf("error unmarshaling resource action: %w", err)
+				}
+				availableActionsMap[key] = resourceAction
 			}
-			availableActions = append(availableActions, resourceAction)
+		} else {
+			return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
 		}
-		return availableActions, err
 	}
 
-	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
+	availableActions := make([]appv1.ResourceAction, 0, len(availableActionsMap))
+	for _, action := range availableActionsMap {
+		availableActions = append(availableActions, action)
+	}
+
+	return availableActions, nil
 }
 
 // Actions are enabled by default
@@ -341,22 +360,35 @@ func noAvailableActions(jsonBytes []byte) bool {
 	return string(jsonBytes) == "[]"
 }
 
-func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) (string, error) {
+func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) ([]string, error) {
 	key := GetConfigMapKey(obj.GroupVersionKind())
+	var discoveryScripts []string
+
+	// Check if there are resource overrides for the given key
 	override, ok := vm.ResourceOverrides[key]
 	if ok && override.Actions != "" {
 		actions, err := override.GetActions()
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		return actions.ActionDiscoveryLua, nil
+		// Append the action discovery Lua script if built-in actions are to be included
+		if actions.MergeBuiltinActions {
+			discoveryScripts = append(discoveryScripts, actions.ActionDiscoveryLua)
+		} else {
+			return []string{actions.ActionDiscoveryLua}, nil
+		}
 	}
+
+	// Fetch predefined Lua scripts
 	discoveryKey := fmt.Sprintf("%s/actions/", key)
 	discoveryScript, err := vm.getPredefinedLuaScripts(discoveryKey, actionDiscoveryScriptFile)
 	if err != nil {
-		return "", err
+		return nil, fmt.Errorf("error while fetching predefined lua scripts: %w", err)
 	}
-	return discoveryScript, nil
+
+	discoveryScripts = append(discoveryScripts, discoveryScript)
+
+	return discoveryScripts, nil
 }
 
 // GetResourceAction attempts to read lua script from config and then filesystem for that resource
@@ -427,7 +459,7 @@ func isValidHealthStatusCode(statusCode health.HealthStatusCode) bool {
 // Took logic from the link below and added the int, int32, and int64 types since the value would have type int64
 // while actually running in the controller and it was not reproducible through testing.
 // https://github.com/layeh/gopher-json/blob/97fed8db84274c421dbfffbb28ec859901556b97/json.go#L154
-func decodeValue(L *lua.LState, value interface{}) lua.LValue {
+func decodeValue(l *lua.LState, value interface{}) lua.LValue {
 	switch converted := value.(type) {
 	case bool:
 		return lua.LBool(converted)
@@ -444,15 +476,15 @@ func decodeValue(L *lua.LState, value interface{}) lua.LValue {
 	case int64:
 		return lua.LNumber(converted)
 	case []interface{}:
-		arr := L.CreateTable(len(converted), 0)
+		arr := l.CreateTable(len(converted), 0)
 		for _, item := range converted {
-			arr.Append(decodeValue(L, item))
+			arr.Append(decodeValue(l, item))
 		}
 		return arr
 	case map[string]interface{}:
-		tbl := L.CreateTable(0, len(converted))
+		tbl := l.CreateTable(0, len(converted))
 		for key, item := range converted {
-			tbl.RawSetH(lua.LString(key), decodeValue(L, item))
+			tbl.RawSetH(lua.LString(key), decodeValue(l, item))
 		}
 		return tbl
 	case nil:

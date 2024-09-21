@@ -20,10 +20,10 @@ const (
 
 func newAzureCommand() *cobra.Command {
 	o := token.NewOptions()
-	//we'll use default of WorkloadIdentityLogin for the login flow
+	// we'll use default of WorkloadIdentityLogin for the login flow
 	o.LoginMethod = token.WorkloadIdentityLogin
 	o.ServerID = DEFAULT_AAD_SERVER_APPLICATION_ID
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use: "azure",
 		Run: func(c *cobra.Command, args []string) {
 			o.UpdateFromEnv()

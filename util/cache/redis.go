@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -77,6 +78,11 @@ func (r *redisCache) marshal(obj interface{}) ([]byte, error) {
 			return nil, err
 		}
 	}
+	if closer, ok := w.(interface{ Close() error }); ok {
+		if err := closer.Close(); err != nil {
+			return nil, err
+		}
+	}
 	return buf.Bytes(), nil
 }
 
@@ -127,7 +133,7 @@ func (r *redisCache) Set(item *Item) error {
 func (r *redisCache) Get(key string, obj interface{}) error {
 	var data []byte
 	err := r.cache.Get(context.TODO(), r.getKey(key), &data)
-	if err == rediscache.ErrCacheMiss {
+	if errors.Is(err, rediscache.ErrCacheMiss) {
 		err = ErrCacheMiss
 	}
 	if err != nil {
@@ -182,7 +188,7 @@ func (rh *redisHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
 		startTime := time.Now()
 
 		err := next(ctx, cmd)
-		rh.registry.IncRedisRequest(err != nil && err != redis.Nil)
+		rh.registry.IncRedisRequest(err != nil && !errors.Is(err, redis.Nil))
 		rh.registry.ObserveRedisRequestDuration(time.Since(startTime))
 
 		return err

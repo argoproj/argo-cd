@@ -64,7 +64,7 @@ func TestParseFloatFromEnv(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv(envKey, tt.env)
 			f := ParseFloatFromEnv(envKey, def, min, max)
-			assert.Equal(t, tt.expected, f)
+			assert.InEpsilon(t, tt.expected, f, 0.0001)
 		})
 	}
 }

@@ -20,7 +20,7 @@ func main() {
 
 func generateNotificationsDocs() {
 	_ = os.RemoveAll("./docs/operator-manual/notifications/services")
-	_ = os.MkdirAll("./docs/operator-manual/notifications/services", 0755)
+	_ = os.MkdirAll("./docs/operator-manual/notifications/services", 0o755)
 	files, err := docs.CopyServicesDocs("./docs/operator-manual/notifications/services")
 	if err != nil {
 		log.Fatal(err)
@@ -70,7 +70,7 @@ func updateMkDocsNav(parent string, child string, subchild string, files []strin
 	// it at the YAML parser level.
 	newmkdocs = bytes.Replace(newmkdocs, []byte("site_url: READTHEDOCS_CANONICAL_URL"), []byte("site_url: !ENV READTHEDOCS_CANONICAL_URL"), 1)
 
-	return os.WriteFile("mkdocs.yml", newmkdocs, 0644)
+	return os.WriteFile("mkdocs.yml", newmkdocs, 0o644)
 }
 
 func trimPrefixes(files []string, prefix string) {

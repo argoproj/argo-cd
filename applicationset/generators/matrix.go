@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/imdario/mergo"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -35,8 +36,7 @@ func NewMatrixGenerator(supportedGenerators map[string]Generator, maxChildren in
 	return m
 }
 
-func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
-
+func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]interface{}, error) {
 	if appSetGenerator.Matrix == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -54,7 +54,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 		return nil, ErrMoreThanMaxGenerators
 	}
 
-	res, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, nil)
+	res, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, nil, client)
 	if err != nil {
 		return nil, fmt.Errorf("error failed to get params for first generator in matrix generator: %w", err)
 	}
@@ -63,7 +63,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 		list := []map[string]interface{}{}
 		gen := appSetGenerator.Matrix.Generators[i]
 		for _, prevParam := range res {
-			params, err := m.getParams(gen, appSet, prevParam)
+			params, err := m.getParams(gen, appSet, prevParam, client)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get params for generator %d in the matrix generator: %w", i, err)
 			}
@@ -93,7 +93,7 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 	return res, nil
 }
 
-func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.ApplicationSetNestedGenerator, appSet *argoprojiov1alpha1.ApplicationSet, params map[string]interface{}) ([]map[string]interface{}, error) {
+func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.ApplicationSetNestedGenerator, appSet *argoprojiov1alpha1.ApplicationSet, params map[string]interface{}, client client.Client) ([]map[string]interface{}, error) {
 	matrixGen, err := getMatrixGenerator(appSetBaseGenerator)
 	if err != nil {
 		return nil, err
@@ -131,10 +131,10 @@ func (m *MatrixGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Appli
 		m.supportedGenerators,
 		argoprojiov1alpha1.ApplicationSetTemplate{},
 		appSet,
-		params)
-
+		params,
+		client)
 	if err != nil {
-		return nil, fmt.Errorf("child generator returned an error on parameter generation: %v", err)
+		return nil, fmt.Errorf("child generator returned an error on parameter generation: %w", err)
 	}
 
 	if len(t) == 0 {
@@ -184,7 +184,6 @@ func (m *MatrixGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.Ap
 	} else {
 		return NoRequeueAfter
 	}
-
 }
 
 func getMatrixGenerator(r argoprojiov1alpha1.ApplicationSetNestedGenerator) (*argoprojiov1alpha1.MatrixGenerator, error) {

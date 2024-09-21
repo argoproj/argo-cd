@@ -34,7 +34,6 @@ func TestNewAuditLogger(t *testing.T) {
 }
 
 func TestLogAppProjEvent(t *testing.T) {
-
 	logger := NewAuditLogger("default", fake.NewSimpleClientset(), "somecomponent")
 	assert.NotNil(t, logger)
 
@@ -91,7 +90,7 @@ func TestLogAppEvent(t *testing.T) {
 	}
 
 	output := captureLogEntries(func() {
-		logger.LogAppEvent(&app, ei, "This is a test message", "")
+		logger.LogAppEvent(&app, ei, "This is a test message", "", nil)
 	})
 
 	assert.Contains(t, output, "level=info")
@@ -101,7 +100,6 @@ func TestLogAppEvent(t *testing.T) {
 	assert.Contains(t, output, "reason=test")
 	assert.Contains(t, output, "type=info")
 	assert.Contains(t, output, "msg=\"This is a test message\"")
-
 }
 
 func TestLogResourceEvent(t *testing.T) {

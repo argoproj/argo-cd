@@ -35,19 +35,17 @@ type DisplayedAction struct {
 	Disabled bool
 }
 
-var (
-	appActionExample = templates.Examples(`
+var appActionExample = templates.Examples(`
 	# List all the available actions for an application
 	argocd app actions list APPNAME
 
 	# Run an available action for an application
 	argocd app actions run APPNAME ACTION --kind KIND [--resource-name RESOURCE] [--namespace NAMESPACE] [--group GROUP]
 	`)
-)
 
 // NewApplicationResourceActionsCommand returns a new instance of an `argocd app actions` command
 func NewApplicationResourceActionsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:     "actions",
 		Short:   "Manage Resource actions",
 		Example: appActionExample,
@@ -68,7 +66,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 	var group string
 	var resourceName string
 	var output string
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "list APPNAME",
 		Short: "Lists available actions on a resource",
 		Example: templates.Examples(`
@@ -150,7 +148,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	var kind string
 	var group string
 	var all bool
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "run APPNAME ACTION",
 		Short: "Runs an available action on resource(s)",
 		Example: templates.Examples(`
@@ -182,7 +180,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 		errors.CheckError(err)
 		filteredObjects, err := util.FilterResources(command.Flags().Changed("group"), resources, group, kind, namespace, resourceName, all)
 		errors.CheckError(err)
-		var resGroup = filteredObjects[0].GroupVersionKind().Group
+		resGroup := filteredObjects[0].GroupVersionKind().Group
 		for i := range filteredObjects[1:] {
 			if filteredObjects[i].GroupVersionKind().Group != resGroup {
 				log.Fatal("Ambiguous resource group. Use flag --group to specify resource group explicitly.")

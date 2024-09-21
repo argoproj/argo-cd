@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
-	cdcommon "github.com/argoproj/argo-cd/v2/common"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+
+	cdcommon "github.com/argoproj/argo-cd/v2/common"
 
 	"github.com/argoproj/gitops-engine/pkg/sync"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -22,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/argo-cd/v2/controller/metrics"
@@ -29,6 +32,7 @@ import (
 	listersv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/argo/diff"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 	logutils "github.com/argoproj/argo-cd/v2/util/log"
 	"github.com/argoproj/argo-cd/v2/util/lua"
 	"github.com/argoproj/argo-cd/v2/util/rand"
@@ -108,21 +112,25 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	if syncOp.Source == nil || (syncOp.Sources != nil && len(syncOp.Sources) > 0) {
+	isMultiSourceRevision := app.Spec.HasMultipleSources()
+	rollback := len(syncOp.Sources) > 0 || syncOp.Source != nil
+	if rollback {
+		// rollback case
+		if len(state.Operation.Sync.Sources) > 0 {
+			sources = state.Operation.Sync.Sources
+			isMultiSourceRevision = true
+		} else {
+			source = *state.Operation.Sync.Source
+			sources = make([]v1alpha1.ApplicationSource, 0)
+			isMultiSourceRevision = false
+		}
+	} else {
 		// normal sync case (where source is taken from app.spec.sources)
 		if app.Spec.HasMultipleSources() {
 			sources = app.Spec.Sources
 		} else {
 			// normal sync case (where source is taken from app.spec.source)
 			source = app.Spec.GetSource()
-			sources = make([]v1alpha1.ApplicationSource, 0)
-		}
-	} else {
-		// rollback case
-		if app.Spec.HasMultipleSources() {
-			sources = state.Operation.Sync.Sources
-		} else {
-			source = *state.Operation.Sync.Source
 			sources = make([]v1alpha1.ApplicationSource, 0)
 		}
 	}
@@ -136,7 +144,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		// status.operationState.syncResult.source. must be set properly since auto-sync relies
 		// on this information to decide if it should sync (if source is different than the last
 		// sync attempt)
-		if app.Spec.HasMultipleSources() {
+		if isMultiSourceRevision {
 			syncRes.Sources = sources
 		} else {
 			syncRes.Source = source
@@ -147,7 +155,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	// if we get here, it means we did not remember a commit SHA which we should be syncing to.
 	// This typically indicates we are just about to begin a brand new sync/rollback operation.
 	// Take the value in the requested operation. We will resolve this to a SHA later.
-	if app.Spec.HasMultipleSources() {
+	if isMultiSourceRevision {
 		if len(revisions) != len(sources) {
 			revisions = syncOp.Revisions
 		}
@@ -170,19 +178,13 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	if app.Spec.HasMultipleSources() {
-		revisions = syncRes.Revisions
-	} else {
-		revisions = append(revisions, revision)
-	}
-
-	if !app.Spec.HasMultipleSources() {
+	if !isMultiSourceRevision {
 		sources = []v1alpha1.ApplicationSource{source}
 		revisions = []string{revision}
 	}
 
 	// ignore error if CompareStateRepoError, this shouldn't happen as noRevisionCache is true
-	compareResult, err := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, app.Spec.HasMultipleSources())
+	compareResult, err := m.CompareAppState(app, proj, revisions, sources, false, true, syncOp.Manifests, isMultiSourceRevision, rollback)
 	if err != nil && !goerrors.Is(err, CompareStateRepoError) {
 		state.Phase = common.OperationError
 		state.Message = err.Error()
@@ -285,6 +287,23 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
 
+	if m.settingsMgr.IsImpersonationEnabled() {
+		serviceAccountToImpersonate, err := deriveServiceAccountName(proj, app)
+		if err != nil {
+			state.Phase = common.OperationError
+			state.Message = fmt.Sprintf("failed to find a matching service account to impersonate: %v", err)
+			return
+		}
+		logEntry = logEntry.WithFields(log.Fields{"impersonationEnabled": "true", "serviceAccount": serviceAccountToImpersonate})
+		// set the impersonation headers.
+		rawConfig.Impersonate = rest.ImpersonationConfig{
+			UserName: serviceAccountToImpersonate,
+		}
+		restConfig.Impersonate = rest.ImpersonationConfig{
+			UserName: serviceAccountToImpersonate,
+		}
+	}
+
 	opts := []sync.SyncOpt{
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
@@ -296,7 +315,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 				permitted, err := proj.IsDestinationPermitted(v1alpha1.ApplicationDestination{Namespace: un.GetNamespace(), Server: app.Spec.Destination.Server, Name: app.Spec.Destination.Name}, func(project string) ([]*v1alpha1.Cluster, error) {
 					return m.db.GetProjectClusters(context.TODO(), project)
 				})
-
 				if err != nil {
 					return err
 				}
@@ -326,7 +344,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 
 	if syncOp.SyncOptions.HasOption("CreateNamespace=true") {
-		opts = append(opts, sync.WithNamespaceModifier(syncNamespace(m.resourceTracking, appLabelKey, trackingMethod, app.Name, app.Spec.SyncPolicy)))
+		opts = append(opts, sync.WithNamespaceModifier(syncNamespace(app.Spec.SyncPolicy)))
 	}
 
 	syncCtx, cleanup, err := sync.NewSyncContext(
@@ -339,7 +357,6 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		openAPISchema,
 		opts...,
 	)
-
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("failed to initialize sync context: %v", err)
@@ -398,7 +415,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	logEntry.WithField("duration", time.Since(start)).Info("sync/terminate complete")
 
 	if !syncOp.DryRun && len(syncOp.Resources) == 0 && state.Phase.Successful() {
-		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, app.Spec.HasMultipleSources(), state.StartedAt, state.Operation.InitiatedBy)
+		err := m.persistRevisionHistory(app, compareResult.syncStatus.Revision, source, compareResult.syncStatus.Revisions, compareResult.syncStatus.ComparedTo.Sources, isMultiSourceRevision, state.StartedAt, state.Operation.InitiatedBy)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to record sync to history: %v", err)
@@ -538,4 +555,32 @@ func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject
 		isManual = !app.Status.OperationState.Operation.InitiatedBy.Automated
 	}
 	return !window.CanSync(isManual)
+}
+
+// deriveServiceAccountName determines the service account to be used for impersonation for the sync operation.
+// The returned service account will be fully qualified including namespace and the service account name in the format system:serviceaccount:<namespace>:<service_account>
+func deriveServiceAccountName(project *v1alpha1.AppProject, application *v1alpha1.Application) (string, error) {
+	// spec.Destination.Namespace is optional. If not specified, use the Application's
+	// namespace
+	serviceAccountNamespace := application.Spec.Destination.Namespace
+	if serviceAccountNamespace == "" {
+		serviceAccountNamespace = application.Namespace
+	}
+	// Loop through the destinationServiceAccounts and see if there is any destination that is a candidate.
+	// if so, return the service account specified for that destination.
+	for _, item := range project.Spec.DestinationServiceAccounts {
+		dstServerMatched := glob.Match(item.Server, application.Spec.Destination.Server)
+		dstNamespaceMatched := glob.Match(item.Namespace, application.Spec.Destination.Namespace)
+		if dstServerMatched && dstNamespaceMatched {
+			if strings.Contains(item.DefaultServiceAccount, ":") {
+				// service account is specified along with its namespace.
+				return fmt.Sprintf("system:serviceaccount:%s", item.DefaultServiceAccount), nil
+			} else {
+				// service account needs to be prefixed with a namespace
+				return fmt.Sprintf("system:serviceaccount:%s:%s", serviceAccountNamespace, item.DefaultServiceAccount), nil
+			}
+		}
+	}
+	// if there is no match found in the AppProject.Spec.DestinationServiceAccounts, use the default service account of the destination namespace.
+	return "", fmt.Errorf("no matching service account found for destination server %s and namespace %s", application.Spec.Destination.Server, serviceAccountNamespace)
 }

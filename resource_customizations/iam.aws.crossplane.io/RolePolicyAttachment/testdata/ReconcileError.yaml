@@ -1,0 +1,25 @@
+apiVersion: iam.aws.crossplane.io/v1beta1
+kind: RolePolicyAttachment
+metadata:
+  name: example
+spec:
+  deletionPolicy: Delete
+  forProvider:
+    policyArn: arn:aws:iam::123:policy/example
+    roleName: example
+  providerConfigRef:
+    name: provider-aws
+status:
+  atProvider:
+    attachedPolicyArn: ""
+  conditions:
+  - lastTransitionTime: "2024-07-11T13:44:28Z"
+    reason: Creating
+    status: "False"
+    type: Ready
+  - lastTransitionTime: "2024-07-11T13:44:28Z"
+    message: 'create failed: failed to attach the policy to role: NoSuchEntity: The
+      role with name example cannot be found.'
+    reason: ReconcileError
+    status: "False"
+    type: Synced

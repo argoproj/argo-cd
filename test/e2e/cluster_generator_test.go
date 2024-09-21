@@ -17,8 +17,7 @@ import (
 )
 
 func TestSimpleClusterGeneratorExternalNamespace(t *testing.T) {
-
-	var externalNamespace = string(utils.ArgoCDExternalNamespace)
+	externalNamespace := string(utils.ArgoCDExternalNamespace)
 
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
@@ -53,9 +52,10 @@ func TestSimpleClusterGeneratorExternalNamespace(t *testing.T) {
 		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace).
 		CreateNamespace(externalNamespace).
-		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
-			Name: "simple-cluster-generator",
-		},
+		Create(v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "simple-cluster-generator",
+			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -119,7 +119,6 @@ func TestSimpleClusterGeneratorExternalNamespace(t *testing.T) {
 }
 
 func TestSimpleClusterGenerator(t *testing.T) {
-
 	expectedApp := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
@@ -151,9 +150,10 @@ func TestSimpleClusterGenerator(t *testing.T) {
 		// Create a ClusterGenerator-based ApplicationSet
 		When().
 		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
-		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
-			Name: "simple-cluster-generator",
-		},
+		Create(v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "simple-cluster-generator",
+			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -275,9 +275,10 @@ func TestClusterGeneratorWithLocalCluster(t *testing.T) {
 			Given(t).
 				// Create a ClusterGenerator-based ApplicationSet
 				When().
-				Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
-					Name: "in-cluster-generator",
-				},
+				Create(v1alpha1.ApplicationSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "in-cluster-generator",
+					},
 					Spec: v1alpha1.ApplicationSetSpec{
 						Template: v1alpha1.ApplicationSetTemplate{
 							ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -329,7 +330,6 @@ func TestClusterGeneratorWithLocalCluster(t *testing.T) {
 }
 
 func TestSimpleClusterGeneratorAddingCluster(t *testing.T) {
-
 	expectedAppTemplate := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
@@ -366,9 +366,10 @@ func TestSimpleClusterGeneratorAddingCluster(t *testing.T) {
 		// Create a ClusterGenerator-based ApplicationSet
 		When().
 		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
-		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
-			Name: "simple-cluster-generator",
-		},
+		Create(v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "simple-cluster-generator",
+			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -411,7 +412,6 @@ func TestSimpleClusterGeneratorAddingCluster(t *testing.T) {
 }
 
 func TestSimpleClusterGeneratorDeletingCluster(t *testing.T) {
-
 	expectedAppTemplate := argov1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       application.ApplicationKind,
@@ -449,9 +449,10 @@ func TestSimpleClusterGeneratorDeletingCluster(t *testing.T) {
 		When().
 		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
 		CreateClusterSecret("my-secret2", "cluster2", "https://kubernetes.default.svc").
-		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
-			Name: "simple-cluster-generator",
-		},
+		Create(v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "simple-cluster-generator",
+			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},

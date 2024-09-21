@@ -119,7 +119,11 @@ export const ApplicationCreatePanel = (props: {
         } else {
             setDestFormat('URL');
         }
-    }, []);
+
+        return () => {
+            debouncedOnAppChanged.cancel();
+        };
+    }, [debouncedOnAppChanged]);
 
     function normalizeTypeFields(formApi: FormApi, type: models.AppSourceType) {
         const appToNormalize = formApi.getFormState().values;
@@ -447,7 +451,7 @@ export const ApplicationCreatePanel = (props: {
                                                 }}
                                                 load={async src => {
                                                     if (src.repoURL && src.targetRevision && (src.path || src.chart)) {
-                                                        return services.repos.appDetails(src, src.appName, app.spec.project).catch(() => ({
+                                                        return services.repos.appDetails(src, src.appName, app.spec.project, 0, 0).catch(() => ({
                                                             type: 'Directory',
                                                             details: {}
                                                         }));
