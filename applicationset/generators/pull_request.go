@@ -199,11 +199,19 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 	}
 	if generatorConfig.AzureDevOps != nil {
 		providerConfig := generatorConfig.AzureDevOps
+		var caCerts []byte
+		var scmError error
+		if providerConfig.CARef != nil {
+			caCerts, scmError = utils.GetConfigMapData(ctx, g.client, providerConfig.CARef, applicationSetInfo.Namespace)
+			if scmError != nil {
+				return nil, fmt.Errorf("error fetching CA certificates from ConfigMap: %w", scmError)
+			}
+		}
 		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.TokenRef, applicationSetInfo.Namespace)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %w", err)
 		}
-		return pullrequest.NewAzureDevOpsService(ctx, token, providerConfig.API, providerConfig.Organization, providerConfig.Project, providerConfig.Repo, providerConfig.Labels)
+		return pullrequest.NewAzureDevOpsService(ctx, token, providerConfig.API, providerConfig.Organization, providerConfig.Project, providerConfig.Repo, providerConfig.Labels, g.scmRootCAPath, providerConfig.Insecure, caCerts)
 	}
 	return nil, fmt.Errorf("no Pull Request provider implementation configured")
 }

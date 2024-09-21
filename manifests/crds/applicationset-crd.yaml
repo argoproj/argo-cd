@@ -5604,6 +5604,18 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      caRef:
+                                        properties:
+                                          configMapName:
+                                            type: string
+                                          key:
+                                            type: string
+                                        required:
+                                        - configMapName
+                                        - key
+                                        type: object
+                                      insecure:
+                                        type: boolean
                                       labels:
                                         items:
                                           type: string
@@ -6460,6 +6472,18 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
+                                      caRef:
+                                        properties:
+                                          configMapName:
+                                            type: string
+                                          key:
+                                            type: string
+                                        required:
+                                        - configMapName
+                                        - key
+                                        type: object
+                                      insecure:
+                                        type: boolean
                                       organization:
                                         type: string
                                       teamProject:
@@ -10968,6 +10992,18 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      caRef:
+                                        properties:
+                                          configMapName:
+                                            type: string
+                                          key:
+                                            type: string
+                                        required:
+                                        - configMapName
+                                        - key
+                                        type: object
+                                      insecure:
+                                        type: boolean
                                       labels:
                                         items:
                                           type: string
@@ -11824,6 +11860,18 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
+                                      caRef:
+                                        properties:
+                                          configMapName:
+                                            type: string
+                                          key:
+                                            type: string
+                                        required:
+                                        - configMapName
+                                        - key
+                                        type: object
+                                      insecure:
+                                        type: boolean
                                       organization:
                                         type: string
                                       teamProject:
@@ -13857,6 +13905,18 @@ spec:
                           properties:
                             api:
                               type: string
+                            caRef:
+                              properties:
+                                configMapName:
+                                  type: string
+                                key:
+                                  type: string
+                              required:
+                              - configMapName
+                              - key
+                              type: object
+                            insecure:
+                              type: boolean
                             labels:
                               items:
                                 type: string
@@ -14713,6 +14773,18 @@ spec:
                               type: boolean
                             api:
                               type: string
+                            caRef:
+                              properties:
+                                configMapName:
+                                  type: string
+                                key:
+                                  type: string
+                              required:
+                              - configMapName
+                              - key
+                              type: object
+                            insecure:
+                              type: boolean
                             organization:
                               type: string
                             teamProject:

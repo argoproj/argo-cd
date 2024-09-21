@@ -7,6 +7,7 @@ import (
 	netUrl "net/url"
 	"strings"
 
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/google/uuid"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	azureGit "github.com/microsoft/azure-devops-go-api/azuredevops/git"
@@ -57,7 +58,7 @@ var (
 	_ AzureDevOpsClientFactory = &devopsFactoryImpl{}
 )
 
-func NewAzureDevOpsProvider(ctx context.Context, accessToken string, org string, url string, project string, allBranches bool) (*AzureDevOpsProvider, error) {
+func NewAzureDevOpsProvider(ctx context.Context, accessToken string, org string, url string, project string, allBranches bool, scmRootCAPath string, insecure bool, caCerts []byte) (*AzureDevOpsProvider, error) {
 	if accessToken == "" {
 		return nil, fmt.Errorf("no access token provided")
 	}
@@ -68,6 +69,8 @@ func NewAzureDevOpsProvider(ctx context.Context, accessToken string, org string,
 	}
 
 	connection := azuredevops.NewPatConnection(devOpsURL, accessToken)
+	tlsConfig := utils.GetTlsConfig(scmRootCAPath, insecure, caCerts)
+	connection.TlsConfig = tlsConfig
 
 	return &AzureDevOpsProvider{organization: org, teamProject: project, accessToken: accessToken, clientFactory: &devopsFactoryImpl{connection: connection}, allBranches: allBranches}, nil
 }

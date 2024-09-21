@@ -200,11 +200,20 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			return nil, fmt.Errorf("error initializing Bitbucket Server service: %w", scmError)
 		}
 	} else if providerConfig.AzureDevOps != nil {
-		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.AzureDevOps.AccessTokenRef, applicationSetInfo.Namespace)
+		providerConfig := providerConfig.AzureDevOps
+		var caCerts []byte
+		var scmError error
+		if providerConfig.CARef != nil {
+			caCerts, scmError = utils.GetConfigMapData(ctx, g.client, providerConfig.CARef, applicationSetInfo.Namespace)
+			if scmError != nil {
+				return nil, fmt.Errorf("error fetching CA certificates from ConfigMap: %w", scmError)
+			}
+		}
+		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.AccessTokenRef, applicationSetInfo.Namespace)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Azure Devops access token: %w", err)
 		}
-		provider, err = scm_provider.NewAzureDevOpsProvider(ctx, token, providerConfig.AzureDevOps.Organization, providerConfig.AzureDevOps.API, providerConfig.AzureDevOps.TeamProject, providerConfig.AzureDevOps.AllBranches)
+		provider, err = scm_provider.NewAzureDevOpsProvider(ctx, token, providerConfig.Organization, providerConfig.API, providerConfig.TeamProject, providerConfig.AllBranches, g.scmRootCAPath, providerConfig.Insecure, caCerts)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Azure Devops service: %w", err)
 		}

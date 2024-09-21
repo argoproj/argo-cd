@@ -263,6 +263,10 @@ spec:
 * `api`: Optional. URL to Azure DevOps. If not set, `https://dev.azure.com` is used.
 * `allBranches`: Optional, default `false`. If `true`, scans every branch of eligible repositories. If `false`, check only the default branch of the eligible repositories.
 
+In case self-signed Azure DevOps certificates, the following options can be usefully:
+* `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
+* `caRef`: Optional `ConfigMap` name and key containing the Azure DevOps certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs. Will be concatenated with the ArgoCD trusted CM.
+
 ## Bitbucket Cloud
 
 The Bitbucket mode uses the Bitbucket API V2 to scan a workspace in bitbucket.org.
