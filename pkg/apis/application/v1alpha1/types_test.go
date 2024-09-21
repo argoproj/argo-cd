@@ -347,6 +347,14 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 		}},
 		appDest:     ApplicationDestination{Server: "https://test-server", Namespace: "test"},
 		isPermitted: true,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "*", Namespace: "*",
+		}, {
+			Server: "https://test-server", Namespace: "!other",
+		}},
+		appDest:     ApplicationDestination{Server: "https://other-test-server", Namespace: "other"},
+		isPermitted: true,
 	}}
 
 	for _, data := range testData {

@@ -472,7 +472,7 @@ func (proj AppProject) isDestinationMatched(dst ApplicationDestination) bool {
 			anyDestinationMatched = true
 		} else if (!dstNameMatched && isDenyPattern(item.Name)) || (!dstServerMatched && isDenyPattern(item.Server)) && dstNamespaceMatched {
 			return false
-		} else if !dstNamespaceMatched && isDenyPattern(item.Namespace) {
+		} else if !dstNamespaceMatched && isDenyPattern(item.Namespace) && dstServerMatched {
 			return false
 		}
 	}
