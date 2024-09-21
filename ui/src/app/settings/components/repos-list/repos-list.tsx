@@ -1029,6 +1029,11 @@ export class ReposList extends React.Component<
     private filteredRepos(repos: models.Repository[], type: string, project: string, status: string, sort: string, name: string) {
         let newRepos = repos;
 
+        if (name !== '' || name !== null) {
+            const response = this.filteredName(newRepos, name);
+            newRepos = response;
+        }
+
         if (type !== 'all') {
             const response = this.filteredType(newRepos, type);
             newRepos = response;
