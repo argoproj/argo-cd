@@ -1092,14 +1092,12 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 			}, appSet, nil)
 
 			if testCaseCopy.expectedErr != nil {
-				assert.ErrorIs(t, err, testCaseCopy.expectedErr)
+				require.ErrorIs(t, err, testCaseCopy.expectedErr)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
-
 		})
-
 	}
 }
 
@@ -1181,7 +1179,7 @@ func TestMatrixMaxGenerators(t *testing.T) {
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{},
 			}
 
-			var matrixGenerator = NewMatrixGenerator(
+			matrixGenerator := NewMatrixGenerator(
 				map[string]Generator{
 					"List": &ListGenerator{},
 				},
