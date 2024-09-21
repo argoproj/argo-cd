@@ -4135,62 +4135,114 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 		service := newService(t, "testdata/my-chart")
 
 		// Fill the manifest request with as many parameters affecting Helm commands as possible.
-		q := apiclient.ManifestRequest{
-			AppName:     "test-app",
-			Namespace:   "test-namespace",
-			KubeVersion: "1.2.3",
-			ApiVersions: []string{"v1/Test", "v2/Test"},
-			Repo:        &argoappv1.Repository{},
-			ApplicationSource: &argoappv1.ApplicationSource{
-				Path: ".",
-				Helm: &argoappv1.ApplicationSourceHelm{
-					FileParameters: []argoappv1.HelmFileParameter{
-						{
-							Name: "test-file-param-name",
-							Path: "test-file-param.yaml",
+
+		t.Run("default parameters", func(t *testing.T) {
+			q := apiclient.ManifestRequest{
+				AppName:     "test-app",
+				Namespace:   "test-namespace",
+				KubeVersion: "1.2.3",
+				ApiVersions: []string{"v1/Test", "v2/Test"},
+				Repo:        &argoappv1.Repository{},
+				ApplicationSource: &argoappv1.ApplicationSource{
+					Path: ".",
+					Helm: &argoappv1.ApplicationSourceHelm{
+						FileParameters: []argoappv1.HelmFileParameter{
+							{
+								Name: "test-file-param-name",
+								Path: "test-file-param.yaml",
+							},
 						},
-					},
-					Parameters: []argoappv1.HelmParameter{
-						{
-							Name: "test-param-name",
-							// Use build env var to test substitution.
-							Value:       "test-value-$ARGOCD_APP_NAME",
-							ForceString: true,
+						Parameters: []argoappv1.HelmParameter{
+							{
+								Name: "test-param-forcestring-name",
+								// Use build env var to test substitution.
+								Value:       "test-value-$ARGOCD_APP_NAME",
+								ForceString: true,
+							},
+							{
+								Name: "test-param-bool-name",
+								// Use build env var to test substitution.
+								Value: "false",
+							},
 						},
-						{
-							Name: "test-param-bool-name",
-							// Use build env var to test substitution.
-							Value: "false",
+						PassCredentials: true,
+						SkipCrds:        true,
+						ValueFiles: []string{
+							"my-chart-values.yaml",
 						},
+						Values: "test: values",
 					},
-					PassCredentials: true,
-					SkipCrds:        true,
-					ValueFiles: []string{
-						"my-chart-values.yaml",
-					},
-					Values: "test: values",
 				},
-			},
-			ProjectName:        "something",
-			ProjectSourceRepos: []string{"*"},
-		}
+				ProjectName:        "something",
+				ProjectSourceRepos: []string{"*"},
+			}
 
-		res, err := service.GenerateManifest(context.Background(), &q)
-
-		require.NoError(t, err)
-		assert.Equal(t, []string{"helm template . --name-template test-app --namespace test-namespace --kube-version 1.2.3 --set test-param-bool-name=false --set-string test-param-name=test-value-test-app --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v1/Test --api-versions v2/Test"}, res.Commands)
-
-		t.Run("with overrides", func(t *testing.T) {
-			// These can be set explicitly instead of using inferred values. Make sure the overrides apply.
-			q.ApplicationSource.Helm.APIVersions = []string{"v3", "v4"}
-			q.ApplicationSource.Helm.KubeVersion = "5.6.7"
-			q.ApplicationSource.Helm.Namespace = "different-namespace"
-			q.ApplicationSource.Helm.ReleaseName = "different-release-name"
-
-			res, err = service.GenerateManifest(context.Background(), &q)
+			res, err := service.GenerateManifest(context.Background(), &q)
 
 			require.NoError(t, err)
-			assert.Equal(t, []string{"helm template . --name-template different-release-name --namespace different-namespace --kube-version 5.6.7 --set test-param-bool-name=false --set-string test-param-name=test-value-test-app --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v3 --api-versions v4"}, res.Commands)
+			assert.Equal(t, []string{"helm template . --name-template test-app --namespace test-namespace --kube-version 1.2.3 --set test-param-bool-name=false --set-string test-param-forcestring-name=test-value-$ARGOCD_APP_NAME --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v1/Test --api-versions v2/Test"}, res.Commands)
+
+			t.Run("with overrides", func(t *testing.T) {
+				// These can be set explicitly instead of using inferred values. Make sure the overrides apply.
+				q.ApplicationSource.Helm.APIVersions = []string{"v3", "v4"}
+				q.ApplicationSource.Helm.KubeVersion = "5.6.7"
+				q.ApplicationSource.Helm.Namespace = "different-namespace"
+				q.ApplicationSource.Helm.ReleaseName = "different-release-name"
+
+				res, err = service.GenerateManifest(context.Background(), &q)
+
+				require.NoError(t, err)
+				assert.Equal(t, []string{"helm template . --name-template different-release-name --namespace different-namespace --kube-version 5.6.7 --set test-param-bool-name=false --set-string test-param-forcestring-name=test-value-$ARGOCD_APP_NAME --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v3 --api-versions v4"}, res.Commands)
+			})
+		})
+
+		t.Run("env variable interpolation", func(t *testing.T) {
+			q := apiclient.ManifestRequest{
+				AppName:     "test-app",
+				Namespace:   "test-namespace",
+				KubeVersion: "1.2.3",
+				ApiVersions: []string{"v1/Test", "v2/Test"},
+				Repo:        &argoappv1.Repository{},
+				ApplicationSource: &argoappv1.ApplicationSource{
+					Path: ".",
+					Helm: &argoappv1.ApplicationSourceHelm{
+						FileParameters: []argoappv1.HelmFileParameter{
+							{
+								Name: "test-file-param-name",
+								Path: "test-file-param.yaml",
+							},
+						},
+						// Use build env var to test substitution.
+						Parameters: []argoappv1.HelmParameter{
+							{
+								// do not interpolate with env var
+								Name:        "test-param-forcestring-name",
+								Value:       "test-value-$ARGOCD_APP_NAME",
+								ForceString: true,
+							},
+							{
+								// do interpolate with env var
+								Name:        "test-param-name",
+								Value:       "test-value-$ARGOCD_APP_NAME",
+								ForceString: false,
+							},
+						},
+						PassCredentials: true,
+						SkipCrds:        true,
+						ValueFiles: []string{
+							"my-chart-values.yaml",
+						},
+						Values: "test: values",
+					},
+				},
+				ProjectName:        "something",
+				ProjectSourceRepos: []string{"*"},
+			}
+
+			res, err := service.GenerateManifest(context.Background(), &q)
+
+			require.NoError(t, err)
+			assert.Equal(t, []string{"helm template . --name-template test-app --namespace test-namespace --kube-version 1.2.3 --set test-param-name=test-value-test-app --set-string test-param-forcestring-name=test-value-$ARGOCD_APP_NAME --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v1/Test --api-versions v2/Test"}, res.Commands)
 		})
 	})
 
