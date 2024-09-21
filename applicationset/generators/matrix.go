@@ -25,13 +25,22 @@ var (
 type MatrixGenerator struct {
 	// The inner generators supported by the matrix generator (cluster, git, list...)
 	supportedGenerators map[string]Generator
-	maxChildren         int
+	MatrixConfig
+}
+type MatrixConfig struct {
+	maxChildren int
 }
 
-func NewMatrixGenerator(supportedGenerators map[string]Generator, maxChildren int) Generator {
+func NewMatrixConfig(maxChildren int) MatrixConfig {
+	return MatrixConfig{
+		maxChildren: maxChildren,
+	}
+}
+
+func NewMatrixGenerator(supportedGenerators map[string]Generator, matrixConfig MatrixConfig) Generator {
 	m := &MatrixGenerator{
 		supportedGenerators: supportedGenerators,
-		maxChildren:         maxChildren,
+		MatrixConfig:        matrixConfig,
 	}
 	return m
 }

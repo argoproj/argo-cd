@@ -173,6 +173,8 @@ func NewCommand() *cobra.Command {
 				StrictValidation: repoServerStrictTLS,
 			}
 
+			matrixConfig := generators.NewMatrixConfig(maxMatrixChildren)
+
 			if !repoServerPlaintext && repoServerStrictTLS {
 				pool, err := tls.LoadX509CertPool(
 					fmt.Sprintf("%s/reposerver/tls/tls.crt", env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)),
@@ -186,7 +188,7 @@ func NewCommand() *cobra.Command {
 			argoCDService, err := services.NewArgoCDService(argoCDDB.GetRepository, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
 			errors.CheckError(err)
 
-			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig, maxMatrixChildren)
+			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig, matrixConfig)
 
 			// start a webhook server that listens to incoming webhook payloads
 			webhookHandler, err := webhook.NewWebhookHandler(namespace, webhookParallelism, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)

@@ -67,6 +67,7 @@ func TestRequeueAfter(t *testing.T) {
 		"PullRequest":             generators.NewPullRequestGenerator(k8sClient, scmConfig),
 	}
 
+	matrixConfig := generators.NewMatrixConfig(0)
 	nestedGenerators := map[string]generators.Generator{
 		"List":                    terminalGenerators["List"],
 		"Clusters":                terminalGenerators["Clusters"],
@@ -74,7 +75,7 @@ func TestRequeueAfter(t *testing.T) {
 		"SCMProvider":             terminalGenerators["SCMProvider"],
 		"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
 		"PullRequest":             terminalGenerators["PullRequest"],
-		"Matrix":                  generators.NewMatrixGenerator(terminalGenerators, 0),
+		"Matrix":                  generators.NewMatrixGenerator(terminalGenerators, matrixConfig),
 		"Merge":                   generators.NewMergeGenerator(terminalGenerators),
 	}
 
@@ -85,7 +86,7 @@ func TestRequeueAfter(t *testing.T) {
 		"SCMProvider":             terminalGenerators["SCMProvider"],
 		"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
 		"PullRequest":             terminalGenerators["PullRequest"],
-		"Matrix":                  generators.NewMatrixGenerator(nestedGenerators, 0),
+		"Matrix":                  generators.NewMatrixGenerator(nestedGenerators, matrixConfig),
 		"Merge":                   generators.NewMergeGenerator(nestedGenerators),
 	}
 
