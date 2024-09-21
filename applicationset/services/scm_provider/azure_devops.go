@@ -7,10 +7,11 @@ import (
 	netUrl "net/url"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/google/uuid"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	azureGit "github.com/microsoft/azure-devops-go-api/azuredevops/git"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 )
 
 const AZURE_DEVOPS_DEFAULT_URL = "https://dev.azure.com"

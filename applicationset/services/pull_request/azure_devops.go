@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	core "github.com/microsoft/azure-devops-go-api/azuredevops/core"
 	git "github.com/microsoft/azure-devops-go-api/azuredevops/git"
+
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 )
 
 const AZURE_DEVOPS_DEFAULT_URL = "https://dev.azure.com"
