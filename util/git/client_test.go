@@ -314,7 +314,7 @@ func Test_nativeGitClient_RevisionMetadata(t *testing.T) {
 	err = f.Close()
 	require.NoError(t, err)
 
-	err = runCmd(client.Root(), "git", "config", "user.name", `FooBar ||| something`)
+	err = runCmd(client.Root(), "git", "config", "user.name", "FooBar ||| something\nelse")
 	require.NoError(t, err)
 	err = runCmd(client.Root(), "git", "config", "user.email", "foo@foo.com")
 	require.NoError(t, err)
