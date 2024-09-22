@@ -48,22 +48,3 @@ func TestNewCmd_withProxy(t *testing.T) {
 	assert.Equal(t, "https://proxy:8888", cmd.proxy)
 	assert.Equal(t, ".argoproj.io", cmd.noProxy)
 }
-
-func TestCleanSetParameters(t *testing.T) {
-	val := "{key=value, key2=value2}"
-	result := cleanSetParameters(val)
-	require.NotEmpty(t, result)
-	assert.Equal(t, "{key=value, key2=value2}", result)
-
-	val = "key=value,key2=value2"
-	result = cleanSetParameters(val)
-	assert.Equal(t, "key=value\\,key2=value2", result)
-
-	val = ""
-	result = cleanSetParameters(val)
-	assert.Equal(t, "", result)
-
-	val = ",,,,,,,,value"
-	result = cleanSetParameters(val)
-	assert.Equal(t, "\\,\\,\\,\\,\\,\\,\\,\\,value", result)
-}
