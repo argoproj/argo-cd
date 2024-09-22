@@ -30,7 +30,7 @@ For each specific kind of ConfigMap and Secret resource, there is only a single 
 |------------------------------------------------------------------|-------------|--------------------------|
 | [`application.yaml`](../user-guide/application-specification.md) | Application | Example application spec |
 | [`project.yaml`](./project-specification.md)                     | AppProject  | Example project spec     |
-| -                                                                | Secret      | Repository credentials   |
+| [`argocd-repositories.yaml`](./argocd-repositories-yaml.md)                                                                | Secret      | Repository credentials   |
 
 For `Application` and `AppProject` resources, the name of the resource equals the name of the application or project within Argo CD. This also means that application and project names are unique within a given Argo CD installation - you cannot have the same application name for two different applications.
 
