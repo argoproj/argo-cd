@@ -1926,6 +1926,24 @@ func TestSyncWindows_Active(t *testing.T) {
 			matchingIndex:  0,
 			expectedLength: 1,
 		},
+		{
+			name: "MatchNone-InvalidSchedule",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * 7", "3h", ""),
+				syncWindow("allow", "* 11 * * 7", "3h", ""),
+			},
+			currentTime:    timeWithHour(12, time.UTC),
+			expectedLength: 0,
+		},
+		{
+			name: "MatchNone-InvalidDuration",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "3a", ""),
+				syncWindow("allow", "* 11 * * *", "3a", ""),
+			},
+			currentTime:    timeWithHour(12, time.UTC),
+			expectedLength: 0,
+		},
 	}
 
 	for _, tt := range tests {
@@ -2098,6 +2116,22 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 			currentTime:    timeWithHour(7, time.UTC),
 			matchingIndex:  0,
 			expectedLength: 1,
+		},
+		{
+			name: "MatchNone-InvalidSchedule",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * 7", "2h", ""),
+			},
+			currentTime:    timeWithHour(17, time.UTC),
+			expectedLength: 0,
+		},
+		{
+			name: "MatchNone-InvalidDuration",
+			syncWindow: SyncWindows{
+				syncWindow("allow", "* 10 * * *", "2a", ""),
+			},
+			currentTime:    timeWithHour(17, time.UTC),
+			expectedLength: 0,
 		},
 	}
 
@@ -2651,6 +2685,30 @@ func TestSyncWindow_Active(t *testing.T) {
 			name:           "Deny-inactive-NonUTC",
 			syncWindow:     syncWindow("deny", "* 10 * * *", "2h"),
 			currentTime:    timeWithHour(13-4, utcM4Zone),
+			expectedResult: false,
+		},
+		{
+			name:           "Allow-inactive-InvalidSchedule",
+			syncWindow:     syncWindow("allow", "* 10 * * 7", "2h"),
+			currentTime:    timeWithHour(11, time.UTC),
+			expectedResult: false,
+		},
+		{
+			name:           "Deny-inactive-InvalidSchedule",
+			syncWindow:     syncWindow("deny", "* 10 * * 7", "2h"),
+			currentTime:    timeWithHour(11, time.UTC),
+			expectedResult: false,
+		},
+		{
+			name:           "Allow-inactive-InvalidDuration",
+			syncWindow:     syncWindow("allow", "* 10 * * *", "2a"),
+			currentTime:    timeWithHour(11, time.UTC),
+			expectedResult: false,
+		},
+		{
+			name:           "Deny-inactive-InvalidDuration",
+			syncWindow:     syncWindow("deny", "* 10 * * *", "2a"),
+			currentTime:    timeWithHour(11, time.UTC),
 			expectedResult: false,
 		},
 	}
