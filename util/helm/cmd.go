@@ -343,7 +343,6 @@ type TemplateOpts struct {
 }
 
 var (
-	re                 = regexp.MustCompile(`([^\\]),`)
 	apiVersionsRemover = regexp.MustCompile(`(--api-versions [^ ]+ )+`)
 )
 
@@ -352,8 +351,21 @@ func cleanSetParameters(val string) string {
 	if strings.HasPrefix(val, `{`) && strings.HasSuffix(val, `}`) {
 		return val
 	}
-	re := regexp.MustCompile(`,`)
-	return re.ReplaceAllString(val, `$1\,`)
+
+	var result strings.Builder
+	for i := 0; i < len(val); i++ {
+		if val[i] == ',' {
+			if i == 0 || val[i-1] != '\\' {
+				result.WriteString(`\,`)
+			} else {
+				result.WriteByte(',')
+			}
+		} else {
+			result.WriteByte(val[i])
+		}
+	}
+
+	return result.String()
 }
 
 func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, string, error) {
