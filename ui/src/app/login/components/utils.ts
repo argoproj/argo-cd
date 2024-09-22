@@ -23,8 +23,9 @@ export const PKCECodeVerifier = {
 };
 
 export const PKCEState = {
-    get: () => sessionStorage.getItem('pkce_session_id'),
-    set: (sessionId: string) => sessionStorage.setItem('pkce_session_id', sessionId)
+    get: () => sessionStorage.getItem(window.btoa('pkce_session_id')),
+    set: (sessionId: string) => sessionStorage.setItem(window.btoa('pkce_session_id'), sessionId),
+    unset: () => sessionStorage.removeItem(window.btoa('pkce_session_id'))
 };
 
 export const getPKCERedirectURI = () => {
