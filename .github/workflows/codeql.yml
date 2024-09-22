@@ -23,7 +23,7 @@ jobs:
       actions: read  # for github/codeql-action/init to get workflow details
       contents: read  # for actions/checkout to fetch code
       security-events: write  # for github/codeql-action/autobuild to send a status report
-    if: github.repository == 'argoproj/argo-cd'
+    if: github.repository == 'argoproj/argo-cd' || vars.enable_codeql
 
     # CodeQL runs on ubuntu-latest and windows-latest
     runs-on: ubuntu-22.04
