@@ -3,12 +3,10 @@ package application
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -63,22 +61,6 @@ func newEnforcer() *rbac.Enforcer {
 func reconnect(w http.ResponseWriter, r *http.Request) {
 	ts := newTestTerminalSession(w, r)
 	_, _ = ts.reconnect()
-}
-
-// retryReadMessage reads a message from the WebSocket connection with retries to handle asynchronous message delivery.
-func retryReadMessage(wsConn *websocket.Conn, receivedMessage *TerminalMessage) error {
-	for i := 0; i < 5; i++ {
-		_, p, err := wsConn.ReadMessage()
-		if err == nil {
-			err = json.Unmarshal(p, receivedMessage)
-			if err == nil {
-				return nil
-			}
-		}
-		// Sleep for a short duration to allow for any asynchronous processing delays
-		time.Sleep(50 * time.Millisecond)
-	}
-	return fmt.Errorf("failed to read message from WebSocket after retries")
 }
 
 func TestReconnect(t *testing.T) {
@@ -184,6 +166,53 @@ func TestValidateWithoutPermissions(t *testing.T) {
 	testServerConnection(t, validate, true)
 }
 
+func TestTerminalSession_Write(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upgrader := websocket.Upgrader{}
+		conn, err := upgrader.Upgrade(w, r, nil)
+		require.NoError(t, err)
+		defer conn.Close()
+
+		for {
+			// Read the message from the WebSocket connection
+			messageType, message, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			// Respond back the same message
+			err = conn.WriteMessage(messageType, message)
+			require.NoError(t, err)
+		}
+	}))
+	defer server.Close()
+
+	u := "ws" + strings.TrimPrefix(server.URL, "http")
+	wsConn, _, err := websocket.DefaultDialer.Dial(u, nil)
+	require.NoError(t, err)
+	defer wsConn.Close()
+
+	ts := terminalSession{
+		wsConn: wsConn,
+	}
+
+	testData := []byte("hello world")
+	expectedMessage, err := json.Marshal(TerminalMessage{
+		Operation: "stdout",
+		Data:      string(testData),
+	})
+	require.NoError(t, err)
+
+	n, err := ts.Write(testData)
+	require.NoError(t, err)
+
+	assert.Equal(t, len(testData), n)
+
+	_, receivedMessage, err := wsConn.ReadMessage()
+	require.NoError(t, err)
+
+	assert.Equal(t, expectedMessage, receivedMessage)
+}
+
 func TestTerminalSession_Read(t *testing.T) {
 	validate := func(w http.ResponseWriter, r *http.Request) {
 		ts := newTestTerminalSession(w, r)
@@ -210,9 +239,7 @@ func TestTerminalSession_Read(t *testing.T) {
 		for _, msg := range testMessages {
 			bytes, _ := json.Marshal(msg)
 			err := ts.wsConn.WriteMessage(websocket.TextMessage, bytes)
-			if err != nil {
-				t.Errorf("Failed to write the message %v\n", err)
-			}
+			require.NoError(t, err)
 
 			p := make([]byte, 1024)
 			n, err := ts.Read(p)
@@ -233,33 +260,6 @@ func TestTerminalSession_Read(t *testing.T) {
 				assert.Equal(t, string(EndOfTransmission), string(p[:n]))
 			}
 		}
-	}
-
-	testServerConnection(t, validate, false)
-}
-
-func TestTerminalSession_Write(t *testing.T) {
-	validate := func(w http.ResponseWriter, r *http.Request) {
-		ts := newTestTerminalSession(w, r)
-
-		// Test input data to write to the terminal session
-		testInput := "test output"
-		expectedMessage := TerminalMessage{
-			Operation: "stdout",
-			Data:      testInput,
-		}
-
-		n, err := ts.Write([]byte(testInput))
-		require.NoError(t, err)
-		require.Equal(t, len(testInput), n)
-
-		// Read the message from the WebSocket with retries
-		var receivedMessage TerminalMessage
-		err = retryReadMessage(ts.wsConn, &receivedMessage)
-		require.NoError(t, err)
-
-		assert.Equal(t, expectedMessage.Operation, receivedMessage.Operation)
-		assert.Equal(t, expectedMessage.Data, receivedMessage.Data)
 	}
 
 	testServerConnection(t, validate, false)

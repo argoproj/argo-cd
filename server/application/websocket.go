@@ -189,7 +189,11 @@ func (t *terminalSession) Read(p []byte) (int, error) {
 	_, message, err := t.wsConn.ReadMessage()
 	t.readLock.Unlock()
 	if err != nil {
-		log.Errorf("read message err: %v", err)
+		if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+			log.Errorf("unexpected closer error: %v", err)
+			return copy(p, EndOfTransmission), err
+		}
+		log.Errorf("read message error: %v", err)
 		return copy(p, EndOfTransmission), err
 	}
 	var msg TerminalMessage
