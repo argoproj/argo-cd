@@ -333,7 +333,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 	t.Setenv("DOCKER_CONFIG", tempDir)
 
 	config := fmt.Sprintf(`{"auths":{"%s":{"auth":"Zm9vOmJhcg=="}}}`, server.URL)
-	require.NoError(t, os.WriteFile(configPath, []byte(config), 0666))
+	require.NoError(t, os.WriteFile(configPath, []byte(config), 0o666))
 
 	testCases := []struct {
 		name    string
