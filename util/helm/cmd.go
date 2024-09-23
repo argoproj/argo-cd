@@ -353,15 +353,15 @@ func cleanSetParameters(val string) string {
 	}
 
 	var result strings.Builder
-	for i := 0; i < len(val); i++ {
-		if val[i] == ',' {
-			if i == 0 || val[i-1] != '\\' {
+	for _, r := range val {
+		if r == ',' {
+			if result.Len() == 0 || result.String()[result.Len()-1] != '\\' {
 				result.WriteString(`\,`)
 			} else {
-				result.WriteByte(',')
+				result.WriteRune(',')
 			}
 		} else {
-			result.WriteByte(val[i])
+			result.WriteRune(r)
 		}
 	}
 
