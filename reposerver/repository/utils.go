@@ -11,9 +11,9 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 )
 
-// GetApplicationRootPath returns the common root path (shortest shared structure between all paths) among a
+// getApplicationRootPath returns the common root path (shortest shared structure between all paths) among a
 // set of application-related paths for manifest generation. AppPath is the lower possible value
-func GetApplicationRootPath(q *apiclient.ManifestRequest, appPath, repoPath string) string {
+func getApplicationRootPath(q *apiclient.ManifestRequest, appPath, repoPath string) string {
 	paths := getPaths(q, appPath, repoPath)
 
 	if len(paths) == 0 {
@@ -22,11 +22,11 @@ func GetApplicationRootPath(q *apiclient.ManifestRequest, appPath, repoPath stri
 	}
 
 	// the app path must be the lower possible value
-	commonParts := strings.Split(appPath, "/")
+	commonParts := strings.Split(appPath, string(filepath.Separator))
 
 	var disjoint bool
 	for _, path := range paths {
-		parts := strings.Split(path, "/")
+		parts := strings.Split(path, string(filepath.Separator))
 		// find the minimum length between the current common parts and the current path
 		minLen := func(a, b int) int {
 			if a < b {
@@ -49,7 +49,7 @@ func GetApplicationRootPath(q *apiclient.ManifestRequest, appPath, repoPath stri
 			commonParts = commonParts[:minLen]
 		}
 	}
-	return strings.Join(commonParts, "/")
+	return string(filepath.Separator) + filepath.Join(commonParts...)
 }
 
 // getPaths retrieves all absolute paths associated with the generation of application manifests.

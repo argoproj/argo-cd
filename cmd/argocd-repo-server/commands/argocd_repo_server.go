@@ -52,30 +52,30 @@ var (
 
 func NewCommand() *cobra.Command {
 	var (
-		parallelismLimit                                                 int64
-		listenPort                                                       int
-		listenHost                                                       string
-		metricsPort                                                      int
-		metricsHost                                                      string
-		otlpAddress                                                      string
-		otlpInsecure                                                     bool
-		otlpHeaders                                                      map[string]string
-		otlpAttrs                                                        []string
-		cacheSrc                                                         func() (*reposervercache.Cache, error)
-		tlsConfigCustomizer                                              tls.ConfigCustomizer
-		tlsConfigCustomizerSrc                                           func() (tls.ConfigCustomizer, error)
-		redisClient                                                      *redis.Client
-		disableTLS                                                       bool
-		maxCombinedDirectoryManifestsSize                                string
-		cmpTarExcludedGlobs                                              []string
-		allowOutOfBoundsSymlinks                                         bool
-		streamedManifestMaxTarSize                                       string
-		streamedManifestMaxExtractedSize                                 string
-		helmManifestMaxExtractedSize                                     string
-		helmRegistryMaxIndexSize                                         string
-		disableManifestMaxExtractedSize                                  bool
-		includeHiddenDirectories                                         bool
-		enableCmpManifestsGenerationUsingManifestGeneratePathsAnnotation bool
+		parallelismLimit                  int64
+		listenPort                        int
+		listenHost                        string
+		metricsPort                       int
+		metricsHost                       string
+		otlpAddress                       string
+		otlpInsecure                      bool
+		otlpHeaders                       map[string]string
+		otlpAttrs                         []string
+		cacheSrc                          func() (*reposervercache.Cache, error)
+		tlsConfigCustomizer               tls.ConfigCustomizer
+		tlsConfigCustomizerSrc            func() (tls.ConfigCustomizer, error)
+		redisClient                       *redis.Client
+		disableTLS                        bool
+		maxCombinedDirectoryManifestsSize string
+		cmpTarExcludedGlobs               []string
+		allowOutOfBoundsSymlinks          bool
+		streamedManifestMaxTarSize        string
+		streamedManifestMaxExtractedSize  string
+		helmManifestMaxExtractedSize      string
+		helmRegistryMaxIndexSize          string
+		disableManifestMaxExtractedSize   bool
+		includeHiddenDirectories          bool
+		cmpUseManifestGeneratePaths       bool
 	)
 	command := cobra.Command{
 		Use:               cliName,
@@ -125,19 +125,19 @@ func NewCommand() *cobra.Command {
 			cacheutil.CollectMetrics(redisClient, metricsServer)
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
 				ParallelismLimit: parallelismLimit,
-				PauseGenerationAfterFailedGenerationAttempts:                     pauseGenerationAfterFailedGenerationAttempts,
-				PauseGenerationOnFailureForMinutes:                               pauseGenerationOnFailureForMinutes,
-				PauseGenerationOnFailureForRequests:                              pauseGenerationOnFailureForRequests,
-				SubmoduleEnabled:                                                 gitSubmoduleEnabled,
-				MaxCombinedDirectoryManifestsSize:                                maxCombinedDirectoryManifestsQuantity,
-				CMPTarExcludedGlobs:                                              cmpTarExcludedGlobs,
-				AllowOutOfBoundsSymlinks:                                         allowOutOfBoundsSymlinks,
-				StreamedManifestMaxExtractedSize:                                 streamedManifestMaxExtractedSizeQuantity.ToDec().Value(),
-				StreamedManifestMaxTarSize:                                       streamedManifestMaxTarSizeQuantity.ToDec().Value(),
-				HelmManifestMaxExtractedSize:                                     helmManifestMaxExtractedSizeQuantity.ToDec().Value(),
-				HelmRegistryMaxIndexSize:                                         helmRegistryMaxIndexSizeQuantity.ToDec().Value(),
-				IncludeHiddenDirectories:                                         includeHiddenDirectories,
-				EnableCmpManifestsGenerationUsingManifestGeneratePathsAnnotation: enableCmpManifestsGenerationUsingManifestGeneratePathsAnnotation,
+				PauseGenerationAfterFailedGenerationAttempts: pauseGenerationAfterFailedGenerationAttempts,
+				PauseGenerationOnFailureForMinutes:           pauseGenerationOnFailureForMinutes,
+				PauseGenerationOnFailureForRequests:          pauseGenerationOnFailureForRequests,
+				SubmoduleEnabled:                             gitSubmoduleEnabled,
+				MaxCombinedDirectoryManifestsSize:            maxCombinedDirectoryManifestsQuantity,
+				CMPTarExcludedGlobs:                          cmpTarExcludedGlobs,
+				AllowOutOfBoundsSymlinks:                     allowOutOfBoundsSymlinks,
+				StreamedManifestMaxExtractedSize:             streamedManifestMaxExtractedSizeQuantity.ToDec().Value(),
+				StreamedManifestMaxTarSize:                   streamedManifestMaxTarSizeQuantity.ToDec().Value(),
+				HelmManifestMaxExtractedSize:                 helmManifestMaxExtractedSizeQuantity.ToDec().Value(),
+				HelmRegistryMaxIndexSize:                     helmRegistryMaxIndexSizeQuantity.ToDec().Value(),
+				IncludeHiddenDirectories:                     includeHiddenDirectories,
+				CMPUseManifestGeneratePaths:                  cmpUseManifestGeneratePaths,
 			}, askPassServer)
 			errors.CheckError(err)
 
@@ -243,7 +243,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&helmRegistryMaxIndexSize, "helm-registry-max-index-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_INDEX_SIZE", "1G"), "Maximum size of registry index file")
 	command.Flags().BoolVar(&disableManifestMaxExtractedSize, "disable-helm-manifest-max-extracted-size", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE", false), "Disable maximum size of helm manifest archives when extracted")
 	command.Flags().BoolVar(&includeHiddenDirectories, "include-hidden-directories", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES", false), "Include hidden directories from Git")
-	command.Flags().BoolVar(&enableCmpManifestsGenerationUsingManifestGeneratePathsAnnotation, "enable-plugin-manifests-generation-using-manifest-generate-paths-annotation", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_PLUGIN_ENABLE_GENERATE_MANIFESTS_USING_MANIFEST_GENERATE_PATHS_ANNOTATION", false), "Pass the resources described in argocd.argoproj.io/manifest-generate-paths value to the cmpserver to generate the application manifests.")
+	command.Flags().BoolVar(&cmpUseManifestGeneratePaths, "plugin-use-manifest-generate-paths", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS", false), "Pass the resources described in argocd.argoproj.io/manifest-generate-paths value to the cmpserver to generate the application manifests.")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {

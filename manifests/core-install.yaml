@@ -22858,10 +22858,10 @@ spec:
               name: argocd-cmd-params-cm
               optional: true
         - configMapKeyRef:
-            key: reposerver.plugin.enable.manifests.generation.using.annotations
+            key: reposerver.plugin.use.manifest.generate.paths
             name: argocd-cmd-params-cm
             optional: true
-          name: ARGOCD_REPO_SERVER_PLUGIN_ENABLE_GENERATE_MANIFESTS_USING_MANIFEST_GENERATE_PATHS_ANNOTATION
+          name: ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS
           valueFrom: null
         - name: ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS
           valueFrom:

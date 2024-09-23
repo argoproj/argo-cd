@@ -365,9 +365,9 @@ To enhance the application manifests generation process, you can enable the use 
 
 You can set it one of three ways:
 
-1. The `--enable-plugin-manifests-generation-using-manifest-generate-paths-annotation` argument on the repo server.
-2. The `reposerver.plugin.enable.manifests.generation.using.annotations` key if you are using `argocd-cmd-params-cm`
-3. Directly setting `ARGOCD_REPO_SERVER_PLUGIN_ENABLE_GENERATE_MANIFESTS_USING_MANIFEST_GENERATE_PATHS_ANNOTATION` environment variable on the repo server to `true`.
+1. The `--plugin-use-manifest-generate-paths` argument on the repo server.
+2. The `reposerver.plugin.use.manifest.generate.paths` key if you are using `argocd-cmd-params-cm`
+3. Directly setting `ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS` environment variable on the repo server to `true`.
 
 ## Migrating from argocd-cm plugins
 
