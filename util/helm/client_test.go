@@ -361,7 +361,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			client := NewClient(testCase.repoURL, Creds{
 				InsecureSkipVerify: true,
-			}, true, "")
+			}, true, "", "")
 
 			tags, err := client.GetTags("mychart", true)
 
