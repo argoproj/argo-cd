@@ -112,6 +112,7 @@ func NewServer(
 	settingsMgr *settings.SettingsManager,
 	projInformer cache.SharedIndexInformer,
 	enabledNamespaces []string,
+	enableK8sEvent []string,
 ) (application.ApplicationServiceServer, AppResourceTreeFn) {
 	if appBroadcaster == nil {
 		appBroadcaster = &broadcasterHandler{}
@@ -133,7 +134,7 @@ func NewServer(
 		kubectl:           kubectl,
 		enf:               enf,
 		projectLock:       projectLock,
-		auditLogger:       argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
+		auditLogger:       argo.NewAuditLogger(namespace, kubeclientset, "argocd-server", enableK8sEvent),
 		settingsMgr:       settingsMgr,
 		projInformer:      projInformer,
 		enabledNamespaces: enabledNamespaces,
