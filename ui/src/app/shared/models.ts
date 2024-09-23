@@ -324,12 +324,12 @@ export const SyncStatuses: {[key: string]: SyncStatusCode} = {
 export type HealthStatusCode = 'Unknown' | 'Progressing' | 'Healthy' | 'Suspended' | 'Degraded' | 'Missing';
 
 export const HealthStatuses: {[key: string]: HealthStatusCode} = {
-    Unknown: 'Unknown',
     Progressing: 'Progressing',
     Suspended: 'Suspended',
     Healthy: 'Healthy',
     Degraded: 'Degraded',
-    Missing: 'Missing'
+    Missing: 'Missing',
+    Unknown: 'Unknown'
 };
 
 export interface HealthStatus {

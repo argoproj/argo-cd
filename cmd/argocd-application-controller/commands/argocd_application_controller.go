@@ -24,6 +24,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/pkg/ratelimiter"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
@@ -78,6 +79,9 @@ func NewCommand() *cobra.Command {
 		enableDynamicClusterDistribution bool
 		serverSideDiff                   bool
 		ignoreNormalizerOpts             normalizers.IgnoreNormalizerOpts
+
+		// argocd k8s event logging flag
+		enableK8sEvent []string
 	)
 	command := cobra.Command{
 		Use:               cliName,
@@ -177,6 +181,7 @@ func NewCommand() *cobra.Command {
 				serverSideDiff,
 				enableDynamicClusterDistribution,
 				ignoreNormalizerOpts,
+				enableK8sEvent,
 			)
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
@@ -251,6 +256,9 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableDynamicClusterDistribution, "dynamic-cluster-distribution-enabled", env.ParseBoolFromEnv(common.EnvEnableDynamicClusterDistribution, false), "Enables dynamic cluster distribution.")
 	command.Flags().BoolVar(&serverSideDiff, "server-side-diff-enabled", env.ParseBoolFromEnv(common.EnvServerSideDiff, false), "Feature flag to enable ServerSide diff. Default (\"false\")")
 	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout-seconds", env.ParseDurationFromEnv("ARGOCD_IGNORE_NORMALIZER_JQ_TIMEOUT", 0*time.Second, 0, math.MaxInt64), "Set ignore normalizer JQ execution timeout")
+	// argocd k8s event logging flag
+	command.Flags().StringSliceVar(&enableK8sEvent, "enable-k8s-event", env.StringsFromEnv("ARGOCD_ENABLE_K8S_EVENT", argo.DefaultEnableEventList(), ","), "Enable ArgoCD to use k8s event. For disabling all events, set the value as `none`. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated)")
+
 	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {
 			redisClient = client
