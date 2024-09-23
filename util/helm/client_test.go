@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -281,6 +282,90 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 			tags, err := client.GetTags("mychart", true)
 
 			require.NoError(t, err)
+			assert.ElementsMatch(t, tags.Tags, []string{
+				"2.8.0",
+				"2.8.0-prerelease",
+				"2.8.0+build",
+				"2.8.0-prerelease+build",
+				"2.8.0-prerelease.1+build.1234",
+			})
+		})
+	}
+}
+
+func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Logf("called %s", r.URL.Path)
+
+		authorization := r.Header.Get("Authorization")
+		if authorization == "" {
+			w.Header().Set("WWW-Authenticate", `Basic realm="helm repo to get tags"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		t.Logf("authorization received %s", authorization)
+
+		responseTags := TagsList{
+			Tags: []string{
+				"2.8.0",
+				"2.8.0-prerelease",
+				"2.8.0_build",
+				"2.8.0-prerelease_build",
+				"2.8.0-prerelease.1_build.1234",
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		err := json.NewEncoder(w).Encode(responseTags)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	serverURL, err := url.Parse(server.URL)
+	assert.NoError(t, err)
+
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.json")
+	t.Setenv("DOCKER_CONFIG", tempDir)
+
+	config := fmt.Sprintf(`{"auths":{"%s":{"auth":"Zm9vOmJhcg=="}}}`, server.URL)
+	assert.NoError(t, os.WriteFile(configPath, []byte(config), 0666))
+
+	testCases := []struct {
+		name    string
+		repoURL string
+	}{
+		{
+			name:    "should login correctly when the repo path is in the server root with http scheme",
+			repoURL: server.URL,
+		},
+		{
+			name:    "should login correctly when the repo path is not in the server root with http scheme",
+			repoURL: fmt.Sprintf("%s/my-repo", server.URL),
+		},
+		{
+			name:    "should login correctly when the repo path is in the server root without http scheme",
+			repoURL: serverURL.Host,
+		},
+		{
+			name:    "should login correctly when the repo path is not in the server root without http scheme",
+			repoURL: fmt.Sprintf("%s/my-repo", serverURL.Host),
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			client := NewClient(testCase.repoURL, Creds{
+				InsecureSkipVerify: true,
+			}, true, "")
+
+			tags, err := client.GetTags("mychart", true)
+
+			assert.NoError(t, err)
 			assert.ElementsMatch(t, tags.Tags, []string{
 				"2.8.0",
 				"2.8.0-prerelease",
