@@ -31,6 +31,7 @@ argocd-application-controller [flags]
       --default-cache-expiration duration                         Cache expiration default (default 24h0m0s)
       --disable-compression                                       If true, opt-out of response compression for all requests to the server
       --dynamic-cluster-distribution-enabled                      Enables dynamic cluster distribution.
+      --enable-k8s-event none                                     Enable ArgoCD to use k8s event. For disabling all events, set the value as none. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated) (default [all])
       --gloglevel int                                             Set the glog logging level
   -h, --help                                                      help for argocd-application-controller
       --ignore-normalizer-jq-execution-timeout-seconds duration   Set ignore normalizer JQ execution timeout
@@ -39,6 +40,7 @@ argocd-application-controller [flags]
       --kubectl-parallelism-limit int                             Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit. (default 20)
       --logformat string                                          Set the logging format. One of: text|json (default "text")
       --loglevel string                                           Set the logging level. One of: debug|info|warn|error (default "info")
+      --metrics-application-conditions strings                    List of Application conditions that will be added to the argocd_application_conditions metric
       --metrics-application-labels strings                        List of Application labels that will be added to the argocd_application_labels metric
       --metrics-cache-expiration duration                         Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)
       --metrics-port int                                          Start metrics server on given port (default 8082)

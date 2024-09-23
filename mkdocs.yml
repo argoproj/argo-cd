@@ -47,6 +47,7 @@ nav:
     - snyk/index.md
     - operator-manual/signed-release-assets.md
   - operator-manual/tls.md
+  - operator-manual/cluster-management.md
   - operator-manual/cluster-bootstrapping.md
   - operator-manual/secret-management.md
   - operator-manual/disaster_recovery.md
@@ -210,7 +211,7 @@ nav:
   - developer-guide/dependencies.md
   - developer-guide/ci.md
   - developer-guide/releasing.md
-  - developer-guide/site.md
+  - developer-guide/docs-site.md
   - developer-guide/static-code-analysis.md
   - Extensions:
     - developer-guide/extensions/ui-extensions.md

@@ -1,10 +1,14 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"sync"
+	"syscall"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -62,7 +66,8 @@ func NewCommand() *cobra.Command {
 		Use:   "controller",
 		Short: "Starts Argo CD Notifications controller",
 		RunE: func(c *cobra.Command, args []string) error {
-			ctx := c.Context()
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 
 			vers := common.GetVersion()
 			namespace, _, err := clientConfig.Namespace()
@@ -145,6 +150,17 @@ func NewCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to initialize controller: %w", err)
 			}
+
+			sigCh := make(chan os.Signal, 1)
+			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+			wg := sync.WaitGroup{}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				s := <-sigCh
+				log.Printf("got signal %v, attempting graceful shutdown", s)
+				cancel()
+			}()
 
 			go ctrl.Run(ctx, processorsCount)
 			<-ctx.Done()
