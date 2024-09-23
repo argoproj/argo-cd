@@ -251,6 +251,50 @@
         }
       }
     },
+    "/api/v1/application/changeRevision": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "operationId": "ApplicationService_GetChangeRevision",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "appName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "currentRevision",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "previousRevision",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationChangeRevisionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications": {
       "get": {
         "tags": [
@@ -4503,6 +4547,14 @@
           "type": "string"
         },
         "error": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationChangeRevisionResponse": {
+      "type": "object",
+      "properties": {
+        "revision": {
           "type": "string"
         }
       }
@@ -9220,6 +9272,15 @@
       "description": "SyncOperation contains details about a sync operation.",
       "type": "object",
       "properties": {
+        "changeRevision": {
+          "type": "string"
+        },
+        "changeRevisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "dryRun": {
           "type": "boolean",
           "title": "DryRun specifies to perform a `kubectl apply --dry-run` without actually performing the sync"

@@ -200,6 +200,19 @@ message ApplicationResourceRequest {
 	optional string project = 8;
 }
 
+message ChangeRevisionRequest {
+	required string appName = 1;
+	optional string namespace = 2;
+	optional string currentRevision = 3;
+	optional string previousRevision = 4;
+}
+
+message ChangeRevisionResponse {
+	required string revision = 1;
+}
+
+
+
 message ApplicationResourcePatchRequest {
 	required string name = 1;
 	optional string namespace = 2;
@@ -529,5 +542,9 @@ service ApplicationService {
 	// ListResourceLinks returns the list of all resource deep links
 	rpc ListResourceLinks(ApplicationResourceRequest) returns (LinksResponse) {
 		option (google.api.http).get = "/api/v1/applications/{name}/resource/links";
+	}
+
+	rpc GetChangeRevision(ChangeRevisionRequest) returns (ChangeRevisionResponse) {
+		option (google.api.http).get = "/api/v1/application/changeRevision";
 	}
 }

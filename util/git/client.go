@@ -82,6 +82,8 @@ type Client interface {
 	IsAnnotatedTag(string) bool
 	ChangedFiles(revision string, targetRevision string) ([]string, error)
 	IsRevisionPresent(revision string) bool
+	ListRevisions(revision string, targetRevision string) ([]string, error)
+	DiffTree(targetRevision string) ([]string, error)
 }
 
 type EventHandlers struct {
@@ -885,4 +887,50 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 		CaptureStderr:    ropts.CaptureStderr,
 	}
 	return executil.RunWithExecRunOpts(cmd, opts)
+}
+
+func (m *nativeGitClient) Diff(targetRevision string) ([]string, error) {
+	if !IsCommitSHA(targetRevision) {
+		return []string{}, fmt.Errorf("invalid revision provided, must be SHA")
+	}
+	out, err := m.runCmd("diff-tree", "--no-commit-id", "--name-only", "-r", targetRevision)
+	if err != nil {
+		return nil, fmt.Errorf("failed to diff %s: %w", targetRevision, err)
+	}
+
+	if out == "" {
+		return []string{}, nil
+	}
+
+	files := strings.Split(out, "\n")
+	return files, nil
+}
+
+func (m *nativeGitClient) ListRevisions(revision string, targetRevision string) ([]string, error) {
+	if !IsCommitSHA(revision) || !IsCommitSHA(targetRevision) {
+		return nil, fmt.Errorf("invalid revision provided, must be SHA")
+	}
+	out, err := m.runCmd("rev-list", "--ancestry-path", fmt.Sprintf("%s..%s", revision, targetRevision))
+	if err != nil {
+		return nil, err
+	}
+	ss := strings.Split(out, "\n")
+	return ss, nil
+}
+
+func (m *nativeGitClient) DiffTree(targetRevision string) ([]string, error) {
+	if !IsCommitSHA(targetRevision) {
+		return []string{}, fmt.Errorf("invalid revision provided, must be SHA")
+	}
+	out, err := m.runCmd("diff-tree", "--no-commit-id", "--name-only", "-r", targetRevision)
+	if err != nil {
+		return nil, fmt.Errorf("failed to diff %s: %w", targetRevision, err)
+	}
+
+	if out == "" {
+		return []string{}, nil
+	}
+
+	files := strings.Split(out, "\n")
+	return files, nil
 }

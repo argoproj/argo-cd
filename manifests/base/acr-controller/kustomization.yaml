@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- acr-controller-deployment.yaml
+- acr-controller-role.yaml
+- acr-controller-rolebinding.yaml
+- acr-controller-sa.yaml

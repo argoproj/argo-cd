@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/app/path"
+
 	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -2626,6 +2628,45 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 	}
 
 	return res, nil
+}
+
+func (s *Server) GetChangeRevision(ctx context.Context, in *application.ChangeRevisionRequest) (*application.ChangeRevisionResponse, error) {
+	app, err := s.appLister.Applications(in.GetNamespace()).Get(in.GetAppName())
+	if err != nil {
+		return nil, err
+	}
+
+	val, ok := app.Annotations[appv1.AnnotationKeyManifestGeneratePaths]
+	if !ok || val == "" {
+		return nil, status.Errorf(codes.FailedPrecondition, "manifest generation paths not set")
+	}
+
+	repo, err := s.db.GetRepository(ctx, app.Spec.GetSource().RepoURL, app.Spec.Project)
+	if err != nil {
+		return nil, fmt.Errorf("error getting repository: %w", err)
+	}
+
+	closer, client, err := s.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return nil, fmt.Errorf("error creating repo server client: %w", err)
+	}
+	defer ioutil.Close(closer)
+
+	response, err := client.GetChangeRevision(ctx, &apiclient.ChangeRevisionRequest{
+		AppName:          in.GetAppName(),
+		Namespace:        in.GetNamespace(),
+		CurrentRevision:  in.GetCurrentRevision(),
+		PreviousRevision: in.GetPreviousRevision(),
+		Paths:            path.GetAppRefreshPaths(app),
+		Repo:             repo,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error getting change revision: %w", err)
+	}
+
+	return &application.ChangeRevisionResponse{
+		Revision: ptr.To(response.Revision),
+	}, nil
 }
 
 func (s *Server) inferResourcesStatusHealth(app *appv1.Application) {

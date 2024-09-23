@@ -88,6 +88,36 @@ func (_m *Client) CommitSHA() (string, error) {
 	return r0, r1
 }
 
+// DiffTree provides a mock function with given fields: targetRevision
+func (_m *Client) DiffTree(targetRevision string) ([]string, error) {
+	ret := _m.Called(targetRevision)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DiffTree")
+	}
+
+	var r0 []string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string) ([]string, error)); ok {
+		return rf(targetRevision)
+	}
+	if rf, ok := ret.Get(0).(func(string) []string); ok {
+		r0 = rf(targetRevision)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(targetRevision)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // Fetch provides a mock function with given fields: revision
 func (_m *Client) Fetch(revision string) error {
 	ret := _m.Called(revision)
@@ -158,6 +188,36 @@ func (_m *Client) IsRevisionPresent(revision string) bool {
 	}
 
 	return r0
+}
+
+// ListRevisions provides a mock function with given fields: revision, targetRevision
+func (_m *Client) ListRevisions(revision string, targetRevision string) ([]string, error) {
+	ret := _m.Called(revision, targetRevision)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListRevisions")
+	}
+
+	var r0 []string
+	var r1 error
+	if rf, ok := ret.Get(0).(func(string, string) ([]string, error)); ok {
+		return rf(revision, targetRevision)
+	}
+	if rf, ok := ret.Get(0).(func(string, string) []string); ok {
+		r0 = rf(revision, targetRevision)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(revision, targetRevision)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // LsFiles provides a mock function with given fields: path, enableNewGitFileGlobbing

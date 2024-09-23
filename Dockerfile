@@ -136,6 +136,7 @@ USER root
 RUN ln -s /usr/local/bin/argocd /usr/local/bin/argocd-server && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-repo-server && \
     ln -s /usr/local/bin/argocd /usr/local/bin/event-reporter-server && \
+    ln -s /usr/local/bin/argocd /usr/local/bin/argocd-application-change-revision-controller  && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-cmp-server && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-application-controller && \
     ln -s /usr/local/bin/argocd /usr/local/bin/argocd-dex && \
