@@ -326,14 +326,14 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	serverURL, err := url.Parse(server.URL)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.json")
 	t.Setenv("DOCKER_CONFIG", tempDir)
 
 	config := fmt.Sprintf(`{"auths":{"%s":{"auth":"Zm9vOmJhcg=="}}}`, server.URL)
-	assert.NoError(t, os.WriteFile(configPath, []byte(config), 0666))
+	require.NoError(t, os.WriteFile(configPath, []byte(config), 0666))
 
 	testCases := []struct {
 		name    string
@@ -365,7 +365,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 
 			tags, err := client.GetTags("mychart", true)
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.ElementsMatch(t, tags.Tags, []string{
 				"2.8.0",
 				"2.8.0-prerelease",
