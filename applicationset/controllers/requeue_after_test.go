@@ -109,11 +109,12 @@ func TestRequeueAfter(t *testing.T) {
 		want    time.Duration
 		wantErr assert.ErrorAssertionFunc
 	}{
-		{name: "Cluster", args: args{appset: &argov1alpha1.ApplicationSet{
-			Spec: argov1alpha1.ApplicationSetSpec{
-				Generators: []argov1alpha1.ApplicationSetGenerator{{Clusters: &argov1alpha1.ClusterGenerator{}}},
-			},
-		}, requeueAfterOverride: "",
+		{name: "Cluster", args: args{
+			appset: &argov1alpha1.ApplicationSet{
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Generators: []argov1alpha1.ApplicationSetGenerator{{Clusters: &argov1alpha1.ClusterGenerator{}}},
+				},
+			}, requeueAfterOverride: "",
 		}, want: generators.NoRequeueAfter, wantErr: assert.NoError},
 		{name: "ClusterMergeNested", args: args{&argov1alpha1.ApplicationSet{
 			Spec: argov1alpha1.ApplicationSetSpec{
