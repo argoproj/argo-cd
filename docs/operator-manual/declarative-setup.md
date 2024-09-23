@@ -787,7 +787,7 @@ the role can be appended to the `args` section like so:
 
 ```yaml
 ...
-    "args": ["aws", "--cluster-name", "my-eks-cluster", "--roleARN", "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"],
+    "args": ["aws", "--cluster-name", "my-eks-cluster", "--role-arn", "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"],
 ...
 ```
 This construct can be used in conjunction with something like the External Secrets Operator to avoid storing the keys in
