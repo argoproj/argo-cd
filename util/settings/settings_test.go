@@ -1833,24 +1833,22 @@ func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {
 			output: map[string]bool{},
 		},
 		{
-			name: "Correct format",
-			input: `- example.com/token-secret.value
-							- token`,
-			output: map[string]bool{"example.com/token-secret.value": true, "token": true},
+			name:   "Comma separated data",
+			input:  "example.com/token-secret.value,token,key",
+			output: map[string]bool{"example.com/token-secret.value": true, "token": true, "key": true},
 		},
 		{
-			name: "Partially correct format with each key on new line - returns correct keys",
-			input: `  example.com/token-secret.value  
-							-token`,
-			output: map[string]bool{"example.com/token-secret.value": true, "token": true},
+			name:   "Comma separated data with space",
+			input:  "example.com/token-secret.value, token,    key",
+			output: map[string]bool{"example.com/token-secret.value": true, "token": true, "key": true},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, settingsManager := fixtures(map[string]string{
-				hideSecretAnnotations: tt.input,
+				resourceSensitiveAnnotationsKey: tt.input,
 			})
-			keys := settingsManager.GetHideSecretAnnotations()
+			keys := settingsManager.GetSensitiveAnnotations()
 			assert.Equal(t, len(tt.output), len(keys))
 			assert.Equal(t, tt.output, keys)
 		})

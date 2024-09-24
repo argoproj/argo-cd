@@ -14,7 +14,6 @@ import (
 	"net/url"
 	"path"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -462,6 +461,8 @@ const (
 	resourceInclusionsKey = "resource.inclusions"
 	// resourceIgnoreResourceUpdatesEnabledKey is the key to a boolean determining whether the resourceIgnoreUpdates feature is enabled
 	resourceIgnoreResourceUpdatesEnabledKey = "resource.ignoreResourceUpdatesEnabled"
+	// resourceSensitiveAnnotationsKey is the key to list of annotations to mask in secret resource
+	resourceSensitiveAnnotationsKey = "resource.sensitive.mask.annotations"
 	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
 	resourceCustomLabelsKey = "resource.customLabels"
 	// resourceIncludeEventLabelKeys is the key to labels to be added onto Application k8s events if present on an Application or it's AppProject. Supports wildcard.
@@ -533,8 +534,6 @@ const (
 	RespectRBACValueNormal = "normal"
 	// impersonationEnabledKey is the key to configure whether the application sync decoupling through impersonation feature is enabled
 	impersonationEnabledKey = "application.sync.impersonation.enabled"
-	// hideSecretAnnotations is the key to configure annotations to hide in secret resource
-	hideSecretAnnotations = "hide.secret.annotations"
 )
 
 const (
@@ -2344,24 +2343,26 @@ func (mgr *SettingsManager) GetExcludeEventLabelKeys() []string {
 	return labelKeys
 }
 
-func (mgr *SettingsManager) GetHideSecretAnnotations() map[string]bool {
-	annotsKeys := make(map[string]bool)
+func (mgr *SettingsManager) GetSensitiveAnnotations() map[string]bool {
+	annotationKeys := make(map[string]bool)
+
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		log.Error(fmt.Errorf("failed getting configmap: %v", err))
-		return nil
+		log.Error(fmt.Errorf("failed getting configmap: %w", err))
+		return annotationKeys
 	}
-	if value, ok := argoCDCM.Data[hideSecretAnnotations]; ok {
-		annots := strings.Split(value, "\n")
-		for _, a := range annots {
-			a = regexp.MustCompile(`^\s*-`).ReplaceAllString(a, "")
-			a := strings.TrimSpace(a)
-			if a != "" {
-				annotsKeys[a] = true
-			}
-		}
+
+	value, ok := argoCDCM.Data[resourceSensitiveAnnotationsKey]
+	if !ok || value == "" {
+		return annotationKeys
 	}
-	return annotsKeys
+
+	value = strings.ReplaceAll(value, " ", "")
+	keys := strings.Split(value, ",")
+	for _, k := range keys {
+		annotationKeys[k] = true
+	}
+	return annotationKeys
 }
 
 func (mgr *SettingsManager) GetMaxWebhookPayloadSize() int64 {
