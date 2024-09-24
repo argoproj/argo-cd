@@ -9,9 +9,6 @@ import (
 
 	"k8s.io/client-go/rest"
 
-	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
-
-	"github.com/argoproj/pkg/stats"
 	"github.com/redis/go-redis/v9"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -32,7 +29,6 @@ import (
 	reposervercache "github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/server"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	"github.com/argoproj/argo-cd/v2/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/dex"
