@@ -472,10 +472,12 @@ export class ReposList extends React.Component<
                                                     </div>
                                                     {(formApi.getFormState().values.type === 'helm' || formApi.getFormState().values.type === 'git') && (
                                                         <div className='argo-form-row'>
-                                                            <FormField formApi={formApi} 
-                                                                        label={`Name ${formApi.getFormState().values.type === 'git' ? '(optional)' : ''}`} 
-                                                                        field='name' 
-                                                                        component={Text} />
+                                                            <FormField
+                                                                formApi={formApi}
+                                                                label={`Name ${formApi.getFormState().values.type === 'git' ? '(optional)' : ''}`}
+                                                                field='name'
+                                                                component={Text}
+                                                            />
                                                         </div>
                                                     )}
                                                     <div className='argo-form-row'>
