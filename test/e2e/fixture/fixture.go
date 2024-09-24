@@ -5,6 +5,7 @@ import (
 	"context"
 	goerrors "errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"os/user"
@@ -696,7 +697,6 @@ func initTestContainers(ctx context.Context) {
 	port, _ := e2eServer.MappedPort(ctx, "2222")
 	mappedSSHPort = port.Port()
 
-	// TODO: Figure out Helm error
 	port, _ = e2eServer.MappedPort(ctx, "9080")
 	mappedHelmHttpPort = port.Port()
 
@@ -711,6 +711,22 @@ func initTestContainers(ctx context.Context) {
 
 	port, _ = ociRegistry.MappedPort(ctx, "5000")
 	MappedOCIRegistryPort = port.Port()
+
+	// TODO: Figure nicer way to template helm index files with the forwarded port
+	c, reader, err := e2eServer.Exec(ctx, []string{"sudo", "sed", "-i", fmt.Sprintf("s/9080/%s/g", mappedHelmHttpPort), "/tmp/argo-e2e/testdata.git/helm-repo/local/index.yaml"})
+	CheckError(err)
+
+	c, reader, err = e2eServer.Exec(ctx, []string{"sudo", "sed", "-i", fmt.Sprintf("s/9080/%s/g", mappedHelmHttpPort), "/tmp/argo-e2e/testdata.git/helm-repo/local2/index.yaml"})
+	CheckError(err)
+
+	c, reader, err = e2eServer.Exec(ctx, []string{"sudo", "sed", "-i", fmt.Sprintf("s/9080/%s/g", mappedHelmHttpPort), "/tmp/argo-e2e/testdata.git/helm-repo/remote/index.yaml"})
+	CheckError(err)
+
+	if c != 0 {
+		buf := new(strings.Builder)
+		_, err = io.Copy(buf, reader)
+		panic(buf.String())
+	}
 
 	k3sContainer, err := k3s.RunContainer(ctx,
 		testcontainers.WithImage(fmt.Sprintf("rancher/k3s:%s-k3s1", k3sVersion)),
