@@ -1,12 +1,12 @@
 package main
 
 import (
+	log "github.com/sirupsen/logrus"
+	"go.uber.org/automaxprocs/maxprocs"
 	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
-
-	_ "go.uber.org/automaxprocs"
 
 	appcontroller "github.com/argoproj/argo-cd/v2/cmd/argocd-application-controller/commands"
 	applicationset "github.com/argoproj/argo-cd/v2/cmd/argocd-applicationset-controller/commands"
@@ -31,6 +31,8 @@ func main() {
 	if val := os.Getenv(binaryNameEnv); val != "" {
 		binaryName = val
 	}
+	setAutoMaxProcs(binaryName)
+
 	switch binaryName {
 	case "argocd", "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe":
 		command = cli.NewCommand()
@@ -58,5 +60,23 @@ func main() {
 
 	if err := command.Execute(); err != nil {
 		os.Exit(1)
+	}
+}
+
+// setAutoMaxProcs sets the GOMAXPROCS value based on the binary name.
+// It suppresses logs for CLI binaries and logs the setting for services.
+func setAutoMaxProcs(binaryName string) {
+	isCLI := binaryName == "argocd" ||
+		binaryName == "argocd-linux-amd64" ||
+		binaryName == "argocd-darwin-amd64" ||
+		binaryName == "argocd-windows-amd64.exe"
+
+	if isCLI {
+		_, _ = maxprocs.Set() // Intentionally ignore errors for CLI binaries
+	} else {
+		_, err := maxprocs.Set(maxprocs.Logger(log.Debugf))
+		if err != nil {
+			log.Infof("Error setting GOMAXPROCS: %v", err)
+		}
 	}
 }
