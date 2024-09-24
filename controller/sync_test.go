@@ -1280,7 +1280,6 @@ func TestSyncWithImpersonate(t *testing.T) {
 
 	t.Run("sync with impersonation and no matching service account", func(t *testing.T) {
 		// given app sync impersonation feature is enabled with an application referring a project no matching service account
-		t.Parallel()
 		f := setup(true, test.FakeArgoCDNamespace, "")
 		opMessage := "failed to find a matching service account to impersonate: no matching service account found for destination server https://localhost:6443 and namespace fake-dest-ns"
 
@@ -1302,7 +1301,6 @@ func TestSyncWithImpersonate(t *testing.T) {
 
 	t.Run("sync with impersonation and empty service account match", func(t *testing.T) {
 		// given app sync impersonation feature is enabled with an application referring a project matching service account that is an empty string
-		t.Parallel()
 		f := setup(true, test.FakeDestNamespace, "")
 		opMessage := "failed to find a matching service account to impersonate: default service account cannot be an empty string"
 
@@ -1324,7 +1322,6 @@ func TestSyncWithImpersonate(t *testing.T) {
 
 	t.Run("sync with impersonation and matching sa", func(t *testing.T) {
 		// given app sync impersonation feature is enabled with an application referring a project matching service account
-		t.Parallel()
 		f := setup(true, test.FakeDestNamespace, "test-sa")
 		opMessage := "successfully synced (no more tasks)"
 
@@ -1346,7 +1343,6 @@ func TestSyncWithImpersonate(t *testing.T) {
 
 	t.Run("sync without impersonation", func(t *testing.T) {
 		// given app sync impersonation feature is disabled with an application referring a project matching service account
-		t.Parallel()
 		f := setup(false, test.FakeDestNamespace, "")
 		opMessage := "successfully synced (no more tasks)"
 
