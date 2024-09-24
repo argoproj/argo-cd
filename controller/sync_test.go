@@ -653,30 +653,28 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 	}
 
 	setup := func(destinationServiceAccounts []v1alpha1.ApplicationDestinationServiceAccount, destinationNamespace, destinationServerURL, applicationNamespace string) *fixture {
-		project :=
-			&v1alpha1.AppProject{
-				ObjectMeta: v1.ObjectMeta{
-					Namespace: "argocd-ns",
-					Name:      "testProj",
+		project := &v1alpha1.AppProject{
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: "argocd-ns",
+				Name:      "testProj",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				DestinationServiceAccounts: destinationServiceAccounts,
+			},
+		}
+		app := &v1alpha1.Application{
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: applicationNamespace,
+				Name:      "testApp",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "testProj",
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    destinationServerURL,
+					Namespace: destinationNamespace,
 				},
-				Spec: v1alpha1.AppProjectSpec{
-					DestinationServiceAccounts: destinationServiceAccounts,
-				},
-			}
-		app :=
-			&v1alpha1.Application{
-				ObjectMeta: v1.ObjectMeta{
-					Namespace: applicationNamespace,
-					Name:      "testApp",
-				},
-				Spec: v1alpha1.ApplicationSpec{
-					Project: "testProj",
-					Destination: v1alpha1.ApplicationDestination{
-						Server:    destinationServerURL,
-						Namespace: destinationNamespace,
-					},
-				},
-			}
+			},
+		}
 		return &fixture{
 			project:     project,
 			application: app,
@@ -968,7 +966,6 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		// then, there should not be any error and the service account with its namespace should be returned.
 		assert.NoError(t, err)
 	})
-
 }
 
 func TestDeriveServiceAccountMatchingServers(t *testing.T) {
@@ -978,30 +975,28 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 	}
 
 	setup := func(destinationServiceAccounts []v1alpha1.ApplicationDestinationServiceAccount, destinationNamespace, destinationServerURL, applicationNamespace string) *fixture {
-		project :=
-			&v1alpha1.AppProject{
-				ObjectMeta: v1.ObjectMeta{
-					Namespace: "argocd-ns",
-					Name:      "testProj",
+		project := &v1alpha1.AppProject{
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: "argocd-ns",
+				Name:      "testProj",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				DestinationServiceAccounts: destinationServiceAccounts,
+			},
+		}
+		app := &v1alpha1.Application{
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: applicationNamespace,
+				Name:      "testApp",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "testProj",
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    destinationServerURL,
+					Namespace: destinationNamespace,
 				},
-				Spec: v1alpha1.AppProjectSpec{
-					DestinationServiceAccounts: destinationServiceAccounts,
-				},
-			}
-		app :=
-			&v1alpha1.Application{
-				ObjectMeta: v1.ObjectMeta{
-					Namespace: applicationNamespace,
-					Name:      "testApp",
-				},
-				Spec: v1alpha1.ApplicationSpec{
-					Project: "testProj",
-					Destination: v1alpha1.ApplicationDestination{
-						Server:    destinationServerURL,
-						Namespace: destinationNamespace,
-					},
-				},
-			}
+			},
+		}
 		return &fixture{
 			project:     project,
 			application: app,
@@ -1222,7 +1217,6 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, expectedSA, sa)
 	})
-
 }
 
 func TestSyncWithImpersonate(t *testing.T) {

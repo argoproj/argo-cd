@@ -719,5 +719,4 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 	assert.Equal(t, "default:test-sa", proj.Spec.DestinationServiceAccounts[2].DefaultServiceAccount)
 
 	assertProjHasEvent(t, proj, "update", argo.EventReasonResourceUpdated)
-
 }
