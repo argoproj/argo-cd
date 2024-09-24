@@ -173,6 +173,7 @@ func NewApplicationController(
 	serverSideDiff bool,
 	dynamicClusterDistributionEnabled bool,
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
+	enableK8sEvent []string,
 ) (*ApplicationController, error) {
 	log.Infof("appResyncPeriod=%v, appHardResyncPeriod=%v, appResyncJitter=%v", appResyncPeriod, appHardResyncPeriod, appResyncJitter)
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
@@ -197,7 +198,7 @@ func NewApplicationController(
 		statusRefreshJitter:               appResyncJitter,
 		refreshRequestedApps:              make(map[string]CompareWith),
 		refreshRequestedAppsMutex:         &sync.Mutex{},
-		auditLogger:                       argo.NewAuditLogger(namespace, kubeClientset, common.ApplicationController),
+		auditLogger:                       argo.NewAuditLogger(namespace, kubeClientset, common.ApplicationController, enableK8sEvent),
 		settingsMgr:                       settingsMgr,
 		selfHealTimeout:                   selfHealTimeout,
 		clusterSharding:                   clusterSharding,
