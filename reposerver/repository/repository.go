@@ -99,21 +99,21 @@ type Service struct {
 }
 
 type RepoServerInitConstants struct {
-	ParallelismLimit                                                 int64
-	PauseGenerationAfterFailedGenerationAttempts                     int
-	PauseGenerationOnFailureForMinutes                               int
-	PauseGenerationOnFailureForRequests                              int
-	SubmoduleEnabled                                                 bool
-	MaxCombinedDirectoryManifestsSize                                resource.Quantity
-	CMPTarExcludedGlobs                                              []string
-	AllowOutOfBoundsSymlinks                                         bool
-	StreamedManifestMaxExtractedSize                                 int64
-	StreamedManifestMaxTarSize                                       int64
-	HelmManifestMaxExtractedSize                                     int64
-	HelmRegistryMaxIndexSize                                         int64
-	DisableHelmManifestMaxExtractedSize                              bool
-	IncludeHiddenDirectories                                         bool
-	EnableCmpManifestsGenerationUsingManifestGeneratePathsAnnotation bool
+	ParallelismLimit                             int64
+	PauseGenerationAfterFailedGenerationAttempts int
+	PauseGenerationOnFailureForMinutes           int
+	PauseGenerationOnFailureForRequests          int
+	SubmoduleEnabled                             bool
+	MaxCombinedDirectoryManifestsSize            resource.Quantity
+	CMPTarExcludedGlobs                          []string
+	AllowOutOfBoundsSymlinks                     bool
+	StreamedManifestMaxExtractedSize             int64
+	StreamedManifestMaxTarSize                   int64
+	HelmManifestMaxExtractedSize                 int64
+	HelmRegistryMaxIndexSize                     int64
+	DisableHelmManifestMaxExtractedSize          bool
+	IncludeHiddenDirectories                     bool
+	CMPUseManifestGeneratePaths                  bool
 }
 
 // NewService returns a new instance of the Manifest service
@@ -806,7 +806,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPManifestsGenerationUsingManifestGeneratePathsAnnotation(s.initConstants.EnableCmpManifestsGenerationUsingManifestGeneratePathsAnnotation))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1377,9 +1377,9 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 type (
 	GenerateManifestOpt func(*generateManifestOpt)
 	generateManifestOpt struct {
-		cmpTarDoneCh                                     chan<- bool
-		cmpTarExcludedGlobs                              []string
-		cmpManifestsGenerationFromAnnotationPathsEnabled bool
+		cmpTarDoneCh                chan<- bool
+		cmpTarExcludedGlobs         []string
+		cmpUseManifestGeneratePaths bool
 	}
 )
 
@@ -1408,11 +1408,11 @@ func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
 	}
 }
 
-// WithCmpManifestsGenerationUsingManifestGeneratePathsAnnotation enables or disables the use of the
+// WithCMPUseManifestGeneratePaths enables or disables the use of the
 // 'argocd.argoproj.io/manifest-generate-paths' annotation for manifest generation instead of transmit the whole repository.
-func WithCMPManifestsGenerationUsingManifestGeneratePathsAnnotation(enabled bool) GenerateManifestOpt {
+func WithCMPUseManifestGeneratePaths(enabled bool) GenerateManifestOpt {
 	return func(o *generateManifestOpt) {
-		o.cmpManifestsGenerationFromAnnotationPathsEnabled = enabled
+		o.cmpUseManifestGeneratePaths = enabled
 	}
 }
 
@@ -1457,7 +1457,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			pluginName = q.ApplicationSource.Plugin.Name
 		}
 		// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
-		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs, opt.cmpManifestsGenerationFromAnnotationPathsEnabled)
+		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs, opt.cmpUseManifestGeneratePaths)
 		if err != nil {
 			err = fmt.Errorf("plugin sidecar failed. %s", err.Error())
 		}
@@ -1974,7 +1974,7 @@ func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlug
 	return env, nil
 }
 
-func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, tarDoneCh chan<- bool, tarExcludedGlobs []string, cmpManifestsGenerationFromAnnotationPathsEnabled bool) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, tarDoneCh chan<- bool, tarExcludedGlobs []string, useManifestGeneratePaths bool) ([]*unstructured.Unstructured, error) {
 	// compute variables.
 	env, err := getPluginEnvs(envVars, q)
 	if err != nil {
@@ -1989,9 +1989,9 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 	defer io.Close(conn)
 
 	rootPath := repoPath
-	if cmpManifestsGenerationFromAnnotationPathsEnabled {
+	if useManifestGeneratePaths {
 		// Transmit the files under the common root path for all paths related to the manifest generate paths annotation.
-		rootPath = GetApplicationRootPath(q, appPath, repoPath)
+		rootPath = getApplicationRootPath(q, appPath, repoPath)
 		log.Debugf("common root path calculated for application %s: %s", q.AppName, rootPath)
 	}
 
