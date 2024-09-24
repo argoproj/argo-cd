@@ -13,3 +13,11 @@ func Match(pattern, text string, separators ...rune) bool {
 	}
 	return compiledGlob.Match(text)
 }
+
+func MatchWithError(pattern, text string, separators ...rune) (bool, error) {
+	compiledGlob, err := glob.Compile(pattern, separators...)
+	if err != nil {
+		return false, err
+	}
+	return compiledGlob.Match(text), nil
+}

@@ -8,7 +8,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/glob"
-
+	globutil "github.com/gobwas/glob"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -273,6 +273,20 @@ func (p *AppProject) ValidateProject() error {
 
 		if destServiceAcct.Namespace == "!*" {
 			return status.Errorf(codes.InvalidArgument, "namespace has an invalid format, '!*'")
+		}
+
+		if strings.Contains(destServiceAcct.DefaultServiceAccount, "*") {
+			return status.Errorf(codes.InvalidArgument, "defaultServiceAccount does not support glob patterns")
+		}
+
+		_, err := globutil.Compile(destServiceAcct.Server)
+		if err != nil {
+			return err
+		}
+
+		_, err = globutil.Compile(destServiceAcct.Namespace)
+		if err != nil {
+			return err
 		}
 
 		key := fmt.Sprintf("%s/%s", destServiceAcct.Server, destServiceAcct.Namespace)

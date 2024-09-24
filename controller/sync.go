@@ -574,8 +574,14 @@ func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application
 	// Loop through the destinationServiceAccounts and see if there is any destination that is a candidate.
 	// if so, return the service account specified for that destination.
 	for _, item := range project.Spec.DestinationServiceAccounts {
-		dstServerMatched := glob.Match(item.Server, application.Spec.Destination.Server)
-		dstNamespaceMatched := glob.Match(item.Namespace, application.Spec.Destination.Namespace)
+		dstServerMatched, err := glob.MatchWithError(item.Server, application.Spec.Destination.Server)
+		if err != nil {
+			return "", err
+		}
+		dstNamespaceMatched, err := glob.MatchWithError(item.Namespace, application.Spec.Destination.Namespace)
+		if err != nil {
+			return "", err
+		}
 		if dstServerMatched && dstNamespaceMatched {
 			if item.DefaultServiceAccount == "" {
 				return "", fmt.Errorf("default service account cannot be an empty string")
