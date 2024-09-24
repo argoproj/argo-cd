@@ -151,6 +151,18 @@ func TestRequeueAfter(t *testing.T) {
 				Generators: []argov1alpha1.ApplicationSetGenerator{{List: &argov1alpha1.ListGenerator{}}},
 			},
 		}}, want: generators.NoRequeueAfter, wantErr: assert.NoError},
+		{name: "DuckGenerator", args: args{appset: &argov1alpha1.ApplicationSet{
+			Spec: argov1alpha1.ApplicationSetSpec{
+				Generators: []argov1alpha1.ApplicationSetGenerator{{ClusterDecisionResource: &argov1alpha1.DuckTypeGenerator{}}},
+			},
+		}}, want: generators.DefaultRequeueAfterSeconds, wantErr: assert.NoError},
+		{name: "OverrideRequeueDuck", args: args{
+			appset: &argov1alpha1.ApplicationSet{
+				Spec: argov1alpha1.ApplicationSetSpec{
+					Generators: []argov1alpha1.ApplicationSetGenerator{{ClusterDecisionResource: &argov1alpha1.DuckTypeGenerator{}}},
+				},
+			}, requeueAfterOverride: "1h",
+		}, want: 1 * time.Hour, wantErr: assert.NoError},
 		{name: "OverrideRequeueGit", args: args{&argov1alpha1.ApplicationSet{
 			Spec: argov1alpha1.ApplicationSetSpec{
 				Generators: []argov1alpha1.ApplicationSetGenerator{
