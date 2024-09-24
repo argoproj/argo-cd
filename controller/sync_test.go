@@ -720,7 +720,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
 
 		// then, there should be no error and should use the right service account for impersonation
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expectedSA, sa)
 	})
 
@@ -759,7 +759,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
 
 		// then, there should be no error and should use the right service account for impersonation
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expectedSA, sa)
 	})
 
@@ -798,7 +798,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
 
 		// then, there should be no error and it should use the first matching service account for impersonation
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expectedSA, sa)
 	})
 
@@ -832,7 +832,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
 
 		// then, there should not be any error and should use the first matching glob pattern service account for impersonation
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expectedSA, sa)
 	})
 
@@ -867,7 +867,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
 
 		// then, there should be an error saying no match was found
-		assert.EqualError(t, err, expectedErrMsg)
+		require.EqualError(t, err, expectedErrMsg)
 		assert.Equal(t, expectedSA, sa)
 	})
 
@@ -895,7 +895,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
 
 		// then, there should not be any error and the service account configured for with empty namespace should be used.
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expectedSA, sa)
 	})
 
@@ -929,7 +929,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
 
 		// then, there should not be any error and the catch all service account should be returned
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expectedSA, sa)
 	})
 
@@ -964,7 +964,7 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		assert.Equal(t, expectedSA, sa)
 
 		// then, there should not be any error and the service account with its namespace should be returned.
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 }
 
@@ -1038,7 +1038,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
 
 		// then, there should not be any error and the right service account must be returned.
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expectedSA, sa)
 	})
 
@@ -1077,7 +1077,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
 
 		// then, there should not be any error and first matching service account should be used
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expectedSA, sa)
 	})
 
@@ -1112,7 +1112,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 		assert.Equal(t, expectedSA, sa)
 
 		// then, there should not be any error and the service account of the glob pattern, being the first match should be returned.
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("no match among a valid list", func(t *testing.T) {
@@ -1146,7 +1146,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
 
 		// then, there an error with appropriate message must be returned
-		assert.EqualError(t, err, expectedErr)
+		require.EqualError(t, err, expectedErr)
 		assert.Equal(t, expectedSA, sa)
 	})
 
@@ -1180,7 +1180,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
 
 		// then, there should not be any error and the service account of the glob pattern match must be returned.
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expectedSA, sa)
 	})
 
@@ -1214,7 +1214,7 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
 
 		// then, there should not be any error and the service account with the given namespace prefix must be returned.
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expectedSA, sa)
 	})
 }
