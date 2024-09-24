@@ -704,7 +704,7 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	require.NoError(t, err)
 	assert.Equal(t, projectName, proj.Name)
-	assert.Len(t, proj.Spec.DestinationServiceAccounts, 2)
+	assert.Len(t, proj.Spec.DestinationServiceAccounts, 3)
 
 	assert.Equal(t, "https://192.168.99.100:8443", proj.Spec.DestinationServiceAccounts[0].Server)
 	assert.Equal(t, "test-ns", proj.Spec.DestinationServiceAccounts[0].Namespace)
