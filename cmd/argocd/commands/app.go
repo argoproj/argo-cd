@@ -1826,34 +1826,35 @@ func printTreeViewDetailed(nodeMapping map[string]argoappv1.ResourceNode, parent
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
 func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		revision                string
-		revisions               []string
-		sourcePositions         []int64
-		resources               []string
-		labels                  []string
-		selector                string
-		prune                   bool
-		dryRun                  bool
-		timeout                 uint
-		strategy                string
-		force                   bool
-		replace                 bool
-		serverSideApply         bool
-		applyOutOfSyncOnly      bool
-		async                   bool
-		retryLimit              int64
-		retryBackoffDuration    time.Duration
-		retryBackoffMaxDuration time.Duration
-		retryBackoffFactor      int64
-		local                   string
-		localRepoRoot           string
-		infos                   []string
-		diffChanges             bool
-		diffChangesConfirm      bool
-		projects                []string
-		output                  string
-		appNamespace            string
-		ignoreNormalizerOpts    normalizers.IgnoreNormalizerOpts
+		revision                 string
+		revisions                []string
+		sourcePositions          []int64
+		resources                []string
+		labels                   []string
+		selector                 string
+		prune                    bool
+		dryRun                   bool
+		timeout                  uint
+		strategy                 string
+		force                    bool
+		replace                  bool
+		serverSideApply          bool
+		applyOutOfSyncOnly       bool
+		async                    bool
+		retryLimit               int64
+		retryBackoffDuration     time.Duration
+		retryBackoffMaxDuration  time.Duration
+		retryBackoffFactor       int64
+		local                    string
+		localRepoRoot            string
+		infos                    []string
+		diffChanges              bool
+		diffChangesConfirm       bool
+		projects                 []string
+		output                   string
+		appNamespace             string
+		ignoreNormalizerOpts     normalizers.IgnoreNormalizerOpts
+		respectIgnoreDifferences bool
 	)
 	command := &cobra.Command{
 		Use:   "sync [APPNAME... | -l selector | --project project-name]",
@@ -2172,6 +2173,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout", normalizers.DefaultJQExecutionTimeout, "Set ignore normalizer JQ execution timeout")
 	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for source position in source-positions")
 	command.Flags().Int64SliceVar(&sourcePositions, "source-positions", []int64{}, "List of source positions. Default is empty array. Counting start at 1.")
+	command.Flags().BoolVar(&respectIgnoreDifferences, "respect-ignore-differences", false, "A configuration option to ensure difference between live and desired states of a resource are ignored during synchronization")
 	return command
 }
 
