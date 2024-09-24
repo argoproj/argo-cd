@@ -244,8 +244,40 @@ spec:
             prefix: "/2"
       route:
         - destination:
-            host: service
-`)
+            host: service`)
+
+	testTraefikIngressRoute = strToUnstructured(`
+  apiVersion: traefik.io/v1alpha1
+  kind: IngressRoute
+  metadata:
+    name: traefik-ingress
+    namespace: demo
+  spec:
+    entryPoints:
+    - web
+    routes:
+    - kind: Rule
+      match: Host(\"example.com\") || (Host(\"example.org\") && Path(\"/traefik\"))
+      services:
+      - name: test-svc
+        port: 80`)
+
+	testTraefikIngressRouteWithNamespacedService = strToUnstructured(`
+  apiVersion: traefik.io/v1alpha1
+  kind: IngressRoute
+  metadata:
+    name: traefik-ingress
+    namespace: demo
+  spec:
+    entryPoints:
+    - web
+    routes:
+    - kind: Rule
+      match: Host(\"example.com\") || (Host(\"example.org\") && Path(\"/traefik\"))
+      services:
+      - name: test-svc
+        namespace: test
+        port: 80`)
 )
 
 func TestGetPodInfo(t *testing.T) {
@@ -352,6 +384,32 @@ func TestGetIstioVirtualServiceInfo(t *testing.T) {
 		Kind:      kube.ServiceKind,
 		Name:      "service",
 		Namespace: "demo",
+	})
+}
+
+func TestGetTraefikIngressRouteInfo(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testTraefikIngressRoute, info, []string{})
+	assert.Equal(t, 0, len(info.Info))
+	require.NotNil(t, info.NetworkingInfo)
+	require.NotNil(t, info.NetworkingInfo.TargetRefs)
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Kind:      kube.ServiceKind,
+		Name:      "test-svc",
+		Namespace: "demo",
+	})
+}
+
+func TestGetTraefikIngressRouteInfoWithNamespacedService(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testTraefikIngressRouteWithNamespacedService, info, []string{})
+	assert.Equal(t, 0, len(info.Info))
+	require.NotNil(t, info.NetworkingInfo)
+	require.NotNil(t, info.NetworkingInfo.TargetRefs)
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Kind:      kube.ServiceKind,
+		Name:      "test-svc",
+		Namespace: "test",
 	})
 }
 
