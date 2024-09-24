@@ -3279,3 +3279,15 @@ func (a *Application) QualifiedName() string {
 func (a *Application) RBACName(defaultNS string) string {
 	return security.RBACName(defaultNS, a.Spec.GetProject(), a.Namespace, a.Name)
 }
+
+// GetAnnotation returns the value of the specified annotation if it exists,
+// e.g., a.GetAnnotation("argocd.argoproj.io/manifest-generate-paths").
+// If the annotation does not exist, it returns an empty string.
+func (a *Application) GetAnnotation(annotation string) string {
+	v, exists := a.Annotations[annotation]
+	if !exists {
+		return ""
+	}
+
+	return v
+}
