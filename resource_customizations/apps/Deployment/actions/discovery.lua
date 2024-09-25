@@ -7,5 +7,5 @@ if obj.spec.paused ~= nil then
     actions["pause"] = {paused}
 end
 actions["resume"] = {["disabled"] = not(paused)}
-actions["scale"] = {["defaultValue"] = tostring(obj.spec.replicas), ["hasParameters"] = true, ["errorMessage"] = "Enter any valid number more than 0", ["regexp"]= "^[1-9][0-9]*$", }
+actions["scale"] = {["defaultValue"] = tostring(obj.spec.replicas), ["hasParameters"] = true, ["errorMessage"] = "Enter any valid number", ["regexp"]= "^[0-9][0-9]*$", }
 return actions
