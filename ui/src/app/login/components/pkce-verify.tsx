@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import {RouteComponentProps} from 'react-router';
 import {services} from '../../shared/services';
-import {PKCECodeVerifier, PKCEState, PKCELoginError, getPKCERedirectURI, pkceCallback} from './utils';
+import {PKCECodeVerifier, PKCEState, PKCELoginError, pkceCallback} from './utils';
 
 import './pkce-verify.scss';
 
@@ -13,7 +13,7 @@ export const PKCEVerification = (props: RouteComponentProps<any>) => {
         setLoading(true);
         services.authService
             .settings()
-            .then(authSettings => pkceCallback(props.location.search, authSettings.oidcConfig, getPKCERedirectURI().toString()))
+            .then(authSettings => pkceCallback(props.location.search, authSettings))
             .catch(err => setError(err))
             .finally(() => {
                 setLoading(false);

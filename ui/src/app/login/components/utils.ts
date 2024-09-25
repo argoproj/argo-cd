@@ -28,10 +28,13 @@ export const PKCEState = {
     unset: () => sessionStorage.removeItem(window.btoa('pkce_session_id'))
 };
 
-export const getPKCERedirectURI = () => {
-    const currentOrigin = new URL(window.location.origin);
+export const getPKCERedirectURI = (
+    // when there is different root path than "/", PKCE redirect need to be aware of it
+    url = window.location.origin
+) => {
+    const currentOrigin = new URL(url);
 
-    currentOrigin.pathname = '/pkce/verify';
+    currentOrigin.pathname += '/pkce/verify';
 
     return currentOrigin;
 };
@@ -73,7 +76,7 @@ const validateAndGetOIDCForPKCE = async (oidcConfig: AuthSettings['oidcConfig'])
     };
 };
 
-export const pkceLogin = async (oidcConfig: AuthSettings['oidcConfig'], redirectURI: string) => {
+export const pkceLogin = async ({oidcConfig, url}: AuthSettings) => {
     const {authorizationServer} = await validateAndGetOIDCForPKCE(oidcConfig);
 
     if (!authorizationServer.authorization_endpoint) {
@@ -85,6 +88,8 @@ export const pkceLogin = async (oidcConfig: AuthSettings['oidcConfig'], redirect
     const codeVerifier = generateRandomCodeVerifier();
 
     const codeChallange = await calculatePKCECodeChallenge(codeVerifier);
+
+    const redirectURI = getPKCERedirectURI(url).toString();
 
     const authorizationServerConsentScreen = new URL(authorizationServer.authorization_endpoint);
 
@@ -102,7 +107,7 @@ export const pkceLogin = async (oidcConfig: AuthSettings['oidcConfig'], redirect
     window.location.replace(authorizationServerConsentScreen.toString());
 };
 
-export const pkceCallback = async (queryParams: string, oidcConfig: AuthSettings['oidcConfig'], redirectURI: string) => {
+export const pkceCallback = async (queryParams: string, {oidcConfig, url}: AuthSettings) => {
     const codeVerifier = PKCECodeVerifier.get();
 
     if (!codeVerifier) {
@@ -135,6 +140,8 @@ export const pkceCallback = async (queryParams: string, oidcConfig: AuthSettings
         throw new PKCELoginError('Error validating auth response');
     }
 
+    const redirectURI = getPKCERedirectURI(url).toString();
+
     const response = await authorizationCodeGrantRequest(authorizationServer, client, params, redirectURI, codeVerifier);
 
     const authChallengeExtract = parseWwwAuthenticateChallenges(response);
@@ -155,5 +162,5 @@ export const pkceCallback = async (queryParams: string, oidcConfig: AuthSettings
 
     document.cookie = `argocd.token=${result.id_token}; path=/`;
 
-    window.location.replace('/applications');
+    window.location.replace(url);
 };

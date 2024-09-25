@@ -7,7 +7,7 @@ import {RouteComponentProps} from 'react-router';
 import {AppContext} from '../../shared/context';
 import {AuthSettings} from '../../shared/models';
 import {services} from '../../shared/services';
-import {getPKCERedirectURI, pkceLogin} from './utils';
+import {pkceLogin} from './utils';
 
 require('./login.scss');
 
@@ -66,7 +66,7 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
                                 {...(authSettings?.oidcConfig?.enablePKCEAuthentication
                                     ? {
                                           onClick: async () => {
-                                              pkceLogin(authSettings.oidcConfig, getPKCERedirectURI().toString()).catch(err => {
+                                              pkceLogin(authSettings).catch(err => {
                                                   this.appContext.apis.notifications.show({
                                                       type: NotificationType.Error,
                                                       content: err?.message || JSON.stringify(err)
