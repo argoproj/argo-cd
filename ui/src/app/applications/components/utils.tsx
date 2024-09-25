@@ -524,8 +524,6 @@ function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: model
                     ),
                     {
                         validate: vals => {
-                            console.log('inputParameter:', vals.inputParameter);
-                            console.log('regexp:', action.regexp);
                             return {
                                 inputParameter: vals.inputParameter && action.regexp && !vals.inputParameter.match(action.regexp) ? action.errorMessage : undefined
                             };
@@ -534,7 +532,6 @@ function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: model
                         submit: async (vals, _, close) => {
                             try {
                                 const resourceActionParameters = action.hasParameters ? [{name: action.name, value: vals.inputParameter}] : [];
-                                console.log('resourceActionParameters:', resourceActionParameters);
                                 await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name, resourceActionParameters);
                                 close();
                             } catch (e) {
