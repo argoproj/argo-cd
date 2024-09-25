@@ -2071,11 +2071,6 @@ func TestValidateGeneratedApplications(t *testing.T) {
 				myCluster,
 			}}, nil)
 
-			argoObjs := []runtime.Object{}
-			for _, app := range cc.apps {
-				argoObjs = append(argoObjs, &app)
-			}
-
 			r := ApplicationSetReconciler{
 				Client:          client,
 				Scheme:          scheme,
