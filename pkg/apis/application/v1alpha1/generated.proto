@@ -1749,6 +1749,14 @@ message ResourceAction {
   optional string iconClass = 4;
 
   optional string displayName = 5;
+
+  optional string defaultValue = 6;
+
+  optional bool hasParameters = 7;
+
+  optional string regexp = 8;
+
+  optional string errorMessage = 9;
 }
 
 // TODO: describe this type

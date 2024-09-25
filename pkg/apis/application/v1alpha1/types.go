@@ -2159,11 +2159,15 @@ type ResourceActionDefinition struct {
 // TODO: describe this type
 // TODO: describe members of this type
 type ResourceAction struct {
-	Name        string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	Params      []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
-	Disabled    bool                  `json:"disabled,omitempty" protobuf:"varint,3,opt,name=disabled"`
-	IconClass   string                `json:"iconClass,omitempty" protobuf:"bytes,4,opt,name=iconClass"`
-	DisplayName string                `json:"displayName,omitempty" protobuf:"bytes,5,opt,name=displayName"`
+	Name          string                `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
+	Params        []ResourceActionParam `json:"params,omitempty" protobuf:"bytes,2,rep,name=params"`
+	Disabled      bool                  `json:"disabled,omitempty" protobuf:"varint,3,opt,name=disabled"`
+	IconClass     string                `json:"iconClass,omitempty" protobuf:"bytes,4,opt,name=iconClass"`
+	DisplayName   string                `json:"displayName,omitempty" protobuf:"bytes,5,opt,name=displayName"`
+	DefaultValue  string                `json:"defaultValue,omitempty" protobuf:"bytes,6,opt,name=defaultValue"`
+	HasParameters bool                  `json:"hasParameters,omitempty" protobuf:"bytes,7,opt,name=hasParameters"`
+	Regexp        string                `json:"regexp,omitempty" protobuf:"bytes,8,opt,name=regexp"`
+	ErrorMessage  string                `json:"errorMessage,omitempty" protobuf:"bytes,9,opt,name=errorMessage"`
 }
 
 // TODO: describe this type
