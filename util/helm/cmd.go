@@ -403,8 +403,8 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, string, er
 		args = append(args, "--include-crds")
 	}
 
-	var apiVersionsRemover = regexp.MustCompile(`(--api-versions [^ ]+ )+`)
-	
+	apiVersionsRemover := regexp.MustCompile(`(--api-versions [^ ]+ )+`)
+
 	out, command, err := c.run(args...)
 	if err != nil {
 		msg := err.Error()
