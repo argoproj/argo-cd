@@ -1350,7 +1350,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 	t.Run("sync with impersonation and empty service account match", func(t *testing.T) {
 		// given app sync impersonation feature is enabled with an application referring a project matching service account that is an empty string
 		f := setup(true, test.FakeDestNamespace, "")
-		opMessage := "failed to find a matching service account to impersonate: default service account cannot be an empty string"
+		opMessage := "failed to find a matching service account to impersonate: default service account contains invalid chars ''"
 
 		opState := &v1alpha1.OperationState{
 			Operation: v1alpha1.Operation{

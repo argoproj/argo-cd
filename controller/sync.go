@@ -578,15 +578,15 @@ func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application
 	for _, item := range project.Spec.DestinationServiceAccounts {
 		dstServerMatched, err := glob.MatchWithError(item.Server, application.Spec.Destination.Server)
 		if err != nil {
-			return "", fmt.Errorf("invalid glob pattern for destination server: %v", err)
+			return "", fmt.Errorf("invalid glob pattern for destination server: %w", err)
 		}
 		dstNamespaceMatched, err := glob.MatchWithError(item.Namespace, application.Spec.Destination.Namespace)
 		if err != nil {
-			return "", fmt.Errorf("invalid glob pattern for destination namespace: %v", err)
+			return "", fmt.Errorf("invalid glob pattern for destination namespace: %w", err)
 		}
 		if dstServerMatched && dstNamespaceMatched {
-			if strings.Trim(item.DefaultServiceAccount, " ") == "" || strings.ContainsAny(item.DefaultServiceAccount, "!*[]\\/") {
-				return "", fmt.Errorf("default service account contains invalid chars %s", item.DefaultServiceAccount)
+			if strings.Trim(item.DefaultServiceAccount, " ") == "" || strings.ContainsAny(item.DefaultServiceAccount, serviceAccountDisallowedCharSet) {
+				return "", fmt.Errorf("default service account contains invalid chars '%s'", item.DefaultServiceAccount)
 			} else if strings.Contains(item.DefaultServiceAccount, ":") {
 				// service account is specified along with its namespace.
 				return fmt.Sprintf("system:serviceaccount:%s", item.DefaultServiceAccount), nil

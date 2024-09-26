@@ -710,7 +710,7 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"test-sa",
 	)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "server has an invalid format, '!*'")
+	assert.Contains(t, err.Error(), "server has an invalid format, '!abc'")
 
 	// Given, an existing project,
 	// When, a default destination service account with negation glob pattern for namespace is added,
@@ -765,7 +765,7 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"test\\sa",
 	)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "defaultServiceAccount has an invalid format, 'test\\sa'")
+	assert.Contains(t, err.Error(), "defaultServiceAccount has an invalid format, 'test\\\\sa'")
 
 	// Given, an existing project,
 	// When, a default destination service account with service account having forward slash char is added,
