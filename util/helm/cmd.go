@@ -342,10 +342,6 @@ type TemplateOpts struct {
 	SkipCrds    bool
 }
 
-var (
-	apiVersionsRemover = regexp.MustCompile(`(--api-versions [^ ]+ )+`)
-)
-
 func cleanSetParameters(val string) string {
 	// `{}` equal helm list parameters format, so don't escape `,`.
 	if strings.HasPrefix(val, `{`) && strings.HasSuffix(val, `}`) {
@@ -407,6 +403,8 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, string, er
 		args = append(args, "--include-crds")
 	}
 
+	var apiVersionsRemover = regexp.MustCompile(`(--api-versions [^ ]+ )+`)
+	
 	out, command, err := c.run(args...)
 	if err != nil {
 		msg := err.Error()
