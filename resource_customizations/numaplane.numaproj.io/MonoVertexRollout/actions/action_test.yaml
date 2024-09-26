@@ -4,4 +4,4 @@ actionTests:
   expectedOutputPath: testdata/rollout-paused.yaml
 - action: unpause
   inputPath: testdata/rollout-paused.yaml
-  expectedOutputPath: testdata/rolling-running.yaml
+  expectedOutputPath: testdata/rollout-running.yaml
