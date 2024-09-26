@@ -933,6 +933,30 @@ func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
 		assert.Equal(t, expectedSA, sa)
 	})
 
+	t.Run("match done via invalid glob pattern", func(t *testing.T) {
+		// given an application referring a project with a destination service account having an invalid glob pattern for namespace
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "e[[a*",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := ""
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
+
+		// then, there must be an error as the glob pattern is invalid.
+		require.ErrorContains(t, err, "invalid glob pattern for destination namespace")
+		assert.Equal(t, expectedSA, sa)
+	})
+
 	t.Run("sa specified with a namespace", func(t *testing.T) {
 		// given an application referring a project with multiple destination service accounts having a matching service account specified with its namespace
 		t.Parallel()
@@ -1181,6 +1205,30 @@ func TestDeriveServiceAccountMatchingServers(t *testing.T) {
 
 		// then, there should not be any error and the service account of the glob pattern match must be returned.
 		require.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
+	})
+
+	t.Run("match done via invalid glob pattern", func(t *testing.T) {
+		// given an application referring a project with a destination service account having an invalid glob pattern for server
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "e[[a*",
+				Namespace:             "test-ns",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := ""
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := deriveServiceAccountToImpersonate(f.project, f.application)
+
+		// then, there must be an error as the glob pattern is invalid.
+		require.ErrorContains(t, err, "invalid glob pattern for destination server")
 		assert.Equal(t, expectedSA, sa)
 	})
 

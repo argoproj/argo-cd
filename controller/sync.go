@@ -44,6 +44,8 @@ const (
 	// EnvVarSyncWaveDelay is an environment variable which controls the delay in seconds between
 	// each sync-wave
 	EnvVarSyncWaveDelay = "ARGOCD_SYNC_WAVE_DELAY"
+
+	serviceAccountDisallowedCharSet = "!*[]{}\\/"
 )
 
 func (m *appStateManager) getOpenAPISchema(server string) (openapi.Resources, error) {
@@ -576,15 +578,15 @@ func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application
 	for _, item := range project.Spec.DestinationServiceAccounts {
 		dstServerMatched, err := glob.MatchWithError(item.Server, application.Spec.Destination.Server)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("invalid glob pattern for destination server: %v", err)
 		}
 		dstNamespaceMatched, err := glob.MatchWithError(item.Namespace, application.Spec.Destination.Namespace)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("invalid glob pattern for destination namespace: %v", err)
 		}
 		if dstServerMatched && dstNamespaceMatched {
-			if item.DefaultServiceAccount == "" {
-				return "", fmt.Errorf("default service account cannot be an empty string")
+			if strings.Trim(item.DefaultServiceAccount, " ") == "" || strings.ContainsAny(item.DefaultServiceAccount, "!*[]\\/") {
+				return "", fmt.Errorf("default service account contains invalid chars %s", item.DefaultServiceAccount)
 			} else if strings.Contains(item.DefaultServiceAccount, ":") {
 				// service account is specified along with its namespace.
 				return fmt.Sprintf("system:serviceaccount:%s", item.DefaultServiceAccount), nil

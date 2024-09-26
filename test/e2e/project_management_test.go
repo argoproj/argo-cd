@@ -680,10 +680,32 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 	assert.Contains(t, err.Error(), "already defined")
 
 	// Given, an existing project,
+	// When, a duplicate default destination service account is added,
+	// Then, there is an error with appropriate message.
+	_, err = fixture.RunCli("proj", "add-destination-service-account", projectName,
+		"https://192.168.99.100:8443",
+		"test-ns",
+		"asdf",
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already added")
+
+	// Given, an existing project,
 	// When, a default destination service account with negation glob pattern for server is added,
 	// Then, there is an error with appropriate message.
 	_, err = fixture.RunCli("proj", "add-destination-service-account", projectName,
 		"!*",
+		"test-ns",
+		"test-sa",
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "server has an invalid format, '!*'")
+
+	// Given, an existing project,
+	// When, a default destination service account with negation glob pattern for server is added,
+	// Then, there is an error with appropriate message.
+	_, err = fixture.RunCli("proj", "add-destination-service-account", projectName,
+		"!abc",
 		"test-ns",
 		"test-sa",
 	)
@@ -700,6 +722,105 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 	)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "namespace has an invalid format, '!*'")
+
+	// Given, an existing project,
+	// When, a default destination service account with negation glob pattern for namespace is added,
+	// Then, there is an error with appropriate message.
+	_, err = fixture.RunCli("proj", "add-destination-service-account", projectName,
+		"https://192.168.99.100:8443",
+		"!abc",
+		"test-sa",
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "namespace has an invalid format, '!abc'")
+
+	// Given, an existing project,
+	// When, a default destination service account with empty service account is added,
+	// Then, there is an error with appropriate message.
+	_, err = fixture.RunCli("proj", "add-destination-service-account", projectName,
+		"https://192.168.99.100:8443",
+		"test-ns",
+		"",
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "defaultServiceAccount has an invalid format, ''")
+
+	// Given, an existing project,
+	// When, a default destination service account with service account having just white spaces is added,
+	// Then, there is an error with appropriate message.
+	_, err = fixture.RunCli("proj", "add-destination-service-account", projectName,
+		"https://192.168.99.100:8443",
+		"test-ns",
+		"   ",
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "defaultServiceAccount has an invalid format, '   '")
+
+	// Given, an existing project,
+	// When, a default destination service account with service account having backwards slash char is added,
+	// Then, there is an error with appropriate message.
+	_, err = fixture.RunCli("proj", "add-destination-service-account", projectName,
+		"https://192.168.99.100:8443",
+		"test-ns",
+		"test\\sa",
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "defaultServiceAccount has an invalid format, 'test\\sa'")
+
+	// Given, an existing project,
+	// When, a default destination service account with service account having forward slash char is added,
+	// Then, there is an error with appropriate message.
+	_, err = fixture.RunCli("proj", "add-destination-service-account", projectName,
+		"https://192.168.99.100:8443",
+		"test-ns",
+		"test/sa",
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "defaultServiceAccount has an invalid format, 'test/sa'")
+
+	// Given, an existing project,
+	// When, a default destination service account with service account having square braces char is added,
+	// Then, there is an error with appropriate message.
+	_, err = fixture.RunCli("proj", "add-destination-service-account", projectName,
+		"https://192.168.99.100:8443",
+		"test-ns",
+		"[test-sa]",
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "defaultServiceAccount has an invalid format, '[test-sa]'")
+
+	// Given, an existing project,
+	// When, a default destination service account with service account having curly braces char is added,
+	// Then, there is an error with appropriate message.
+	_, err = fixture.RunCli("proj", "add-destination-service-account", projectName,
+		"https://192.168.99.100:8443",
+		"test-ns",
+		"{test-sa}",
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "defaultServiceAccount has an invalid format, '{test-sa}'")
+
+	// Given, an existing project,
+	// When, a default destination service account with service account having curly braces char is added,
+	// Then, there is an error with appropriate message.
+	_, err = fixture.RunCli("proj", "add-destination-service-account", projectName,
+		"[[ech*",
+		"test-ns",
+		"test-sa",
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "server has an invalid format, '[[ech*'")
+
+	// Given, an existing project,
+	// When, a default destination service account with service account having curly braces char is added,
+	// Then, there is an error with appropriate message.
+	_, err = fixture.RunCli("proj", "add-destination-service-account", projectName,
+		"https://192.168.99.100:8443",
+		"[[ech*",
+		"test-sa",
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "namespace has an invalid format, '[[ech*'")
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	require.NoError(t, err)

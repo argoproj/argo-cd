@@ -17,6 +17,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+const (
+	serviceAccountDisallowedCharSet = "!*[]{}\\/"
+)
+
 type ErrApplicationNotAllowedToUseProject struct {
 	application string
 	namespace   string
@@ -267,26 +271,27 @@ func (p *AppProject) ValidateProject() error {
 
 	destServiceAccts := make(map[string]bool)
 	for _, destServiceAcct := range p.Spec.DestinationServiceAccounts {
-		if destServiceAcct.Server == "!*" {
-			return status.Errorf(codes.InvalidArgument, "server has an invalid format, '!*'")
+		if strings.Contains(destServiceAcct.Server, "!") {
+			return status.Errorf(codes.InvalidArgument, "server has an invalid format, '%s'", destServiceAcct.Server)
 		}
 
-		if destServiceAcct.Namespace == "!*" {
-			return status.Errorf(codes.InvalidArgument, "namespace has an invalid format, '!*'")
+		if strings.Contains(destServiceAcct.Namespace, "!") {
+			return status.Errorf(codes.InvalidArgument, "namespace has an invalid format, '%s'", destServiceAcct.Namespace)
 		}
 
-		if strings.Contains(destServiceAcct.DefaultServiceAccount, "*") {
-			return status.Errorf(codes.InvalidArgument, "defaultServiceAccount does not support glob patterns")
+		if strings.Trim(destServiceAcct.DefaultServiceAccount, " ") == "" ||
+			strings.ContainsAny(destServiceAcct.DefaultServiceAccount, serviceAccountDisallowedCharSet) {
+			return status.Errorf(codes.InvalidArgument, "defaultServiceAccount has an invalid format, '%s'", destServiceAcct.DefaultServiceAccount)
 		}
 
 		_, err := globutil.Compile(destServiceAcct.Server)
 		if err != nil {
-			return err
+			return status.Errorf(codes.InvalidArgument, "server has an invalid format, '%s'", destServiceAcct.Server)
 		}
 
 		_, err = globutil.Compile(destServiceAcct.Namespace)
 		if err != nil {
-			return err
+			return status.Errorf(codes.InvalidArgument, "namespace has an invalid format, '%s'", destServiceAcct.Namespace)
 		}
 
 		key := fmt.Sprintf("%s/%s", destServiceAcct.Server, destServiceAcct.Namespace)

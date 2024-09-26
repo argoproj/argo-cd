@@ -27,6 +27,7 @@ argocd proj create PROJECT [flags]
       --deny-namespaced-resource stringArray    List of denied namespaced resources
       --description string                      Project description
   -d, --dest stringArray                        Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)
+      --dest-service-accounts stringArray       Destination server, namespace and target service account (e.g. https://192.168.99.100:8443,default,default-sa)
   -f, --file string                             Filename or URL to Kubernetes manifests for the project
   -h, --help                                    help for create
       --orphaned-resources                      Enables orphaned resources monitoring
