@@ -83,16 +83,14 @@ export const useTheme = (props: {theme: string}) => {
     const [theme, setTheme] = React.useState(getTheme(props.theme));
 
     React.useEffect(() => {
-        // change theme by system
-        const destroyListener = useSystemTheme(systemTheme => {
-            setTheme(currentTheme => {
-                if (props.theme === 'auto') {
-                    return systemTheme;
-                }
+        let destroyListener: (() => void) | undefined;
 
-                return currentTheme;
+        // change theme by system, only register listener when theme is auto
+        if (props.theme === 'auto') {
+            destroyListener = useSystemTheme(systemTheme => {
+                setTheme(systemTheme);
             });
-        });
+        }
 
         // change theme manually
         if (props.theme !== theme) {
@@ -100,7 +98,7 @@ export const useTheme = (props: {theme: string}) => {
         }
 
         return () => {
-            destroyListener();
+            destroyListener?.();
         };
     }, [props.theme]);
 
