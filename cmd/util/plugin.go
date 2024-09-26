@@ -34,6 +34,7 @@ type DefaultPluginHandler struct {
 	ValidPrefixes []string
 }
 
+// NewDefaultPluginHandler instantiates the DefaultPluginHandler
 func NewDefaultPluginHandler(validPrefixes []string) *DefaultPluginHandler {
 	return &DefaultPluginHandler{
 		ValidPrefixes: validPrefixes,
