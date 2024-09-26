@@ -3,7 +3,7 @@ actions["pause"] = {["disabled"] = true}
 actions["unpause"] = {["disabled"] = true}
 
 local paused = false
-if obj.spec.pipeline.spec.lifecycle ~= {} and obj.spec.pipeline.spec.lifecycle.desiredPhase == "Paused" then
+if obj.spec.pipeline.spec.lifecycle ~= nil and obj.spec.pipeline.spec.lifecycle.desiredPhase == "Paused" then
   paused = true
 end
 if paused then
