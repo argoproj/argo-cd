@@ -42,9 +42,14 @@ func NewDefaultArgoCDCommandWithArgs(o cmdutil.ArgoCDCLIOptions) *cobra.Command 
 		return cmd
 	}
 
+	// the first argument will be the binary, followed by other arguments
 	if len(o.Arguments) > 1 {
 		cmdPathPieces := o.Arguments[1:]
 
+		// Try to find a valid Argo CD command that matches the arguments provided (e.g., foo in the case of argocd foo)
+		// If it finds a command, it continues without invoking the plugin.
+		// If it doesn't find the command (err is non-nil), it means foo isn't a built-in Argo CD command,
+		// so it might be a plugin like argocd-foo.
 		if _, _, err := cmd.Find(cmdPathPieces); err != nil {
 			var cmdName string
 			for _, arg := range cmdPathPieces {
@@ -69,10 +74,14 @@ func NewDefaultArgoCDCommandWithArgs(o cmdutil.ArgoCDCLIOptions) *cobra.Command 
 	return cmd
 }
 
+// HandlePluginCommand is  responsible for finding and executing a plugin when a command isn't recognized as a built-in command
 func HandlePluginCommand(pluginHandler cmdutil.PluginHandler, cmdArgs []string, minArgs int) error {
 	var remainingArgs []string // this will contain all "non-flag" arguments
 	for _, arg := range cmdArgs {
 		// if you encounter a flag, break the loop
+		// For eg. If cmdArgs is ["argocd", "foo", "-v"],
+		// it will store ["argocd", "foo"] in remainingArgs
+		// and stop when it hits the flag -v
 		if strings.HasPrefix(arg, "-") {
 			break
 		}
