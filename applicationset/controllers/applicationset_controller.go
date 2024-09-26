@@ -1484,7 +1484,7 @@ func getOwnsHandlerPredicates(enableProgressiveSyncs bool) predicate.Funcs {
 				return false
 			}
 			requeue := shouldRequeueApplicationSet(appOld, appNew, enableProgressiveSyncs)
-			logCtx.WithField("requeue", requeue).Debugf("requeue: %t caused by application %s\n", requeue, appNew.Name)
+			logCtx.WithField("requeue", requeue).Debugf("requeue: %t caused by application %s", requeue, appNew.Name)
 			return requeue
 		},
 		GenericFunc: func(e event.GenericEvent) bool {
