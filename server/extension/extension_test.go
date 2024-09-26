@@ -150,7 +150,7 @@ func TestRegisterExtensions(t *testing.T) {
 
 		logger, _ := test.NewNullLogger()
 		logEntry := logger.WithContext(context.Background())
-		m := extension.NewManager(logEntry, settMock, nil, nil, nil, nil)
+		m := extension.NewManager(logEntry, "", settMock, nil, nil, nil, nil)
 
 		return &fixture{
 			settingsGetterMock: settMock,
@@ -248,6 +248,7 @@ func TestCallExtension(t *testing.T) {
 		userMock           *mocks.UserGetter
 		manager            *extension.Manager
 	}
+	defaultServerNamespace := "control-plane-ns"
 	defaultProjectName := "project-name"
 
 	setup := func() *fixture {
@@ -260,7 +261,7 @@ func TestCallExtension(t *testing.T) {
 
 		logger, _ := test.NewNullLogger()
 		logEntry := logger.WithContext(context.Background())
-		m := extension.NewManager(logEntry, settMock, appMock, projMock, rbacMock, userMock)
+		m := extension.NewManager(logEntry, defaultServerNamespace, settMock, appMock, projMock, rbacMock, userMock)
 		m.AddMetricsRegistry(metricsMock)
 
 		mux := http.NewServeMux()
@@ -444,6 +445,7 @@ func TestCallExtension(t *testing.T) {
 		require.NoError(t, err)
 		actual := strings.TrimSuffix(string(body), "\n")
 		assert.Equal(t, backendResponse, actual)
+		assert.Equal(t, defaultServerNamespace, resp.Header.Get(extension.HeaderArgoCDNamespace))
 		assert.Equal(t, clusterURL, resp.Header.Get(extension.HeaderArgoCDTargetClusterURL))
 		assert.Equal(t, "Bearer some-bearer-token", resp.Header.Get("Authorization"))
 		assert.Equal(t, "some-user", resp.Header.Get(extension.HeaderArgoCDUsername))
