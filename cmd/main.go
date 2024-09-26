@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/argoproj/argo-cd/v2/cmd/util"
 	"os"
 	"path/filepath"
 
@@ -24,8 +25,9 @@ const (
 
 func main() {
 	var command *cobra.Command
-	o := cli.ArgoCDCLIOptions{
-		PluginHandler: cli.NewDefaultPluginHandler([]string{"argocd"}),
+
+	o := util.ArgoCDCLIOptions{
+		PluginHandler: util.NewDefaultPluginHandler([]string{"argocd"}),
 		Arguments:     os.Args,
 	}
 
