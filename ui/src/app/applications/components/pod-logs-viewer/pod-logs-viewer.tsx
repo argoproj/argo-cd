@@ -91,8 +91,6 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const logsContainerRef = useRef(null);
 
     const setWithQueryParams = <T extends (val: any) => void>(key: string, cb: T) => {
-        history.replaceState(null, '', `${location.pathname}?${queryParams}`);
-
         return (val => {
             cb(val);
             queryParams.set(key, val.toString());
