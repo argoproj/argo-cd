@@ -910,6 +910,11 @@ func (m *nativeGitClient) ListRevisions(revision string, targetRevision string) 
 	if !IsCommitSHA(revision) || !IsCommitSHA(targetRevision) {
 		return nil, fmt.Errorf("invalid revision provided, must be SHA")
 	}
+
+	if revision == targetRevision {
+		return []string{revision}, nil
+	}
+
 	out, err := m.runCmd("rev-list", "--ancestry-path", fmt.Sprintf("%s..%s", revision, targetRevision))
 	if err != nil {
 		return nil, err

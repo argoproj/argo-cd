@@ -3140,19 +3140,6 @@ func (s *Service) GetChangeRevision(ctx context.Context, request *apiclient.Chan
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
 	defer io.Close(closer)
-
-	files, err := gitClient.ChangedFiles(previousRevision, revision)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to get changed files for repo %s with revision %s: %v", repo.Repo, revision, err)
-	}
-
-	changed := apppathutil.AppFilesHaveChanged(refreshPaths, files)
-
-	if !changed {
-		logCtx.Debugf("no changes found for application %s in repo %s from revision %s to revision %s", request.AppName, repo.Repo, previousRevision, revision)
-		return &apiclient.ChangeRevisionResponse{}, nil
-	}
-
 	revisions, err := gitClient.ListRevisions(previousRevision, revision)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to get revisions %s..%s", previousRevision, revision)

@@ -296,3 +296,17 @@ func Test_IsRevisionPresent(t *testing.T) {
 	revisionPresent = client.IsRevisionPresent("invalid-revision")
 	assert.False(t, revisionPresent)
 }
+
+func Test_ListOfRevisionsContainSameRevision(t *testing.T) {
+	tempDir := t.TempDir()
+
+	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	revs, err := client.ListRevisions("15a9e18218d74c033d411316e6cbe5e45565875a", "15a9e18218d74c033d411316e6cbe5e45565875a")
+	require.NoError(t, err)
+	require.Equal(t, []string{"15a9e18218d74c033d411316e6cbe5e45565875a"}, revs)
+}

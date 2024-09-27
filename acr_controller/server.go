@@ -6,12 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"strings"
 	"time"
-
-	appclient "github.com/argoproj/argo-cd/v2/acr_controller/application"
-	acr_controller "github.com/argoproj/argo-cd/v2/acr_controller/controller"
-	"github.com/argoproj/argo-cd/v2/event_reporter/reporter"
 
 	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
@@ -20,19 +15,15 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
+	appclient "github.com/argoproj/argo-cd/v2/acr_controller/application"
+	acr_controller "github.com/argoproj/argo-cd/v2/acr_controller/controller"
+
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	errorsutil "github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
 	settings_util "github.com/argoproj/argo-cd/v2/util/settings"
-)
-
-const (
-	// catches corrupted informer state; see https://github.com/argoproj/argo-cd/issues/4960 for more information
-	notObjectErrMsg = "object does not implement the Object interfaces"
 )
 
 var backoff = wait.Backoff{
@@ -47,16 +38,13 @@ type ACRServer struct {
 
 	settings             *settings_util.ArgoCDSettings
 	log                  *log.Entry
-	settingsMgr          *settings_util.SettingsManager
 	appInformer          cache.SharedIndexInformer
 	appLister            applisters.ApplicationLister
 	applicationClientset appclientset.Interface
-	db                   db.ArgoDB
 
 	// stopCh is the channel which when closed, will shutdown the Event Reporter server
-	stopCh         chan struct{}
-	serviceSet     *ACRServerSet
-	featureManager *reporter.FeatureManager
+	stopCh     chan struct{}
+	serviceSet *ACRServerSet
 }
 
 type ACRServerSet struct{}
@@ -106,13 +94,6 @@ func (s *handlerSwitcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *ACRServer) healthCheck(r *http.Request) error {
-	if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
-		argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
-		_, err := argoDB.ListClusters(r.Context())
-		if err != nil && strings.Contains(err.Error(), notObjectErrMsg) {
-			return err
-		}
-	}
 	return nil
 }
 
@@ -124,7 +105,7 @@ func (a *ACRServer) Init(ctx context.Context) {
 }
 
 func (a *ACRServer) RunController(ctx context.Context) {
-	controller := acr_controller.NewApplicationChangeRevisionController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister, a.applicationClientset)
+	controller := acr_controller.NewApplicationChangeRevisionController(a.appInformer, a.Cache, a.ApplicationServiceClient, a.appLister, a.applicationClientset)
 	go controller.Run(ctx)
 }
 
@@ -201,10 +182,6 @@ func (a *ACRServer) Run(ctx context.Context, lns *Listeners) {
 
 // NewServer returns a new instance of the Event Reporter server
 func NewApplicationChangeRevisionServer(ctx context.Context, opts ACRServerOpts) *ACRServer {
-	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
-	settings, err := settingsMgr.InitializeSettings(true)
-	errorsutil.CheckError(err)
-
 	appInformerNs := opts.Namespace
 	if len(opts.ApplicationNamespaces) > 0 {
 		appInformerNs = ""
@@ -214,23 +191,12 @@ func NewApplicationChangeRevisionServer(ctx context.Context, opts ACRServerOpts)
 	appInformer := appFactory.Argoproj().V1alpha1().Applications().Informer()
 	appLister := appFactory.Argoproj().V1alpha1().Applications().Lister()
 
-	dbInstance := db.NewDB(opts.Namespace, settingsMgr, opts.KubeClientset)
-
 	server := &ACRServer{
 		ACRServerOpts:        opts,
 		log:                  log.NewEntry(log.StandardLogger()),
-		settings:             settings,
-		settingsMgr:          settingsMgr,
 		appInformer:          appInformer,
 		appLister:            appLister,
-		db:                   dbInstance,
-		featureManager:       reporter.NewFeatureManager(settingsMgr),
 		applicationClientset: opts.AppClientset,
-	}
-
-	if err != nil {
-		// Just log. It's not critical.
-		log.Warnf("Failed to log in-cluster warnings: %v", err)
 	}
 
 	return server

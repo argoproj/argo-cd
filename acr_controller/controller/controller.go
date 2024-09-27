@@ -15,7 +15,6 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 var watchAPIBufferSize = 1000
@@ -25,7 +24,6 @@ type ACRController interface {
 }
 
 type applicationChangeRevisionController struct {
-	settingsMgr              *settings.SettingsManager
 	appBroadcaster           Broadcaster
 	cache                    *servercache.Cache
 	appLister                applisters.ApplicationLister
@@ -34,7 +32,7 @@ type applicationChangeRevisionController struct {
 	applicationClientset     appclientset.Interface
 }
 
-func NewApplicationChangeRevisionController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, settingsMgr *settings.SettingsManager, applicationServiceClient appclient.ApplicationClient, appLister applisters.ApplicationLister, applicationClientset appclientset.Interface) ACRController {
+func NewApplicationChangeRevisionController(appInformer cache.SharedIndexInformer, cache *servercache.Cache, applicationServiceClient appclient.ApplicationClient, appLister applisters.ApplicationLister, applicationClientset appclientset.Interface) ACRController {
 	appBroadcaster := NewBroadcaster()
 	_, err := appInformer.AddEventHandler(appBroadcaster)
 	if err != nil {
@@ -43,7 +41,6 @@ func NewApplicationChangeRevisionController(appInformer cache.SharedIndexInforme
 	return &applicationChangeRevisionController{
 		appBroadcaster:           appBroadcaster,
 		cache:                    cache,
-		settingsMgr:              settingsMgr,
 		applicationServiceClient: applicationServiceClient,
 		appLister:                appLister,
 		applicationClientset:     applicationClientset,
