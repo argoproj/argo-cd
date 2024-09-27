@@ -3,7 +3,7 @@ actions["pause"] = {["disabled"] = true}
 actions["unpause"] = {["disabled"] = true}
 
 local paused = false
-if obj.spec.monoVertex.spec.lifecycle ~= nil and obj.spec.monoVertex.spec.lifecycle.desiredPhase == "Paused" then
+if obj.spec.monoVertex.spec.lifecycle ~= nil and obj.spec.monoVertex.spec.lifecycle.desiredPhase ~= nil and obj.spec.monoVertex.spec.lifecycle.desiredPhase == "Paused" then
   paused = true
 end
 if paused then

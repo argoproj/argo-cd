@@ -15,8 +15,6 @@ metadata:
 spec:
   pipeline:
     spec:
-      lifecycle:
-        deleteGracePeriodSeconds: 32
       edges:
       - from: in
         to: cat
