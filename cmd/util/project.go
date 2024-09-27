@@ -48,7 +48,7 @@ func AddProjFlags(command *cobra.Command, opts *ProjectOpts) {
 	command.Flags().StringArrayVar(&opts.allowedNamespacedResources, "allow-namespaced-resource", []string{}, "List of allowed namespaced resources")
 	command.Flags().StringArrayVar(&opts.deniedNamespacedResources, "deny-namespaced-resource", []string{}, "List of denied namespaced resources")
 	command.Flags().StringSliceVar(&opts.SourceNamespaces, "source-namespaces", []string{}, "List of source namespaces for applications")
-	command.Flags().StringArrayVarP(&opts.destinationServiceAccounts, "dest-service-accounts", "", []string{},
+	command.Flags().StringArrayVar(&opts.destinationServiceAccounts, "dest-service-accounts", []string{},
 		"Destination server, namespace and target service account (e.g. https://192.168.99.100:8443,default,default-sa)")
 }
 
