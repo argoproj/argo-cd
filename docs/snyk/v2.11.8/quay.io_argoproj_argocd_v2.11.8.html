@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="26 known vulnerabilities found in 168 vulnerable dependency paths.">
+  <meta name="description" content="27 known vulnerabilities found in 173 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">September 15th 2024, 12:24:11 am (UTC+00:00)</p>
+                <p class="timestamp">September 22nd 2024, 12:26:39 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -470,8 +470,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>26</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>168 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>27</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>173 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2280</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -1349,6 +1349,131 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">CVE-2023-4039</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v2.11.8/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:22.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            gcc-12/libstdc++6
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v2.11.8 and gcc-12/libstdc++6@12.3.0-1ubuntu1~22.04
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.11.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gcc-12/libstdc++6@12.3.0-1ubuntu1~22.04
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.11.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.4.13
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gcc-12/libstdc++6@12.3.0-1ubuntu1~22.04
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.11.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.4.13
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt/libapt-pkg6.0@2.4.13
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gcc-12/libstdc++6@12.3.0-1ubuntu1~22.04
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.11.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gcc-12/gcc-12-base@12.3.0-1ubuntu1~22.04
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v2.11.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        gcc-12/libgcc-s1@12.3.0-1ubuntu1~22.04
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>gcc-12</code> package and not the <code>gcc-12</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
+        <p><strong>DISPUTED</strong>A failure in the -fstack-protector feature in GCC-based toolchains 
+        that target AArch64 allows an attacker to exploit an existing buffer 
+        overflow in dynamically-sized local variables in your application 
+        without this being detected. This stack-protector failure only applies 
+        to C99-style dynamically-sized local variables or those created using 
+        alloca(). The stack-protector operates as intended for statically-sized 
+        local variables.</p>
+        <p>The default behavior when the stack-protector 
+        detects an overflow is to terminate your application, resulting in 
+        controlled loss of availability. An attacker who can exploit a buffer 
+        overflow without triggering the stack-protector might be able to change 
+        program flow control to cause an uncontrolled loss of availability or to
+         go further and affect confidentiality or integrity. NOTE: The GCC project argues that this is a missed hardening bug and not a vulnerability by itself.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>gcc-12</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-4039">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2023-4039</a></li>
+        <li><a href="https://developer.arm.com/Arm%20Security%20Center/GCC%20Stack%20Protector%20Vulnerability%20AArch64">https://developer.arm.com/Arm%20Security%20Center/GCC%20Stack%20Protector%20Vulnerability%20AArch64</a></li>
+        <li><a href="https://github.com/metaredteam/external-disclosures/security/advisories/GHSA-x7ch-h5rf-w2mf">https://github.com/metaredteam/external-disclosures/security/advisories/GHSA-x7ch-h5rf-w2mf</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2204-GCC12-5893601">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Integer Overflow or Wraparound</h2>
             <div class="card__section">
         
@@ -1406,7 +1531,7 @@
         <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
         <p>An issue was discovered in libexpat before 2.6.3. dtdCopy in xmlparse.c can have an integer overflow for nDefaultAtts on 32-bit platforms (where UINT_MAX equals SIZE_MAX).</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>expat</code>.</p>
+        <p>Upgrade <code>Ubuntu:22.04</code> <code>expat</code> to version 2.4.7-1ubuntu0.4 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-45491">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-45491</a></li>
@@ -1479,7 +1604,7 @@
         <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
         <p>An issue was discovered in libexpat before 2.6.3. xmlparse.c does not reject a negative length for XML_ParseBuffer.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>expat</code>.</p>
+        <p>Upgrade <code>Ubuntu:22.04</code> <code>expat</code> to version 2.4.7-1ubuntu0.4 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-45490">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-45490</a></li>
@@ -1552,7 +1677,7 @@
         <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
         <p>An issue was discovered in libexpat before 2.6.3. nextScaffoldPart in xmlparse.c can have an integer overflow for m_groupSize on 32-bit platforms (where UINT_MAX equals SIZE_MAX).</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>expat</code>.</p>
+        <p>Upgrade <code>Ubuntu:22.04</code> <code>expat</code> to version 2.4.7-1ubuntu0.4 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-45492">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-45492</a></li>
@@ -1625,7 +1750,7 @@
         <em>See <code>How to fix?</code> for <code>Ubuntu:22.04</code> relevant fixed versions and status.</em></p>
         <p>When curl is told to use the Certificate Status Request TLS extension, often referred to as OCSP stapling, to verify that the server certificate is valid, it might fail to detect some OCSP problems and instead wrongly consider the response as fine.  If the returned status reports another error than &#39;revoked&#39; (like for example &#39;unauthorized&#39;) it is not treated as a bad certficate.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:22.04</code> <code>curl</code>.</p>
+        <p>Upgrade <code>Ubuntu:22.04</code> <code>curl</code> to version 7.81.0-1ubuntu1.18 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-8096">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-8096</a></li>

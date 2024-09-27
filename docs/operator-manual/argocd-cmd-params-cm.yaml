@@ -171,6 +171,8 @@ data:
   reposerver.max.combined.directory.manifests.size: '10M'
   # Paths to be excluded from the tarball streamed to plugins. Separate with ;
   reposerver.plugin.tar.exclusions: ""
+  # Enable the repo server to use the 'argocd.argoproj.io/manifest-generate-paths' annotation to guide manifest generation.
+  reposerver.plugin.use.manifest.generate.paths: "false"
   # Allow repositories to contain symlinks that leave the boundaries of the repository.
   # Changing this to "true" will not allow _all_ out-of-bounds symlinks. Those will still be blocked for things like values
   # files in Helm charts. But symlinks which are not explicitly blocked by other checks will be allowed.

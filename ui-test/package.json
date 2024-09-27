@@ -12,14 +12,14 @@
   "author": "Keith Chong",
   "license": "Apache-2.0",
   "dependencies": {
-    "@types/selenium-webdriver": "^4.1.23",
+    "@types/selenium-webdriver": "^4.1.26",
     "assert": "^2.1.0",
-    "chromedriver": "^128.0.3",
-    "selenium-webdriver": "^4.21.0"
+    "chromedriver": "^129.0.0",
+    "selenium-webdriver": "^4.24.1"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.8",
-    "@types/node": "^22.5.5",
+    "@types/node": "^22.7.2",
     "dotenv": "^16.4.5",
     "mocha": "^10.7.3",
     "prettier": "^2.8.8",

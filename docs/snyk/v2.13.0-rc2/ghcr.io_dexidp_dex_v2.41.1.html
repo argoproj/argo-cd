@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Language" content="en-us">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Snyk test report</title>
+  <meta name="description" content="2 known vulnerabilities found in 8 vulnerable dependency paths.">
+  <base target="_blank">
+  <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
+    sizes="194x194">
+  <link rel="shortcut icon" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.ico">
+  <style type="text/css">
+  
+    body {
+      -moz-font-feature-settings: "pnum";
+      -webkit-font-feature-settings: "pnum";
+      font-variant-numeric: proportional-nums;
+      display: flex;
+      flex-direction: column;
+      font-feature-settings: "pnum";
+      font-size: 100%;
+      line-height: 1.5;
+      min-height: 100vh;
+      -webkit-text-size-adjust: 100%;
+      margin: 0;
+      padding: 0;
+      background-color: #F5F5F5;
+      font-family: 'Arial', 'Helvetica', Calibri, sans-serif;
+    }
+  
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      font-weight: 500;
+    }
+  
+    a,
+    a:link,
+    a:visited {
+      border-bottom: 1px solid #4b45a9;
+      text-decoration: none;
+      color: #4b45a9;
+    }
+  
+    a:hover,
+    a:focus,
+    a:active {
+      border-bottom: 1px solid #4b45a9;
+    }
+  
+    hr {
+      border: none;
+      margin: 1em 0;
+      border-top: 1px solid #c5c5c5;
+    }
+  
+    ul {
+      padding: 0 1em;
+      margin: 1em 0;
+    }
+  
+    code {
+      background-color: #EEE;
+      color: #333;
+      padding: 0.25em 0.5em;
+      border-radius: 0.25em;
+    }
+  
+    pre {
+      background-color: #333;
+      font-family: monospace;
+      padding: 0.5em 1em 0.75em;
+      border-radius: 0.25em;
+      font-size: 14px;
+    }
+  
+    pre code {
+      padding: 0;
+      background-color: transparent;
+      color: #fff;
+    }
+  
+    a code {
+      border-radius: .125rem .125rem 0 0;
+      padding-bottom: 0;
+      color: #4b45a9;
+    }
+  
+    a[href^="http://"]:after,
+    a[href^="https://"]:after {
+      background-image: linear-gradient(transparent,transparent),url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20112%20109%22%3E%3Cg%20id%3D%22Page-1%22%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20id%3D%22link-external%22%3E%3Cg%20id%3D%22arrow%22%3E%3Cpath%20id%3D%22Line%22%20stroke%3D%22%234B45A9%22%20stroke-width%3D%2215%22%20d%3D%22M88.5%2021l-43%2042.5%22%20stroke-linecap%3D%22square%22%2F%3E%3Cpath%20id%3D%22Triangle%22%20fill%3D%22%234B45A9%22%20d%3D%22M111.2%200v50L61%200z%22%2F%3E%3C%2Fg%3E%3Cpath%20id%3D%22square%22%20fill%3D%22%234B45A9%22%20d%3D%22M66%2015H0v94h94V44L79%2059v35H15V30h36z%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3C%2Fsvg%3E");
+      background-repeat: no-repeat;
+      background-size: .75rem;
+      content: "";
+      display: inline-block;
+      height: .75rem;
+      margin-left: .25rem;
+      width: .75rem;
+    }
+  
+  
+  /* Layout */
+  
+    [class*=layout-container] {
+      margin: 0 auto;
+      max-width: 71.25em;
+      padding: 1.9em 1.3em;
+      position: relative;
+    }
+    .layout-container--short {
+      padding-top: 0;
+      padding-bottom: 0;
+      max-width: 48.75em;
+    }
+  
+    .layout-container--short:after {
+      display: block;
+      content: "";
+      clear: both;
+    }
+  
+  /* Header */
+  
+    .header {
+      padding-bottom: 1px;
+    }
+  
+    .paths {
+      margin-left: 8px;
+    }
+    .header-wrap {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      padding-top: 2em;
+    }
+    .project__header {
+      background-color: #4b45a9;
+      color: #fff;
+      margin-bottom: -1px;
+      padding-top: 1em;
+      padding-bottom: 0.25em;
+      border-bottom: 2px solid #BBB;
+    }
+  
+    .project__header__title {
+      overflow-wrap: break-word;
+      word-wrap: break-word;
+      word-break: break-all;
+      margin-bottom: .1em;
+      margin-top: 0;
+    }
+  
+    .timestamp {
+      float: right;
+      clear: none;
+      margin-bottom: 0;
+    }
+  
+    .meta-counts {
+      clear: both;
+      display: block;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      margin: 0 0 1.5em;
+      color: #fff;
+      clear: both;
+      font-size: 1.1em;
+    }
+  
+    .meta-count {
+      display: block;
+      flex-basis: 100%;
+      margin: 0 1em 1em 0;
+      float: left;
+      padding-right: 1em;
+      border-right: 2px solid #fff;
+    }
+  
+    .meta-count:last-child {
+      border-right: 0;
+      padding-right: 0;
+      margin-right: 0;
+    }
+  
+  /* Card */
+  
+    .card {
+      background-color: #fff;
+      border: 1px solid #c5c5c5;
+      border-radius: .25rem;
+      margin: 0 0 2em 0;
+      position: relative;
+      min-height: 40px;
+      padding: 1.5em;
+    }
+  
+    .card .label {
+      background-color: #767676;
+      border: 2px solid #767676;
+      color: white;
+      padding: 0.25rem 0.75rem;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      display: inline-block;
+      margin: 0;
+      border-radius: 0.25rem;
+    }
+  
+    .card .label__text {
+      vertical-align: text-top;
+        font-weight: bold;
+    }
+  
+    .card .label--critical {
+      background-color: #AB1A1A;
+      border-color: #AB1A1A;
+    }
+  
+    .card .label--high {
+      background-color: #CE5019;
+      border-color: #CE5019;
+    }
+  
+    .card .label--medium {
+      background-color: #D68000;
+      border-color: #D68000;
+    }
+  
+    .card .label--low {
+      background-color: #88879E;
+      border-color: #88879E;
+    }
+  
+    .severity--low {
+      border-color: #88879E;
+    }
+  
+    .severity--medium {
+      border-color: #D68000;
+    }
+  
+    .severity--high {
+      border-color: #CE5019;
+    }
+  
+    .severity--critical {
+      border-color: #AB1A1A;
+    }
+  
+    .card--vuln {
+      padding-top: 4em;
+    }
+  
+    .card--vuln .label {
+      left: 0;
+      position: absolute;
+      top: 1.1em;
+      padding-left: 1.9em;
+      padding-right: 1.9em;
+      border-radius: 0 0.25rem 0.25rem 0;
+    }
+  
+    .card--vuln .card__section h2 {
+      font-size: 22px;
+      margin-bottom: 0.5em;
+    }
+  
+    .card--vuln .card__section p {
+      margin: 0 0 0.5em 0;
+    }
+  
+    .card--vuln .card__meta {
+      padding: 0 0 0 1em;
+      margin: 0;
+      font-size: 1.1em;
+    }
+  
+    .card .card__meta__paths {
+      font-size: 0.9em;
+    }
+  
+    .card--vuln .card__title {
+      font-size: 28px;
+      margin-top: 0;
+    }
+  
+    .card--vuln .card__cta p {
+      margin: 0;
+      text-align: right;
+    }
+  
+    .source-panel {
+      clear: both;
+      display: flex;
+      justify-content: flex-start;
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 0.5em 0;
+      width: fit-content;
+    }
+  
+  
+  
+  </style>
+  <style type="text/css">
+    .metatable {
+      text-size-adjust: 100%;
+      -webkit-font-smoothing: antialiased;
+      -webkit-box-direction: normal;
+      color: inherit;
+      font-feature-settings: "pnum";
+      box-sizing: border-box;
+      background: transparent;
+      border: 0;
+      font: inherit;
+      font-size: 100%;
+      margin: 0;
+      outline: none;
+      padding: 0;
+      text-align: left;
+      text-decoration: none;
+      vertical-align: baseline;
+      z-index: auto;
+      margin-top: 12px;
+      border-collapse: collapse;
+      border-spacing: 0;
+      font-variant-numeric: tabular-nums;
+      max-width: 51.75em;
+    }
+  
+    tbody {
+      text-size-adjust: 100%;
+      -webkit-font-smoothing: antialiased;
+      -webkit-box-direction: normal;
+      color: inherit;
+      font-feature-settings: "pnum";
+      border-collapse: collapse;
+      border-spacing: 0;
+      box-sizing: border-box;
+      background: transparent;
+      border: 0;
+      font: inherit;
+      font-size: 100%;
+      margin: 0;
+      outline: none;
+      padding: 0;
+      text-align: left;
+      text-decoration: none;
+      vertical-align: baseline;
+      z-index: auto;
+      display: flex;
+      flex-wrap: wrap;
+    }
+  
+    .meta-row {
+      text-size-adjust: 100%;
+      -webkit-font-smoothing: antialiased;
+      -webkit-box-direction: normal;
+      color: inherit;
+      font-feature-settings: "pnum";
+      border-collapse: collapse;
+      border-spacing: 0;
+      box-sizing: border-box;
+      background: transparent;
+      border: 0;
+      font: inherit;
+      font-size: 100%;
+      outline: none;
+      text-align: left;
+      text-decoration: none;
+      vertical-align: baseline;
+      z-index: auto;
+      display: flex;
+      align-items: start;
+      border-top: 1px solid #d3d3d9;
+      padding: 8px 0 0 0;
+      border-bottom: none;
+      margin: 8px;
+      width: 47.75%;
+    }
+  
+    .meta-row-label {
+      text-size-adjust: 100%;
+      -webkit-font-smoothing: antialiased;
+      -webkit-box-direction: normal;
+      font-feature-settings: "pnum";
+      border-collapse: collapse;
+      border-spacing: 0;
+      color: #4c4a73;
+      box-sizing: border-box;
+      background: transparent;
+      border: 0;
+      font: inherit;
+      margin: 0;
+      outline: none;
+      text-decoration: none;
+      z-index: auto;
+      align-self: start;
+      flex: 1;
+      font-size: 1rem;
+      line-height: 1.5rem;
+      padding: 0;
+      text-align: left;
+      vertical-align: top;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+  
+    .meta-row-value {
+      text-size-adjust: 100%;
+      -webkit-font-smoothing: antialiased;
+      -webkit-box-direction: normal;
+      color: inherit;
+      font-feature-settings: "pnum";
+      border-collapse: collapse;
+      border-spacing: 0;
+      word-break: break-word;
+      box-sizing: border-box;
+      background: transparent;
+      border: 0;
+      font: inherit;
+      font-size: 100%;
+      margin: 0;
+      outline: none;
+      padding: 0;
+      text-align: right;
+      text-decoration: none;
+      vertical-align: baseline;
+      z-index: auto;
+    }
+  </style>
+</head>
+
+<body class="section-projects">
+  <main class="layout-stacked">
+        <div class="layout-stacked__header header">
+          <header class="project__header">
+            <div class="layout-container">
+              <a class="brand" href="https://snyk.io" title="Snyk">
+                <svg width="68px" height="35px" viewBox="0 0 68 35" version="1.1" xmlns="http://www.w3.org/2000/svg" role="img">
+                  <title>Snyk - Open Source Security</title>
+                  <g stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                    <g fill="#fff">
+                      <path d="M5.732,27.278 C3.445,27.278 1.589,26.885 0,26.124 L0.483,22.472 C2.163,23.296 4.056,23.689 5.643,23.689 C6.801,23.689 7.563,23.295 7.563,22.599 C7.563,20.594 0.333,21.076 0.333,15.839 C0.333,12.491 3.407,10.729 7.259,10.729 C9.179,10.729 11.161,11.249 12.444,11.704 L11.924,15.294 C10.577,14.774 8.747,14.291 7.222,14.291 C6.282,14.291 5.518,14.621 5.518,15.231 C5.518,17.208 12.903,16.815 12.903,21.925 C12.903,25.325 9.877,27.277 5.733,27.277 L5.732,27.278 Z M25.726,26.936 L25.726,17.894 C25.726,15.827 24.811,14.85 23.069,14.85 C22.219,14.85 21.329,15.09 20.719,15.46 L20.719,26.936 L15.352,26.936 L15.352,11.262 L20.602,10.83 L20.474,13.392 L20.652,13.392 C21.784,11.87 23.702,10.716 25.992,10.716 C28.736,10.716 31.112,12.416 31.112,16.436 L31.112,26.936 L25.724,26.936 L25.726,26.936 Z M61.175,26.936 L56.879,19.479 L56.446,19.479 L56.446,26.935 L51.082,26.935 L51.082,8.37 L56.447,0 L56.447,17.323 C57.515,16.017 61.112,11.059 61.112,11.059 L67.732,11.059 L61.454,17.689 L67.949,26.95 L61.175,26.95 L61.175,26.938 L61.175,26.936 Z M44.13,11.11 L41.93,18.262 C41.5,19.606 41.08,22.079 41.08,22.079 C41.08,22.079 40.75,19.516 40.292,18.172 L37.94,11.108 L31.928,11.108 L38.462,26.935 C37.572,29.04 36.199,30.815 34.369,30.815 C34.039,30.815 33.709,30.802 33.389,30.765 L31.255,34.061 C31.928,34.441 33.212,34.835 34.737,34.835 C38.703,34.835 41.359,31.627 43.215,26.885 L49.443,11.108 L44.132,11.108 L44.13,11.11 Z"></path>
+                    </g>
+                  </g>
+                </svg>
+              </a>
+              <div class="header-wrap">
+                  <h1 class="project__header__title">Snyk test report</h1>
+    
+                <p class="timestamp">September 22nd 2024, 12:21:32 am (UTC+00:00)</p>
+              </div>
+              <div class="source-panel">
+                <span>Scanned the following paths:</span>
+                <ul>
+                  <li class="paths">ghcr.io/dexidp/dex:v2.41.1/dexidp/dex (apk)</li>
+                  <li class="paths">ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4//usr/local/bin/gomplate (gomodules)</li>
+                  <li class="paths">ghcr.io/dexidp/dex:v2.41.1/dexidp/dex//usr/local/bin/docker-entrypoint (gomodules)</li>
+                  <li class="paths">ghcr.io/dexidp/dex:v2.41.1/dexidp/dex//usr/local/bin/dex (gomodules)</li>
+                </ul>
+              </div>
+    
+              <div class="meta-counts">
+                <div class="meta-count"><span>2</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>8 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>969</span> <span>dependencies</span></div>
+              </div><!-- .meta-counts -->
+            </div><!-- .layout-container--short -->
+          </header><!-- .project__header -->
+        </div><!-- .layout-stacked__header -->
+
+    <div class="layout-container" style="padding-top: 35px;">
+      <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Insertion of Sensitive Information into Log File</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.41.1/hairyhenderson/gomplate/v4 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            google.golang.org/grpc/metadata
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v4@* and google.golang.org/grpc/metadata@v1.64.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v4@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        google.golang.org/grpc/metadata@v1.64.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/github.com/grpc/grpc-go/metadata">google.golang.org/grpc/metadata</a> is a package that defines the structure of the metadata supported by the gRPC library</p>
+        <p>Affected versions of this package are vulnerable to Insertion of Sensitive Information into Log File in the form of gRPC metadata. If the metadata contains sensitive information an attacker can expose it.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>google.golang.org/grpc/metadata</code> to version 1.64.1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/grpc/grpc-go/commit/ab292411ddc0f3b7a7786754d1fe05264c3021eb">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOGLEGOLANGORGGRPCMETADATA-7430177">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2024-6119</h2>
+            <div class="card__section">
+        
+                <div class="label label--low">
+                    <span class="label__text">low severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.20
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|ghcr.io/dexidp/dex@v2.41.1 and openssl/libcrypto3@3.3.1-r3
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.41.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.1-r3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.41.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.4-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.1-r3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.41.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r29
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.1-r3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.41.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.4-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.1-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.3.1-r3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.41.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.1-r3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.41.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.4-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.1-r3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.41.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r29
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.3.1-r3
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.20</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: Applications performing certificate name checks (e.g., TLS
+        clients checking server certificates) may attempt to read an invalid memory
+        address resulting in abnormal termination of the application process.</p>
+        <p>Impact summary: Abnormal termination of an application can a cause a denial of
+        service.</p>
+        <p>Applications performing certificate name checks (e.g., TLS clients checking
+        server certificates) may attempt to read an invalid memory address when
+        comparing the expected name with an <code>otherName</code> subject alternative name of an
+        X.509 certificate. This may result in an exception that terminates the
+        application program.</p>
+        <p>Note that basic certificate chain validation (signatures, dates, ...) is not
+        affected, the denial of service can occur only when the application also
+        specifies an expected DNS name, Email address or IP address.</p>
+        <p>TLS servers rarely solicit client certificates, and even when they do, they
+        generally don&#39;t perform a name check against a reference identifier (expected
+        identity), but rather extract the presented identity after checking the
+        certificate chain.  So TLS servers are generally not affected and the severity
+        of the issue is Moderate.</p>
+        <p>The FIPS modules in 3.3, 3.2, 3.1 and 3.0 are not affected by this issue.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.20</code> <code>openssl</code> to version 3.3.2-r0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/05f360d9e849a1b277db628f1f13083a7f8dd04f">https://github.com/openssl/openssl/commit/05f360d9e849a1b277db628f1f13083a7f8dd04f</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/06d1dc3fa96a2ba5a3e22735a033012aadc9f0d6">https://github.com/openssl/openssl/commit/06d1dc3fa96a2ba5a3e22735a033012aadc9f0d6</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/621f3729831b05ee828a3203eddb621d014ff2b2">https://github.com/openssl/openssl/commit/621f3729831b05ee828a3203eddb621d014ff2b2</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/7dfcee2cd2a63b2c64b9b4b0850be64cb695b0a0">https://github.com/openssl/openssl/commit/7dfcee2cd2a63b2c64b9b4b0850be64cb695b0a0</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20240903.txt">https://openssl-library.org/news/secadv/20240903.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE320-OPENSSL-7895537">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+      </div><!-- cards -->
+    </div>
+  </main><!-- .layout-stacked__content -->
+</body>
+
+</html>
