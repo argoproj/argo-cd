@@ -45,6 +45,8 @@ const (
 	// each sync-wave
 	EnvVarSyncWaveDelay = "ARGOCD_SYNC_WAVE_DELAY"
 
+	// serviceAccountDisallowedCharSet contains the characters that are not allowed to be present
+	// in a DefaultServiceAccount configured for a DestinationServiceAccount
 	serviceAccountDisallowedCharSet = "!*[]{}\\/"
 )
 

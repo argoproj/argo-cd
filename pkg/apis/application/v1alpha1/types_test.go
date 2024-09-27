@@ -3979,11 +3979,11 @@ func TestAppProject_ValidateDestinationServiceAccount(t *testing.T) {
 		{
 			// Given, a project
 			// When, a default destination service account with negation glob pattern for server is added,
-			// Then, there is no error.
-			server:                "!abc*",
+			// Then, there is an error with appropriate message.
+			server:                "!abc",
 			namespace:             "test-ns",
 			defaultServiceAccount: "test-sa",
-			expectedErrMsg:        "server has an invalid format, '!abc*'",
+			expectedErrMsg:        "server has an invalid format, '!abc'",
 		},
 		{
 			// Given, a project

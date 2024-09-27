@@ -534,7 +534,9 @@ const (
 
 const (
 	// default max webhook payload size is 1GB
-	defaultMaxWebhookPayloadSize    = int64(1) * 1024 * 1024 * 1024
+	defaultMaxWebhookPayloadSize = int64(1) * 1024 * 1024 * 1024
+
+	// application sync with impersonation feature is disabled by default.
 	defaultImpersonationEnabledFlag = false
 )
 

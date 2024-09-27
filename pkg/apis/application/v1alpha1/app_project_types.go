@@ -19,6 +19,8 @@ import (
 )
 
 const (
+	// serviceAccountDisallowedCharSet contains the characters that are not allowed to be present
+	// in a DefaultServiceAccount configured for a DestinationServiceAccount
 	serviceAccountDisallowedCharSet = "!*[]{}\\/"
 )
 

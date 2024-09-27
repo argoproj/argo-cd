@@ -5,6 +5,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Match tries to match a text with a given glob pattern.
 func Match(pattern, text string, separators ...rune) bool {
 	compiledGlob, err := glob.Compile(pattern, separators...)
 	if err != nil {
@@ -14,6 +15,8 @@ func Match(pattern, text string, separators ...rune) bool {
 	return compiledGlob.Match(text)
 }
 
+// MatchWithError tries to match a text with a given glob pattern.
+// returns error if the glob pattern fails to compile.
 func MatchWithError(pattern, text string, separators ...rune) (bool, error) {
 	compiledGlob, err := glob.Compile(pattern, separators...)
 	if err != nil {
