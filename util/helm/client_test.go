@@ -215,17 +215,21 @@ func TestGetTagsFromUrl(t *testing.T) {
 }
 
 func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
+	username := "my-username"
+	password := "my-password"
+	expectedAuthorization := "Basic bXktdXNlcm5hbWU6bXktcGFzc3dvcmQ=" // base64(user:password)
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("called %s", r.URL.Path)
 
 		authorization := r.Header.Get("Authorization")
+
 		if authorization == "" {
 			w.Header().Set("WWW-Authenticate", `Basic realm="helm repo to get tags"`)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		t.Logf("authorization received %s", authorization)
+		assert.Equal(t, expectedAuthorization, authorization)
 
 		responseTags := TagsList{
 			Tags: []string{
@@ -275,8 +279,8 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			client := NewClient(testCase.repoURL, Creds{
 				InsecureSkipVerify: true,
-				Username:           "my-username",
-				Password:           "my-password",
+				Username:           username,
+				Password:           password,
 			}, true, "", "")
 
 			tags, err := client.GetTags("mychart", true)
@@ -294,6 +298,8 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 }
 
 func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
+	bearerToken := "Zm9vOmJhcg=="
+	expectedAuthorization := "Basic " + bearerToken
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("called %s", r.URL.Path)
 
@@ -304,7 +310,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 			return
 		}
 
-		t.Logf("authorization received %s", authorization)
+		assert.Equal(t, expectedAuthorization, authorization)
 
 		responseTags := TagsList{
 			Tags: []string{
@@ -332,7 +338,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 	configPath := filepath.Join(tempDir, "config.json")
 	t.Setenv("DOCKER_CONFIG", tempDir)
 
-	config := fmt.Sprintf(`{"auths":{"%s":{"auth":"Zm9vOmJhcg=="}}}`, server.URL)
+	config := fmt.Sprintf(`{"auths":{"%s":{"auth":"%s"}}}`, server.URL, bearerToken)
 	require.NoError(t, os.WriteFile(configPath, []byte(config), 0o666))
 
 	testCases := []struct {
