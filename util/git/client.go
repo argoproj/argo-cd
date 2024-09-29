@@ -731,7 +731,7 @@ func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbin
 		return ""
 	}
 
-	log.Infof("Semver constraint '%s' resolved to tag '%s', at reference '%s'", revision, maxVersion.Original(), maxVersionHash.String())
+	log.Debugf("Semver constraint '%s' resolved to tag '%s', at reference '%s'", revision, maxVersion.Original(), maxVersionHash.String())
 	return maxVersionHash.String()
 }
 
