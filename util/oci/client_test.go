@@ -7,8 +7,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"math"
+	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -17,7 +22,7 @@ import (
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/memory"
 
-	"github.com/argoproj/argo-cd/v2/util/io"
+	argoio "github.com/argoproj/argo-cd/v2/util/io"
 )
 
 type layerConf struct {
@@ -84,12 +89,12 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 		manifestMaxExtractedSize        int64
 		disableManifestMaxExtractedSize bool
 		digestFunc                      func(*memory.Store) string
+		postValidationFunc              func(string, string)
 	}
 	tests := []struct {
 		name          string
 		fields        fields
 		args          args
-		wantPath      string
 		expectedError error
 	}{
 		{
@@ -116,7 +121,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 			args: args{
 				digestFunc: func(store *memory.Store) string {
 					layerBlob := createGzippedTarWithContent(t, "some-path", "some content")
-					otherLayerBlob := createGzippedTarWithContent(t, "some-other-ath", "some other content")
+					otherLayerBlob := createGzippedTarWithContent(t, "some-other-path", "some other content")
 					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(v1.MediaTypeImageLayerGzip, layerBlob), layerBlob}, layerConf{content.NewDescriptorFromBytes(v1.MediaTypeImageLayerGzip, otherLayerBlob), otherLayerBlob})
 				},
 				project:                         "test-project",
@@ -156,14 +161,51 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 			},
 			expectedError: fmt.Errorf("not found"),
 		},
+		{
+			name: "extraction with helm chart",
+			fields: fields{
+				allowedMediaTypes: []string{"application/vnd.cncf.helm.chart.content.v1.tar+gzip"},
+			},
+			args: args{
+				digestFunc: func(store *memory.Store) string {
+					helmBlob := createGzippedTarWithContent(t, "Chart.yaml", "some content")
+					layerBlob := createGzippedTarWithContent(t, "chart.tar.gz", string(helmBlob))
+					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes("application/vnd.cncf.helm.chart.content.v1.tar+gzip", layerBlob), layerBlob})
+				},
+				postValidationFunc: func(sha string, path string) {
+					tempDir, err := files.CreateTempDir(os.TempDir())
+					defer os.RemoveAll(tempDir)
+					require.NoError(t, err)
+					file, err := os.Open(path)
+					require.NoError(t, err)
+					err = files.Untgz(tempDir, file, math.MaxInt64, false)
+					require.NoError(t, err)
+					chartDir, err := os.ReadDir(tempDir)
+					require.NoError(t, err)
+					require.Len(t, chartDir, 1)
+					require.Equal(t, chartDir[0].Name(), "Chart.yaml")
+					require.False(t, chartDir[0].IsDir())
+					f, err := os.Open(filepath.Join(tempDir, chartDir[0].Name()))
+					require.NoError(t, err)
+					contents, err := io.ReadAll(f)
+					require.NoError(t, err)
+					require.Equal(t, "some content", string(contents))
+				},
+				project:                         "test-project",
+				manifestMaxExtractedSize:        1000,
+				disableManifestMaxExtractedSize: false,
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		tempDir := t.TempDir()
 		t.Run(tt.name, func(t *testing.T) {
 			store := memory.New()
-			c := newClientWithLock(tt.fields.repoURL, tt.fields.creds, globalLock, store, tt.fields.tagsFunc, tt.fields.allowedMediaTypes, WithChartPaths(io.NewRandomizedTempPaths(tempDir)))
-			gotPath, gotCloser, err := c.Extract(context.Background(), tt.args.digestFunc(store), tt.args.project, tt.args.manifestMaxExtractedSize, tt.args.disableManifestMaxExtractedSize)
+			sha := tt.args.digestFunc(store)
+
+			c := newClientWithLock(tt.fields.repoURL, tt.fields.creds, globalLock, store, tt.fields.tagsFunc, tt.fields.allowedMediaTypes, WithChartPaths(argoio.NewRandomizedTempPaths(tempDir)))
+			path, gotCloser, err := c.Extract(context.Background(), sha, tt.args.project, tt.args.manifestMaxExtractedSize, tt.args.disableManifestMaxExtractedSize)
 
 			if tt.expectedError != nil {
 				require.EqualError(t, err, tt.expectedError.Error())
@@ -171,9 +213,22 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			require.Equal(t, tt.wantPath, gotPath)
+			require.NotEmpty(t, path)
 			require.NotNil(t, gotCloser)
+
+			exists, err := fileExists(path)
+			require.True(t, exists)
+			require.NoError(t, err)
+
+			if tt.args.postValidationFunc != nil {
+				tt.args.postValidationFunc(sha, path)
+			}
+
 			require.NoError(t, gotCloser.Close())
+
+			exists, err = fileExists(path)
+			require.False(t, exists)
+			require.NoError(t, err)
 		})
 	}
 }
