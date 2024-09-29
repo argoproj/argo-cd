@@ -89,7 +89,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 		manifestMaxExtractedSize        int64
 		disableManifestMaxExtractedSize bool
 		digestFunc                      func(*memory.Store) string
-		postValidationFunc              func(string, string)
+		postValidationFunc              func(string, string, *memory.Store)
 	}
 	tests := []struct {
 		name          string
@@ -172,7 +172,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 					layerBlob := createGzippedTarWithContent(t, "chart.tar.gz", string(helmBlob))
 					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes("application/vnd.cncf.helm.chart.content.v1.tar+gzip", layerBlob), layerBlob})
 				},
-				postValidationFunc: func(sha string, path string) {
+				postValidationFunc: func(sha string, path string, _ *memory.Store) {
 					tempDir, err := files.CreateTempDir(os.TempDir())
 					defer os.RemoveAll(tempDir)
 					require.NoError(t, err)
@@ -186,6 +186,32 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 					require.Equal(t, chartDir[0].Name(), "Chart.yaml")
 					require.False(t, chartDir[0].IsDir())
 					f, err := os.Open(filepath.Join(tempDir, chartDir[0].Name()))
+					require.NoError(t, err)
+					contents, err := io.ReadAll(f)
+					require.NoError(t, err)
+					require.Equal(t, "some content", string(contents))
+				},
+				project:                         "test-project",
+				manifestMaxExtractedSize:        1000,
+				disableManifestMaxExtractedSize: false,
+			},
+		},
+		{
+			name: "extraction with standard gzip layer",
+			fields: fields{
+				allowedMediaTypes: []string{v1.MediaTypeImageLayerGzip},
+			},
+			args: args{
+				digestFunc: func(store *memory.Store) string {
+					layerBlob := createGzippedTarWithContent(t, "foo.yaml", "some content")
+					return generateManifest(t, store, layerConf{content.NewDescriptorFromBytes(v1.MediaTypeImageLayerGzip, layerBlob), layerBlob})
+				},
+				postValidationFunc: func(sha string, path string, _ *memory.Store) {
+					manifestDir, err := os.ReadDir(path)
+					require.NoError(t, err)
+					require.Len(t, manifestDir, 1)
+					require.Equal(t, manifestDir[0].Name(), "foo.yaml")
+					f, err := os.Open(filepath.Join(path, manifestDir[0].Name()))
 					require.NoError(t, err)
 					contents, err := io.ReadAll(f)
 					require.NoError(t, err)
@@ -221,7 +247,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 			require.NoError(t, err)
 
 			if tt.args.postValidationFunc != nil {
-				tt.args.postValidationFunc(sha, path)
+				tt.args.postValidationFunc(sha, path, store)
 			}
 
 			require.NoError(t, gotCloser.Close())
