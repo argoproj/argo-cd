@@ -273,3 +273,5 @@ spec:
           items:
             - key: controller.profile.enabled
               path: profiler.enabled
+      nodeSelector:
+        kubernetes.io/os: linux
