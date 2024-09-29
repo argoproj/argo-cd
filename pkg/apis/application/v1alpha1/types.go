@@ -3098,7 +3098,7 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 }
 
 // RawRestConfig returns a go-client REST config from cluster that might be serialized into the file using kube.WriteKubeConfig method.
-func (c *Cluster) RawRestConfig() *rest.Config {
+func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 	var config *rest.Config
 	var err error
 	if c.Server == KubernetesInternalAPIServerAddr && env.ParseBoolFromEnv(EnvVarFakeInClusterConfig, false) {
@@ -3182,22 +3182,25 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 		}
 	}
 	if err != nil {
-		panic(fmt.Sprintf("Unable to create K8s REST config: %v", err))
+		return nil, fmt.Errorf("Unable to create K8s REST config: %w", err)
 	}
 	config.Timeout = K8sServerSideTimeout
 	config.QPS = K8sClientConfigQPS
 	config.Burst = K8sClientConfigBurst
-	return config
+	return config, nil
 }
 
 // RESTConfig returns a go-client REST config from cluster with tuned throttling and HTTP client settings.
-func (c *Cluster) RESTConfig() *rest.Config {
-	config := c.RawRestConfig()
-	err := SetK8SConfigDefaults(config)
+func (c *Cluster) RESTConfig() (*rest.Config, error) {
+	config, err := c.RawRestConfig()
 	if err != nil {
-		panic(fmt.Sprintf("Unable to apply K8s REST config defaults: %v", err))
+		return nil, fmt.Errorf("Unable to get K8s RAW REST config: %w", err)
 	}
-	return config
+	err = SetK8SConfigDefaults(config)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to apply K8s REST config defaults: %w", err)
+	}
+	return config, nil
 }
 
 // UnmarshalToUnstructured unmarshals a resource representation in JSON to unstructured data

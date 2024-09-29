@@ -146,7 +146,12 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 		return nil, err
 	}
 	c := q.Cluster
-	serverVersion, err := s.kubectl.GetServerVersion(c.RESTConfig())
+	clusterRESTConfig, err := c.RESTConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	serverVersion, err := s.kubectl.GetServerVersion(clusterRESTConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -313,9 +318,13 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 		}
 		q.Cluster = c
 	}
+	clusterRESTConfig, err := q.Cluster.RESTConfig()
+	if err != nil {
+		return nil, err
+	}
 
 	// Test the token we just created before persisting it
-	serverVersion, err := s.kubectl.GetServerVersion(q.Cluster.RESTConfig())
+	serverVersion, err := s.kubectl.GetServerVersion(clusterRESTConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -406,7 +415,10 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 	for _, server := range servers {
 		logCtx := log.WithField("cluster", server)
 		logCtx.Info("Rotating auth")
-		restCfg := clust.RESTConfig()
+		restCfg, err := clust.RESTConfig()
+		if err != nil {
+			return nil, err
+		}
 		if restCfg.BearerToken == "" {
 			return nil, status.Errorf(codes.InvalidArgument, "Cluster '%s' does not use bearer token authentication", server)
 		}
@@ -428,8 +440,12 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 		clust.Config.CertData = nil
 		clust.Config.BearerToken = string(newSecret.Data["token"])
 
+		clusterRESTConfig, err := clust.RESTConfig()
+		if err != nil {
+			return nil, err
+		}
 		// Test the token we just created before persisting it
-		serverVersion, err := s.kubectl.GetServerVersion(clust.RESTConfig())
+		serverVersion, err := s.kubectl.GetServerVersion(clusterRESTConfig)
 		if err != nil {
 			return nil, err
 		}
