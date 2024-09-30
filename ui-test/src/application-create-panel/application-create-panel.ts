@@ -6,10 +6,10 @@ import * as Const from '../Constants';
 const CREATE_APPLICATION_BUTTON_CREATE: By = By.xpath('.//button[@qe-id="applications-list-button-create"]');
 const CREATE_APPLICATION_BUTTON_CANCEL: By = By.xpath('.//button[@qe-id="applications-list-button-cancel"]');
 
-const CREATE_APPLICATION_FIELD_APP_NAME: By = By.xpath('.//input[@qeid="application-create-field-app-name"]');
-const CREATE_APPLICATION_FIELD_PROJECT: By = By.xpath('.//input[@qe-id="application-create-field-project"]');
-const CREATE_APPLICATION_FIELD_REPOSITORY_URL: By = By.xpath('.//input[@qe-id="application-create-field-repository-url"]');
-const CREATE_APPLICATION_FIELD_REPOSITORY_PATH: By = By.xpath('.//input[@qe-id="application-create-field-path"]');
+const CREATE_APPLICATION_FIELD_APP_NAME: By = By.css('input[qeid="application-create-field-app-name"]');
+const CREATE_APPLICATION_FIELD_PROJECT: By = By.css('input[qe-id="application-create-field-project"]');
+const CREATE_APPLICATION_FIELD_REPOSITORY_URL: By = By.css('input[qe-id="application-create-field-repository-url"]');
+const CREATE_APPLICATION_FIELD_REPOSITORY_PATH: By = By.css('input[qe-id="application-create-field-path"]');
 
 const CREATE_APPLICATION_DROPDOWN_DESTINATION: By = By.xpath('.//div[@qe-id="application-create-dropdown-destination"]');
 const CREATE_APPLICATION_DROPDOWN_MENU_URL: By = By.xpath('.//li[@qe-id="application-create-dropdown-destination-URL"]');
@@ -18,9 +18,9 @@ const CREATE_APPLICATION_DROPDOWN_MENU_NAME: By = By.xpath('.//li[@qe-id="applic
 export const DESTINATION_MENU_NAME: string = 'NAME';
 export const DESTINATION_MENU_URL: string = 'URL';
 
-const CREATE_APPLICATION_FIELD_CLUSTER_NAME: By = By.xpath('.//input[@qe-id="application-create-field-cluster-name"]');
+const CREATE_APPLICATION_FIELD_CLUSTER_NAME: By = By.css('input[qe-id="application-create-field-cluster-name"]');
 const CREATE_APPLICATION_FIELD_CLUSTER_NAMESPACE: By = By.xpath('.//input[@qeid="application-create-field-namespace"]');
-const CREATE_APPLICATION_FIELD_CLUSTER_URL: By = By.xpath('.//input[@qe-id="application-create-field-cluster-url"]');
+const CREATE_APPLICATION_FIELD_CLUSTER_URL: By = By.css('input[qe-id="application-create-field-cluster-url"]');
 
 export class ApplicationCreatePanel extends Base {
     public constructor(driver: WebDriver) {
@@ -32,7 +32,7 @@ export class ApplicationCreatePanel extends Base {
             const appNameField = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_FIELD_APP_NAME);
             await appNameField.sendKeys(appName);
         } catch (err) {
-            throw new Error(err);
+            throw new Error("Error setting app name" + err);
         }
     }
 
@@ -41,7 +41,7 @@ export class ApplicationCreatePanel extends Base {
             const project = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_FIELD_PROJECT);
             await project.sendKeys(projectName);
         } catch (err) {
-            throw new Error(err);
+            throw new Error("Error setting project name: " + err);
         }
     }
 
@@ -50,7 +50,7 @@ export class ApplicationCreatePanel extends Base {
             const reposUrl = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_FIELD_REPOSITORY_URL);
             await reposUrl.sendKeys(sourceRepoUrl);
         } catch (err) {
-            throw new Error(err);
+            throw new Error("Error setting source repo URL: " + err);
         }
     }
 
@@ -59,7 +59,7 @@ export class ApplicationCreatePanel extends Base {
             const path = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_FIELD_REPOSITORY_PATH);
             await path.sendKeys(sourceRepoPath);
         } catch (err) {
-            throw new Error(err);
+            throw new Error("Error setting source repo path: " + err);
         }
     }
 
@@ -74,12 +74,12 @@ export class ApplicationCreatePanel extends Base {
             // click() doesn't work. Use script
             await UiTestUtilities.click(this.driver, clusterCombo);
             const urlMenu = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_DROPDOWN_MENU_URL);
-            await urlMenu.click();
+            await UiTestUtilities.click(this.driver, urlMenu);
             if (destinationClusterFieldValue) {
                 await this.setDestinationClusterUrl(destinationClusterFieldValue);
             }
         } catch (err) {
-            throw new Error(err);
+            throw new Error("Error selecting destination cluster URL: " + err);
         }
     }
 
@@ -99,7 +99,7 @@ export class ApplicationCreatePanel extends Base {
                 await this.setDestinationClusterName(destinationClusterFieldValue);
             }
         } catch (err) {
-            throw new Error(err);
+            throw new Error("Error selecting destination cluster by name: " + err);
         }
     }
 
@@ -109,7 +109,7 @@ export class ApplicationCreatePanel extends Base {
             await clusterName.sendKeys(destinationClusterName);
             // await clusterName.sendKeys('\r');
         } catch (err) {
-            throw new Error(err);
+            throw new Error("Error setting destination cluster name: " + err);
         }
     }
 
@@ -118,7 +118,7 @@ export class ApplicationCreatePanel extends Base {
             const clusterUrl = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_FIELD_CLUSTER_URL);
             await clusterUrl.sendKeys(destinationClusterUrl);
         } catch (err) {
-            throw new Error(err);
+            throw new Error("Error setting destination cluster URL: " + err);
         }
     }
 
@@ -127,7 +127,7 @@ export class ApplicationCreatePanel extends Base {
             const namespace = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_FIELD_CLUSTER_NAMESPACE);
             await namespace.sendKeys(destinationNamespace);
         } catch (err) {
-            throw new Error(err);
+            throw new Error("Error setting destination namespace: " + err);
         }
     }
 
@@ -146,7 +146,7 @@ export class ApplicationCreatePanel extends Base {
             });
             await this.driver.sleep(1000);
         } catch (err) {
-            throw new Error(err);
+            throw new Error("Error clicking create-app button: " + err);
         }
     }
 
@@ -164,7 +164,7 @@ export class ApplicationCreatePanel extends Base {
                 throw e;
             });
         } catch (err) {
-            throw new Error(err);
+            throw new Error("Error clicking button to cancel creating app: " + err);
         }
     }
 
@@ -199,7 +199,7 @@ export class ApplicationCreatePanel extends Base {
             await this.setDestinationNamespace(destinationNamespace);
             await this.clickCreateButton();
         } catch (err) {
-            throw new Error(err);
+            throw new Error("Error creating application: " + err);
         }
     }
 }

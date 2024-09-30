@@ -29,7 +29,7 @@ export class ApplicationsSyncPanel extends Base {
             });
             UiTestUtilities.log('Synchronize sliding panel disappeared');
         } catch (err) {
-            throw new Error(err);
+            throw new Error("Error clicking sync button: " + err);
         }
     }
 }
