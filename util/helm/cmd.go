@@ -366,6 +366,8 @@ func cleanSetParameters(val string) string {
 	return result.String()
 }
 
+var apiVersionsRemover = regexp.MustCompile(`(--api-versions [^ ]+ )+`)
+
 func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, string, error) {
 	if callback, err := cleanupChartLockFile(filepath.Clean(path.Join(c.WorkDir, chartPath))); err == nil {
 		defer callback()
@@ -402,8 +404,6 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, string, er
 	if !opts.SkipCrds {
 		args = append(args, "--include-crds")
 	}
-
-	apiVersionsRemover := regexp.MustCompile(`(--api-versions [^ ]+ )+`)
 
 	out, command, err := c.run(args...)
 	if err != nil {
