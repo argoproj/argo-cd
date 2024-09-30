@@ -170,4 +170,24 @@ func Test_ChangeRevision(r *testing.T) {
 
 		assert.Equal(t, "new-revision", app.Status.OperationState.Operation.Sync.ChangeRevision)
 	})
+
+	r.Run("Change revision already exists", func(t *testing.T) {
+		client := &mocks.ApplicationClient{}
+		client.On("GetChangeRevision", mock.Anything, mock.Anything).Return(&appclient.ChangeRevisionResponse{
+			Revision: pointer.String("new-revision"),
+		}, nil)
+		acrService := newTestACRService(client)
+		app := createTestApp(syncedAppWithHistory)
+
+		err := acrService.ChangeRevision(context.TODO(), app)
+		require.NoError(t, err)
+
+		app, err = acrService.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.TODO(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+
+		assert.Equal(t, "new-revision", app.Status.OperationState.Operation.Sync.ChangeRevision)
+
+		err = acrService.ChangeRevision(context.TODO(), app)
+		require.Error(t, err, "change revision already calculated")
+	})
 }

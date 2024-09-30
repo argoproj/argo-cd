@@ -1,2 +1,2 @@
 ### Features
--  feat: monorepo controller  v1.0.0
+-  fix: change revision controller should verify that revision already exists

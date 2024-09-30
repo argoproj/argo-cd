@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -41,11 +42,12 @@ func getChangeRevisionFromRevisions(revisions []string) string {
 }
 
 func getChangeRevision(app *application.Application) string {
-	if changeRevision := getChangeRevisionFromRevisions(app.Operation.Sync.ChangeRevisions); changeRevision != "" {
-		return changeRevision
-	}
 	if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
-		if changeRevision := getChangeRevisionFromRevisions(app.Status.OperationState.Operation.Sync.ChangeRevisions); changeRevision != "" {
+		changeRevision := app.Status.OperationState.Operation.Sync.ChangeRevision
+		if changeRevision != "" {
+			return changeRevision
+		}
+		if changeRevision = getChangeRevisionFromRevisions(app.Status.OperationState.Operation.Sync.ChangeRevisions); changeRevision != "" {
 			return changeRevision
 		}
 	}
@@ -67,7 +69,7 @@ func (c *acrService) ChangeRevision(ctx context.Context, a *application.Applicat
 
 	if getChangeRevision(app) != "" {
 		log.Infof("Change revision already calculated for application %s", app.Name)
-		return nil
+		return errors.New("change revision already calculated")
 	}
 
 	revision, err := c.calculateRevision(ctx, app)
