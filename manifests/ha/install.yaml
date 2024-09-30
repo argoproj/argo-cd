@@ -22463,6 +22463,7 @@ rules:
   - delete
   - get
   - patch
+  - list
 - apiGroups:
   - ""
   resources:
