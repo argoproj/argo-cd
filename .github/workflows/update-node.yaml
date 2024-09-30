@@ -1,0 +1,42 @@
+# Update Node version on a daily basis and open a PR.
+name: Update Node
+on:
+  schedule:
+    - cron: '0 0 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  update-node:
+    permissions:
+      contents: write
+      pull-requests: write
+    if: github.repository == 'argoproj/argo-cd'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: imjasonh/setup-crane@31b88efe9de28ae0ffa220711af4b60be9435f6e # v0.4
+      - name: Update Node
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          make update-node
+          
+          # If there are no changes, quit early.
+          if [[ -z $(git status -s) ]]; then
+            echo "No changes detected"
+            exit 0
+          fi
+          
+          pr_branch="update-node-$(echo $RANDOM | md5sum | head -c 20)"
+          git checkout -b "$pr_branch"
+          git config --global user.email 'ci@argoproj.com'
+          git config --global user.name 'CI'
+          git add .
+          git commit -m "[Bot] chore(dep): Update Node" --signoff
+          git push --set-upstream origin "$pr_branch"
+          gh pr create -B master -H "$pr_branch" --title '[Bot] chore(dep): Update Node' --body ''
