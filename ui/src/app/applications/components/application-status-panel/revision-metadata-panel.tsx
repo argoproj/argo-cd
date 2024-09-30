@@ -8,7 +8,10 @@ export const RevisionMetadataPanel = (props: {appName: string; appNamespace: str
         return <React.Fragment />;
     }
     return (
-        <DataLoader load={() => services.applications.revisionMetadata(props.appName, props.appNamespace, props.revision, 0, props.versionId)} errorRenderer={() => <div />}>
+        <DataLoader
+            key={props.revision}
+            load={() => services.applications.revisionMetadata(props.appName, props.appNamespace, props.revision, 0, props.versionId)}
+            errorRenderer={() => <div />}>
             {m => (
                 <Tooltip
                     popperOptions={{
