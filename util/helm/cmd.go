@@ -350,9 +350,9 @@ func cleanSetParameters(val string) string {
 
 	var result strings.Builder
 	var prevR rune
-	for i, r := range val {
+	for _, r := range val {
 		if r == ',' {
-			if i == 0 || prevR != '\\' {
+			if prevR != '\\' {
 				result.WriteString(`\,`)
 			} else {
 				result.WriteRune(',')
