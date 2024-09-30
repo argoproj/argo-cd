@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="0 known vulnerabilities found in 0 vulnerable dependency paths.">
+  <meta name="description" content="2 known vulnerabilities found in 2 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,27 +456,231 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">September 22nd 2024, 12:24:31 am (UTC+00:00)</p>
+                <p class="timestamp">September 29th 2024, 12:24:45 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
                 <ul>
-                  <li class="paths">redis:7.0.15-alpine (apk)</li>
-                  <li class="paths">redis:7.0.15-alpine/tianon/gosu//usr/local/bin/gosu (gomodules)</li>
+                  <li class="paths">/argo-cd/argoproj/argo-cd/v2/go.mod (gomodules)</li>
+                  <li class="paths">/argo-cd/ui/yarn.lock (yarn)</li>
                 </ul>
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>0</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>0 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>18</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>2</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>2 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2061</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
         </div><!-- .layout-stacked__header -->
 
     <div class="layout-container" style="padding-top: 35px;">
-      No known vulnerabilities detected.
+      <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Denial of Service (DoS)</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/rs/cors
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    github.com/argoproj/argo-cd/v2@0.0.0, github.com/improbable-eng/grpc-web/go/grpcweb@0.15.0 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/improbable-eng/grpc-web/go/grpcweb@0.15.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/rs/cors@1.9.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Denial of Service (DoS) through the processing of malicious preflight requests that include a <code>Access-Control-Request-Headers</code> header with excessive commas. An attacker can induce excessive memory consumption and potentially crash the server by sending specially crafted requests.</p>
+        <h2 id="poc">PoC</h2>
+        <pre><code class="language-golang">
+        func BenchmarkPreflightAdversarialACRH(b *testing.B) {
+            resps := makeFakeResponses(b.N)
+            req, _ := http.NewRequest(http.MethodOptions, dummyEndpoint, nil)
+            req.Header.Add(headerOrigin, dummyOrigin)
+            req.Header.Add(headerACRM, http.MethodGet)
+            req.Header[headerACRH] = adversarialACRH
+            handler := Default().Handler(testHandler)
+        
+            b.ReportAllocs()
+            b.ResetTimer()
+            for i := 0; i &lt; b.N; i++ {
+                handler.ServeHTTP(resps[i], req)
+            }
+        }
+        
+        var adversarialACRH []string
+        
+        func init() { // populates adversarialACRH
+            n := int(math.Floor(math.Sqrt(http.DefaultMaxHeaderBytes)))
+            commas := strings.Repeat(&quot;,&quot;, n)
+            res := make([]string, n)
+            for i := range res {
+                res[i] = commas
+            }
+            adversarialACRH = res
+        }
+        </code></pre>
+        <h2 id="details">Details</h2>
+        <p>Denial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.</p>
+        <p>Unlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.</p>
+        <p>One popular Denial of Service vulnerability is DDoS (a Distributed Denial of Service), an attack that attempts to clog network pipes to the system by generating a large volume of traffic from many machines.</p>
+        <p>When it comes to open source libraries, DoS vulnerabilities allow attackers to trigger such a crash or crippling of the service by using a flaw either in the application code or from the use of open source libraries.</p>
+        <p>Two common types of DoS vulnerabilities:</p>
+        <ul>
+        <li><p>High CPU/Memory Consumption- An attacker sending crafted requests that could cause the system to take a disproportionate amount of time to process. For example, <a href="SNYK-JAVA-COMMONSFILEUPLOAD-30082">commons-fileupload:commons-fileupload</a>.</p>
+        </li>
+        <li><p>Crash - An attacker sending crafted requests that could cause the system to crash. For Example,  <a href="https://snyk.io/vuln/npm:ws:20171108">npm <code>ws</code> package</a></p>
+        </li>
+        </ul>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/rs/cors</code> to version 1.11.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/rs/cors/commit/4c32059b2756926619f6bf70281b91be7b5dddb2">GitHub Commit</a></li>
+        <li><a href="https://github.com/rs/cors/issues/170">GitHub Issue</a></li>
+        <li><a href="https://github.com/rs/cors/pull/171">GitHub PR</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMRSCORS-7430192">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Concurrent Execution using Shared Resource with Improper Synchronization (&#x27;Race Condition&#x27;)</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v2 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/Azure/azure-sdk-for-go/sdk/azidentity
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    github.com/argoproj/argo-cd/v2@0.0.0, github.com/Azure/kubelogin/pkg/token@0.0.20 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v2@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/Azure/kubelogin/pkg/token@0.0.20
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/Azure/azure-sdk-for-go/sdk/azidentity@1.1.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/github.com/Azure/azure-sdk-for-go/sdk/azidentity">github.com/Azure/azure-sdk-for-go/sdk/azidentity</a> is a module that provides Microsoft Entra ID (formerly Azure Active Directory) token authentication support across the Azure SDK. It includes a set of TokenCredential implementations, which can be used with Azure SDK clients supporting token authentication.</p>
+        <p>Affected versions of this package are vulnerable to Concurrent Execution using Shared Resource with Improper Synchronization (&#39;Race Condition&#39;) in the authentication process. An attacker can elevate privileges by exploiting race conditions during the token validation steps. This is only exploitable if the application is configured to use multiple threads or processes for handling authentication requests.</p>
+        <p><strong>Notes:</strong></p>
+        <ol>
+        <li><p>An attacker who successfully exploited the vulnerability could elevate privileges and read any file on the file system with SYSTEM access permissions;</p>
+        </li>
+        <li><p>An attacker who successfully exploits this vulnerability can only obtain read access to the system files by exploiting this vulnerability. The attacker cannot perform write or delete operations on the files;</p>
+        </li>
+        <li><p>The vulnerability exists in the following credential types: <code>DefaultAzureCredential</code> and <code>ManagedIdentityCredential</code>;</p>
+        </li>
+        <li><p>The vulnerability exists in the following credential types:</p>
+        </li>
+        </ol>
+        <p><code>ManagedIdentityApplication</code> (.NET)</p>
+        <p><code>ManagedIdentityApplication</code> (Java)</p>
+        <p><code>ManagedIdentityApplication</code> (Node.js)</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/Azure/azure-sdk-for-go/sdk/azidentity</code> to version 1.6.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/AzureAD/microsoft-authentication-library-for-dotnet/commit/fddb2c4011c79a7efda2df053ca05b87b8a1303c">GitHub Commit</a></li>
+        <li><a href="https://github.com/AzureAD/microsoft-authentication-library-for-java/commit/9a07472cedbde7a1013a6fc81da91f2a2c6d67a1">GitHub Commit</a></li>
+        <li><a href="https://github.com/AzureAD/microsoft-authentication-library-for-js/commit/3ee9c68d1a80bf7652e41b58ae1bf87ff64a727e">GitHub Commit</a></li>
+        <li><a href="https://github.com/Azure/azure-sdk-for-go/commit/50774cd9709905523136fb05e8c85a50e8984499">GitHub Commit</a></li>
+        <li><a href="https://github.com/Azure/azure-sdk-for-js/commit/c6aa75d312ae463e744163cedfd8fc480cc8d492">GitHub Commit</a></li>
+        <li><a href="https://github.com/Azure/azure-sdk-for-net/commit/2db9a0f33668ae9cf0331613e1cd612bee105e1c">GitHub Commit</a></li>
+        <li><a href="https://github.com/Azure/azure-sdk-for-python/commit/cb065acd7d0f957327dc4f02d1646d4e51a94178">GitHub Commit</a></li>
+        <li><a href="https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-35255">Microsoft Advisory</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMAZUREAZURESDKFORGOSDKAZIDENTITY-7246767">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+      </div><!-- cards -->
     </div>
   </main><!-- .layout-stacked__content -->
 </body>
