@@ -187,6 +187,7 @@ func Test_SemverTags(t *testing.T) {
 		"v1.0.0-rc1",
 		"v1.0.0-rc2",
 		"v1.0.0",
+		"v1.0",
 		"v1.0.1",
 		"v1.1.0",
 		"2024-apple",
@@ -243,6 +244,11 @@ func Test_SemverTags(t *testing.T) {
 		ref:      "v1.*",
 		expected: mapTagRefs["v1.1.0"],
 	}, {
+		// The semver library allows for using both * and x as the wildcard modifier.
+		name:     "alternative minor wildcard constraint",
+		ref:      "v1.x",
+		expected: mapTagRefs["v1.1.0"],
+	}, {
 		name:     "minor gte constraint",
 		ref:      ">= v1.0.0",
 		expected: mapTagRefs["v1.1.0"],
@@ -250,6 +256,16 @@ func Test_SemverTags(t *testing.T) {
 		name:     "multiple constraints",
 		ref:      "> v1.0.0 < v1.1.0",
 		expected: mapTagRefs["v1.0.1"],
+	}, {
+		// We treat non-specific semver versions as regular tags, rather than constraints.
+		name:     "non-specific version",
+		ref:      "v1.0",
+		expected: mapTagRefs["v1.0"],
+	}, {
+		// Which means a missing tag will raise an error.
+		name:  "missing non-specific version",
+		ref:   "v1.1",
+		error: true,
 	}, {
 		// This is NOT a semver constraint, so it should always resolve to itself - because specifying a tag should
 		// return the commit for that tag.
