@@ -45,7 +45,7 @@ const (
 	TestingLabel            = "e2e.argoproj.io"
 	ArgoCDNamespace         = "argocd-e2e"
 	ArgoCDAppNamespace      = "argocd-e2e-external"
-	
+
 	// notifications controller, metrics server port
 	defaultNotificationServer = "localhost:9001"
 

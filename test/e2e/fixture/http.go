@@ -19,7 +19,7 @@ func DoHttpRequest(method string, path string, host string, data ...byte) (*http
 	}
 	reqUrl.Scheme = "http"
 	if host != "" {
-		reqUrl.Host = host	
+		reqUrl.Host = host
 	} else {
 		reqUrl.Host = apiServerAddress
 	}

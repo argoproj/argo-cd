@@ -12,7 +12,7 @@ import (
 // using the Then()
 type Actions struct {
 	context *Context
-	
+
 	healthy bool
 }
 
