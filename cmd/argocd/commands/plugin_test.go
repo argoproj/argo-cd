@@ -96,7 +96,7 @@ func Test_ArgoCDPluginHandler(t *testing.T) {
 
 			if !pluginsHandler.lookedup && !pluginsHandler.executed {
 				// args must be set, otherwise Execute will use os.Args (args used for starting the test) and test.args would not be passed
-				// to the command which might invoke only "kubectl" without any additional args and give false positives
+				// to the command which might invoke only "argocd" without any additional args and give false positives
 				root.SetArgs(tt.args[1:])
 				// Important note! Incorrect command or command failing validation might just call os.Exit(1) which would interrupt execution of the test
 				if err := root.Execute(); err != nil {
