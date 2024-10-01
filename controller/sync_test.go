@@ -1316,7 +1316,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			configMapData: map[string]string{
 				"application.sync.impersonation.enabled": strconv.FormatBool(impersonationEnabled),
 			},
-			additionalsObjs: additionalObjs,
+			additionalObjs: additionalObjs,
 		}
 		ctrl := newFakeController(&data, nil)
 		return &fixture{

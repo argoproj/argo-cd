@@ -67,7 +67,7 @@ type fakeData struct {
 	metricsCacheExpiration         time.Duration
 	applicationNamespaces          []string
 	updateRevisionForPathsResponse *apiclient.UpdateRevisionForPathsResponse
-	additionalsObjs                []runtime.Object
+	additionalObjs                 []runtime.Object
 }
 
 type MockKubectl struct {
