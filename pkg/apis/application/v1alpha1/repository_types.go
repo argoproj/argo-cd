@@ -98,6 +98,16 @@ type Repository struct {
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty" protobuf:"bytes,22,opt,name=forceHttpBasicAuth"`
 	// NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
 	NoProxy string `json:"noProxy,omitempty" protobuf:"bytes,23,opt,name=noProxy"`
+	// execProviderConfig
+	AzureWorkloadIdentityCreds *AzureWorkloadIdentityCreds `json:"azureWorkloadIdentityCreds,omitempty" protobuf:"bytes,24,opt,name=azureWorkloadIdentityCreds"`
+}
+
+// Azure credentials for Azure Workload Identity
+type AzureWorkloadIdentityCreds struct {
+	ClientID                 string `json:"clientid,omitempty" protobuf:"bytes,1,opt,name=clientid"`
+	TenantID                 string `json:"tenantid,omitempty" protobuf:"bytes,2,opt,name=tenantid"`
+	TokenFilePath            string `json:"tokenFilePath,omitempty" protobuf:"bytes,3,opt,name=tokenFilePath"`
+	DisableInstanceDiscovery bool   `json:"disableInstanceDiscovery,omitempty" protobuf:"bytes,4,opt,name=disableInstanceDiscovery"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification
@@ -211,6 +221,9 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 	}
 	if repo.GCPServiceAccountKey != "" {
 		return git.NewGoogleCloudCreds(repo.GCPServiceAccountKey, store)
+	}
+	if repo.AzureWorkloadIdentityCreds != nil {
+		return git.NewAzureWorkloadIdentityCreds(repo.AzureWorkloadIdentityCreds.ClientID, repo.AzureWorkloadIdentityCreds.TenantID, repo.AzureWorkloadIdentityCreds.TokenFilePath, repo.AzureWorkloadIdentityCreds.DisableInstanceDiscovery, store)
 	}
 	return git.NopCreds{}
 }
