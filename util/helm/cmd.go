@@ -342,8 +342,6 @@ type TemplateOpts struct {
 	SkipCrds    bool
 }
 
-var re = regexp.MustCompile(`([^\\]),`)
-
 func cleanSetParameters(val string) string {
 	// `{}` equal helm list parameters format, so don't escape `,`.
 	if strings.HasPrefix(val, `{`) && strings.HasSuffix(val, `}`) {
