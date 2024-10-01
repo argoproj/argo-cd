@@ -230,10 +230,10 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				},
 				manifestMaxExtractedSize:        1000,
 				disableManifestMaxExtractedSize: false,
-				postValidationFunc: func(sha string, path string, client Client, fields fields, args args) {
+				postValidationFunc: func(sha string, _ string, _ Client, fields fields, args args) {
 					store := memory.New()
 					c := newClientWithLock(fields.repoURL, fields.creds, globalLock, store, fields.tagsFunc, fields.allowedMediaTypes, WithChartPaths(cacheDir))
-					path, gotCloser, err := c.Extract(context.Background(), sha, args.project, args.manifestMaxExtractedSize, args.disableManifestMaxExtractedSize)
+					_, gotCloser, err := c.Extract(context.Background(), sha, args.project, args.manifestMaxExtractedSize, args.disableManifestMaxExtractedSize)
 					require.NoError(t, err)
 					require.NoError(t, gotCloser.Close())
 				},
@@ -251,10 +251,10 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				},
 				manifestMaxExtractedSize:        1000,
 				disableManifestMaxExtractedSize: false,
-				postValidationFunc: func(sha string, path string, client Client, fields fields, args args) {
+				postValidationFunc: func(sha string, _ string, _ Client, fields fields, args args) {
 					store := memory.New()
 					c := newClientWithLock(fields.repoURL, fields.creds, globalLock, store, fields.tagsFunc, fields.allowedMediaTypes, WithChartPaths(cacheDir))
-					path, _, err := c.Extract(context.Background(), sha, "non-existent-project", args.manifestMaxExtractedSize, args.disableManifestMaxExtractedSize)
+					_, _, err := c.Extract(context.Background(), sha, "non-existent-project", args.manifestMaxExtractedSize, args.disableManifestMaxExtractedSize)
 					require.Error(t, err)
 					require.Equal(t, fmt.Errorf("not found"), err)
 				},
