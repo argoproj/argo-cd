@@ -326,7 +326,7 @@ As with other generators, clusters *must* already be defined within Argo CD, in 
 In addition to the flattened key/value pairs from the configuration file, the following generator parameters are provided:
 
 - `{{.path.path}}`: The path to the directory containing matching configuration file within the Git repository. Example: `/clusters/clusterA`, if the config file was `/clusters/clusterA/config.json`
-- `{{index .path n}}`: The path to the matching configuration file within the Git repository, split into array elements (`n` - array index). Example: `index .path 0: clusters`, `index .path 1: clusterA`
+- `{{index .path.segments n}}`: The path to the matching configuration file within the Git repository, split into array elements (`n` - array index). Example: `index .path.segments 0: clusters`, `index .path.segments 1: clusterA`
 - `{{.path.basename}}`: Basename of the path to the directory containing the configuration file (e.g. `clusterA`, with the above example.)
 - `{{.path.basenameNormalized}}`: This field is the same as `.path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `.path.basename` of `directory_2` would produce `directory-2` here).
 - `{{.path.filename}}`: The matched filename. e.g., `config.json` in the above example.
@@ -360,7 +360,7 @@ spec:
       files:
       - path: "applicationset/examples/git-generator-files-discovery/cluster-config/**/config.json"
       values:
-        base_dir: "{{index .path 0}}/{{index .path 1}}/{{index .path 2}}"
+        base_dir: "{{index .path.segments 0}}/{{index .path.segments 1}}/{{index .path.segments 2}}"
   template:
     metadata:
       name: '{{.cluster.name}}-guestbook'

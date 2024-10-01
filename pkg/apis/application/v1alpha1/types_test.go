@@ -11,13 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
-	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/pointer"
-
 	argocdcommon "github.com/argoproj/argo-cd/v2/common"
+	"github.com/stretchr/testify/require"
+	"k8s.io/utils/pointer"
 
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
@@ -3174,18 +3170,25 @@ func TestGetCAPath(t *testing.T) {
 		"https://foo.example.com",
 		"oci://foo.example.com",
 		"foo.example.com",
+		"foo.example.com/charts",
+		"https://foo.example.com:5000",
+		"foo.example.com:5000",
+		"foo.example.com:5000/charts",
+		"ssh://foo.example.com",
 	}
 	invalidpath := []string{
 		"https://bar.example.com",
 		"oci://bar.example.com",
 		"bar.example.com",
-		"ssh://foo.example.com",
-		"git@example.com:organization/reponame.git",
+		"ssh://bar.example.com",
+		"git@foo.example.com:organization/reponame.git",
+		"ssh://git@foo.example.com:organization/reponame.git",
 		"/some/invalid/thing",
 		"../another/invalid/thing",
 		"./also/invalid",
 		"$invalid/as/well",
 		"..",
+		"://invalid",
 	}
 
 	for _, str := range validcert {
@@ -3669,36 +3672,4 @@ func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
 			assert.Equal(t, tc.expected, actual)
 		})
 	}
-}
-
-func TestHelmValuesObjectHasReplaceStrategy(t *testing.T) {
-	app := Application{
-		Status: ApplicationStatus{Sync: SyncStatus{ComparedTo: ComparedTo{
-			Source: ApplicationSource{
-				Helm: &ApplicationSourceHelm{
-					ValuesObject: &runtime.RawExtension{
-						Object: &unstructured.Unstructured{Object: map[string]interface{}{"key": []string{"value"}}},
-					},
-				},
-			},
-		}}},
-	}
-
-	appModified := Application{
-		Status: ApplicationStatus{Sync: SyncStatus{ComparedTo: ComparedTo{
-			Source: ApplicationSource{
-				Helm: &ApplicationSourceHelm{
-					ValuesObject: &runtime.RawExtension{
-						Object: &unstructured.Unstructured{Object: map[string]interface{}{"key": []string{"value-modified1"}}},
-					},
-				},
-			},
-		}}},
-	}
-
-	patch, _, err := diff.CreateTwoWayMergePatch(
-		app,
-		appModified, Application{})
-	require.NoError(t, err)
-	assert.Equal(t, `{"status":{"sync":{"comparedTo":{"destination":{},"source":{"helm":{"valuesObject":{"key":["value-modified1"]}},"repoURL":""}}}}}`, string(patch))
 }
