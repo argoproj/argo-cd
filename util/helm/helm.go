@@ -14,6 +14,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/util/config"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	"github.com/argoproj/argo-cd/v2/util/git"
 	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
 )
 
@@ -23,7 +24,8 @@ const (
 )
 
 type HelmRepository struct {
-	Creds
+	Creds git.HelmCreds
+	//Creds
 	Name      string
 	Repo      string
 	EnableOci bool
@@ -84,7 +86,9 @@ func (h *helm) DependencyBuild() error {
 		repo := h.repos[i]
 		if repo.EnableOci {
 			h.cmd.IsHelmOci = true
-			if repo.Creds.Username != "" && repo.Creds.Password != "" {
+			creds, isCreds := repo.Creds.(Creds)
+			_, isAzureWorkloadIdentityCreds := repo.Creds.(git.AzureWorkloadIdentityCreds)
+			if (isCreds && creds.Username != "" && creds.Password != "") || isAzureWorkloadIdentityCreds {
 				_, err := h.cmd.RegistryLogin(repo.Repo, repo.Creds)
 
 				defer func() {

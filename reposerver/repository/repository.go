@@ -92,7 +92,7 @@ type Service struct {
 	metricsServer             *metrics.MetricsServer
 	resourceTracking          argo.ResourceTracking
 	newGitClient              func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (git.Client, error)
-	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client
+	newHelmClient             func(repoURL string, creds git.HelmCreds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client
 	initConstants             RepoServerInitConstants
 	// now is usually just time.Now, but may be replaced by unit tests for testing purposes
 	now func() time.Time
@@ -132,7 +132,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 		metricsServer:             metricsServer,
 		newGitClient:              git.NewClientExt,
 		resourceTracking:          resourceTracking,
-		newHelmClient: func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client {
+		newHelmClient: func(repoURL string, creds git.HelmCreds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client {
 			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock(), enableOci, proxy, noProxy, opts...)
 		},
 		initConstants:      initConstants,

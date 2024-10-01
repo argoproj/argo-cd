@@ -14,6 +14,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	"github.com/argoproj/argo-cd/v2/util/git"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	pathutil "github.com/argoproj/argo-cd/v2/util/io/path"
 	"github.com/argoproj/argo-cd/v2/util/proxy"
@@ -76,42 +77,55 @@ func (c Cmd) run(args ...string) (string, string, error) {
 	return out, fullCommand, nil
 }
 
-func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
+func (c *Cmd) RegistryLogin(repo string, creds git.HelmCreds) (string, error) {
 	args := []string{"registry", "login"}
 	args = append(args, repo)
 
-	if creds.Username != "" {
-		args = append(args, "--username", creds.Username)
-	}
-
-	if creds.Password != "" {
-		args = append(args, "--password", creds.Password)
-	}
-
-	if creds.CAPath != "" {
-		args = append(args, "--ca-file", creds.CAPath)
-	}
-
-	if len(creds.CertData) > 0 {
-		filePath, closer, err := writeToTmp(creds.CertData)
-		if err != nil {
-			return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
+	switch creds := creds.(type) {
+	case Creds:
+		if creds.Username != "" {
+			args = append(args, "--username", creds.Username)
 		}
-		defer argoio.Close(closer)
-		args = append(args, "--cert-file", filePath)
-	}
 
-	if len(creds.KeyData) > 0 {
-		filePath, closer, err := writeToTmp(creds.KeyData)
-		if err != nil {
-			return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
+		if creds.Password != "" {
+			args = append(args, "--password", creds.Password)
 		}
-		defer argoio.Close(closer)
-		args = append(args, "--key-file", filePath)
-	}
 
-	if creds.InsecureSkipVerify {
-		args = append(args, "--insecure")
+		if creds.CAPath != "" {
+			args = append(args, "--ca-file", creds.CAPath)
+		}
+
+		if len(creds.CertData) > 0 {
+			filePath, closer, err := writeToTmp(creds.CertData)
+			if err != nil {
+				return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
+			}
+			defer argoio.Close(closer)
+			args = append(args, "--cert-file", filePath)
+		}
+
+		if len(creds.KeyData) > 0 {
+			filePath, closer, err := writeToTmp(creds.KeyData)
+			if err != nil {
+				return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
+			}
+			defer argoio.Close(closer)
+			args = append(args, "--key-file", filePath)
+		}
+
+		if creds.InsecureSkipVerify {
+			args = append(args, "--insecure")
+		}
+	case git.AzureWorkloadIdentityCreds:
+		token, err := creds.GetAcrRefreshToken(repo)
+		if err != nil {
+			return "", fmt.Errorf("failed to get access token: %w", err)
+		}
+
+		args = append(args, "--username", "00000000-0000-0000-0000-000000000000")
+		args = append(args, "--password", token)
+	default:
+		return "", fmt.Errorf("unsupported helm credentials type: %T", creds)
 	}
 	out, _, err := c.run(args...)
 	if err != nil {
@@ -120,7 +134,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds) (string, error) {
 	return out, nil
 }
 
-func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
+func (c *Cmd) RegistryLogout(repo string, creds git.HelmCreds) (string, error) {
 	args := []string{"registry", "logout"}
 	args = append(args, repo)
 	out, _, err := c.run(args...)
@@ -130,7 +144,7 @@ func (c *Cmd) RegistryLogout(repo string, creds Creds) (string, error) {
 	return out, nil
 }
 
-func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool) (string, error) {
+func (c *Cmd) RepoAdd(name string, url string, opts git.HelmCreds, passCredentials bool) (string, error) {
 	tmp, err := os.MkdirTemp("", "helm")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temporary directory for repo: %w", err)
@@ -139,46 +153,58 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 
 	args := []string{"repo", "add"}
 
-	if opts.Username != "" {
-		args = append(args, "--username", opts.Username)
-	}
-
-	if opts.Password != "" {
-		args = append(args, "--password", opts.Password)
-	}
-
-	if opts.CAPath != "" {
-		args = append(args, "--ca-file", opts.CAPath)
-	}
-
-	if opts.InsecureSkipVerify {
-		args = append(args, "--insecure-skip-tls-verify")
-	}
-
-	if len(opts.CertData) > 0 {
-		certFile, err := os.CreateTemp("", "helm")
-		if err != nil {
-			return "", fmt.Errorf("failed to create temporary certificate file: %w", err)
+	switch opts := opts.(type) {
+	case Creds:
+		if opts.Username != "" {
+			args = append(args, "--username", opts.Username)
 		}
-		_, err = certFile.Write(opts.CertData)
-		if err != nil {
-			return "", fmt.Errorf("failed to write certificate data: %w", err)
-		}
-		defer certFile.Close()
-		args = append(args, "--cert-file", certFile.Name())
-	}
 
-	if len(opts.KeyData) > 0 {
-		keyFile, err := os.CreateTemp("", "helm")
-		if err != nil {
-			return "", fmt.Errorf("failed to create temporary key file: %w", err)
+		if opts.Password != "" {
+			args = append(args, "--password", opts.Password)
 		}
-		_, err = keyFile.Write(opts.KeyData)
-		if err != nil {
-			return "", fmt.Errorf("failed to write key data: %w", err)
+
+		if opts.CAPath != "" {
+			args = append(args, "--ca-file", opts.CAPath)
 		}
-		defer keyFile.Close()
-		args = append(args, "--key-file", keyFile.Name())
+
+		if opts.InsecureSkipVerify {
+			args = append(args, "--insecure-skip-tls-verify")
+		}
+
+		if len(opts.CertData) > 0 {
+			certFile, err := os.CreateTemp("", "helm")
+			if err != nil {
+				return "", fmt.Errorf("failed to create temporary certificate file: %w", err)
+			}
+			_, err = certFile.Write(opts.CertData)
+			if err != nil {
+				return "", fmt.Errorf("failed to write certificate data: %w", err)
+			}
+			defer certFile.Close()
+			args = append(args, "--cert-file", certFile.Name())
+		}
+
+		if len(opts.KeyData) > 0 {
+			keyFile, err := os.CreateTemp("", "helm")
+			if err != nil {
+				return "", fmt.Errorf("failed to create temporary key file: %w", err)
+			}
+			_, err = keyFile.Write(opts.KeyData)
+			if err != nil {
+				return "", fmt.Errorf("failed to write key data: %w", err)
+			}
+			defer keyFile.Close()
+			args = append(args, "--key-file", keyFile.Name())
+		}
+	case git.AzureWorkloadIdentityCreds:
+		token, err := opts.GetAccessToken(url)
+		if err != nil {
+			return "", fmt.Errorf("failed to get access token: %w", err)
+		}
+		args = append(args, "--password", token)
+		args = append(args, "--username", "00000000-0000-0000-0000-000000000000")
+	default:
+		return "", fmt.Errorf("unsupported helm credentials type %T", opts)
 	}
 
 	if passCredentials {
@@ -217,41 +243,54 @@ func writeToTmp(data []byte) (string, argoio.Closer, error) {
 	}), nil
 }
 
-func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, passCredentials bool) (string, error) {
+func (c *Cmd) Fetch(repo, chartName, version, destination string, creds git.HelmCreds, passCredentials bool) (string, error) {
 	args := []string{"pull", "--destination", destination}
 	if version != "" {
 		args = append(args, "--version", version)
 	}
-	if creds.Username != "" {
-		args = append(args, "--username", creds.Username)
-	}
-	if creds.Password != "" {
-		args = append(args, "--password", creds.Password)
-	}
-	if creds.InsecureSkipVerify {
-		args = append(args, "--insecure-skip-tls-verify")
-	}
 
-	args = append(args, "--repo", repo, chartName)
+	switch creds := creds.(type) {
+	case Creds:
+		if creds.Username != "" {
+			args = append(args, "--username", creds.Username)
+		}
+		if creds.Password != "" {
+			args = append(args, "--password", creds.Password)
+		}
+		if creds.InsecureSkipVerify {
+			args = append(args, "--insecure-skip-tls-verify")
+		}
 
-	if creds.CAPath != "" {
-		args = append(args, "--ca-file", creds.CAPath)
-	}
-	if len(creds.CertData) > 0 {
-		filePath, closer, err := writeToTmp(creds.CertData)
-		if err != nil {
-			return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
+		args = append(args, "--repo", repo, chartName)
+
+		if creds.CAPath != "" {
+			args = append(args, "--ca-file", creds.CAPath)
 		}
-		defer argoio.Close(closer)
-		args = append(args, "--cert-file", filePath)
-	}
-	if len(creds.KeyData) > 0 {
-		filePath, closer, err := writeToTmp(creds.KeyData)
-		if err != nil {
-			return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
+		if len(creds.CertData) > 0 {
+			filePath, closer, err := writeToTmp(creds.CertData)
+			if err != nil {
+				return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
+			}
+			defer argoio.Close(closer)
+			args = append(args, "--cert-file", filePath)
 		}
-		defer argoio.Close(closer)
-		args = append(args, "--key-file", filePath)
+		if len(creds.KeyData) > 0 {
+			filePath, closer, err := writeToTmp(creds.KeyData)
+			if err != nil {
+				return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
+			}
+			defer argoio.Close(closer)
+			args = append(args, "--key-file", filePath)
+		}
+	case git.AzureWorkloadIdentityCreds:
+		token, err := creds.GetAccessToken(repo)
+		if err != nil {
+			return "", fmt.Errorf("failed to get access token: %w", err)
+		}
+		args = append(args, "--password", token)
+		args = append(args, "--username", "00000000-0000-0000-0000-000000000000")
+	default:
+		return "", fmt.Errorf("unsupported helm credentials type: %T", creds)
 	}
 	if passCredentials {
 		args = append(args, "--pass-credentials")
@@ -264,37 +303,48 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 	return out, nil
 }
 
-func (c *Cmd) PullOCI(repo string, chart string, version string, destination string, creds Creds) (string, error) {
+func (c *Cmd) PullOCI(repo string, chart string, version string, destination string, creds git.HelmCreds) (string, error) {
 	args := []string{
 		"pull", fmt.Sprintf("oci://%s/%s", repo, chart), "--version",
 		version,
 		"--destination",
 		destination,
 	}
-	if creds.CAPath != "" {
-		args = append(args, "--ca-file", creds.CAPath)
-	}
-
-	if len(creds.CertData) > 0 {
-		filePath, closer, err := writeToTmp(creds.CertData)
-		if err != nil {
-			return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
+	switch creds := creds.(type) {
+	case Creds:
+		if creds.CAPath != "" {
+			args = append(args, "--ca-file", creds.CAPath)
 		}
-		defer argoio.Close(closer)
-		args = append(args, "--cert-file", filePath)
-	}
 
-	if len(creds.KeyData) > 0 {
-		filePath, closer, err := writeToTmp(creds.KeyData)
-		if err != nil {
-			return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
+		if len(creds.CertData) > 0 {
+			filePath, closer, err := writeToTmp(creds.CertData)
+			if err != nil {
+				return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
+			}
+			defer argoio.Close(closer)
+			args = append(args, "--cert-file", filePath)
 		}
-		defer argoio.Close(closer)
-		args = append(args, "--key-file", filePath)
-	}
 
-	if creds.InsecureSkipVerify {
-		args = append(args, "--insecure-skip-tls-verify")
+		if len(creds.KeyData) > 0 {
+			filePath, closer, err := writeToTmp(creds.KeyData)
+			if err != nil {
+				return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
+			}
+			defer argoio.Close(closer)
+			args = append(args, "--key-file", filePath)
+		}
+		if creds.InsecureSkipVerify {
+			args = append(args, "--insecure-skip-tls-verify")
+		}
+	case git.AzureWorkloadIdentityCreds:
+		token, err := creds.GetAccessToken(repo)
+		if err != nil {
+			return "", fmt.Errorf("failed to get access token: %w", err)
+		}
+		args = append(args, "--password", token)
+		args = append(args, "--username", "00000000-0000-0000-0000-000000000000")
+	default:
+		return "", fmt.Errorf("unsupported helm credentials type: %T", creds)
 	}
 	out, _, err := c.run(args...)
 	if err != nil {

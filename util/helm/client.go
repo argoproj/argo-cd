@@ -19,6 +19,7 @@ import (
 	"time"
 
 	executil "github.com/argoproj/argo-cd/v2/util/exec"
+	"github.com/argoproj/argo-cd/v2/util/git"
 
 	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
@@ -75,11 +76,11 @@ func WithChartPaths(chartPaths argoio.TempPaths) ClientOpts {
 	}
 }
 
-func NewClient(repoURL string, creds Creds, enableOci bool, proxy string, noProxy string, opts ...ClientOpts) Client {
+func NewClient(repoURL string, creds git.HelmCreds, enableOci bool, proxy string, noProxy string, opts ...ClientOpts) Client {
 	return NewClientWithLock(repoURL, creds, globalLock, enableOci, proxy, noProxy, opts...)
 }
 
-func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enableOci bool, proxy string, noProxy string, opts ...ClientOpts) Client {
+func NewClientWithLock(repoURL string, creds git.HelmCreds, repoLock sync.KeyLock, enableOci bool, proxy string, noProxy string, opts ...ClientOpts) Client {
 	c := &nativeHelmChart{
 		repoURL:         repoURL,
 		creds:           creds,
@@ -100,7 +101,7 @@ var _ Client = &nativeHelmChart{}
 type nativeHelmChart struct {
 	chartCachePaths argoio.TempPaths
 	repoURL         string
-	creds           Creds
+	creds           git.HelmCreds
 	repoLock        sync.KeyLock
 	enableOci       bool
 	indexCache      indexCache
@@ -187,7 +188,9 @@ func (c *nativeHelmChart) ExtractChart(chart string, version string, project str
 		defer func() { _ = os.RemoveAll(tempDest) }()
 
 		if c.enableOci {
-			if c.creds.Password != "" && c.creds.Username != "" {
+			creds, isCreds := c.creds.(Creds)
+			_, isAzureWorkloadIdentityCreds := c.creds.(git.AzureWorkloadIdentityCreds)
+			if (isCreds && creds.Password != "" && creds.Username != "") || isAzureWorkloadIdentityCreds {
 				_, err = helmCmd.RegistryLogin(c.repoURL, c.creds)
 				if err != nil {
 					_ = os.RemoveAll(tempDir)
@@ -293,7 +296,9 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 
 	// Looks like there is no good way to test access to OCI repo if credentials are not provided
 	// just assume it is accessible
-	if c.creds.Username != "" && c.creds.Password != "" {
+	creds, isCreds := c.creds.(Creds)
+	_, isAzureWorkloadIdentityCreds := c.creds.(git.AzureWorkloadIdentityCreds)
+	if (isCreds && creds.Password != "" && creds.Username != "") || isAzureWorkloadIdentityCreds {
 		_, err = helmCmd.RegistryLogin(c.repoURL, c.creds)
 		if err != nil {
 			return false, fmt.Errorf("error logging into OCI registry: %w", err)
@@ -317,14 +322,26 @@ func (c *nativeHelmChart) loadRepoIndex(maxIndexSize int64) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error creating HTTP request: %w", err)
 	}
-	if c.creds.Username != "" || c.creds.Password != "" {
-		// only basic supported
-		req.SetBasicAuth(c.creds.Username, c.creds.Password)
-	}
-
-	tlsConf, err := newTLSConfig(c.creds)
-	if err != nil {
-		return nil, fmt.Errorf("error creating TLS config: %w", err)
+	var tlsConf *tls.Config
+	switch creds := c.creds.(type) {
+	case Creds:
+		if creds.Username != "" || creds.Password != "" {
+			// only basic supported
+			req.SetBasicAuth(creds.Username, creds.Password)
+		}
+		var err error
+		tlsConf, err = newTLSConfig(creds)
+		if err != nil {
+			return nil, fmt.Errorf("error creating TLS config: %w", err)
+		}
+	case git.AzureWorkloadIdentityCreds:
+		token, err := creds.GetAcrRefreshToken(c.repoURL)
+		if err != nil {
+			return nil, fmt.Errorf("error getting access token: %w", err)
+		}
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	default:
+		return nil, fmt.Errorf("unsupported credentials type: %T", creds)
 	}
 
 	tr := &http.Transport{
@@ -436,9 +453,12 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize repository: %w", err)
 		}
-		tlsConf, err := newTLSConfig(c.creds)
-		if err != nil {
-			return nil, fmt.Errorf("failed setup tlsConfig: %w", err)
+		var tlsConf *tls.Config
+		if creds, ok := c.creds.(Creds); ok {
+			tlsConf, err = newTLSConfig(creds)
+			if err != nil {
+				return nil, fmt.Errorf("failed setup tlsConfig: %w", err)
+			}
 		}
 		client := &http.Client{Transport: &http.Transport{
 			Proxy:             proxy.GetCallback(c.proxy, c.noProxy),
@@ -446,13 +466,32 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 			DisableKeepAlives: true,
 		}}
 
+		var (
+			password string
+			username string
+		)
 		repoHost, _, _ := strings.Cut(tagsURL, "/")
+		switch creds := c.creds.(type) {
+		case Creds:
+			username = creds.Username
+			password = creds.Password
+		case git.AzureWorkloadIdentityCreds:
+			token, err := creds.GetAccessToken(c.repoURL)
+			if err != nil {
+				return nil, fmt.Errorf("error getting access token: %w", err)
+			}
+			password = token
+			username = "00000000-0000-0000-0000-000000000000"
+		default:
+			return nil, fmt.Errorf("unsupported credentials type: %T", creds)
+		}
+
 		repo.Client = &auth.Client{
 			Client: client,
 			Cache:  nil,
 			Credential: auth.StaticCredential(repoHost, auth.Credential{
-				Username: c.creds.Username,
-				Password: c.creds.Password,
+				Username: username,
+				Password: password,
 			}),
 		}
 

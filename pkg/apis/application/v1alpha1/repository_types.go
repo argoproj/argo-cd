@@ -229,7 +229,10 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 }
 
 // GetHelmCreds returns the credentials from a repository configuration used to authenticate at a Helm repository
-func (repo *Repository) GetHelmCreds() helm.Creds {
+func (repo *Repository) GetHelmCreds() git.HelmCreds {
+	if repo.AzureWorkloadIdentityCreds != nil {
+		return git.NewAzureWorkloadIdentityCreds(repo.AzureWorkloadIdentityCreds.ClientID, repo.AzureWorkloadIdentityCreds.TenantID, repo.AzureWorkloadIdentityCreds.TokenFilePath, repo.AzureWorkloadIdentityCreds.DisableInstanceDiscovery, nil)
+	}
 	return helm.Creds{
 		Username:           repo.Username,
 		Password:           repo.Password,

@@ -308,7 +308,7 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		auth := githttp.BasicAuth{Username: username, Password: token}
 		return &auth, nil
 	case AzureWorkloadIdentityCreds:
-		token, err := creds.getAccessToken()
+		token, err := creds.GetAzureDevOpsAccessToken()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get access token from creds: %w", err)
 		}

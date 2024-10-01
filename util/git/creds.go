@@ -85,6 +85,9 @@ type Creds interface {
 	Environ() (io.Closer, []string, error)
 }
 
+type HelmCreds interface {
+}
+
 // nop implementation
 type NopCloser struct{}
 
@@ -595,7 +598,7 @@ func NewAzureWorkloadIdentityCreds(clientID string, tenantID string, tokenFilePa
 }
 
 func (c AzureWorkloadIdentityCreds) Environ() (io.Closer, []string, error) {
-	token, err := c.getAccessToken()
+	token, err := c.GetAzureDevOpsAccessToken()
 	if err != nil {
 		return NopCloser{}, nil, err
 	}
@@ -608,11 +611,54 @@ func (c AzureWorkloadIdentityCreds) Environ() (io.Closer, []string, error) {
 	}), env, nil
 }
 
-// Todo; extra options: TenantID, ClientID, TokenFilePath
-func (c AzureWorkloadIdentityCreds) getAccessToken() (string, error) {
+func (c AzureWorkloadIdentityCreds) GetAccessToken(scope string) (string, error) {
 	// Compute hash of creds for lookup in cache
 	h := sha256.New()
-	_, err := h.Write([]byte(fmt.Sprintf("%s %s %s %t", c.clientID, c.tenantID, c.tokenFilePath, c.disableInstanceDiscovery)))
+	_, err := h.Write([]byte(fmt.Sprintf("%s %s %s %s %t", scope, c.clientID, c.tenantID, c.tokenFilePath, c.disableInstanceDiscovery)))
+	if err != nil {
+		return "", err
+	}
+	key := fmt.Sprintf("%x", h.Sum(nil))
+
+	// Check cache for GitHub transport which helps fetch an API token
+	t, found := azureTokenCache.Get(key)
+	if found {
+		return t.(string), nil
+	}
+
+	cred, err := azidentity.NewWorkloadIdentityCredential(&azidentity.WorkloadIdentityCredentialOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to call azidentity.NewWorkloadIdentityCredential: %w", err)
+	}
+
+	tokenRequestOptions := policy.TokenRequestOptions{}
+	if scope != "" {
+		tokenRequestOptions.Scopes = []string{scope}
+	}
+	token, err := cred.GetToken(context.Background(), tokenRequestOptions)
+	if err != nil {
+		return "", fmt.Errorf("failed to get Azure access token: %w", err)
+	}
+
+	azureTokenCache.Set(key, token.Token, gocache.DefaultExpiration)
+
+	return token.Token, nil
+}
+
+func (c AzureWorkloadIdentityCreds) GetAzureDevOpsAccessToken() (string, error) {
+	accessToken, err := c.GetAccessToken("499b84ac-1321-427f-aa17-267ca6975798/.default") // wellknown resourceid of Azure DevOps
+	return accessToken, err
+}
+
+func (c AzureWorkloadIdentityCreds) GetAcrRefreshToken(azureContainerRegistry string) (string, error) {
+	accessToken, err := c.GetAccessToken("https://management.azure.com/.default")
+	if err != nil {
+		return "", fmt.Errorf("failed to get Azure access token: %w", err)
+	}
+
+	// Compute hash of creds for lookup in cache
+	h := sha256.New()
+	_, err = h.Write([]byte(fmt.Sprintf("%s %s %s %s %t", azureContainerRegistry, c.clientID, c.tenantID, c.tokenFilePath, c.disableInstanceDiscovery)))
 	if err != nil {
 		return "", err
 	}
@@ -625,19 +671,41 @@ func (c AzureWorkloadIdentityCreds) getAccessToken() (string, error) {
 		return t.(string), nil
 	}
 
-	cred, err := azidentity.NewWorkloadIdentityCredential(&azidentity.WorkloadIdentityCredentialOptions{})
+	// Create a new HTTP client
+	endpoint := fmt.Sprintf("https://%s/oauth2/exchange", azureContainerRegistry)
+	client := GetRepoHTTPClient(endpoint, false, nil, "", "")
+	data := url.Values{}
+	data.Set("grant_type", "access_token")
+	data.Set("service", azureContainerRegistry)
+	tenantID := c.tenantID
+	if tenantID == "" {
+		tenantID = os.Getenv("AZURE_TENANT_ID") // mimic implementation of azure workload identity
+	}
+	data.Set("tenant", tenantID)
+	data.Set("access_token", accessToken)
+
+	jsonResponse, err := client.PostForm(endpoint, data)
 	if err != nil {
-		return "", fmt.Errorf("failed to call azidentity.NewWorkloadIdentityCredential: %w", err)
+		return "", fmt.Errorf("failed to create new HTTP request: %w", err)
+	}
+	defer jsonResponse.Body.Close()
+
+	body, err := io.ReadAll(jsonResponse.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	token, err := cred.GetToken(context.Background(), policy.TokenRequestOptions{
-		Scopes: []string{"499b84ac-1321-427f-aa17-267ca6975798/.default"}, // resourceid of Azure DevOps
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to get Azure access token: %w", err)
+	type Response struct {
+		RefreshToken string `json:"refresh_token"`
 	}
 
-	azureTokenCache.Set(key, token.Token, gocache.DefaultExpiration)
+	var res Response
+	err = json.Unmarshal(body, &res)
+	if err != nil {
+		return "", fmt.Errorf("failed to unmarshal response body: %w", err)
+	}
 
-	return token.Token, nil
+	// We assume that the refresh token has a lifetime of 3 hours
+	azureTokenCache.Set(key, res.RefreshToken, 2*time.Hour+30*time.Minute)
+	return res.RefreshToken, nil
 }
