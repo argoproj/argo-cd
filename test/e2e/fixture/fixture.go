@@ -46,6 +46,9 @@ const (
 	ArgoCDNamespace         = "argocd-e2e"
 	ArgoCDAppNamespace      = "argocd-e2e-external"
 
+	// notifications controller, metrics server port
+	defaultNotificationServer = "localhost:9001"
+
 	// ensure all repos are in one directory tree, so we can easily clean them up
 	TmpDir             = "/tmp/argo-e2e"
 	repoDir            = "testdata.git"
@@ -1018,6 +1021,10 @@ func RecordTestRun(t *testing.T) {
 
 func GetApiServerAddress() string {
 	return apiServerAddress
+}
+
+func GetNotificationServerAddress() string {
+	return defaultNotificationServer
 }
 
 func GetToken() string {

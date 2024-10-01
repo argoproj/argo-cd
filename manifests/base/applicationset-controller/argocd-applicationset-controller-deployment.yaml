@@ -217,3 +217,5 @@ spec:
                 path: tls.key
               - key: ca.crt
                 path: ca.crt
+      nodeSelector:
+        kubernetes.io/os: linux
