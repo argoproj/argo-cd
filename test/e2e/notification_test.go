@@ -40,3 +40,13 @@ func TestNotificationsListTriggers(t *testing.T) {
 		assert.Equal(t, []*notification.Trigger{{Name: ptr.To("on-created")}}, triggers.Items)
 	})
 }
+
+func TestNotificationsHealthcheck(t *testing.T) {
+	ctx := notifFixture.Given(t)
+	ctx.When().
+		Healthcheck().
+		Then().
+		Healthy(func(healthy bool) {
+			assert.True(t, healthy)
+		})
+}
