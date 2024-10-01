@@ -460,21 +460,46 @@ func getDefaultShardMappingData(replicas int) []shardApplicationControllerMappin
 
 func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.SettingsManager, shardingAlgorithm string, enableDynamicClusterDistribution bool) (ClusterShardingCache, error) {
 	var replicasCount int
+
+	applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
+	namespace := settingsMgr.GetNamespace()
+
 	if enableDynamicClusterDistribution {
-		applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
-		appControllerDeployment, err := kubeClient.AppsV1().Deployments(settingsMgr.GetNamespace()).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+		appControllerDeployment, err := kubeClient.AppsV1().Deployments(namespace).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
 		// if app controller deployment is not found when dynamic cluster distribution is enabled error out
 		if err != nil {
-			return nil, fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment: %w", err)
+			return nil, fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment '%s': %w", applicationControllerName, err)
 		}
 
-		if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {
+		if appControllerDeployment.Spec.Replicas != nil {
 			replicasCount = int(*appControllerDeployment.Spec.Replicas)
 		} else {
-			return nil, fmt.Errorf("(dynamic cluster distribution) failed to get app controller deployment replica count")
+			return nil, fmt.Errorf("application controller deployment '%s' has no replicas specified", applicationControllerName)
 		}
 	} else {
-		replicasCount = env.ParseNumFromEnv(common.EnvControllerReplicas, 0, 0, math.MaxInt32)
+		// If dynamic cluster distribution is disabled, get the replica count from the StatefulSet.
+		appControllerStatefulSet, err := kubeClient.AppsV1().StatefulSets(namespace).Get(context.Background(), applicationControllerName, metav1.GetOptions{})
+		if err != nil {
+			replicasCount = 1
+			log.Warnf("Failed to retrieve StatefulSet '%s'. Defaulting replicasCount to 1.", applicationControllerName)
+		} else {
+			if appControllerStatefulSet.Spec.Replicas != nil {
+				replicasCount = int(*appControllerStatefulSet.Spec.Replicas)
+			} else {
+				return nil, fmt.Errorf("application controller statefulset '%s' has no replicas specified", applicationControllerName)
+			}
+		}
+	}
+
+	if replicasCount < 1 {
+		log.Warnf("Replica count is %d. Defaulting to 1.", replicasCount)
+		replicasCount = 1
+	}
+
+	// Compare the replica count from the environment variable with the actual replica count, and log a warning if they differ.
+	envReplicasCount := env.ParseNumFromEnv(common.EnvControllerReplicas, replicasCount, 1, math.MaxInt32)
+	if envReplicasCount != replicasCount {
+		log.Warnf("Environment variable ARGOCD_CONTROLLER_REPLICAS (%d) does not match actual replicas (%d). Using actual replicas.", envReplicasCount, replicasCount)
 	}
 	shardNumber := env.ParseNumFromEnv(common.EnvControllerShard, -1, -math.MaxInt32, math.MaxInt32)
 	if replicasCount > 1 {
@@ -505,9 +530,9 @@ func GetClusterSharding(kubeClient kubernetes.Interface, settingsMgr *settings.S
 			}
 		}
 	} else {
-		log.Info("Processing all cluster shards")
+		log.Info("Processing all cluster shards (single replica).")
 		shardNumber = 0
 	}
-	db := db.NewDB(settingsMgr.GetNamespace(), settingsMgr, kubeClient)
+	db := db.NewDB(namespace, settingsMgr, kubeClient)
 	return NewClusterSharding(db, shardNumber, replicasCount, shardingAlgorithm), nil
 }
