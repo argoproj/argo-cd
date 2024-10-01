@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/argoproj/argo-cd/v2/cmd/util"
 	"os"
 	"path/filepath"
 
@@ -39,11 +38,12 @@ func main() {
 	}
 
 	isCLI := false
+	o.Arguments[0] = binaryName
+
 	switch binaryName {
 	case "argocd", "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe":
 		command = cli.NewCommand()
 		isCLI = true
-		command = cli.NewDefaultArgoCDCommandWithArgs(o)
 	case "argocd-server":
 		command = apiserver.NewCommand()
 	case "argocd-application-controller":
@@ -68,7 +68,6 @@ func main() {
 	default:
 		command = cli.NewCommand()
 		isCLI = true
-		command = cli.NewDefaultArgoCDCommand()
 	}
 	util.SetAutoMaxProcs(isCLI)
 
