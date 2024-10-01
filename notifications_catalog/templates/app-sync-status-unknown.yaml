@@ -22,7 +22,7 @@ slack:
           },
           {
             "title": "Repository",
-            "value": "{{.app.spec.source.repoURL}}",
+            "value": "{{range .app.spec.sources}}{{.repoURL}} {{end}}",
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
@@ -44,7 +44,7 @@ teams:
         },
         {
           "name": "Repository",
-          "value": "{{.app.spec.source.repoURL}}"
+          "value": "{{range .app.spec.sources}}{{.repoURL}} {{end}}",
         }
         {{range $index, $c := .app.status.conditions}}
           ,
@@ -68,6 +68,6 @@ teams:
           "name":"Open Repository",
           "targets":[{
             "os":"default",
-            "uri":"{{.app.spec.source.repoURL | call .repo.RepoURLToHTTPS}}"
+            "uri":"{{range .app.spec.sources}}{{.repoURL | call .repo.RepoURLToHTTPS}} {{end}}" 
           }]
         }]
