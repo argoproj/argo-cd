@@ -19,6 +19,12 @@ func (c *Consequences) Services(block func(services *notification.ServiceList, e
 	return c
 }
 
+func (c *Consequences) Healthy(block func(healthy bool)) *Consequences {
+	c.context.t.Helper()
+	block(c.actions.healthy)
+	return c
+}
+
 func (c *Consequences) Triggers(block func(services *notification.TriggerList, err error)) *Consequences {
 	c.context.t.Helper()
 	block(c.listTriggers())
