@@ -35,6 +35,8 @@ func main() {
 	if val := os.Getenv(binaryNameEnv); val != "" {
 		binaryName = val
 	}
+	o.Arguments[0] = binaryName
+
 	switch binaryName {
 	case "argocd", "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe":
 		command = cli.NewDefaultArgoCDCommandWithArgs(o)
@@ -57,7 +59,7 @@ func main() {
 	case "argocd-k8s-auth":
 		command = k8sauth.NewCommand()
 	default:
-		command = cli.NewDefaultArgoCDCommand()
+		command = cli.NewDefaultArgoCDCommandWithArgs(o)
 	}
 
 	if err := command.Execute(); err != nil {

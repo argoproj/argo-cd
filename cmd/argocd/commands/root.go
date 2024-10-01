@@ -63,7 +63,7 @@ func NewDefaultArgoCDCommandWithArgs(o cmdutil.ArgoCDCLIOptions) *cobra.Command 
 			case "help", cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd:
 				// Don't search for a plugin
 			default:
-				if err := HandlePluginCommand(o.PluginHandler, cmdPathPieces, 1); err != nil {
+				if err := cmdutil.HandlePluginCommand(o.PluginHandler, cmdPathPieces, 1); err != nil {
 					fmt.Errorf("Error: %v\n", err)
 					os.Exit(1)
 				}
@@ -72,54 +72,6 @@ func NewDefaultArgoCDCommandWithArgs(o cmdutil.ArgoCDCLIOptions) *cobra.Command 
 	}
 
 	return cmd
-}
-
-// HandlePluginCommand is  responsible for finding and executing a plugin when a command isn't recognized as a built-in command
-func HandlePluginCommand(pluginHandler cmdutil.PluginHandler, cmdArgs []string, minArgs int) error {
-	var remainingArgs []string // this will contain all "non-flag" arguments
-	for _, arg := range cmdArgs {
-		// if you encounter a flag, break the loop
-		// For eg. If cmdArgs is ["argocd", "foo", "-v"],
-		// it will store ["argocd", "foo"] in remainingArgs
-		// and stop when it hits the flag -v
-		if strings.HasPrefix(arg, "-") {
-			break
-		}
-		remainingArgs = append(remainingArgs, strings.Replace(arg, "-", "_", -1))
-	}
-
-	if len(remainingArgs) == 0 {
-		// the length of cmdArgs is at least 1
-		return fmt.Errorf("flags cannot be placed before plugin name: %s", cmdArgs[0])
-	}
-
-	foundPluginPath := ""
-
-	for len(remainingArgs) > 0 {
-		path, found := pluginHandler.LookForPlugin(strings.Join(remainingArgs, "-"))
-		if !found {
-			remainingArgs = remainingArgs[:len(remainingArgs)-1]
-			if len(remainingArgs) < minArgs {
-				break
-			}
-
-			continue
-		}
-
-		foundPluginPath = path
-		break
-	}
-
-	if len(foundPluginPath) == 0 {
-		return nil
-	}
-
-	// Execute the plugin that is found
-	if err := pluginHandler.ExecutePlugin(foundPluginPath, cmdArgs[len(remainingArgs):], os.Environ()); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // NewCommand returns a new instance of an argocd command
