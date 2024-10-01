@@ -385,3 +385,5 @@ spec:
                   matchLabels:
                     app.kubernetes.io/part-of: argocd
                 topologyKey: kubernetes.io/hostname
+      nodeSelector:
+        kubernetes.io/os: linux
