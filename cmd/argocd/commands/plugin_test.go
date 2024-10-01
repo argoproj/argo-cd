@@ -59,7 +59,7 @@ func (t *testPluginHandler) LookForPlugin(filename string) (string, bool) {
 	return "", false
 }
 
-func (t testPluginHandler) ExecutePlugin(executablePath string, cmdArgs, environment []string) error {
+func (t *testPluginHandler) ExecutePlugin(executablePath string, cmdArgs, environment []string) error {
 	t.executed = true
 	t.executedPlugin = executablePath
 	t.withArgs = cmdArgs
@@ -79,6 +79,12 @@ func Test_ArgoCDPluginHandler(t *testing.T) {
 			name:             "test that normal commands are able to be executed, when no plugin overshadows them",
 			args:             []string{"argocd", "cluster", "list"},
 			expectedPlugin:   "",
+			expectPluginArgs: []string{},
+		},
+		{
+			name:             "test that a plugin executable is found based on command args",
+			args:             []string{"argocd", "foo"},
+			expectedPlugin:   "testdata/argocd-foo",
 			expectPluginArgs: []string{},
 		},
 	}
