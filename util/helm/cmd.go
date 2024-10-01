@@ -342,27 +342,33 @@ type TemplateOpts struct {
 	SkipCrds    bool
 }
 
+var re = regexp.MustCompile(`([^\\]),`)
+
 func cleanSetParameters(val string) string {
 	// `{}` equal helm list parameters format, so don't escape `,`.
 	if strings.HasPrefix(val, `{`) && strings.HasSuffix(val, `}`) {
 		return val
 	}
 
+	val = replaceAllWithLookbehind(val, ',', `\,`, '\\')
+	return val
+}
+
+func replaceAllWithLookbehind(val string, old rune, new string, lookbehind rune) string {
 	var result strings.Builder
 	var prevR rune
 	for _, r := range val {
-		if r == ',' {
-			if prevR != '\\' {
-				result.WriteString(`\,`)
+		if r == old {
+			if prevR != lookbehind {
+				result.WriteString(new)
 			} else {
-				result.WriteRune(',')
+				result.WriteRune(old) // 원래 문자를 그대로 추가
 			}
 		} else {
 			result.WriteRune(r)
 		}
 		prevR = r
 	}
-
 	return result.String()
 }
 
