@@ -242,6 +242,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Optoro](https://www.optoro.com/)
 1. [Orbital Insight](https://orbitalinsight.com/)
 1. [Oscar Health Insurance](https://hioscar.com/)
+1. [Outpost24](https://outpost24.com/)
 1. [p3r](https://www.p3r.one/)
 1. [Packlink](https://www.packlink.com/)
 1. [PagerDuty](https://www.pagerduty.com/)
