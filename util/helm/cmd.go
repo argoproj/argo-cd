@@ -360,7 +360,7 @@ func replaceAllWithLookbehind(val string, old rune, new string, lookbehind rune)
 			if prevR != lookbehind {
 				result.WriteString(new)
 			} else {
-				result.WriteRune(old) // 원래 문자를 그대로 추가
+				result.WriteRune(old)
 			}
 		} else {
 			result.WriteRune(r)
