@@ -7,6 +7,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/env"
 )
 
 // Generator defines the interface implemented by all ApplicationSet generators.
@@ -30,7 +31,11 @@ var (
 	NoRequeueAfter            time.Duration
 )
 
-// DefaultRequeueAfterSeconds is used when GetRequeueAfter is not specified, it is the default time to wait before the next reconcile loop
 const (
 	DefaultRequeueAfterSeconds = 3 * time.Minute
 )
+
+func getDefaultRequeueAfter() time.Duration {
+	// Default is 3 minutes, min is 1 second, max is 1 year
+	return env.ParseDurationFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REQUEUE_AFTER", DefaultRequeueAfterSeconds, 1*time.Second, 8760*time.Hour)
+}
