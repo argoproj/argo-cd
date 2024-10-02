@@ -66,7 +66,7 @@ template.example: |
 This case is similar to the previous one, you have multiple sources in the Application manifest. 
 Default `revisionPath` template `{{.app.status.operationState.syncResult.revision}}` is for an Application with single source.
 
-Application status in yaml for multiple source is like this:
+Multi-source applications report application statuses in an array:
 
 ```yaml
 status:
@@ -75,8 +75,6 @@ status:
       revisions:
         - 38cfa22edf9148caabfecb288bfb47dc4352dfc6
         - 38cfa22edf9148caabfecb288bfb47dc4352dfc6
-```
-
 Quick fix for this is to use `index` function to get the first revision:
 ```yaml
 template.example: |
