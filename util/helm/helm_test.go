@@ -235,3 +235,20 @@ func TestSkipCrds(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, objs)
 }
+
+func TestSkipTests(t *testing.T) {
+	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false)
+	require.NoError(t, err)
+
+	objs, err := template(h, &TemplateOpts{SkipTests: false})
+	require.NoError(t, err)
+	require.Len(t, objs, 1)
+
+	objs, err = template(h, &TemplateOpts{})
+	require.NoError(t, err)
+	require.Len(t, objs, 1)
+
+	objs, err = template(h, &TemplateOpts{SkipTests: true})
+	require.NoError(t, err)
+	require.Empty(t, objs)
+}

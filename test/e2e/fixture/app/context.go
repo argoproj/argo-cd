@@ -43,6 +43,7 @@ type Context struct {
 	replace                bool
 	helmPassCredentials    bool
 	helmSkipCrds           bool
+	helmSkipTests          bool
 	trackingMethod         v1alpha1.TrackingMethod
 	sources                []v1alpha1.ApplicationSource
 }
@@ -354,6 +355,11 @@ func (c *Context) HelmPassCredentials() *Context {
 
 func (c *Context) HelmSkipCrds() *Context {
 	c.helmSkipCrds = true
+	return c
+}
+
+func (c *Context) HelmSkipTests() *Context {
+	c.helmSkipTests = true
 	return c
 }
 

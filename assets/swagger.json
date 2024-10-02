@@ -6614,6 +6614,10 @@
           "type": "boolean",
           "title": "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)"
         },
+        "skipTests": {
+          "description": "SkipTests skips test manifest installation step (Helm's --skip-tests).",
+          "type": "boolean"
+        },
         "valueFiles": {
           "type": "array",
           "title": "ValuesFiles is a list of Helm value files to use when generating a template",
