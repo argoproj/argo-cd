@@ -174,7 +174,7 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 	}
 
 	// if discovery is not configured, return the client without further checks
-	if !cfg.IsDiscoveryConfigured {
+	if !cfg.IsDiscoveryConfigured && namedPlugin {
 		return conn, cmpClient, true
 	}
 
