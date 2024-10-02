@@ -65,8 +65,6 @@ template.example: |
 
 This case is similar to the previous one, you have multiple sources in the Application manifest. 
 Default `revisionPath` template `{{.app.status.operationState.syncResult.revision}}` is for an Application with single source.
-Here is the link to the [source code](https://github.com/argoproj/argo-cd/blob/b8249567ae1afe657f3d2f235dc3724880c91370/pkg/apis/application/v1alpha1/types.go#L1407) 
-where `revisions` field is defined.
 
 Application status in yaml for multiple source is like this:
 
