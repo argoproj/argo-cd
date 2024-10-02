@@ -112,7 +112,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				manifestMaxExtractedSize:        10,
 				disableManifestMaxExtractedSize: false,
 			},
-			expectedError: fmt.Errorf("error while iterating on tar reader: unexpected EOF"),
+			expectedError: fmt.Errorf("could not decompress layer: error while iterating on tar reader: unexpected EOF"),
 		},
 		{
 			name: "extraction fails due to multiple layers",
@@ -174,18 +174,19 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 					tempDir, err := files.CreateTempDir(os.TempDir())
 					defer os.RemoveAll(tempDir)
 					require.NoError(t, err)
-					file, err := os.Open(path)
-					require.NoError(t, err)
-					err = files.Untgz(tempDir, file, math.MaxInt64, false)
-					require.NoError(t, err)
-					chartDir, err := os.ReadDir(tempDir)
+					chartDir, err := os.ReadDir(path)
 					require.NoError(t, err)
 					require.Len(t, chartDir, 1)
-					require.Equal(t, "Chart.yaml", chartDir[0].Name())
-					require.False(t, chartDir[0].IsDir())
-					f, err := os.Open(filepath.Join(tempDir, chartDir[0].Name()))
+					require.Equal(t, "chart.tar.gz", chartDir[0].Name())
+					tarBall, err := os.Open(filepath.Join(path, chartDir[0].Name()))
+					err = files.Untgz(tempDir, tarBall, math.MaxInt64, false)
 					require.NoError(t, err)
-					contents, err := io.ReadAll(f)
+					unpacked, err := os.ReadDir(tempDir)
+					require.Len(t, unpacked, 1)
+					require.Equal(t, "Chart.yaml", unpacked[0].Name())
+					chartYaml, err := os.Open(filepath.Join(tempDir, unpacked[0].Name()))
+					require.NoError(t, err)
+					contents, err := io.ReadAll(chartYaml)
 					require.NoError(t, err)
 					require.Equal(t, "some content", string(contents))
 				},
