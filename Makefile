@@ -631,6 +631,14 @@ snyk-non-container-tests:
 snyk-report:
 	./hack/snyk-report.sh $(target_branch)
 
+.PHONY: update-go
+update-go:
+	./hack/update-go.sh
+
+.PHONY: update-node
+update-node:
+	./hack/update-node.sh
+
 .PHONY: help
 help:
 	@echo 'Note: Generally an item w/ (-local) will run inside docker unless you use the -local variant'
