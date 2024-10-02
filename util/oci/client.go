@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"math"
 	"net/http"
 	"os"
@@ -359,7 +360,7 @@ func isHelmOCI(mediaType string) bool {
 }
 
 func isCompressedLayer(mediaType string) bool {
-	return strings.HasSuffix(mediaType, "tar+gzip")
+	return strings.HasSuffix(mediaType, "tar+gzip") || strings.HasSuffix(mediaType, "tar")
 }
 
 func createTarFile(from, to string) error {
@@ -455,29 +456,61 @@ func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc v1.Descri
 		}
 		defer os.RemoveAll(tempDir)
 
-		err = files.Untgz(tempDir, content, s.maxSize, false)
+		if strings.HasSuffix(desc.MediaType, "tar+gzip") {
+			err = files.Untgz(tempDir, content, s.maxSize, false)
+		} else {
+			err = files.Untar(tempDir, content, s.maxSize, false)
+		}
+
+		if err != nil {
+			return fmt.Errorf("could not decompress layer: %w", err)
+		}
+
+		infos, err := os.ReadDir(tempDir)
 		if err != nil {
 			return err
+		}
+
+		if isHelmOCI(desc.MediaType) {
+			// For a Helm chart we expect a single tarfile in the directory
+			if len(infos) != 1 {
+				return fmt.Errorf("expected 1 file, found %v", len(infos))
+			}
+		}
+
+		if len(infos) == 1 && infos[0].IsDir() {
+			// Here we assume that this is a directory which has been decompressed. We need to move the contents of
+			// the dir into our intended destination.
+			srcDir := filepath.Join(tempDir, infos[0].Name())
+			return filepath.WalkDir(srcDir, func(path string, d fs.DirEntry, err error) error {
+				if path != srcDir {
+					// Calculate the relative path from srcDir
+					relPath, err := filepath.Rel(srcDir, path)
+					if err != nil {
+						return err
+					}
+
+					dstPath := filepath.Join(s.dest, relPath)
+					// Move the file by renaming it
+					if d.IsDir() {
+						info, err := d.Info()
+						if err != nil {
+							return err
+						}
+
+						return os.MkdirAll(dstPath, info.Mode())
+					}
+
+					return os.Rename(path, dstPath)
+				}
+
+				return nil
+			})
 		}
 
 		err = os.Remove(s.dest)
 		if err != nil {
 			return err
-		}
-
-		// Helm charts are extracted into a single directory - we want the contents within that directory.
-		if isHelmOCI(desc.MediaType) {
-			infos, err := os.ReadDir(tempDir)
-			if err != nil {
-				return err
-			}
-
-			// For a Helm chart we expect a single tarfile in the directory
-			if len(infos) != 1 {
-				return fmt.Errorf("expected 1 file, found %v", len(infos))
-			}
-
-			return os.Rename(filepath.Join(tempDir, infos[0].Name()), s.dest)
 		}
 
 		// For any other OCI content, we assume that this should be rendered as-is
