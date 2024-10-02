@@ -45,9 +45,14 @@ func NewRedisInitialPasswordCommand() *cobra.Command {
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 
-			redisInitialPasswordSecretName := common.DefaultRedisInitialPasswordSecretName
-			redisInitialPasswordKey := common.DefaultRedisInitialPasswordKey
-			fmt.Printf("Checking for initial Redis password in secret %s/%s at key %s. \n", namespace, redisInitialPasswordSecretName, redisInitialPasswordKey)
+			// redisInitialCredentials is the kubernetes secret containing
+			// the redis password
+			redisInitialCredentials := common.RedisInitialCredentials
+
+			// redisInitialCredentialsKey is the key in the redisInitialCredentials
+			// secret which maps to the redis password
+			redisInitialCredentialsKey := common.RedisInitialCredentialsKey
+			fmt.Printf("Checking for initial Redis password in secret %s/%s at key %s. \n", namespace, redisInitialCredentials, redisInitialCredentialsKey)
 
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
@@ -59,11 +64,11 @@ func NewRedisInitialPasswordCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			data := map[string][]byte{
-				redisInitialPasswordKey: []byte(randomPassword),
+				redisInitialCredentialsKey: []byte(randomPassword),
 			}
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      redisInitialPasswordSecretName,
+					Name:      redisInitialCredentials,
 					Namespace: namespace,
 				},
 				Data: data,
@@ -74,14 +79,14 @@ func NewRedisInitialPasswordCommand() *cobra.Command {
 				errors.CheckError(err)
 			}
 
-			fmt.Println("Argo CD Redis secret state confirmed: secret name argocd-redis.")
-			secret, err = kubeClientset.CoreV1().Secrets(namespace).Get(context.Background(), redisInitialPasswordSecretName, v1.GetOptions{})
+			fmt.Printf("Argo CD Redis secret state confirmed: secret name %s.\n", redisInitialCredentials)
+			secret, err = kubeClientset.CoreV1().Secrets(namespace).Get(context.Background(), redisInitialCredentials, v1.GetOptions{})
 			errors.CheckError(err)
 
-			if _, ok := secret.Data[redisInitialPasswordKey]; ok {
+			if _, ok := secret.Data[redisInitialCredentialsKey]; ok {
 				fmt.Println("Password secret is configured properly.")
 			} else {
-				err := fmt.Errorf("key %s doesn't exist in secret %s. \n", redisInitialPasswordKey, redisInitialPasswordSecretName)
+				err := fmt.Errorf("key %s doesn't exist in secret %s. \n", redisInitialCredentialsKey, redisInitialCredentials)
 				errors.CheckError(err)
 			}
 		},

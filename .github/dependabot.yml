@@ -31,6 +31,12 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    ignore:
+      # We use consistent go and node versions across a lot of different files, and updating via dependabot would cause
+      # drift among those files.
+      # Use `make update-go` and `make update-node` to update these versions.
+      - dependency-name: "library/golang"
+      - dependency-name: "library/node"
 
   - package-ecosystem: "docker"
     directory: "/test/container/"

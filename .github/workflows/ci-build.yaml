@@ -13,7 +13,7 @@ on:
 
 env:
   # Golang version to use across CI steps
-  GOLANG_VERSION: '1.22'
+  GOLANG_VERSION: '1.23.1'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -110,7 +110,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@aaa42aa0628b4ae2578232a66b541047968fac86 # v6.1.0
         with:
-          version: v1.58.2
+          version: v1.61.0
           args: --verbose
 
   test-go:
@@ -305,7 +305,7 @@ jobs:
       - name: Setup NodeJS
         uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4.0.4
         with:
-          node-version: '21.6.1'
+          node-version: '22.8.0'
       - name: Restore node dependency cache
         id: cache-dependencies
         uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
@@ -373,7 +373,7 @@ jobs:
         run: |
           go tool covdata percent -i=test-results,e2e-code-coverage/applicationset-controller,e2e-code-coverage/repo-server,e2e-code-coverage/app-controller -o test-results/full-coverage.out
       - name: Upload code coverage information to codecov.io
-        uses: codecov/codecov-action@e28ff129e5465c2c0dcc6f003fc735cb6ae0c673 # v4.5.0
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4.6.0
         with:
           file: test-results/full-coverage.out
           fail_ci_if_error: true
