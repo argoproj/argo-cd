@@ -685,12 +685,12 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 // resolveSemverRevision is a part of the lsRemote method workflow.
 // When the user correctly configures the Git repository revision, and that revision is a valid semver constraint, we
 // use this logic path rather than the standard lsRemote revision resolution loop.
-// Some examples to illustrate the actual behavior, if:
-// * The revision is "v0.1.2"/"0.1.2", then this is not a constraint, it's a pinned version - so we fall back to the standard tag matching in the lsRemote loop.
-// * The revision is "v0.1.*"/"0.1.*", and there's a tag matching that constraint, then we find the latest matching version and return its commit hash.
-// * The revision is "v0.1.*"/"0.1.*", and there is *no* tag matching that constraint, then we fall back to the standard tag matching in the lsRemote loop.
-// * The revision is "custom-tag", only the lsRemote loop will run - because that revision is an invalid semver;
-// * The revision is "master-branch", only the lsRemote loop will run because that revision is an invalid semver;
+// Some examples to illustrate the actual behavior - if the revision is:
+// * "v0.1.2"/"0.1.2" or "v0.1"/"0.1", then this is not a constraint, it's a pinned version - so we fall back to the standard tag matching in the lsRemote loop.
+// * "v0.1.*"/"0.1.*", and there's a tag matching that constraint, then we find the latest matching version and return its commit hash.
+// * "v0.1.*"/"0.1.*", and there is *no* tag matching that constraint, then we fall back to the standard tag matching in the lsRemote loop.
+// * "custom-tag", only the lsRemote loop will run - because that revision is an invalid semver;
+// * "master-branch", only the lsRemote loop will run because that revision is an invalid semver;
 func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbing.Reference) string {
 	if _, err := semver.NewVersion(revision); err == nil {
 		// If the revision is a valid version, then we know it isn't a constraint; it's just a pin.
