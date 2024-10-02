@@ -128,8 +128,6 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
-    - operator-manual/upgrading/2.12-2.13.md
-    - operator-manual/upgrading/2.11-2.12.md
     - operator-manual/upgrading/2.10-2.11.md
     - operator-manual/upgrading/2.9-2.10.md
     - operator-manual/upgrading/2.8-2.9.md
@@ -210,7 +208,7 @@ nav:
   - developer-guide/dependencies.md
   - developer-guide/ci.md
   - developer-guide/releasing.md
-  - developer-guide/docs-site.md
+  - developer-guide/site.md
   - developer-guide/static-code-analysis.md
   - Extensions:
     - developer-guide/extensions/ui-extensions.md

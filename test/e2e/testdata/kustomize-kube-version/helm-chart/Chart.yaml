@@ -1,3 +1,0 @@
-version: 1.0.0
-name: helm-kube-version
-kubeVersion: ">=1.0.0"

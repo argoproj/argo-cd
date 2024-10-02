@@ -26,9 +26,6 @@ export const ApplicationDeploymentHistory = ({
         const runEnd = nextDeployedAt ? moment(nextDeployedAt) : moment();
         return {...info, nextDeployedAt, durationMs: runEnd.diff(moment(info.deployedAt)) / 1000};
     });
-
-    const [showParameterDetails, setShowParameterDetails] = React.useState(Boolean);
-
     return (
         <div className='application-deployment-history'>
             {recentDeployments.map((info, index) => (
@@ -96,30 +93,21 @@ export const ApplicationDeploymentHistory = ({
                                         index={0}
                                         versionId={recentDeployments[index].id}
                                     />
-                                    <button
-                                        type='button'
-                                        className='argo-button argo-button--base application-deployment-history__show-parameter-details'
-                                        onClick={() => setShowParameterDetails(!showParameterDetails)}>
-                                        {showParameterDetails ? 'Hide details' : 'Show details'}
-                                    </button>
-
-                                    {showParameterDetails && (
-                                        <DataLoader
-                                            input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision, appName: app.metadata.name}}
-                                            load={src => services.repos.appDetails(src, src.appName, app.spec.project, 0, recentDeployments[index].id)}>
-                                            {(details: models.RepoAppDetails) => (
-                                                <div>
-                                                    <ApplicationParameters
-                                                        application={{
-                                                            ...app,
-                                                            spec: {...app.spec, source: recentDeployments[index].source}
-                                                        }}
-                                                        details={details}
-                                                    />
-                                                </div>
-                                            )}
-                                        </DataLoader>
-                                    )}
+                                    <DataLoader
+                                        input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision, appName: app.metadata.name}}
+                                        load={src => services.repos.appDetails(src, src.appName, app.spec.project, 0, recentDeployments[index].id)}>
+                                        {(details: models.RepoAppDetails) => (
+                                            <div>
+                                                <ApplicationParameters
+                                                    application={{
+                                                        ...app,
+                                                        spec: {...app.spec, source: recentDeployments[index].source}
+                                                    }}
+                                                    details={details}
+                                                />
+                                            </div>
+                                        )}
+                                    </DataLoader>
                                 </React.Fragment>
                             ) : (
                                 info.sources.map((source, i) => (
@@ -140,36 +128,28 @@ export const ApplicationDeploymentHistory = ({
                                             index={i}
                                             versionId={recentDeployments[index].id}
                                         />
-                                        <button
-                                            type='button'
-                                            className='argo-button argo-button--base application-deployment-history__show-parameter-details'
-                                            onClick={() => setShowParameterDetails(!showParameterDetails)}>
-                                            {showParameterDetails ? 'Hide details' : 'Show details'}
-                                        </button>
 
-                                        {showParameterDetails && (
-                                            <DataLoader
-                                                input={{
-                                                    ...source,
-                                                    targetRevision: recentDeployments[index].revisions[i],
-                                                    index: i,
-                                                    versionId: recentDeployments[index].id,
-                                                    appName: app.metadata.name
-                                                }}
-                                                load={src => services.repos.appDetails(src, src.appName, app.spec.project, i, recentDeployments[index].id)}>
-                                                {(details: models.RepoAppDetails) => (
-                                                    <div>
-                                                        <ApplicationParameters
-                                                            application={{
-                                                                ...app,
-                                                                spec: {...app.spec, source}
-                                                            }}
-                                                            details={details}
-                                                        />
-                                                    </div>
-                                                )}
-                                            </DataLoader>
-                                        )}
+                                        <DataLoader
+                                            input={{
+                                                ...source,
+                                                targetRevision: recentDeployments[index].revisions[i],
+                                                index: i,
+                                                versionId: recentDeployments[index].id,
+                                                appName: app.metadata.name
+                                            }}
+                                            load={src => services.repos.appDetails(src, src.appName, app.spec.project, i, recentDeployments[index].id)}>
+                                            {(details: models.RepoAppDetails) => (
+                                                <div>
+                                                    <ApplicationParameters
+                                                        application={{
+                                                            ...app,
+                                                            spec: {...app.spec, source}
+                                                        }}
+                                                        details={details}
+                                                    />
+                                                </div>
+                                            )}
+                                        </DataLoader>
                                     </React.Fragment>
                                 ))
                             )

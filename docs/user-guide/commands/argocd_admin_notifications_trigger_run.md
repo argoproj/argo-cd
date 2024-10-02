@@ -29,7 +29,6 @@ argocd admin notifications trigger run on-sync-status-unknown ./sample-app.yaml 
 ### Options inherited from parent commands
 
 ```
-      --argocd-context string           The name of the Argo-CD server context to use
       --argocd-repo-server string       Argo CD repo server address (default "argocd-repo-server:8081")
       --argocd-repo-server-plaintext    Use a plaintext client (non-TLS) to connect to repository server
       --argocd-repo-server-strict-tls   Perform strict validation of TLS certificates when connecting to repo server

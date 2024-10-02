@@ -65,7 +65,7 @@ func IsOldTrackingMethod(trackingMethod string) bool {
 	return trackingMethod == "" || trackingMethod == string(TrackingMethodLabel)
 }
 
-func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured) *AppInstanceValue {
+func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) *AppInstanceValue {
 	appInstanceAnnotation, err := argokube.GetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance)
 	if err != nil {
 		return nil
@@ -80,7 +80,7 @@ func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured) *
 // GetAppName retrieve application name base on tracking method
 func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string {
 	retrieveAppInstanceValue := func() string {
-		value := rt.getAppInstanceValue(un)
+		value := rt.getAppInstanceValue(un, key, trackingMethod)
 		if value != nil {
 			return value.ApplicationName
 		}
@@ -112,7 +112,7 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 func (rt *resourceTracking) GetAppInstance(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) *AppInstanceValue {
 	switch trackingMethod {
 	case TrackingMethodAnnotation, TrackingMethodAnnotationAndLabel:
-		return rt.getAppInstanceValue(un)
+		return rt.getAppInstanceValue(un, key, trackingMethod)
 	default:
 		return nil
 	}
@@ -210,7 +210,7 @@ func (rt *resourceTracking) ParseAppInstanceValue(value string) (*AppInstanceVal
 	return &appInstanceValue, nil
 }
 
-// Normalize updates live resource and removes diff caused by missing annotation or extra tracking label.
+// Normalize updates live resource and removes diff caused but missing annotation or extra tracking label.
 // The normalization is required to ensure smooth transition to new tracking method.
 func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, labelKey, trackingMethod string) error {
 	if IsOldTrackingMethod(trackingMethod) {
