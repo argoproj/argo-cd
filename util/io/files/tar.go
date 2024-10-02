@@ -70,7 +70,7 @@ func writeFile(srcPath string, inclusions []string, exclusions []string, writer 
 // Callers must make sure dstPath is:
 //   - a full path
 //   - points to an empty directory or
-//   - points to a non existing directory
+//   - points to a non-existing directory
 func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) error {
 	if !filepath.IsAbs(dstPath) {
 		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
@@ -81,9 +81,29 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 		return fmt.Errorf("error reading file: %w", err)
 	}
 	defer gzr.Close()
+	return untar(dstPath, io.LimitReader(gzr, maxSize), preserveFileMode)
+}
 
-	lr := io.LimitReader(gzr, maxSize)
-	tr := tar.NewReader(lr)
+// Untar will loop over the tar reader creating the file structure at dstPath.
+// Callers must make sure dstPath is:
+//   - a full path
+//   - points to an empty directory or
+//   - points to a non-existing directory
+func Untar(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) error {
+	if !filepath.IsAbs(dstPath) {
+		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
+	}
+
+	return untar(dstPath, io.LimitReader(r, maxSize), preserveFileMode)
+}
+
+// untar will loop over the tar reader creating the file structure at dstPath.
+// Callers must make sure dstPath is:
+//   - a full path
+//   - points to an empty directory or
+//   - points to a non existing directory
+func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
+	tr := tar.NewReader(r)
 
 	for {
 		header, err := tr.Next()
