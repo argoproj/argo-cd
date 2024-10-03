@@ -168,7 +168,6 @@ spec:
     # Prevent an Application's child resources from being deleted, when the parent Application is deleted
     preserveResourcesOnDeletion: true
 
-    # which fields of the ApplicationSet should be ignored when comparing Applications.
     ignoreApplicationDifferences:
     - jsonPointers:
         - /spec/source/targetRevision
@@ -204,12 +203,13 @@ spec:
                 - env-prod
           maxUpdate: 10%    # maxUpdate supports both integer and percentage string values (rounds down, but floored at 1 Application for >0%)
 
-  # This annotation and label exists only on this Application, and not in the parent ApplicationSet template:
+  # Define annotations and labels of the Application that this ApplicationSet will ignore
   # ignoreApplicationDifferences is the preferred way to accomplish this now.
   preservedFields:
-    annotations: [ some-value ]
-    labels: [ some-value ]
+    annotations: [ some-annotation-key ]
+    labels: [ some-label-key ]
 
+  # Define fields of the that should be ignored when comparing Applications
   ignoreApplicationDifferences:
   - jsonPointers:
     - /spec/source/targetRevision
