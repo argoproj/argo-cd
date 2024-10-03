@@ -234,13 +234,6 @@ spec:
                       helm:
                         description: Helm holds helm specific options
                         properties:
-                          apiVersions:
-                            description: |-
-                              APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                              Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                            items:
-                              type: string
-                            type: array
                           fileParameters:
                             description: FileParameters are file parameters to the
                               helm template
@@ -262,16 +255,6 @@ spec:
                               from failing when valueFiles do not exist locally by
                               not appending them to helm template --values
                             type: boolean
-                          kubeVersion:
-                            description: |-
-                              KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                              uses the Kubernetes version of the target cluster.
-                            type: string
-                          namespace:
-                            description: Namespace is an optional namespace to template
-                              with. If left empty, defaults to the app's destination
-                              namespace.
-                            type: string
                           parameters:
                             description: Parameters is a list of Helm parameters which
                               are passed to the helm template command upon manifest
@@ -329,13 +312,6 @@ spec:
                       kustomize:
                         description: Kustomize holds kustomize specific options
                         properties:
-                          apiVersions:
-                            description: |-
-                              APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                              Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                            items:
-                              type: string
-                            type: array
                           commonAnnotations:
                             additionalProperties:
                               type: string
@@ -375,11 +351,6 @@ spec:
                                 definition in the format [old_image_name=]<image_name>:<image_tag>
                               type: string
                             type: array
-                          kubeVersion:
-                            description: |-
-                              KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                              uses the Kubernetes version of the target cluster.
-                            type: string
                           labelWithoutSelector:
                             description: LabelWithoutSelector specifies whether to
                               apply common labels to resource selectors or not
@@ -599,13 +570,6 @@ spec:
                         helm:
                           description: Helm holds helm specific options
                           properties:
-                            apiVersions:
-                              description: |-
-                                APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                                Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                              items:
-                                type: string
-                              type: array
                             fileParameters:
                               description: FileParameters are file parameters to the
                                 helm template
@@ -627,16 +591,6 @@ spec:
                                 from failing when valueFiles do not exist locally
                                 by not appending them to helm template --values
                               type: boolean
-                            kubeVersion:
-                              description: |-
-                                KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                                uses the Kubernetes version of the target cluster.
-                              type: string
-                            namespace:
-                              description: Namespace is an optional namespace to template
-                                with. If left empty, defaults to the app's destination
-                                namespace.
-                              type: string
                             parameters:
                               description: Parameters is a list of Helm parameters
                                 which are passed to the helm template command upon
@@ -695,13 +649,6 @@ spec:
                         kustomize:
                           description: Kustomize holds kustomize specific options
                           properties:
-                            apiVersions:
-                              description: |-
-                                APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                                Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                              items:
-                                type: string
-                              type: array
                             commonAnnotations:
                               additionalProperties:
                                 type: string
@@ -743,11 +690,6 @@ spec:
                                   image definition in the format [old_image_name=]<image_name>:<image_tag>
                                 type: string
                               type: array
-                            kubeVersion:
-                              description: |-
-                                KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                                uses the Kubernetes version of the target cluster.
-                              type: string
                             labelWithoutSelector:
                               description: LabelWithoutSelector specifies whether
                                 to apply common labels to resource selectors or not
@@ -1083,13 +1025,6 @@ spec:
                   helm:
                     description: Helm holds helm specific options
                     properties:
-                      apiVersions:
-                        description: |-
-                          APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                          Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                        items:
-                          type: string
-                        type: array
                       fileParameters:
                         description: FileParameters are file parameters to the helm
                           template
@@ -1111,15 +1046,6 @@ spec:
                           from failing when valueFiles do not exist locally by not
                           appending them to helm template --values
                         type: boolean
-                      kubeVersion:
-                        description: |-
-                          KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                          uses the Kubernetes version of the target cluster.
-                        type: string
-                      namespace:
-                        description: Namespace is an optional namespace to template
-                          with. If left empty, defaults to the app's destination namespace.
-                        type: string
                       parameters:
                         description: Parameters is a list of Helm parameters which
                           are passed to the helm template command upon manifest generation
@@ -1176,13 +1102,6 @@ spec:
                   kustomize:
                     description: Kustomize holds kustomize specific options
                     properties:
-                      apiVersions:
-                        description: |-
-                          APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                          Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                        items:
-                          type: string
-                        type: array
                       commonAnnotations:
                         additionalProperties:
                           type: string
@@ -1221,11 +1140,6 @@ spec:
                             definition in the format [old_image_name=]<image_name>:<image_tag>
                           type: string
                         type: array
-                      kubeVersion:
-                        description: |-
-                          KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                          uses the Kubernetes version of the target cluster.
-                        type: string
                       labelWithoutSelector:
                         description: LabelWithoutSelector specifies whether to apply
                           common labels to resource selectors or not
@@ -1438,13 +1352,6 @@ spec:
                     helm:
                       description: Helm holds helm specific options
                       properties:
-                        apiVersions:
-                          description: |-
-                            APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                            Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                          items:
-                            type: string
-                          type: array
                         fileParameters:
                           description: FileParameters are file parameters to the helm
                             template
@@ -1466,16 +1373,6 @@ spec:
                             from failing when valueFiles do not exist locally by not
                             appending them to helm template --values
                           type: boolean
-                        kubeVersion:
-                          description: |-
-                            KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                            uses the Kubernetes version of the target cluster.
-                          type: string
-                        namespace:
-                          description: Namespace is an optional namespace to template
-                            with. If left empty, defaults to the app's destination
-                            namespace.
-                          type: string
                         parameters:
                           description: Parameters is a list of Helm parameters which
                             are passed to the helm template command upon manifest
@@ -1533,13 +1430,6 @@ spec:
                     kustomize:
                       description: Kustomize holds kustomize specific options
                       properties:
-                        apiVersions:
-                          description: |-
-                            APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                            Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                          items:
-                            type: string
-                          type: array
                         commonAnnotations:
                           additionalProperties:
                             type: string
@@ -1579,11 +1469,6 @@ spec:
                               definition in the format [old_image_name=]<image_name>:<image_tag>
                             type: string
                           type: array
-                        kubeVersion:
-                          description: |-
-                            KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                            uses the Kubernetes version of the target cluster.
-                          type: string
                         labelWithoutSelector:
                           description: LabelWithoutSelector specifies whether to apply
                             common labels to resource selectors or not
@@ -1959,13 +1844,6 @@ spec:
                         helm:
                           description: Helm holds helm specific options
                           properties:
-                            apiVersions:
-                              description: |-
-                                APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                                Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                              items:
-                                type: string
-                              type: array
                             fileParameters:
                               description: FileParameters are file parameters to the
                                 helm template
@@ -1987,16 +1865,6 @@ spec:
                                 from failing when valueFiles do not exist locally
                                 by not appending them to helm template --values
                               type: boolean
-                            kubeVersion:
-                              description: |-
-                                KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                                uses the Kubernetes version of the target cluster.
-                              type: string
-                            namespace:
-                              description: Namespace is an optional namespace to template
-                                with. If left empty, defaults to the app's destination
-                                namespace.
-                              type: string
                             parameters:
                               description: Parameters is a list of Helm parameters
                                 which are passed to the helm template command upon
@@ -2055,13 +1923,6 @@ spec:
                         kustomize:
                           description: Kustomize holds kustomize specific options
                           properties:
-                            apiVersions:
-                              description: |-
-                                APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                                Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                              items:
-                                type: string
-                              type: array
                             commonAnnotations:
                               additionalProperties:
                                 type: string
@@ -2103,11 +1964,6 @@ spec:
                                   image definition in the format [old_image_name=]<image_name>:<image_tag>
                                 type: string
                               type: array
-                            kubeVersion:
-                              description: |-
-                                KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                                uses the Kubernetes version of the target cluster.
-                              type: string
                             labelWithoutSelector:
                               description: LabelWithoutSelector specifies whether
                                 to apply common labels to resource selectors or not
@@ -2326,13 +2182,6 @@ spec:
                           helm:
                             description: Helm holds helm specific options
                             properties:
-                              apiVersions:
-                                description: |-
-                                  APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                                  Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                                items:
-                                  type: string
-                                type: array
                               fileParameters:
                                 description: FileParameters are file parameters to
                                   the helm template
@@ -2355,16 +2204,6 @@ spec:
                                   template from failing when valueFiles do not exist
                                   locally by not appending them to helm template --values
                                 type: boolean
-                              kubeVersion:
-                                description: |-
-                                  KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                                  uses the Kubernetes version of the target cluster.
-                                type: string
-                              namespace:
-                                description: Namespace is an optional namespace to
-                                  template with. If left empty, defaults to the app's
-                                  destination namespace.
-                                type: string
                               parameters:
                                 description: Parameters is a list of Helm parameters
                                   which are passed to the helm template command upon
@@ -2425,13 +2264,6 @@ spec:
                           kustomize:
                             description: Kustomize holds kustomize specific options
                             properties:
-                              apiVersions:
-                                description: |-
-                                  APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                                  Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                                items:
-                                  type: string
-                                type: array
                               commonAnnotations:
                                 additionalProperties:
                                   type: string
@@ -2473,11 +2305,6 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
-                              kubeVersion:
-                                description: |-
-                                  KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                                  uses the Kubernetes version of the target cluster.
-                                type: string
                               labelWithoutSelector:
                                 description: LabelWithoutSelector specifies whether
                                   to apply common labels to resource selectors or
@@ -2836,13 +2663,6 @@ spec:
                               helm:
                                 description: Helm holds helm specific options
                                 properties:
-                                  apiVersions:
-                                    description: |-
-                                      APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                                      Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                                    items:
-                                      type: string
-                                    type: array
                                   fileParameters:
                                     description: FileParameters are file parameters
                                       to the helm template
@@ -2867,16 +2687,6 @@ spec:
                                       not exist locally by not appending them to helm
                                       template --values
                                     type: boolean
-                                  kubeVersion:
-                                    description: |-
-                                      KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                                      uses the Kubernetes version of the target cluster.
-                                    type: string
-                                  namespace:
-                                    description: Namespace is an optional namespace
-                                      to template with. If left empty, defaults to
-                                      the app's destination namespace.
-                                    type: string
                                   parameters:
                                     description: Parameters is a list of Helm parameters
                                       which are passed to the helm template command
@@ -2939,13 +2749,6 @@ spec:
                               kustomize:
                                 description: Kustomize holds kustomize specific options
                                 properties:
-                                  apiVersions:
-                                    description: |-
-                                      APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                                      Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                                    items:
-                                      type: string
-                                    type: array
                                   commonAnnotations:
                                     additionalProperties:
                                       type: string
@@ -2988,11 +2791,6 @@ spec:
                                         image definition in the format [old_image_name=]<image_name>:<image_tag>
                                       type: string
                                     type: array
-                                  kubeVersion:
-                                    description: |-
-                                      KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                                      uses the Kubernetes version of the target cluster.
-                                    type: string
                                   labelWithoutSelector:
                                     description: LabelWithoutSelector specifies whether
                                       to apply common labels to resource selectors
@@ -3222,13 +3020,6 @@ spec:
                                 helm:
                                   description: Helm holds helm specific options
                                   properties:
-                                    apiVersions:
-                                      description: |-
-                                        APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                                        Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                                      items:
-                                        type: string
-                                      type: array
                                     fileParameters:
                                       description: FileParameters are file parameters
                                         to the helm template
@@ -3253,16 +3044,6 @@ spec:
                                         do not exist locally by not appending them
                                         to helm template --values
                                       type: boolean
-                                    kubeVersion:
-                                      description: |-
-                                        KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                                        uses the Kubernetes version of the target cluster.
-                                      type: string
-                                    namespace:
-                                      description: Namespace is an optional namespace
-                                        to template with. If left empty, defaults
-                                        to the app's destination namespace.
-                                      type: string
                                     parameters:
                                       description: Parameters is a list of Helm parameters
                                         which are passed to the helm template command
@@ -3327,13 +3108,6 @@ spec:
                                   description: Kustomize holds kustomize specific
                                     options
                                   properties:
-                                    apiVersions:
-                                      description: |-
-                                        APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                                        Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                                      items:
-                                        type: string
-                                      type: array
                                     commonAnnotations:
                                       additionalProperties:
                                         type: string
@@ -3377,11 +3151,6 @@ spec:
                                           image definition in the format [old_image_name=]<image_name>:<image_tag>
                                         type: string
                                       type: array
-                                    kubeVersion:
-                                      description: |-
-                                        KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                                        uses the Kubernetes version of the target cluster.
-                                      type: string
                                     labelWithoutSelector:
                                       description: LabelWithoutSelector specifies
                                         whether to apply common labels to resource
@@ -3731,13 +3500,6 @@ spec:
                           helm:
                             description: Helm holds helm specific options
                             properties:
-                              apiVersions:
-                                description: |-
-                                  APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                                  Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                                items:
-                                  type: string
-                                type: array
                               fileParameters:
                                 description: FileParameters are file parameters to
                                   the helm template
@@ -3760,16 +3522,6 @@ spec:
                                   template from failing when valueFiles do not exist
                                   locally by not appending them to helm template --values
                                 type: boolean
-                              kubeVersion:
-                                description: |-
-                                  KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                                  uses the Kubernetes version of the target cluster.
-                                type: string
-                              namespace:
-                                description: Namespace is an optional namespace to
-                                  template with. If left empty, defaults to the app's
-                                  destination namespace.
-                                type: string
                               parameters:
                                 description: Parameters is a list of Helm parameters
                                   which are passed to the helm template command upon
@@ -3830,13 +3582,6 @@ spec:
                           kustomize:
                             description: Kustomize holds kustomize specific options
                             properties:
-                              apiVersions:
-                                description: |-
-                                  APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                                  Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                                items:
-                                  type: string
-                                type: array
                               commonAnnotations:
                                 additionalProperties:
                                   type: string
@@ -3878,11 +3623,6 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
-                              kubeVersion:
-                                description: |-
-                                  KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                                  uses the Kubernetes version of the target cluster.
-                                type: string
                               labelWithoutSelector:
                                 description: LabelWithoutSelector specifies whether
                                   to apply common labels to resource selectors or
@@ -4108,13 +3848,6 @@ spec:
                             helm:
                               description: Helm holds helm specific options
                               properties:
-                                apiVersions:
-                                  description: |-
-                                    APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                                    Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                                  items:
-                                    type: string
-                                  type: array
                                 fileParameters:
                                   description: FileParameters are file parameters
                                     to the helm template
@@ -4139,16 +3872,6 @@ spec:
                                     locally by not appending them to helm template
                                     --values
                                   type: boolean
-                                kubeVersion:
-                                  description: |-
-                                    KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                                    uses the Kubernetes version of the target cluster.
-                                  type: string
-                                namespace:
-                                  description: Namespace is an optional namespace
-                                    to template with. If left empty, defaults to the
-                                    app's destination namespace.
-                                  type: string
                                 parameters:
                                   description: Parameters is a list of Helm parameters
                                     which are passed to the helm template command
@@ -4211,13 +3934,6 @@ spec:
                             kustomize:
                               description: Kustomize holds kustomize specific options
                               properties:
-                                apiVersions:
-                                  description: |-
-                                    APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                                    Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                                  items:
-                                    type: string
-                                  type: array
                                 commonAnnotations:
                                   additionalProperties:
                                     type: string
@@ -4260,11 +3976,6 @@ spec:
                                       image definition in the format [old_image_name=]<image_name>:<image_tag>
                                     type: string
                                   type: array
-                                kubeVersion:
-                                  description: |-
-                                    KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                                    uses the Kubernetes version of the target cluster.
-                                  type: string
                                 labelWithoutSelector:
                                   description: LabelWithoutSelector specifies whether
                                     to apply common labels to resource selectors or
@@ -4637,13 +4348,6 @@ spec:
                           helm:
                             description: Helm holds helm specific options
                             properties:
-                              apiVersions:
-                                description: |-
-                                  APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                                  Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                                items:
-                                  type: string
-                                type: array
                               fileParameters:
                                 description: FileParameters are file parameters to
                                   the helm template
@@ -4666,16 +4370,6 @@ spec:
                                   template from failing when valueFiles do not exist
                                   locally by not appending them to helm template --values
                                 type: boolean
-                              kubeVersion:
-                                description: |-
-                                  KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                                  uses the Kubernetes version of the target cluster.
-                                type: string
-                              namespace:
-                                description: Namespace is an optional namespace to
-                                  template with. If left empty, defaults to the app's
-                                  destination namespace.
-                                type: string
                               parameters:
                                 description: Parameters is a list of Helm parameters
                                   which are passed to the helm template command upon
@@ -4736,13 +4430,6 @@ spec:
                           kustomize:
                             description: Kustomize holds kustomize specific options
                             properties:
-                              apiVersions:
-                                description: |-
-                                  APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                                  Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                                items:
-                                  type: string
-                                type: array
                               commonAnnotations:
                                 additionalProperties:
                                   type: string
@@ -4784,11 +4471,6 @@ spec:
                                     image definition in the format [old_image_name=]<image_name>:<image_tag>
                                   type: string
                                 type: array
-                              kubeVersion:
-                                description: |-
-                                  KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                                  uses the Kubernetes version of the target cluster.
-                                type: string
                               labelWithoutSelector:
                                 description: LabelWithoutSelector specifies whether
                                   to apply common labels to resource selectors or
@@ -5014,13 +4696,6 @@ spec:
                             helm:
                               description: Helm holds helm specific options
                               properties:
-                                apiVersions:
-                                  description: |-
-                                    APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                                    Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                                  items:
-                                    type: string
-                                  type: array
                                 fileParameters:
                                   description: FileParameters are file parameters
                                     to the helm template
@@ -5045,16 +4720,6 @@ spec:
                                     locally by not appending them to helm template
                                     --values
                                   type: boolean
-                                kubeVersion:
-                                  description: |-
-                                    KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                                    uses the Kubernetes version of the target cluster.
-                                  type: string
-                                namespace:
-                                  description: Namespace is an optional namespace
-                                    to template with. If left empty, defaults to the
-                                    app's destination namespace.
-                                  type: string
                                 parameters:
                                   description: Parameters is a list of Helm parameters
                                     which are passed to the helm template command
@@ -5117,13 +4782,6 @@ spec:
                             kustomize:
                               description: Kustomize holds kustomize specific options
                               properties:
-                                apiVersions:
-                                  description: |-
-                                    APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                                    Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                                  items:
-                                    type: string
-                                  type: array
                                 commonAnnotations:
                                   additionalProperties:
                                     type: string
@@ -5166,11 +4824,6 @@ spec:
                                       image definition in the format [old_image_name=]<image_name>:<image_tag>
                                     type: string
                                   type: array
-                                kubeVersion:
-                                  description: |-
-                                    KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                                    uses the Kubernetes version of the target cluster.
-                                  type: string
                                 labelWithoutSelector:
                                   description: LabelWithoutSelector specifies whether
                                     to apply common labels to resource selectors or
@@ -5399,13 +5052,11 @@ spec:
                                     items:
                                       type: string
                                     type: array
-                                    x-kubernetes-list-type: atomic
                                 required:
                                 - key
                                 - operator
                                 type: object
                               type: array
-                              x-kubernetes-list-type: atomic
                             matchLabels:
                               additionalProperties:
                                 type: string
@@ -5543,10 +5194,6 @@ spec:
                                       type: object
                                     helm:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -5558,10 +5205,6 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
-                                        kubeVersion:
-                                          type: string
-                                        namespace:
-                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -5593,10 +5236,6 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -5619,8 +5258,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        kubeVersion:
-                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -5773,10 +5410,6 @@ spec:
                                         type: object
                                       helm:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -5788,10 +5421,6 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
-                                          kubeVersion:
-                                            type: string
-                                          namespace:
-                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -5823,10 +5452,6 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -5849,8 +5474,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          kubeVersion:
-                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -6026,13 +5649,11 @@ spec:
                                     items:
                                       type: string
                                     type: array
-                                    x-kubernetes-list-type: atomic
                                 required:
                                 - key
                                 - operator
                                 type: object
                               type: array
-                              x-kubernetes-list-type: atomic
                             matchLabels:
                               additionalProperties:
                                 type: string
@@ -6165,10 +5786,6 @@ spec:
                                       type: object
                                     helm:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -6180,10 +5797,6 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
-                                        kubeVersion:
-                                          type: string
-                                        namespace:
-                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -6215,10 +5828,6 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -6241,8 +5850,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        kubeVersion:
-                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -6395,10 +6002,6 @@ spec:
                                         type: object
                                       helm:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -6410,10 +6013,6 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
-                                          kubeVersion:
-                                            type: string
-                                          namespace:
-                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -6445,10 +6044,6 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -6471,8 +6066,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          kubeVersion:
-                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -6788,10 +6381,6 @@ spec:
                                       type: object
                                     helm:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -6803,10 +6392,6 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
-                                        kubeVersion:
-                                          type: string
-                                        namespace:
-                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -6838,10 +6423,6 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -6864,8 +6445,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        kubeVersion:
-                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -7018,10 +6597,6 @@ spec:
                                         type: object
                                       helm:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -7033,10 +6608,6 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
-                                          kubeVersion:
-                                            type: string
-                                          namespace:
-                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -7068,10 +6639,6 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -7094,8 +6661,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          kubeVersion:
-                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -7391,10 +6956,6 @@ spec:
                                       type: object
                                     helm:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -7406,10 +6967,6 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
-                                        kubeVersion:
-                                          type: string
-                                        namespace:
-                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -7441,10 +6998,6 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -7467,8 +7020,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        kubeVersion:
-                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -7621,10 +7172,6 @@ spec:
                                         type: object
                                       helm:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -7636,10 +7183,6 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
-                                          kubeVersion:
-                                            type: string
-                                          namespace:
-                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -7671,10 +7214,6 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -7697,8 +7236,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          kubeVersion:
-                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -7875,13 +7412,11 @@ spec:
                                               items:
                                                 type: string
                                               type: array
-                                              x-kubernetes-list-type: atomic
                                           required:
                                           - key
                                           - operator
                                           type: object
                                         type: array
-                                        x-kubernetes-list-type: atomic
                                       matchLabels:
                                         additionalProperties:
                                           type: string
@@ -8019,10 +7554,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -8034,10 +7565,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -8069,10 +7596,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -8095,8 +7618,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -8249,10 +7770,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -8264,10 +7781,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -8299,10 +7812,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -8325,8 +7834,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -8502,13 +8009,11 @@ spec:
                                               items:
                                                 type: string
                                               type: array
-                                              x-kubernetes-list-type: atomic
                                           required:
                                           - key
                                           - operator
                                           type: object
                                         type: array
-                                        x-kubernetes-list-type: atomic
                                       matchLabels:
                                         additionalProperties:
                                           type: string
@@ -8641,10 +8146,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -8656,10 +8157,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -8691,10 +8188,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -8717,8 +8210,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -8871,10 +8362,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -8886,10 +8373,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -8921,10 +8404,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -8947,8 +8426,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -9264,10 +8741,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -9279,10 +8752,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -9314,10 +8783,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -9340,8 +8805,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -9494,10 +8957,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -9509,10 +8968,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -9544,10 +8999,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -9570,8 +9021,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -9867,10 +9316,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -9882,10 +9327,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -9917,10 +9358,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -9943,8 +9380,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -10097,10 +9532,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -10112,10 +9543,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -10147,10 +9574,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -10173,8 +9596,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -10478,10 +9899,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -10493,10 +9910,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -10528,10 +9941,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -10554,8 +9963,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -10708,10 +10115,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -10723,10 +10126,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -10758,10 +10157,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -10784,8 +10179,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -11044,33 +10437,6 @@ spec:
                                         - passwordRef
                                         - username
                                         type: object
-                                      bearerToken:
-                                        properties:
-                                          tokenRef:
-                                            properties:
-                                              key:
-                                                type: string
-                                              secretName:
-                                                type: string
-                                            required:
-                                            - key
-                                            - secretName
-                                            type: object
-                                        required:
-                                        - tokenRef
-                                        type: object
-                                      caRef:
-                                        properties:
-                                          configMapName:
-                                            type: string
-                                          key:
-                                            type: string
-                                        required:
-                                        - configMapName
-                                        - key
-                                        type: object
-                                      insecure:
-                                        type: boolean
                                       project:
                                         type: string
                                       repo:
@@ -11146,16 +10512,6 @@ spec:
                                     properties:
                                       api:
                                         type: string
-                                      caRef:
-                                        properties:
-                                          configMapName:
-                                            type: string
-                                          key:
-                                            type: string
-                                        required:
-                                        - configMapName
-                                        - key
-                                        type: object
                                       insecure:
                                         type: boolean
                                       labels:
@@ -11308,10 +10664,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -11323,10 +10675,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -11358,10 +10706,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -11384,8 +10728,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -11538,10 +10880,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -11553,10 +10891,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -11588,10 +10922,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -11614,8 +10944,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -11864,33 +11192,6 @@ spec:
                                         - passwordRef
                                         - username
                                         type: object
-                                      bearerToken:
-                                        properties:
-                                          tokenRef:
-                                            properties:
-                                              key:
-                                                type: string
-                                              secretName:
-                                                type: string
-                                            required:
-                                            - key
-                                            - secretName
-                                            type: object
-                                        required:
-                                        - tokenRef
-                                        type: object
-                                      caRef:
-                                        properties:
-                                          configMapName:
-                                            type: string
-                                          key:
-                                            type: string
-                                        required:
-                                        - configMapName
-                                        - key
-                                        type: object
-                                      insecure:
-                                        type: boolean
                                       project:
                                         type: string
                                     required:
@@ -11971,16 +11272,6 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
-                                      caRef:
-                                        properties:
-                                          configMapName:
-                                            type: string
-                                          key:
-                                            type: string
-                                        required:
-                                        - configMapName
-                                        - key
-                                        type: object
                                       group:
                                         type: string
                                       includeSharedProjects:
@@ -12133,10 +11424,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -12148,10 +11435,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -12183,10 +11466,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -12209,8 +11488,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -12363,10 +11640,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -12378,10 +11651,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -12413,10 +11682,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -12439,8 +11704,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -12612,13 +11875,11 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                          x-kubernetes-list-type: atomic
                                       required:
                                       - key
                                       - operator
                                       type: object
                                     type: array
-                                    x-kubernetes-list-type: atomic
                                   matchLabels:
                                     additionalProperties:
                                       type: string
@@ -12753,10 +12014,6 @@ spec:
                                       type: object
                                     helm:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -12768,10 +12025,6 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
-                                        kubeVersion:
-                                          type: string
-                                        namespace:
-                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -12803,10 +12056,6 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -12829,8 +12078,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        kubeVersion:
-                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -12983,10 +12230,6 @@ spec:
                                         type: object
                                       helm:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -12998,10 +12241,6 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
-                                          kubeVersion:
-                                            type: string
-                                          namespace:
-                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -13033,10 +12272,6 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -13059,8 +12294,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          kubeVersion:
-                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -13239,13 +12472,11 @@ spec:
                                               items:
                                                 type: string
                                               type: array
-                                              x-kubernetes-list-type: atomic
                                           required:
                                           - key
                                           - operator
                                           type: object
                                         type: array
-                                        x-kubernetes-list-type: atomic
                                       matchLabels:
                                         additionalProperties:
                                           type: string
@@ -13383,10 +12614,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -13398,10 +12625,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -13433,10 +12656,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -13459,8 +12678,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -13613,10 +12830,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -13628,10 +12841,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -13663,10 +12872,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -13689,8 +12894,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -13866,13 +13069,11 @@ spec:
                                               items:
                                                 type: string
                                               type: array
-                                              x-kubernetes-list-type: atomic
                                           required:
                                           - key
                                           - operator
                                           type: object
                                         type: array
-                                        x-kubernetes-list-type: atomic
                                       matchLabels:
                                         additionalProperties:
                                           type: string
@@ -14005,10 +13206,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -14020,10 +13217,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -14055,10 +13248,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -14081,8 +13270,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -14235,10 +13422,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -14250,10 +13433,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -14285,10 +13464,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -14311,8 +13486,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -14628,10 +13801,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -14643,10 +13812,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -14678,10 +13843,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -14704,8 +13865,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -14858,10 +14017,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -14873,10 +14028,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -14908,10 +14059,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -14934,8 +14081,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -15231,10 +14376,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -15246,10 +14387,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -15281,10 +14418,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -15307,8 +14440,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -15461,10 +14592,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -15476,10 +14603,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -15511,10 +14634,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -15537,8 +14656,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -15842,10 +14959,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -15857,10 +14970,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -15892,10 +15001,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -15918,8 +15023,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -16072,10 +15175,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -16087,10 +15186,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -16122,10 +15217,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -16148,8 +15239,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -16408,33 +15497,6 @@ spec:
                                         - passwordRef
                                         - username
                                         type: object
-                                      bearerToken:
-                                        properties:
-                                          tokenRef:
-                                            properties:
-                                              key:
-                                                type: string
-                                              secretName:
-                                                type: string
-                                            required:
-                                            - key
-                                            - secretName
-                                            type: object
-                                        required:
-                                        - tokenRef
-                                        type: object
-                                      caRef:
-                                        properties:
-                                          configMapName:
-                                            type: string
-                                          key:
-                                            type: string
-                                        required:
-                                        - configMapName
-                                        - key
-                                        type: object
-                                      insecure:
-                                        type: boolean
                                       project:
                                         type: string
                                       repo:
@@ -16510,16 +15572,6 @@ spec:
                                     properties:
                                       api:
                                         type: string
-                                      caRef:
-                                        properties:
-                                          configMapName:
-                                            type: string
-                                          key:
-                                            type: string
-                                        required:
-                                        - configMapName
-                                        - key
-                                        type: object
                                       insecure:
                                         type: boolean
                                       labels:
@@ -16672,10 +15724,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -16687,10 +15735,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -16722,10 +15766,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -16748,8 +15788,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -16902,10 +15940,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -16917,10 +15951,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -16952,10 +15982,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -16978,8 +16004,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -17228,33 +16252,6 @@ spec:
                                         - passwordRef
                                         - username
                                         type: object
-                                      bearerToken:
-                                        properties:
-                                          tokenRef:
-                                            properties:
-                                              key:
-                                                type: string
-                                              secretName:
-                                                type: string
-                                            required:
-                                            - key
-                                            - secretName
-                                            type: object
-                                        required:
-                                        - tokenRef
-                                        type: object
-                                      caRef:
-                                        properties:
-                                          configMapName:
-                                            type: string
-                                          key:
-                                            type: string
-                                        required:
-                                        - configMapName
-                                        - key
-                                        type: object
-                                      insecure:
-                                        type: boolean
                                       project:
                                         type: string
                                     required:
@@ -17335,16 +16332,6 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
-                                      caRef:
-                                        properties:
-                                          configMapName:
-                                            type: string
-                                          key:
-                                            type: string
-                                        required:
-                                        - configMapName
-                                        - key
-                                        type: object
                                       group:
                                         type: string
                                       includeSharedProjects:
@@ -17497,10 +16484,6 @@ spec:
                                                 type: object
                                               helm:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   fileParameters:
                                                     items:
                                                       properties:
@@ -17512,10 +16495,6 @@ spec:
                                                     type: array
                                                   ignoreMissingValueFiles:
                                                     type: boolean
-                                                  kubeVersion:
-                                                    type: string
-                                                  namespace:
-                                                    type: string
                                                   parameters:
                                                     items:
                                                       properties:
@@ -17547,10 +16526,6 @@ spec:
                                                 type: object
                                               kustomize:
                                                 properties:
-                                                  apiVersions:
-                                                    items:
-                                                      type: string
-                                                    type: array
                                                   commonAnnotations:
                                                     additionalProperties:
                                                       type: string
@@ -17573,8 +16548,6 @@ spec:
                                                     items:
                                                       type: string
                                                     type: array
-                                                  kubeVersion:
-                                                    type: string
                                                   labelWithoutSelector:
                                                     type: boolean
                                                   namePrefix:
@@ -17727,10 +16700,6 @@ spec:
                                                   type: object
                                                 helm:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     fileParameters:
                                                       items:
                                                         properties:
@@ -17742,10 +16711,6 @@ spec:
                                                       type: array
                                                     ignoreMissingValueFiles:
                                                       type: boolean
-                                                    kubeVersion:
-                                                      type: string
-                                                    namespace:
-                                                      type: string
                                                     parameters:
                                                       items:
                                                         properties:
@@ -17777,10 +16742,6 @@ spec:
                                                   type: object
                                                 kustomize:
                                                   properties:
-                                                    apiVersions:
-                                                      items:
-                                                        type: string
-                                                      type: array
                                                     commonAnnotations:
                                                       additionalProperties:
                                                         type: string
@@ -17803,8 +16764,6 @@ spec:
                                                       items:
                                                         type: string
                                                       type: array
-                                                    kubeVersion:
-                                                      type: string
                                                     labelWithoutSelector:
                                                       type: boolean
                                                     namePrefix:
@@ -17976,13 +16935,11 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                          x-kubernetes-list-type: atomic
                                       required:
                                       - key
                                       - operator
                                       type: object
                                     type: array
-                                    x-kubernetes-list-type: atomic
                                   matchLabels:
                                     additionalProperties:
                                       type: string
@@ -18121,10 +17078,6 @@ spec:
                                       type: object
                                     helm:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -18136,10 +17089,6 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
-                                        kubeVersion:
-                                          type: string
-                                        namespace:
-                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -18171,10 +17120,6 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -18197,8 +17142,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        kubeVersion:
-                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -18351,10 +17294,6 @@ spec:
                                         type: object
                                       helm:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -18366,10 +17305,6 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
-                                          kubeVersion:
-                                            type: string
-                                          namespace:
-                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -18401,10 +17336,6 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -18427,8 +17358,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          kubeVersion:
-                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -18731,10 +17660,6 @@ spec:
                                       type: object
                                     helm:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -18746,10 +17671,6 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
-                                        kubeVersion:
-                                          type: string
-                                        namespace:
-                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -18781,10 +17702,6 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -18807,8 +17724,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        kubeVersion:
-                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -18961,10 +17876,6 @@ spec:
                                         type: object
                                       helm:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -18976,10 +17887,6 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
-                                          kubeVersion:
-                                            type: string
-                                          namespace:
-                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -19011,10 +17918,6 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -19037,8 +17940,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          kubeVersion:
-                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -19297,33 +18198,6 @@ spec:
                               - passwordRef
                               - username
                               type: object
-                            bearerToken:
-                              properties:
-                                tokenRef:
-                                  properties:
-                                    key:
-                                      type: string
-                                    secretName:
-                                      type: string
-                                  required:
-                                  - key
-                                  - secretName
-                                  type: object
-                              required:
-                              - tokenRef
-                              type: object
-                            caRef:
-                              properties:
-                                configMapName:
-                                  type: string
-                                key:
-                                  type: string
-                              required:
-                              - configMapName
-                              - key
-                              type: object
-                            insecure:
-                              type: boolean
                             project:
                               type: string
                             repo:
@@ -19399,16 +18273,6 @@ spec:
                           properties:
                             api:
                               type: string
-                            caRef:
-                              properties:
-                                configMapName:
-                                  type: string
-                                key:
-                                  type: string
-                              required:
-                              - configMapName
-                              - key
-                              type: object
                             insecure:
                               type: boolean
                             labels:
@@ -19561,10 +18425,6 @@ spec:
                                       type: object
                                     helm:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -19576,10 +18436,6 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
-                                        kubeVersion:
-                                          type: string
-                                        namespace:
-                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -19611,10 +18467,6 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -19637,8 +18489,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        kubeVersion:
-                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -19791,10 +18641,6 @@ spec:
                                         type: object
                                       helm:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -19806,10 +18652,6 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
-                                          kubeVersion:
-                                            type: string
-                                          namespace:
-                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -19841,10 +18683,6 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -19867,8 +18705,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          kubeVersion:
-                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -20117,33 +18953,6 @@ spec:
                               - passwordRef
                               - username
                               type: object
-                            bearerToken:
-                              properties:
-                                tokenRef:
-                                  properties:
-                                    key:
-                                      type: string
-                                    secretName:
-                                      type: string
-                                  required:
-                                  - key
-                                  - secretName
-                                  type: object
-                              required:
-                              - tokenRef
-                              type: object
-                            caRef:
-                              properties:
-                                configMapName:
-                                  type: string
-                                key:
-                                  type: string
-                              required:
-                              - configMapName
-                              - key
-                              type: object
-                            insecure:
-                              type: boolean
                             project:
                               type: string
                           required:
@@ -20224,16 +19033,6 @@ spec:
                               type: boolean
                             api:
                               type: string
-                            caRef:
-                              properties:
-                                configMapName:
-                                  type: string
-                                key:
-                                  type: string
-                              required:
-                              - configMapName
-                              - key
-                              type: object
                             group:
                               type: string
                             includeSharedProjects:
@@ -20386,10 +19185,6 @@ spec:
                                       type: object
                                     helm:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         fileParameters:
                                           items:
                                             properties:
@@ -20401,10 +19196,6 @@ spec:
                                           type: array
                                         ignoreMissingValueFiles:
                                           type: boolean
-                                        kubeVersion:
-                                          type: string
-                                        namespace:
-                                          type: string
                                         parameters:
                                           items:
                                             properties:
@@ -20436,10 +19227,6 @@ spec:
                                       type: object
                                     kustomize:
                                       properties:
-                                        apiVersions:
-                                          items:
-                                            type: string
-                                          type: array
                                         commonAnnotations:
                                           additionalProperties:
                                             type: string
@@ -20462,8 +19249,6 @@ spec:
                                           items:
                                             type: string
                                           type: array
-                                        kubeVersion:
-                                          type: string
                                         labelWithoutSelector:
                                           type: boolean
                                         namePrefix:
@@ -20616,10 +19401,6 @@ spec:
                                         type: object
                                       helm:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           fileParameters:
                                             items:
                                               properties:
@@ -20631,10 +19412,6 @@ spec:
                                             type: array
                                           ignoreMissingValueFiles:
                                             type: boolean
-                                          kubeVersion:
-                                            type: string
-                                          namespace:
-                                            type: string
                                           parameters:
                                             items:
                                               properties:
@@ -20666,10 +19443,6 @@ spec:
                                         type: object
                                       kustomize:
                                         properties:
-                                          apiVersions:
-                                            items:
-                                              type: string
-                                            type: array
                                           commonAnnotations:
                                             additionalProperties:
                                               type: string
@@ -20692,8 +19465,6 @@ spec:
                                             items:
                                               type: string
                                             type: array
-                                          kubeVersion:
-                                            type: string
                                           labelWithoutSelector:
                                             type: boolean
                                           namePrefix:
@@ -20865,13 +19636,11 @@ spec:
                                 items:
                                   type: string
                                 type: array
-                                x-kubernetes-list-type: atomic
                             required:
                             - key
                             - operator
                             type: object
                           type: array
-                          x-kubernetes-list-type: atomic
                         matchLabels:
                           additionalProperties:
                             type: string
@@ -21081,10 +19850,6 @@ spec:
                             type: object
                           helm:
                             properties:
-                              apiVersions:
-                                items:
-                                  type: string
-                                type: array
                               fileParameters:
                                 items:
                                   properties:
@@ -21096,10 +19861,6 @@ spec:
                                 type: array
                               ignoreMissingValueFiles:
                                 type: boolean
-                              kubeVersion:
-                                type: string
-                              namespace:
-                                type: string
                               parameters:
                                 items:
                                   properties:
@@ -21131,10 +19892,6 @@ spec:
                             type: object
                           kustomize:
                             properties:
-                              apiVersions:
-                                items:
-                                  type: string
-                                type: array
                               commonAnnotations:
                                 additionalProperties:
                                   type: string
@@ -21157,8 +19914,6 @@ spec:
                                 items:
                                   type: string
                                 type: array
-                              kubeVersion:
-                                type: string
                               labelWithoutSelector:
                                 type: boolean
                               namePrefix:
@@ -21311,10 +20066,6 @@ spec:
                               type: object
                             helm:
                               properties:
-                                apiVersions:
-                                  items:
-                                    type: string
-                                  type: array
                                 fileParameters:
                                   items:
                                     properties:
@@ -21326,10 +20077,6 @@ spec:
                                   type: array
                                 ignoreMissingValueFiles:
                                   type: boolean
-                                kubeVersion:
-                                  type: string
-                                namespace:
-                                  type: string
                                 parameters:
                                   items:
                                     properties:
@@ -21361,10 +20108,6 @@ spec:
                               type: object
                             kustomize:
                               properties:
-                                apiVersions:
-                                  items:
-                                    type: string
-                                  type: array
                                 commonAnnotations:
                                   additionalProperties:
                                     type: string
@@ -21387,8 +20130,6 @@ spec:
                                   items:
                                     type: string
                                   type: array
-                                kubeVersion:
-                                  type: string
                                 labelWithoutSelector:
                                   type: boolean
                                 namePrefix:
@@ -21725,32 +20466,6 @@ spec:
               description:
                 description: Description contains optional project description
                 type: string
-              destinationServiceAccounts:
-                description: DestinationServiceAccounts holds information about the
-                  service accounts to be impersonated for the application sync operation
-                  for each destination.
-                items:
-                  description: ApplicationDestinationServiceAccount holds information
-                    about the service account to be impersonated for the application
-                    sync operation.
-                  properties:
-                    defaultServiceAccount:
-                      description: DefaultServiceAccount to be used for impersonation
-                        during the sync operation
-                      type: string
-                    namespace:
-                      description: Namespace specifies the target namespace for the
-                        application's resources.
-                      type: string
-                    server:
-                      description: Server specifies the URL of the target cluster's
-                        Kubernetes control plane API.
-                      type: string
-                  required:
-                  - defaultServiceAccount
-                  - server
-                  type: object
-                type: array
               destinations:
                 description: Destinations contains list of destinations available
                   for deployment
@@ -22555,19 +21270,7 @@ spec:
               key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.webhook.parallelism.limit
-              name: argocd-cmd-params-cm
-              optional: true
-        - name: ARGOCD_APPLICATIONSET_CONTROLLER_REQUEUE_AFTER
-          valueFrom:
-            configMapKeyRef:
-              key: applicationsetcontroller.requeue.after
-              name: argocd-cmd-params-cm
-              optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.12.4
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -22597,8 +21300,6 @@ spec:
           name: tmp
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
-      nodeSelector:
-        kubernetes.io/os: linux
       serviceAccountName: argocd-applicationset-controller
       volumes:
       - configMap:
@@ -22687,7 +21388,7 @@ spec:
         - argocd
         - admin
         - redis-initial-password
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.12.4
         imagePullPolicy: IfNotPresent
         name: secret-init
         securityContext:
@@ -22699,8 +21400,6 @@ spec:
           runAsNonRoot: true
           seccompProfile:
             type: RuntimeDefault
-      nodeSelector:
-        kubernetes.io/os: linux
       securityContext:
         runAsNonRoot: true
         runAsUser: 999
@@ -22870,12 +21569,6 @@ spec:
               key: reposerver.plugin.tar.exclusions
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS
-          valueFrom:
-            configMapKeyRef:
-              key: reposerver.plugin.use.manifest.generate.paths
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS
           valueFrom:
             configMapKeyRef:
@@ -22948,7 +21641,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.12.4
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -23000,7 +21693,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.12.4
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -23014,8 +21707,6 @@ spec:
         volumeMounts:
         - mountPath: /var/run/argocd
           name: var-files
-      nodeSelector:
-        kubernetes.io/os: linux
       serviceAccountName: argocd-repo-server
       volumes:
       - configMap:
@@ -23274,7 +21965,7 @@ spec:
               key: controller.ignore.normalizer.jq.timeout
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.12.4
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:
@@ -23299,11 +21990,7 @@ spec:
           name: argocd-repo-server-tls
         - mountPath: /home/argocd
           name: argocd-home
-        - mountPath: /home/argocd/params
-          name: argocd-cmd-params-cm
         workingDir: /home/argocd
-      nodeSelector:
-        kubernetes.io/os: linux
       serviceAccountName: argocd-application-controller
       volumes:
       - emptyDir: {}
@@ -23319,13 +22006,6 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
-      - configMap:
-          items:
-          - key: controller.profile.enabled
-            path: profiler.enabled
-          name: argocd-cmd-params-cm
-          optional: true
-        name: argocd-cmd-params-cm
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

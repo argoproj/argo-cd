@@ -38,19 +38,21 @@ metadata:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
 data:
-  resource.customizations.health.argoproj.io_Application: |
-    hs = {}
-    hs.status = "Progressing"
-    hs.message = ""
-    if obj.status ~= nil then
-      if obj.status.health ~= nil then
-        hs.status = obj.status.health.status
-        if obj.status.health.message ~= nil then
-          hs.message = obj.status.health.message
+  resource.customizations: |
+    argoproj.io/Application:
+      health.lua: |
+        hs = {}
+        hs.status = "Progressing"
+        hs.message = ""
+        if obj.status ~= nil then
+          if obj.status.health ~= nil then
+            hs.status = obj.status.health.status
+            if obj.status.health.message ~= nil then
+              hs.message = obj.status.health.message
+            end
+          end
         end
-      end
-    end
-    return hs
+        return hs
 ```
 
 ## Custom Health Checks
@@ -66,7 +68,9 @@ There are two ways to configure a custom health check. The next two sections des
 
 Custom health checks can be defined in
 ```yaml
-  resource.customizations.health.<group>_<kind>: |
+  resource.customizations: |
+    <group/kind>:
+      health.lua: |
 ```
 field of `argocd-cm`. If you are using argocd-operator, this is overridden by [the argocd-operator resourceCustomizations](https://argocd-operator.readthedocs.io/en/latest/reference/argocd/#resource-customizations).
 
@@ -74,44 +78,49 @@ The following example demonstrates a health check for `cert-manager.io/Certifica
 
 ```yaml
 data:
-  resource.customizations.health.cert-manager.io_Certificate: |
-    hs = {}
-    if obj.status ~= nil then
-      if obj.status.conditions ~= nil then
-        for i, condition in ipairs(obj.status.conditions) do
-          if condition.type == "Ready" and condition.status == "False" then
-            hs.status = "Degraded"
-            hs.message = condition.message
-            return hs
-          end
-          if condition.type == "Ready" and condition.status == "True" then
-            hs.status = "Healthy"
-            hs.message = condition.message
-            return hs
+  resource.customizations: |
+    cert-manager.io/Certificate:
+      health.lua: |
+        hs = {}
+        if obj.status ~= nil then
+          if obj.status.conditions ~= nil then
+            for i, condition in ipairs(obj.status.conditions) do
+              if condition.type == "Ready" and condition.status == "False" then
+                hs.status = "Degraded"
+                hs.message = condition.message
+                return hs
+              end
+              if condition.type == "Ready" and condition.status == "True" then
+                hs.status = "Healthy"
+                hs.message = condition.message
+                return hs
+              end
+            end
           end
         end
-      end
-    end
 
-    hs.status = "Progressing"
-    hs.message = "Waiting for certificate"
-    return hs
+        hs.status = "Progressing"
+        hs.message = "Waiting for certificate"
+        return hs
 ```
-
 In order to prevent duplication of the custom health check for potentially multiple resources, it is also possible to specify a wildcard in the resource kind, and anywhere in the resource group, like this:
 
 ```yaml
-  resource.customizations.health.ec2.aws.crossplane.io_*: |
-    ...
+  resource.customizations: |
+    ec2.aws.crossplane.io/*:
+      health.lua: |
+        ...
 ```
 
 ```yaml
-  resource.customizations.health.*.aws.crossplane.io_*: |
-    ...
+  resource.customizations: |
+    "*.aws.crossplane.io/*":
+      health.lua: | 
+        ...
 ```
 
 !!!important
-    Please, note that there can be ambiguous resolution of wildcards, see [#16905](https://github.com/argoproj/argo-cd/issues/16905)
+    Please note the required quotes in the resource customization health section, if the wildcard starts with `*`.
 
 The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
 The custom health check might return one of the following health statuses:
@@ -124,13 +133,15 @@ The custom health check might return one of the following health statuses:
 By default health typically returns `Progressing` status.
 
 NOTE: As a security measure, access to the standard Lua libraries will be disabled by default. Admins can control access by
-setting `resource.customizations.useOpenLibs.<group>_<kind>`. In the following example, standard libraries are enabled for health check of `cert-manager.io/Certificate`.
+setting `resource.customizations.useOpenLibs.<group_kind>`. In the following example, standard libraries are enabled for health check of `cert-manager.io/Certificate`.
 
 ```yaml
 data:
-  resource.customizations.useOpenLibs.cert-manager.io_Certificate: true
-  resource.customizations.health.cert-manager.io_Certificate: |
-    # Lua standard libraries are enabled for this script
+  resource.customizations: |
+    cert-manager.io/Certificate:
+      health.lua.useOpenLibs: true
+      health.lua: |
+        # Lua standard libraries are enabled for this script
 ```
 
 ### Way 2. Contribute a Custom Health Check

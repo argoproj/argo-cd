@@ -292,8 +292,7 @@ func TestCreateToken_UserSpecifiedID(t *testing.T) {
 
 	_, err = accountServer.CreateToken(ctx, &account.CreateTokenRequest{Name: "account1", Id: "test"})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to update account with new token:")
-	assert.Contains(t, err.Error(), "account already has token with id 'test'")
+	assert.Contains(t, "account already has token with id 'test'", err.Error())
 }
 
 func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {

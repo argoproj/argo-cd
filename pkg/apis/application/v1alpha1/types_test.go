@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -320,7 +321,7 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 			Server: "*", Namespace: "!kube-system",
 		}},
 		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
-		isPermitted: true,
+		isPermitted: false,
 	}, {
 		projDest: []ApplicationDestination{{
 			Server: "*", Namespace: "*",
@@ -339,22 +340,6 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 		}},
 		appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
 		isPermitted: false,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "*", Namespace: "test",
-		}, {
-			Server: "!https://test-server", Namespace: "other",
-		}},
-		appDest:     ApplicationDestination{Server: "https://test-server", Namespace: "test"},
-		isPermitted: true,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "*", Namespace: "*",
-		}, {
-			Server: "https://test-server", Namespace: "!other",
-		}},
-		appDest:     ApplicationDestination{Server: "https://other-test-server", Namespace: "other"},
-		isPermitted: true,
 	}}
 
 	for _, data := range testData {
@@ -366,7 +351,7 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
 			return []*Cluster{}, nil
 		})
-		assert.Equalf(t, data.isPermitted, permitted, "appDest mismatch for %+v with project destinations %+v", data.appDest, data.projDest)
+		assert.Equal(t, data.isPermitted, permitted)
 	}
 }
 
@@ -455,7 +440,7 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 		return nil, errors.New("some error")
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "could not retrieve project clusters")
+	assert.True(t, strings.Contains(err.Error(), "could not retrieve project clusters"))
 }
 
 func TestAppProject_IsGroupKindPermitted(t *testing.T) {
@@ -899,153 +884,6 @@ func TestAppSourceEquality(t *testing.T) {
 	assert.False(t, left.Equals(right))
 }
 
-func TestAppSource_GetKubeVersionOrDefault(t *testing.T) {
-	defaultKV := "999.999.999"
-	cases := []struct {
-		name   string
-		source *ApplicationSource
-		expect string
-	}{
-		{
-			"nil source returns default",
-			nil,
-			defaultKV,
-		},
-		{
-			"source without Helm or Kustomize returns default",
-			&ApplicationSource{},
-			defaultKV,
-		},
-		{
-			"source with empty Helm returns default",
-			&ApplicationSource{Helm: &ApplicationSourceHelm{}},
-			defaultKV,
-		},
-		{
-			"source with empty Kustomize returns default",
-			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{}},
-			defaultKV,
-		},
-		{
-			"source with Helm override returns override",
-			&ApplicationSource{Helm: &ApplicationSourceHelm{KubeVersion: "1.2.3"}},
-			"1.2.3",
-		},
-		{
-			"source with Kustomize override returns override",
-			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{KubeVersion: "1.2.3"}},
-			"1.2.3",
-		},
-	}
-
-	for _, tc := range cases {
-		tcc := tc
-		t.Run(tcc.name, func(t *testing.T) {
-			t.Parallel()
-			kv := tcc.source.GetKubeVersionOrDefault(defaultKV)
-			assert.Equal(t, tcc.expect, kv)
-		})
-	}
-}
-
-func TestAppSource_GetAPIVersionsOrDefault(t *testing.T) {
-	defaultAPIVersions := []string{"v1", "v2"}
-	cases := []struct {
-		name   string
-		source *ApplicationSource
-		expect []string
-	}{
-		{
-			"nil source returns default",
-			nil,
-			defaultAPIVersions,
-		},
-		{
-			"source without Helm or Kustomize returns default",
-			&ApplicationSource{},
-			defaultAPIVersions,
-		},
-		{
-			"source with empty Helm returns default",
-			&ApplicationSource{Helm: &ApplicationSourceHelm{}},
-			defaultAPIVersions,
-		},
-		{
-			"source with empty Kustomize returns default",
-			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{}},
-			defaultAPIVersions,
-		},
-		{
-			"source with Helm override returns override",
-			&ApplicationSource{Helm: &ApplicationSourceHelm{APIVersions: []string{"v3", "v4"}}},
-			[]string{"v3", "v4"},
-		},
-		{
-			"source with Kustomize override returns override",
-			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{APIVersions: []string{"v3", "v4"}}},
-			[]string{"v3", "v4"},
-		},
-	}
-
-	for _, tc := range cases {
-		tcc := tc
-		t.Run(tcc.name, func(t *testing.T) {
-			t.Parallel()
-			kv := tcc.source.GetAPIVersionsOrDefault(defaultAPIVersions)
-			assert.Equal(t, tcc.expect, kv)
-		})
-	}
-}
-
-func TestAppSource_GetNamespaceOrDefault(t *testing.T) {
-	defaultNS := "default"
-	cases := []struct {
-		name   string
-		source *ApplicationSource
-		expect string
-	}{
-		{
-			"nil source returns default",
-			nil,
-			defaultNS,
-		},
-		{
-			"source without Helm or Kustomize returns default",
-			&ApplicationSource{},
-			defaultNS,
-		},
-		{
-			"source with empty Helm returns default",
-			&ApplicationSource{Helm: &ApplicationSourceHelm{}},
-			defaultNS,
-		},
-		{
-			"source with empty Kustomize returns default",
-			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{}},
-			defaultNS,
-		},
-		{
-			"source with Helm override returns override",
-			&ApplicationSource{Helm: &ApplicationSourceHelm{Namespace: "not-default"}},
-			"not-default",
-		},
-		{
-			"source with Kustomize override returns override",
-			&ApplicationSource{Kustomize: &ApplicationSourceKustomize{Namespace: "not-default"}},
-			"not-default",
-		},
-	}
-
-	for _, tc := range cases {
-		tcc := tc
-		t.Run(tcc.name, func(t *testing.T) {
-			t.Parallel()
-			kv := tcc.source.GetNamespaceOrDefault(defaultNS)
-			assert.Equal(t, tcc.expect, kv)
-		})
-	}
-}
-
 func TestAppDestinationEquality(t *testing.T) {
 	left := &ApplicationDestination{
 		Server:    "https://kubernetes.default.svc",
@@ -1284,7 +1122,6 @@ func TestRepository_CopyCredentialsFrom(t *testing.T) {
 		{"SourceSSHPrivateKey", &Repository{}, &RepoCreds{SSHPrivateKey: "foo"}, Repository{SSHPrivateKey: "foo"}},
 		{"SourceTLSClientCertData", &Repository{}, &RepoCreds{TLSClientCertData: "foo"}, Repository{TLSClientCertData: "foo"}},
 		{"SourceTLSClientCertKey", &Repository{}, &RepoCreds{TLSClientCertKey: "foo"}, Repository{TLSClientCertKey: "foo"}},
-		{"SourceContainsProxy", &Repository{}, &RepoCreds{Proxy: "http://proxy.argoproj.io:3128", NoProxy: ".example.com"}, Repository{Proxy: "http://proxy.argoproj.io:3128", NoProxy: ".example.com"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -3903,230 +3740,5 @@ func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
 			actual := tc.application.GetSourcePtrByIndex(tc.sourceIndex)
 			assert.Equal(t, tc.expected, actual)
 		})
-	}
-}
-
-func TestApplicationTree_GetShards(t *testing.T) {
-	tree := &ApplicationTree{
-		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}}, {ResourceRef: ResourceRef{Name: "node 3"}},
-		},
-		OrphanedNodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "orph-node 1"}}, {ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}},
-		},
-		Hosts: []HostInfo{
-			{Name: "host 1"}, {Name: "host 2"}, {Name: "host 3"},
-		},
-	}
-
-	shards := tree.GetShards(2)
-	require.Len(t, shards, 5)
-	require.Equal(t, &ApplicationTree{
-		ShardsCount: 5,
-		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}},
-		},
-	}, shards[0])
-	require.Equal(t, &ApplicationTree{
-		Nodes:         []ResourceNode{{ResourceRef: ResourceRef{Name: "node 3"}}},
-		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 1"}}},
-	}, shards[1])
-	require.Equal(t, &ApplicationTree{
-		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}}},
-	}, shards[2])
-	require.Equal(t, &ApplicationTree{
-		Hosts: []HostInfo{{Name: "host 1"}, {Name: "host 2"}},
-	}, shards[3])
-	require.Equal(t, &ApplicationTree{
-		Hosts: []HostInfo{{Name: "host 3"}},
-	}, shards[4])
-}
-
-func TestApplicationTree_Merge(t *testing.T) {
-	tree := &ApplicationTree{}
-	tree.Merge(&ApplicationTree{
-		ShardsCount: 5,
-		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}},
-		},
-	})
-	tree.Merge(&ApplicationTree{
-		Nodes:         []ResourceNode{{ResourceRef: ResourceRef{Name: "node 3"}}},
-		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 1"}}},
-	})
-	tree.Merge(&ApplicationTree{
-		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}}},
-	})
-	tree.Merge(&ApplicationTree{
-		Hosts: []HostInfo{{Name: "host 1"}, {Name: "host 2"}},
-	})
-	tree.Merge(&ApplicationTree{
-		Hosts: []HostInfo{{Name: "host 3"}},
-	})
-	require.Equal(t, &ApplicationTree{
-		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}}, {ResourceRef: ResourceRef{Name: "node 3"}},
-		},
-		OrphanedNodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "orph-node 1"}}, {ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}},
-		},
-		Hosts: []HostInfo{
-			{Name: "host 1"}, {Name: "host 2"}, {Name: "host 3"},
-		},
-	}, tree)
-}
-
-func TestAppProject_ValidateDestinationServiceAccount(t *testing.T) {
-	testData := []struct {
-		server                string
-		namespace             string
-		defaultServiceAccount string
-		expectedErrMsg        string
-	}{
-		{
-			// Given, a project
-			// When, a default destination service account with all valid fields is added to it,
-			// Then, there is no error.
-			server:                "https://192.168.99.100:8443",
-			namespace:             "test-ns",
-			defaultServiceAccount: "test-sa",
-			expectedErrMsg:        "",
-		},
-		{
-			// Given, a project
-			// When, a default destination service account with negation glob pattern for server is added,
-			// Then, there is an error with appropriate message.
-			server:                "!abc",
-			namespace:             "test-ns",
-			defaultServiceAccount: "test-sa",
-			expectedErrMsg:        "server has an invalid format, '!abc'",
-		},
-		{
-			// Given, a project
-			// When, a default destination service account with empty namespace is added to it,
-			// Then, there is no error.
-			server:                "https://192.168.99.100:8443",
-			namespace:             "",
-			defaultServiceAccount: "test-sa",
-			expectedErrMsg:        "",
-		},
-		{
-			// Given, a project,
-			// When, a default destination service account with negation glob pattern for server is added,
-			// Then, there is an error with appropriate message.
-			server:                "!*",
-			namespace:             "test-ns",
-			defaultServiceAccount: "test-sa",
-			expectedErrMsg:        "server has an invalid format, '!*'",
-		},
-		{
-			// Given, a project,
-			// When, a default destination service account with negation glob pattern for namespace is added,
-			// Then, there is an error with appropriate message.
-			server:                "https://192.168.99.100:8443",
-			namespace:             "!*",
-			defaultServiceAccount: "test-sa",
-			expectedErrMsg:        "namespace has an invalid format, '!*'",
-		},
-		{
-			// Given, a project,
-			// When, a default destination service account with negation glob pattern for namespace is added,
-			// Then, there is an error with appropriate message.
-			server:                "https://192.168.99.100:8443",
-			namespace:             "!abc",
-			defaultServiceAccount: "test-sa",
-			expectedErrMsg:        "namespace has an invalid format, '!abc'",
-		},
-		{
-			// Given, a project,
-			// When, a default destination service account with empty service account is added,
-			// Then, there is an error with appropriate message.
-			server:                "https://192.168.99.100:8443",
-			namespace:             "test-ns",
-			defaultServiceAccount: "",
-			expectedErrMsg:        "defaultServiceAccount has an invalid format, ''",
-		},
-		{
-			// Given, a project,
-			// When, a default destination service account with service account having just white spaces is added,
-			// Then, there is an error with appropriate message.
-			server:                "https://192.168.99.100:8443",
-			namespace:             "test-ns",
-			defaultServiceAccount: "   ",
-			expectedErrMsg:        "defaultServiceAccount has an invalid format, '   '",
-		},
-		{
-			// Given, a project,
-			// When, a default destination service account with service account having backwards slash char is added,
-			// Then, there is an error with appropriate message.
-			server:                "https://192.168.99.100:8443",
-			namespace:             "test-ns",
-			defaultServiceAccount: "test\\sa",
-			expectedErrMsg:        "defaultServiceAccount has an invalid format, 'test\\sa'",
-		},
-		{
-			// Given, a project,
-			// When, a default destination service account with service account having forward slash char is added,
-			// Then, there is an error with appropriate message.
-			server:                "https://192.168.99.100:8443",
-			namespace:             "test-ns",
-			defaultServiceAccount: "test/sa",
-			expectedErrMsg:        "defaultServiceAccount has an invalid format, 'test/sa'",
-		},
-		{
-			// Given, a project,
-			// When, a default destination service account with service account having square braces char is added,
-			// Then, there is an error with appropriate message.
-			server:                "https://192.168.99.100:8443",
-			namespace:             "test-ns",
-			defaultServiceAccount: "[test-sa]",
-			expectedErrMsg:        "defaultServiceAccount has an invalid format, '[test-sa]'",
-		},
-		{
-			// Given, a project,
-			// When, a default destination service account with service account having curly braces char is added,
-			// Then, there is an error with appropriate message.
-			server:                "https://192.168.99.100:8443",
-			namespace:             "test-ns",
-			defaultServiceAccount: "{test-sa}",
-			expectedErrMsg:        "defaultServiceAccount has an invalid format, '{test-sa}'",
-		},
-		{
-			// Given, a project,
-			// When, a default destination service account with service account having curly braces char is added,
-			// Then, there is an error with appropriate message.
-			server:                "[[ech*",
-			namespace:             "test-ns",
-			defaultServiceAccount: "test-sa",
-			expectedErrMsg:        "server has an invalid format, '[[ech*'",
-		},
-		{
-			// Given, a project,
-			// When, a default destination service account with service account having curly braces char is added,
-			// Then, there is an error with appropriate message.
-			server:                "https://192.168.99.100:8443",
-			namespace:             "[[ech*",
-			defaultServiceAccount: "test-sa",
-			expectedErrMsg:        "namespace has an invalid format, '[[ech*'",
-		},
-	}
-	for _, data := range testData {
-		proj := AppProject{
-			Spec: AppProjectSpec{
-				DestinationServiceAccounts: []ApplicationDestinationServiceAccount{
-					{
-						Server:                data.server,
-						Namespace:             data.namespace,
-						DefaultServiceAccount: data.defaultServiceAccount,
-					},
-				},
-			},
-		}
-		err := proj.ValidateProject()
-		if data.expectedErrMsg == "" {
-			require.NoError(t, err)
-		} else {
-			require.ErrorContains(t, err, data.expectedErrMsg)
-		}
 	}
 }

@@ -268,7 +268,7 @@ func cleanUpNamespace(fixtureClient *E2EFixtureK8sClient, namespace string) erro
 		msg = err.Error()
 	}
 
-	return fmt.Errorf("%s", msg)
+	return fmt.Errorf(msg)
 }
 
 // waitForSuccess waits for the condition to return a non-error value.

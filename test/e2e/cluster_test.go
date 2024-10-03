@@ -3,6 +3,7 @@ package e2e
 import (
 	"fmt"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -170,8 +171,8 @@ func TestClusterSet(t *testing.T) {
 		GetByName("in-cluster").
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, output, "namespace-edit-1")
-			assert.Contains(t, output, "namespace-edit-2")
+			assert.True(t, strings.Contains(output, "namespace-edit-1"))
+			assert.True(t, strings.Contains(output, "namespace-edit-2"))
 		})
 }
 
