@@ -3959,3 +3959,158 @@ func TestApplicationTree_Merge(t *testing.T) {
 		},
 	}, tree)
 }
+
+func TestAppProject_ValidateDestinationServiceAccount(t *testing.T) {
+	testData := []struct {
+		server                string
+		namespace             string
+		defaultServiceAccount string
+		expectedErrMsg        string
+	}{
+		{
+			// Given, a project
+			// When, a default destination service account with all valid fields is added to it,
+			// Then, there is no error.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "",
+		},
+		{
+			// Given, a project
+			// When, a default destination service account with negation glob pattern for server is added,
+			// Then, there is an error with appropriate message.
+			server:                "!abc",
+			namespace:             "test-ns",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "server has an invalid format, '!abc'",
+		},
+		{
+			// Given, a project
+			// When, a default destination service account with empty namespace is added to it,
+			// Then, there is no error.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with negation glob pattern for server is added,
+			// Then, there is an error with appropriate message.
+			server:                "!*",
+			namespace:             "test-ns",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "server has an invalid format, '!*'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with negation glob pattern for namespace is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "!*",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "namespace has an invalid format, '!*'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with negation glob pattern for namespace is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "!abc",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "namespace has an invalid format, '!abc'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with empty service account is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "",
+			expectedErrMsg:        "defaultServiceAccount has an invalid format, ''",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having just white spaces is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "   ",
+			expectedErrMsg:        "defaultServiceAccount has an invalid format, '   '",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having backwards slash char is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "test\\sa",
+			expectedErrMsg:        "defaultServiceAccount has an invalid format, 'test\\sa'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having forward slash char is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "test/sa",
+			expectedErrMsg:        "defaultServiceAccount has an invalid format, 'test/sa'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having square braces char is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "[test-sa]",
+			expectedErrMsg:        "defaultServiceAccount has an invalid format, '[test-sa]'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having curly braces char is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "{test-sa}",
+			expectedErrMsg:        "defaultServiceAccount has an invalid format, '{test-sa}'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having curly braces char is added,
+			// Then, there is an error with appropriate message.
+			server:                "[[ech*",
+			namespace:             "test-ns",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "server has an invalid format, '[[ech*'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having curly braces char is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "[[ech*",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "namespace has an invalid format, '[[ech*'",
+		},
+	}
+	for _, data := range testData {
+		proj := AppProject{
+			Spec: AppProjectSpec{
+				DestinationServiceAccounts: []ApplicationDestinationServiceAccount{
+					{
+						Server:                data.server,
+						Namespace:             data.namespace,
+						DefaultServiceAccount: data.defaultServiceAccount,
+					},
+				},
+			},
+		}
+		err := proj.ValidateProject()
+		if data.expectedErrMsg == "" {
+			require.NoError(t, err)
+		} else {
+			require.ErrorContains(t, err, data.expectedErrMsg)
+		}
+	}
+}

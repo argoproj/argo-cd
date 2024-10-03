@@ -1,7 +1,7 @@
 # Application Sync using impersonation
 
 !!! warning "Alpha Feature"
-    This is an experimental, alpha-quality feature that allows you to control the service account used for the sync operation. The configured service account, could have lesser privileges required for creating resources compared to the highly privileged access required for the control plane operations.
+    This is an experimental, alpha-quality feature that allows you to control the service account used for the sync operation. The configured service account could have lesser privileges required for creating resources compared to the highly privileged access required for the control plane operations.
 
 !!! warning
     Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
@@ -94,7 +94,7 @@ spec:
   sourceRepos:
     - '*'
   destinations:
-    - *
+    - '*'
   destinationServiceAccounts:
     - server: https://kubernetes.default.svc
       namespace: guestbook
