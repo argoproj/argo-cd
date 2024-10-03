@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 
-
 	log "github.com/sirupsen/logrus"
 	"go.uber.org/automaxprocs/maxprocs"
 
