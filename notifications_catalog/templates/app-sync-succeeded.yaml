@@ -17,7 +17,16 @@ slack:
           },
           {
             "title": "Repository",
-            "value": "{{range .app.spec.sources}}{{.repoURL}} {{end}}",
+            "value": 
+              {{- if .app.spec.source }}
+                "{{ .app.spec.source.repoURL }}"
+              {{- else if .app.spec.sources }}
+                {{- range .app.spec.sources }}
+                  "{{ .repoURL }}"
+                {{- end }}
+              {{- else }}
+                "no repoURL"
+              {{- end }}
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
@@ -44,7 +53,16 @@ teams:
         },
         {
           "name": "Repository",
-          "value": "{{range .app.spec.sources}}{{.repoURL}} {{end}}",
+          "value": 
+            {{- if .app.spec.source }}
+              "{{ .app.spec.source.repoURL }}"
+            {{- else if .app.spec.sources }}
+              {{- range .app.spec.sources }}
+                "{{ .repoURL }}"
+              {{- end }}
+            {{- else }}
+              "no repoURL"
+            {{- end }}
         }
         {{range $index, $c := .app.status.conditions}}
           ,
@@ -68,6 +86,15 @@ teams:
           "name":"Open Repository",
           "targets":[{
             "os":"default",
-            "uri":"{{range .app.spec.sources}}{{.repoURL | call .repo.RepoURLToHTTPS}} {{end}}" 
+            "uri": 
+              {{- if .app.spec.source }}
+                "{{ .app.spec.source.repoURL | call .repo.RepoURLToHTTPS }}"
+              {{- else if .app.spec.sources }}
+                {{- range .app.spec.sources }}
+                  "{{ .repoURL | call .repo.RepoURLToHTTPS }}"
+                {{- end }}
+              {{- else }}
+                "no repoURL"
+              {{- end }}
           }]
         }]
