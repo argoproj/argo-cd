@@ -45,79 +45,36 @@ email:
 message: |
   {{if eq .serviceType "slack"}}:white_check_mark:{{end}} Application {{.app.metadata.name}} is now running new version of deployments manifests.
 slack:
-  attachments: |
-    [{
-      "title": "{{ .app.metadata.name}}",
-      "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
-      "color": "#18be52",
-      "fields": [
-      {
-        "title": "Sync Status",
-        "value": "{{.app.status.sync.status}}",
-        "short": true
-      },
-      {
-        "title": "Repository",
-        "value": "{{.app.spec.source.repoURL}}",
-        "short": true
-      },
-      {
-        "title": "Revision",
-        "value": "{{.app.status.sync.revision}}",
-        "short": true
-      }
-      {{range $index, $c := .app.status.conditions}}
-      ,
-      {
-        "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
-        "short": true
-      }
-      {{end}}
-      ]
-    }]
+  attachments: "[{\n  \"title\": \"{{ .app.metadata.name}}\",\n  \"title_link\":\"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}\",\n
+    \ \"color\": \"#18be52\",\n  \"fields\": [\n  {\n    \"title\": \"Sync Status\",\n
+    \   \"value\": \"{{.app.status.sync.status}}\",\n    \"short\": true\n  },\n  {\n
+    \   \"title\": \"Repository\",\n    \"value\": \n      {{- if .app.spec.source
+    }}\n        \"{{ .app.spec.source.repoURL }}\"\n      {{- else if .app.spec.sources
+    }}\n        {{- range .app.spec.sources }}\n          \"{{ .repoURL }}\"\n        {{-
+    end }}\n      {{- else }}\n        \"no repoURL\"\n      {{- end }}\n    \"short\":
+    true\n  },\n  {\n    \"title\": \"Revision\",\n    \"value\": \"{{.app.status.sync.revision}}\",\n
+    \   \"short\": true\n  }\n  {{range $index, $c := .app.status.conditions}}\n  ,\n
+    \ {\n    \"title\": \"{{$c.type}}\",\n    \"value\": \"{{$c.message}}\",\n    \"short\":
+    true\n  }\n  {{end}}\n  ]\n}]\n"
   deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
 teams:
-  facts: |
-    [{
-      "name": "Sync Status",
-      "value": "{{.app.status.sync.status}}"
-    },
-    {
-      "name": "Repository",
-      "value": "{{.app.spec.source.repoURL}}"
-    },
-    {
-      "name": "Revision",
-      "value": "{{.app.status.sync.revision}}"
-    }
-    {{range $index, $c := .app.status.conditions}}
-      ,
-      {
-        "name": "{{$c.type}}",
-        "value": "{{$c.message}}"
-      }
-    {{end}}
-    ]
-  potentialAction: |-
-    [{
-      "@type":"OpenUri",
-      "name":"Operation Application",
-      "targets":[{
-        "os":"default",
-        "uri":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}"
-      }]
-    },
-    {
-      "@type":"OpenUri",
-      "name":"Open Repository",
-      "targets":[{
-        "os":"default",
-        "uri":"{{.app.spec.source.repoURL | call .repo.RepoURLToHTTPS}}"
-      }]
-    }]
+  facts: "[{\n  \"name\": \"Sync Status\",\n  \"value\": \"{{.app.status.sync.status}}\"\n},\n{\n
+    \ \"name\": \"Repository\",\n  \"value\": \n    {{- if .app.spec.source }}\n      \"{{
+    .app.spec.source.repoURL }}\"\n    {{- else if .app.spec.sources }}\n      {{-
+    range .app.spec.sources }}\n        \"{{ .repoURL }}\"\n      {{- end }}\n    {{-
+    else }}\n      \"no repoURL\"\n    {{- end }}\n},\n{\n  \"name\": \"Revision\",\n
+    \ \"value\": \"{{.app.status.sync.revision}}\"\n}\n{{range $index, $c := .app.status.conditions}}\n
+    \ ,\n  {\n    \"name\": \"{{$c.type}}\",\n    \"value\": \"{{$c.message}}\"\n
+    \ }\n{{end}}\n]\n"
+  potentialAction: "[{\n  \"@type\":\"OpenUri\",\n  \"name\":\"Operation Application\",\n
+    \ \"targets\":[{\n    \"os\":\"default\",\n    \"uri\":\"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}\"\n
+    \ }]\n},\n{\n  \"@type\":\"OpenUri\",\n  \"name\":\"Open Repository\",\n  \"targets\":[{\n
+    \   \"os\":\"default\",\n    \"uri\": \n      {{- if .app.spec.source }}\n        \"{{
+    .app.spec.source.repoURL }}\"\n      {{- else if .app.spec.sources }}\n        {{-
+    range .app.spec.sources }}\n          \"{{ .repoURL }}\"\n        {{- end }}\n
+    \     {{- else }}\n        \"no repoURL\"\n      {{- end }}\n  }]\n}]"
   themeColor: '#000080'
   title: New version of an application {{.app.metadata.name}} is up and running.
 
@@ -131,70 +88,34 @@ message: |
   {{if eq .serviceType "slack"}}:exclamation:{{end}} Application {{.app.metadata.name}} has degraded.
   Application details: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}.
 slack:
-  attachments: |
-    [{
-      "title": "{{ .app.metadata.name}}",
-      "title_link": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
-      "color": "#f4c030",
-      "fields": [
-      {
-        "title": "Health Status",
-        "value": "{{.app.status.health.status}}",
-        "short": true
-      },
-      {
-        "title": "Repository",
-        "value": "{{.app.spec.source.repoURL}}",
-        "short": true
-      }
-      {{range $index, $c := .app.status.conditions}}
-      ,
-      {
-        "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
-        "short": true
-      }
-      {{end}}
-      ]
-    }]
+  attachments: "[{\n  \"title\": \"{{ .app.metadata.name}}\",\n  \"title_link\": \"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}\",\n
+    \ \"color\": \"#f4c030\",\n  \"fields\": [\n  {\n    \"title\": \"Health Status\",\n
+    \   \"value\": \"{{.app.status.health.status}}\",\n    \"short\": true\n  },\n
+    \ {\n    \"title\": \"Repository\",\n    \"value\": \n      {{- if .app.spec.source
+    }}\n        \"{{ .app.spec.source.repoURL }}\"\n      {{- else if .app.spec.sources
+    }}\n        {{- range .app.spec.sources }}\n          \"{{ .repoURL }}\"\n        {{-
+    end }}\n      {{- else }}\n        \"no repoURL\"\n      {{- end }}\n    \"short\":
+    true\n  }\n  {{range $index, $c := .app.status.conditions}}\n  ,\n  {\n    \"title\":
+    \"{{$c.type}}\",\n    \"value\": \"{{$c.message}}\",\n    \"short\": true\n  }\n
+    \ {{end}}\n  ]\n}]\n"
   deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
 teams:
-  facts: |
-    [{
-      "name": "Health Status",
-      "value": "{{.app.status.health.status}}"
-    },
-    {
-      "name": "Repository",
-      "value": "{{.app.spec.source.repoURL}}"
-    }
-    {{range $index, $c := .app.status.conditions}}
-      ,
-      {
-        "name": "{{$c.type}}",
-        "value": "{{$c.message}}"
-      }
-    {{end}}
-    ]
-  potentialAction: |
-    [{
-      "@type":"OpenUri",
-      "name":"Open Application",
-      "targets":[{
-        "os":"default",
-        "uri":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}"
-      }]
-    },
-    {
-      "@type":"OpenUri",
-      "name":"Open Repository",
-      "targets":[{
-        "os":"default",
-        "uri":"{{.app.spec.source.repoURL | call .repo.RepoURLToHTTPS}}"
-      }]
-    }]
+  facts: "[{\n  \"name\": \"Health Status\",\n  \"value\": \"{{.app.status.health.status}}\"\n},\n{\n
+    \ \"name\": \"Repository\",\n  \"value\": \n    {{- if .app.spec.source }}\n      \"{{
+    .app.spec.source.repoURL }}\"\n    {{- else if .app.spec.sources }}\n      {{-
+    range .app.spec.sources }}\n        \"{{ .repoURL }}\"\n      {{- end }}\n    {{-
+    else }}\n      \"no repoURL\"\n    {{- end }}\n}\n{{range $index, $c := .app.status.conditions}}\n
+    \ ,\n  {\n    \"name\": \"{{$c.type}}\",\n    \"value\": \"{{$c.message}}\"\n
+    \ }\n{{end}}\n]\n"
+  potentialAction: "[{\n  \"@type\":\"OpenUri\",\n  \"name\":\"Open Application\",\n
+    \ \"targets\":[{\n    \"os\":\"default\",\n    \"uri\":\"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}\"\n
+    \ }]\n},\n{\n  \"@type\":\"OpenUri\",\n  \"name\":\"Open Repository\",\n  \"targets\":[{\n
+    \   \"os\":\"default\",\n    \"uri\": \n      {{- if .app.spec.source }}\n        \"{{
+    .app.spec.source.repoURL }}\"\n      {{- else if .app.spec.sources }}\n        {{-
+    range .app.spec.sources }}\n          \"{{ .repoURL }}\"\n        {{- end }}\n
+    \     {{- else }}\n        \"no repoURL\"\n      {{- end }}\n  }]\n}]\n"
   themeColor: '#FF0000'
   title: Application {{.app.metadata.name}} has degraded.
 
@@ -208,74 +129,35 @@ message: |
   {{if eq .serviceType "slack"}}:exclamation:{{end}}  The sync operation of application {{.app.metadata.name}} has failed at {{.app.status.operationState.finishedAt}} with the following error: {{.app.status.operationState.message}}
   Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .
 slack:
-  attachments: |
-    [{
-      "title": "{{ .app.metadata.name}}",
-      "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
-      "color": "#E96D76",
-      "fields": [
-      {
-        "title": "Sync Status",
-        "value": "{{.app.status.sync.status}}",
-        "short": true
-      },
-      {
-        "title": "Repository",
-        "value": "{{.app.spec.source.repoURL}}",
-        "short": true
-      }
-      {{range $index, $c := .app.status.conditions}}
-      ,
-      {
-        "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
-        "short": true
-      }
-      {{end}}
-      ]
-    }]
+  attachments: "[{\n  \"title\": \"{{ .app.metadata.name}}\",\n  \"title_link\":\"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}\",\n
+    \ \"color\": \"#E96D76\",\n  \"fields\": [\n  {\n    \"title\": \"Sync Status\",\n
+    \   \"value\": \"{{.app.status.sync.status}}\",\n    \"short\": true\n  },\n  {\n
+    \   \"title\": \"Repository\",\n    \"value\": \n      {{- if .app.spec.source
+    }}\n        \"{{ .app.spec.source.repoURL }}\"\n      {{- else if .app.spec.sources
+    }}\n        {{- range .app.spec.sources }}\n          \"{{ .repoURL }}\"\n        {{-
+    end }}\n      {{- else }}\n        \"no repoURL\"\n      {{- end }}\n    \"short\":
+    true\n  }\n  {{range $index, $c := .app.status.conditions}}\n  ,\n  {\n    \"title\":
+    \"{{$c.type}}\",\n    \"value\": \"{{$c.message}}\",\n    \"short\": true\n  }\n
+    \ {{end}}\n  ]\n}]\n"
   deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
 teams:
-  facts: |
-    [{
-      "name": "Sync Status",
-      "value": "{{.app.status.sync.status}}"
-    },
-    {
-      "name": "Failed at",
-      "value": "{{.app.status.operationState.finishedAt}}"
-    },
-    {
-      "name": "Repository",
-      "value": "{{.app.spec.source.repoURL}}"
-    }
-    {{range $index, $c := .app.status.conditions}}
-      ,
-      {
-        "name": "{{$c.type}}",
-        "value": "{{$c.message}}"
-      }
-    {{end}}
-    ]
-  potentialAction: |-
-    [{
-      "@type":"OpenUri",
-      "name":"Open Operation",
-      "targets":[{
-        "os":"default",
-        "uri":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true"
-      }]
-    },
-    {
-      "@type":"OpenUri",
-      "name":"Open Repository",
-      "targets":[{
-        "os":"default",
-        "uri":"{{.app.spec.source.repoURL | call .repo.RepoURLToHTTPS}}"
-      }]
-    }]
+  facts: "[{\n  \"name\": \"Sync Status\",\n  \"value\": \"{{.app.status.sync.status}}\"\n},\n{\n
+    \ \"name\": \"Failed at\",\n  \"value\": \"{{.app.status.operationState.finishedAt}}\"\n},\n{\n
+    \ \"name\": \"Repository\",\n  \"value\": \n    {{- if .app.spec.source }}\n      \"{{
+    .app.spec.source.repoURL }}\"\n    {{- else if .app.spec.sources }}\n      {{-
+    range .app.spec.sources }}\n        \"{{ .repoURL }}\"\n      {{- end }}\n    {{-
+    else }}\n      \"no repoURL\"\n    {{- end }}\n}\n{{range $index, $c := .app.status.conditions}}\n
+    \ ,\n  {\n    \"name\": \"{{$c.type}}\",\n    \"value\": \"{{$c.message}}\"\n
+    \ }\n{{end}}\n]\n"
+  potentialAction: "[{\n  \"@type\":\"OpenUri\",\n  \"name\":\"Open Operation\",\n
+    \ \"targets\":[{\n    \"os\":\"default\",\n    \"uri\":\"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true\"\n
+    \ }]\n},\n{\n  \"@type\":\"OpenUri\",\n  \"name\":\"Open Repository\",\n  \"targets\":[{\n
+    \   \"os\":\"default\",\n    \"uri\": \n      {{- if .app.spec.source }}\n        \"{{
+    .app.spec.source.repoURL }}\"\n      {{- else if .app.spec.sources }}\n        {{-
+    range .app.spec.sources }}\n          \"{{ .repoURL }}\"\n        {{- end }}\n
+    \     {{- else }}\n        \"no repoURL\"\n      {{- end }} \n  }]\n}]"
   themeColor: '#FF0000'
   title: Failed to sync application {{.app.metadata.name}}.
 
@@ -289,74 +171,35 @@ message: |
   The sync operation of application {{.app.metadata.name}} has started at {{.app.status.operationState.startedAt}}.
   Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .
 slack:
-  attachments: |
-    [{
-      "title": "{{ .app.metadata.name}}",
-      "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
-      "color": "#0DADEA",
-      "fields": [
-      {
-        "title": "Sync Status",
-        "value": "{{.app.status.sync.status}}",
-        "short": true
-      },
-      {
-        "title": "Repository",
-        "value": "{{.app.spec.source.repoURL}}",
-        "short": true
-      }
-      {{range $index, $c := .app.status.conditions}}
-      ,
-      {
-        "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
-        "short": true
-      }
-      {{end}}
-      ]
-    }]
+  attachments: "[{\n  \"title\": \"{{ .app.metadata.name}}\",\n  \"title_link\":\"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}\",\n
+    \ \"color\": \"#0DADEA\",\n  \"fields\": [\n  {\n    \"title\": \"Sync Status\",\n
+    \   \"value\": \"{{.app.status.sync.status}}\",\n    \"short\": true\n  },\n  {\n
+    \   \"title\": \"Repository\",\n    \"value\": \n      {{- if .app.spec.source
+    }}\n        \"{{ .app.spec.source.repoURL }}\"\n      {{- else if .app.spec.sources
+    }}\n        {{- range .app.spec.sources }}\n          \"{{ .repoURL }}\"\n        {{-
+    end }}\n      {{- else }}\n        \"no repoURL\"\n      {{- end }}\n    \"short\":
+    true\n  }\n  {{range $index, $c := .app.status.conditions}}\n  ,\n  {\n    \"title\":
+    \"{{$c.type}}\",\n    \"value\": \"{{$c.message}}\",\n    \"short\": true\n  }\n
+    \ {{end}}\n  ]\n}]\n"
   deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
 teams:
-  facts: |
-    [{
-      "name": "Sync Status",
-      "value": "{{.app.status.sync.status}}"
-    },
-    {
-      "name": "Started at",
-      "value": "{{.app.status.operationState.startedAt}}"
-    },
-    {
-      "name": "Repository",
-      "value": "{{.app.spec.source.repoURL}}"
-    }
-    {{range $index, $c := .app.status.conditions}}
-      ,
-      {
-        "name": "{{$c.type}}",
-        "value": "{{$c.message}}"
-      }
-    {{end}}
-    ]
-  potentialAction: |-
-    [{
-      "@type":"OpenUri",
-      "name":"Open Operation",
-      "targets":[{
-        "os":"default",
-        "uri":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true"
-      }]
-    },
-    {
-      "@type":"OpenUri",
-      "name":"Open Repository",
-      "targets":[{
-        "os":"default",
-        "uri":"{{.app.spec.source.repoURL | call .repo.RepoURLToHTTPS}}"
-      }]
-    }]
+  facts: "[{\n  \"name\": \"Sync Status\",\n  \"value\": \"{{.app.status.sync.status}}\"\n},\n{\n
+    \ \"name\": \"Started at\",\n  \"value\": \"{{.app.status.operationState.startedAt}}\"\n},\n{\n
+    \ \"name\": \"Repository\",\n  \"value\": \n    {{- if .app.spec.source }}\n      \"{{
+    .app.spec.source.repoURL }}\"\n    {{- else if .app.spec.sources }}\n      {{-
+    range .app.spec.sources }}\n        \"{{ .repoURL }}\"\n      {{- end }}\n    {{-
+    else }}\n      \"no repoURL\"\n    {{- end }}\n}\n{{range $index, $c := .app.status.conditions}}\n
+    \ ,\n  {\n    \"name\": \"{{$c.type}}\",\n    \"value\": \"{{$c.message}}\"\n
+    \ }\n{{end}}\n]\n"
+  potentialAction: "[{\n  \"@type\":\"OpenUri\",\n  \"name\":\"Open Operation\",\n
+    \ \"targets\":[{\n    \"os\":\"default\",\n    \"uri\":\"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true\"\n
+    \ }]\n},\n{\n  \"@type\":\"OpenUri\",\n  \"name\":\"Open Repository\",\n  \"targets\":[{\n
+    \   \"os\":\"default\",\n    \"uri\": \n      {{- if .app.spec.source }}\n        \"{{
+    .app.spec.source.repoURL }}\"\n      {{- else if .app.spec.sources }}\n        {{-
+    range .app.spec.sources }}\n          \"{{ .repoURL }}\"\n        {{- end }}\n
+    \     {{- else }}\n        \"no repoURL\"\n      {{- end }} \n  }]\n}]"
   title: Start syncing application {{.app.metadata.name}}.
 
 ```
@@ -374,70 +217,34 @@ message: |
   {{end}}
   {{end}}
 slack:
-  attachments: |
-    [{
-      "title": "{{ .app.metadata.name}}",
-      "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
-      "color": "#E96D76",
-      "fields": [
-      {
-        "title": "Sync Status",
-        "value": "{{.app.status.sync.status}}",
-        "short": true
-      },
-      {
-        "title": "Repository",
-        "value": "{{.app.spec.source.repoURL}}",
-        "short": true
-      }
-      {{range $index, $c := .app.status.conditions}}
-      ,
-      {
-        "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
-        "short": true
-      }
-      {{end}}
-      ]
-    }]
+  attachments: "[{\n  \"title\": \"{{ .app.metadata.name}}\",\n  \"title_link\":\"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}\",\n
+    \ \"color\": \"#E96D76\",\n  \"fields\": [\n  {\n    \"title\": \"Sync Status\",\n
+    \   \"value\": \"{{.app.status.sync.status}}\",\n    \"short\": true\n  },\n  {\n
+    \   \"title\": \"Repository\",\n    \"value\": \n      {{- if .app.spec.source
+    }}\n        \"{{ .app.spec.source.repoURL }}\"\n      {{- else if .app.spec.sources
+    }}\n        {{- range .app.spec.sources }}\n          \"{{ .repoURL }}\"\n        {{-
+    end }}\n      {{- else }}\n        \"no repoURL\"\n      {{- end }}\n    \"short\":
+    true\n  }\n  {{range $index, $c := .app.status.conditions}}\n  ,\n  {\n    \"title\":
+    \"{{$c.type}}\",\n    \"value\": \"{{$c.message}}\",\n    \"short\": true\n  }\n
+    \ {{end}}\n  ]\n}]\n"
   deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
 teams:
-  facts: |
-    [{
-      "name": "Sync Status",
-      "value": "{{.app.status.sync.status}}"
-    },
-    {
-      "name": "Repository",
-      "value": "{{.app.spec.source.repoURL}}"
-    }
-    {{range $index, $c := .app.status.conditions}}
-      ,
-      {
-        "name": "{{$c.type}}",
-        "value": "{{$c.message}}"
-      }
-    {{end}}
-    ]
-  potentialAction: |-
-    [{
-      "@type":"OpenUri",
-      "name":"Open Application",
-      "targets":[{
-        "os":"default",
-        "uri":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}"
-      }]
-    },
-    {
-      "@type":"OpenUri",
-      "name":"Open Repository",
-      "targets":[{
-        "os":"default",
-        "uri":"{{.app.spec.source.repoURL | call .repo.RepoURLToHTTPS}}"
-      }]
-    }]
+  facts: "[{\n  \"name\": \"Sync Status\",\n  \"value\": \"{{.app.status.sync.status}}\"\n},\n{\n
+    \ \"name\": \"Repository\",\n  \"value\": \n  {{- if .app.spec.source }}\n    \"{{
+    .app.spec.source.repoURL }}\"\n  {{- else if .app.spec.sources }}\n    {{- range
+    .app.spec.sources }}\n      \"{{ .repoURL }}\"\n    {{- end }}\n  {{- else }}\n
+    \   \"no repoURL\"\n  {{- end }}\n}\n{{range $index, $c := .app.status.conditions}}\n
+    \ ,\n  {\n    \"name\": \"{{$c.type}}\",\n    \"value\": \"{{$c.message}}\"\n
+    \ }\n{{end}}\n]\n"
+  potentialAction: "[{\n  \"@type\":\"OpenUri\",\n  \"name\":\"Open Application\",\n
+    \ \"targets\":[{\n    \"os\":\"default\",\n    \"uri\":\"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}\"\n
+    \ }]\n},\n{\n  \"@type\":\"OpenUri\",\n  \"name\":\"Open Repository\",\n  \"targets\":[{\n
+    \   \"os\":\"default\",\n    \"uri\": \n      {{- if .app.spec.source }}\n        \"{{
+    .app.spec.source.repoURL }}\"\n      {{- else if .app.spec.sources }}\n        {{-
+    range .app.spec.sources }}\n          \"{{ .repoURL }}\"\n        {{- end }}\n
+    \     {{- else }}\n        \"no repoURL\"\n      {{- end }} \n  }]\n}]"
   title: Application {{.app.metadata.name}} sync status is 'Unknown'
 
 ```
@@ -450,74 +257,36 @@ message: |
   {{if eq .serviceType "slack"}}:white_check_mark:{{end}} Application {{.app.metadata.name}} has been successfully synced at {{.app.status.operationState.finishedAt}}.
   Sync operation details are available at: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true .
 slack:
-  attachments: |
-    [{
-      "title": "{{ .app.metadata.name}}",
-      "title_link":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
-      "color": "#18be52",
-      "fields": [
-      {
-        "title": "Sync Status",
-        "value": "{{.app.status.sync.status}}",
-        "short": true
-      },
-      {
-        "title": "Repository",
-        "value": "{{.app.spec.source.repoURL}}",
-        "short": true
-      }
-      {{range $index, $c := .app.status.conditions}}
-      ,
-      {
-        "title": "{{$c.type}}",
-        "value": "{{$c.message}}",
-        "short": true
-      }
-      {{end}}
-      ]
-    }]
+  attachments: "[{\n  \"title\": \"{{ .app.metadata.name}}\",\n  \"title_link\":\"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}\",\n
+    \ \"color\": \"#18be52\",\n  \"fields\": [\n  {\n    \"title\": \"Sync Status\",\n
+    \   \"value\": \"{{.app.status.sync.status}}\",\n    \"short\": true\n  },\n  {\n
+    \   \"title\": \"Repository\",\n    \"value\": \n      {{- if .app.spec.source
+    }}\n        \"{{ .app.spec.source.repoURL }}\"\n      {{- else if .app.spec.sources
+    }}\n        {{- range .app.spec.sources }}\n          \"{{ .repoURL }}\"\n        {{-
+    end }}\n      {{- else }}\n        \"no repoURL\"\n      {{- end }}\n    \"short\":
+    true\n  }\n  {{range $index, $c := .app.status.conditions}}\n  ,\n  {\n    \"title\":
+    \"{{$c.type}}\",\n    \"value\": \"{{$c.message}}\",\n    \"short\": true\n  }\n
+    \ {{end}}\n  ]\n}]\n"
   deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
 teams:
-  facts: |
-    [{
-      "name": "Sync Status",
-      "value": "{{.app.status.sync.status}}"
-    },
-    {
-      "name": "Synced at",
-      "value": "{{.app.status.operationState.finishedAt}}"
-    },
-    {
-      "name": "Repository",
-      "value": "{{.app.spec.source.repoURL}}"
-    }
-    {{range $index, $c := .app.status.conditions}}
-      ,
-      {
-        "name": "{{$c.type}}",
-        "value": "{{$c.message}}"
-      }
-    {{end}}
-    ]
-  potentialAction: |-
-    [{
-      "@type":"OpenUri",
-      "name":"Operation Details",
-      "targets":[{
-        "os":"default",
-        "uri":"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true"
-      }]
-    },
-    {
-      "@type":"OpenUri",
-      "name":"Open Repository",
-      "targets":[{
-        "os":"default",
-        "uri":"{{.app.spec.source.repoURL | call .repo.RepoURLToHTTPS}}"
-      }]
-    }]
+  facts: "[{\n  \"name\": \"Sync Status\",\n  \"value\": \"{{.app.status.sync.status}}\"\n},\n{\n
+    \ \"name\": \"Synced at\",\n  \"value\": \"{{.app.status.operationState.finishedAt}}\"\n},\n{\n
+    \ \"name\": \"Repository\",\n  \"value\": \n    {{- if .app.spec.source }}\n      \"{{
+    .app.spec.source.repoURL }}\"\n    {{- else if .app.spec.sources }}\n      {{-
+    range .app.spec.sources }}\n        \"{{ .repoURL }}\"\n      {{- end }}\n    {{-
+    else }}\n      \"no repoURL\"\n    {{- end }}\n}\n{{range $index, $c := .app.status.conditions}}\n
+    \ ,\n  {\n    \"name\": \"{{$c.type}}\",\n    \"value\": \"{{$c.message}}\"\n
+    \ }\n{{end}}\n]\n"
+  potentialAction: "[{\n  \"@type\":\"OpenUri\",\n  \"name\":\"Operation Details\",\n
+    \ \"targets\":[{\n    \"os\":\"default\",\n    \"uri\":\"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true\"\n
+    \ }]\n},\n{\n  \"@type\":\"OpenUri\",\n  \"name\":\"Open Repository\",\n  \"targets\":[{\n
+    \   \"os\":\"default\",\n    \"uri\": \n      {{- if .app.spec.source }}\n        \"{{
+    .app.spec.source.repoURL | call .repo.RepoURLToHTTPS }}\"\n      {{- else if .app.spec.sources
+    }}\n        {{- range .app.spec.sources }}\n          \"{{ .repoURL | call .repo.RepoURLToHTTPS
+    }}\"\n        {{- end }}\n      {{- else }}\n        \"no repoURL\"\n      {{-
+    end }}\n  }]\n}]"
   themeColor: '#000080'
   title: Application {{.app.metadata.name}} has been successfully synced
 

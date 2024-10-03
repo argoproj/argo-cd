@@ -33,27 +33,14 @@ data:
       groupingKey: ""
       notifyBroadcast: false
     teams:
-      facts: |
-        [{
-          "name": "Sync Status",
-          "value": "{{.app.status.sync.status}}"
-        },
-        {
-          "name": "Repository",
-          "value": "{{range .app.spec.sources}}{{.repoURL}} {{end}}"
-        },
-        {
-          "name": "Revision",
-          "value": "{{.app.status.sync.revision}}"
-        }
-        {{range $index, $c := .app.status.conditions}}
-          ,
-          {
-            "name": "{{$c.type}}",
-            "value": "{{$c.message}}"
-          }
-        {{end}}
-        ]
+      facts: "[{\n  \"name\": \"Sync Status\",\n  \"value\": \"{{.app.status.sync.status}}\"\n},\n{\n
+        \ \"name\": \"Repository\",\n  \"value\": \n    {{- if .app.spec.source }}\n      \"{{
+        .app.spec.source.repoURL }}\"\n    {{- else if .app.spec.sources }}\n      {{-
+        range .app.spec.sources }}\n        \"{{ .repoURL }}\"\n      {{- end }}\n    {{-
+        else }}\n      \"no repoURL\"\n    {{- end }}\n},\n{\n  \"name\": \"Revision\",\n
+        \ \"value\": \"{{.app.status.sync.revision}}\"\n}\n{{range $index, $c := .app.status.conditions}}\n
+        \ ,\n  {\n    \"name\": \"{{$c.type}}\",\n    \"value\": \"{{$c.message}}\"\n
+        \ }\n{{end}}\n]\n"
       potentialAction: "[{\n  \"@type\":\"OpenUri\",\n  \"name\":\"Operation Application\",\n
         \ \"targets\":[{\n    \"os\":\"default\",\n    \"uri\":\"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}\"\n
         \ }]\n},\n{\n  \"@type\":\"OpenUri\",\n  \"name\":\"Open Repository\",\n  \"targets\":[{\n
@@ -84,23 +71,13 @@ data:
       groupingKey: ""
       notifyBroadcast: false
     teams:
-      facts: |
-        [{
-          "name": "Health Status",
-          "value": "{{.app.status.health.status}}"
-        },
-        {
-          "name": "Repository",
-          "value": "{{range .app.spec.sources}}{{.repoURL}} {{end}}"
-        }
-        {{range $index, $c := .app.status.conditions}}
-          ,
-          {
-            "name": "{{$c.type}}",
-            "value": "{{$c.message}}"
-          }
-        {{end}}
-        ]
+      facts: "[{\n  \"name\": \"Health Status\",\n  \"value\": \"{{.app.status.health.status}}\"\n},\n{\n
+        \ \"name\": \"Repository\",\n  \"value\": \n    {{- if .app.spec.source }}\n      \"{{
+        .app.spec.source.repoURL }}\"\n    {{- else if .app.spec.sources }}\n      {{-
+        range .app.spec.sources }}\n        \"{{ .repoURL }}\"\n      {{- end }}\n    {{-
+        else }}\n      \"no repoURL\"\n    {{- end }}\n}\n{{range $index, $c := .app.status.conditions}}\n
+        \ ,\n  {\n    \"name\": \"{{$c.type}}\",\n    \"value\": \"{{$c.message}}\"\n
+        \ }\n{{end}}\n]\n"
       potentialAction: "[{\n  \"@type\":\"OpenUri\",\n  \"name\":\"Open Application\",\n
         \ \"targets\":[{\n    \"os\":\"default\",\n    \"uri\":\"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}\"\n
         \ }]\n},\n{\n  \"@type\":\"OpenUri\",\n  \"name\":\"Open Repository\",\n  \"targets\":[{\n
@@ -131,27 +108,14 @@ data:
       groupingKey: ""
       notifyBroadcast: false
     teams:
-      facts: |
-        [{
-          "name": "Sync Status",
-          "value": "{{.app.status.sync.status}}"
-        },
-        {
-          "name": "Failed at",
-          "value": "{{.app.status.operationState.finishedAt}}"
-        },
-        {
-          "name": "Repository",
-          "value": "{{range .app.spec.sources}}{{.repoURL}} {{end}}"
-        }
-        {{range $index, $c := .app.status.conditions}}
-          ,
-          {
-            "name": "{{$c.type}}",
-            "value": "{{$c.message}}"
-          }
-        {{end}}
-        ]
+      facts: "[{\n  \"name\": \"Sync Status\",\n  \"value\": \"{{.app.status.sync.status}}\"\n},\n{\n
+        \ \"name\": \"Failed at\",\n  \"value\": \"{{.app.status.operationState.finishedAt}}\"\n},\n{\n
+        \ \"name\": \"Repository\",\n  \"value\": \n    {{- if .app.spec.source }}\n      \"{{
+        .app.spec.source.repoURL }}\"\n    {{- else if .app.spec.sources }}\n      {{-
+        range .app.spec.sources }}\n        \"{{ .repoURL }}\"\n      {{- end }}\n    {{-
+        else }}\n      \"no repoURL\"\n    {{- end }}\n}\n{{range $index, $c := .app.status.conditions}}\n
+        \ ,\n  {\n    \"name\": \"{{$c.type}}\",\n    \"value\": \"{{$c.message}}\"\n
+        \ }\n{{end}}\n]\n"
       potentialAction: "[{\n  \"@type\":\"OpenUri\",\n  \"name\":\"Open Operation\",\n
         \ \"targets\":[{\n    \"os\":\"default\",\n    \"uri\":\"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true\"\n
         \ }]\n},\n{\n  \"@type\":\"OpenUri\",\n  \"name\":\"Open Repository\",\n  \"targets\":[{\n
@@ -182,27 +146,14 @@ data:
       groupingKey: ""
       notifyBroadcast: false
     teams:
-      facts: |
-        [{
-          "name": "Sync Status",
-          "value": "{{.app.status.sync.status}}"
-        },
-        {
-          "name": "Started at",
-          "value": "{{.app.status.operationState.startedAt}}"
-        },
-        {
-          "name": "Repository",
-          "value": "{{range .app.spec.sources}}{{.repoURL}} {{end}}"
-        }
-        {{range $index, $c := .app.status.conditions}}
-          ,
-          {
-            "name": "{{$c.type}}",
-            "value": "{{$c.message}}"
-          }
-        {{end}}
-        ]
+      facts: "[{\n  \"name\": \"Sync Status\",\n  \"value\": \"{{.app.status.sync.status}}\"\n},\n{\n
+        \ \"name\": \"Started at\",\n  \"value\": \"{{.app.status.operationState.startedAt}}\"\n},\n{\n
+        \ \"name\": \"Repository\",\n  \"value\": \n    {{- if .app.spec.source }}\n      \"{{
+        .app.spec.source.repoURL }}\"\n    {{- else if .app.spec.sources }}\n      {{-
+        range .app.spec.sources }}\n        \"{{ .repoURL }}\"\n      {{- end }}\n    {{-
+        else }}\n      \"no repoURL\"\n    {{- end }}\n}\n{{range $index, $c := .app.status.conditions}}\n
+        \ ,\n  {\n    \"name\": \"{{$c.type}}\",\n    \"value\": \"{{$c.message}}\"\n
+        \ }\n{{end}}\n]\n"
       potentialAction: "[{\n  \"@type\":\"OpenUri\",\n  \"name\":\"Open Operation\",\n
         \ \"targets\":[{\n    \"os\":\"default\",\n    \"uri\":\"{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true\"\n
         \ }]\n},\n{\n  \"@type\":\"OpenUri\",\n  \"name\":\"Open Repository\",\n  \"targets\":[{\n
