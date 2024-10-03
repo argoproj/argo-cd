@@ -33,6 +33,12 @@ const (
 	DefaultIdleConnectionTimeout = 60 * time.Second
 	DefaultMaxIdleConnections    = 30
 
+	// HeaderArgoCDNamespace defines the namespace of the
+	// argo control plane to be passed to the extension handler.
+	// Example:
+	//     Argocd-Namespace: "namespace"
+	HeaderArgoCDNamespace = "Argocd-Namespace"
+
 	// HeaderArgoCDApplicationName defines the name of the
 	// expected application header to be passed to the extension
 	// handler. The header value must follow the format:
@@ -333,6 +339,7 @@ type RbacEnforcer interface {
 // and handling proxy extensions.
 type Manager struct {
 	log         *log.Entry
+	namespace   string
 	settings    SettingsGetter
 	application ApplicationGetter
 	project     ProjectGetter
@@ -355,9 +362,10 @@ type ExtensionMetricsRegistry interface {
 }
 
 // NewManager will initialize a new manager.
-func NewManager(log *log.Entry, sg SettingsGetter, ag ApplicationGetter, pg ProjectGetter, rbac RbacEnforcer, ug UserGetter) *Manager {
+func NewManager(log *log.Entry, namespace string, sg SettingsGetter, ag ApplicationGetter, pg ProjectGetter, rbac RbacEnforcer, ug UserGetter) *Manager {
 	return &Manager{
 		log:         log,
+		namespace:   namespace,
 		settings:    sg,
 		application: ag,
 		project:     pg,
@@ -740,7 +748,7 @@ func (m *Manager) CallExtension() func(http.ResponseWriter, *http.Request) {
 
 		user := m.userGetter.GetUser(r.Context())
 		groups := m.userGetter.GetGroups(r.Context())
-		prepareRequest(r, extName, app, user, groups)
+		prepareRequest(r, m.namespace, extName, app, user, groups)
 		m.log.Debugf("proxing request for extension %q", extName)
 		// httpsnoop package is used to properly wrap the responseWriter
 		// and avoid optional intefaces issue:
@@ -763,11 +771,13 @@ func registerMetrics(extName string, metrics httpsnoop.Metrics, extensionMetrics
 // the Argo CD extension API section from it. It provides additional information to
 // the backend service appending them in the outgoing request headers. The appended
 // headers are:
+//   - Control plane namespace
 //   - Cluster destination name
 //   - Cluster destination server
 //   - Argo CD authenticated username
-func prepareRequest(r *http.Request, extName string, app *v1alpha1.Application, username string, groups []string) {
+func prepareRequest(r *http.Request, namespace string, extName string, app *v1alpha1.Application, username string, groups []string) {
 	r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s/%s", URLPrefix, extName))
+	r.Header.Set(HeaderArgoCDNamespace, namespace)
 	if app.Spec.Destination.Name != "" {
 		r.Header.Set(HeaderArgoCDTargetClusterName, app.Spec.Destination.Name)
 	}

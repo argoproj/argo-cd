@@ -52,7 +52,7 @@ func (g *DuckTypeGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.
 		return time.Duration(*appSetGenerator.ClusterDecisionResource.RequeueAfterSeconds) * time.Second
 	}
 
-	return DefaultRequeueAfterSeconds
+	return getDefaultRequeueAfter()
 }
 
 func (g *DuckTypeGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {

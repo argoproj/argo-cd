@@ -52,7 +52,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 
@@ -79,7 +78,6 @@ type ApplicationSetReconciler struct {
 	Recorder             record.EventRecorder
 	Generators           map[string]generators.Generator
 	ArgoDB               db.ArgoDB
-	ArgoAppClientset     appclientset.Interface
 	KubeClientset        kubernetes.Interface
 	Policy               argov1alpha1.ApplicationsSyncPolicy
 	EnablePolicyOverride bool
@@ -97,6 +95,7 @@ type ApplicationSetReconciler struct {
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets/status,verbs=get;update;patch
 
 func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	startReconcile := time.Now()
 	logCtx := log.WithField("applicationset", req.NamespacedName)
 
 	var applicationSetInfo argov1alpha1.ApplicationSet
@@ -334,7 +333,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		requeueAfter = ReconcileRequeueOnValidationError
 	}
 
-	logCtx.WithField("requeueAfter", requeueAfter).Info("end reconcile")
+	logCtx.WithField("requeueAfter", requeueAfter).Info("end reconcile in ", time.Since(startReconcile))
 
 	return ctrl.Result{
 		RequeueAfter: requeueAfter,
@@ -472,7 +471,9 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 			errorsByIndex[i] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSetInfo.Name, app.Name)
 			continue
 		}
-		_, err := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(r.ArgoCDNamespace).Get(ctx, app.Spec.GetProject(), metav1.GetOptions{})
+
+		appProject := &argov1alpha1.AppProject{}
+		err := r.Client.Get(ctx, types.NamespacedName{Name: app.Spec.Project, Namespace: r.ArgoCDNamespace}, appProject)
 		if err != nil {
 			if apierr.IsNotFound(err) {
 				errorsByIndex[i] = fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
@@ -1484,7 +1485,7 @@ func getOwnsHandlerPredicates(enableProgressiveSyncs bool) predicate.Funcs {
 				return false
 			}
 			requeue := shouldRequeueApplicationSet(appOld, appNew, enableProgressiveSyncs)
-			logCtx.WithField("requeue", requeue).Debugf("requeue: %t caused by application %s\n", requeue, appNew.Name)
+			logCtx.WithField("requeue", requeue).Debugf("requeue: %t caused by application %s", requeue, appNew.Name)
 			return requeue
 		},
 		GenericFunc: func(e event.GenericEvent) bool {

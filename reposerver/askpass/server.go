@@ -22,6 +22,20 @@ type Server interface {
 	Run(path string) error
 }
 
+// server is a gRPC server that provides a way for an external process (usually git) to access credentials without those
+// credentials being set directly in the git process's environment. Before invoking git, the caller invokes Add to add a
+// new credential, which returns a unique id. The caller then sets the GIT_ASKPASS environment variable to the path of
+// the argocd-git-ask-pass binary and sets the ASKPASS_NONCE environment variable to the id. When git needs credentials,
+// it will invoke the argocd-git-ask-pass binary, which will use the ASKPASS_NONCE to look up the credentials and return
+// them to git. After the git process completes, the caller should invoke Remove to remove the credential.
+//
+// This is meant to solve a class of problems that was demonstrated by an old bug in Kustomize. We needed to enable
+// Kustomize to invoke git to fetch a private repository. But Kustomize had a bug that allowed a user to dump the
+// environment variables of the process into manifests, which would expose the credentials. Kustomize eventually fixed
+// the bug. But to prevent this from happening again, we now only set the ASKPASS_NONCE environment variable instead of
+// directly passing the git credentials via environment variables. Even if the nonce leaks, 1) the user probably doesn't
+// have access to the server to look up the corresponding git credentials, and 2) the nonce should be deleted from
+// the server before the user even sees the manifests.
 type server struct {
 	lock       sync.Mutex
 	creds      map[string]Creds
