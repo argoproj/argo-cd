@@ -4719,6 +4719,9 @@
         "impersonationEnabled": {
           "type": "boolean"
         },
+        "installationID": {
+          "type": "string"
+        },
         "kustomizeOptions": {
           "$ref": "#/definitions/v1alpha1KustomizeOptions"
         },
