@@ -241,6 +241,8 @@ data:
   applicationsetcontroller.enable.scm.providers: "false"
   # Number of webhook requests processed concurrently (default 50)
   applicationsetcontroller.webhook.parallelism.limit: "50"
+  # Override the default requeue time for the controller. (default 3m)
+  applicationsetcontroller.requeue.after: "3m"
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")

@@ -27,22 +27,22 @@ metadata:
 data:
   service.slack: |
     token: $slack-token
-    icon: ":rocket:"
+    icon: ":rocket:" # <- diff here
 ```
 
 ### service type 'xxxx' is not supported
 
-You need to check your argocd-notifications controller version. For instance, the teams integration is to support `v1.1.0` and more.
+Check the `argocd-notifications` controller version. For example, the Teams integration support started in `v1.1.0`.
 
 ## Failed to notify recipient
 
 ### notification service 'xxxx' is not supported
 
-You have not defined `xxxx` in `argocd-notifications-cm` or to fail to parse settings.
+You have not defined `xxxx` in `argocd-notifications-cm` or parsing failed.
 
 ### GitHub.repoURL (\u003cno value\u003e) does not have a / using the configuration
 
-You probably have an Application with [multiple sources](https://argo-cd.readthedocs.io/en/stable/user-guide/multiple_sources/):
+Likely caused by an Application with [multiple sources](https://argo-cd.readthedocs.io/en/stable/user-guide/multiple_sources/):
 
 ```yaml
 spec:
@@ -53,7 +53,7 @@ spec:
     targetRevision: "{{branch}}"
 ```
 
-So standard notification template won't work (`{{.app.spec.source.repoURL}}`). You should choose a single source instead:
+The standard notification template only supports a single source (`{{.app.spec.source.repoURL}}`). Use an index to specify the source in the array:
 
 ```yaml
 template.example: |
@@ -65,7 +65,7 @@ template.example: |
 
 - If you are using a custom secret, check that the secret is in the same namespace
 - You have added the label: `app.kubernetes.io/part-of: argocd` to the secret
-- You have tried restarting argocd-notifications controller
+- You have tried restarting `argocd-notifications` controller
 
 ### Example:
 Secret:

@@ -496,7 +496,7 @@ export const deletePopup = async (
     );
 };
 
-function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
+export function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
     return services.applications
         .getResourceActions(metadata.name, metadata.namespace, resource)
         .then(actions => {
@@ -683,30 +683,24 @@ export function renderResourceMenu(
     );
 }
 
-export function renderResourceActionMenu(resource: ResourceTreeNode, application: appModels.Application, apis: ContextApis): React.ReactNode {
-    const menuItems = getResourceActionsMenuItems(resource, application.metadata, apis);
-
+export function renderResourceActionMenu(menuItems: ActionMenuItem[]): React.ReactNode {
     return (
-        <DataLoader load={() => menuItems}>
-            {items => (
-                <ul>
-                    {items.map((item, i) => (
-                        <li
-                            className={classNames('application-details__action-menu', {disabled: item.disabled})}
-                            key={i}
-                            onClick={e => {
-                                e.stopPropagation();
-                                if (!item.disabled) {
-                                    item.action();
-                                    document.body.click();
-                                }
-                            }}>
-                            {item.iconClassName && <i className={item.iconClassName} />} {item.title}
-                        </li>
-                    ))}
-                </ul>
-            )}
-        </DataLoader>
+        <ul>
+            {menuItems.map((item, i) => (
+                <li
+                    className={classNames('application-details__action-menu', {disabled: item.disabled})}
+                    key={i}
+                    onClick={e => {
+                        e.stopPropagation();
+                        if (!item.disabled) {
+                            item.action();
+                            document.body.click();
+                        }
+                    }}>
+                    {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                </li>
+            ))}
+        </ul>
     );
 }
 
