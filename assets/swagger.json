@@ -6084,7 +6084,7 @@
       "properties": {
         "defaultServiceAccount": {
           "type": "string",
-          "title": "ServiceAccountName to be used for impersonation during the sync operation"
+          "title": "DefaultServiceAccount to be used for impersonation during the sync operation"
         },
         "namespace": {
           "description": "Namespace specifies the target namespace for the application's resources.",

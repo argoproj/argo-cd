@@ -27,6 +27,7 @@ argocd proj set PROJECT [flags]
       --deny-namespaced-resource stringArray    List of denied namespaced resources
       --description string                      Project description
   -d, --dest stringArray                        Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)
+      --dest-service-accounts stringArray       Destination server, namespace and target service account (e.g. https://192.168.99.100:8443,default,default-sa)
   -h, --help                                    help for set
       --orphaned-resources                      Enables orphaned resources monitoring
       --orphaned-resources-warn                 Specifies if applications should have a warning condition when orphaned resources detected
