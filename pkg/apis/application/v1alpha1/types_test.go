@@ -320,7 +320,7 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 			Server: "*", Namespace: "!kube-system",
 		}},
 		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
-		isPermitted: false,
+		isPermitted: true,
 	}, {
 		projDest: []ApplicationDestination{{
 			Server: "*", Namespace: "*",
@@ -339,6 +339,22 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 		}},
 		appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
 		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "*", Namespace: "test",
+		}, {
+			Server: "!https://test-server", Namespace: "other",
+		}},
+		appDest:     ApplicationDestination{Server: "https://test-server", Namespace: "test"},
+		isPermitted: true,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "*", Namespace: "*",
+		}, {
+			Server: "https://test-server", Namespace: "!other",
+		}},
+		appDest:     ApplicationDestination{Server: "https://other-test-server", Namespace: "other"},
+		isPermitted: true,
 	}}
 
 	for _, data := range testData {
@@ -350,7 +366,7 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
 			return []*Cluster{}, nil
 		})
-		assert.Equal(t, data.isPermitted, permitted)
+		assert.Equalf(t, data.isPermitted, permitted, "appDest mismatch for %+v with project destinations %+v", data.appDest, data.projDest)
 	}
 }
 
