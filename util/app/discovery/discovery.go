@@ -3,13 +3,12 @@ package discovery
 import (
 	"context"
 	"fmt"
-	securejoin "github.com/cyphar/filepath-securejoin"
 	"os"
 	"path/filepath"
 	"strings"
 
+	securejoin "github.com/cyphar/filepath-securejoin"
 	"github.com/golang/protobuf/ptypes/empty"
-
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
 	log "github.com/sirupsen/logrus"
 

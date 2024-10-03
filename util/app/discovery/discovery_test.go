@@ -2,15 +2,15 @@ package discovery
 
 import (
 	"context"
-	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
-	cmpmocks "github.com/argoproj/argo-cd/v2/cmpserver/apiclient/mocks"
-	"github.com/argoproj/argo-cd/v2/util/app/discovery/mocks"
-	"github.com/stretchr/testify/mock"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
+	cmpmocks "github.com/argoproj/argo-cd/v2/cmpserver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/app/discovery/mocks"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
