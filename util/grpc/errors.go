@@ -12,14 +12,14 @@ import (
 )
 
 func rewrapError(err error, code codes.Code) error {
-	return status.Error(code, err.Error())
+	return status.Errorf(code, err.Error())
 }
 
 func gitErrToGRPC(err error) error {
 	if err == nil {
 		return err
 	}
-	errMsg := err.Error()
+	var errMsg = err.Error()
 	if grpcStatus := UnwrapGRPCStatus(err); grpcStatus != nil {
 		errMsg = grpcStatus.Message()
 	}

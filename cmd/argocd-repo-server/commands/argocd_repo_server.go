@@ -5,10 +5,6 @@ import (
 	"math"
 	"net"
 	"net/http"
-	"os"
-	"os/signal"
-	"sync"
-	"syscall"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -74,10 +70,8 @@ func NewCommand() *cobra.Command {
 		helmManifestMaxExtractedSize      string
 		helmRegistryMaxIndexSize          string
 		disableManifestMaxExtractedSize   bool
-		includeHiddenDirectories          bool
-		cmpUseManifestGeneratePaths       bool
 	)
-	command := cobra.Command{
+	var command = cobra.Command{
 		Use:               cliName,
 		Short:             "Run ArgoCD Repository Server",
 		Long:              "ArgoCD Repository Server is an internal service which maintains a local cache of the Git repository holding the application manifests, and is responsible for generating and returning the Kubernetes manifests.  This command runs Repository Server in the foreground.  It can be configured by following options.",
@@ -120,7 +114,7 @@ func NewCommand() *cobra.Command {
 			helmRegistryMaxIndexSizeQuantity, err := resource.ParseQuantity(helmRegistryMaxIndexSize)
 			errors.CheckError(err)
 
-			askPassServer := askpass.NewServer(askpass.SocketPath)
+			askPassServer := askpass.NewServer()
 			metricsServer := metrics.NewMetricsServer()
 			cacheutil.CollectMetrics(redisClient, metricsServer)
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
@@ -136,8 +130,6 @@ func NewCommand() *cobra.Command {
 				StreamedManifestMaxTarSize:                   streamedManifestMaxTarSizeQuantity.ToDec().Value(),
 				HelmManifestMaxExtractedSize:                 helmManifestMaxExtractedSizeQuantity.ToDec().Value(),
 				HelmRegistryMaxIndexSize:                     helmRegistryMaxIndexSizeQuantity.ToDec().Value(),
-				IncludeHiddenDirectories:                     includeHiddenDirectories,
-				CMPUseManifestGeneratePaths:                  cmpUseManifestGeneratePaths,
 			}, askPassServer)
 			errors.CheckError(err)
 
@@ -179,7 +171,7 @@ func NewCommand() *cobra.Command {
 			})
 			http.Handle("/metrics", metricsServer.GetHandler())
 			go func() { errors.CheckError(http.ListenAndServe(fmt.Sprintf("%s:%d", metricsHost, metricsPort), nil)) }()
-			go func() { errors.CheckError(askPassServer.Run()) }()
+			go func() { errors.CheckError(askPassServer.Run(askpass.SocketPath)) }()
 
 			if gpg.IsGPGEnabled() {
 				log.Infof("Initializing GnuPG keyring at %s", common.GetGnuPGHomePath())
@@ -198,27 +190,8 @@ func NewCommand() *cobra.Command {
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
-
-			// Graceful shutdown code adapted from https://gist.github.com/embano1/e0bf49d24f1cdd07cffad93097c04f0a
-			sigCh := make(chan os.Signal, 1)
-			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-			wg := sync.WaitGroup{}
-			wg.Add(1)
-			go func() {
-				s := <-sigCh
-				log.Printf("got signal %v, attempting graceful shutdown", s)
-				grpc.GracefulStop()
-				wg.Done()
-			}()
-
-			log.Println("starting grpc server")
 			err = grpc.Serve(listener)
-			if err != nil {
-				log.Fatalf("could not serve: %v", err)
-			}
-			wg.Wait()
-			log.Println("clean shutdown")
-
+			errors.CheckError(err)
 			return nil
 		},
 	}
@@ -242,13 +215,9 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&helmManifestMaxExtractedSize, "helm-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of helm manifest archives when extracted")
 	command.Flags().StringVar(&helmRegistryMaxIndexSize, "helm-registry-max-index-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_INDEX_SIZE", "1G"), "Maximum size of registry index file")
 	command.Flags().BoolVar(&disableManifestMaxExtractedSize, "disable-helm-manifest-max-extracted-size", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE", false), "Disable maximum size of helm manifest archives when extracted")
-	command.Flags().BoolVar(&includeHiddenDirectories, "include-hidden-directories", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES", false), "Include hidden directories from Git")
-	command.Flags().BoolVar(&cmpUseManifestGeneratePaths, "plugin-use-manifest-generate-paths", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS", false), "Pass the resources described in argocd.argoproj.io/manifest-generate-paths value to the cmpserver to generate the application manifests.")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
-	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
-		OnClientCreated: func(client *redis.Client) {
-			redisClient = client
-		},
+	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, func(client *redis.Client) {
+		redisClient = client
 	})
 	return &command
 }

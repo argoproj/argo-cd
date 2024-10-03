@@ -1,10 +1,10 @@
-ARG BASE_IMAGE=docker.io/library/ubuntu:24.04@sha256:3f85b7caad41a95462cf5b787d8a04604c8262cdcdf9a472b8c52ef83375fe15
+ARG BASE_IMAGE=docker.io/library/ubuntu:22.04@sha256:0bced47fffa3361afa981854fcabcd4577cd43cebbb808cea2b1f33a3dd7f508
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
 # Also used as the image in CI jobs so needs all dependencies
 ####################################################################################################
-FROM docker.io/library/golang:1.23.1@sha256:4f063a24d429510e512cc730c3330292ff49f3ade3ae79bda8f84a24fa25ecb0 AS builder
+FROM docker.io/library/golang:1.21.10@sha256:16438a8e66c0c984f732e815ee5b7d715b8e33e81bac6d6a3750b1067744e7ca AS builder
 
 RUN echo 'deb http://archive.debian.org/debian buster-backports main' >> /etc/apt/sources.list
 
@@ -28,7 +28,7 @@ WORKDIR /tmp
 COPY hack/install.sh hack/tool-versions.sh ./
 COPY hack/installers installers
 
-RUN ./install.sh helm && \
+RUN ./install.sh helm-linux && \
     INSTALL_PATH=/usr/local/bin ./install.sh kustomize
 
 ####################################################################################################
@@ -51,7 +51,7 @@ RUN groupadd -g $ARGOCD_USER_ID argocd && \
     apt-get update && \
     apt-get dist-upgrade -y && \
     apt-get install -y \
-    git git-lfs tini gpg tzdata connect-proxy && \
+    git git-lfs tini gpg tzdata && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -83,7 +83,7 @@ WORKDIR /home/argocd
 ####################################################################################################
 # Argo CD UI stage
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/node:22.9.0@sha256:69e667a79aa41ec0db50bc452a60e705ca16f35285eaf037ebe627a65a5cdf52 AS argocd-ui
+FROM --platform=$BUILDPLATFORM docker.io/library/node:20.6.1@sha256:14bd39208dbc0eb171cbfb26ccb9ac09fa1b2eba04ccd528ab5d12983fd9ee24 AS argocd-ui
 
 WORKDIR /src
 COPY ["ui/package.json", "ui/yarn.lock", "./"]
@@ -101,7 +101,7 @@ RUN HOST_ARCH=$TARGETARCH NODE_ENV='production' NODE_ONLINE_ENV='online' NODE_OP
 ####################################################################################################
 # Argo CD Build stage which performs the actual build of Argo CD binaries
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.23.1@sha256:4f063a24d429510e512cc730c3330292ff49f3ade3ae79bda8f84a24fa25ecb0 AS argocd-build
+FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.21.10@sha256:16438a8e66c0c984f732e815ee5b7d715b8e33e81bac6d6a3750b1067744e7ca AS argocd-build
 
 WORKDIR /go/src/github.com/argoproj/argo-cd
 

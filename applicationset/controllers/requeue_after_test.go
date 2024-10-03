@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -17,7 +16,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
-	appsetmetrics "github.com/argoproj/argo-cd/v2/applicationset/metrics"
 	"github.com/argoproj/argo-cd/v2/applicationset/services/mocks"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
@@ -27,7 +25,7 @@ func TestRequeueAfter(t *testing.T) {
 	ctx := context.Background()
 	scheme := runtime.NewScheme()
 	err := argov1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
+	assert.Nil(t, err)
 	gvrToListKind := map[schema.GroupVersionResource]string{{
 		Group:    "mallard.io",
 		Version:  "v1",
@@ -57,14 +55,14 @@ func TestRequeueAfter(t *testing.T) {
 		},
 	}
 	fakeDynClient := dynfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, duckType)
-	scmConfig := generators.NewSCMConfig("", []string{""}, true, nil)
+
 	terminalGenerators := map[string]generators.Generator{
 		"List":                    generators.NewListGenerator(),
 		"Clusters":                generators.NewClusterGenerator(k8sClient, ctx, appClientset, "argocd"),
-		"Git":                     generators.NewGitGenerator(mockServer, "namespace"),
-		"SCMProvider":             generators.NewSCMProviderGenerator(fake.NewClientBuilder().WithObjects(&corev1.Secret{}).Build(), scmConfig),
+		"Git":                     generators.NewGitGenerator(mockServer),
+		"SCMProvider":             generators.NewSCMProviderGenerator(fake.NewClientBuilder().WithObjects(&corev1.Secret{}).Build(), generators.SCMAuthProviders{}, "", []string{""}, true),
 		"ClusterDecisionResource": generators.NewDuckTypeGenerator(ctx, fakeDynClient, appClientset, "argocd"),
-		"PullRequest":             generators.NewPullRequestGenerator(k8sClient, scmConfig),
+		"PullRequest":             generators.NewPullRequestGenerator(k8sClient, generators.SCMAuthProviders{}, "", []string{""}, true),
 	}
 
 	nestedGenerators := map[string]generators.Generator{
@@ -90,18 +88,15 @@ func TestRequeueAfter(t *testing.T) {
 	}
 
 	client := fake.NewClientBuilder().WithScheme(scheme).Build()
-	metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 	r := ApplicationSetReconciler{
 		Client:     client,
 		Scheme:     scheme,
 		Recorder:   record.NewFakeRecorder(0),
 		Generators: topLevelGenerators,
-		Metrics:    metrics,
 	}
 
 	type args struct {
-		appset               *argov1alpha1.ApplicationSet
-		requeueAfterOverride string
+		appset *argov1alpha1.ApplicationSet
 	}
 	tests := []struct {
 		name    string
@@ -109,13 +104,11 @@ func TestRequeueAfter(t *testing.T) {
 		want    time.Duration
 		wantErr assert.ErrorAssertionFunc
 	}{
-		{name: "Cluster", args: args{
-			appset: &argov1alpha1.ApplicationSet{
-				Spec: argov1alpha1.ApplicationSetSpec{
-					Generators: []argov1alpha1.ApplicationSetGenerator{{Clusters: &argov1alpha1.ClusterGenerator{}}},
-				},
-			}, requeueAfterOverride: "",
-		}, want: generators.NoRequeueAfter, wantErr: assert.NoError},
+		{name: "Cluster", args: args{appset: &argov1alpha1.ApplicationSet{
+			Spec: argov1alpha1.ApplicationSetSpec{
+				Generators: []argov1alpha1.ApplicationSetGenerator{{Clusters: &argov1alpha1.ClusterGenerator{}}},
+			},
+		}}, want: generators.NoRequeueAfter, wantErr: assert.NoError},
 		{name: "ClusterMergeNested", args: args{&argov1alpha1.ApplicationSet{
 			Spec: argov1alpha1.ApplicationSetSpec{
 				Generators: []argov1alpha1.ApplicationSetGenerator{
@@ -130,7 +123,7 @@ func TestRequeueAfter(t *testing.T) {
 					}},
 				},
 			},
-		}, ""}, want: generators.DefaultRequeueAfterSeconds, wantErr: assert.NoError},
+		}}, want: generators.DefaultRequeueAfterSeconds, wantErr: assert.NoError},
 		{name: "ClusterMatrixNested", args: args{&argov1alpha1.ApplicationSet{
 			Spec: argov1alpha1.ApplicationSetSpec{
 				Generators: []argov1alpha1.ApplicationSetGenerator{
@@ -145,65 +138,15 @@ func TestRequeueAfter(t *testing.T) {
 					}},
 				},
 			},
-		}, ""}, want: generators.DefaultRequeueAfterSeconds, wantErr: assert.NoError},
+		}}, want: generators.DefaultRequeueAfterSeconds, wantErr: assert.NoError},
 		{name: "ListGenerator", args: args{appset: &argov1alpha1.ApplicationSet{
 			Spec: argov1alpha1.ApplicationSetSpec{
 				Generators: []argov1alpha1.ApplicationSetGenerator{{List: &argov1alpha1.ListGenerator{}}},
 			},
 		}}, want: generators.NoRequeueAfter, wantErr: assert.NoError},
-		{name: "DuckGenerator", args: args{appset: &argov1alpha1.ApplicationSet{
-			Spec: argov1alpha1.ApplicationSetSpec{
-				Generators: []argov1alpha1.ApplicationSetGenerator{{ClusterDecisionResource: &argov1alpha1.DuckTypeGenerator{}}},
-			},
-		}}, want: generators.DefaultRequeueAfterSeconds, wantErr: assert.NoError},
-		{name: "OverrideRequeueDuck", args: args{
-			appset: &argov1alpha1.ApplicationSet{
-				Spec: argov1alpha1.ApplicationSetSpec{
-					Generators: []argov1alpha1.ApplicationSetGenerator{{ClusterDecisionResource: &argov1alpha1.DuckTypeGenerator{}}},
-				},
-			}, requeueAfterOverride: "1h",
-		}, want: 1 * time.Hour, wantErr: assert.NoError},
-		{name: "OverrideRequeueGit", args: args{&argov1alpha1.ApplicationSet{
-			Spec: argov1alpha1.ApplicationSetSpec{
-				Generators: []argov1alpha1.ApplicationSetGenerator{
-					{Git: &argov1alpha1.GitGenerator{}},
-				},
-			},
-		}, "1h"}, want: 1 * time.Hour, wantErr: assert.NoError},
-		{name: "OverrideRequeueMatrix", args: args{&argov1alpha1.ApplicationSet{
-			Spec: argov1alpha1.ApplicationSetSpec{
-				Generators: []argov1alpha1.ApplicationSetGenerator{
-					{Clusters: &argov1alpha1.ClusterGenerator{}},
-					{Merge: &argov1alpha1.MergeGenerator{
-						Generators: []argov1alpha1.ApplicationSetNestedGenerator{
-							{
-								Clusters: &argov1alpha1.ClusterGenerator{},
-								Git:      &argov1alpha1.GitGenerator{},
-							},
-						},
-					}},
-				},
-			},
-		}, "5m"}, want: 5 * time.Minute, wantErr: assert.NoError},
-		{name: "OverrideRequeueMerge", args: args{&argov1alpha1.ApplicationSet{
-			Spec: argov1alpha1.ApplicationSetSpec{
-				Generators: []argov1alpha1.ApplicationSetGenerator{
-					{Clusters: &argov1alpha1.ClusterGenerator{}},
-					{Merge: &argov1alpha1.MergeGenerator{
-						Generators: []argov1alpha1.ApplicationSetNestedGenerator{
-							{
-								Clusters: &argov1alpha1.ClusterGenerator{},
-								Git:      &argov1alpha1.GitGenerator{},
-							},
-						},
-					}},
-				},
-			},
-		}, "12s"}, want: 12 * time.Second, wantErr: assert.NoError},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("ARGOCD_APPLICATIONSET_CONTROLLER_REQUEUE_AFTER", tt.args.requeueAfterOverride)
 			assert.Equalf(t, tt.want, r.getMinRequeueAfter(tt.args.appset), "getMinRequeueAfter(%v)", tt.args.appset)
 		})
 	}

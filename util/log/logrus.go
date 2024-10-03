@@ -38,14 +38,13 @@ func CreateFormatter(logFormat string) logrus.Formatter {
 	case JsonFormat:
 		formatType = &logrus.JSONFormatter{}
 	case TextFormat:
-		formatType = &logrus.TextFormatter{
-			ForceColors:   checkForceLogColors(),
-			FullTimestamp: checkEnableFullTimestamp(),
+		if os.Getenv("FORCE_LOG_COLORS") == "1" {
+			formatType = &logrus.TextFormatter{ForceColors: true}
+		} else {
+			formatType = &logrus.TextFormatter{}
 		}
 	default:
-		formatType = &logrus.TextFormatter{
-			FullTimestamp: checkEnableFullTimestamp(),
-		}
+		formatType = &logrus.TextFormatter{}
 	}
 
 	return formatType
@@ -57,12 +56,4 @@ func createLogLevel() logrus.Level {
 		level = logrus.InfoLevel
 	}
 	return level
-}
-
-func checkForceLogColors() bool {
-	return strings.ToLower(os.Getenv("FORCE_LOG_COLORS")) == "1"
-}
-
-func checkEnableFullTimestamp() bool {
-	return strings.ToLower(os.Getenv(common.EnvLogFormatEnableFullTimestamp)) == "1"
 }

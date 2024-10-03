@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"os/exec"
 	"reflect"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -68,10 +67,6 @@ const (
 
 	// EnvClusterCacheRetryUseBackoff is the env variable to control whether to use a backoff strategy with the retry during cluster cache sync
 	EnvClusterCacheRetryUseBackoff = "ARGOCD_CLUSTER_CACHE_RETRY_USE_BACKOFF"
-
-	// AnnotationIgnoreResourceUpdates when set to true on an untracked resource,
-	// argo will apply `ignoreResourceUpdates` configuration on it.
-	AnnotationIgnoreResourceUpdates = "argocd.argoproj.io/ignore-resource-updates"
 )
 
 // GitOps engine cluster cache tuning options
@@ -125,8 +120,6 @@ type LiveStateCache interface {
 	GetClusterCache(server string) (clustercache.ClusterCache, error)
 	// Executes give callback against resource specified by the key and all its children
 	IterateHierarchy(server string, key kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error
-	// Executes give callback against resources specified by the keys and all its children
-	IterateHierarchyV2(server string, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error
 	// Returns state of live nodes which correspond for target nodes of specified application.
 	GetManagedLiveObjs(a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// IterateResources iterates all resource stored in cache
@@ -178,8 +171,8 @@ func NewLiveStateCache(
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
 	clusterSharding sharding.ClusterShardingCache,
-	resourceTracking argo.ResourceTracking,
-) LiveStateCache {
+	resourceTracking argo.ResourceTracking) LiveStateCache {
+
 	return &liveStateCache{
 		appInformer:      appInformer,
 		db:               db,
@@ -336,9 +329,11 @@ func getAppRecursive(r *clustercache.Resource, ns map[kube.ResourceKey]*clusterc
 	return "", true
 }
 
-var ignoredRefreshResources = map[string]bool{
-	"/" + kube.EndpointsKind: true,
-}
+var (
+	ignoredRefreshResources = map[string]bool{
+		"/" + kube.EndpointsKind: true,
+	}
+)
 
 // skipAppRequeuing checks if the object is an API type which we want to skip requeuing against.
 // We ignore API types which have a high churn rate, and/or whose updates are irrelevant to the app
@@ -358,30 +353,13 @@ func skipResourceUpdate(oldInfo, newInfo *ResourceInfo) bool {
 // shouldHashManifest validates if the API resource needs to be hashed.
 // If there's an app name from resource tracking, or if this is itself an app, we should generate a hash.
 // Otherwise, the hashing should be skipped to save CPU time.
-func shouldHashManifest(appName string, gvk schema.GroupVersionKind, un *unstructured.Unstructured) bool {
-	// Only hash if the resource belongs to an app OR argocd.argoproj.io/ignore-resource-updates is present and set to true
+func shouldHashManifest(appName string, gvk schema.GroupVersionKind) bool {
+	// Only hash if the resource belongs to an app.
 	// Best      - Only hash for resources that are part of an app or their dependencies
 	// (current) - Only hash for resources that are part of an app + all apps that might be from an ApplicationSet
 	// Orphan    - If orphan is enabled, hash should be made on all resource of that namespace and a config to disable it
 	// Worst     - Hash all resources watched by Argo
-	isTrackedResource := appName != "" || (gvk.Group == application.Group && gvk.Kind == application.ApplicationKind)
-
-	// If the resource is not a tracked resource, we will look up argocd.argoproj.io/ignore-resource-updates and decide
-	// whether we generate hash or not.
-	// If argocd.argoproj.io/ignore-resource-updates is presented and is true, return true
-	// Else return false
-	if !isTrackedResource {
-		if val, ok := un.GetAnnotations()[AnnotationIgnoreResourceUpdates]; ok {
-			applyResourcesUpdate, err := strconv.ParseBool(val)
-			if err != nil {
-				applyResourcesUpdate = false
-			}
-			return applyResourcesUpdate
-		}
-		return false
-	}
-
-	return isTrackedResource
+	return appName != "" || (gvk.Group == application.Group && gvk.Kind == application.ApplicationKind)
 }
 
 // isRetryableError is a helper method to see whether an error
@@ -401,12 +379,7 @@ func isRetryableError(err error) bool {
 		isResourceQuotaConflictErr(err) ||
 		isTransientNetworkErr(err) ||
 		isExceededQuotaErr(err) ||
-		isHTTP2GoawayErr(err) ||
 		errors.Is(err, syscall.ECONNRESET)
-}
-
-func isHTTP2GoawayErr(err error) bool {
-	return strings.Contains(err.Error(), "http2: server sent GOAWAY and closed the connection")
 }
 
 func isExceededQuotaErr(err error) bool {
@@ -418,17 +391,12 @@ func isResourceQuotaConflictErr(err error) bool {
 }
 
 func isTransientNetworkErr(err error) bool {
-	var netErr net.Error
-	switch {
-	case errors.As(err, &netErr):
-		var dnsErr *net.DNSError
-		var opErr *net.OpError
-		var unknownNetworkErr net.UnknownNetworkError
-		var urlErr *url.Error
-		switch {
-		case errors.As(err, &dnsErr), errors.As(err, &opErr), errors.As(err, &unknownNetworkErr):
+	switch err.(type) {
+	case net.Error:
+		switch err.(type) {
+		case *net.DNSError, *net.OpError, net.UnknownNetworkError:
 			return true
-		case errors.As(err, &urlErr):
+		case *url.Error:
 			// For a URL error, where it replies "connection closed"
 			// retry again.
 			return strings.Contains(err.Error(), "Connection closed by foreign host")
@@ -436,8 +404,7 @@ func isTransientNetworkErr(err error) bool {
 	}
 
 	errorString := err.Error()
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := err.(*exec.ExitError); ok {
 		errorString = fmt.Sprintf("%s %s", errorString, exitErr.Stderr)
 	}
 	if strings.Contains(errorString, "net/http: TLS handshake timeout") ||
@@ -470,10 +437,6 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 	cluster, err := c.db.GetCluster(context.Background(), server)
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster: %w", err)
-	}
-
-	if c.clusterSharding == nil {
-		return nil, fmt.Errorf("unable to handle cluster %s: cluster sharding is not configured", cluster.Server)
 	}
 
 	if !c.canHandleCluster(cluster) {
@@ -530,7 +493,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 
 			gvk := un.GroupVersionKind()
 
-			if cacheSettings.ignoreResourceUpdatesEnabled && shouldHashManifest(appName, gvk, un) {
+			if cacheSettings.ignoreResourceUpdatesEnabled && shouldHashManifest(appName, gvk) {
 				hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides, c.ignoreNormalizerOpts)
 				if err != nil {
 					log.Errorf("Failed to generate manifest hash: %v", err)
@@ -644,17 +607,6 @@ func (c *liveStateCache) IterateHierarchy(server string, key kube.ResourceKey, a
 		return err
 	}
 	clusterInfo.IterateHierarchy(key, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
-		return action(asResourceNode(resource), getApp(resource, namespaceResources))
-	})
-	return nil
-}
-
-func (c *liveStateCache) IterateHierarchyV2(server string, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error {
-	clusterInfo, err := c.getSyncedCluster(server)
-	if err != nil {
-		return err
-	}
-	clusterInfo.IterateHierarchyV2(keys, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
 		return action(asResourceNode(resource), getApp(resource, namespaceResources))
 	})
 	return nil
@@ -844,6 +796,7 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 			}()
 		}
 	}
+
 }
 
 func (c *liveStateCache) handleDeleteEvent(clusterServer string) {

@@ -15,8 +15,7 @@ export class RepoCredsService {
         password,
         tlsClientCertData,
         tlsClientCertKey,
-        proxy,
-        noProxy
+        proxy
     }: {
         url: string;
         username: string;
@@ -24,11 +23,10 @@ export class RepoCredsService {
         tlsClientCertData: string;
         tlsClientCertKey: string;
         proxy: string;
-        noProxy: string;
     }): Promise<models.RepoCreds> {
         return requests
             .post('/repocreds')
-            .send({url, username, password, tlsClientCertData, tlsClientCertKey, proxy, noProxy})
+            .send({url, username, password, tlsClientCertData, tlsClientCertKey, proxy})
             .then(res => res.body as models.RepoCreds);
     }
 
@@ -47,8 +45,7 @@ export class RepoCredsService {
         githubAppEnterpriseBaseURL,
         tlsClientCertData,
         tlsClientCertKey,
-        proxy,
-        noProxy
+        proxy
     }: {
         url: string;
         githubAppPrivateKey: string;
@@ -58,11 +55,10 @@ export class RepoCredsService {
         tlsClientCertData: string;
         tlsClientCertKey: string;
         proxy: string;
-        noProxy: string;
     }): Promise<models.RepoCreds> {
         return requests
             .post('/repocreds')
-            .send({url, githubAppPrivateKey, githubAppId, githubAppInstallationId, githubAppEnterpriseBaseURL, tlsClientCertData, tlsClientCertKey, proxy, noProxy})
+            .send({url, githubAppPrivateKey, githubAppId, githubAppInstallationId, githubAppEnterpriseBaseURL, tlsClientCertData, tlsClientCertKey, proxy})
             .then(res => res.body as models.RepoCreds);
     }
 

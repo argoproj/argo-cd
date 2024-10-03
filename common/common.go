@@ -1,20 +1,15 @@
 package common
 
 import (
-	"context"
-	"fmt"
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
 	"time"
 
-	"github.com/pkg/errors"
-	"github.com/redis/go-redis/v9"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 // Component names
@@ -46,7 +41,6 @@ const (
 	ArgoCDGPGKeysConfigMapName  = "argocd-gpg-keys-cm"
 	// ArgoCDAppControllerShardConfigMapName contains the application controller to shard mapping
 	ArgoCDAppControllerShardConfigMapName = "argocd-app-controller-shard-cm"
-	ArgoCDCmdParamsConfigMapName          = "argocd-cmd-params-cm"
 )
 
 // Some default configurables
@@ -119,17 +113,11 @@ const (
 
 	// LegacyShardingAlgorithm is the default value for Sharding Algorithm it uses an `uid` based distribution (non-uniform)
 	LegacyShardingAlgorithm = "legacy"
-	// RoundRobinShardingAlgorithm is a flag value that can be opted for Sharding Algorithm it uses an equal distribution across all shards
+	// RoundRobinShardingAlgorithm is a flag value that can be opted for Sharding Algorithm it uses an equal distribution accross all shards
 	RoundRobinShardingAlgorithm = "round-robin"
 	// AppControllerHeartbeatUpdateRetryCount is the retry count for updating the Shard Mapping to the Shard Mapping ConfigMap used by Application Controller
 	AppControllerHeartbeatUpdateRetryCount = 3
-
-	// ConsistentHashingWithBoundedLoadsAlgorithm uses an algorithm that tries to use an equal distribution across
-	// all shards but is optimised to handle sharding and/or cluster addition or removal. In case of sharding or
-	// cluster changes, this algorithm minimises the changes between shard and clusters assignments.
-	ConsistentHashingWithBoundedLoadsAlgorithm = "consistent-hashing"
-
-	DefaultShardingAlgorithm = LegacyShardingAlgorithm
+	DefaultShardingAlgorithm               = LegacyShardingAlgorithm
 )
 
 // Dex related constants
@@ -161,14 +149,10 @@ const (
 	LabelKeyAppInstance = "app.kubernetes.io/instance"
 	// LabelKeyAppName is the label key to use to uniquely identify the name of the Kubernetes application
 	LabelKeyAppName = "app.kubernetes.io/name"
-	// LabelKeyAutoLabelClusterInfo if set to true will automatically add extra labels from the cluster info (currently it only adds a k8s version label)
-	LabelKeyAutoLabelClusterInfo = "argocd.argoproj.io/auto-label-cluster-info"
 	// LabelKeyLegacyApplicationName is the legacy label (v0.10 and below) and is superseded by 'app.kubernetes.io/instance'
 	LabelKeyLegacyApplicationName = "applications.argoproj.io/app-name"
 	// LabelKeySecretType contains the type of argocd secret (currently: 'cluster', 'repository', 'repo-config' or 'repo-creds')
 	LabelKeySecretType = "argocd.argoproj.io/secret-type"
-	// LabelKeyClusterKubernetesVersion contains the kubernetes version of the cluster secret if it has been enabled
-	LabelKeyClusterKubernetesVersion = "argocd.argoproj.io/kubernetes-version"
 	// LabelValueSecretTypeCluster indicates a secret type of cluster
 	LabelValueSecretTypeCluster = "cluster"
 	// LabelValueSecretTypeRepository indicates a secret type of repository
@@ -200,10 +184,6 @@ const (
 	// AnnotationKeyAppSkipReconcile tells the Application to skip the Application controller reconcile.
 	// Skip reconcile when the value is "true" or any other string values that can be strconv.ParseBool() to be true.
 	AnnotationKeyAppSkipReconcile = "argocd.argoproj.io/skip-reconcile"
-	// LabelKeyComponentRepoServer is the label key to identify the component as repo-server
-	LabelKeyComponentRepoServer = "app.kubernetes.io/component"
-	// LabelValueComponentRepoServer is the label value for the repo-server component
-	LabelValueComponentRepoServer = "repo-server"
 )
 
 // Environment variables for tuning and debugging Argo CD
@@ -218,11 +198,11 @@ const (
 	EnvVarTLSDataPath = "ARGOCD_TLS_DATA_PATH"
 	// EnvGitAttemptsCount specifies number of git remote operations attempts count
 	EnvGitAttemptsCount = "ARGOCD_GIT_ATTEMPTS_COUNT"
-	// EnvGitRetryMaxDuration specifies max duration of git remote operation retry
+	// EnvGitRetryMaxDuration specifices max duration of git remote operation retry
 	EnvGitRetryMaxDuration = "ARGOCD_GIT_RETRY_MAX_DURATION"
 	// EnvGitRetryDuration specifies duration of git remote operation retry
 	EnvGitRetryDuration = "ARGOCD_GIT_RETRY_DURATION"
-	// EnvGitRetryFactor specifies factor of git remote operation retry
+	// EnvGitRetryFactor specifies fator of git remote operation retry
 	EnvGitRetryFactor = "ARGOCD_GIT_RETRY_FACTOR"
 	// EnvGitSubmoduleEnabled overrides git submodule support, true by default
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
@@ -244,7 +224,7 @@ const (
 	EnvControllerShard = "ARGOCD_CONTROLLER_SHARD"
 	// EnvControllerShardingAlgorithm is the distribution sharding algorithm to be used: legacy or round-robin
 	EnvControllerShardingAlgorithm = "ARGOCD_CONTROLLER_SHARDING_ALGORITHM"
-	// EnvEnableDynamicClusterDistribution enables dynamic sharding (ALPHA)
+	//EnvEnableDynamicClusterDistribution enables dynamic sharding (ALPHA)
 	EnvEnableDynamicClusterDistribution = "ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION"
 	// EnvEnableGRPCTimeHistogramEnv enables gRPC metrics collection
 	EnvEnableGRPCTimeHistogramEnv = "ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM"
@@ -254,14 +234,10 @@ const (
 	EnvHelmIndexCacheDuration = "ARGOCD_HELM_INDEX_CACHE_DURATION"
 	// EnvAppConfigPath allows to override the configuration path for repo server
 	EnvAppConfigPath = "ARGOCD_APP_CONF_PATH"
-	// EnvAuthToken is the environment variable name for the auth token used by the CLI
-	EnvAuthToken = "ARGOCD_AUTH_TOKEN"
 	// EnvLogFormat log format that is defined by `--logformat` option
 	EnvLogFormat = "ARGOCD_LOG_FORMAT"
 	// EnvLogLevel log level that is defined by `--loglevel` option
 	EnvLogLevel = "ARGOCD_LOG_LEVEL"
-	// EnvLogFormatEnableFullTimestamp enables the FullTimestamp option in logs
-	EnvLogFormatEnableFullTimestamp = "ARGOCD_LOG_FORMAT_ENABLE_FULL_TIMESTAMP"
 	// EnvMaxCookieNumber max number of chunks a cookie can be broken into
 	EnvMaxCookieNumber = "ARGOCD_MAX_COOKIE_NUMBER"
 	// EnvPluginSockFilePath allows to override the pluginSockFilePath for repo server and cmp server
@@ -287,8 +263,6 @@ const (
 	// EnvServerSideDiff defines the env var used to enable ServerSide Diff feature.
 	// If defined, value must be "true" or "false".
 	EnvServerSideDiff = "ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF"
-	// EnvGRPCMaxSizeMB is the environment variable to look for a max GRPC message size
-	EnvGRPCMaxSizeMB = "ARGOCD_GRPC_MAX_SIZE_MB"
 )
 
 // Config Management Plugin related constants
@@ -315,10 +289,7 @@ const (
 // Constants used by util/clusterauth package
 const (
 	ClusterAuthRequestTimeout = 10 * time.Second
-)
-
-const (
-	BearerTokenTimeout = 30 * time.Second
+	BearerTokenTimeout        = 30 * time.Second
 )
 
 const (
@@ -370,7 +341,7 @@ func GetCMPChunkSize() int {
 }
 
 // GetCMPWorkDir will return the full path of the work directory used by the CMP server.
-// This directory and all it's contents will be deleted during CMP bootstrap.
+// This directory and all it's contents will be deleted durring CMP bootstrap.
 func GetCMPWorkDir() string {
 	if workDir := os.Getenv(EnvCMPWorkDir); workDir != "" {
 		return filepath.Join(workDir, DefaultCMPWorkDirName)
@@ -425,32 +396,3 @@ const TokenVerificationError = "failed to verify the token"
 var TokenVerificationErr = errors.New(TokenVerificationError)
 
 var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission denied")
-
-// Redis password consts
-const (
-	// RedisInitialCredentials is the name for the argocd kubernetes secret which will have the redis password
-	RedisInitialCredentials = "argocd-redis"
-	// RedisInitialCredentialsKey is the key for the argocd kubernetes secret that maps to the redis password
-	RedisInitialCredentialsKey = "auth"
-)
-
-/*
-SetOptionalRedisPasswordFromKubeConfig sets the optional Redis password if it exists in the k8s namespace's secrets.
-
-We specify kubeClient as kubernetes.Interface to allow for mocking in tests, but this should be treated as a kubernetes.Clientset param.
-*/
-func SetOptionalRedisPasswordFromKubeConfig(ctx context.Context, kubeClient kubernetes.Interface, namespace string, redisOptions *redis.Options) error {
-	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, RedisInitialCredentials, v1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get secret %s/%s: %w", namespace, RedisInitialCredentials, err)
-	}
-	if secret == nil {
-		return fmt.Errorf("failed to get secret %s/%s: secret is nil", namespace, RedisInitialCredentials)
-	}
-	_, ok := secret.Data[RedisInitialCredentialsKey]
-	if !ok {
-		return fmt.Errorf("secret %s/%s does not contain key %s", namespace, RedisInitialCredentials, RedisInitialCredentialsKey)
-	}
-	redisOptions.Password = string(secret.Data[RedisInitialCredentialsKey])
-	return nil
-}

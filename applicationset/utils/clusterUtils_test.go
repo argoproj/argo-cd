@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,14 +33,14 @@ func Test_secretToCluster(t *testing.T) {
 		},
 	}
 	cluster, err := secretToCluster(secret)
-	require.NoError(t, err)
-	assert.Equal(t, argoappv1.Cluster{
+	assert.Nil(t, err)
+	assert.Equal(t, *cluster, argoappv1.Cluster{
 		Name:   "test",
 		Server: "http://mycluster",
 		Config: argoappv1.ClusterConfig{
 			Username: "foo",
 		},
-	}, *cluster)
+	})
 }
 
 // From Argo CD util/db/cluster_test.go
@@ -57,14 +56,15 @@ func Test_secretToCluster_NoConfig(t *testing.T) {
 		},
 	}
 	cluster, err := secretToCluster(secret)
-	require.NoError(t, err)
-	assert.Equal(t, argoappv1.Cluster{
+	assert.Nil(t, err)
+	assert.Equal(t, *cluster, argoappv1.Cluster{
 		Name:   "test",
 		Server: "http://mycluster",
-	}, *cluster)
+	})
 }
 
 func createClusterSecret(secretName string, clusterName string, clusterServer string) *corev1.Secret {
+
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
@@ -81,19 +81,22 @@ func createClusterSecret(secretName string, clusterName string, clusterServer st
 	}
 
 	return secret
+
 }
 
 // From util/argo/argo_test.go
 // (ported to use kubeclientset)
 func TestValidateDestination(t *testing.T) {
+
 	t.Run("Validate destination with server url", func(t *testing.T) {
+
 		dest := argoappv1.ApplicationDestination{
 			Server:    "https://127.0.0.1:6443",
 			Namespace: "default",
 		}
 
 		appCond := ValidateDestination(context.Background(), &dest, nil, fakeNamespace)
-		require.NoError(t, appCond)
+		assert.Nil(t, appCond)
 		assert.False(t, dest.IsServerInferred())
 	})
 
@@ -108,7 +111,7 @@ func TestValidateDestination(t *testing.T) {
 		kubeclientset := fake.NewSimpleClientset(objects...)
 
 		appCond := ValidateDestination(context.Background(), &dest, kubeclientset, fakeNamespace)
-		require.NoError(t, appCond)
+		assert.Nil(t, appCond)
 		assert.Equal(t, "https://127.0.0.1:6443", dest.Server)
 		assert.True(t, dest.IsServerInferred())
 	})
@@ -171,4 +174,5 @@ func TestValidateDestination(t *testing.T) {
 		assert.Equal(t, "unable to find destination server: there are 2 clusters with the same name: [https://127.0.0.1:2443 https://127.0.0.1:8443]", err.Error())
 		assert.False(t, dest.IsServerInferred())
 	})
+
 }

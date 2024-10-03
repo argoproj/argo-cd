@@ -9,7 +9,6 @@ Perform a diff against the target and live state.
 Perform a diff against the target and live state.
 Uses 'diff' to render the difference. KUBECTL_EXTERNAL_DIFF environment variable can be used to select your own diff tool.
 Returns the following exit codes: 2 on general errors, 1 when a diff is found, and 0 when no diff is found
-Kubernetes Secrets are ignored from this diff.
 
 ```
 argocd app diff APPNAME [flags]
@@ -18,7 +17,6 @@ argocd app diff APPNAME [flags]
 ### Options
 
 ```
-  -N, --app-namespace string                              Only render the difference in namespace
       --exit-code                                         Return non-zero exit code when there is a diff (default true)
       --hard-refresh                                      Refresh application data as well as target manifests cache
   -h, --help                                              help for diff
@@ -28,16 +26,13 @@ argocd app diff APPNAME [flags]
       --local-repo-root string                            Path to the repository root. Used together with --local allows setting the repository root (default "/")
       --refresh                                           Refresh application data when retrieving
       --revision string                                   Compare live app to a particular revision
-      --revisions stringArray                             Show manifests at specific revisions for source position in source-positions
       --server-side-generate                              Used with --local, this will send your manifests to the server for diffing
-      --source-positions int64Slice                       List of source positions. Default is empty array. Counting start at 1. (default [])
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --argocd-context string           The name of the Argo-CD server context to use
-      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
+      --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
