@@ -535,6 +535,9 @@ const (
 const (
 	// default max webhook payload size is 1GB
 	defaultMaxWebhookPayloadSize = int64(1) * 1024 * 1024 * 1024
+
+	// application sync with impersonation feature is disabled by default.
+	defaultImpersonationEnabledFlag = false
 )
 
 var sourceTypeToEnableGenerationKey = map[v1alpha1.ApplicationSourceType]string{
@@ -2336,11 +2339,11 @@ func (mgr *SettingsManager) GetMaxWebhookPayloadSize() int64 {
 	return maxPayloadSizeMB * 1024 * 1024
 }
 
-// GetIsImpersonationEnabled returns true if application sync with impersonation feature is enabled in argocd-cm configmap
-func (mgr *SettingsManager) IsImpersonationEnabled() bool {
+// IsImpersonationEnabled returns true if application sync with impersonation feature is enabled in argocd-cm configmap
+func (mgr *SettingsManager) IsImpersonationEnabled() (bool, error) {
 	cm, err := mgr.getConfigMap()
 	if err != nil {
-		return false
+		return defaultImpersonationEnabledFlag, fmt.Errorf("error checking %s property in configmap: %w", impersonationEnabledKey, err)
 	}
-	return cm.Data[impersonationEnabledKey] == "true"
+	return cm.Data[impersonationEnabledKey] == "true", nil
 }

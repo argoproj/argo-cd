@@ -30,6 +30,7 @@ argocd admin proj generate-spec PROJECT [flags]
       --deny-namespaced-resource stringArray    List of denied namespaced resources
       --description string                      Project description
   -d, --dest stringArray                        Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)
+      --dest-service-accounts stringArray       Destination server, namespace and target service account (e.g. https://192.168.99.100:8443,default,default-sa)
   -f, --file string                             Filename or URL to Kubernetes manifests for the project
   -h, --help                                    help for generate-spec
   -i, --inline                                  If set then generated resource is written back to the file specified in --file flag

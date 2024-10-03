@@ -64,6 +64,7 @@ type fakeData struct {
 	metricsCacheExpiration         time.Duration
 	applicationNamespaces          []string
 	updateRevisionForPathsResponse *apiclient.UpdateRevisionForPathsResponse
+	additionalObjs                 []runtime.Object
 }
 
 type MockKubectl struct {
@@ -133,7 +134,9 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		},
 		Data: data.configMapData,
 	}
-	kubeClient := fake.NewSimpleClientset(&clust, &cm, &secret)
+	runtimeObjs := []runtime.Object{&clust, &secret, &cm}
+	runtimeObjs = append(runtimeObjs, data.additionalObjs...)
+	kubeClient := fake.NewSimpleClientset(runtimeObjs...)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 	kubectl := &MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}}
 	ctrl, err := NewApplicationController(
