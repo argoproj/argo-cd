@@ -497,12 +497,10 @@ export class ReposList extends React.Component<
                                                         />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Repository URL' field='url'
-                                                                   component={Text}/>
+                                                        <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Username (optional)'
-                                                                   field='username' component={Text}/>
+                                                        <FormField formApi={formApi} label='Username (optional)' field='username' component={Text} />
                                                     </div>
                                                     <div className='argo-form-row'>
                                                         <FormField
@@ -514,54 +512,38 @@ export class ReposList extends React.Component<
                                                         />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi}
-                                                                   label='TLS client certificate (optional)'
-                                                                   field='tlsClientCertData' component={TextArea}/>
+                                                        <FormField formApi={formApi} label='TLS client certificate (optional)' field='tlsClientCertData' component={TextArea} />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi}
-                                                                   label='TLS client certificate key (optional)'
-                                                                   field='tlsClientCertKey' component={TextArea}/>
+                                                        <FormField formApi={formApi} label='TLS client certificate key (optional)' field='tlsClientCertKey' component={TextArea} />
                                                     </div>
                                                     {formApi.getFormState().values.type === 'git' && (
                                                         <React.Fragment>
                                                             <div className='argo-form-row'>
-                                                                <FormField formApi={formApi}
-                                                                           label='Skip server verification'
-                                                                           field='insecure' component={CheckboxField}/>
-                                                                <HelpIcon
-                                                                    title='This setting is ignored when creating as credential template.'/>
+                                                                <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
+                                                                <HelpIcon title='This setting is ignored when creating as credential template.' />
                                                             </div>
                                                             <div className='argo-form-row'>
-                                                                <FormField formApi={formApi}
-                                                                           label='Force HTTP basic auth'
-                                                                           field='forceHttpBasicAuth'
-                                                                           component={CheckboxField}/>
+                                                                <FormField formApi={formApi} label='Force HTTP basic auth' field='forceHttpBasicAuth' component={CheckboxField} />
                                                             </div>
                                                             <div className='argo-form-row'>
-                                                                <FormField formApi={formApi}
-                                                                           label='Enable LFS support (Git only)'
-                                                                           field='enableLfs' component={CheckboxField}/>
-                                                                <HelpIcon
-                                                                    title='This setting is ignored when creating as credential template.'/>
+                                                                <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
+                                                                <HelpIcon title='This setting is ignored when creating as credential template.' />
                                                             </div>
                                                         </React.Fragment>
                                                     )}
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Proxy (optional)'
-                                                                   field='proxy' component={Text}/>
+                                                        <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='NoProxy (optional)'
-                                                                   field='noProxy' component={Text}/>
+                                                        <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        {formApi.getFormState().values.type !== 'oci' ?
-                                                            <FormField formApi={formApi} label='Enable OCI'
-                                                                       field='enableOCI' component={CheckboxField}/>
-                                                            : <FormField formApi={formApi} label='Insecure HTTP Only'
-                                                                         field='insecureHttpOnly'
-                                                                         component={CheckboxField}/>}
+                                                        {formApi.getFormState().values.type !== 'oci' ? (
+                                                            <FormField formApi={formApi} label='Enable OCI' field='enableOCI' component={CheckboxField} />
+                                                        ) : (
+                                                            <FormField formApi={formApi} label='Insecure HTTP Only' field='insecureHttpOnly' component={CheckboxField} />
+                                                        )}
                                                     </div>
                                                 </div>
                                             )}
