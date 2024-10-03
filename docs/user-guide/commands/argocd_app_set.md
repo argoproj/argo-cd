@@ -38,10 +38,7 @@ argocd app set APPNAME [flags]
       --directory-include string                   Set glob expression used to include files from application source path
       --directory-recurse                          Recurse directory
       --env string                                 Application environment to monitor
-      --helm-api-versions stringArray              Helm api-versions (in format [group/]version/kind) to use when running helm template (Can be repeated to set several values: --helm-api-versions traefik.io/v1alpha1/TLSOption --helm-api-versions v1/Service). If not set, use the api-versions from the destination cluster
       --helm-chart string                          Helm Chart name
-      --helm-kube-version string                   Helm kube-version to use when running helm template. If not set, use the kube version from the destination cluster
-      --helm-namespace string                      Helm namespace to use when running helm template. If not set, use app.spec.destination.namespace
       --helm-pass-credentials                      Pass credentials to all domain
       --helm-set stringArray                       Helm set values on the command line (can be repeated to set several values: --helm-set key1=val1 --helm-set key2=val2)
       --helm-set-file stringArray                  Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)
@@ -55,13 +52,11 @@ argocd app set APPNAME [flags]
       --jsonnet-libs stringArray                   Additional jsonnet libs (prefixed by repoRoot)
       --jsonnet-tla-code stringArray               Jsonnet top level code arguments
       --jsonnet-tla-str stringArray                Jsonnet top level string arguments
-      --kustomize-api-versions stringArray         api-versions (in format [group/]version/kind) to use when running helm template (Can be repeated to set several values: --helm-api-versions traefik.io/v1alpha1/TLSOption --helm-api-versions v1/Service). If not set, use the api-versions from the destination cluster. Only applicable when Helm is enabled for Kustomize builds
       --kustomize-common-annotation stringArray    Set common labels in Kustomize
       --kustomize-common-label stringArray         Set common labels in Kustomize
       --kustomize-force-common-annotation          Force common annotations in Kustomize
       --kustomize-force-common-label               Force common labels in Kustomize
       --kustomize-image stringArray                Kustomize images (e.g. --kustomize-image node:8.15.0 --kustomize-image mysql=mariadb,alpine@sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d)
-      --kustomize-kube-version string              kube-version to use when running helm template. If not set, use the kube version from the destination cluster. Only applicable when Helm is enabled for Kustomize builds
       --kustomize-label-without-selector           Do not apply common label to selectors or templates
       --kustomize-namespace string                 Kustomize namespace
       --kustomize-replica stringArray              Kustomize replicas (e.g. --kustomize-replica my-development=2 --kustomize-replica my-statefulset=4)
@@ -93,8 +88,7 @@ argocd app set APPNAME [flags]
 ### Options inherited from parent commands
 
 ```
-      --argocd-context string           The name of the Argo-CD server context to use
-      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
+      --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")

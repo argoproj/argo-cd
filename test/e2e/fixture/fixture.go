@@ -46,9 +46,6 @@ const (
 	ArgoCDNamespace         = "argocd-e2e"
 	ArgoCDAppNamespace      = "argocd-e2e-external"
 
-	// notifications controller, metrics server port
-	defaultNotificationServer = "localhost:9001"
-
 	// ensure all repos are in one directory tree, so we can easily clean them up
 	TmpDir             = "/tmp/argo-e2e"
 	repoDir            = "testdata.git"
@@ -744,20 +741,15 @@ func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
 }
 
 func RunCli(args ...string) (string, error) {
-	return RunCliWithStdin("", false, args...)
+	return RunCliWithStdin("", args...)
 }
 
-func RunCliWithStdin(stdin string, isKubeConextOnlyCli bool, args ...string) (string, error) {
+func RunCliWithStdin(stdin string, args ...string) (string, error) {
 	if plainText {
 		args = append(args, "--plaintext")
 	}
 
-	// For commands executed with Kubernetes context server argument causes a conflict (for those commands server argument is for KubeAPI server), also authentication is not required
-	if !isKubeConextOnlyCli {
-		args = append(args, "--server", apiServerAddress, "--auth-token", token)
-	}
-
-	args = append(args, "--insecure")
+	args = append(args, "--server", apiServerAddress, "--auth-token", token, "--insecure")
 
 	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
 }
@@ -1017,16 +1009,4 @@ func RecordTestRun(t *testing.T) {
 	if _, err := f.WriteString(fmt.Sprintf("%s\n", t.Name())); err != nil {
 		t.Fatalf("could not write to %s: %v", rf, err)
 	}
-}
-
-func GetApiServerAddress() string {
-	return apiServerAddress
-}
-
-func GetNotificationServerAddress() string {
-	return defaultNotificationServer
-}
-
-func GetToken() string {
-	return token
 }

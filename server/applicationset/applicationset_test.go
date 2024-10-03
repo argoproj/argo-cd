@@ -2,7 +2,6 @@ package applicationset
 
 import (
 	"context"
-	"sort"
 	"testing"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
@@ -10,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
@@ -22,7 +20,6 @@ import (
 	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -34,8 +31,6 @@ const (
 	testNamespace = "default"
 	fakeRepoURL   = "https://git.com/repo.git"
 )
-
-var testEnableEventList []string = argo.DefaultEnableEventList()
 
 func fakeRepo() *appsv1.Repository {
 	return &appsv1.Repository{
@@ -148,10 +143,7 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 	server := NewServer(
 		db,
 		kubeclientset,
-		nil,
-		nil,
 		enforcer,
-		nil,
 		fakeAppsClientset,
 		appInformer,
 		factory.Argoproj().V1alpha1().ApplicationSets().Lister(),
@@ -160,12 +152,6 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 		testNamespace,
 		sync.NewKeyLock(),
 		[]string{testNamespace, "external-namespace"},
-		true,
-		true,
-		"",
-		[]string{},
-		true,
-		testEnableEventList,
 	)
 	return server.(*Server)
 }
@@ -370,60 +356,6 @@ func TestCreateAppSetWrongNamespace(t *testing.T) {
 	_, err := appServer.Create(context.Background(), &createReq)
 
 	assert.Equal(t, "namespace 'NOT-ALLOWED' is not permitted", err.Error())
-}
-
-func TestCreateAppSetDryRun(t *testing.T) {
-	testAppSet := newTestAppSet()
-	appServer := newTestAppSetServer()
-	testAppSet.Spec.Template.Name = "{{name}}"
-	testAppSet.Spec.Generators = []appsv1.ApplicationSetGenerator{
-		{
-			List: &appsv1.ListGenerator{
-				Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"name": "a"}`)}, {Raw: []byte(`{"name": "b"}`)}},
-			},
-		},
-	}
-	createReq := applicationset.ApplicationSetCreateRequest{
-		Applicationset: testAppSet,
-		DryRun:         true,
-	}
-	result, err := appServer.Create(context.Background(), &createReq)
-
-	require.NoError(t, err)
-	assert.Len(t, result.Status.Resources, 2)
-
-	// Sort resulting application by name
-	sort.Slice(result.Status.Resources, func(i, j int) bool {
-		return result.Status.Resources[i].Name < result.Status.Resources[j].Name
-	})
-
-	assert.Equal(t, "a", result.Status.Resources[0].Name)
-	assert.Equal(t, testAppSet.Namespace, result.Status.Resources[0].Namespace)
-	assert.Equal(t, "b", result.Status.Resources[1].Name)
-	assert.Equal(t, testAppSet.Namespace, result.Status.Resources[1].Namespace)
-}
-
-func TestCreateAppSetDryRunWithDuplicate(t *testing.T) {
-	testAppSet := newTestAppSet()
-	appServer := newTestAppSetServer()
-	testAppSet.Spec.Template.Name = "{{name}}"
-	testAppSet.Spec.Generators = []appsv1.ApplicationSetGenerator{
-		{
-			List: &appsv1.ListGenerator{
-				Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"name": "a"}`)}, {Raw: []byte(`{"name": "a"}`)}},
-			},
-		},
-	}
-	createReq := applicationset.ApplicationSetCreateRequest{
-		Applicationset: testAppSet,
-		DryRun:         true,
-	}
-	result, err := appServer.Create(context.Background(), &createReq)
-
-	require.NoError(t, err)
-	assert.Len(t, result.Status.Resources, 1)
-	assert.Equal(t, "a", result.Status.Resources[0].Name)
-	assert.Equal(t, testAppSet.Namespace, result.Status.Resources[0].Namespace)
 }
 
 func TestGetAppSet(t *testing.T) {

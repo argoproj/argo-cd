@@ -24,10 +24,8 @@ export interface ApplicationParametersPanelProps<T> {
     viewBottom?: string | React.ReactNode;
     editTop?: (formApi: FormApi) => React.ReactNode;
     editBottom?: (formApi: FormApi) => React.ReactNode;
-    numberOfSources?: number;
     noReadonlyMode?: boolean;
     collapsible?: boolean;
-    deleteSource: () => void;
 }
 
 interface ApplicationParametersPanelState {
@@ -66,11 +64,9 @@ export class ApplicationParametersSource<T = {}> extends React.Component<Applica
                                 ctx={ctx}
                                 isTopSection={true}
                                 disabledState={this.state.editTop || this.state.editTop === null}
-                                disabledDelete={this.props.numberOfSources <= 1}
                                 updateButtons={editClicked => {
                                     this.setState({editBottom: editClicked});
                                 }}
-                                deleteSource={this.props.deleteSource}
                             />
                         </React.Fragment>
                         {this.props.itemsTop && (
