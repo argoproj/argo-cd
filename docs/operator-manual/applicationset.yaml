@@ -3,16 +3,6 @@ kind: ApplicationSet
 metadata:
   name: test-hello-world-appset
   namespace: argocd
-  # To preserve this annotation and label we can use the preservedFields property 
-  preservedFields:
-    # This annotation and label exists only on this Application, and not in 
-    # the parent ApplicationSet template:
-    # ignoreApplicationDifferences is the preferred way to accomplish this now.
-    annotations: 
-      my-custom-annotation: some-value
-    labels:
-      my-custom-label: some-value
-
 spec:
   generators:
 
@@ -213,6 +203,12 @@ spec:
               values:
                 - env-prod
           maxUpdate: 10%    # maxUpdate supports both integer and percentage string values (rounds down, but floored at 1 Application for >0%)
+
+  # This annotation and label exists only on this Application, and not in the parent ApplicationSet template:
+  # ignoreApplicationDifferences is the preferred way to accomplish this now.
+  preservedFields:
+    annotations: [ some-value ]
+    labels: [ some-value ]
 
   ignoreApplicationDifferences:
   - jsonPointers:
