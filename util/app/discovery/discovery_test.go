@@ -3,7 +3,8 @@ package discovery
 import (
 	"context"
 	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient"
-	"github.com/argoproj/argo-cd/v2/cmpserver/apiclient/mocks"
+	cmpmocks "github.com/argoproj/argo-cd/v2/cmpserver/apiclient/mocks"
+	"github.com/argoproj/argo-cd/v2/util/app/discovery/mocks"
 	"github.com/stretchr/testify/mock"
 	"testing"
 
@@ -54,6 +55,12 @@ func TestAppType_Disabled(t *testing.T) {
 	assert.Equal(t, "Directory", appType)
 }
 
+type nopCloser struct{}
+
+func (c nopCloser) Close() error {
+	return nil
+}
+
 func Test_cmpSupportsForClient(t *testing.T) {
 	t.Parallel()
 
@@ -89,7 +96,7 @@ func Test_cmpSupportsForClient(t *testing.T) {
 			name:                  "plugin not named and discovery not configured",
 			namedPlugin:           false,
 			isDiscoveryConfigured: false,
-			expected:              true,
+			expected:              false,
 		},
 		{
 			name:                  "discovery configured, not named plugin",
@@ -112,17 +119,32 @@ func Test_cmpSupportsForClient(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			rc := mocks.NewConfigManagementPluginService_MatchRepositoryClient(t)
+			rc := cmpmocks.NewConfigManagementPluginService_MatchRepositoryClient(t)
 			rc.On("Send", mock.Anything).Maybe().Return(nil)
 			rc.On("CloseAndRecv").Maybe().Return(&apiclient.RepositoryResponse{
 				IsSupported: tc.isSupported,
 			}, nil)
 
-			c := mocks.NewConfigManagementPluginServiceClient(t)
+			c := cmpmocks.NewConfigManagementPluginServiceClient(t)
+			c.On("CheckPluginConfiguration", mock.Anything, mock.Anything, mock.Anything).Return(&apiclient.CheckPluginConfigurationResponse{
+				IsDiscoveryConfigured: tc.isDiscoveryConfigured,
+			}, nil, nil)
 			c.On("MatchRepository", mock.Anything, mock.Anything).Maybe().Return(rc, nil)
 
-			actual := cmpSupportsForClient(context.Background(), c, "./testdata", "./testdata", nil, nil, tc.isDiscoveryConfigured, tc.namedPlugin)
-			assert.Equal(t, tc.expected, actual)
+			cc := mocks.NewCMPClientConstructor(t)
+			cc.On("NewConfigManagementPluginClient").Return(c, nopCloser{}, nil)
+
+			var client apiclient.ConfigManagementPluginServiceClient
+			if tc.namedPlugin {
+				client, _ = namedCMPSupports(context.Background(), cc, "./testdata", "./testdata", nil, nil)
+			} else {
+				client, _ = unnamedCMPSupports(context.Background(), cc, "./testdata", "./testdata", nil, nil)
+			}
+			if tc.expected {
+				assert.NotNil(t, client)
+			} else {
+				assert.Nil(t, client)
+			}
 		})
 	}
 }
