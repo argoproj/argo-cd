@@ -471,8 +471,7 @@ func TestRotateAuth(t *testing.T) {
 			Name: "my-cluster-name",
 		})
 
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "Get \"https://my-cluster-name/")
+		assert.ErrorContains(t, err, "Get \"https://my-cluster-name/")
 	})
 
 	t.Run("RotateAuth by Server - Error from no such host", func(t *testing.T) {
@@ -480,8 +479,7 @@ func TestRotateAuth(t *testing.T) {
 			Server: "https://my-cluster-name",
 		})
 
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "Get \"https://my-cluster-name/")
+		assert.ErrorContains(t, err, "Get \"https://my-cluster-name/")
 	})
 }
 

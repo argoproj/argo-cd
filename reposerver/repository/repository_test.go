@@ -280,7 +280,7 @@ func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
 			res, err := GenerateManifests(context.Background(), repoDir, "", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 			require.Error(t, err)
 			assert.NotContains(t, err.Error(), mustNotContain)
-			assert.Contains(t, err.Error(), "illegal filepath")
+			require.ErrorContains(t, err, "illegal filepath")
 			assert.Nil(t, res)
 		})
 	}
@@ -684,8 +684,7 @@ func TestInvalidMetadata(t *testing.T) {
 	src := argoappv1.ApplicationSource{Path: "./testdata/invalid-metadata", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, AppLabelKey: "test", AppName: "invalid-metadata", TrackingMethod: "annotation+label"}
 	_, err := service.GenerateManifest(context.Background(), &q)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "contains non-string value in the map under key \"invalid\"")
+	assert.ErrorContains(t, err, "contains non-string value in the map under key \"invalid\"")
 }
 
 func TestNilMetadataAccessors(t *testing.T) {
@@ -763,8 +762,7 @@ func TestGenerateJsonnetLibOutside(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 	_, err := service.GenerateManifest(context.Background(), &q)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "file '../../../testdata/jsonnet/vendor' resolved to outside repository root")
+	require.ErrorContains(t, err, "file '../../../testdata/jsonnet/vendor' resolved to outside repository root")
 }
 
 func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
@@ -1141,8 +1139,7 @@ func TestHelmWithMissingValueFiles(t *testing.T) {
 
 	// Should fail since we're passing a non-existent values file, and error should indicate that
 	_, err := service.GenerateManifest(context.Background(), req)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), fmt.Sprintf("%s: no such file or directory", missingValuesFile))
+	require.ErrorContains(t, err, fmt.Sprintf("%s: no such file or directory", missingValuesFile))
 
 	// Should template without error even if defining a non-existent values file
 	req.ApplicationSource.Helm.IgnoreMissingValueFiles = true
@@ -1330,8 +1327,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "outside repository root")
+		assert.ErrorContains(t, err, "outside repository root")
 	})
 
 	t.Run("Values file with relative path pointing inside repo root", func(t *testing.T) {
@@ -1385,8 +1381,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "outside repository root")
+		assert.ErrorContains(t, err, "outside repository root")
 	})
 
 	t.Run("Remote values file from forbidden protocol", func(t *testing.T) {
@@ -1404,8 +1399,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "is not allowed")
+		assert.ErrorContains(t, err, "is not allowed")
 	})
 
 	t.Run("Remote values file from custom allowed protocol", func(t *testing.T) {
@@ -1423,8 +1417,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "s3://my-bucket/my-chart-values.yaml: no such file or directory")
+		assert.ErrorContains(t, err, "s3://my-bucket/my-chart-values.yaml: no such file or directory")
 	})
 }
 
@@ -2857,8 +2850,7 @@ func TestTestRepoOCI(t *testing.T) {
 			EnableOCI: true,
 		},
 	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "OCI Helm repository URL should include hostname and port only")
+	assert.ErrorContains(t, err, "OCI Helm repository URL should include hostname and port only")
 }
 
 func Test_getHelmDependencyRepos(t *testing.T) {

@@ -454,8 +454,7 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 	_, err := proj.IsDestinationPermitted(ApplicationDestination{Server: "https://my-cluster.123.com", Namespace: "default"}, func(_ string) ([]*Cluster, error) {
 		return nil, errors.New("some error")
 	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "could not retrieve project clusters")
+	assert.ErrorContains(t, err, "could not retrieve project clusters")
 }
 
 func TestAppProject_IsGroupKindPermitted(t *testing.T) {
@@ -817,8 +816,7 @@ func TestAppProject_InvalidPolicyRules(t *testing.T) {
 	for _, bad := range badPolicies {
 		p.Spec.Roles[0].Policies = []string{bad.policy}
 		err = p.ValidateProject()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), bad.errmsg)
+		assert.ErrorContains(t, err, bad.errmsg)
 	}
 }
 

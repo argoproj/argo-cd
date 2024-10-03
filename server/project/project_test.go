@@ -583,7 +583,7 @@ p, role:admin, projects, update, *, allow`)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
-		assert.Contains(t, err.Error(), "object must be of form 'test/*', 'test[/<NAMESPACE>]/<APPNAME>' or 'test/<APPNAME>'")
+		assert.ErrorContains(t, err, "object must be of form 'test/*', 'test[/<NAMESPACE>]/<APPNAME>' or 'test/<APPNAME>'")
 	})
 
 	t.Run("TestValidateProjectIncorrectProjectInRoleFailure", func(t *testing.T) {
@@ -602,7 +602,7 @@ p, role:admin, projects, update, *, allow`)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
-		assert.Contains(t, err.Error(), "policy subject must be: 'proj:test:testRole'")
+		assert.ErrorContains(t, err, "policy subject must be: 'proj:test:testRole'")
 	})
 
 	t.Run("TestValidateProjectIncorrectTokenInRoleFailure", func(t *testing.T) {
@@ -621,7 +621,7 @@ p, role:admin, projects, update, *, allow`)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
-		assert.Contains(t, err.Error(), "policy subject must be: 'proj:test:testRole'")
+		assert.ErrorContains(t, err, "policy subject must be: 'proj:test:testRole'")
 	})
 
 	t.Run("TestValidateProjectInvalidEffectFailure", func(t *testing.T) {
@@ -639,7 +639,7 @@ p, role:admin, projects, update, *, allow`)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(context.Background(), request)
-		assert.Contains(t, err.Error(), "effect must be: 'allow' or 'deny'")
+		assert.ErrorContains(t, err, "effect must be: 'allow' or 'deny'")
 	})
 
 	t.Run("TestNormalizeProjectRolePolicies", func(t *testing.T) {
@@ -685,7 +685,7 @@ p, role:admin, projects, update, *, allow`)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
 		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
 		res, err := projectServer.GetSyncWindowsState(ctx, &project.SyncWindowsQuery{Name: "incorrect"})
-		assert.Contains(t, err.Error(), "not found")
+		require.ErrorContains(t, err, "not found")
 		assert.Nil(t, res)
 	})
 
