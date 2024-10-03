@@ -163,8 +163,6 @@ spec:
     # Prevents ApplicationSet controller from modifying Applications. Delete is allowed.
     # applicationsSync: create-delete
 
-    syncOptions:
-    - CreateNamespace=true
     # Prevent an Application's child resources from being deleted, when the parent Application is deleted
     preserveResourcesOnDeletion: true
 

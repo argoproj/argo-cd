@@ -85,6 +85,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [D2iQ](https://www.d2iq.com)
 1. [DaoCloud](https://daocloud.io/)
 1. [Datarisk](https://www.datarisk.io/)
+1. [Daydream](https://daydream.ing)
 1. [Deloitte](https://www.deloitte.com/)
 1. [Deutsche Telekom AG](https://telekom.com)
 1. [Devopsi - Poland Software/DevOps Consulting](https://devopsi.pl/)
