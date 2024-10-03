@@ -123,7 +123,7 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 		chart := "my-chart"
 		oobChart := "out-of-bounds-chart"
 		version := "1.1.0"
-		helmClient.On("GetIndex", mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Tags: map[string]helm.TagsList{
+		helmClient.On("GetIndex", mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
 			chart:    {Tags: []string{"1.0.0", version}},
 			oobChart: {Tags: []string{"1.0.0", version}},
 		}}, nil)

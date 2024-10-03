@@ -25,9 +25,8 @@ import (
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
 
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
-
 	"github.com/argoproj/argo-cd/v2/util/cache"
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/argoproj/argo-cd/v2/util/proxy"
@@ -414,7 +413,7 @@ func getIndexURL(rawURL string) (string, error) {
 	return repoURL.String(), nil
 }
 
-type TagsList struct {
+type Entries struct {
 	Tags []string
 }
 
@@ -434,7 +433,7 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) ([]string, error) 
 		}
 	}
 
-	tags := &TagsList{}
+	entries := &Entries{}
 	if len(data) == 0 {
 		start := time.Now()
 		repo, err := remote.NewRepository(tagsURL)
@@ -476,7 +475,7 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) ([]string, error) 
 			for _, tag := range tagsResult {
 				// By convention: Change underscore (_) back to plus (+) to get valid SemVer
 				convertedTag := strings.ReplaceAll(tag, "_", "+")
-				tags.Tags = append(tags.Tags, convertedTag)
+				entries.Tags = append(entries.Tags, convertedTag)
 			}
 
 			return nil
@@ -494,11 +493,11 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) ([]string, error) 
 			}
 		}
 	} else {
-		err := json.Unmarshal(data, tags)
+		err := json.Unmarshal(data, entries)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode tags: %w", err)
 		}
 	}
 
-	return tags.Tags, nil
+	return entries.Tags, nil
 }

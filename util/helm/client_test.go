@@ -57,7 +57,7 @@ func TestIndex(t *testing.T) {
 	})
 
 	t.Run("Cached", func(t *testing.T) {
-		fakeIndex := Index{Tags: map[string]TagsList{"fake": {Tags: []string{}}}}
+		fakeIndex := Index{Entries: map[string]Entries{"fake": {Tags: []string{}}}}
 		data := bytes.Buffer{}
 		err := yaml.NewEncoder(&data).Encode(fakeIndex)
 		require.NoError(t, err)
@@ -169,7 +169,7 @@ func TestGetTagsFromUrl(t *testing.T) {
 	t.Run("should return tags correctly while following the link header", func(t *testing.T) {
 		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			t.Logf("called %s", r.URL.Path)
-			responseTags := TagsList{}
+			responseTags := Entries{}
 			w.Header().Set("Content-Type", "application/json")
 			if !strings.Contains(r.URL.String(), "token") {
 				w.Header().Set("Link", fmt.Sprintf("<https://%s%s?token=next-token>; rel=next", r.Host, r.URL.Path))
@@ -231,7 +231,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 
 		assert.Equal(t, expectedAuthorization, authorization)
 
-		responseTags := TagsList{
+		responseTags := Entries{
 			Tags: []string{
 				"2.8.0",
 				"2.8.0-prerelease",
@@ -312,7 +312,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 
 		assert.Equal(t, expectedAuthorization, authorization)
 
-		responseTags := TagsList{
+		responseTags := Entries{
 			Tags: []string{
 				"2.8.0",
 				"2.8.0-prerelease",

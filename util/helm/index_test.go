@@ -8,7 +8,7 @@ import (
 )
 
 var index = Index{
-	Tags: map[string]TagsList{
+	Entries: map[string]Entries{
 		"argo-cd": {
 			Tags: []string{
 				"~0.7.3",
@@ -32,6 +32,6 @@ func TestIndex_GetEntries(t *testing.T) {
 	t.Run("Found", func(t *testing.T) {
 		ts, err := index.GetTags("argo-cd")
 		require.NoError(t, err)
-		assert.Len(t, ts, len(index.Tags["argo-cd"].Tags))
+		assert.Len(t, ts, len(index.Entries["argo-cd"].Tags))
 	})
 }

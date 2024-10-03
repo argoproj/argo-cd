@@ -5,11 +5,11 @@ import (
 )
 
 type Index struct {
-	Tags map[string]TagsList
+	Entries map[string]Entries
 }
 
 func (i *Index) GetTags(chart string) ([]string, error) {
-	tags, ok := i.Tags[chart]
+	tags, ok := i.Entries[chart]
 	if !ok {
 		return nil, fmt.Errorf("chart '%s' not found in index", chart)
 	}
