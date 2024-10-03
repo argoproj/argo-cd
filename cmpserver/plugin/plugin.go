@@ -297,11 +297,11 @@ func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 		return fmt.Errorf("match repository error receiving stream: %w", err)
 	}
 
-	isSupported, isDiscoveryEnabled, err := s.matchRepository(bufferedCtx, workDir, metadata.GetEnv(), metadata.GetAppRelPath())
+	isSupported, err := s.matchRepository(bufferedCtx, workDir, metadata.GetEnv(), metadata.GetAppRelPath())
 	if err != nil {
 		return fmt.Errorf("match repository error: %w", err)
 	}
-	repoResponse := &apiclient.RepositoryResponse{IsSupported: isSupported, IsDiscoveryEnabled: isDiscoveryEnabled}
+	repoResponse := &apiclient.RepositoryResponse{IsSupported: isSupported}
 
 	err = stream.SendAndClose(repoResponse)
 	if err != nil {
@@ -310,7 +310,7 @@ func (s *Service) matchRepositoryGeneric(stream MatchRepositoryStream) error {
 	return nil
 }
 
-func (s *Service) matchRepository(ctx context.Context, workdir string, envEntries []*apiclient.EnvEntry, appRelPath string) (isSupported bool, isDiscoveryEnabled bool, err error) {
+func (s *Service) matchRepository(ctx context.Context, workdir string, envEntries []*apiclient.EnvEntry, appRelPath string) (isSupported bool, err error) {
 	config := s.initConstants.PluginConfig
 
 	appPath, err := securejoin.SecureJoin(workdir, appRelPath)
@@ -328,9 +328,9 @@ func (s *Service) matchRepository(ctx context.Context, workdir string, envEntrie
 		if err != nil {
 			e := fmt.Errorf("error finding filename match for pattern %q: %w", pattern, err)
 			log.Debug(e)
-			return false, true, e
+			return false, e
 		}
-		return len(matches) > 0, true, nil
+		return len(matches) > 0, nil
 	}
 
 	if config.Spec.Discover.Find.Glob != "" {
@@ -342,10 +342,10 @@ func (s *Service) matchRepository(ctx context.Context, workdir string, envEntrie
 		if err != nil {
 			e := fmt.Errorf("error finding glob match for pattern %q: %w", pattern, err)
 			log.Debug(e)
-			return false, true, e
+			return false, e
 		}
 
-		return len(matches) > 0, true, nil
+		return len(matches) > 0, nil
 	}
 
 	if len(config.Spec.Discover.Find.Command.Command) > 0 {
@@ -353,12 +353,12 @@ func (s *Service) matchRepository(ctx context.Context, workdir string, envEntrie
 		env := append(os.Environ(), environ(envEntries)...)
 		find, err := runCommand(ctx, config.Spec.Discover.Find.Command, appPath, env)
 		if err != nil {
-			return false, true, fmt.Errorf("error running find command: %w", err)
+			return false, fmt.Errorf("error running find command: %w", err)
 		}
-		return find != "", true, nil
+		return find != "", nil
 	}
 
-	return false, false, nil
+	return false, nil
 }
 
 // ParametersAnnouncementStream defines an interface able to send/receive a stream of parameter announcements.

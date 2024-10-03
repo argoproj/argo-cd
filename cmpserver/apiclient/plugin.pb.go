@@ -318,7 +318,10 @@ func (m *ManifestResponse) GetSourceType() string {
 }
 
 type RepositoryResponse struct {
-	IsSupported          bool     `protobuf:"varint,1,opt,name=isSupported,proto3" json:"isSupported,omitempty"`
+	IsSupported bool `protobuf:"varint,1,opt,name=isSupported,proto3" json:"isSupported,omitempty"`
+	// IsDiscoveryEnabled is a flag that indicates if the CMP supports discovery.
+	//
+	// Deprecated: Use the IsDiscoveryConfigured field from the CheckPluginConfigurationResponse instead.
 	IsDiscoveryEnabled   bool     `protobuf:"varint,2,opt,name=isDiscoveryEnabled,proto3" json:"isDiscoveryEnabled,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`

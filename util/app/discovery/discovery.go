@@ -127,21 +127,21 @@ func DetectConfigManagementPlugin(ctx context.Context, appPath, repoPath, plugin
 // matchRepositoryCMP will send the repoPath to the cmp-server. The cmp-server will
 // inspect the files and return true if the repo is supported for manifest generation.
 // Will return false otherwise.
-func matchRepositoryCMP(ctx context.Context, appPath, repoPath string, client pluginclient.ConfigManagementPluginServiceClient, env []string, tarExcludedGlobs []string) (bool, bool, error) {
+func matchRepositoryCMP(ctx context.Context, appPath, repoPath string, client pluginclient.ConfigManagementPluginServiceClient, env, tarExcludedGlobs []string) (bool, error) {
 	matchRepoStream, err := client.MatchRepository(ctx, grpc_retry.Disable())
 	if err != nil {
-		return false, false, fmt.Errorf("error getting stream client: %w", err)
+		return false, fmt.Errorf("error getting stream client: %w", err)
 	}
 
 	err = cmp.SendRepoStream(ctx, appPath, repoPath, matchRepoStream, env, tarExcludedGlobs)
 	if err != nil {
-		return false, false, fmt.Errorf("error sending stream: %w", err)
+		return false, fmt.Errorf("error sending stream: %w", err)
 	}
 	resp, err := matchRepoStream.CloseAndRecv()
 	if err != nil {
-		return false, false, fmt.Errorf("error receiving stream response: %w", err)
+		return false, fmt.Errorf("error receiving stream response: %w", err)
 	}
-	return resp.GetIsSupported(), resp.GetIsDiscoveryEnabled(), nil
+	return resp.GetIsSupported(), nil
 }
 
 func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fileName string, env []string, tarExcludedGlobs []string, namedPlugin bool) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, bool) {
@@ -172,33 +172,36 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 		log.Errorf("error checking plugin configuration %s, %v", fileName, err)
 		return nil, nil, false
 	}
+	usePlugin := cmpSupportsForClient(ctx, cmpClient, appPath, repoPath, env, tarExcludedGlobs, cfg.IsDiscoveryConfigured, namedPlugin)
+	if !usePlugin {
+		io.Close(conn)
+		return nil, nil, false
+	}
+	return conn, cmpClient, true
+}
 
-	// if discovery is not configured, return the client without further checks
-	if !cfg.IsDiscoveryConfigured {
-		return conn, cmpClient, true
+// cmpSupportsForClient will check if the given plugin should be used for the given repository and plugin client.
+func cmpSupportsForClient(ctx context.Context, cmpClient pluginclient.ConfigManagementPluginServiceClient, appPath string, repoPath string, env []string, tarExcludedGlobs []string, isDiscoveryConfigured bool, namedPlugin bool) bool {
+	if !isDiscoveryConfigured {
+		// if discovery is not configured, return the client without further checks
+		return true
 	}
 
-	isSupported, isDiscoveryEnabled, err := matchRepositoryCMP(ctx, appPath, repoPath, cmpClient, env, tarExcludedGlobs)
+	isSupported, err := matchRepositoryCMP(ctx, appPath, repoPath, cmpClient, env, tarExcludedGlobs)
 	if err != nil {
 		log.WithFields(log.Fields{
 			common.SecurityField:    common.SecurityMedium,
 			common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
 		}).Errorf("repository %s is not the match because %v", repoPath, err)
-		io.Close(conn)
-		return nil, nil, false
+		return false
 	}
 
 	if !isSupported {
-		// if discovery is not set and the plugin name is specified, let app use the plugin
-		if !isDiscoveryEnabled && namedPlugin {
-			return conn, cmpClient, true
-		}
 		log.WithFields(log.Fields{
 			common.SecurityField:    common.SecurityLow,
 			common.SecurityCWEField: common.SecurityCWEMissingReleaseOfFileDescriptor,
-		}).Debugf("Response from socket file %s does not support %v", fileName, repoPath)
-		io.Close(conn)
-		return nil, nil, false
+		}).Debugf("Plugin does not support %v", repoPath)
+		return false
 	}
-	return conn, cmpClient, true
+	return true
 }

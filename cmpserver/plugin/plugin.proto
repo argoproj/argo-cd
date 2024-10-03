@@ -45,6 +45,9 @@ message ManifestResponse {
 
 message RepositoryResponse {
     bool isSupported = 1;
+    // IsDiscoveryEnabled is a flag that indicates if the CMP supports discovery.
+    //
+    // Deprecated: Use the IsDiscoveryConfigured field from the CheckPluginConfigurationResponse instead.
     bool isDiscoveryEnabled = 2;
 }
 
