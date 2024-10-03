@@ -51,7 +51,6 @@ packages:
   github.com/argoproj/argo-cd/v2/util/app/discovery:
     interfaces:
       CMPClientConstructor:
-
   github.com/argoproj/argo-cd/v2/util/db:
     interfaces:
       ArgoDB:
