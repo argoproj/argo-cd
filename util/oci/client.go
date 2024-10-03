@@ -76,7 +76,7 @@ func WithIndexCache(indexCache indexCache) ClientOpts {
 	}
 }
 
-func WithChartPaths(repoCachePaths argoio.TempPaths) ClientOpts {
+func WithImagePaths(repoCachePaths argoio.TempPaths) ClientOpts {
 	return func(c *nativeOCIClient) {
 		c.repoCachePaths = repoCachePaths
 	}

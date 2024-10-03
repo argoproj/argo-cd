@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/util/io/files"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -23,6 +22,7 @@ import (
 	"oras.land/oras-go/v2/content/memory"
 
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/io/files"
 )
 
 type layerConf struct {
@@ -179,9 +179,11 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 					require.Len(t, chartDir, 1)
 					require.Equal(t, "chart.tar.gz", chartDir[0].Name())
 					tarBall, err := os.Open(filepath.Join(path, chartDir[0].Name()))
+					require.NoError(t, err)
 					err = files.Untgz(tempDir, tarBall, math.MaxInt64, false)
 					require.NoError(t, err)
 					unpacked, err := os.ReadDir(tempDir)
+					require.NoError(t, err)
 					require.Len(t, unpacked, 1)
 					require.Equal(t, "Chart.yaml", unpacked[0].Name())
 					chartYaml, err := os.Open(filepath.Join(tempDir, unpacked[0].Name()))
@@ -233,7 +235,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				disableManifestMaxExtractedSize: false,
 				postValidationFunc: func(sha string, _ string, _ Client, fields fields, args args) {
 					store := memory.New()
-					c := newClientWithLock(fields.repoURL, fields.creds, globalLock, store, fields.tagsFunc, fields.allowedMediaTypes, WithChartPaths(cacheDir))
+					c := newClientWithLock(fields.repoURL, fields.creds, globalLock, store, fields.tagsFunc, fields.allowedMediaTypes, WithImagePaths(cacheDir))
 					_, gotCloser, err := c.Extract(context.Background(), sha, args.project, args.manifestMaxExtractedSize, args.disableManifestMaxExtractedSize)
 					require.NoError(t, err)
 					require.NoError(t, gotCloser.Close())
@@ -254,7 +256,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				disableManifestMaxExtractedSize: false,
 				postValidationFunc: func(sha string, _ string, _ Client, fields fields, args args) {
 					store := memory.New()
-					c := newClientWithLock(fields.repoURL, fields.creds, globalLock, store, fields.tagsFunc, fields.allowedMediaTypes, WithChartPaths(cacheDir))
+					c := newClientWithLock(fields.repoURL, fields.creds, globalLock, store, fields.tagsFunc, fields.allowedMediaTypes, WithImagePaths(cacheDir))
 					_, _, err := c.Extract(context.Background(), sha, "non-existent-project", args.manifestMaxExtractedSize, args.disableManifestMaxExtractedSize)
 					require.Error(t, err)
 					require.Equal(t, fmt.Errorf("not found"), err)
@@ -271,7 +273,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				tt.args.project = tt.name
 			}
 
-			c := newClientWithLock(tt.fields.repoURL, tt.fields.creds, globalLock, store, tt.fields.tagsFunc, tt.fields.allowedMediaTypes, WithChartPaths(cacheDir))
+			c := newClientWithLock(tt.fields.repoURL, tt.fields.creds, globalLock, store, tt.fields.tagsFunc, tt.fields.allowedMediaTypes, WithImagePaths(cacheDir))
 			path, gotCloser, err := c.Extract(context.Background(), sha, tt.args.project, tt.args.manifestMaxExtractedSize, tt.args.disableManifestMaxExtractedSize)
 
 			if tt.expectedError != nil {
