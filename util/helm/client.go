@@ -18,14 +18,14 @@ import (
 	"strings"
 	"time"
 
-	executil "github.com/argoproj/argo-cd/v2/util/exec"
-
 	"github.com/argoproj/pkg/sync"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
 	"oras.land/oras-go/v2/registry/remote/credentials"
+
+	executil "github.com/argoproj/argo-cd/v2/util/exec"
 
 	"github.com/argoproj/argo-cd/v2/util/cache"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
@@ -58,7 +58,7 @@ type Client interface {
 	CleanChartCache(chart string, version string, project string) error
 	ExtractChart(chart string, version string, project string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error)
 	GetIndex(noCache bool, maxIndexSize int64) (*Index, error)
-	GetTags(chart string, noCache bool) (*TagsList, error)
+	GetTags(chart string, noCache bool) ([]string, error)
 	TestHelmOCI() (bool, error)
 }
 
@@ -414,7 +414,11 @@ func getIndexURL(rawURL string) (string, error) {
 	return repoURL.String(), nil
 }
 
-func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error) {
+type TagsList struct {
+	Tags []string
+}
+
+func (c *nativeHelmChart) GetTags(chart string, noCache bool) ([]string, error) {
 	if !c.enableOci {
 		return nil, OCINotEnabledErr
 	}
@@ -496,5 +500,5 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) (*TagsList, error)
 		}
 	}
 
-	return tags, nil
+	return tags.Tags, nil
 }

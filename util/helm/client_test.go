@@ -57,7 +57,7 @@ func TestIndex(t *testing.T) {
 	})
 
 	t.Run("Cached", func(t *testing.T) {
-		fakeIndex := Index{Entries: map[string]Entries{"fake": {}}}
+		fakeIndex := Index{Tags: map[string]TagsList{"fake": {Tags: []string{}}}}
 		data := bytes.Buffer{}
 		err := yaml.NewEncoder(&data).Encode(fakeIndex)
 		require.NoError(t, err)
@@ -195,7 +195,7 @@ func TestGetTagsFromUrl(t *testing.T) {
 
 		tags, err := client.GetTags("mychart", true)
 		require.NoError(t, err)
-		assert.ElementsMatch(t, tags.Tags, []string{
+		assert.ElementsMatch(t, tags, []string{
 			"first",
 			"second",
 			"2.8.0",
@@ -286,7 +286,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 			tags, err := client.GetTags("mychart", true)
 
 			require.NoError(t, err)
-			assert.ElementsMatch(t, tags.Tags, []string{
+			assert.ElementsMatch(t, tags, []string{
 				"2.8.0",
 				"2.8.0-prerelease",
 				"2.8.0+build",
@@ -372,7 +372,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 			tags, err := client.GetTags("mychart", true)
 
 			require.NoError(t, err)
-			assert.ElementsMatch(t, tags.Tags, []string{
+			assert.ElementsMatch(t, tags, []string{
 				"2.8.0",
 				"2.8.0-prerelease",
 				"2.8.0+build",

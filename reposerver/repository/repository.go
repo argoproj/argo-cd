@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/TomOnTime/utfutil"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	textutils "github.com/argoproj/gitops-engine/pkg/utils/text"
@@ -61,6 +60,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/kustomize"
 	"github.com/argoproj/argo-cd/v2/util/manifeststream"
 	"github.com/argoproj/argo-cd/v2/util/text"
+	"github.com/argoproj/argo-cd/v2/util/versions"
 )
 
 const (
@@ -2420,39 +2420,34 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, noRevisionCache bool) (helm.Client, string, error) {
 	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
 	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), enableOCI, repo.Proxy, repo.NoProxy, helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths))
-	if helm.IsVersion(revision) {
+	if versions.IsVersion(revision) {
 		return helmClient, revision, nil
 	}
-	constraints, err := semver.NewConstraint(revision)
-	if err != nil {
-		return nil, "", fmt.Errorf("invalid revision '%s': %w", revision, err)
-	}
 
+	var tags []string
 	if enableOCI {
-		tags, err := helmClient.GetTags(chart, noRevisionCache)
+		var err error
+		tags, err = helmClient.GetTags(chart, noRevisionCache)
 		if err != nil {
 			return nil, "", fmt.Errorf("unable to get tags: %w", err)
 		}
 
-		version, err := tags.MaxVersion(constraints)
+	} else {
+		index, err := helmClient.GetIndex(noRevisionCache, s.initConstants.HelmRegistryMaxIndexSize)
 		if err != nil {
-			return nil, "", fmt.Errorf("no version for constraints: %w", err)
+			return nil, "", err
 		}
-		return helmClient, version.String(), nil
+		tags, err = index.GetTags(chart)
+		if err != nil {
+			return nil, "", err
+		}
 	}
 
-	index, err := helmClient.GetIndex(noRevisionCache, s.initConstants.HelmRegistryMaxIndexSize)
+	version, err := versions.MaxVersion(revision, tags)
 	if err != nil {
-		return nil, "", err
+		return nil, "", fmt.Errorf("no version for constraints: %w", err)
 	}
-	entries, err := index.GetEntries(chart)
-	if err != nil {
-		return nil, "", err
-	}
-	version, err := entries.MaxVersion(constraints)
-	if err != nil {
-		return nil, "", err
-	}
+
 	return helmClient, version.String(), nil
 }
 
@@ -2537,12 +2532,12 @@ func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequ
 		return nil, err
 	}
 	res := apiclient.HelmChartsResponse{}
-	for chartName, entries := range index.Entries {
+	for chartName, entries := range index.Tags {
 		chart := apiclient.HelmChart{
 			Name: chartName,
 		}
-		for _, entry := range entries {
-			chart.Versions = append(chart.Versions, entry.Version)
+		for _, version := range entries.Tags {
+			chart.Versions = append(chart.Versions, version)
 		}
 		res.Items = append(res.Items, &chart)
 	}
