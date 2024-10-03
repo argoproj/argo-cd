@@ -218,4 +218,5 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		assert.ElementsMatch(t, expectedJSONPointers, actual.JSONPointers)
 		assert.ElementsMatch(t, expectedJQPath, actual.JQPathExpressions)
 	})
+
 }

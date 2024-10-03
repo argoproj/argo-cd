@@ -1,9 +1,0 @@
-tests:
-- healthStatus:
-    status: Healthy
-    message: "JobComplete Success"
-  inputPath: testdata/sqljobs-ok.yaml
-- healthStatus:
-    status: Degraded
-    message: "JobFailed Failed"
-  inputPath: testdata/sqljobs-failed.yaml

@@ -3,6 +3,7 @@ package e2e
 import (
 	"fmt"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -152,7 +153,7 @@ func TestClusterListDenied(t *testing.T) {
 		List().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Equal(t, "SERVER  NAME  VERSION  STATUS  MESSAGE  PROJECT", output)
+			assert.Equal(t, output, "SERVER  NAME  VERSION  STATUS  MESSAGE  PROJECT")
 		})
 }
 
@@ -170,8 +171,8 @@ func TestClusterSet(t *testing.T) {
 		GetByName("in-cluster").
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, output, "namespace-edit-1")
-			assert.Contains(t, output, "namespace-edit-2")
+			assert.True(t, strings.Contains(output, "namespace-edit-1"))
+			assert.True(t, strings.Contains(output, "namespace-edit-2"))
 		})
 }
 
@@ -198,7 +199,7 @@ func TestClusterNameInRestAPI(t *testing.T) {
 	err := DoHttpJsonRequest("GET", "/api/v1/clusters/in-cluster?id.type=name", &cluster)
 	require.NoError(t, err)
 
-	assert.Equal(t, "in-cluster", cluster.Name)
+	assert.Equal(t, cluster.Name, "in-cluster")
 	assert.Contains(t, cluster.Server, "https://kubernetes.default.svc")
 
 	err = DoHttpJsonRequest("PUT",
@@ -216,7 +217,7 @@ func TestClusterURLInRestAPI(t *testing.T) {
 	err := DoHttpJsonRequest("GET", fmt.Sprintf("/api/v1/clusters/%s", clusterURL), &cluster)
 	require.NoError(t, err)
 
-	assert.Equal(t, "in-cluster", cluster.Name)
+	assert.Equal(t, cluster.Name, "in-cluster")
 	assert.Contains(t, cluster.Server, "https://kubernetes.default.svc")
 
 	err = DoHttpJsonRequest("PUT",

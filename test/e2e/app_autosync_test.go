@@ -90,6 +90,7 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			assert.Empty(t, app.Status.Conditions)
+			assert.Len(t, app.Status.Conditions, 0)
 		})
+
 }
