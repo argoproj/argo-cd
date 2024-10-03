@@ -2767,11 +2767,11 @@ type KustomizeOptions struct {
 // ApplicationDestinationServiceAccount holds information about the service account to be impersonated for the application sync operation.
 type ApplicationDestinationServiceAccount struct {
 	// Server specifies the URL of the target cluster's Kubernetes control plane API.
-	Server string `json:"server,omitempty" protobuf:"bytes,1,opt,name=server"`
+	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
 	// Namespace specifies the target namespace for the application's resources.
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
-	// ServiceAccountName to be used for impersonation during the sync operation
-	DefaultServiceAccount string `json:"defaultServiceAccount,omitempty" protobuf:"bytes,3,opt,name=defaultServiceAccount"`
+	// DefaultServiceAccount to be used for impersonation during the sync operation
+	DefaultServiceAccount string `json:"defaultServiceAccount" protobuf:"bytes,3,opt,name=defaultServiceAccount"`
 }
 
 // CascadedDeletion indicates if the deletion finalizer is set and controller should delete the application and it's cascaded resources
@@ -3278,4 +3278,16 @@ func (a *Application) QualifiedName() string {
 // in a backwards-compatible way.
 func (a *Application) RBACName(defaultNS string) string {
 	return security.RBACName(defaultNS, a.Spec.GetProject(), a.Namespace, a.Name)
+}
+
+// GetAnnotation returns the value of the specified annotation if it exists,
+// e.g., a.GetAnnotation("argocd.argoproj.io/manifest-generate-paths").
+// If the annotation does not exist, it returns an empty string.
+func (a *Application) GetAnnotation(annotation string) string {
+	v, exists := a.Annotations[annotation]
+	if !exists {
+		return ""
+	}
+
+	return v
 }
