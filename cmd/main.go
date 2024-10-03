@@ -74,9 +74,9 @@ func setAutoMaxProcs(binaryName string) {
 	if isCLI {
 		_, _ = maxprocs.Set() // Intentionally ignore errors for CLI binaries
 	} else {
-		_, err := maxprocs.Set(maxprocs.Logger(log.Debugf))
+		_, err := maxprocs.Set(maxprocs.Logger(log.Infof))
 		if err != nil {
-			log.Infof("Error setting GOMAXPROCS: %v", err)
+			log.Errorf("Error setting GOMAXPROCS: %v", err)
 		}
 	}
 }
