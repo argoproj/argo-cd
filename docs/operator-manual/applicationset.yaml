@@ -158,10 +158,10 @@ spec:
     applicationsSync: create-only
 
     # Prevents ApplicationSet controller from deleting Applications. Update is allowed
-  # applicationsSync: create-update
+    # applicationsSync: create-update
 
     # Prevents ApplicationSet controller from modifying Applications. Delete is allowed.
-  # applicationsSync: create-delete
+    # applicationsSync: create-delete
 
     syncOptions:
     - CreateNamespace=true
@@ -169,10 +169,8 @@ spec:
     preserveResourcesOnDeletion: true
 
   strategy:
-  # This field lets you define fields which should be ignored when applying Application resources. This is helpful if you
-  # want to use ApplicationSets to create apps, but also want to allow users to modify those apps without having their
-  # changes overwritten by the ApplicationSet.
-     # This update strategy allows you to group Applications by labels present on the generated Application resources
+     # The RollingSync update strategy allows you to group Applications by labels present on the generated Application resources
+     # See documentation for "Progressive Syncs"
      type: RollingSync
      rollingSync:
       steps:
