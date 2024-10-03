@@ -168,13 +168,6 @@ spec:
     # Prevent an Application's child resources from being deleted, when the parent Application is deleted
     preserveResourcesOnDeletion: true
 
-    ignoreApplicationDifferences:
-    - jsonPointers:
-        - /spec/source/targetRevision
-    - name: some-app
-      jqExpressions:
-        - .spec.source.helm.values
-
   strategy:
   # This field lets you define fields which should be ignored when applying Application resources. This is helpful if you
   # want to use ApplicationSets to create apps, but also want to allow users to modify those apps without having their
