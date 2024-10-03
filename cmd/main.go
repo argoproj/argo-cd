@@ -1,10 +1,12 @@
 package main
 
 import (
-	log "github.com/sirupsen/logrus"
-	"go.uber.org/automaxprocs/maxprocs"
 	"os"
 	"path/filepath"
+
+
+	log "github.com/sirupsen/logrus"
+	"go.uber.org/automaxprocs/maxprocs"
 
 	"github.com/spf13/cobra"
 
