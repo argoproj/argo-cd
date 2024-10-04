@@ -818,6 +818,12 @@ return hs`
 		},
 	}
 
+	getBaseWildcardHealthOverrides := ResourceHealthOverrides{
+		"*/*": appv1.ResourceOverride{
+			HealthLua: "",
+		},
+	}
+
 	t.Run("Enable Lua standard lib", func(t *testing.T) {
 		testObj := StrToUnstructured(testSA)
 		overrides := getHealthOverride(true)
@@ -858,6 +864,14 @@ return hs`
 		require.NoError(t, err)
 		expectedStatus := &health.HealthStatus{Status: "Unknown", Message: "Lua returned an invalid health status"}
 		assert.Equal(t, expectedStatus, status)
+	})
+
+	t.Run("Get resource health for */* override with empty health.lua", func(t *testing.T) {
+		testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
+		overrides := getBaseWildcardHealthOverrides
+		status, err := overrides.GetResourceHealth(testObj)
+		require.NoError(t, err)
+		assert.Nil(t, status)
 	})
 
 	t.Run("Resource health for wildcard override not found", func(t *testing.T) {
