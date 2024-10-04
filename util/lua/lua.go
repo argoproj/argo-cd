@@ -429,12 +429,18 @@ func GetConfigMapKey(gvk schema.GroupVersionKind) string {
 func GetWildcardConfigMapKey(vm VM, gvk schema.GroupVersionKind) string {
 	gvkKeyToMatch := GetConfigMapKey(gvk)
 
-	for key := range vm.ResourceOverrides {
+	matchedKey := ""
+	var resourceOverride *appv1.ResourceOverride
+
+	for key, value := range vm.ResourceOverrides {
 		if glob.Match(key, gvkKeyToMatch) {
-			return key
+			if resourceOverride == nil || (value.Priority > resourceOverride.Priority) {
+				resourceOverride = &value
+				matchedKey = key
+			}
 		}
 	}
-	return ""
+	return matchedKey
 }
 
 func (vm VM) getPredefinedLuaScripts(objKey string, scriptFile string) (string, error) {

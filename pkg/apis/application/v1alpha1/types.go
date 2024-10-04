@@ -2083,6 +2083,7 @@ type rawResourceOverride struct {
 	IgnoreDifferences     string           `json:"ignoreDifferences,omitempty"`
 	IgnoreResourceUpdates string           `json:"ignoreResourceUpdates,omitempty"`
 	KnownTypeFields       []KnownTypeField `json:"knownTypeFields,omitempty"`
+	Priority              int32            `json:"priority,omitempty"`
 }
 
 // ResourceOverride holds configuration to customize resource diffing and health assessment
@@ -2094,6 +2095,7 @@ type ResourceOverride struct {
 	IgnoreDifferences     OverrideIgnoreDiff `protobuf:"bytes,2,opt,name=ignoreDifferences"`
 	IgnoreResourceUpdates OverrideIgnoreDiff `protobuf:"bytes,6,opt,name=ignoreResourceUpdates"`
 	KnownTypeFields       []KnownTypeField   `protobuf:"bytes,4,opt,name=knownTypeFields"`
+	Priority              int32              `protobuf:"bytes,7,opt,name=priority"`
 }
 
 // TODO: describe this method
@@ -2106,6 +2108,7 @@ func (s *ResourceOverride) UnmarshalJSON(data []byte) error {
 	s.HealthLua = raw.HealthLua
 	s.UseOpenLibs = raw.UseOpenLibs
 	s.Actions = raw.Actions
+	s.Priority = raw.Priority
 	err := yaml.Unmarshal([]byte(raw.IgnoreDifferences), &s.IgnoreDifferences)
 	if err != nil {
 		return err
@@ -2127,7 +2130,7 @@ func (s ResourceOverride) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	raw := &rawResourceOverride{s.HealthLua, s.UseOpenLibs, s.Actions, string(ignoreDifferencesData), string(ignoreResourceUpdatesData), s.KnownTypeFields}
+	raw := &rawResourceOverride{s.HealthLua, s.UseOpenLibs, s.Actions, string(ignoreDifferencesData), string(ignoreResourceUpdatesData), s.KnownTypeFields, s.Priority}
 	return json.Marshal(raw)
 }
 

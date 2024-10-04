@@ -1883,6 +1883,8 @@ message ResourceOverride {
   optional OverrideIgnoreDiff ignoreResourceUpdates = 6;
 
   repeated KnownTypeField knownTypeFields = 4;
+
+  optional int32 priority = 7;
 }
 
 // ResourceRef includes fields which uniquely identify a resource

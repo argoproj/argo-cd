@@ -8706,6 +8706,10 @@
             "$ref": "#/definitions/v1alpha1KnownTypeField"
           }
         },
+        "priority": {
+          "type": "integer",
+          "format": "int32"
+        },
         "useOpenLibs": {
           "type": "boolean"
         }

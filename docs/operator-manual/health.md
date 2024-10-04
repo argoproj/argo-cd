@@ -98,20 +98,42 @@ data:
     return hs
 ```
 
-In order to prevent duplication of the custom health check for potentially multiple resources, it is also possible to specify a wildcard in the resource kind, and anywhere in the resource group, like this:
+In order to prevent duplication of custom health checks for potentially multiple resources, it is also possible to 
+specify a wildcard in the resource kind, and anywhere in the resource group, like this:
 
 ```yaml
-  resource.customizations.health.ec2.aws.crossplane.io_*: |
-    ...
+  resource.customizations: |
+    ec2.aws.crossplane.io/*:
+      health.lua: |
+        ...
 ```
 
 ```yaml
-  resource.customizations.health.*.aws.crossplane.io_*: |
-    ...
+  # If a key _begins_ with a wildcard, please ensure that the GVK key is quoted.
+  resource.customizations: |
+    "*.aws.crossplane.io/*":
+      health.lua: |
+        ...
 ```
 
 !!!important
-    Please, note that there can be ambiguous resolution of wildcards, see [#16905](https://github.com/argoproj/argo-cd/issues/16905)
+    Please, note that wildcards are only supported when using the `resource.customizations` key, the `resource.customizations.health.<group>_<kind>`
+    style keys do not work since wildcards (`*`) are not supported in Kubernetes configmap keys.
+
+Note that there can be an ambiguous resolution of wildcard health checks if two or more of them potentially matches with 
+a given resource. To amend that, a priority can be specified on a resource customization - the higher the priority, the
+higher the precedence of the health check.
+
+```yaml
+  resource.customizations: |
+    ec2.aws.crossplane.io/*:
+      priority: 5
+      health.lua: |
+        ...
+```
+
+The priority is only relevant for health checks, and can only be defined when using the `resource.customizations` format
+since it only makes sense when used with wildcards. 
 
 The `obj` is a global variable which contains the resource. The script must return an object with status and optional message field.
 The custom health check might return one of the following health statuses:
@@ -121,7 +143,7 @@ The custom health check might return one of the following health statuses:
   * `Degraded` - the resource is degraded
   * `Suspended` - the resource is suspended and waiting for some external event to resume (e.g. suspended CronJob or paused Deployment)
 
-By default health typically returns `Progressing` status.
+By default, health typically returns a `Progressing` status.
 
 NOTE: As a security measure, access to the standard Lua libraries will be disabled by default. Admins can control access by
 setting `resource.customizations.useOpenLibs.<group>_<kind>`. In the following example, standard libraries are enabled for health check of `cert-manager.io/Certificate`.
