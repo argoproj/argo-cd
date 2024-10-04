@@ -35,10 +35,10 @@ func Discover(ctx context.Context, appPath, repoPath string, enableGenerateManif
 	apps := make(map[string]string)
 
 	// Check if it is CMP
-	conn, _, err := DetectConfigManagementPlugin(ctx, appPath, repoPath, "", env, tarExcludedGlobs)
+	_, closer, err := DetectConfigManagementPlugin(ctx, appPath, repoPath, "", env, tarExcludedGlobs)
 	if err == nil {
 		// Found CMP
-		io.Close(conn)
+		io.Close(closer)
 
 		apps["."] = string(v1alpha1.ApplicationSourceTypePlugin)
 		return apps, nil
@@ -79,9 +79,12 @@ func AppType(ctx context.Context, appPath, repoPath string, enableGenerateManife
 	return "Directory", nil
 }
 
-func DetectConfigManagementPlugin(ctx context.Context, appPath, repoPath, pluginName string, env []string, tarExcludedGlobs []string) (io.Closer, pluginclient.ConfigManagementPluginServiceClient, error) {
-	var conn io.Closer
+// DetectConfigManagementPlugin will return a client for the CMP plugin if a plugin is found supporting the given
+// repository. It will also return a closer for the connection. If a compatible plugin is not found, it wil return an
+// error.
+func DetectConfigManagementPlugin(ctx context.Context, appPath, repoPath, pluginName string, env, tarExcludedGlobs []string) (pluginclient.ConfigManagementPluginServiceClient, io.Closer, error) {
 	var cmpClient pluginclient.ConfigManagementPluginServiceClient
+	var closer io.Closer
 
 	pluginSockFilePath := common.GetPluginSockFilePath()
 	log.WithFields(log.Fields{
@@ -91,7 +94,7 @@ func DetectConfigManagementPlugin(ctx context.Context, appPath, repoPath, plugin
 
 	if pluginName != "" {
 		c := newSocketCMPClientConstructorForPluginName(pluginSockFilePath, pluginName)
-		cmpClient, conn = namedCMPSupports(ctx, c, appPath, repoPath, env, tarExcludedGlobs)
+		cmpClient, closer = namedCMPSupports(ctx, c, appPath, repoPath, env, tarExcludedGlobs)
 		if cmpClient == nil {
 			return nil, nil, fmt.Errorf("couldn't find cmp-server plugin with name %q supporting the given repository", pluginName)
 		}
@@ -103,7 +106,7 @@ func DetectConfigManagementPlugin(ctx context.Context, appPath, repoPath, plugin
 		for _, file := range fileList {
 			if file.Type() == os.ModeSocket {
 				c := newSocketCMPClientConstructorForPath(pluginSockFilePath, file.Name())
-				cmpClient, conn = unnamedCMPSupports(ctx, c, appPath, repoPath, env, tarExcludedGlobs)
+				cmpClient, closer = unnamedCMPSupports(ctx, c, appPath, repoPath, env, tarExcludedGlobs)
 				if cmpClient != nil {
 					break
 				}
@@ -113,13 +116,13 @@ func DetectConfigManagementPlugin(ctx context.Context, appPath, repoPath, plugin
 			return nil, nil, fmt.Errorf("could not find plugin supporting the given repository")
 		}
 	}
-	return conn, cmpClient, nil
+	return cmpClient, closer, nil
 }
 
 // namedCMPSupports will return a client for the named plugin if it supports the given repository. It will also return
 // a closer for the connection.
 func namedCMPSupports(ctx context.Context, c CMPClientConstructor, appPath, repoPath string, env, tarExcludedGlobs []string) (pluginclient.ConfigManagementPluginServiceClient, io.Closer) {
-	cmpClient, closer, isDiscoveryConfigured, err := getClientForFilepath(ctx, c)
+	cmpClient, closer, isDiscoveryConfigured, err := getClientAndConfig(ctx, c)
 	if err != nil {
 		log.Errorf("error getting client for plugin: %v", err)
 		return nil, nil
@@ -139,7 +142,7 @@ func namedCMPSupports(ctx context.Context, c CMPClientConstructor, appPath, repo
 // unnamedCMPSupports will return a client if the plugin supports the given repository. It will also return a closer for
 // the connection.
 func unnamedCMPSupports(ctx context.Context, c CMPClientConstructor, appPath, repoPath string, env, tarExcludedGlobs []string) (pluginclient.ConfigManagementPluginServiceClient, io.Closer) {
-	cmpClient, closer, isDiscoveryConfigured, err := getClientForFilepath(ctx, c)
+	cmpClient, closer, isDiscoveryConfigured, err := getClientAndConfig(ctx, c)
 	if err != nil {
 		log.Errorf("error getting client for plugin: %v", err)
 		return nil, nil
@@ -169,7 +172,7 @@ type socketCMPClientConstructor struct {
 }
 
 // newSocketCMPClientConstructorForPath returns a new socketCMPClientConstructor.
-func newSocketCMPClientConstructorForPath(pluginSockFilePath, filename string) CMPClientConstructor {
+func newSocketCMPClientConstructorForPath(pluginSockFilePath, filename string) socketCMPClientConstructor {
 	return socketCMPClientConstructor{
 		pluginSockFilePath: pluginSockFilePath,
 		filename:           filename,
@@ -177,7 +180,7 @@ func newSocketCMPClientConstructorForPath(pluginSockFilePath, filename string) C
 }
 
 // newSocketCMPClientConstructorForPluginName returns a new socketCMPClientConstructor for the given plugin name.
-func newSocketCMPClientConstructorForPluginName(pluginSockFilePath, pluginName string) CMPClientConstructor {
+func newSocketCMPClientConstructorForPluginName(pluginSockFilePath, pluginName string) socketCMPClientConstructor {
 	return newSocketCMPClientConstructorForPath(pluginSockFilePath, pluginName+".sock")
 }
 
@@ -199,9 +202,9 @@ func (c socketCMPClientConstructor) NewConfigManagementPluginClient() (plugincli
 	return cmpClient, conn, nil
 }
 
-// getClientForFilepath returns a client for the given filepath. It also returns a closer for the connection and
+// getClientAndConfig returns a client for the given filepath. It also returns a closer for the connection and
 // a boolean indicating if the plugin has discovery configured.
-func getClientForFilepath(ctx context.Context, c CMPClientConstructor) (pluginclient.ConfigManagementPluginServiceClient, io.Closer, bool, error) {
+func getClientAndConfig(ctx context.Context, c CMPClientConstructor) (pluginclient.ConfigManagementPluginServiceClient, io.Closer, bool, error) {
 	cmpClient, closer, err := c.NewConfigManagementPluginClient()
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("error getting client for plugin: %w", err)
@@ -213,7 +216,7 @@ func getClientForFilepath(ctx context.Context, c CMPClientConstructor) (plugincl
 	return cmpClient, closer, cfg.IsDiscoveryConfigured, nil
 }
 
-// matchRepositoryCMP will send the repoPath to the cmp-server. The cmp-server will
+// cmpSupportsForClient will send the repoPath to the cmp-server. The cmp-server will
 // inspect the files and return true if the repo is supported for manifest generation.
 // Will return false otherwise.
 func cmpSupportsForClient(ctx context.Context, cmpClient pluginclient.ConfigManagementPluginServiceClient, appPath string, repoPath string, env []string, tarExcludedGlobs []string) bool {
