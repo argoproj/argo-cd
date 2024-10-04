@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -31,10 +32,10 @@ func TestCreateRepositoryWithProject(t *testing.T) {
 		Then().
 		And(func(r *Repository, err error) {
 			assert.Equal(t, r.Repo, path)
-			assert.Equal(t, "argo-project", r.Project)
+			assert.Equal(t, r.Project, "argo-project")
 
 			prjConsequence.And(func(projectResponse *project.DetailedProjectsResponse, err error) {
-				assert.Len(t, projectResponse.Repositories, 1)
+				assert.Equal(t, len(projectResponse.Repositories), 1)
 				assert.Equal(t, projectResponse.Repositories[0].Repo, path)
 			})
 		})
@@ -56,7 +57,7 @@ func TestCreateRepositoryNonAdminUserPermissionDenied(t *testing.T) {
 		Create().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied: repositories, create")
+			assert.True(t, strings.Contains(err.Error(), "PermissionDenied desc = permission denied: repositories, create"))
 		})
 }
 
@@ -83,7 +84,7 @@ func TestCreateRepositoryNonAdminUserWithWrongProject(t *testing.T) {
 		Create().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied: repositories, create")
+			assert.True(t, strings.Contains(err.Error(), "PermissionDenied desc = permission denied: repositories, create"))
 		})
 }
 
@@ -120,13 +121,13 @@ func TestDeleteRepositoryRbacAllowed(t *testing.T) {
 		Then().
 		And(func(r *Repository, err error) {
 			assert.Equal(t, r.Repo, path)
-			assert.Equal(t, "argo-project", r.Project)
+			assert.Equal(t, r.Project, "argo-project")
 		}).
 		When().
 		Delete().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, output, "Repository 'https://github.com/argoproj/argo-cd.git' removed")
+			assert.True(t, strings.Contains(output, "Repository 'https://github.com/argoproj/argo-cd.git' removed"))
 		})
 }
 
@@ -163,14 +164,14 @@ func TestDeleteRepositoryRbacDenied(t *testing.T) {
 		Then().
 		And(func(r *Repository, err error) {
 			assert.Equal(t, r.Repo, path)
-			assert.Equal(t, "argo-project", r.Project)
+			assert.Equal(t, r.Project, "argo-project")
 		}).
 		When().
 		IgnoreErrors().
 		Delete().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied: repositories, delete")
+			assert.True(t, strings.Contains(err.Error(), "PermissionDenied desc = permission denied: repositories, delete"))
 		})
 }
 
@@ -189,8 +190,9 @@ func TestDeleteRepository(t *testing.T) {
 		Delete().
 		Then().
 		And(func(r *Repository, err error) {
-			assert.Equal(t, "repo not found", err.Error())
+			assert.Equal(t, err.Error(), "repo not found")
 		})
+
 }
 
 func TestListRepoCLIOutput(t *testing.T) {

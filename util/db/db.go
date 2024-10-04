@@ -10,12 +10,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/argoproj/argo-cd/v2/common"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	log "github.com/sirupsen/logrus"
 )
 
 // SecretMaperValidation determine whether the secret should be transformed(i.e. trailing CRLF characters trimmed)
@@ -51,32 +50,32 @@ type ArgoDB interface {
 	// CreateRepository creates a repository
 	CreateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// GetRepository returns a repository by URL
-	GetRepository(ctx context.Context, url, project string) (*appv1.Repository, error)
+	GetRepository(ctx context.Context, url string) (*appv1.Repository, error)
 	// GetProjectRepositories returns project scoped repositories by given project name
 	GetProjectRepositories(ctx context.Context, project string) ([]*appv1.Repository, error)
 	// RepositoryExists returns whether a repository is configured for the given URL
-	RepositoryExists(ctx context.Context, repoURL, project string) (bool, error)
+	RepositoryExists(ctx context.Context, repoURL string) (bool, error)
 	// UpdateRepository updates a repository
 	UpdateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// DeleteRepository deletes a repository from config
-	DeleteRepository(ctx context.Context, name, project string) error
+	DeleteRepository(ctx context.Context, name string) error
 
-	// ListRepositoryCredentials list all repo credential sets URL patterns
+	// ListRepoCredentials list all repo credential sets URL patterns
 	ListRepositoryCredentials(ctx context.Context) ([]string, error)
-	// GetRepositoryCredentials gets repo credentials for given URL
+	// GetRepoCredentials gets repo credentials for given URL
 	GetRepositoryCredentials(ctx context.Context, name string) (*appv1.RepoCreds, error)
-	// CreateRepositoryCredentials creates a repository credential set
+	// CreateRepoCredentials creates a repository credential set
 	CreateRepositoryCredentials(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error)
-	// UpdateRepositoryCredentials updates a repository credential set
+	// UpdateRepoCredentials updates a repository credential set
 	UpdateRepositoryCredentials(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error)
-	// DeleteRepositoryCredentials deletes a repository credential set from config
+	// DeleteRepoCredentials deletes a repository credential set from config
 	DeleteRepositoryCredentials(ctx context.Context, name string) error
 
 	// ListRepoCertificates lists all configured certificates
 	ListRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
 	// CreateRepoCertificate creates a new certificate entry
 	CreateRepoCertificate(ctx context.Context, certificate *appv1.RepositoryCertificateList, upsert bool) (*appv1.RepositoryCertificateList, error)
-	// RemoveRepoCertificates removes certificates based upon a selector
+	// CreateRepoCertificate creates a new certificate entry
 	RemoveRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
 	// GetAllHelmRepositoryCredentials gets all repo credentials
 	GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appv1.RepoCreds, error)
@@ -86,7 +85,7 @@ type ArgoDB interface {
 
 	// ListConfiguredGPGPublicKeys returns all GPG public key IDs that are configured
 	ListConfiguredGPGPublicKeys(ctx context.Context) (map[string]*appv1.GnuPGPublicKey, error)
-	// AddGPGPublicKey adds one or more GPG public keys to the configuration
+	// AddGPGPublicKey adds one ore more GPG public keys to the configuration
 	AddGPGPublicKey(ctx context.Context, keyData string) (map[string]*appv1.GnuPGPublicKey, []string, error)
 	// DeleteGPGPublicKey removes a GPG public key from the configuration
 	DeleteGPGPublicKey(ctx context.Context, keyID string) error

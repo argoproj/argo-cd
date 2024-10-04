@@ -45,6 +45,7 @@ func Tgz(srcPath string, inclusions []string, exclusions []string, writers ...io
 		tarWriter:  tw,
 	}
 	err := filepath.Walk(srcPath, t.tgzFile)
+
 	if err != nil {
 		return 0, err
 	}
@@ -91,7 +92,7 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 
 		switch header.Typeflag {
 		case tar.TypeDir:
-			var mode os.FileMode = 0o755
+			var mode os.FileMode = 0755
 			if preserveFileMode {
 				mode = os.FileMode(header.Mode)
 			}
@@ -106,22 +107,22 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 			if os.IsNotExist(err) {
 				realPath = linkTarget
 			} else if err != nil {
-				return fmt.Errorf("error checking symlink realpath: %w", err)
+				return fmt.Errorf("error checking symlink realpath: %s", err)
 			}
 			if !Inbound(realPath, dstPath) {
 				return fmt.Errorf("illegal filepath in symlink: %s", linkTarget)
 			}
 			err = os.Symlink(realPath, target)
 			if err != nil {
-				return fmt.Errorf("error creating symlink: %w", err)
+				return fmt.Errorf("error creating symlink: %s", err)
 			}
 		case tar.TypeReg:
-			var mode os.FileMode = 0o644
+			var mode os.FileMode = 0644
 			if preserveFileMode {
 				mode = os.FileMode(header.Mode)
 			}
 
-			err := os.MkdirAll(filepath.Dir(target), 0o755)
+			err := os.MkdirAll(filepath.Dir(target), 0755)
 			if err != nil {
 				return fmt.Errorf("error creating nested folders: %w", err)
 			}
@@ -154,7 +155,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 
 	relativePath, err := RelativePath(path, t.srcPath)
 	if err != nil {
-		return fmt.Errorf("relative path error: %w", err)
+		return fmt.Errorf("relative path error: %s", err)
 	}
 
 	if t.inclusions != nil && base != "." && !fi.IsDir() {
@@ -196,7 +197,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	if IsSymlink(fi) {
 		link, err = os.Readlink(path)
 		if err != nil {
-			return fmt.Errorf("error getting link target: %w", err)
+			return fmt.Errorf("error getting link target: %s", err)
 		}
 	}
 

@@ -39,7 +39,6 @@ data:
     issuer: https://<yourtenant>.<eu|us>.auth0.com/
     clientID: <theClientId>
     clientSecret: <theClientSecret>
-    domain_hint: <theDomainHint>
     requestedScopes:
     - openid
     - profile
