@@ -17,7 +17,7 @@ slack:
           },
           {
             "title": "Repository",
-            "value": 
+            "value": |
               {{- if .app.spec.source }}
                 "{{ .app.spec.source.repoURL }}"
               {{- else if .app.spec.sources }}
@@ -53,7 +53,7 @@ teams:
         },
         {
           "name": "Repository",
-          "value": 
+          "value": |
             {{- if .app.spec.source }}
               "{{ .app.spec.source.repoURL }}"
             {{- else if .app.spec.sources }}
@@ -86,7 +86,7 @@ teams:
           "name":"Open Repository",
           "targets":[{
             "os":"default",
-            "uri": 
+            "uri": |
               {{- if .app.spec.source }}
                 "{{ .app.spec.source.repoURL | call .repo.RepoURLToHTTPS }}"
               {{- else if .app.spec.sources }}
