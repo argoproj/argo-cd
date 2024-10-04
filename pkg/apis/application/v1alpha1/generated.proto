@@ -851,6 +851,9 @@ message ClusterGenerator {
 
   // Values contains key/value pairs which are passed directly as parameters to the template
   map<string, string> values = 3;
+
+  // returns the clusters a single 'clusters' value in the template
+  optional bool flatList = 4;
 }
 
 // ClusterInfo contains information about the cluster
