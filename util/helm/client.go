@@ -413,10 +413,6 @@ func getIndexURL(rawURL string) (string, error) {
 	return repoURL.String(), nil
 }
 
-type Entries struct {
-	Tags []string
-}
-
 func (c *nativeHelmChart) GetTags(chart string, noCache bool) ([]string, error) {
 	if !c.enableOci {
 		return nil, OCINotEnabledErr
@@ -433,7 +429,11 @@ func (c *nativeHelmChart) GetTags(chart string, noCache bool) ([]string, error) 
 		}
 	}
 
-	entries := &Entries{}
+	type entriesStruct struct {
+		Tags []string
+	}
+
+	entries := &entriesStruct{}
 	if len(data) == 0 {
 		start := time.Now()
 		repo, err := remote.NewRepository(tagsURL)

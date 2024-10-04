@@ -57,7 +57,7 @@ func TestIndex(t *testing.T) {
 	})
 
 	t.Run("Cached", func(t *testing.T) {
-		fakeIndex := Index{Entries: map[string]Entries{"fake": {Tags: []string{}}}}
+		fakeIndex := Index{Entries: map[string][]string{"fake": {}}}
 		data := bytes.Buffer{}
 		err := yaml.NewEncoder(&data).Encode(fakeIndex)
 		require.NoError(t, err)
@@ -169,13 +169,13 @@ func TestGetTagsFromUrl(t *testing.T) {
 	t.Run("should return tags correctly while following the link header", func(t *testing.T) {
 		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			t.Logf("called %s", r.URL.Path)
-			responseTags := Entries{}
+			var responseTags []string
 			w.Header().Set("Content-Type", "application/json")
 			if !strings.Contains(r.URL.String(), "token") {
 				w.Header().Set("Link", fmt.Sprintf("<https://%s%s?token=next-token>; rel=next", r.Host, r.URL.Path))
-				responseTags.Tags = []string{"first"}
+				responseTags = []string{"first"}
 			} else {
-				responseTags.Tags = []string{
+				responseTags = []string{
 					"second",
 					"2.8.0",
 					"2.8.0-prerelease",
@@ -231,14 +231,12 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 
 		assert.Equal(t, expectedAuthorization, authorization)
 
-		responseTags := Entries{
-			Tags: []string{
-				"2.8.0",
-				"2.8.0-prerelease",
-				"2.8.0_build",
-				"2.8.0-prerelease_build",
-				"2.8.0-prerelease.1_build.1234",
-			},
+		responseTags := []string{
+			"2.8.0",
+			"2.8.0-prerelease",
+			"2.8.0_build",
+			"2.8.0-prerelease_build",
+			"2.8.0-prerelease.1_build.1234",
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -312,14 +310,12 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 
 		assert.Equal(t, expectedAuthorization, authorization)
 
-		responseTags := Entries{
-			Tags: []string{
-				"2.8.0",
-				"2.8.0-prerelease",
-				"2.8.0_build",
-				"2.8.0-prerelease_build",
-				"2.8.0-prerelease.1_build.1234",
-			},
+		responseTags := []string{
+			"2.8.0",
+			"2.8.0-prerelease",
+			"2.8.0_build",
+			"2.8.0-prerelease_build",
+			"2.8.0-prerelease.1_build.1234",
 		}
 
 		w.Header().Set("Content-Type", "application/json")

@@ -5,7 +5,7 @@ import (
 )
 
 type Index struct {
-	Entries map[string]Entries
+	Entries map[string][]string
 }
 
 func (i *Index) GetTags(chart string) ([]string, error) {
@@ -13,5 +13,5 @@ func (i *Index) GetTags(chart string) ([]string, error) {
 	if !ok {
 		return nil, fmt.Errorf("chart '%s' not found in index", chart)
 	}
-	return tags.Tags, nil
+	return tags, nil
 }
