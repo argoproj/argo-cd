@@ -1221,8 +1221,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		)
 		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "could not read from secret")
+		require.ErrorContains(t, err, "could not read from secret")
 		assert.NotNil(t, settings)
 	})
 	t.Run("No external TLS secret", func(t *testing.T) {

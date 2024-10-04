@@ -684,8 +684,7 @@ func TestExecuteNewStyleActionMixedOperationsFailure(t *testing.T) {
 	testObj := StrToUnstructured(cronJobObjYaml)
 	vm := VM{}
 	_, err := vm.ExecuteResourceAction(testObj, createMixedOperationActionLuaFailing)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unsupported operation")
+	assert.ErrorContains(t, err, "unsupported operation")
 }
 
 func TestExecuteResourceActionNonTableReturn(t *testing.T) {
