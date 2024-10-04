@@ -12,7 +12,7 @@ import (
 )
 
 func rewrapError(err error, code codes.Code) error {
-	return status.Error(code, err.Error())
+	return status.Errorf(code, err.Error())
 }
 
 func gitErrToGRPC(err error) error {
