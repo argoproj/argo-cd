@@ -426,11 +426,14 @@ func GetConfigMapKey(gvk schema.GroupVersionKind) string {
 	return fmt.Sprintf("%s/%s", gvk.Group, gvk.Kind)
 }
 
+// GetWildcardConfigMapKey returns the first encountered resource override which matches the wildcard and has a
+// non-empty health script. Having multiple wildcards with non-empty health checks that can match the GVK is
+// non-deterministic.
 func GetWildcardConfigMapKey(vm VM, gvk schema.GroupVersionKind) string {
 	gvkKeyToMatch := GetConfigMapKey(gvk)
 
-	for key := range vm.ResourceOverrides {
-		if glob.Match(key, gvkKeyToMatch) {
+	for key, override := range vm.ResourceOverrides {
+		if glob.Match(key, gvkKeyToMatch) && override.HealthLua != "" {
 			return key
 		}
 	}

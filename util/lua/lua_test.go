@@ -789,6 +789,11 @@ return hs`
  hs.status = "Healthy"
  return hs`
 
+	const healthWildcardOverrideScriptWithPriority = `
+ hs = {}
+ hs.status = "UnHealthy"
+ return hs`
+
 	getHealthOverride := func(openLibs bool) ResourceHealthOverrides {
 		return ResourceHealthOverrides{
 			"ServiceAccount": appv1.ResourceOverride{
@@ -801,6 +806,15 @@ return hs`
 	getWildcardHealthOverride := ResourceHealthOverrides{
 		"*.aws.crossplane.io/*": appv1.ResourceOverride{
 			HealthLua: healthWildcardOverrideScript,
+		},
+	}
+
+	getWildcardHealthOverrideWithPriority := ResourceHealthOverrides{
+		"*.aws.crossplane.io/*": appv1.ResourceOverride{
+			HealthLua: "",
+		},
+		"*.aws*": appv1.ResourceOverride{
+			HealthLua: healthWildcardOverrideScriptWithPriority,
 		},
 	}
 
@@ -834,6 +848,15 @@ return hs`
 		expectedStatus := &health.HealthStatus{
 			Status: health.HealthStatusHealthy,
 		}
+		assert.Equal(t, expectedStatus, status)
+	})
+
+	t.Run("Get resource health for wildcard override with empty health.lua", func(t *testing.T) {
+		testObj := StrToUnstructured(ec2AWSCrossplaneObjJson)
+		overrides := getWildcardHealthOverrideWithPriority
+		status, err := overrides.GetResourceHealth(testObj)
+		require.NoError(t, err)
+		expectedStatus := &health.HealthStatus{Status: "Unknown", Message: "Lua returned an invalid health status"}
 		assert.Equal(t, expectedStatus, status)
 	})
 
