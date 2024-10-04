@@ -176,7 +176,7 @@ func Test_ChangedFiles(t *testing.T) {
 func Test_SemverTags(t *testing.T) {
 	tempDir := t.TempDir()
 
-	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "")
 	require.NoError(t, err)
 
 	err = client.Init()
