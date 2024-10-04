@@ -98,8 +98,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 		// we need to error out
 		t.Setenv(common.EnvGnuPGHome, f.Name())
 		err = InitializeGnuPG()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "does not point to a directory")
+		assert.ErrorContains(t, err, "does not point to a directory")
 	})
 
 	t.Run("Unaccessible GNUPGHOME", func(t *testing.T) {
