@@ -21735,7 +21735,7 @@ spec:
                     sync operation.
                   properties:
                     defaultServiceAccount:
-                      description: ServiceAccountName to be used for impersonation
+                      description: DefaultServiceAccount to be used for impersonation
                         during the sync operation
                       type: string
                     namespace:
@@ -21746,6 +21746,9 @@ spec:
                       description: Server specifies the URL of the target cluster's
                         Kubernetes control plane API.
                       type: string
+                  required:
+                  - defaultServiceAccount
+                  - server
                   type: object
                 type: array
               destinations:
