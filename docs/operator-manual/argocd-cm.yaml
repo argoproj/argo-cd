@@ -269,6 +269,9 @@ data:
   # - annotation+label : Also uses an annotation for tracking, but additionally labels the resource with the application name
   application.resourceTrackingMethod: annotation
 
+  # Optional installation id. Allows to have multiple installations of Argo CD in the same cluster.
+  installationID: "my-unique-id"
+
   # disables admin user. Admin is enabled by default
   admin.enabled: "false"
   # add an additional local user with apiKey and login capabilities

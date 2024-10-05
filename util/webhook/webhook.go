@@ -35,6 +35,7 @@ import (
 type settingsSource interface {
 	GetAppInstanceLabelKey() (string, error)
 	GetTrackingMethod() (string, error)
+	GetInstallationID() (string, error)
 }
 
 // https://www.rfc-editor.org/rfc/rfc3986#section-3.2.1
@@ -267,6 +268,11 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 		return
 	}
 
+	installationID, err := a.settingsSrc.GetInstallationID()
+	if err != nil {
+		log.Warnf("Failed to get installation ID: %v", err)
+		return
+	}
 	trackingMethod, err := a.settingsSrc.GetTrackingMethod()
 	if err != nil {
 		log.Warnf("Failed to get trackingMethod: %v", err)
@@ -308,7 +314,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
 						// No need to refresh multiple times if multiple sources match.
 						break
 					} else if change.shaBefore != "" && change.shaAfter != "" {
-						if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey); err != nil {
+						if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey, installationID); err != nil {
 							log.Warnf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
 						}
 					}
@@ -338,7 +344,7 @@ func getWebUrlRegex(webURL string) (*regexp.Regexp, error) {
 	return repoRegexp, nil
 }
 
-func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string) error {
+func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string, installationID string) error {
 	err := argo.ValidateDestination(context.Background(), &app.Spec.Destination, a.db)
 	if err != nil {
 		return fmt.Errorf("error validating destination: %w", err)
@@ -357,7 +363,7 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 	source := app.Spec.GetSource()
 	cache.LogDebugManifestCacheKeyFields("moving manifests cache", "webhook app revision changed", change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil)
 
-	if err := a.repoCache.SetNewRevisionManifests(change.shaAfter, change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil); err != nil {
+	if err := a.repoCache.SetNewRevisionManifests(change.shaAfter, change.shaBefore, &source, refSources, &clusterInfo, app.Spec.Destination.Namespace, trackingMethod, appInstanceLabelKey, app.Name, nil, installationID); err != nil {
 		return err
 	}
 
