@@ -1,0 +1,113 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "dependencyDashboard": true,
+  "dependencyDashboardOSVVulnerabilitySummary": "all",
+  "osvVulnerabilityAlerts": true,
+  "reviewersFromCodeOwners": true,
+  "extends": [
+    "config:best-practices",
+    "customManagers:dockerfileVersions",
+    "security:openssf-scorecard",
+    "mergeConfidence:all-badges",
+    "github>argoproj/argo-cd//renovate-presets/fix/openssf-merge-confidence-columns.json5",
+    "github>argoproj/argo-cd//renovate-presets/custom-managers/shell.json5",
+    "github>argoproj/argo-cd//renovate-presets/custom-managers/yaml.json5"
+  ],
+  "packageRules": [
+    {
+      "description": "Disable all updates to avoid conflicts with dependabot, then enable what we want",
+      "matchPackageNames": [
+        "*"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Add label dependencies to all PRs",
+      "matchPackageNames": [
+        "*"
+      ],
+      "labels": [
+        "dependencies"
+      ]
+    },
+    {
+      "description": "Enable node-version",
+      "matchDatasources": [
+        "node-version"
+      ],
+      "addLabels": [
+        "javascript"
+      ],
+      "enabled": true
+    },
+    {
+      "description": "Enable golang-version",
+      "matchDatasources": [
+        "golang-version"
+      ],
+      "addLabels": [
+        "go"
+      ],
+      "enabled": true
+    },
+    {
+      "description": "Enable some go modules",
+      "matchDatasources": [
+        "go"
+      ],
+      "matchPackageNames": [
+        "go",
+        "github.com/golangci/golangci-lint"
+      ],
+      "addLabels": [
+        "go"
+      ],
+      "enabled": true
+    },
+    {
+      "description": "Enable bump of golang version in go.mod",
+      "matchDatasources": [
+        "golang-version"
+      ],
+      "rangeStrategy": "bump"
+    },
+    {
+      "description": "Enable some docker images",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "docker.io/library/node",
+        "docker.io/library/golang"
+      ],
+      "enabled": true
+    },
+    {
+      "description": "Group golang-version packages",
+      "groupName": "golang version",
+      "matchDepNames": [
+        "go",
+        "golang",
+        "docker.io/golang",
+        "docker.io/library/golang"
+      ]
+    },
+    {
+      "description": "Group node-version packages",
+      "groupName": "node version",
+      "matchDepNames": [
+        "node",
+        "docker.io/library/node"
+      ]
+    },
+    {
+      "description": "an example to reduce noise by automerging pkgs that are safe to merge, multiple match fields can be used to reduce the scope of this rule...)",
+      "matchUpdateTypes": [
+        "patch",
+        "pin",
+        "digest"
+      ],
+      "automerge": false
+    }
+  ]
+}
