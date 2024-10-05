@@ -28,8 +28,8 @@ func getResourceEventPayload(
 	manifestGenErr bool,
 	ts string,
 	originalApplication *appv1.Application, // passed when rs is application
-	revisionMetadata *appv1.RevisionMetadata,
-	originalAppRevisionMetadata *appv1.RevisionMetadata, // passed when rs is application
+	revisionsMetadata *utils.AppSyncRevisionsMetadata,
+	originalAppRevisionsMetadata *utils.AppSyncRevisionsMetadata, // passed when rs is application
 	appInstanceLabelKey string,
 	trackingMethod appv1.TrackingMethod,
 	applicationVersions *apiclient.ApplicationVersions,
@@ -50,11 +50,15 @@ func getResourceEventPayload(
 
 	object := []byte(*actualState.Manifest)
 
-	if originalAppRevisionMetadata != nil && len(object) != 0 {
+	if originalAppRevisionsMetadata != nil && len(object) != 0 {
 		actualObject, err := appv1.UnmarshalToUnstructured(*actualState.Manifest)
 
 		if err == nil {
-			actualObject = utils.AddCommitDetailsToLabels(actualObject, originalAppRevisionMetadata)
+			actualObject = utils.AddCommitsDetailsToAnnotations(actualObject, originalAppRevisionsMetadata)
+			if originalApplication != nil {
+				actualObject = utils.AddCommitDetailsToLabels(actualObject, getApplicationLegacyRevisionDetails(originalApplication, originalAppRevisionsMetadata))
+			}
+
 			object, err = actualObject.MarshalJSON()
 			if err != nil {
 				return nil, fmt.Errorf("failed to marshal unstructured object: %w", err)
@@ -74,8 +78,11 @@ func getResourceEventPayload(
 			u.SetKind(rs.Kind)
 			u.SetName(rs.Name)
 			u.SetNamespace(rs.Namespace)
-			if originalAppRevisionMetadata != nil {
-				u = utils.AddCommitDetailsToLabels(u, originalAppRevisionMetadata)
+			if originalAppRevisionsMetadata != nil {
+				u = utils.AddCommitsDetailsToAnnotations(u, originalAppRevisionsMetadata)
+				if originalApplication != nil {
+					u = utils.AddCommitDetailsToLabels(u, getApplicationLegacyRevisionDetails(originalApplication, originalAppRevisionsMetadata))
+				}
 			}
 
 			object, err = u.MarshalJSON()
@@ -88,8 +95,11 @@ func getResourceEventPayload(
 			if err != nil {
 				return nil, fmt.Errorf("failed to add destination namespace to manifest: %w", err)
 			}
-			if originalAppRevisionMetadata != nil {
-				unstructuredWithNamespace = utils.AddCommitDetailsToLabels(unstructuredWithNamespace, originalAppRevisionMetadata)
+			if originalAppRevisionsMetadata != nil {
+				unstructuredWithNamespace = utils.AddCommitsDetailsToAnnotations(unstructuredWithNamespace, originalAppRevisionsMetadata)
+				if originalApplication != nil {
+					unstructuredWithNamespace = utils.AddCommitDetailsToLabels(unstructuredWithNamespace, getApplicationLegacyRevisionDetails(originalApplication, originalAppRevisionsMetadata))
+				}
 			}
 
 			object, _ = unstructuredWithNamespace.MarshalJSON()
@@ -166,10 +176,13 @@ func getResourceEventPayload(
 		TrackingMethod:        string(trackingMethod),
 	}
 
-	if revisionMetadata != nil {
-		source.CommitMessage = revisionMetadata.Message
-		source.CommitAuthor = revisionMetadata.Author
-		source.CommitDate = &revisionMetadata.Date
+	if revisionsMetadata != nil && revisionsMetadata.SyncRevisions != nil {
+		revisionMetadata := getApplicationLegacyRevisionDetails(parentApplication, revisionsMetadata)
+		if revisionMetadata != nil {
+			source.CommitMessage = revisionMetadata.Message
+			source.CommitAuthor = revisionMetadata.Author
+			source.CommitDate = &revisionMetadata.Date
+		}
 	}
 
 	if rs.Health != nil {
@@ -225,26 +238,17 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 		syncFinished = a.Status.OperationState.FinishedAt
 	}
 
-	applicationSource := a.Spec.GetSource()
-	if !applicationSource.IsHelm() && (a.Status.Sync.Revision != "" || (a.Status.History != nil && len(a.Status.History) > 0)) {
-		revisionMetadata, err := s.getApplicationRevisionDetails(ctx, a, utils.GetOperationRevision(a))
-
-		if err != nil {
-			if !strings.Contains(err.Error(), "not found") {
-				return nil, fmt.Errorf("failed to get revision metadata: %w", err)
-			}
-
-			logCtx.Warnf("failed to get revision metadata: %s, reporting application deletion event", err.Error())
-		} else {
-			if obj.ObjectMeta.Labels == nil {
-				obj.ObjectMeta.Labels = map[string]string{}
-			}
-
-			obj.ObjectMeta.Labels["app.meta.commit-date"] = revisionMetadata.Date.Format("2006-01-02T15:04:05.000Z")
-			obj.ObjectMeta.Labels["app.meta.commit-author"] = revisionMetadata.Author
-			obj.ObjectMeta.Labels["app.meta.commit-message"] = revisionMetadata.Message
+	revisionsMetadata, err := s.getApplicationRevisionsMetadata(ctx, logCtx, a)
+	if err != nil {
+		if !strings.Contains(err.Error(), "not found") {
+			return nil, fmt.Errorf("failed to get revision metadata: %w", err)
 		}
+
+		logCtx.Warnf("failed to get revision metadata: %s, reporting application deletion event", err.Error())
 	}
+
+	utils.AddCommitsDetailsToAppAnnotations(obj, revisionsMetadata)
+	utils.AddCommitsDetailsToAppLabels(&obj, getApplicationLegacyRevisionDetails(&obj, revisionsMetadata))
 
 	object, err := json.Marshal(&obj)
 	if err != nil {

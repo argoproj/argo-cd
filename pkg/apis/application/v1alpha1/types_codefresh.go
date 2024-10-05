@@ -16,3 +16,26 @@ func (a *Application) SetDefaultTypeMeta() {
 		APIVersion: SchemeGroupVersion.String(),
 	}
 }
+
+func (spec *ApplicationSpec) GetNonRefSource() (*ApplicationSource, int) {
+	if spec.HasMultipleSources() {
+		for idx, source := range spec.Sources {
+			if !source.IsRef() {
+				return &source, idx
+			}
+		}
+	}
+
+	if spec.Source == nil {
+		return nil, -2
+	}
+
+	// single source app
+	return spec.Source, -1
+}
+
+func (spec *ApplicationSpec) SourceUnderIdxIsHelm(idx int) bool {
+	source := spec.GetSourcePtrByIndex(idx)
+
+	return source != nil && source.IsHelm()
+}

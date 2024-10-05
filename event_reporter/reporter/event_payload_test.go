@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v2/event_reporter/utils"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,7 +20,13 @@ import (
 
 func TestGetResourceEventPayload(t *testing.T) {
 	t.Run("Deleting timestamp is empty", func(t *testing.T) {
-		app := v1alpha1.Application{}
+		app := v1alpha1.Application{
+			Spec: v1alpha1.ApplicationSpec{
+				Source: &v1alpha1.ApplicationSource{
+					RepoURL: "test",
+				},
+			},
+		}
 		rs := v1alpha1.ResourceStatus{}
 
 		man := "{ \"key\" : \"manifest\" }"
@@ -30,10 +38,14 @@ func TestGetResourceEventPayload(t *testing.T) {
 			CompiledManifest: "{ \"key\" : \"manifest\" }",
 		}
 		appTree := v1alpha1.ApplicationTree{}
-		revisionMetadata := v1alpha1.RevisionMetadata{
-			Author:  "demo usert",
-			Date:    metav1.Time{},
-			Message: "some message",
+		revisionMetadata := utils.AppSyncRevisionsMetadata{
+			SyncRevisions: []*utils.RevisionWithMetadata{{
+				Metadata: &v1alpha1.RevisionMetadata{
+					Author:  "demo usert",
+					Date:    metav1.Time{},
+					Message: "some message",
+				},
+			}},
 		}
 
 		event, err := getResourceEventPayload(&app, &rs, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel, &repoApiclient.ApplicationVersions{})
@@ -48,7 +60,7 @@ func TestGetResourceEventPayload(t *testing.T) {
 		assert.Equal(t, "{ \"key\" : \"manifest\" }", eventPayload.Source.ActualManifest)
 	})
 
-	t.Run("Deleting timestamp is empty", func(t *testing.T) {
+	t.Run("Deleting timestamp not empty", func(t *testing.T) {
 		app := v1alpha1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				DeletionTimestamp: &metav1.Time{},
@@ -64,10 +76,8 @@ func TestGetResourceEventPayload(t *testing.T) {
 			CompiledManifest: "{ \"key\" : \"manifest\" }",
 		}
 		appTree := v1alpha1.ApplicationTree{}
-		revisionMetadata := v1alpha1.RevisionMetadata{
-			Author:  "demo usert",
-			Date:    metav1.Time{},
-			Message: "some message",
+		revisionMetadata := utils.AppSyncRevisionsMetadata{
+			SyncRevisions: []*utils.RevisionWithMetadata{},
 		}
 
 		event, err := getResourceEventPayload(&app, &rs, &actualState, &desiredState, &appTree, true, "", nil, &revisionMetadata, nil, common.LabelKeyAppInstance, argo.TrackingMethodLabel, &repoApiclient.ApplicationVersions{})

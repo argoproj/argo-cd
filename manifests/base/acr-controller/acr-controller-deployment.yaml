@@ -31,6 +31,12 @@ spec:
                 secretKeyRef:
                   key: token
                   name: argocd-token
+            - name: ARGOCD_SERVER_ROOTPATH
+              valueFrom:
+                configMapKeyRef:
+                  key: server.rootpath
+                  name: argocd-cmd-params-cm
+                  optional: true
             - name: ARGOCD_APPLICATION_NAMESPACES
               valueFrom:
                 configMapKeyRef:

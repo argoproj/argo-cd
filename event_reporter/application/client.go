@@ -107,6 +107,9 @@ func (c *httpApplicationClient) RevisionMetadata(ctx context.Context, in *appcli
 	params := fmt.Sprintf("?appNamespace=%s&project=%s",
 		*in.AppNamespace,
 		*in.Project)
+	if in.SourceIndex != nil {
+		params += fmt.Sprintf("&sourceIndex=%d", *in.SourceIndex)
+	}
 	url := fmt.Sprintf("%s/api/v1/applications/%s/revisions/%s/metadata%s", c.baseUrl, *in.Name, *in.Revision, params)
 	revisionMetadata := &v1alpha1.RevisionMetadata{}
 	err := c.execute(ctx, url, revisionMetadata)

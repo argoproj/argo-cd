@@ -1,2 +1,2 @@
 ### Features
--  fix: change revision controller should verify that revision already exists
+-  feat: event-reporter: report change revisions metadata in app annotations
