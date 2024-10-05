@@ -4653,6 +4653,9 @@
         "help": {
           "$ref": "#/definitions/clusterHelp"
         },
+        "installationID": {
+          "type": "string"
+        },
         "kustomizeOptions": {
           "$ref": "#/definitions/v1alpha1KustomizeOptions"
         },
@@ -6960,7 +6963,7 @@
         },
         "serverVersion": {
           "type": "string",
-          "title": "DEPRECATED: use Info.ServerVersion field instead.\nThe server version"
+          "title": "Deprecated: use Info.ServerVersion field instead.\nThe server version"
         },
         "shard": {
           "description": "Shard contains optional shard number. Calculated on the fly by the application controller if not specified.",
