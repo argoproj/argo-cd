@@ -295,6 +295,11 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		log.Errorf("Could not get appInstanceLabelKey: %v", err)
 		return
 	}
+	installationID, err := m.settingsMgr.GetInstallationID()
+	if err != nil {
+		log.Errorf("Could not get installation ID: %v", err)
+		return
+	}
 	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
 
 	impersonationEnabled, err := m.settingsMgr.IsImpersonationEnabled()
@@ -346,7 +351,7 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 			return (len(syncOp.Resources) == 0 ||
 				isPostDeleteHook(target) ||
 				argo.ContainsSyncResource(key.Name, key.Namespace, schema.GroupVersionKind{Kind: key.Kind, Group: key.Group}, syncOp.Resources)) &&
-				m.isSelfReferencedObj(live, target, app.GetName(), appLabelKey, trackingMethod)
+				m.isSelfReferencedObj(live, target, app.GetName(), appLabelKey, trackingMethod, installationID)
 		}),
 		sync.WithManifestValidation(!syncOp.SyncOptions.HasOption(common.SyncOptionsDisableValidation)),
 		sync.WithSyncWaveHook(delayBetweenSyncWaves),

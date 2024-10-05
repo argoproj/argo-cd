@@ -2923,3 +2923,49 @@ data:
 		Expect(ResourceHealthWithNamespaceIs("ConfigMap", "yet-another-map", DeploymentNamespace(), health.HealthStatusHealthy)).
 		Expect(ResourceSyncStatusWithNamespaceIs("ConfigMap", "yet-another-map", DeploymentNamespace(), SyncStatusCodeSynced))
 }
+
+func TestInstallationID(t *testing.T) {
+	ctx := Given(t)
+	ctx.
+		SetTrackingMethod(string(argo.TrackingMethodAnnotation)).
+		And(func() {
+			_, err := fixture.KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Create(
+				context.Background(), &v1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-configmap",
+						Annotations: map[string]string{
+							common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/test-configmap", ctx.AppName(), DeploymentNamespace()),
+						},
+					},
+				}, metav1.CreateOptions{})
+			require.NoError(t, err)
+		}).
+		Path(guestbookPath).
+		Prune(false).
+		When().IgnoreErrors().CreateApp().Sync().
+		Then().Expect(OperationPhaseIs(OperationSucceeded)).Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		And(func(app *Application) {
+			var cm *ResourceStatus
+			for i := range app.Status.Resources {
+				if app.Status.Resources[i].Kind == "ConfigMap" && app.Status.Resources[i].Name == "test-configmap" {
+					cm = &app.Status.Resources[i]
+					break
+				}
+			}
+			require.NotNil(t, cm)
+			assert.Equal(t, SyncStatusCodeOutOfSync, cm.Status)
+		}).
+		When().SetInstallationID("test").Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			require.Len(t, app.Status.Resources, 2)
+			svc, err := fixture.KubeClientset.CoreV1().Services(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
+			require.NoError(t, err)
+			require.Equal(t, "test", svc.Annotations[common.AnnotationInstallationID])
+
+			deploy, err := fixture.KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
+			require.NoError(t, err)
+			require.Equal(t, "test", deploy.Annotations[common.AnnotationInstallationID])
+		})
+}
