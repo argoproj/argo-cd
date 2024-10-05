@@ -33,8 +33,7 @@ updates:
       interval: "daily"
     ignore:
       # We use consistent go and node versions across a lot of different files, and updating via dependabot would cause
-      # drift among those files.
-      # Use `make update-go` and `make update-node` to update these versions.
+      # drift among those files, instead we let renovate bot handle them.
       - dependency-name: "library/golang"
       - dependency-name: "library/node"
 
