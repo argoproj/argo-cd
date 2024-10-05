@@ -17,16 +17,7 @@ slack:
           },
           {
             "title": "Repository",
-            "value": |
-              {{- if .app.spec.source }}
-                "{{ .app.spec.source.repoURL }}"
-              {{- else if .app.spec.sources }}
-                {{- range .app.spec.sources }}
-                  "{{ .repoURL }}"
-                {{- end }}
-              {{- else }}
-                "no repoURL"
-              {{- end }}
+            "value": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
             "short": true
           }
           {{range $index, $c := .app.status.conditions}}
@@ -49,16 +40,7 @@ teams:
         },
         {
           "name": "Repository",
-          "value": |
-            {{- if .app.spec.source }}
-              "{{ .app.spec.source.repoURL }}"
-            {{- else if .app.spec.sources }}
-              {{- range .app.spec.sources }}
-                "{{ .repoURL }}"
-              {{- end }}
-            {{- else }}
-              "no repoURL"
-            {{- end }}
+          "value": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
         }
         {{range $index, $c := .app.status.conditions}}
           ,
@@ -82,15 +64,6 @@ teams:
           "name":"Open Repository",
           "targets":[{
             "os":"default",
-            "uri": |
-              {{- if .app.spec.source }}
-                "{{ .app.spec.source.repoURL }}"
-              {{- else if .app.spec.sources }}
-                {{- range .app.spec.sources }}
-                  "{{ .repoURL }}"
-                {{- end }}
-              {{- else }}
-                "no repoURL"
-              {{- end }}
+            "uri": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
           }]
         }]
