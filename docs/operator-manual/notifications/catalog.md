@@ -58,16 +58,7 @@ slack:
       },
       {
         "title": "Repository",
-        "value": |
-          {{- if .app.spec.source }}
-            "{{ .app.spec.source.repoURL }}"
-          {{- else if .app.spec.sources }}
-            {{- range .app.spec.sources }}
-              "{{ .repoURL }}"
-            {{- end }}
-          {{- else }}
-            "no repoURL"
-          {{- end }}
+        "value": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
         "short": true
       },
       {
@@ -96,16 +87,7 @@ teams:
     },
     {
       "name": "Repository",
-      "value": |
-        {{- if .app.spec.source }}
-          "{{ .app.spec.source.repoURL }}"
-        {{- else if .app.spec.sources }}
-          {{- range .app.spec.sources }}
-            "{{ .repoURL }}"
-          {{- end }}
-        {{- else }}
-          "no repoURL"
-        {{- end }}
+      "value": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
     },
     {
       "name": "Revision",
@@ -133,16 +115,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri": |
-          {{- if .app.spec.source }}
-            "{{ .app.spec.source.repoURL }}"
-          {{- else if .app.spec.sources }}
-            {{- range .app.spec.sources }}
-              "{{ .repoURL }}"
-            {{- end }}
-          {{- else }}
-            "no repoURL"
-          {{- end }}
+        "uri": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
       }]
     }]
   themeColor: '#000080'
@@ -171,16 +144,7 @@ slack:
       },
       {
         "title": "Repository",
-        "value": |
-          {{- if .app.spec.source }}
-            "{{ .app.spec.source.repoURL }}"
-          {{- else if .app.spec.sources }}
-            {{- range .app.spec.sources }}
-              "{{ .repoURL }}"
-            {{- end }}
-          {{- else }}
-            "no repoURL"
-          {{- end }}
+        "value": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
@@ -204,16 +168,7 @@ teams:
     },
     {
       "name": "Repository",
-      "value": |
-        {{- if .app.spec.source }}
-          "{{ .app.spec.source.repoURL }}"
-        {{- else if .app.spec.sources }}
-          {{- range .app.spec.sources }}
-            "{{ .repoURL }}"
-          {{- end }}
-        {{- else }}
-          "no repoURL"
-        {{- end }}
+      "value": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
     }
     {{range $index, $c := .app.status.conditions}}
       ,
@@ -237,16 +192,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri": |
-          {{- if .app.spec.source }}
-            "{{ .app.spec.source.repoURL }}"
-          {{- else if .app.spec.sources }}
-            {{- range .app.spec.sources }}
-              "{{ .repoURL }}"
-            {{- end }}
-          {{- else }}
-            "no repoURL"
-          {{- end }}
+        "uri": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
       }]
     }]
   themeColor: '#FF0000'
@@ -275,16 +221,7 @@ slack:
       },
       {
         "title": "Repository",
-        "value": |
-          {{- if .app.spec.source }}
-            "{{ .app.spec.source.repoURL }}"
-          {{- else if .app.spec.sources }}
-            {{- range .app.spec.sources }}
-              "{{ .repoURL }}"
-            {{- end }}
-          {{- else }}
-            "no repoURL"
-          {{- end }}
+        "value": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
@@ -312,16 +249,7 @@ teams:
     },
     {
       "name": "Repository",
-      "value": |
-        {{- if .app.spec.source }}
-          "{{ .app.spec.source.repoURL }}"
-        {{- else if .app.spec.sources }}
-          {{- range .app.spec.sources }}
-            "{{ .repoURL }}"
-          {{- end }}
-        {{- else }}
-          "no repoURL"
-        {{- end }}
+      "value": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
     }
     {{range $index, $c := .app.status.conditions}}
       ,
@@ -345,16 +273,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri": |
-          {{- if .app.spec.source }}
-            "{{ .app.spec.source.repoURL }}"
-          {{- else if .app.spec.sources }}
-            {{- range .app.spec.sources }}
-              "{{ .repoURL }}"
-            {{- end }}
-          {{- else }}
-            "no repoURL"
-          {{- end }}
+        "uri": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
       }]
     }]
   themeColor: '#FF0000'
@@ -383,16 +302,7 @@ slack:
       },
       {
         "title": "Repository",
-        "value": |
-          {{- if .app.spec.source }}
-            "{{ .app.spec.source.repoURL }}"
-          {{- else if .app.spec.sources }}
-            {{- range .app.spec.sources }}
-              "{{ .repoURL }}"
-            {{- end }}
-          {{- else }}
-            "no repoURL"
-          {{- end }}
+        "value": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
@@ -420,16 +330,7 @@ teams:
     },
     {
       "name": "Repository",
-      "value": |
-        {{- if .app.spec.source }}
-          "{{ .app.spec.source.repoURL }}"
-        {{- else if .app.spec.sources }}
-          {{- range .app.spec.sources }}
-            "{{ .repoURL }}"
-          {{- end }}
-        {{- else }}
-          "no repoURL"
-        {{- end }}
+      "value": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
     }
     {{range $index, $c := .app.status.conditions}}
       ,
@@ -453,16 +354,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri": |
-          {{- if .app.spec.source }}
-            "{{ .app.spec.source.repoURL }}"
-          {{- else if .app.spec.sources }}
-            {{- range .app.spec.sources }}
-              "{{ .repoURL }}"
-            {{- end }}
-          {{- else }}
-            "no repoURL"
-          {{- end }}
+        "uri": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
       }]
     }]
   title: Start syncing application {{.app.metadata.name}}.
@@ -495,16 +387,7 @@ slack:
       },
       {
         "title": "Repository",
-        "value": |
-          {{- if .app.spec.source }}
-            "{{ .app.spec.source.repoURL }}"
-          {{- else if .app.spec.sources }}
-            {{- range .app.spec.sources }}
-              "{{ .repoURL }}"
-            {{- end }}
-          {{- else }}
-            "no repoURL"
-          {{- end }}
+        "value": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
@@ -528,16 +411,7 @@ teams:
     },
     {
       "name": "Repository",
-      "value": |
-      {{- if .app.spec.source }}
-        "{{ .app.spec.source.repoURL }}"
-      {{- else if .app.spec.sources }}
-        {{- range .app.spec.sources }}
-          "{{ .repoURL }}"
-        {{- end }}
-      {{- else }}
-        "no repoURL"
-      {{- end }}
+      "value": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
     }
     {{range $index, $c := .app.status.conditions}}
       ,
@@ -561,16 +435,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri": |
-          {{- if .app.spec.source }}
-            "{{ .app.spec.source.repoURL }}"
-          {{- else if .app.spec.sources }}
-            {{- range .app.spec.sources }}
-              "{{ .repoURL }}"
-            {{- end }}
-          {{- else }}
-            "no repoURL"
-          {{- end }}
+        "uri": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
       }]
     }]
   title: Application {{.app.metadata.name}} sync status is 'Unknown'
@@ -598,16 +463,7 @@ slack:
       },
       {
         "title": "Repository",
-        "value": |
-          {{- if .app.spec.source }}
-            "{{ .app.spec.source.repoURL }}"
-          {{- else if .app.spec.sources }}
-            {{- range .app.spec.sources }}
-              "{{ .repoURL }}"
-            {{- end }}
-          {{- else }}
-            "no repoURL"
-          {{- end }}
+        "value": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
@@ -635,16 +491,7 @@ teams:
     },
     {
       "name": "Repository",
-      "value": |
-        {{- if .app.spec.source }}
-          "{{ .app.spec.source.repoURL }}"
-        {{- else if .app.spec.sources }}
-          {{- range .app.spec.sources }}
-            "{{ .repoURL }}"
-          {{- end }}
-        {{- else }}
-          "no repoURL"
-        {{- end }}
+      "value": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
     }
     {{range $index, $c := .app.status.conditions}}
       ,
@@ -668,16 +515,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri": |
-          {{- if .app.spec.source }}
-            "{{ .app.spec.source.repoURL | call .repo.RepoURLToHTTPS }}"
-          {{- else if .app.spec.sources }}
-            {{- range .app.spec.sources }}
-              "{{ .repoURL | call .repo.RepoURLToHTTPS }}"
-            {{- end }}
-          {{- else }}
-            "no repoURL"
-          {{- end }}
+        "uri": {{- if .app.spec.source }}"{{ .app.spec.source.repoURL }}"{{- else if .app.spec.sources }}"{{- range .app.spec.sources }}{{ .repoURL }}\n{{- end }}"{{- else }}"no repoURL"{{- end }}
       }]
     }]
   themeColor: '#000080'
