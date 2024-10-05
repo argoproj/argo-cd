@@ -749,6 +749,14 @@ func verifyGenerateManifests(
 			})
 			continue
 		}
+		installationID, err := settingsMgr.GetInstallationID()
+		if err != nil {
+			conditions = append(conditions, argoappv1.ApplicationCondition{
+				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Message: fmt.Sprintf("Error getting installation ID: %v", err),
+			})
+			continue
+		}
 		req := apiclient.ManifestRequest{
 			Repo: &argoappv1.Repository{
 				Repo:    source.RepoURL,
@@ -775,6 +783,7 @@ func verifyGenerateManifests(
 			ProjectName:                     proj.Name,
 			ProjectSourceRepos:              proj.Spec.SourceRepos,
 			AnnotationManifestGeneratePaths: app.GetAnnotation(argoappv1.AnnotationKeyManifestGeneratePaths),
+			InstallationID:                  installationID,
 		}
 		req.Repo.CopyCredentialsFromRepo(repoRes)
 		req.Repo.CopySettingsFrom(repoRes)

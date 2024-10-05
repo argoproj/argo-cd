@@ -510,6 +510,10 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings options: %w", err)
 			}
+			installationID, err := s.settingsMgr.GetInstallationID()
+			if err != nil {
+				return fmt.Errorf("error getting installation ID: %w", err)
+			}
 
 			manifestInfo, err := client.GenerateManifest(ctx, &apiclient.ManifestRequest{
 				Repo:                            repo,
@@ -531,6 +535,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				HasMultipleSources:              a.Spec.HasMultipleSources(),
 				RefSources:                      refSources,
 				AnnotationManifestGeneratePaths: a.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
+				InstallationID:                  installationID,
 			})
 			if err != nil {
 				return fmt.Errorf("error generating manifests: %w", err)
