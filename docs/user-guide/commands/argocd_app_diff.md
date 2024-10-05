@@ -19,7 +19,8 @@ argocd app diff APPNAME [flags]
 
 ```
   -N, --app-namespace string                              Only render the difference in namespace
-      --exit-code                                         Return non-zero exit code when there is a diff (default true)
+      --diff-exit-code int                                Return specified exit code when there is a diff. Typical error code is 20. (default 1)
+      --exit-code                                         Return non-zero exit code when there is a diff. May also return non-zero exit code if there is an error. (default true)
       --hard-refresh                                      Refresh application data as well as target manifests cache
   -h, --help                                              help for diff
       --ignore-normalizer-jq-execution-timeout duration   Set ignore normalizer JQ execution timeout (default 1s)
