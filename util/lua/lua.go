@@ -148,13 +148,11 @@ func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (string, bool, erro
 		return script.HealthLua, script.UseOpenLibs, nil
 	}
 
-	// if not found as is, perhaps it matches wildcard entries in the configmap
-	wildcardKey := GetWildcardConfigMapKey(vm, obj.GroupVersionKind())
+	// if not found as is, perhaps it matches a wildcard entry in the configmap
+	getWildcardHealthOverride, useOpenLibs := getWildcardHealthOverrideLua(vm.ResourceOverrides, obj.GroupVersionKind())
 
-	if wildcardKey != "" {
-		if wildcardScript, ok := vm.ResourceOverrides[wildcardKey]; ok && wildcardScript.HealthLua != "" {
-			return wildcardScript.HealthLua, wildcardScript.UseOpenLibs, nil
-		}
+	if getWildcardHealthOverride != "" {
+		return getWildcardHealthOverride, useOpenLibs, nil
 	}
 
 	// if not found in the ResourceOverrides at all, search it as is in the built-in scripts
@@ -433,15 +431,18 @@ func GetConfigMapKey(gvk schema.GroupVersionKind) string {
 	return fmt.Sprintf("%s/%s", gvk.Group, gvk.Kind)
 }
 
-func GetWildcardConfigMapKey(vm VM, gvk schema.GroupVersionKind) string {
+// getWildcardHealthOverrideLua returns the first encountered resource override which matches the wildcard and has a
+// non-empty health script. Having multiple wildcards with non-empty health checks that can match the GVK is
+// non-deterministic.
+func getWildcardHealthOverrideLua(overrides map[string]appv1.ResourceOverride, gvk schema.GroupVersionKind) (string, bool) {
 	gvkKeyToMatch := GetConfigMapKey(gvk)
 
-	for key := range vm.ResourceOverrides {
-		if glob.Match(key, gvkKeyToMatch) {
-			return key
+	for key, override := range overrides {
+		if glob.Match(key, gvkKeyToMatch) && override.HealthLua != "" {
+			return override.HealthLua, override.UseOpenLibs
 		}
 	}
-	return ""
+	return "", false
 }
 
 func (vm VM) getPredefinedLuaScripts(objKey string, scriptFile string) (string, error) {

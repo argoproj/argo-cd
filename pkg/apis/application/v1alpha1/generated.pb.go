@@ -7374,6 +7374,14 @@ func (m *ApplicationSourceHelm) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	i--
+	if m.SkipTests {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i--
+	dAtA[i] = 0x70
 	if len(m.APIVersions) > 0 {
 		for iNdEx := len(m.APIVersions) - 1; iNdEx >= 0; iNdEx-- {
 			i -= len(m.APIVersions[iNdEx])
@@ -15717,6 +15725,7 @@ func (m *ApplicationSourceHelm) Size() (n int) {
 			n += 1 + l + sovGenerated(uint64(l))
 		}
 	}
+	n += 2
 	return n
 }
 
@@ -19070,6 +19079,7 @@ func (this *ApplicationSourceHelm) String() string {
 		`Namespace:` + fmt.Sprintf("%v", this.Namespace) + `,`,
 		`KubeVersion:` + fmt.Sprintf("%v", this.KubeVersion) + `,`,
 		`APIVersions:` + fmt.Sprintf("%v", this.APIVersions) + `,`,
+		`SkipTests:` + fmt.Sprintf("%v", this.SkipTests) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -27771,6 +27781,26 @@ func (m *ApplicationSourceHelm) Unmarshal(dAtA []byte) error {
 			}
 			m.APIVersions = append(m.APIVersions, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
+		case 14:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SkipTests", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.SkipTests = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipGenerated(dAtA[iNdEx:])

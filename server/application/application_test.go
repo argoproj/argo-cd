@@ -2007,7 +2007,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 		appServer := newTestAppServer(t, testApp)
 
 		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
-		assert.Contains(t, err.Error(), "not exist")
+		require.ErrorContains(t, err, "not exist")
 		assert.Nil(t, active)
 	})
 }
@@ -2718,7 +2718,6 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			Name:         ptr.To("test-app"),
 			AppNamespace: ptr.To("argocd-1"),
 		})
-		require.Error(t, err)
 		require.ErrorContains(t, err, "permission denied")
 		require.Nil(t, app)
 	})

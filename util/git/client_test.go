@@ -173,6 +173,148 @@ func Test_ChangedFiles(t *testing.T) {
 	assert.ElementsMatch(t, []string{"README"}, changedFiles)
 }
 
+func Test_SemverTags(t *testing.T) {
+	tempDir := t.TempDir()
+
+	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	mapTagRefs := map[string]string{}
+	for _, tag := range []string{
+		"v1.0.0-rc1",
+		"v1.0.0-rc2",
+		"v1.0.0",
+		"v1.0",
+		"v1.0.1",
+		"v1.1.0",
+		"2024-apple",
+		"2024-banana",
+	} {
+		err = runCmd(client.Root(), "git", "commit", "-m", tag+" commit", "--allow-empty")
+		require.NoError(t, err)
+
+		// Create an rc semver tag
+		err = runCmd(client.Root(), "git", "tag", tag)
+		require.NoError(t, err)
+
+		sha, err := client.LsRemote("HEAD")
+		require.NoError(t, err)
+
+		mapTagRefs[tag] = sha
+	}
+
+	for _, tc := range []struct {
+		name     string
+		ref      string
+		expected string
+		error    bool
+	}{{
+		name:     "pinned rc version",
+		ref:      "v1.0.0-rc1",
+		expected: mapTagRefs["v1.0.0-rc1"],
+	}, {
+		name:     "lt rc constraint",
+		ref:      "< v1.0.0-rc3",
+		expected: mapTagRefs["v1.0.0-rc2"],
+	}, {
+		name:     "pinned major version",
+		ref:      "v1.0.0",
+		expected: mapTagRefs["v1.0.0"],
+	}, {
+		name:     "pinned patch version",
+		ref:      "v1.0.1",
+		expected: mapTagRefs["v1.0.1"],
+	}, {
+		name:     "pinned minor version",
+		ref:      "v1.1.0",
+		expected: mapTagRefs["v1.1.0"],
+	}, {
+		name:     "patch wildcard constraint",
+		ref:      "v1.0.*",
+		expected: mapTagRefs["v1.0.1"],
+	}, {
+		name:     "patch tilde constraint",
+		ref:      "~v1.0.0",
+		expected: mapTagRefs["v1.0.1"],
+	}, {
+		name:     "minor wildcard constraint",
+		ref:      "v1.*",
+		expected: mapTagRefs["v1.1.0"],
+	}, {
+		// The semver library allows for using both * and x as the wildcard modifier.
+		name:     "alternative minor wildcard constraint",
+		ref:      "v1.x",
+		expected: mapTagRefs["v1.1.0"],
+	}, {
+		name:     "minor gte constraint",
+		ref:      ">= v1.0.0",
+		expected: mapTagRefs["v1.1.0"],
+	}, {
+		name:     "multiple constraints",
+		ref:      "> v1.0.0 < v1.1.0",
+		expected: mapTagRefs["v1.0.1"],
+	}, {
+		// We treat non-specific semver versions as regular tags, rather than constraints.
+		name:     "non-specific version",
+		ref:      "v1.0",
+		expected: mapTagRefs["v1.0"],
+	}, {
+		// Which means a missing tag will raise an error.
+		name:  "missing non-specific version",
+		ref:   "v1.1",
+		error: true,
+	}, {
+		// This is NOT a semver constraint, so it should always resolve to itself - because specifying a tag should
+		// return the commit for that tag.
+		// semver/v3 has the unfortunate semver-ish behaviour where any tag starting with a number is considered to be
+		// "semver-ish", where that number is the semver major version, and the rest then gets coerced into a beta
+		// version string. This can cause unexpected behaviour with constraints logic.
+		// In this case, if the tag is being incorrectly coerced into semver (for being semver-ish), it will incorrectly
+		// return the commit for the 2024-banana tag; which we want to avoid.
+		name:     "apple non-semver tag",
+		ref:      "2024-apple",
+		expected: mapTagRefs["2024-apple"],
+	}, {
+		name:     "banana non-semver tag",
+		ref:      "2024-banana",
+		expected: mapTagRefs["2024-banana"],
+	}, {
+		// A semver version (without constraints) should ONLY match itself.
+		// We do not want "2024-apple" to get "semver-ish'ed" into matching "2024.0.0-apple"; they're different tags.
+		name:  "no semver tag coercion",
+		ref:   "2024.0.0-apple",
+		error: true,
+	}, {
+		// No minor versions are specified, so we would expect a major version of 2025 or more.
+		// This is because if we specify > 11 in semver, we would not expect 11.1.0 to pass; it should be 12.0.0 or more.
+		// Similarly, if we were to specify > 11.0, we would expect 11.1.0 or more.
+		name:  "semver constraints on non-semver tags",
+		ref:   "> 2024-apple",
+		error: true,
+	}, {
+		// However, if one specifies the minor/patch versions, semver constraints can be used to match non-semver tags.
+		// 2024-banana is considered as "2024.0.0-banana" in semver-ish, and banana > apple, so it's a match.
+		// Note: this is more for documentation and future reference than real testing, as it seems like quite odd behaviour.
+		name:     "semver constraints on non-semver tags",
+		ref:      "> 2024.0.0-apple",
+		expected: mapTagRefs["2024-banana"],
+	}} {
+		t.Run(tc.name, func(t *testing.T) {
+			commitSHA, err := client.LsRemote(tc.ref)
+			if tc.error {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.True(t, IsCommitSHA(commitSHA))
+			assert.Equal(t, tc.expected, commitSHA)
+		})
+	}
+}
+
 func Test_nativeGitClient_Submodule(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "")
 	require.NoError(t, err)

@@ -156,7 +156,7 @@ message ApplicationDestinationServiceAccount {
   // Namespace specifies the target namespace for the application's resources.
   optional string namespace = 2;
 
-  // ServiceAccountName to be used for impersonation during the sync operation
+  // DefaultServiceAccount to be used for impersonation during the sync operation
   optional string defaultServiceAccount = 3;
 }
 
@@ -515,6 +515,9 @@ message ApplicationSourceHelm {
   // APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
   // Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
   repeated string apiVersions = 13;
+
+  // SkipTests skips test manifest installation step (Helm's --skip-tests).
+  optional bool skipTests = 14;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet

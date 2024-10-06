@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
@@ -16,7 +17,12 @@ import (
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 )
 
-func TestSyncWithImpersonateDisable(t *testing.T) {
+const (
+	WaitDuration    = time.Second
+	TimeoutDuration = time.Second * 3
+)
+
+func TestSyncWithFeatureDisabled(t *testing.T) {
 	Given(t).
 		Path("guestbook").
 		When().
@@ -25,10 +31,13 @@ func TestSyncWithImpersonateDisable(t *testing.T) {
 			app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
 		}).
 		Then().
-		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeSynced))
+		// With the impersonation feature disabled, Application sync should continue to use
+		// the control plane service account for the sync operation and the sync should succeed.
+		ExpectConsistently(SyncStatusIs(v1alpha1.SyncStatusCodeSynced), WaitDuration, TimeoutDuration).
+		Expect(OperationMessageContains("successfully synced"))
 }
 
-func TestSyncWithImpersonateDefaultNamespaceServiceAccountNoRBAC(t *testing.T) {
+func TestSyncWithNoDestinationServiceAccountsInProject(t *testing.T) {
 	Given(t).
 		Path("guestbook").
 		When().
@@ -37,37 +46,10 @@ func TestSyncWithImpersonateDefaultNamespaceServiceAccountNoRBAC(t *testing.T) {
 			app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
 		}).
 		Then().
-		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeOutOfSync))
-}
-
-func TestSyncWithImpersonateDefaultNamespaceServiceAccountWithRBAC(t *testing.T) {
-	roleName := "default-sa-role"
-	Given(t).
-		Path("guestbook").
-		When().
-		SetParamInSettingConfigMap("application.sync.impersonation.enabled", "true").
-		CreateFromFile(func(app *v1alpha1.Application) {
-			app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
-		}).
-		And(func() {
-			err := createTestRole(roleName, fixture.DeploymentNamespace(), []rbac.PolicyRule{
-				{
-					APIGroups: []string{"apps", ""},
-					Resources: []string{"deployments"},
-					Verbs:     []string{"*"},
-				},
-				{
-					APIGroups: []string{""},
-					Resources: []string{"services"},
-					Verbs:     []string{"*"},
-				},
-			})
-			require.NoError(t, err)
-			err = createTestRoleBinding(roleName, "default", fixture.DeploymentNamespace())
-			require.NoError(t, err)
-		}).
-		Then().
-		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeOutOfSync))
+		// With the impersonation feature enabled, Application sync must fail
+		// when there are no destination service accounts configured in AppProject
+		ExpectConsistently(SyncStatusIs(v1alpha1.SyncStatusCodeOutOfSync), WaitDuration, TimeoutDuration).
+		Expect(OperationMessageContains("failed to find a matching service account to impersonate"))
 }
 
 func TestSyncWithImpersonateWithSyncServiceAccount(t *testing.T) {
@@ -89,7 +71,7 @@ func TestSyncWithImpersonateWithSyncServiceAccount(t *testing.T) {
 				{
 					Server:                "*",
 					Namespace:             fixture.DeploymentNamespace(),
-					DefaultServiceAccount: "false-serviceAccount",
+					DefaultServiceAccount: "missing-serviceAccount",
 				},
 			}
 			err := createTestServiceAccount(serviceAccountName, fixture.DeploymentNamespace())
@@ -118,10 +100,13 @@ func TestSyncWithImpersonateWithSyncServiceAccount(t *testing.T) {
 			app.Spec.Project = projectName
 		}).
 		Then().
-		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeSynced))
+		// With the impersonation feature enabled, Application sync should succeed
+		// as there is a valid match found in the available destination service accounts configured in AppProject
+		ExpectConsistently(SyncStatusIs(v1alpha1.SyncStatusCodeSynced), WaitDuration, TimeoutDuration).
+		Expect(OperationMessageContains("successfully synced"))
 }
 
-func TestSyncWithImpersonateWithFalseServiceAccount(t *testing.T) {
+func TestSyncWithMissingServiceAccount(t *testing.T) {
 	projectName := "false-test-project"
 	serviceAccountName := "test-account"
 	roleName := "test-account-sa-role"
@@ -135,7 +120,7 @@ func TestSyncWithImpersonateWithFalseServiceAccount(t *testing.T) {
 				{
 					Server:                "*",
 					Namespace:             fixture.DeploymentNamespace(),
-					DefaultServiceAccount: "false-serviceAccount",
+					DefaultServiceAccount: "missing-serviceAccount",
 				},
 				{
 					Server:                "*",
@@ -169,11 +154,15 @@ func TestSyncWithImpersonateWithFalseServiceAccount(t *testing.T) {
 			app.Spec.Project = projectName
 		}).
 		Then().
-		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeOutOfSync))
+		// With the impersonation feature enabled, Application sync must fail
+		// when there is a valid match found in the available destination service accounts configured in AppProject,
+		// but the matching service account is missing.
+		ExpectConsistently(SyncStatusIs(v1alpha1.SyncStatusCodeOutOfSync), WaitDuration, TimeoutDuration).
+		Expect(OperationMessageContains("one or more objects failed to apply"))
 }
 
-func TestSyncWithNegationApplicationDestinationNamespace(t *testing.T) {
-	projectName := "nagation-test-project"
+func TestSyncWithValidSAButDisallowedDestination(t *testing.T) {
+	projectName := "negation-test-project"
 	serviceAccountName := "test-account"
 	roleName := "test-account-sa-role"
 	Given(t).
@@ -217,6 +206,7 @@ func TestSyncWithNegationApplicationDestinationNamespace(t *testing.T) {
 		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeSynced)).
 		When().
 		And(func() {
+			// Patch destination to disallow target destination namespace
 			patch := []byte(fmt.Sprintf(`{"spec": {"destinations": [{"namespace": "%s"}]}}`, "!"+fixture.DeploymentNamespace()))
 
 			_, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Patch(context.Background(), projectName, types.MergePatchType, patch, metav1.PatchOptions{})
@@ -224,7 +214,10 @@ func TestSyncWithNegationApplicationDestinationNamespace(t *testing.T) {
 		}).
 		Refresh(v1alpha1.RefreshTypeNormal).
 		Then().
-		Expect(SyncStatusIs(v1alpha1.SyncStatusCodeUnknown))
+		// With the impersonation feature enabled, Application sync must fail
+		// as there is a valid match found in the available destination service accounts configured in AppProject
+		// but the destination namespace is now disallowed.
+		ExpectConsistently(SyncStatusIs(v1alpha1.SyncStatusCodeUnknown), WaitDuration, TimeoutDuration)
 }
 
 // createTestAppProject creates a test AppProject resource.
