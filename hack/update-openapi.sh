@@ -20,9 +20,10 @@ VERSION="v1alpha1"
 
 openapi-gen \
   --go-header-file ${PROJECT_ROOT}/hack/custom-boilerplate.go.txt \
-  --output-pkg github.com/argoproj/argo-cd/v2/pkg/apis/application/${VERSION} \
+  --input-dirs github.com/argoproj/argo-cd/v2/pkg/apis/application/${VERSION} \
+  --output-package github.com/argoproj/argo-cd/v2/pkg/apis/application/${VERSION} \
   --report-filename pkg/apis/api-rules/violation_exceptions.list \
-  --output-dir "${GOPATH}/src" \
+  --output-base "${GOPATH}/src" \
   $@
 
 [ -L "${GOPATH_PROJECT_ROOT}" ] && rm -rf "${GOPATH_PROJECT_ROOT}"

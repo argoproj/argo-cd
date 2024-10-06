@@ -141,11 +141,13 @@ func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (string, bool, erro
 		return script.HealthLua, script.UseOpenLibs, nil
 	}
 
-	// if not found as is, perhaps it matches a wildcard entry in the configmap
-	getWildcardHealthOverride, useOpenLibs := getWildcardHealthOverrideLua(vm.ResourceOverrides, obj.GroupVersionKind())
+	// if not found as is, perhaps it matches wildcard entries in the configmap
+	wildcardKey := GetWildcardConfigMapKey(vm, obj.GroupVersionKind())
 
-	if getWildcardHealthOverride != "" {
-		return getWildcardHealthOverride, useOpenLibs, nil
+	if wildcardKey != "" {
+		if wildcardScript, ok := vm.ResourceOverrides[wildcardKey]; ok && wildcardScript.HealthLua != "" {
+			return wildcardScript.HealthLua, wildcardScript.UseOpenLibs, nil
+		}
 	}
 
 	// if not found in the ResourceOverrides at all, search it as is in the built-in scripts
@@ -273,62 +275,48 @@ func cleanReturnedArray(newObj, obj []interface{}) []interface{} {
 	return arrayToReturn
 }
 
-func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scripts []string) ([]appv1.ResourceAction, error) {
-	if len(scripts) == 0 {
-		return nil, fmt.Errorf("no action discovery script provided")
+func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, script string) ([]appv1.ResourceAction, error) {
+	l, err := vm.runLua(obj, script)
+	if err != nil {
+		return nil, err
 	}
-	availableActionsMap := make(map[string]appv1.ResourceAction)
-
-	for _, script := range scripts {
-		l, err := vm.runLua(obj, script)
+	returnValue := l.Get(-1)
+	if returnValue.Type() == lua.LTTable {
+		jsonBytes, err := luajson.Encode(returnValue)
 		if err != nil {
 			return nil, err
 		}
-		returnValue := l.Get(-1)
-		if returnValue.Type() == lua.LTTable {
-			jsonBytes, err := luajson.Encode(returnValue)
-			if err != nil {
-				return nil, fmt.Errorf("error in converting to lua table: %w", err)
-			}
-			if noAvailableActions(jsonBytes) {
+		availableActions := make([]appv1.ResourceAction, 0)
+		if noAvailableActions(jsonBytes) {
+			return availableActions, nil
+		}
+		availableActionsMap := make(map[string]interface{})
+		err = json.Unmarshal(jsonBytes, &availableActionsMap)
+		if err != nil {
+			return nil, err
+		}
+		for key := range availableActionsMap {
+			value := availableActionsMap[key]
+			resourceAction := appv1.ResourceAction{Name: key, Disabled: isActionDisabled(value)}
+			if emptyResourceActionFromLua(value) {
+				availableActions = append(availableActions, resourceAction)
 				continue
 			}
-			actionsMap := make(map[string]interface{})
-			err = json.Unmarshal(jsonBytes, &actionsMap)
+			resourceActionBytes, err := json.Marshal(value)
 			if err != nil {
-				return nil, fmt.Errorf("error unmarshaling action table: %w", err)
+				return nil, err
 			}
-			for key, value := range actionsMap {
-				resourceAction := appv1.ResourceAction{Name: key, Disabled: isActionDisabled(value)}
-				if _, exist := availableActionsMap[key]; exist {
-					continue
-				}
-				if emptyResourceActionFromLua(value) {
-					availableActionsMap[key] = resourceAction
-					continue
-				}
-				resourceActionBytes, err := json.Marshal(value)
-				if err != nil {
-					return nil, fmt.Errorf("error marshaling resource action: %w", err)
-				}
 
-				err = json.Unmarshal(resourceActionBytes, &resourceAction)
-				if err != nil {
-					return nil, fmt.Errorf("error unmarshaling resource action: %w", err)
-				}
-				availableActionsMap[key] = resourceAction
+			err = json.Unmarshal(resourceActionBytes, &resourceAction)
+			if err != nil {
+				return nil, err
 			}
-		} else {
-			return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
+			availableActions = append(availableActions, resourceAction)
 		}
+		return availableActions, err
 	}
 
-	availableActions := make([]appv1.ResourceAction, 0, len(availableActionsMap))
-	for _, action := range availableActionsMap {
-		availableActions = append(availableActions, action)
-	}
-
-	return availableActions, nil
+	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
 }
 
 // Actions are enabled by default
@@ -358,35 +346,22 @@ func noAvailableActions(jsonBytes []byte) bool {
 	return string(jsonBytes) == "[]"
 }
 
-func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) ([]string, error) {
+func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) (string, error) {
 	key := GetConfigMapKey(obj.GroupVersionKind())
-	var discoveryScripts []string
-
-	// Check if there are resource overrides for the given key
 	override, ok := vm.ResourceOverrides[key]
 	if ok && override.Actions != "" {
 		actions, err := override.GetActions()
 		if err != nil {
-			return nil, err
+			return "", err
 		}
-		// Append the action discovery Lua script if built-in actions are to be included
-		if actions.MergeBuiltinActions {
-			discoveryScripts = append(discoveryScripts, actions.ActionDiscoveryLua)
-		} else {
-			return []string{actions.ActionDiscoveryLua}, nil
-		}
+		return actions.ActionDiscoveryLua, nil
 	}
-
-	// Fetch predefined Lua scripts
 	discoveryKey := fmt.Sprintf("%s/actions/", key)
 	discoveryScript, err := vm.getPredefinedLuaScripts(discoveryKey, actionDiscoveryScriptFile)
 	if err != nil {
-		return nil, fmt.Errorf("error while fetching predefined lua scripts: %w", err)
+		return "", err
 	}
-
-	discoveryScripts = append(discoveryScripts, discoveryScript)
-
-	return discoveryScripts, nil
+	return discoveryScript, nil
 }
 
 // GetResourceAction attempts to read lua script from config and then filesystem for that resource
@@ -424,18 +399,15 @@ func GetConfigMapKey(gvk schema.GroupVersionKind) string {
 	return fmt.Sprintf("%s/%s", gvk.Group, gvk.Kind)
 }
 
-// getWildcardHealthOverrideLua returns the first encountered resource override which matches the wildcard and has a
-// non-empty health script. Having multiple wildcards with non-empty health checks that can match the GVK is
-// non-deterministic.
-func getWildcardHealthOverrideLua(overrides map[string]appv1.ResourceOverride, gvk schema.GroupVersionKind) (string, bool) {
+func GetWildcardConfigMapKey(vm VM, gvk schema.GroupVersionKind) string {
 	gvkKeyToMatch := GetConfigMapKey(gvk)
 
-	for key, override := range overrides {
-		if glob.Match(key, gvkKeyToMatch) && override.HealthLua != "" {
-			return override.HealthLua, override.UseOpenLibs
+	for key := range vm.ResourceOverrides {
+		if glob.Match(key, gvkKeyToMatch) {
+			return key
 		}
 	}
-	return "", false
+	return ""
 }
 
 func (vm VM) getPredefinedLuaScripts(objKey string, scriptFile string) (string, error) {

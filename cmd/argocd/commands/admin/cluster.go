@@ -106,9 +106,14 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 		}
 
 		redisOptions := &redis.Options{Addr: fmt.Sprintf("localhost:%d", port)}
-		if err = common.SetOptionalRedisPasswordFromKubeConfig(ctx, kubeClient, namespace, redisOptions); err != nil {
-			log.Warnf("Failed to fetch & set redis password for namespace %s: %v", namespace, err)
+
+		secret, err := kubeClient.CoreV1().Secrets(namespace).Get(context.Background(), defaulRedisInitialPasswordSecretName, v1.GetOptions{})
+		if err == nil {
+			if _, ok := secret.Data[defaultResisInitialPasswordKey]; ok {
+				redisOptions.Password = string(secret.Data[defaultResisInitialPasswordKey])
+			}
 		}
+
 		client := redis.NewClient(redisOptions)
 		compressionType, err := cacheutil.CompressionTypeFromString(redisCompressionStr)
 		if err != nil {
@@ -565,9 +570,7 @@ argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kub
 
 			cluster, err := db.NewDB(namespace, settings.NewSettingsManager(ctx, kubeclientset, namespace), kubeclientset).GetCluster(ctx, serverUrl)
 			errors.CheckError(err)
-			rawConfig, err := cluster.RawRestConfig()
-			errors.CheckError(err)
-			err = kube.WriteKubeConfig(rawConfig, namespace, output)
+			err = kube.WriteKubeConfig(cluster.RawRestConfig(), namespace, output)
 			errors.CheckError(err)
 		},
 	}
