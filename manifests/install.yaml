@@ -6065,6 +6065,8 @@ spec:
                       type: object
                     clusters:
                       properties:
+                        flatList:
+                          type: boolean
                         selector:
                           properties:
                             matchExpressions:
@@ -8557,6 +8559,8 @@ spec:
                                 type: object
                               clusters:
                                 properties:
+                                  flatList:
+                                    type: boolean
                                   selector:
                                     properties:
                                       matchExpressions:
@@ -13953,6 +13957,8 @@ spec:
                                 type: object
                               clusters:
                                 properties:
+                                  flatList:
+                                    type: boolean
                                   selector:
                                     properties:
                                       matchExpressions:
