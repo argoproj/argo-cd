@@ -57,6 +57,8 @@ func NewCommand() *cobra.Command {
 		repoServerAddress                string
 		repoServerTimeoutSeconds         int
 		selfHealTimeoutSeconds           int
+		selfHealTimeoutBackoffFactor     int
+		selfHealTimeoutBackoffMaxSeconds int
 		statusProcessors                 int
 		operationProcessors              int
 		glogLevel                        int
@@ -168,6 +170,8 @@ func NewCommand() *cobra.Command {
 				hardResyncDuration,
 				time.Duration(appResyncJitter)*time.Second,
 				time.Duration(selfHealTimeoutSeconds)*time.Second,
+				selfHealTimeoutBackoffFactor,
+				time.Duration(selfHealTimeoutBackoffMaxSeconds)*time.Second,
 				time.Duration(repoErrorGracePeriod)*time.Second,
 				metricsPort,
 				metricsCacheExpiration,
@@ -232,6 +236,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDMetrics, "Start metrics server on given port")
 	command.Flags().DurationVar(&metricsCacheExpiration, "metrics-cache-expiration", env.ParseDurationFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_CACHE_EXPIRATION", 0*time.Second, 0, math.MaxInt64), "Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)")
 	command.Flags().IntVar(&selfHealTimeoutSeconds, "self-heal-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_TIMEOUT_SECONDS", 5, 0, math.MaxInt32), "Specifies timeout between application self heal attempts")
+	command.Flags().IntVar(&selfHealTimeoutBackoffFactor, "self-heal-timeout-backoff-factor", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_TIMEOUT_BACKOFF_FACTOR", 0, 0, math.MaxInt32), "Specifies timeout backoff factor between application self heal attempts")
+	command.Flags().IntVar(&selfHealTimeoutBackoffMaxSeconds, "self-heal-timeout-backoff-max-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_TIMEOUT_MAX_SECONDS", 0, 0, math.MaxInt32), "Specifies timeout backoff max between application self heal attempts")
 	command.Flags().Int64Var(&kubectlParallelismLimit, "kubectl-parallelism-limit", env.ParseInt64FromEnv("ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT", 20, 0, math.MaxInt64), "Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit.")
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Disable TLS on connections to repo server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")

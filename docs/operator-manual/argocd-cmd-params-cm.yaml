@@ -49,6 +49,10 @@ data:
   controller.metrics.cache.expiration: "24h0m0s"
   # Specifies timeout between application self heal attempts (default 5)
   controller.self.heal.timeout.seconds: "5"
+  # Specifies timeout backoff factor between application self heal attempts (default 0)
+  controller.self.heal.timeout.backoff.factor: "0"
+  # Specifies timeout backoff max between application self heal attempts (default 0)
+  controller.self.heal.timeout.backoff.maxseconds: "0"
   # Cache expiration for app state (default 1h0m0s)
   controller.app.state.cache.expiration: "1h0m0s"
   # Specifies if resource health should be persisted in app CRD (default true)

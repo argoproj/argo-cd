@@ -130,6 +130,8 @@ type ApplicationController struct {
 	statusHardRefreshTimeout      time.Duration
 	statusRefreshJitter           time.Duration
 	selfHealTimeout               time.Duration
+	selfHealTimeoutBackoffFactor  int
+	selfHealTimeoutBackoffMax     time.Duration
 	repoClientset                 apiclient.Clientset
 	db                            db.ArgoDB
 	settingsMgr                   *settings_util.SettingsManager
@@ -160,6 +162,8 @@ func NewApplicationController(
 	appHardResyncPeriod time.Duration,
 	appResyncJitter time.Duration,
 	selfHealTimeout time.Duration,
+	selfHealTimeoutBackoffFactor int,
+	selfHealTimeoutBackoffMax time.Duration,
 	repoErrorGracePeriod time.Duration,
 	metricsPort int,
 	metricsCacheExpiration time.Duration,
@@ -201,6 +205,8 @@ func NewApplicationController(
 		auditLogger:                       argo.NewAuditLogger(namespace, kubeClientset, common.ApplicationController, enableK8sEvent),
 		settingsMgr:                       settingsMgr,
 		selfHealTimeout:                   selfHealTimeout,
+		selfHealTimeoutBackoffFactor:      selfHealTimeoutBackoffFactor,
+		selfHealTimeoutBackoffMax:         selfHealTimeoutBackoffMax,
 		clusterSharding:                   clusterSharding,
 		projByNameCache:                   sync.Map{},
 		applicationNamespaces:             applicationNamespaces,
@@ -1997,7 +2003,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredCommitSHA)
 		return nil, 0
 	} else if alreadyAttempted && selfHeal {
-		if shouldSelfHeal, retryAfter := ctrl.shouldSelfHeal(app); shouldSelfHeal {
+		if shouldSelfHeal, retryAfter, selfHealBackoffTimeout := ctrl.shouldSelfHeal(app); shouldSelfHeal {
 			for _, resource := range resources {
 				if resource.Status != appv1.SyncStatusCodeSynced {
 					op.Sync.Resources = append(op.Sync.Resources, appv1.SyncOperationResource{
@@ -2008,7 +2014,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 				}
 			}
 		} else {
-			logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", desiredCommitSHA, ctrl.selfHealTimeout, retryAfter)
+			logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", desiredCommitSHA, selfHealBackoffTimeout, retryAfter)
 			ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
 			return nil, 0
 		}
@@ -2110,18 +2116,44 @@ func alreadyAttemptedSync(app *appv1.Application, commitSHA string, commitSHAsMS
 	}
 }
 
-func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application) (bool, time.Duration) {
+func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application) (bool, time.Duration, time.Duration) {
 	if app.Status.OperationState == nil {
-		return true, time.Duration(0)
+		return true, time.Duration(0), time.Duration(0)
 	}
-
 	var retryAfter time.Duration
+	timeSinceLastOperationEnd := time.Since(app.Status.OperationState.FinishedAt.Time)
+
+	nextSelfHealBackoffTimeout := ctrl.nextSelfHealBackoffTimeout(app)
 	if app.Status.OperationState.FinishedAt == nil {
-		retryAfter = ctrl.selfHealTimeout
+		retryAfter = nextSelfHealBackoffTimeout
 	} else {
-		retryAfter = ctrl.selfHealTimeout - time.Since(app.Status.OperationState.FinishedAt.Time)
+		retryAfter = nextSelfHealBackoffTimeout - timeSinceLastOperationEnd
 	}
-	return retryAfter <= 0, retryAfter
+	return retryAfter <= 0, retryAfter, nextSelfHealBackoffTimeout
+}
+
+// isSelfHealBackoffEnabled returns whether self heal exponential backoff
+// is enabled.
+func (ctrl *ApplicationController) isSelfHealBackoffEnabled(app *appv1.Application) bool {
+	return len(app.Status.History) > 0 && ctrl.selfHealTimeoutBackoffFactor > 0 && ctrl.selfHealTimeoutBackoffMax > 0
+}
+
+// nextSelfHealBackoffTimeout returns the next self heal timeout
+func (ctrl *ApplicationController) nextSelfHealBackoffTimeout(app *appv1.Application) time.Duration {
+	if ctrl.isSelfHealBackoffEnabled(app) {
+		latestDeployTime := app.Status.History.LastRevisionHistory().DeployedAt.Time
+		latestSelfHealTimeout := app.Status.OperationState.StartedAt.Time.Sub(latestDeployTime)
+		// Calculate the number of self-heal attempts based on the exponential backoff factor.
+		// Takes the log of the ratio between the latest and initial timeout values,
+		// with the base being the backoff factor.
+		latestTimeoutRatio := math.Max(float64(latestSelfHealTimeout/ctrl.selfHealTimeout), 1)
+		selfHealAttempts := int(math.Log(latestTimeoutRatio)/math.Log(float64(ctrl.selfHealTimeoutBackoffFactor))) + 1
+		nextSelfHealTimeout := float64(ctrl.selfHealTimeout) * math.Pow(float64(ctrl.selfHealTimeoutBackoffFactor), float64(selfHealAttempts))
+
+		nextSelfHealTimeout = math.Min(float64(ctrl.selfHealTimeoutBackoffMax), nextSelfHealTimeout)
+		return time.Duration(nextSelfHealTimeout)
+	}
+	return ctrl.selfHealTimeout
 }
 
 // isAppNamespaceAllowed returns whether the application is allowed in the
