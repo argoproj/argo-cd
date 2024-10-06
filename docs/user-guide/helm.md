@@ -418,7 +418,7 @@ repoServer:
       value: /helm-working-dir
   initContainers:
     - name: helm-gcp-authentication
-      image: alpine/helm:3.8.1
+      image: alpine/helm:3.16.1
       volumeMounts:
         - name: helm-working-dir
           mountPath: /helm-working-dir
