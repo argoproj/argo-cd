@@ -1289,7 +1289,11 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *appv1.Appli
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}
-	config := clst.RESTConfig()
+	config, err := clst.RESTConfig()
+	if err != nil {
+		return nil, fmt.Errorf("error getting cluster REST config: %w", err)
+	}
+
 	return config, err
 }
 
