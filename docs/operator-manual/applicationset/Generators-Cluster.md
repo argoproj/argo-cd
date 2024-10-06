@@ -252,7 +252,7 @@ spec:
         server: '{{.values.clusterName}}'
         namespace: guestbook
 ```
-### Gather cluster information as a flat list ### 
+### Gather cluster information as a flat list
 
 You may sometimes need to gather your clusters information, without having to deploy one application per cluster found.
 For that, you can use the option `flatList` in the cluster generator.
