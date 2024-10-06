@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opencontainers/go-digest"
 	"oras.land/oras-go/v2/content/oci"
 
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -307,10 +306,6 @@ func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) (*TagsList,
 func (c *nativeOCIClient) resolveDigest(ctx context.Context, revision string) (string, error) {
 	descriptor, err := c.repo.Resolve(ctx, revision)
 	if err != nil {
-		exists, _ := c.repo.Exists(ctx, v1.Descriptor{Digest: digest.Digest(revision)})
-		if exists {
-			return revision, nil
-		}
 		return "", fmt.Errorf("cannot get digest: %w", err)
 	}
 

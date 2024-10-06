@@ -88,6 +88,7 @@ type Service struct {
 	rootDir                   string
 	gitRepoPaths              io.TempPaths
 	chartPaths                io.TempPaths
+	ociPaths                  io.TempPaths
 	gitRepoInitializer        func(rootPath string) goio.Closer
 	repoLock                  *repositoryLock
 	cache                     *cache.Cache
@@ -130,6 +131,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 	repoLock := NewRepositoryLock()
 	gitRandomizedPaths := io.NewRandomizedTempPaths(rootDir)
 	helmRandomizedPaths := io.NewRandomizedTempPaths(rootDir)
+	ociRandomizedPaths := io.NewRandomizedTempPaths(rootDir)
 	return &Service{
 		parallelismLimitSemaphore: parallelismLimitSemaphore,
 		repoLock:                  repoLock,
@@ -146,6 +148,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 		gitCredsStore:      gitCredsStore,
 		gitRepoPaths:       gitRandomizedPaths,
 		chartPaths:         helmRandomizedPaths,
+		ociPaths:           ociRandomizedPaths,
 		gitRepoInitializer: directoryPermissionInitializer,
 		rootDir:            rootDir,
 	}
@@ -2399,7 +2402,7 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 }
 
 func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.OCIMetadata, error) {
-	client, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.chartPaths))
+	client, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths))
 	if err != nil {
 		return nil, err
 	}
@@ -2496,7 +2499,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 }
 
 func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, noRevisionCache bool) (oci.Client, string, error) {
-	ociClient, err := s.newOCIClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.chartPaths))
+	ociClient, err := s.newOCIClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths))
 	if err != nil {
 		return nil, "", err
 	}
