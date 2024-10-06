@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+  creationTimestamp: "2019-09-12T01:33:53Z"
+  generation: 174
+  name: nginx-deploy
+  namespace: default
+  resourceVersion: "6897444"
+  selfLink: /apis/apps/v1/namespaces/default/deployments/nginx-deploy
+  uid: 61689d6d-d4fd-11e9-9e69-42010aa8005f
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 5
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: nginx
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - image: nginx:latest
+        imagePullPolicy: Always
+        name: nginx
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+status:
+  availableReplicas: 1
+  conditions:
+    - lastTransitionTime: '2024-09-28T23:08:00Z'
+      lastUpdateTime: '2024-10-02T03:34:02Z'
+      message: ReplicaSet "nginx-deploy-7bf8c77b5b" has successfully progressed.
+      reason: NewReplicaSetAvailable
+      status: 'True'
+      type: Progressing
+    - lastTransitionTime: '2024-10-06T15:37:34Z'
+      lastUpdateTime: '2024-10-06T15:37:34Z'
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: 'True'
+      type: Available
+  observedGeneration: 175
+  readyReplicas: 1
+  replicas: 1
+  updatedReplicas: 1
