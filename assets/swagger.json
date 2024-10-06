@@ -4719,6 +4719,9 @@
         "impersonationEnabled": {
           "type": "boolean"
         },
+        "installationID": {
+          "type": "string"
+        },
         "kustomizeOptions": {
           "$ref": "#/definitions/v1alpha1KustomizeOptions"
         },
@@ -6613,6 +6616,10 @@
         "skipCrds": {
           "type": "boolean",
           "title": "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)"
+        },
+        "skipTests": {
+          "description": "SkipTests skips test manifest installation step (Helm's --skip-tests).",
+          "type": "boolean"
         },
         "valueFiles": {
           "type": "array",

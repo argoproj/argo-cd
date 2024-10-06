@@ -1163,7 +1163,11 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		logCtx.Infof("Resource entries removed from undefined cluster")
 		return nil
 	}
-	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
+	clusterRESTConfig, err := cluster.RESTConfig()
+	if err != nil {
+		return err
+	}
+	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, clusterRESTConfig)
 
 	if app.CascadedDeletion() {
 		logCtx.Infof("Deleting resources")

@@ -65,6 +65,11 @@ func Test_setHelmOpt(t *testing.T) {
 		setHelmOpt(&src, helmOpts{skipCrds: true})
 		assert.True(t, src.Helm.SkipCrds)
 	})
+	t.Run("HelmSkipTests", func(t *testing.T) {
+		src := v1alpha1.ApplicationSource{}
+		setHelmOpt(&src, helmOpts{skipTests: true})
+		assert.True(t, src.Helm.SkipTests)
+	})
 	t.Run("HelmNamespace", func(t *testing.T) {
 		src := v1alpha1.ApplicationSource{}
 		setHelmOpt(&src, helmOpts{namespace: "custom-namespace"})
