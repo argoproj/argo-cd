@@ -27,7 +27,7 @@ export const ContainerSelector = ({
     };
     if (containerNames.length <= 1) return <></>;
     return (
-        <Tooltip content='Select a container to view logs'>
+        <Tooltip content='Select a container to view logs' interactive={false}>
             <select className='argo-field' value={containerName} onChange={e => onClickContainer(containerGroup(e.target.value), containerIndex(e.target.value), 'logs')}>
                 {containerNames.map(n => (
                     <option key={n} value={n}>

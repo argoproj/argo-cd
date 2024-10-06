@@ -172,6 +172,28 @@ func TestDeepLinks(t *testing.T) {
 			}},
 			error: []string{},
 		},
+		{
+			name:        "evaluate template for valid condition",
+			appObj:      appObj,
+			resourceObj: resourceObj,
+			projectObj:  projectObj,
+			inputLinks: []settings.DeepLink{
+				{
+					Title:     "link",
+					URL:       "http://not-evaluated.com/{{ index \"invalid\" .application.metadata.labels }}",
+					Condition: ptr.To(`false`),
+				},
+				{
+					Title:     "link",
+					URL:       "http://evaluated.com/{{ index \"invalid\" .application.metadata.labels }}",
+					Condition: ptr.To(`true`),
+				},
+			},
+			outputLinks: []*application.LinkInfo{},
+			error: []string{
+				"failed to evaluate link template 'http://evaluated.com/{{ index \"invalid\" .application.metadata.labels }}' with resource test, error=template: deep-link:1:24: executing \"deep-link\" at <index \"invalid\" .application.metadata.labels>: error calling index: cannot index slice/array with nil",
+			},
+		},
 	}
 
 	for _, tc := range testTable {

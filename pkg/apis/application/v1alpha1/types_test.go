@@ -320,7 +320,7 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 			Server: "*", Namespace: "!kube-system",
 		}},
 		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
-		isPermitted: false,
+		isPermitted: true,
 	}, {
 		projDest: []ApplicationDestination{{
 			Server: "*", Namespace: "*",
@@ -339,6 +339,22 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 		}},
 		appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
 		isPermitted: false,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "*", Namespace: "test",
+		}, {
+			Server: "!https://test-server", Namespace: "other",
+		}},
+		appDest:     ApplicationDestination{Server: "https://test-server", Namespace: "test"},
+		isPermitted: true,
+	}, {
+		projDest: []ApplicationDestination{{
+			Server: "*", Namespace: "*",
+		}, {
+			Server: "https://test-server", Namespace: "!other",
+		}},
+		appDest:     ApplicationDestination{Server: "https://other-test-server", Namespace: "other"},
+		isPermitted: true,
 	}}
 
 	for _, data := range testData {
@@ -350,7 +366,7 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
 			return []*Cluster{}, nil
 		})
-		assert.Equal(t, data.isPermitted, permitted)
+		assert.Equalf(t, data.isPermitted, permitted, "appDest mismatch for %+v with project destinations %+v", data.appDest, data.projDest)
 	}
 }
 
@@ -438,8 +454,7 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 	_, err := proj.IsDestinationPermitted(ApplicationDestination{Server: "https://my-cluster.123.com", Namespace: "default"}, func(_ string) ([]*Cluster, error) {
 		return nil, errors.New("some error")
 	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "could not retrieve project clusters")
+	assert.ErrorContains(t, err, "could not retrieve project clusters")
 }
 
 func TestAppProject_IsGroupKindPermitted(t *testing.T) {
@@ -801,8 +816,7 @@ func TestAppProject_InvalidPolicyRules(t *testing.T) {
 	for _, bad := range badPolicies {
 		p.Spec.Roles[0].Policies = []string{bad.policy}
 		err = p.ValidateProject()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), bad.errmsg)
+		assert.ErrorContains(t, err, bad.errmsg)
 	}
 }
 
@@ -3887,5 +3901,230 @@ func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
 			actual := tc.application.GetSourcePtrByIndex(tc.sourceIndex)
 			assert.Equal(t, tc.expected, actual)
 		})
+	}
+}
+
+func TestApplicationTree_GetShards(t *testing.T) {
+	tree := &ApplicationTree{
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}}, {ResourceRef: ResourceRef{Name: "node 3"}},
+		},
+		OrphanedNodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "orph-node 1"}}, {ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}},
+		},
+		Hosts: []HostInfo{
+			{Name: "host 1"}, {Name: "host 2"}, {Name: "host 3"},
+		},
+	}
+
+	shards := tree.GetShards(2)
+	require.Len(t, shards, 5)
+	require.Equal(t, &ApplicationTree{
+		ShardsCount: 5,
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}},
+		},
+	}, shards[0])
+	require.Equal(t, &ApplicationTree{
+		Nodes:         []ResourceNode{{ResourceRef: ResourceRef{Name: "node 3"}}},
+		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 1"}}},
+	}, shards[1])
+	require.Equal(t, &ApplicationTree{
+		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}}},
+	}, shards[2])
+	require.Equal(t, &ApplicationTree{
+		Hosts: []HostInfo{{Name: "host 1"}, {Name: "host 2"}},
+	}, shards[3])
+	require.Equal(t, &ApplicationTree{
+		Hosts: []HostInfo{{Name: "host 3"}},
+	}, shards[4])
+}
+
+func TestApplicationTree_Merge(t *testing.T) {
+	tree := &ApplicationTree{}
+	tree.Merge(&ApplicationTree{
+		ShardsCount: 5,
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}},
+		},
+	})
+	tree.Merge(&ApplicationTree{
+		Nodes:         []ResourceNode{{ResourceRef: ResourceRef{Name: "node 3"}}},
+		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 1"}}},
+	})
+	tree.Merge(&ApplicationTree{
+		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}}},
+	})
+	tree.Merge(&ApplicationTree{
+		Hosts: []HostInfo{{Name: "host 1"}, {Name: "host 2"}},
+	})
+	tree.Merge(&ApplicationTree{
+		Hosts: []HostInfo{{Name: "host 3"}},
+	})
+	require.Equal(t, &ApplicationTree{
+		Nodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}}, {ResourceRef: ResourceRef{Name: "node 3"}},
+		},
+		OrphanedNodes: []ResourceNode{
+			{ResourceRef: ResourceRef{Name: "orph-node 1"}}, {ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}},
+		},
+		Hosts: []HostInfo{
+			{Name: "host 1"}, {Name: "host 2"}, {Name: "host 3"},
+		},
+	}, tree)
+}
+
+func TestAppProject_ValidateDestinationServiceAccount(t *testing.T) {
+	testData := []struct {
+		server                string
+		namespace             string
+		defaultServiceAccount string
+		expectedErrMsg        string
+	}{
+		{
+			// Given, a project
+			// When, a default destination service account with all valid fields is added to it,
+			// Then, there is no error.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "",
+		},
+		{
+			// Given, a project
+			// When, a default destination service account with negation glob pattern for server is added,
+			// Then, there is an error with appropriate message.
+			server:                "!abc",
+			namespace:             "test-ns",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "server has an invalid format, '!abc'",
+		},
+		{
+			// Given, a project
+			// When, a default destination service account with empty namespace is added to it,
+			// Then, there is no error.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with negation glob pattern for server is added,
+			// Then, there is an error with appropriate message.
+			server:                "!*",
+			namespace:             "test-ns",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "server has an invalid format, '!*'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with negation glob pattern for namespace is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "!*",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "namespace has an invalid format, '!*'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with negation glob pattern for namespace is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "!abc",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "namespace has an invalid format, '!abc'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with empty service account is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "",
+			expectedErrMsg:        "defaultServiceAccount has an invalid format, ''",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having just white spaces is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "   ",
+			expectedErrMsg:        "defaultServiceAccount has an invalid format, '   '",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having backwards slash char is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "test\\sa",
+			expectedErrMsg:        "defaultServiceAccount has an invalid format, 'test\\sa'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having forward slash char is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "test/sa",
+			expectedErrMsg:        "defaultServiceAccount has an invalid format, 'test/sa'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having square braces char is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "[test-sa]",
+			expectedErrMsg:        "defaultServiceAccount has an invalid format, '[test-sa]'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having curly braces char is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "test-ns",
+			defaultServiceAccount: "{test-sa}",
+			expectedErrMsg:        "defaultServiceAccount has an invalid format, '{test-sa}'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having curly braces char is added,
+			// Then, there is an error with appropriate message.
+			server:                "[[ech*",
+			namespace:             "test-ns",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "server has an invalid format, '[[ech*'",
+		},
+		{
+			// Given, a project,
+			// When, a default destination service account with service account having curly braces char is added,
+			// Then, there is an error with appropriate message.
+			server:                "https://192.168.99.100:8443",
+			namespace:             "[[ech*",
+			defaultServiceAccount: "test-sa",
+			expectedErrMsg:        "namespace has an invalid format, '[[ech*'",
+		},
+	}
+	for _, data := range testData {
+		proj := AppProject{
+			Spec: AppProjectSpec{
+				DestinationServiceAccounts: []ApplicationDestinationServiceAccount{
+					{
+						Server:                data.server,
+						Namespace:             data.namespace,
+						DefaultServiceAccount: data.defaultServiceAccount,
+					},
+				},
+			},
+		}
+		err := proj.ValidateProject()
+		if data.expectedErrMsg == "" {
+			require.NoError(t, err)
+		} else {
+			require.ErrorContains(t, err, data.expectedErrMsg)
+		}
 	}
 }

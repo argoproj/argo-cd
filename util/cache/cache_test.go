@@ -74,11 +74,9 @@ func TestCacheClient(t *testing.T) {
 		})
 		t.Run("Check for nil items", func(t *testing.T) {
 			err := cache.SetItem("foo", nil, &CacheActionOpts{Expiration: 0, Delete: true})
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "cannot set nil item")
+			require.ErrorContains(t, err, "cannot set nil item")
 			err = cache.GetItem("foo", nil)
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "cannot get item")
+			assert.ErrorContains(t, err, "cannot get item")
 		})
 	}
 }

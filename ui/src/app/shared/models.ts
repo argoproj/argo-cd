@@ -127,6 +127,10 @@ export interface ResourceResult {
     hookPhase: OperationPhase;
 }
 
+export type SyncResourceResult = ResourceResult & {
+    health?: HealthStatus;
+};
+
 export const AnnotationRefreshKey = 'argocd.argoproj.io/refresh';
 export const AnnotationHookKey = 'argocd.argoproj.io/hook';
 export const AnnotationSyncWaveKey = 'argocd.argoproj.io/sync-wave';
@@ -169,6 +173,12 @@ export interface ApplicationDestination {
      * Name of the destination cluster which can be used instead of server (url) field
      */
     name: string;
+}
+
+export interface ApplicationDestinationServiceAccount {
+    server: string;
+    namespace: string;
+    defaultServiceAccount: string;
 }
 
 export interface OrphanedResource {
@@ -314,12 +324,12 @@ export const SyncStatuses: {[key: string]: SyncStatusCode} = {
 export type HealthStatusCode = 'Unknown' | 'Progressing' | 'Healthy' | 'Suspended' | 'Degraded' | 'Missing';
 
 export const HealthStatuses: {[key: string]: HealthStatusCode} = {
-    Unknown: 'Unknown',
     Progressing: 'Progressing',
     Suspended: 'Suspended',
     Healthy: 'Healthy',
     Degraded: 'Degraded',
-    Missing: 'Missing'
+    Missing: 'Missing',
+    Unknown: 'Unknown'
 };
 
 export interface HealthStatus {
@@ -721,6 +731,7 @@ export interface ProjectSpec {
     sourceRepos: string[];
     sourceNamespaces: string[];
     destinations: ApplicationDestination[];
+    destinationServiceAccounts: ApplicationDestinationServiceAccount[];
     description: string;
     roles: ProjectRole[];
     clusterResourceWhitelist: GroupKind[];

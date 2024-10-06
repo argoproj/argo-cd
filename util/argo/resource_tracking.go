@@ -29,9 +29,9 @@ var (
 
 // ResourceTracking defines methods which allow setup and retrieve tracking information to resource
 type ResourceTracking interface {
-	GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string
-	GetAppInstance(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) *AppInstanceValue
-	SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) error
+	GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod, installationID string) string
+	GetAppInstance(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod, installationID string) *AppInstanceValue
+	SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod, instanceID string) error
 	BuildAppInstanceValue(value AppInstanceValue) string
 	ParseAppInstanceValue(value string) (*AppInstanceValue, error)
 	Normalize(config, live *unstructured.Unstructured, labelKey, trackingMethod string) error
@@ -65,7 +65,10 @@ func IsOldTrackingMethod(trackingMethod string) bool {
 	return trackingMethod == "" || trackingMethod == string(TrackingMethodLabel)
 }
 
-func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured) *AppInstanceValue {
+func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, installationID string) *AppInstanceValue {
+	if installationID != "" && un.GetAnnotations() == nil || un.GetAnnotations()[common.AnnotationInstallationID] != installationID {
+		return nil
+	}
 	appInstanceAnnotation, err := argokube.GetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance)
 	if err != nil {
 		return nil
@@ -78,9 +81,9 @@ func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured) *
 }
 
 // GetAppName retrieve application name base on tracking method
-func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) string {
+func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod, instanceID string) string {
 	retrieveAppInstanceValue := func() string {
-		value := rt.getAppInstanceValue(un)
+		value := rt.getAppInstanceValue(un, instanceID)
 		if value != nil {
 			return value.ApplicationName
 		}
@@ -109,10 +112,10 @@ func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string
 // GetAppInstance returns the representation of the app instance annotation.
 // If the tracking method does not support metadata, or the annotation could
 // not be parsed, it returns nil.
-func (rt *resourceTracking) GetAppInstance(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod) *AppInstanceValue {
+func (rt *resourceTracking) GetAppInstance(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod, instanceID string) *AppInstanceValue {
 	switch trackingMethod {
 	case TrackingMethodAnnotation, TrackingMethodAnnotationAndLabel:
-		return rt.getAppInstanceValue(un)
+		return rt.getAppInstanceValue(un, instanceID)
 	default:
 		return nil
 	}
@@ -138,9 +141,18 @@ func UnstructuredToAppInstanceValue(un *unstructured.Unstructured, appName, name
 }
 
 // SetAppInstance set label/annotation base on tracking method
-func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod) error {
+func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod, instanceID string) error {
 	setAppInstanceAnnotation := func() error {
 		appInstanceValue := UnstructuredToAppInstanceValue(un, val, namespace)
+		if instanceID != "" {
+			if err := argokube.SetAppInstanceAnnotation(un, common.AnnotationInstallationID, instanceID); err != nil {
+				return err
+			}
+		} else {
+			if err := argokube.RemoveAnnotation(un, common.AnnotationInstallationID); err != nil {
+				return err
+			}
+		}
 		return argokube.SetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance, rt.BuildAppInstanceValue(appInstanceValue))
 	}
 	switch trackingMethod {
@@ -210,7 +222,7 @@ func (rt *resourceTracking) ParseAppInstanceValue(value string) (*AppInstanceVal
 	return &appInstanceValue, nil
 }
 
-// Normalize updates live resource and removes diff caused but missing annotation or extra tracking label.
+// Normalize updates live resource and removes diff caused by missing annotation or extra tracking label.
 // The normalization is required to ensure smooth transition to new tracking method.
 func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, labelKey, trackingMethod string) error {
 	if IsOldTrackingMethod(trackingMethod) {

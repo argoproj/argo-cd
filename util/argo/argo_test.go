@@ -99,6 +99,8 @@ func TestIncludeResource(t *testing.T) {
 		// !*:Service:*
 		excludeAllServiceResources = argoappv1.SyncOperationResource{Group: "*", Kind: "Service", Name: "*", Namespace: "", Exclude: true}
 		// apps:ReplicaSet:backend
+		includeAllReplicaSetResource = argoappv1.SyncOperationResource{Group: "apps", Kind: "ReplicaSet", Name: "*", Namespace: "", Exclude: false}
+		// apps:ReplicaSet:backend
 		includeReplicaSetResource = argoappv1.SyncOperationResource{Group: "apps", Kind: "ReplicaSet", Name: "backend", Namespace: "", Exclude: false}
 		// !apps:ReplicaSet:backend
 		excludeReplicaSetResource = argoappv1.SyncOperationResource{Group: "apps", Kind: "ReplicaSet", Name: "backend", Namespace: "", Exclude: true}
@@ -136,7 +138,7 @@ func TestIncludeResource(t *testing.T) {
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "batch", Kind: "Job"},
 			syncOperationResource: []*argoappv1.SyncOperationResource{&excludeAllServiceResources, &includeReplicaSetResource},
-			expectedResult:        true,
+			expectedResult:        false,
 		},
 		// --resource !apps:ReplicaSet:backend --resource !*:Service:*
 		{
@@ -154,6 +156,15 @@ func TestIncludeResource(t *testing.T) {
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
 			syncOperationResource: []*argoappv1.SyncOperationResource{&excludeReplicaSetResource},
+			expectedResult:        false,
+		},
+		// --resource !apps:ReplicaSet:backend --resource !*:Service:*
+		{
+			testName:              "Exclude ReplicaSet backend resource and all service resources(dummy condition)",
+			name:                  "backend",
+			namespace:             "default",
+			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
+			syncOperationResource: []*argoappv1.SyncOperationResource{&excludeReplicaSetResource, &excludeAllServiceResources},
 			expectedResult:        false,
 		},
 		// --resource apps:ReplicaSet:backend
@@ -183,6 +194,15 @@ func TestIncludeResource(t *testing.T) {
 			syncOperationResource: []*argoappv1.SyncOperationResource{&includeAllServiceResources},
 			expectedResult:        true,
 		},
+		// --resource apps:ReplicaSet:* --resource !apps:ReplicaSet:backend
+		{
+			testName:              "Include & Exclude ReplicaSet resources",
+			name:                  "backend",
+			namespace:             "default",
+			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
+			syncOperationResource: []*argoappv1.SyncOperationResource{&includeAllReplicaSetResource, &excludeReplicaSetResource},
+			expectedResult:        false,
+		},
 		// --resource !*:*:*
 		{
 			testName:              "Exclude all resources",
@@ -209,7 +229,10 @@ func TestIncludeResource(t *testing.T) {
 			syncOperationResource: []*argoappv1.SyncOperationResource{&blankValues},
 			expectedResult:        false,
 		},
-		{testName: "Default values"},
+		{
+			testName:       "Default values",
+			expectedResult: true,
+		},
 	}
 
 	for _, test := range tests {
@@ -870,8 +893,7 @@ func TestSetAppOperations(t *testing.T) {
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
 		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "operation is already in progress")
+		require.ErrorContains(t, err, "operation is already in progress")
 		assert.Nil(t, app)
 	})
 
@@ -884,8 +906,7 @@ func TestSetAppOperations(t *testing.T) {
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
 		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: nil})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "Operation unspecified")
+		require.ErrorContains(t, err, "Operation unspecified")
 		assert.Nil(t, app)
 	})
 
@@ -950,7 +971,7 @@ func TestValidateDestination(t *testing.T) {
 		db.On("GetClusterServersByName", context.Background(), mock.Anything).Return(nil, fmt.Errorf("an error occurred"))
 
 		err := ValidateDestination(context.Background(), &dest, db)
-		assert.Contains(t, err.Error(), "an error occurred")
+		require.ErrorContains(t, err, "an error occurred")
 		assert.False(t, dest.IsServerInferred())
 	})
 

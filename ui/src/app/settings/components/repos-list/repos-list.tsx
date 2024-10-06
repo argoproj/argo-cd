@@ -470,9 +470,14 @@ export class ReposList extends React.Component<
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}} />
                                                     </div>
-                                                    {formApi.getFormState().values.type === 'helm' && (
+                                                    {(formApi.getFormState().values.type === 'helm' || formApi.getFormState().values.type === 'git') && (
                                                         <div className='argo-form-row'>
-                                                            <FormField formApi={formApi} label='Name' field='name' component={Text} />
+                                                            <FormField
+                                                                formApi={formApi}
+                                                                label={`Name ${formApi.getFormState().values.type === 'git' ? '(optional)' : ''}`}
+                                                                field='name'
+                                                                component={Text}
+                                                            />
                                                         </div>
                                                     )}
                                                     <div className='argo-form-row'>
@@ -674,9 +679,11 @@ export class ReposList extends React.Component<
 
     // Forces a reload of configured repositories, circumventing the cache
     private async refreshRepoList(updatedRepo?: string) {
+        // Refresh the credentials template list
+        this.credsLoader.reload();
+
         try {
             await services.repos.listNoCache();
-            await services.repocreds.list();
             this.repoLoader.reload();
             this.appContext.apis.notifications.show({
                 content: updatedRepo ? `Successfully updated ${updatedRepo} repository` : 'Successfully reloaded list of repositories',

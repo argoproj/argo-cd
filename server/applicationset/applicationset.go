@@ -1,6 +1,7 @@
 package applicationset
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"reflect"
@@ -87,6 +88,7 @@ func NewServer(
 	scmRootCAPath string,
 	allowedScmProviders []string,
 	enableScmProviders bool,
+	enableK8sEvent []string,
 ) applicationset.ApplicationSetServiceServer {
 	s := &Server{
 		ns:                       namespace,
@@ -102,7 +104,7 @@ func NewServer(
 		projLister:               projLister,
 		settings:                 settings,
 		projectLock:              projectLock,
-		auditLogger:              argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
+		auditLogger:              argo.NewAuditLogger(namespace, kubeclientset, "argocd-server", enableK8sEvent),
 		enabledNamespaces:        enabledNamespaces,
 		GitSubmoduleEnabled:      gitSubmoduleEnabled,
 		EnableNewGitFileGlobbing: enableNewGitFileGlobbing,
@@ -201,7 +203,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 	}
 
 	if q.GetDryRun() {
-		apps, err := s.generateApplicationSetApps(ctx, *appset, namespace)
+		apps, err := s.generateApplicationSetApps(ctx, log.WithField("applicationset", appset.Name), *appset, namespace)
 		if err != nil {
 			return nil, fmt.Errorf("unable to generate Applications of ApplicationSet: %w", err)
 		}
@@ -260,9 +262,7 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 	return updated, nil
 }
 
-func (s *Server) generateApplicationSetApps(ctx context.Context, appset v1alpha1.ApplicationSet, namespace string) ([]v1alpha1.Application, error) {
-	logCtx := log.WithField("applicationset", appset.Name)
-
+func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.Entry, appset v1alpha1.ApplicationSet, namespace string) ([]v1alpha1.Application, error) {
 	argoCDDB := s.db
 
 	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)))
@@ -277,7 +277,7 @@ func (s *Server) generateApplicationSetApps(ctx context.Context, appset v1alpha1
 
 	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, namespace, argoCDService, s.dynamicClient, scmConfig)
 
-	apps, _, err := appsettemplate.GenerateApplications(logCtx, appset, appSetGenerators, &appsetutils.Render{}, s.client)
+	apps, _, err := appsettemplate.GenerateApplications(logEntry, appset, appSetGenerators, &appsetutils.Render{}, s.client)
 	if err != nil {
 		return nil, fmt.Errorf("error generating applications: %w", err)
 	}
@@ -364,6 +364,40 @@ func (s *Server) ResourceTree(ctx context.Context, q *applicationset.Application
 	}
 
 	return s.buildApplicationSetTree(a)
+}
+
+func (s *Server) Generate(ctx context.Context, q *applicationset.ApplicationSetGenerateRequest) (*applicationset.ApplicationSetGenerateResponse, error) {
+	appset := q.GetApplicationSet()
+
+	if appset == nil {
+		return nil, fmt.Errorf("error creating ApplicationSets: ApplicationSets is nil in request")
+	}
+	namespace := s.appsetNamespaceOrDefault(appset.Namespace)
+
+	if !s.isNamespaceEnabled(namespace) {
+		return nil, security.NamespaceNotPermittedError(namespace)
+	}
+	projectName, err := s.validateAppSet(appset)
+	if err != nil {
+		return nil, fmt.Errorf("error validating ApplicationSets: %w", err)
+	}
+	if err := s.checkCreatePermissions(ctx, appset, projectName); err != nil {
+		return nil, fmt.Errorf("error checking create permissions for ApplicationSets %s : %w", appset.Name, err)
+	}
+
+	logs := bytes.NewBuffer(nil)
+	logger := log.New()
+	logger.SetOutput(logs)
+
+	apps, err := s.generateApplicationSetApps(ctx, logger.WithField("applicationset", appset.Name), *appset, namespace)
+	if err != nil {
+		return nil, fmt.Errorf("unable to generate Applications of ApplicationSet: %w\n%s", err, logs.String())
+	}
+	res := &applicationset.ApplicationSetGenerateResponse{}
+	for i := range apps {
+		res.Applications = append(res.Applications, &apps[i])
+	}
+	return res, nil
 }
 
 func (s *Server) buildApplicationSetTree(a *v1alpha1.ApplicationSet) (*v1alpha1.ApplicationSetTree, error) {

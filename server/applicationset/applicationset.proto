@@ -53,11 +53,30 @@ message ApplicationSetTreeQuery {
 	string appsetNamespace = 2;
 }
 
+// ApplicationSetGetQuery is a query for applicationset resources
+message ApplicationSetGenerateRequest {
+	// the applicationsets
+	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSet applicationSet = 1;
+}
+
+// ApplicationSetGenerateResponse is a response for applicationset generate request
+message ApplicationSetGenerateResponse {
+	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application applications = 1;
+}
+
 // ApplicationSetService
 service ApplicationSetService {
 	// Get returns an applicationset by name
 	rpc Get (ApplicationSetGetQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSet) {
 		option (google.api.http).get = "/api/v1/applicationsets/{name}";
+	}
+
+	// Generate generates
+	rpc Generate (ApplicationSetGenerateRequest) returns (ApplicationSetGenerateResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/applicationsets"
+			body: "*"
+		};
 	}
 
 	//List returns list of applicationset

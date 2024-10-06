@@ -52,7 +52,7 @@ func (g *DuckTypeGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.
 		return time.Duration(*appSetGenerator.ClusterDecisionResource.RequeueAfterSeconds) * time.Second
 	}
 
-	return DefaultRequeueAfterSeconds
+	return getDefaultRequeueAfter()
 }
 
 func (g *DuckTypeGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
@@ -218,7 +218,7 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 			res = append(res, params)
 		}
 	} else {
-		log.Warningf("clusterDecisionResource status." + statusListKey + " missing")
+		log.Warningf("clusterDecisionResource status.%s missing", statusListKey)
 		return nil, nil
 	}
 

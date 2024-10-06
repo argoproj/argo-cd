@@ -918,35 +918,83 @@ func TestPrintAppConditions(t *testing.T) {
 }
 
 func TestPrintParams(t *testing.T) {
-	output, _ := captureOutput(func() error {
-		app := &v1alpha1.Application{
-			Spec: v1alpha1.ApplicationSpec{
-				Source: &v1alpha1.ApplicationSource{
-					Helm: &v1alpha1.ApplicationSourceHelm{
-						Parameters: []v1alpha1.HelmParameter{
-							{
-								Name:  "name1",
-								Value: "value1",
-							},
-							{
-								Name:  "name2",
-								Value: "value2",
-							},
-							{
-								Name:  "name3",
-								Value: "value3",
+	testCases := []struct {
+		name           string
+		app            *v1alpha1.Application
+		sourcePosition int
+		expectedOutput string
+	}{
+		{
+			name: "Single Source application with valid helm parameters",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Source: &v1alpha1.ApplicationSource{
+						Helm: &v1alpha1.ApplicationSourceHelm{
+							Parameters: []v1alpha1.HelmParameter{
+								{
+									Name:  "name1",
+									Value: "value1",
+								},
+								{
+									Name:  "name2",
+									Value: "value2",
+								},
+								{
+									Name:  "name3",
+									Value: "value3",
+								},
 							},
 						},
 					},
 				},
 			},
-		}
-		printParams(app)
-		return nil
-	})
-	expectation := "\n\nNAME   VALUE\nname1  value1\nname2  value2\nname3  value3\n"
-	if output != expectation {
-		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
+			sourcePosition: -1,
+			expectedOutput: "\n\nNAME   VALUE\nname1  value1\nname2  value2\nname3  value3\n",
+		},
+		{
+			name: "Multi-source application with a valid Source Position",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: []v1alpha1.ApplicationSource{
+						{
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								Parameters: []v1alpha1.HelmParameter{
+									{
+										Name:  "nameA",
+										Value: "valueA",
+									},
+								},
+							},
+						},
+						{
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								Parameters: []v1alpha1.HelmParameter{
+									{
+										Name:  "nameB",
+										Value: "valueB",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			sourcePosition: 1,
+			expectedOutput: "\n\nNAME   VALUE\nnameA  valueA\n",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			output, _ := captureOutput(func() error {
+				printParams(tc.app, tc.sourcePosition)
+				return nil
+			})
+
+			if output != tc.expectedOutput {
+				t.Fatalf("Incorrect print params output %q, should be %q\n", output, tc.expectedOutput)
+			}
+		})
 	}
 }
 
@@ -1335,6 +1383,14 @@ func TestFilterAppResources(t *testing.T) {
 			Namespace: "",
 			Exclude:   true,
 		}
+		// apps:ReplicaSet:*
+		includeAllReplicaSetResource = v1alpha1.SyncOperationResource{
+			Group:     "apps",
+			Kind:      "ReplicaSet",
+			Name:      "*",
+			Namespace: "",
+			Exclude:   false,
+		}
 		// apps:ReplicaSet:replicaSet-name1
 		includeReplicaSet1Resource = v1alpha1.SyncOperationResource{
 			Group:     "apps",
@@ -1407,13 +1463,13 @@ func TestFilterAppResources(t *testing.T) {
 		{
 			testName:          "Include ReplicaSet replicaSet-name1 resource and exclude all service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllServiceResources, &includeReplicaSet1Resource},
-			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
+			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1},
 		},
 		// --resource !apps:ReplicaSet:replicaSet-name2 --resource !*:Service:*
 		{
 			testName:          "Exclude ReplicaSet replicaSet-name2 resource and all service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeReplicaSet2Resource, &excludeAllServiceResources},
-			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &service1, &service2, &deployment},
+			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &job, &deployment},
 		},
 		// --resource !apps:ReplicaSet:replicaSet-name2
 		{
@@ -1425,6 +1481,12 @@ func TestFilterAppResources(t *testing.T) {
 		{
 			testName:          "Include ReplicaSet replicaSet-name1 resource",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeReplicaSet1Resource},
+			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1},
+		},
+		// --resource apps:ReplicaSet:* --resource !apps:ReplicaSet:replicaSet-name2
+		{
+			testName:          "Include All ReplicaSet resource and exclude replicaSet-name1 resource",
+			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllReplicaSetResource, &excludeReplicaSet2Resource},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1},
 		},
 		// --resource !*:Service:*
