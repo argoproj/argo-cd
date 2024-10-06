@@ -75,8 +75,8 @@ func Test_CreateOrUpdateSecretField(t *testing.T) {
 		assert.Equal(t, "foobaz", string(s.Data["password"]))
 
 		// Labels and annotations should be untouched
-		assert.Empty(t, s.Labels)
-		assert.Empty(t, s.Annotations)
+		assert.Len(t, s.Labels, 0)
+		assert.Len(t, s.Annotations, 0)
 	})
 
 	t.Run("Change field in existing secret with labels", func(t *testing.T) {
@@ -110,6 +110,7 @@ func Test_CreateOrUpdateSecretField(t *testing.T) {
 		assert.Contains(t, s.Labels, "label3")
 		assert.Contains(t, s.Annotations, "annotation3")
 	})
+
 }
 
 func Test_CreateOrUpdateSecretData(t *testing.T) {
@@ -177,4 +178,5 @@ func Test_CreateOrUpdateSecretData(t *testing.T) {
 		require.Len(t, s.Data, 1)
 		require.Equal(t, "foobarbaz", string(s.Data["password"]))
 	})
+
 }

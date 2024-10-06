@@ -43,7 +43,6 @@ type Context struct {
 	replace                bool
 	helmPassCredentials    bool
 	helmSkipCrds           bool
-	helmSkipTests          bool
 	trackingMethod         v1alpha1.TrackingMethod
 	sources                []v1alpha1.ApplicationSource
 }
@@ -101,7 +100,7 @@ func (c *Context) AppNamespace() string {
 
 func (c *Context) SetAppNamespace(namespace string) *Context {
 	c.appNamespace = namespace
-	// fixture.SetParamInSettingConfigMap("application.resourceTrackingMethod", "annotation")
+	//fixture.SetParamInSettingConfigMap("application.resourceTrackingMethod", "annotation")
 	return c
 }
 
@@ -358,18 +357,8 @@ func (c *Context) HelmSkipCrds() *Context {
 	return c
 }
 
-func (c *Context) HelmSkipTests() *Context {
-	c.helmSkipTests = true
-	return c
-}
-
 func (c *Context) SetTrackingMethod(trackingMethod string) *Context {
 	fixture.SetTrackingMethod(trackingMethod)
-	return c
-}
-
-func (c *Context) SetInstallationID(installationID string) *Context {
-	fixture.SetTrackingMethod(installationID)
 	return c
 }
 

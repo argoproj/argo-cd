@@ -66,6 +66,7 @@ func (ku *kubeUtil) CreateOrUpdateSecret(ns string, name string, update updateFn
 	}
 
 	return err
+
 }
 
 // CreateOrUpdateSecretField creates or updates a secret name in namespace ns, with given value for given field

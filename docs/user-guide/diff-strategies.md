@@ -18,7 +18,7 @@ Argo CD currently has 3 different strategies to calculate diffs:
 ## Structured-Merge Diff
 *Current Status: [Beta][1] (Since v2.5.0)*
 
-This diff strategy is automatically used when Server-Side Apply
+This is diff strategy is automatically used when Server-Side Apply
 sync option is enabled. It uses the [structured-merge-diff][2] library
 used by Kubernetes to calculate diffs based on fields ownership. There
 are some challenges using this strategy to calculate diffs for CRDs
@@ -114,7 +114,7 @@ metadata:
 ...
 ```
 
-Note: This annotation is only effective when Server-Side Diff is
+Note: This annoation is only effective when Server-Side Diff is
 enabled. To enable both options for a given application add the
 following annotation in the Argo CD Application resource:
 
