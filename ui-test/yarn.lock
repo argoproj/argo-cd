@@ -267,10 +267,10 @@ chokidar@^3.5.3:
   optionalDependencies:
     fsevents "~2.3.2"
 
-chromedriver@^129.0.0:
-  version "129.0.0"
-  resolved "https://registry.yarnpkg.com/chromedriver/-/chromedriver-129.0.0.tgz#28d7ede5ab372b868ac0db5efff7036646b4d603"
-  integrity sha512-B1ccqD6hDjNrw94FeqdynIotn1ZV/TnFrkRz2Rync2kzSnq6D6IrSkN1w5Pnuvnc98QhN2xujxDXxkqEqy/PWg==
+chromedriver@^129.0.2:
+  version "129.0.2"
+  resolved "https://registry.yarnpkg.com/chromedriver/-/chromedriver-129.0.2.tgz#950bb0a7d1095bc9c7a6f61e5f18e02e27875477"
+  integrity sha512-rUEFCJAmAwOdFfaDFtveT97fFeA7NOxlkgyPyN+G09Ws4qGW39aLDxMQBbS9cxQQHhTihqZZobgF5CLVYXnmGA==
   dependencies:
     "@testim/chrome-version" "^1.1.4"
     axios "^1.7.4"
@@ -1272,10 +1272,10 @@ safe-buffer@^5.1.0, safe-buffer@~5.1.0, safe-buffer@~5.1.1:
   resolved "https://registry.npmjs.org/safe-buffer/-/safe-buffer-5.1.2.tgz"
   integrity sha512-Gd2UZBJDkXlY7GbJxfsE8/nvKkUEU1G38c1siN6QP6a9PT9MmHB8GnpscSmMJSoF8LOIrt8ud/wPtojys4G6+g==
 
-selenium-webdriver@^4.24.1:
-  version "4.24.1"
-  resolved "https://registry.yarnpkg.com/selenium-webdriver/-/selenium-webdriver-4.24.1.tgz#4315214420cc26dddaa21ae26863dd452aec2829"
-  integrity sha512-fcK5BTI/54cSqIhiVtrd9li1YL6LW109yIwuVw6V+FlVE6y4riGiX2qdZxVzHq+sm2TJyps+D2sjzXrpDZe1Og==
+selenium-webdriver@^4.25.0:
+  version "4.25.0"
+  resolved "https://registry.yarnpkg.com/selenium-webdriver/-/selenium-webdriver-4.25.0.tgz#3562b49668817974bb1d13d25a50e8bc0264fcf3"
+  integrity sha512-zl9IX93caOT8wbcCpZzAkEtYa+hNgJ4C5GUN8uhpzggqRLvsg1asfKi0p1uNZC8buYVvsBZbx8S+9MjVAjs4oA==
   dependencies:
     "@bazel/runfiles" "^5.8.1"
     jszip "^3.10.1"

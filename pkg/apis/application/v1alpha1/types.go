@@ -395,6 +395,8 @@ type ApplicationSourceHelm struct {
 	// APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
 	// Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
 	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,13,opt,name=apiVersions"`
+	// SkipTests skips test manifest installation step (Helm's --skip-tests).
+	SkipTests bool `json:"skipTests,omitempty" protobuf:"bytes,14,opt,name=skipTests"`
 }
 
 // HelmParameter is a parameter that's passed to helm template during manifest generation
@@ -476,7 +478,7 @@ func (in *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
 
 // IsZero Returns true if the Helm options in an application source are considered zero
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.ValuesIsEmpty() && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds && h.KubeVersion == "" && len(h.APIVersions) == 0 && h.Namespace == ""
+	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.ValuesIsEmpty() && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds && !h.SkipTests && h.KubeVersion == "" && len(h.APIVersions) == 0 && h.Namespace == ""
 }
 
 // KustomizeImage represents a Kustomize image definition in the format [old_image_name=]<image_name>:<image_tag>
@@ -2767,11 +2769,11 @@ type KustomizeOptions struct {
 // ApplicationDestinationServiceAccount holds information about the service account to be impersonated for the application sync operation.
 type ApplicationDestinationServiceAccount struct {
 	// Server specifies the URL of the target cluster's Kubernetes control plane API.
-	Server string `json:"server,omitempty" protobuf:"bytes,1,opt,name=server"`
+	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
 	// Namespace specifies the target namespace for the application's resources.
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,2,opt,name=namespace"`
-	// ServiceAccountName to be used for impersonation during the sync operation
-	DefaultServiceAccount string `json:"defaultServiceAccount,omitempty" protobuf:"bytes,3,opt,name=defaultServiceAccount"`
+	// DefaultServiceAccount to be used for impersonation during the sync operation
+	DefaultServiceAccount string `json:"defaultServiceAccount" protobuf:"bytes,3,opt,name=defaultServiceAccount"`
 }
 
 // CascadedDeletion indicates if the deletion finalizer is set and controller should delete the application and it's cascaded resources
@@ -3098,7 +3100,7 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 }
 
 // RawRestConfig returns a go-client REST config from cluster that might be serialized into the file using kube.WriteKubeConfig method.
-func (c *Cluster) RawRestConfig() *rest.Config {
+func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 	var config *rest.Config
 	var err error
 	if c.Server == KubernetesInternalAPIServerAddr && env.ParseBoolFromEnv(EnvVarFakeInClusterConfig, false) {
@@ -3182,22 +3184,25 @@ func (c *Cluster) RawRestConfig() *rest.Config {
 		}
 	}
 	if err != nil {
-		panic(fmt.Sprintf("Unable to create K8s REST config: %v", err))
+		return nil, fmt.Errorf("Unable to create K8s REST config: %w", err)
 	}
 	config.Timeout = K8sServerSideTimeout
 	config.QPS = K8sClientConfigQPS
 	config.Burst = K8sClientConfigBurst
-	return config
+	return config, nil
 }
 
 // RESTConfig returns a go-client REST config from cluster with tuned throttling and HTTP client settings.
-func (c *Cluster) RESTConfig() *rest.Config {
-	config := c.RawRestConfig()
-	err := SetK8SConfigDefaults(config)
+func (c *Cluster) RESTConfig() (*rest.Config, error) {
+	config, err := c.RawRestConfig()
 	if err != nil {
-		panic(fmt.Sprintf("Unable to apply K8s REST config defaults: %v", err))
+		return nil, fmt.Errorf("Unable to get K8s RAW REST config: %w", err)
 	}
-	return config
+	err = SetK8SConfigDefaults(config)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to apply K8s REST config defaults: %w", err)
+	}
+	return config, nil
 }
 
 // UnmarshalToUnstructured unmarshals a resource representation in JSON to unstructured data

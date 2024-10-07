@@ -1,6 +1,7 @@
 import * as React from 'react';
 import {DataLoader, Page} from '../../../shared/components';
 import {services} from '../../../shared/services';
+import {Select, SelectOption} from 'argo-ui';
 
 require('./appearance-list.scss');
 
@@ -16,16 +17,16 @@ export const AppearanceList = () => {
                     <div className='appearance-list'>
                         <div className='argo-container'>
                             <div className='appearance-list__panel'>
-                                <div className='columns'>Dark Theme</div>
-                                <div className='columns'>
-                                    <button
-                                        className='argo-button argo-button--base appearance-list__button'
-                                        onClick={() => {
-                                            const targetTheme = pref.theme === 'light' ? 'dark' : 'light';
-                                            services.viewPreferences.updatePreferences({theme: targetTheme});
-                                        }}>
-                                        {pref.theme === 'light' ? 'Enable' : 'Disable'}
-                                    </button>
+                                <div className='row'>
+                                    <span>Dark Theme</span>
+                                    <Select
+                                        value={pref.theme}
+                                        onChange={(value: SelectOption) => services.viewPreferences.updatePreferences({theme: value.value})}
+                                        options={[
+                                            {value: 'auto', title: 'Auto'},
+                                            {value: 'light', title: 'Light'},
+                                            {value: 'dark', title: 'Dark'}
+                                        ]}></Select>
                                 </div>
                             </div>
                         </div>

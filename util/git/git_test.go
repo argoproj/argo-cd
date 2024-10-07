@@ -233,13 +233,8 @@ func TestLsRemote(t *testing.T) {
 			expectedCommit: "ff87d8cb9e669d3738434733ecba3c6dd2c64d70",
 		},
 		{
-			name:           "should resolve a pined tag with semantic versioning",
+			name:           "should resolve a pinned tag with semantic versioning",
 			revision:       "v0.8.0",
-			expectedCommit: "d7c04ae24c16f8ec611b0331596fbc595537abe9",
-		},
-		{
-			name:           "should resolve a pined tag with semantic versioning without the 'v' prefix",
-			revision:       "0.8.0",
 			expectedCommit: "d7c04ae24c16f8ec611b0331596fbc595537abe9",
 		},
 		{
@@ -299,7 +294,7 @@ func TestLsRemote(t *testing.T) {
 
 		for _, revision := range xfail {
 			_, err := clnt.LsRemote(revision)
-			assert.ErrorContains(t, err, "Unable to resolve")
+			assert.ErrorContains(t, err, "unable to resolve")
 		}
 	})
 }

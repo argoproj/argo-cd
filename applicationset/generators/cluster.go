@@ -92,6 +92,10 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 
 	secretsFound := []corev1.Secret{}
 
+	isFlatMode := appSetGenerator.Clusters.FlatList
+	log.Debug("Using flat mode = ", isFlatMode, " for cluster generator")
+	clustersParams := make([]map[string]interface{}, 0)
+
 	for _, cluster := range clustersFromArgoCD.Items {
 		// If there is a secret for this cluster, then it's a non-local cluster, so it will be
 		// handled by the next step.
@@ -109,7 +113,11 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 				return nil, fmt.Errorf("error appending templated values for local cluster: %w", err)
 			}
 
-			res = append(res, params)
+			if isFlatMode {
+				clustersParams = append(clustersParams, params)
+			} else {
+				res = append(res, params)
+			}
 
 			log.WithField("cluster", "local cluster").Info("matched local cluster")
 		}
@@ -149,11 +157,20 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 			return nil, fmt.Errorf("error appending templated values for cluster: %w", err)
 		}
 
-		res = append(res, params)
+		if isFlatMode {
+			clustersParams = append(clustersParams, params)
+		} else {
+			res = append(res, params)
+		}
 
 		log.WithField("cluster", cluster.Name).Info("matched cluster secret")
 	}
 
+	if isFlatMode {
+		res = append(res, map[string]interface{}{
+			"clusters": clustersParams,
+		})
+	}
 	return res, nil
 }
 
