@@ -25,6 +25,9 @@ git clone https://github.com/argoproj/argo-cd.git
 
 <https://docs.docker.com/engine/install/>
 
+#### Note for Mac users: 
+If using Docker Desktop, make sure to go to settings in your Docker Desktop application, go to Kubernetes in the menu and enable both options you see on your screen (enable Kubernetes and show system containers). Restart your application and this will now allow your Docker Desktop to run as needed!
+
 ### Install or Upgrade a Tool for Running Local Clusters (e.g. kind or minikube)
 
 #### Installation guide for kind:
