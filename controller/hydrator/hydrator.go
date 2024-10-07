@@ -28,7 +28,9 @@ type Dependencies interface {
 	GetWriteCredentials(ctx context.Context, repoURL string) (*appv1.Repository, error)
 	ResolveGitRevision(repoURL, targetRevision string) (string, error)
 	RequestAppRefresh(appName string)
+	// TODO: remove this and instantiate the client and hydrator in the app controller command
 	GetCommitServerClient() (io.Closer, commitclient.CommitServiceClient, error)
+	// TODO: only allow access to the hydrator status
 	PersistAppStatus(orig *appv1.Application, newStatus *appv1.ApplicationStatus)
 	AddHydrationQueueItem(key HydrationQueueKey)
 }
