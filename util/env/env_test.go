@@ -64,7 +64,7 @@ func TestParseFloatFromEnv(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv(envKey, tt.env)
 			f := ParseFloatFromEnv(envKey, def, min, max)
-			assert.Equal(t, tt.expected, f)
+			assert.InEpsilon(t, tt.expected, f, 0.0001)
 		})
 	}
 }
@@ -238,7 +238,7 @@ func TestParseStringToStringFromEnv(t *testing.T) {
 		{"success, two keys, no value", "key1=,key2=", map[string]string{"key1": "", "key2": ""}, def, ","},
 		{"success, two keys, no value, with spaces", "key1 = , key2 = ", map[string]string{"key1": "", "key2": ""}, def, ","},
 		{"success, two pairs", "key1=value1,key2=value2", map[string]string{"key1": "value1", "key2": "value2"}, def, ","},
-		{"success, two pairs with semicolon as seperator", "key1=value1;key2=value2", map[string]string{"key1": "value1", "key2": "value2"}, def, ";"},
+		{"success, two pairs with semicolon as separator", "key1=value1;key2=value2", map[string]string{"key1": "value1", "key2": "value2"}, def, ";"},
 		{"success, two pairs with spaces", "key1 = value1, key2 = value2", map[string]string{"key1": "value1", "key2": "value2"}, def, ","},
 		{"failure, one key", "key1", map[string]string{}, def, ","},
 		{"failure, duplicate keys", "key1=value1,key1=value2", map[string]string{}, def, ","},

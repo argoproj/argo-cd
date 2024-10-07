@@ -29,11 +29,11 @@ type legacyRepositoryBackend struct {
 
 func (l *legacyRepositoryBackend) CreateRepository(ctx context.Context, r *appsv1.Repository) (*appsv1.Repository, error) {
 	// This strategy only kept to preserve backward compatibility, but is deprecated.
-	// Therefore no new repositories can be added with this backend.
+	// Therefore, no new repositories can be added with this backend.
 	panic("creating new repositories is not supported for the legacy repository backend")
 }
 
-func (l *legacyRepositoryBackend) GetRepository(ctx context.Context, repoURL string) (*appsv1.Repository, error) {
+func (l *legacyRepositoryBackend) GetRepository(ctx context.Context, repoURL, project string) (*appsv1.Repository, error) {
 	repository, err := l.tryGetRepository(repoURL)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get repository: %w", err)
@@ -102,7 +102,7 @@ func (l *legacyRepositoryBackend) UpdateRepository(ctx context.Context, r *appsv
 	return r, nil
 }
 
-func (l *legacyRepositoryBackend) DeleteRepository(ctx context.Context, repoURL string) error {
+func (l *legacyRepositoryBackend) DeleteRepository(ctx context.Context, repoURL, project string) error {
 	repos, err := l.db.settingsMgr.GetRepositories()
 	if err != nil {
 		return err
@@ -127,7 +127,7 @@ func (l *legacyRepositoryBackend) DeleteRepository(ctx context.Context, repoURL 
 	return l.db.settingsMgr.SaveRepositories(repos)
 }
 
-func (l *legacyRepositoryBackend) RepositoryExists(ctx context.Context, repoURL string) (bool, error) {
+func (l *legacyRepositoryBackend) RepositoryExists(ctx context.Context, repoURL, project string, allowFallback bool) (bool, error) {
 	repos, err := l.db.settingsMgr.GetRepositories()
 	if err != nil {
 		return false, fmt.Errorf("unable to get repositories: %w", err)
@@ -139,7 +139,7 @@ func (l *legacyRepositoryBackend) RepositoryExists(ctx context.Context, repoURL 
 
 func (l *legacyRepositoryBackend) CreateRepoCreds(ctx context.Context, r *appsv1.RepoCreds) (*appsv1.RepoCreds, error) {
 	// This strategy only kept to preserve backward compatibility, but is deprecated.
-	// Therefore no new repositories can be added with this backend.
+	// Therefore, no new repositories can be added with this backend.
 	panic("creating new repository credentials is not supported for the legacy repository backend")
 }
 
@@ -425,7 +425,7 @@ func (l *legacyRepositoryBackend) credentialsToRepositoryCredentials(repoInfo se
 func (l *legacyRepositoryBackend) setSecretData(prefix string, url string, secretsData map[string]map[string][]byte, secretKey *apiv1.SecretKeySelector, value string, defaultKeyName string) *apiv1.SecretKeySelector {
 	if secretKey == nil && value != "" {
 		secretKey = &apiv1.SecretKeySelector{
-			LocalObjectReference: apiv1.LocalObjectReference{Name: RepoURLToSecretName(prefix, url)},
+			LocalObjectReference: apiv1.LocalObjectReference{Name: RepoURLToSecretName(prefix, url, "")},
 			Key:                  defaultKeyName,
 		}
 	}

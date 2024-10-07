@@ -7,7 +7,7 @@ import {FormApi, Text} from 'react-form';
 import * as moment from 'moment';
 import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime, map} from 'rxjs/operators';
-import {Context, ContextApis} from '../../shared/context';
+import {AppContext, Context, ContextApis} from '../../shared/context';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
@@ -297,6 +297,21 @@ export function findChildPod(node: appModels.ResourceNode, tree: appModels.Appli
     });
 }
 
+export function findChildResources(node: appModels.ResourceNode, tree: appModels.ApplicationTree): appModels.ResourceNode[] {
+    const key = nodeKey(node);
+
+    const children: appModels.ResourceNode[] = [];
+    tree.nodes.forEach(item => {
+        (item.parentRefs || []).forEach(parent => {
+            if (key === nodeKey(parent)) {
+                children.push(item);
+            }
+        });
+    });
+
+    return children;
+}
+
 const deletePodAction = async (ctx: ContextApis, pod: appModels.ResourceNode, app: appModels.Application) => {
     ctx.popup.prompt(
         'Delete pod',
@@ -331,11 +346,52 @@ const deletePodAction = async (ctx: ContextApis, pod: appModels.ResourceNode, ap
     );
 };
 
+export const deleteSourceAction = (app: appModels.Application, source: appModels.ApplicationSource, appContext: AppContext) => {
+    appContext.apis.popup.prompt(
+        'Delete source',
+        () => (
+            <div>
+                <p>
+                    <>
+                        Are you sure you want to delete the source with URL: <kbd>{source.repoURL}</kbd>
+                        {source.path ? (
+                            <>
+                                {' '}
+                                and path: <kbd>{source.path}</kbd>?
+                            </>
+                        ) : (
+                            <>?</>
+                        )}
+                    </>
+                </p>
+            </div>
+        ),
+        {
+            submit: async (vals, _, close) => {
+                try {
+                    const i = app.spec.sources.indexOf(source);
+                    app.spec.sources.splice(i, 1);
+                    await services.applications.update(app);
+                    close();
+                } catch (e) {
+                    appContext.apis.notifications.show({
+                        content: <ErrorNotification title='Unable to delete source' e={e} />,
+                        type: NotificationType.Error
+                    });
+                }
+            }
+        },
+        {name: 'argo-icon-warning', color: 'warning'},
+        'yellow'
+    );
+};
+
 export const deletePopup = async (
     ctx: ContextApis,
     resource: ResourceTreeNode,
     application: appModels.Application,
     isManaged: boolean,
+    childResources: appModels.ResourceNode[],
     appChanged?: BehaviorSubject<appModels.Application>
 ) => {
     const deleteOptions = {
@@ -355,10 +411,34 @@ export const deletePopup = async (
             <div>
                 <p>
                     Are you sure you want to delete <strong>{resource.kind}</strong> <kbd>{resource.name}</kbd>?
-                    <span style={{display: 'block', marginBottom: '10px'}} />
+                </p>
+                <p>
                     Deleting resources can be <strong>dangerous</strong>. Be sure you understand the effects of deleting this resource before continuing. Consider asking someone to
                     review the change first.
                 </p>
+
+                {(childResources || []).length > 0 ? (
+                    <React.Fragment>
+                        <p>Dependent resources:</p>
+                        <ul>
+                            {childResources.slice(0, 4).map((child, i) => (
+                                <li key={i}>
+                                    <kbd>{[child.kind, child.name].join('/')}</kbd>
+                                </li>
+                            ))}
+                            {childResources.length === 5 ? (
+                                <li key='4'>
+                                    <kbd>{[childResources[4].kind, childResources[4].name].join('/')}</kbd>
+                                </li>
+                            ) : (
+                                ''
+                            )}
+                            {childResources.length > 5 ? <li key='N'>and {childResources.slice(4).length} more.</li> : ''}
+                        </ul>
+                    </React.Fragment>
+                ) : (
+                    ''
+                )}
 
                 {isManaged ? (
                     <div className='argo-form-row'>
@@ -416,7 +496,7 @@ export const deletePopup = async (
     );
 };
 
-function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
+export function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
     return services.applications
         .getResourceActions(metadata.name, metadata.namespace, resource)
         .then(actions => {
@@ -460,6 +540,7 @@ function getActionItems(
 
     const isPod = resource.kind === 'Pod';
     const isManaged = isTopLevelResource(resource, application);
+    const childResources = findChildResources(resource, tree);
 
     const items: MenuItem[] = [
         ...((isManaged && [
@@ -474,7 +555,7 @@ function getActionItems(
             title: 'Delete',
             iconClassName: 'fa fa-fw fa-times-circle',
             action: async () => {
-                return deletePopup(apis, resource, application, isManaged, appChanged);
+                return deletePopup(apis, resource, application, isManaged, childResources, appChanged);
             }
         }
     ];
@@ -602,30 +683,24 @@ export function renderResourceMenu(
     );
 }
 
-export function renderResourceActionMenu(resource: ResourceTreeNode, application: appModels.Application, apis: ContextApis): React.ReactNode {
-    const menuItems = getResourceActionsMenuItems(resource, application.metadata, apis);
-
+export function renderResourceActionMenu(menuItems: ActionMenuItem[]): React.ReactNode {
     return (
-        <DataLoader load={() => menuItems}>
-            {items => (
-                <ul>
-                    {items.map((item, i) => (
-                        <li
-                            className={classNames('application-details__action-menu', {disabled: item.disabled})}
-                            key={i}
-                            onClick={e => {
-                                e.stopPropagation();
-                                if (!item.disabled) {
-                                    item.action();
-                                    document.body.click();
-                                }
-                            }}>
-                            {item.iconClassName && <i className={item.iconClassName} />} {item.title}
-                        </li>
-                    ))}
-                </ul>
-            )}
-        </DataLoader>
+        <ul>
+            {menuItems.map((item, i) => (
+                <li
+                    className={classNames('application-details__action-menu', {disabled: item.disabled})}
+                    key={i}
+                    onClick={e => {
+                        e.stopPropagation();
+                        if (!item.disabled) {
+                            item.action();
+                            document.body.click();
+                        }
+                    }}>
+                    {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                </li>
+            ))}
+        </ul>
     );
 }
 
@@ -664,16 +739,18 @@ export function renderResourceButtons(
 
 export function syncStatusMessage(app: appModels.Application) {
     const source = getAppDefaultSource(app);
+    const revision = getAppDefaultSyncRevision(app);
     const rev = app.status.sync.revision || source.targetRevision || 'HEAD';
     let message = source.targetRevision || 'HEAD';
 
-    if (app.status.sync.revision) {
+    if (revision) {
         if (source.chart) {
-            message += ' (' + app.status.sync.revision + ')';
-        } else if (app.status.sync.revision.length >= 7 && !app.status.sync.revision.startsWith(source.targetRevision)) {
-            message += ' (' + app.status.sync.revision.substr(0, 7) + ')';
+            message += ' (' + revision + ')';
+        } else if (revision.length >= 7 && !revision.startsWith(source.targetRevision)) {
+            message += ' (' + revision.substr(0, 7) + ')';
         }
     }
+
     switch (app.status.sync.status) {
         case appModels.SyncStatuses.Synced:
             return (
@@ -681,7 +758,8 @@ export function syncStatusMessage(app: appModels.Application) {
                     to{' '}
                     <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
-                    </Revision>{' '}
+                    </Revision>
+                    {getAppDefaultSyncRevisionExtra(app)}{' '}
                 </span>
             );
         case appModels.SyncStatuses.OutOfSync:
@@ -690,7 +768,8 @@ export function syncStatusMessage(app: appModels.Application) {
                     from{' '}
                     <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
-                    </Revision>{' '}
+                    </Revision>
+                    {getAppDefaultSyncRevisionExtra(app)}{' '}
                 </span>
             );
         default:
@@ -728,7 +807,7 @@ export const HealthStatusIcon = ({state, noSpin}: {state: appModels.HealthStatus
     if (state.message) {
         title = `${state.status}: ${state.message}`;
     }
-    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{color}} />;
+    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon + ' utils-health-status-icon'} style={{color}} />;
 };
 
 export const PodHealthIcon = ({state}: {state: appModels.HealthStatus}) => {
@@ -1062,6 +1141,61 @@ export function getAppDefaultSource(app?: appModels.Application) {
         return null;
     }
     return app.spec.sources && app.spec.sources.length > 0 ? app.spec.sources[0] : app.spec.source;
+}
+
+// getAppDefaultSyncRevision gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
+// field.
+export function getAppDefaultSyncRevision(app?: appModels.Application) {
+    if (!app || !app.status || !app.status.sync) {
+        return '';
+    }
+    return app.status.sync.revisions && app.status.sync.revisions.length > 0 ? app.status.sync.revisions[0] : app.status.sync.revision;
+}
+
+// getAppDefaultOperationSyncRevision gets the first app revisions from `status.operationState.syncResult.revisions` or, if that list is missing or empty, the `revision`
+// field.
+export function getAppDefaultOperationSyncRevision(app?: appModels.Application) {
+    if (!app || !app.status || !app.status.operationState || !app.status.operationState.syncResult) {
+        return '';
+    }
+    return app.status.operationState.syncResult.revisions && app.status.operationState.syncResult.revisions.length > 0
+        ? app.status.operationState.syncResult.revisions[0]
+        : app.status.operationState.syncResult.revision;
+}
+
+// getAppCurrentVersion gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
+// field.
+export function getAppCurrentVersion(app?: appModels.Application): number | null {
+    if (!app || !app.status || !app.status.history || app.status.history.length === 0) {
+        return null;
+    }
+    return app.status.history[app.status.history.length - 1].id;
+}
+
+// getAppDefaultSyncRevisionExtra gets the extra message with others revision count
+export function getAppDefaultSyncRevisionExtra(app?: appModels.Application) {
+    if (!app || !app.status || !app.status.sync) {
+        return '';
+    }
+
+    if (app.status.sync.revisions && app.status.sync.revisions.length > 0) {
+        return ` and (${app.status.sync.revisions.length - 1}) more`;
+    }
+
+    return '';
+}
+
+// getAppDefaultOperationSyncRevisionExtra gets the first app revisions from `status.operationState.syncResult.revisions` or, if that list is missing or empty, the `revision`
+// field.
+export function getAppDefaultOperationSyncRevisionExtra(app?: appModels.Application) {
+    if (!app || !app.status || !app.status.operationState || !app.status.operationState.syncResult || !app.status.operationState.syncResult.revisions) {
+        return '';
+    }
+
+    if (app.status.operationState.syncResult.revisions.length > 0) {
+        return ` and (${app.status.operationState.syncResult.revisions.length - 1}) more`;
+    }
+    return '';
 }
 
 export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {

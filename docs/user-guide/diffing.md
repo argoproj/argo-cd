@@ -74,7 +74,8 @@ If you have a slash `/` in your pointer path, you need to replace it with the `~
 spec:
   ignoreDifferences:
   - kind: Node
-    jsonPointers: /metadata/labels/node-role.kubernetes.io~1worker
+    jsonPointers: 
+    - /metadata/labels/node-role.kubernetes.io~1worker
 ```
 
 ## System-Level Configuration

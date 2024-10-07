@@ -1,22 +1,18 @@
-import {DataLoader, DropDownMenu, Duration} from 'argo-ui';
+import {DropDownMenu, Duration} from 'argo-ui';
 import {InitiatedBy} from './initiated-by';
 import * as moment from 'moment';
 import * as React from 'react';
-import {Revision, Timestamp} from '../../../shared/components';
+import {Timestamp} from '../../../shared/components';
 import * as models from '../../../shared/models';
-import {services} from '../../../shared/services';
-import {ApplicationParameters} from '../application-parameters/application-parameters';
-import {RevisionMetadataRows} from './revision-metadata-rows';
 import './application-deployment-history.scss';
+import {ApplicationDeploymentHistoryDetails} from './application-deployment-history-details';
 
 export const ApplicationDeploymentHistory = ({
     app,
     rollbackApp,
-    selectedRollbackDeploymentIndex,
     selectDeployment
 }: {
     app: models.Application;
-    selectedRollbackDeploymentIndex: number;
     rollbackApp: (info: models.RevisionHistory) => any;
     selectDeployment: (index: number) => any;
 }) => {
@@ -58,9 +54,7 @@ export const ApplicationDeploymentHistory = ({
                     </div>
                     <div className='columns small-9'>
                         <div className='row'>
-                            <div className='columns small-3'>Revision:</div>
                             <div className='columns small-9'>
-                                <Revision repoUrl={info.source.repoURL} revision={info.revision} />
                                 <div className='application-deployment-history__item-menu'>
                                     <DropDownMenu
                                         anchor={() => (
@@ -78,30 +72,8 @@ export const ApplicationDeploymentHistory = ({
                                 </div>
                             </div>
                         </div>
-                        {selectedRollbackDeploymentIndex === index ? (
-                            <React.Fragment>
-                                <RevisionMetadataRows
-                                    applicationName={app.metadata.name}
-                                    applicationNamespace={app.metadata.namespace}
-                                    source={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision}}
-                                />
-                                <DataLoader
-                                    input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision, appName: app.metadata.name}}
-                                    load={src => services.repos.appDetails(src, src.appName, app.spec.project)}>
-                                    {(details: models.RepoAppDetails) => (
-                                        <div>
-                                            <ApplicationParameters
-                                                application={{
-                                                    ...app,
-                                                    spec: {...app.spec, source: recentDeployments[index].source}
-                                                }}
-                                                details={details}
-                                            />
-                                        </div>
-                                    )}
-                                </DataLoader>
-                            </React.Fragment>
-                        ) : null}
+
+                        <ApplicationDeploymentHistoryDetails index={index} info={info} app={app} />
                     </div>
                 </div>
             ))}

@@ -12,7 +12,8 @@ There are several ways how Ingress can be configured.
 
 The Ambassador Edge Stack can be used as a Kubernetes ingress controller with [automatic TLS termination](https://www.getambassador.io/docs/latest/topics/running/tls/#host) and routing capabilities for both the CLI and the UI.
 
-The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md). Given the `argocd` CLI includes the port number in the request `host` header, 2 Mappings are required.
+The API server should be run with TLS disabled. Edit the `argocd-server` deployment to add the `--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md). Given the `argocd` CLI includes the port number in the request `host` header, 2 Mappings are required. 
+Note: Disabling TLS in not required if you are using grpc-web
 
 ### Option 1: Mapping CRD for Host-based Routing
 ```yaml
@@ -24,7 +25,7 @@ metadata:
 spec:
   host: argocd.example.com
   prefix: /
-  service: argocd-server:443
+  service: https://argocd-server:443
 ---
 apiVersion: getambassador.io/v2
 kind: Mapping
@@ -60,7 +61,25 @@ metadata:
 spec:
   prefix: /argo-cd
   rewrite: /argo-cd
-  service: argocd-server:443
+  service: https://argocd-server:443
+```
+
+Example of `argocd-cmd-params-cm` configmap
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cmd-params-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  ## Server properties
+  # Value for base href in index.html. Used if Argo CD is running behind reverse proxy under subpath different from / (default "/")
+  server.basehref: "/argo-cd"
+  # Used if Argo CD is running behind reverse proxy under subpath different from /
+  server.rootpath: "/argo-cd"
 ```
 
 Login with the `argocd` CLI using the extra `--grpc-web-root-path` flag for non-root paths.
@@ -452,7 +471,7 @@ Once we create this service, we can configure the Ingress to conditionally route
 ```
 
 ## [Istio](https://www.istio.io)
-You can put Argo CD behind Istio using following configurations. Here we will achive both serving Argo CD behind istio and using subpath on Istio
+You can put Argo CD behind Istio using following configurations. Here we will achieve both serving Argo CD behind istio and using subpath on Istio
 
 First we need to make sure that we can run Argo CD with subpath (ie /argocd). For this we have used install.yaml from argocd project as is
 
@@ -492,7 +511,7 @@ spec:
        - --staticassets
        - /shared/app
        - --redis
-       - argocd-redis-ha-haproxy:6379
+       - argocd-redis:6379
        - --insecure
        - --basehref
        - /argocd
@@ -510,7 +529,7 @@ After that install Argo CD  (there should be only 3 yml file defined above in cu
 kubectl apply -k ./ -n argocd --wait=true
 ```
 
-Be sure you create secret for Isito ( in our case secretname is argocd-server-tls on argocd Namespace). After that we create Istio Resources
+Be sure you create secret for Istio ( in our case secretname is argocd-server-tls on argocd Namespace). After that we create Istio Resources
 
 ```yaml
 apiVersion: networking.istio.io/v1alpha3
@@ -598,7 +617,7 @@ Edit the `--insecure` flag in the `argocd-server` command of the argocd-server d
 
 ### Creating a service
 
-Now you need an externally accessible service. This is practically the same as the internal service Argo CD has, but with Google Cloud annotations. Note that this service is annotated to use a [Network Endpoint Group](https://cloud.google.com/load-balancing/docs/negs) (NEG) to allow your load balancer to send traffic directly to your pods without using kube-proxy, so remove the `neg` annotation it that's not what you want.
+Now you need an externally accessible service. This is practically the same as the internal service Argo CD has, but with Google Cloud annotations. Note that this service is annotated to use a [Network Endpoint Group](https://cloud.google.com/load-balancing/docs/negs) (NEG) to allow your load balancer to send traffic directly to your pods without using kube-proxy, so remove the `neg` annotation if that's not what you want.
 
 The service:
 

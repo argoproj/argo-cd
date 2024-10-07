@@ -38,7 +38,7 @@ func NewProjectAllowListGenCommand() *cobra.Command {
 		clientConfig clientcmd.ClientConfig
 		out          string
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "generate-allow-list CLUSTERROLE_PATH PROJ_NAME",
 		Short: "Generates project allow list from the specified clusterRole file",
 		Example: `# Generates project allow list from the specified clusterRole file
@@ -88,15 +88,15 @@ argocd admin proj generate-allow-list /path/to/clusterrole.yaml my-project`,
 func getResourceList(clientConfig clientcmd.ClientConfig) ([]*metav1.APIResourceList, error) {
 	config, err := clientConfig.ClientConfig()
 	if err != nil {
-		return nil, fmt.Errorf("error while creating client config: %s", err)
+		return nil, fmt.Errorf("error while creating client config: %w", err)
 	}
 	disco, err := discovery.NewDiscoveryClientForConfig(config)
 	if err != nil {
-		return nil, fmt.Errorf("error while creating discovery client: %s", err)
+		return nil, fmt.Errorf("error while creating discovery client: %w", err)
 	}
 	serverResources, err := disco.ServerPreferredResources()
 	if err != nil {
-		return nil, fmt.Errorf("error while getting server resources: %s", err)
+		return nil, fmt.Errorf("error while getting server resources: %w", err)
 	}
 	return serverResources, nil
 }
@@ -104,23 +104,23 @@ func getResourceList(clientConfig clientcmd.ClientConfig) ([]*metav1.APIResource
 func generateProjectAllowList(serverResources []*metav1.APIResourceList, clusterRoleFileName string, projName string) (*v1alpha1.AppProject, error) {
 	yamlBytes, err := os.ReadFile(clusterRoleFileName)
 	if err != nil {
-		return nil, fmt.Errorf("error reading cluster role file: %s", err)
+		return nil, fmt.Errorf("error reading cluster role file: %w", err)
 	}
 	var obj unstructured.Unstructured
 	err = yaml.Unmarshal(yamlBytes, &obj)
 	if err != nil {
-		return nil, fmt.Errorf("error unmarshalling cluster role file yaml: %s", err)
+		return nil, fmt.Errorf("error unmarshalling cluster role file yaml: %w", err)
 	}
 
 	clusterRole := &rbacv1.ClusterRole{}
 	err = scheme.Scheme.Convert(&obj, clusterRole, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error converting cluster role yaml into ClusterRole struct: %s", err)
+		return nil, fmt.Errorf("error converting cluster role yaml into ClusterRole struct: %w", err)
 	}
 
 	resourceList := make([]metav1.GroupKind, 0)
 	for _, rule := range clusterRole.Rules {
-		if len(rule.APIGroups) <= 0 {
+		if len(rule.APIGroups) == 0 {
 			continue
 		}
 

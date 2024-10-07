@@ -157,6 +157,18 @@ spec:
                   name: argocd-cmd-params-cm
                   key: applicationsetcontroller.enable.scm.providers
                   optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.webhook.parallelism.limit
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_REQUEUE_AFTER
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.requeue.after
+                  optional: true
           volumeMounts:
             - mountPath: /app/config/ssh
               name: ssh-known-hosts
@@ -205,3 +217,5 @@ spec:
                 path: tls.key
               - key: ca.crt
                 path: ca.crt
+      nodeSelector:
+        kubernetes.io/os: linux

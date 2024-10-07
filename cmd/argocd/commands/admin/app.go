@@ -44,7 +44,7 @@ import (
 )
 
 func NewAppCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "app",
 		Short: "Manage applications configuration",
 		Example: `
@@ -78,8 +78,9 @@ func NewGenAppSpecCommand() *cobra.Command {
 		outputFormat string
 		annotations  []string
 		inline       bool
+		setFinalizer bool
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "generate-spec APPNAME",
 		Short: "Generate declarative config for an application",
 		Example: `
@@ -112,7 +113,9 @@ func NewGenAppSpecCommand() *cobra.Command {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-
+			if setFinalizer {
+				app.Finalizers = append(app.Finalizers, "resources-finalizer.argocd.argoproj.io")
+			}
 			out, closer, err := getOutWriter(inline, fileURL)
 			errors.CheckError(err)
 			defer io.Close(closer)
@@ -126,6 +129,7 @@ func NewGenAppSpecCommand() *cobra.Command {
 	command.Flags().StringArrayVarP(&annotations, "annotations", "", []string{}, "Set metadata annotations (e.g. example=value)")
 	command.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format. One of: json|yaml")
 	command.Flags().BoolVarP(&inline, "inline", "i", false, "If set then generated resource is written back to the file specified in --file flag")
+	command.Flags().BoolVar(&setFinalizer, "set-finalizer", false, "Sets deletion finalizer on the application, application resources will be cascaded on deletion")
 
 	// Only complete files with appropriate extension.
 	err := command.Flags().SetAnnotation("file", cobra.BashCompFilenameExt, []string{"json", "yaml", "yml"})
@@ -159,7 +163,7 @@ func printLine(format string, a ...interface{}) {
 }
 
 func NewDiffReconcileResults() *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "diff-reconcile-results PATH1 PATH2",
 		Short: "Compare results of two reconciliations and print diff.",
 		Run: func(c *cobra.Command, args []string) {
@@ -249,7 +253,7 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 		ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
 	)
 
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "get-reconcile-results PATH",
 		Short: "Reconcile all applications and stores reconciliation summary in the specified file.",
 		Run: func(c *cobra.Command, args []string) {
@@ -328,7 +332,7 @@ func saveToFile(err error, outputFormat string, result reconcileResults, outputP
 		return fmt.Errorf("format %s is not supported", outputFormat)
 	}
 
-	return os.WriteFile(outputPath, data, 0644)
+	return os.WriteFile(outputPath, data, 0o644)
 }
 
 func getReconcileResults(ctx context.Context, appClientset appclientset.Interface, namespace string, selector string) ([]appReconcileResult, error) {
@@ -383,8 +387,7 @@ func reconcileApplications(
 		return true
 	}, func(r *http.Request) error {
 		return nil
-	}, []string{})
-
+	}, []string{}, []string{})
 	if err != nil {
 		return nil, err
 	}
@@ -434,7 +437,7 @@ func reconcileApplications(
 		sources = append(sources, app.Spec.GetSource())
 		revisions = append(revisions, app.Spec.GetSource().TargetRevision)
 
-		res, err := appStateManager.CompareAppState(&app, proj, revisions, sources, false, false, nil, false)
+		res, err := appStateManager.CompareAppState(&app, proj, revisions, sources, false, false, nil, false, false)
 		if err != nil {
 			return nil, err
 		}

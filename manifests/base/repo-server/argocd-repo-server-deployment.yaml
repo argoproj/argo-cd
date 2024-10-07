@@ -24,6 +24,11 @@ spec:
         args:
           - /usr/local/bin/argocd-repo-server
         env:
+          - name: REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                key: auth
+                name: argocd-redis
           - name: ARGOCD_RECONCILIATION_TIMEOUT
             valueFrom:
               configMapKeyRef:
@@ -144,6 +149,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: reposerver.plugin.tar.exclusions
                 optional: true
+          - name: ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.plugin.use.manifest.generate.paths
+                name: argocd-cmd-params-cm
+                optional: true
           - name: ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS
             valueFrom:
               configMapKeyRef:
@@ -202,6 +213,12 @@ spec:
             valueFrom:
               configMapKeyRef:
                 key: reposerver.grpc.max.size
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.include.hidden.directories
                 name: argocd-cmd-params-cm
                 optional: true
           - name: HELM_CACHE_HOME
@@ -319,3 +336,5 @@ spec:
                 matchLabels:
                   app.kubernetes.io/part-of: argocd
               topologyKey: kubernetes.io/hostname
+      nodeSelector:
+        kubernetes.io/os: linux

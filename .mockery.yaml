@@ -1,0 +1,69 @@
+# global config
+filename: "{{.InterfaceName}}.go"
+dir: "{{.InterfaceDir}}/mocks"
+outpkg: "mocks"
+mockname: "{{.InterfaceName}}"
+with-expecter: false
+# individual interface config
+packages:
+  github.com/argoproj/argo-cd/v2/applicationset/generators:
+    interfaces:
+      Generator:
+  github.com/argoproj/argo-cd/v2/applicationset/services:
+    interfaces:
+      Repos:
+  github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider:
+    config:
+      dir: "applicationset/services/scm_provider/aws_codecommit/mocks"
+    interfaces:
+      AWSCodeCommitClient:
+      AWSTaggingClient:
+  github.com/microsoft/azure-devops-go-api/azuredevops/git:
+    config:
+      dir: "applicationset/services/scm_provider/azure_devops/git/mocks"
+    interfaces:
+      Client:
+  github.com/argoproj/argo-cd/v2/applicationset/utils:
+    interfaces:
+      Renderer:
+  github.com/argoproj/argo-cd/v2/controller/cache:
+    interfaces:
+      LiveStateCache:
+  github.com/argoproj/argo-cd/v2/reposerver/apiclient:
+    interfaces:
+      RepoServerServiceClient:
+      RepoServerService_GenerateManifestWithFilesClient:
+  github.com/argoproj/argo-cd/v2/server/application:
+    interfaces:
+      Broadcaster:
+  github.com/argoproj/argo-cd/v2/server/extension:
+    interfaces:
+      ApplicationGetter:
+      ExtensionMetricsRegistry:
+      ProjectGetter:
+      RbacEnforcer:
+      SettingsGetter:
+      UserGetter:
+  github.com/argoproj/argo-cd/v2/util/db:
+    interfaces:
+      ArgoDB:
+  github.com/argoproj/argo-cd/v2/util/git:
+    interfaces:
+      Client:
+  github.com/argoproj/argo-cd/v2/util/helm:
+    interfaces:
+      Client:
+  github.com/argoproj/argo-cd/v2/util/io:
+    interfaces:
+      TempPaths:
+  github.com/argoproj/argo-cd/v2/util/notification/argocd:
+    interfaces:
+      Service:
+  # These mocks are not currently used, but they are part of the public API of this package.      
+  github.com/argoproj/argo-cd/v2/pkg/apiclient/session:
+    interfaces:
+      SessionServiceServer:
+      SessionServiceClient:
+  github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster:
+    interfaces:
+      ClusterServiceServer:

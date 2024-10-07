@@ -72,7 +72,6 @@ func TestApplicationSetRBACName(t *testing.T) {
 		a.Spec.Template.Spec.Project = "test"
 		assert.Equal(t, "test/test-appset", a.RBACName("argocd"))
 	})
-
 }
 
 func TestApplicationSetSetConditions(t *testing.T) {

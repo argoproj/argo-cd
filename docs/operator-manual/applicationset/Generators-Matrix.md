@@ -22,8 +22,8 @@ As an example, imagine that we have two clusters:
 
 And our application YAMLs are defined in a Git repository:
 
-- Argo Workflows controller (examples/git-generator-directory/cluster-addons/argo-workflows)
-- Prometheus operator (/examples/git-generator-directory/cluster-addons/prometheus-operator)
+- [Argo Workflows controller](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-directory/cluster-addons/argo-workflows)
+- [Prometheus operator](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-directory/cluster-addons/prometheus-operator)
 
 Our goal is to deploy both applications onto both clusters, and, more generally, in the future to automatically deploy new applications in the Git repository, and to new clusters defined within Argo CD, as well.
 

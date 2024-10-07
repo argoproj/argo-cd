@@ -82,10 +82,16 @@ spec:
 ```
 * In order to manually set the cluster's shard number, specify the optional `shard` property when creating a cluster. If not specified, it will be calculated on the fly by the application controller.
 
-* The shard distribution algorithm of the `argocd-application-controller` can be set by using the `--sharding-method` parameter. Supported sharding methods are : [legacy (default), round-robin]. `legacy` mode uses an `uid` based distribution (non-uniform). `round-robin` uses an equal distribution across all shards. The `--sharding-method` parameter can also be overriden by setting the key `controller.sharding.algorithm` in the `argocd-cmd-params-cm` `configMap` (preferably) or by setting the `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` environment variable and by specifiying the same possible values.
+* The shard distribution algorithm of the `argocd-application-controller` can be set by using the `--sharding-method` parameter. Supported sharding methods are : [legacy (default), round-robin, consistent-hashing]:
+- `legacy` mode uses an `uid` based distribution (non-uniform).
+- `round-robin` uses an equal distribution across all shards.
+- `consistent-hashing` uses the consistent hashing with bounded loads algorithm which tends to equal distribution and also reduces cluster or application reshuffling in case of additions or removals of shards or clusters. 
 
-!!! warning "Alpha Feature"
-    The `round-robin` shard distribution algorithm  is an experimental feature. Reshuffling is known to occur in certain scenarios with cluster removal. If the cluster at rank-0 is removed, reshuffling all clusters across shards will occur and may temporarily have negative performance impacts.
+The `--sharding-method` parameter can also be overridden by setting the key `controller.sharding.algorithm` in the `argocd-cmd-params-cm` `configMap` (preferably) or by setting the `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` environment variable and by specifiying the same possible values.
+
+!!! warning "Alpha Features"
+    The `round-robin` shard distribution algorithm is an experimental feature. Reshuffling is known to occur in certain scenarios with cluster removal. If the cluster at rank-0 is removed, reshuffling all clusters across shards will occur and may temporarily have negative performance impacts.
+    The `consistent-hashing` shard distribution algorithm is an experimental feature. Extensive benchmark have been documented on the [CNOE blog](https://cnoe.io/blog/argo-cd-application-scalability) with encouraging results. Community feedback is highly appreciated before moving this feature to a production ready state.
 
 * A cluster can be manually assigned and forced to a `shard` by patching the `shard` field in the cluster secret to contain the shard number, e.g.
 ```yaml
@@ -123,6 +129,10 @@ stringData:
   `ARGOCD_CLUSTER_CACHE_LIST_PAGE_SIZE * ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE` exceeds the largest resource
   count (grouped by k8s api version, the granule of parallelism for list operations). In this case, all resources will
   be buffered in memory -- no api server request will be blocked by processing.
+
+* `ARGOCD_APPLICATION_TREE_SHARD_SIZE` - environment variable controlling the max number of resources stored in one Redis
+  key. Splitting application tree into multiple keys helps to reduce the amount of traffic between the controller and Redis.
+  The default value is 0, which means that the application tree is stored in a single Redis key. The reasonable value is 100.
 
 **metrics**
 
@@ -267,6 +277,9 @@ spec:
 # ...
 ```
 
+!!! note
+    If application manifest generation using the `argocd.argoproj.io/manifest-generate-paths` annotation feature is enabled, only the resources specified by this annotation will be sent to the CMP server for manifest generation, rather than the entire repository. To determine the appropriate resources, a common root path is calculated based on the paths provided in the annotation. The application path serves as the deepest path that can be selected as the root.
+
 ### Application Sync Timeout & Jitter
 
 Argo CD has a timeout for application syncs. It will trigger a refresh for each application periodically when the timeout expires.
@@ -365,3 +378,17 @@ Not all HTTP responses are eligible for retries. The following conditions will n
 
 * Responses with a status code indicating client errors (4xx) except for 429 Too Many Requests.
 * Responses with the status code 501 Not Implemented.
+
+
+## CPU/Memory Profiling
+
+Argo CD optionally exposes a profiling endpoint that can be used to profile the CPU and memory usage of the Argo CD component.
+The profiling endpoint is available on metrics port of each component. See [metrics](./metrics.md) for more information about the port.
+For security reasons the profiling endpoint is disabled by default. The endpoint can be enabled by setting the `server.profile.enabled`
+or `controller.profile.enabled` key of [argocd-cmd-params-cm](argocd-cmd-params-cm.yaml) ConfigMap to `true`.
+Once the endpoint is enabled you can use go profile tool to collect the CPU and memory profiles. Example:
+
+```bash
+$ kubectl port-forward svc/argocd-metrics 8082:8082
+$ go tool pprof http://localhost:8082/debug/pprof/heap
+```

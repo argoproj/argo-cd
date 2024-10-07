@@ -20,7 +20,7 @@ func parseJWT(p string) ([]byte, error) {
 	}
 	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
-		return nil, fmt.Errorf("malformed jwt payload: %v", err)
+		return nil, fmt.Errorf("malformed jwt payload: %w", err)
 	}
 	return payload, nil
 }
@@ -58,11 +58,11 @@ type jwtWithOnlyAudClaim struct {
 func getUnverifiedAudClaim(rawIDToken string) ([]string, error) {
 	payload, err := parseJWT(rawIDToken)
 	if err != nil {
-		return nil, fmt.Errorf("malformed jwt: %v", err)
+		return nil, fmt.Errorf("malformed jwt: %w", err)
 	}
 	var token jwtWithOnlyAudClaim
 	if err = json.Unmarshal(payload, &token); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal claims: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal claims: %w", err)
 	}
 	return token.Aud, nil
 }
