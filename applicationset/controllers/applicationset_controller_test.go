@@ -6423,7 +6423,6 @@ func TestResourceStatusAreOrdered(t *testing.T) {
 			argoObjs := []runtime.Object{}
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&cc.appSet).WithObjects(&cc.appSet).Build()
-			metrics := appsetmetrics.NewFakeAppsetMetrics(client)
 
 			r := ApplicationSetReconciler{
 				Client:           client,
@@ -6433,7 +6432,6 @@ func TestResourceStatusAreOrdered(t *testing.T) {
 				ArgoDB:           &argoDBMock,
 				ArgoAppClientset: appclientset.NewSimpleClientset(argoObjs...),
 				KubeClientset:    kubeclientset,
-				Metrics:          metrics,
 			}
 
 			err := r.updateResourcesStatus(context.TODO(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
