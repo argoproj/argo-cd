@@ -211,10 +211,10 @@ spec:
                 optional: true
           - name: ARGOCD_GIT_AUTOPACK_LIMIT
             valueFrom:
-            configMapKeyRef:
-              key: reposerver.git.autopacklimit
-              name: argocd-cmd-params-cm
-              optional: true
+              configMapKeyRef:
+                key: reposerver.git.autopacklimit
+                name: argocd-cmd-params-cm
+                optional: true
           - name: ARGOCD_GRPC_MAX_SIZE_MB
             valueFrom:
               configMapKeyRef:
