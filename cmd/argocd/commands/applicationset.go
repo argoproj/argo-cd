@@ -331,7 +331,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 		noPrompt bool
 		cascade  bool
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "delete",
 		Short: "Delete one or more ApplicationSets",
 		Example: templates.Examples(`
