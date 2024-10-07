@@ -341,7 +341,6 @@ func (m *nativeGitClient) Init() error {
 		Name: git.DefaultRemoteName,
 		URLs: []string{m.repoURL},
 	})
-
 	if err != nil {
 		return err
 	}
@@ -350,9 +349,9 @@ func (m *nativeGitClient) Init() error {
 	if countStr := os.Getenv(common.EnvGitAutopackLimit); countStr != "" {
 		if _, err := strconv.Atoi(countStr); err != nil {
 			panic(fmt.Sprintf("Invalid value in %s env variable: %v", common.EnvGitAutopackLimit, err))
-		} else {
-			m.runCredentialedCmd("config", "gc.autopacklimit", countStr)
 		}
+
+		err = m.runCredentialedCmd("config", "gc.autopacklimit", countStr)
 	}
 
 	return err
