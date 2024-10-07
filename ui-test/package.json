@@ -4,9 +4,7 @@
   "description": "UI Testing",
   "main": "argocd-ui-test",
   "scripts": {
-    "compile": "npx tsc",
-    "test": "node out/test001.js",
-    "pretest": "cp .env out/.env",
+    "test": "npx ts-node src/test001.ts",
     "lint": "tslint -p ."
   },
   "author": "Keith Chong",
@@ -23,6 +21,7 @@
     "dotenv": "^16.4.5",
     "mocha": "^10.7.3",
     "prettier": "^2.8.8",
+    "ts-node": "10.9.2",
     "tslint": "^6.1.3",
     "tslint-config-prettier": "^1.18.0",
     "tslint-plugin-prettier": "^2.0.1",

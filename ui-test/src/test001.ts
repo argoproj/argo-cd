@@ -19,15 +19,20 @@ import {PopupManager} from './popup/popup-manager';
 async function doTest() {
     const navigation = await UiTestUtilities.init();
     try {
+        await UiTestUtilities.log('About to login');
+        await navigation.login('admin', 'password');
         const appsList: ApplicationsList = await navigation.clickApplicationsNavBarButton();
+
+        await UiTestUtilities.log('Clicked nav bar button');
+
         const applicationCreatePanel: ApplicationCreatePanel = await appsList.clickNewAppButton();
 
-        UiTestUtilities.log('About to create application');
+        await UiTestUtilities.log('About to create application');
         await applicationCreatePanel.setAppName(Configuration.APP_NAME);
         await applicationCreatePanel.setProjectName(Configuration.APP_PROJECT);
         await applicationCreatePanel.setSourceRepoUrl(Configuration.GIT_REPO);
         await applicationCreatePanel.setSourceRepoPath(Configuration.SOURCE_REPO_PATH);
-        await applicationCreatePanel.selectDestinationClusterNameMenu(Configuration.DESTINATION_CLUSTER_NAME);
+        await applicationCreatePanel.selectDestinationClusterURLMenu(Configuration.DESTINATION_CLUSTER_URL);
         await applicationCreatePanel.setDestinationNamespace(Configuration.DESTINATION_NAMESPACE);
         await applicationCreatePanel.clickCreateButton();
 
@@ -47,6 +52,7 @@ async function doTest() {
         await UiTestUtilities.log('Test passed');
     } catch (e) {
         trace('Test failed ', e);
+        process.exit(1);
     } finally {
         await navigation.quit();
     }

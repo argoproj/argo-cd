@@ -486,6 +486,9 @@ jobs:
           chown runner dist
       - name: Run E2E server and wait for it being available
         timeout-minutes: 30
+        env:
+          # ARGOCD_API_URL is used by Webpack server to proxy API requests to the E2E server.
+          ARGOCD_API_URL: http://localhost:8088
         run: |
           set -x
           # Something is weird in GH runners -- there's a phantom listener for
@@ -506,14 +509,31 @@ jobs:
         run: |
           set -x
           make test-e2e-local
-          goreman run stop-all || echo "goreman trouble"
-          sleep 30
       - name: Upload e2e coverage report
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: e2e-code-coverage
           path: /tmp/coverage
         if: ${{ matrix.k3s.latest }}
+      - uses: browser-actions/setup-chrome@facf10a55b9caf92e0cc749b4f82bf8220989148 # v1.7.2
+        with:
+          install-chromedriver: true
+      - run: chrome --version
+      - name: Run UI e2e tests
+        if: ${{ matrix.k3s.latest }}  # Only bother running for the latest version.
+        run: |
+          sleep 120 # Give the controller more time to spin up.
+          yarn install --frozen-lockfile --ignore-optional --non-interactive
+          yarn test
+          goreman run stop-all || echo "goreman trouble"
+          sleep 30
+        working-directory: ui-test/
+      # In case a previous step failed, attempt to shut down the E2E server. This ensures logs get flushed and uploaded.
+      - name: Shut down E2E server
+        run: |
+          goreman run stop-all || echo "goreman trouble"
+          sleep 30
+        if: ${{ failure() }}
       - name: Upload e2e-server logs
         uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
