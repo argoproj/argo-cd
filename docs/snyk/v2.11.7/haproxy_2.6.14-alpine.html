@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="18 known vulnerabilities found in 85 vulnerable dependency paths.">
+  <meta name="description" content="14 known vulnerabilities found in 110 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,31 +456,37 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">September 15th 2024, 12:23:48 am (UTC+00:00)</p>
+                <p class="timestamp">September 8th 2024, 12:24:05 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
-                <span>Scanned the following paths:</span>
+                <span>Scanned the following path:</span>
                 <ul>
-                  <li class="paths">ghcr.io/dexidp/dex:v2.38.0/dexidp/dex (apk)</li>
-                  <li class="paths">ghcr.io/dexidp/dex:v2.38.0/hairyhenderson/gomplate/v3//usr/local/bin/gomplate (gomodules)</li>
-                  <li class="paths">ghcr.io/dexidp/dex:v2.38.0/dexidp/dex//usr/local/bin/docker-entrypoint (gomodules)</li>
-                  <li class="paths">ghcr.io/dexidp/dex:v2.38.0/dexidp/dex//usr/local/bin/dex (gomodules)</li>
+                  <li class="paths">haproxy:2.6.14-alpine (apk)</li>
                 </ul>
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>18</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>85 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>829</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>14</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>110 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>18</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
         </div><!-- .layout-stacked__header -->
-
+      <section class="layout-container">
+          <table class="metatable">
+              <tbody>
+              <tr class="meta-row"><th class="meta-row-label">Project</th> <td class="meta-row-value">docker-image|haproxy</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Path</th> <td class="meta-row-value">haproxy:2.6.14-alpine</td></tr>
+              <tr class="meta-row"><th class="meta-row-label">Package Manager</th> <td class="meta-row-value">apk</td></tr>
+              
+              </tbody>
+          </table>
+      </section>
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
-            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <h2 class="card__title">CVE-2023-5363</h2>
             <div class="card__section">
         
                 <div class="label label--high">
@@ -491,20 +497,17 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Manifest file: ghcr.io/dexidp/dex:v2.38.0/hairyhenderson/gomplate/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
+                        Package Manager: alpine:3.18
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
         
-                            golang.org/x/net/http2
+                            openssl/libcrypto3
                     </li>
         
                     <li class="card__meta__item">Introduced through:
         
-                                github.com/hairyhenderson/gomplate/v3@* and golang.org/x/net/http2@v0.19.0
+                                docker-image|haproxy@2.6.14-alpine and openssl/libcrypto3@3.1.2-r0
         
                     </li>
                 </ul>
@@ -517,18 +520,97 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/hairyhenderson/gomplate/v3@*
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/net/http2@v0.19.0
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/dexidp/dex@*
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        golang.org/x/net/http2@v0.20.0
+                                        .haproxy-rundeps@20230809.001942
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.0-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20230809.001942
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20230809.001942
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.0-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
                                         
                                 </span>
         
@@ -539,23 +621,243 @@
         
               <hr/>
               <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p><a href="https://pkg.go.dev/golang.org/x/net/http2">golang.org/x/net/http2</a> is a work-in-progress HTTP/2 implementation for Go.</p>
-        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling when reading header data from <code>CONTINUATION</code> frames. As part of the HPACK flow, all incoming <code>HEADERS</code> and <code>CONTINUATION</code> frames are read even if their payloads exceed <code>MaxHeaderBytes</code> and will be discarded. An attacker can send excessive data over a connection to render it unresponsive.</p>
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: A bug has been identified in the processing of key and
+        initialisation vector (IV) lengths.  This can lead to potential truncation
+        or overruns during the initialisation of some symmetric ciphers.</p>
+        <p>Impact summary: A truncation in the IV can result in non-uniqueness,
+        which could result in loss of confidentiality for some cipher modes.</p>
+        <p>When calling EVP_EncryptInit_ex2(), EVP_DecryptInit_ex2() or
+        EVP_CipherInit_ex2() the provided OSSL_PARAM array is processed after
+        the key and IV have been established.  Any alterations to the key length,
+        via the &#34;keylen&#34; parameter or the IV length, via the &#34;ivlen&#34; parameter,
+        within the OSSL_PARAM array will not take effect as intended, potentially
+        causing truncation or overreading of these values.  The following ciphers
+        and cipher modes are impacted: RC2, RC4, RC5, CCM, GCM and OCB.</p>
+        <p>For the CCM, GCM and OCB cipher modes, truncation of the IV can result in
+        loss of confidentiality.  For example, when following NIST&#39;s SP 800-38D
+        section 8.2.1 guidance for constructing a deterministic IV for AES in
+        GCM mode, truncation of the counter portion could lead to IV reuse.</p>
+        <p>Both truncations and overruns of the key and overruns of the IV will
+        produce incorrect results and could, in some cases, trigger a memory
+        exception.  However, these issues are not currently assessed as security
+        critical.</p>
+        <p>Changing the key and/or IV lengths is not considered to be a common operation
+        and the vulnerable API was recently introduced. Furthermore it is likely that
+        application developers will have spotted this problem during testing since
+        decryption would fail unless both peers in the communication were similarly
+        vulnerable. For these reasons we expect the probability of an application being
+        vulnerable to this to be quite low. However if an application is vulnerable then
+        this issue is considered very serious. For these reasons we have assessed this
+        issue as Moderate severity overall.</p>
+        <p>The OpenSSL SSL/TLS implementation is not affected by this issue.</p>
+        <p>The OpenSSL 3.0 and 3.1 FIPS providers are not affected by this because
+        the issue lies outside of the FIPS provider boundary.</p>
+        <p>OpenSSL 3.1 and 3.0 are vulnerable to this issue.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>golang.org/x/net/http2</code> to version 0.23.0 or higher.</p>
+        <p>Upgrade <code>Alpine:3.18</code> <code>openssl</code> to version 3.1.4-r0 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="https://github.com/traefik/traefik/commit/099c7e9444a5d56918b8221672fc8d6a09a5d389">Github Commit</a></li>
-        <li><a href="https://github.com/golang/net/commit/ba872109ef2dc8f1da778651bd1fd3792d0e4587">GitHub Commit</a></li>
-        <li><a href="https://github.com/golang/go/issues/65051">GitHub Issue</a></li>
-        <li><a href="https://pkg.go.dev/vuln/GO-2024-2687">Go Advisory</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/10/24/1">http://www.openwall.com/lists/oss-security/2023/10/24/1</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=0df40630850fb2740e6be6890bb905d3fc623b2d">https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=0df40630850fb2740e6be6890bb905d3fc623b2d</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=5f69f5c65e483928c4b28ed16af6e5742929f1ee">https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=5f69f5c65e483928c4b28ed16af6e5742929f1ee</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20231027-0010/">https://security.netapp.com/advisory/ntap-20231027-0010/</a></li>
+        <li><a href="https://www.debian.org/security/2023/dsa-5532">https://www.debian.org/security/2023/dsa-5532</a></li>
+        <li><a href="https://www.openssl.org/news/secadv/20231024.txt">https://www.openssl.org/news/secadv/20231024.txt</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20240201-0003/">https://security.netapp.com/advisory/ntap-20240201-0003/</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20240201-0004/">https://security.netapp.com/advisory/ntap-20240201-0004/</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTTP2-6531285">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-OPENSSL-6032386">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Improper Check for Unusual or Exceptional Conditions</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.18
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|haproxy@2.6.14-alpine and openssl/libcrypto3@3.1.2-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20230809.001942
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.0-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20230809.001942
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        .haproxy-rundeps@20230809.001942
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.0-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: Generating excessively long X9.42 DH keys or checking
+        excessively long X9.42 DH keys or parameters may be very slow.</p>
+        <p>Impact summary: Applications that use the functions DH_generate_key() to
+        generate an X9.42 DH key may experience long delays.  Likewise, applications
+        that use DH_check_pub_key(), DH_check_pub_key_ex() or EVP_PKEY_public_check()
+        to check an X9.42 DH key or X9.42 DH parameters may experience long delays.
+        Where the key or parameters that are being checked have been obtained from
+        an untrusted source this may lead to a Denial of Service.</p>
+        <p>While DH_check() performs all the necessary checks (as of CVE-2023-3817),
+        DH_check_pub_key() doesn&#39;t make any of these checks, and is therefore
+        vulnerable for excessively large P and Q parameters.</p>
+        <p>Likewise, while DH_generate_key() performs a check for an excessively large
+        P, it doesn&#39;t check for an excessively large Q.</p>
+        <p>An application that calls DH_generate_key() or DH_check_pub_key() and
+        supplies a key or parameters obtained from an untrusted source could be
+        vulnerable to a Denial of Service attack.</p>
+        <p>DH_generate_key() and DH_check_pub_key() are also called by a number of
+        other OpenSSL functions.  An application calling any of those other
+        functions may similarly be affected.  The other functions affected by this
+        are DH_check_pub_key_ex(), EVP_PKEY_public_check(), and EVP_PKEY_generate().</p>
+        <p>Also vulnerable are the OpenSSL pkey command line application when using the
+        &#34;-pubcheck&#34; option, as well as the OpenSSL genpkey command line application.</p>
+        <p>The OpenSSL SSL/TLS implementation is not affected by this issue.</p>
+        <p>The OpenSSL 3.0 and 3.1 FIPS providers are not affected by this issue.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.18</code> <code>openssl</code> to version 3.1.4-r1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://www.openwall.com/lists/oss-security/2023/11/06/2">http://www.openwall.com/lists/oss-security/2023/11/06/2</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=34efaef6c103d636ab507a0cc34dca4d3aecc055">https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=34efaef6c103d636ab507a0cc34dca4d3aecc055</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=710fee740904b6290fef0dd5536fbcedbc38ff0c">https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=710fee740904b6290fef0dd5536fbcedbc38ff0c</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=db925ae2e65d0d925adef429afc37f75bd1c2017">https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=db925ae2e65d0d925adef429afc37f75bd1c2017</a></li>
+        <li><a href="https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=ddeb4b6c6d527e54ce9a99cba785c0f7776e54b6">https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=ddeb4b6c6d527e54ce9a99cba785c0f7776e54b6</a></li>
+        <li><a href="https://www.openssl.org/news/secadv/20231106.txt">https://www.openssl.org/news/secadv/20231106.txt</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20231130-0010/">https://security.netapp.com/advisory/ntap-20231130-0010/</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2024/03/11/1">http://www.openwall.com/lists/oss-security/2024/03/11/1</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-OPENSSL-6055795">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -571,7 +873,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Package Manager: alpine:3.19
+                        Package Manager: alpine:3.18
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
@@ -581,7 +883,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|ghcr.io/dexidp/dex@v2.38.0 and openssl/libcrypto3@3.1.4-r2
+                                docker-image|haproxy@2.6.14-alpine and openssl/libcrypto3@3.1.2-r0
         
                     </li>
                 </ul>
@@ -594,75 +896,97 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
+                                        .haproxy-rundeps@20230809.001942
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r15
+                                        apk-tools/apk-tools@2.14.0-r2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
+                                        busybox/ssl_client@1.36.1-r2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        .haproxy-rundeps@20230809.001942
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        openssl/libssl3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r15
+                                        .haproxy-rundeps@20230809.001942
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.0-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
                                         
                                 </span>
         
@@ -675,7 +999,7 @@
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Alpine:3.19</code> relevant fixed versions and status.</em></p>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
         <p>Issue summary: The POLY1305 MAC (message authentication code) implementation
         contains a bug that might corrupt the internal state of applications running
         on PowerPC CPU based platforms if the CPU provides vector instructions.</p>
@@ -704,7 +1028,7 @@
         we are currently not aware of any concrete application that would be affected
         by this issue therefore we consider this a Low severity security issue.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>Alpine:3.19</code> <code>openssl</code> to version 3.1.4-r3 or higher.</p>
+        <p>Upgrade <code>Alpine:3.18</code> <code>openssl</code> to version 3.1.4-r3 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="http://www.openwall.com/lists/oss-security/2024/01/09/1">http://www.openwall.com/lists/oss-security/2024/01/09/1</a></li>
@@ -722,7 +1046,7 @@
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-ALPINE319-OPENSSL-6148881">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-OPENSSL-6152404">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -738,7 +1062,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Package Manager: alpine:3.19
+                        Package Manager: alpine:3.18
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
@@ -748,7 +1072,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|ghcr.io/dexidp/dex@v2.38.0 and openssl/libcrypto3@3.1.4-r2
+                                docker-image|haproxy@2.6.14-alpine and openssl/libcrypto3@3.1.2-r0
         
                     </li>
                 </ul>
@@ -761,75 +1085,97 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
+                                        .haproxy-rundeps@20230809.001942
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r15
+                                        apk-tools/apk-tools@2.14.0-r2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
+                                        busybox/ssl_client@1.36.1-r2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        .haproxy-rundeps@20230809.001942
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        openssl/libssl3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r15
+                                        .haproxy-rundeps@20230809.001942
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.0-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
                                         
                                 </span>
         
@@ -842,7 +1188,7 @@
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Alpine:3.19</code> relevant fixed versions and status.</em></p>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
         <p>Issue summary: Processing a maliciously formatted PKCS12 file may lead OpenSSL
         to crash leading to a potential Denial of Service attack</p>
         <p>Impact summary: Applications loading files in the PKCS12 format from untrusted
@@ -860,7 +1206,7 @@
         function is related to writing data we do not consider it security significant.</p>
         <p>The FIPS modules in 3.2, 3.1 and 3.0 are not affected by this issue.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>Alpine:3.19</code> <code>openssl</code> to version 3.1.4-r5 or higher.</p>
+        <p>Upgrade <code>Alpine:3.18</code> <code>openssl</code> to version 3.1.4-r5 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="https://github.com/openssl/openssl/commit/09df4395b5071217b76dc7d3d2e630eb8c5a79c2">https://github.com/openssl/openssl/commit/09df4395b5071217b76dc7d3d2e630eb8c5a79c2</a></li>
@@ -876,372 +1222,7 @@
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-ALPINE319-OPENSSL-6191693">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Infinite loop</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: ghcr.io/dexidp/dex:v2.38.0/hairyhenderson/gomplate/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            google.golang.org/protobuf/internal/encoding/json
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/hairyhenderson/gomplate/v3@* and google.golang.org/protobuf/internal/encoding/json@v1.31.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/hairyhenderson/gomplate/v3@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        google.golang.org/protobuf/internal/encoding/json@v1.31.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/dexidp/dex@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        google.golang.org/protobuf/internal/encoding/json@v1.32.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Infinite loop via the <code>protojson.Unmarshal</code> function. An attacker can cause a denial of service condition by unmarshaling certain forms of invalid JSON.</p>
-        <p><strong>Note:</strong></p>
-        <p>This condition can occur when unmarshaling into a message which contains a <code>google.protobuf.Any</code> value, or when the <code>UnmarshalOptions.DiscardUnknown</code> option is set.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>google.golang.org/protobuf/internal/encoding/json</code> to version 1.33.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/protocolbuffers/protobuf-go/commit/f01a588e5810b90996452eec4a28f22a0afae023">GitHub Commit</a></li>
-        <li><a href="https://github.com/protocolbuffers/protobuf-go/releases/tag/v1.33.0">GitHub Release</a></li>
-        <li><a href="https://pkg.go.dev/vuln/GO-2024-2611">Vulnerability Advisory</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOGLEGOLANGORGPROTOBUFINTERNALENCODINGJSON-6393704">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Stack-based Buffer Overflow</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: ghcr.io/dexidp/dex:v2.38.0/hairyhenderson/gomplate/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            google.golang.org/protobuf/encoding/protojson
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/hairyhenderson/gomplate/v3@* and google.golang.org/protobuf/encoding/protojson@v1.31.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/hairyhenderson/gomplate/v3@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        google.golang.org/protobuf/encoding/protojson@v1.31.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Stack-based Buffer Overflow when processing input that uses pathologically deep nesting.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>google.golang.org/protobuf/encoding/protojson</code> to version 1.32.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/protocolbuffers/protobuf-go/commit/bfcd6476a38e41247d6bb43dc8f00b23ec9fffc2">GitHub Commit</a></li>
-        <li><a href="https://github.com/golang/protobuf/issues/1584">GitHub Issue</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOGLEGOLANGORGPROTOBUFENCODINGPROTOJSON-6137908">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Infinite loop</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: ghcr.io/dexidp/dex:v2.38.0/hairyhenderson/gomplate/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            google.golang.org/protobuf/encoding/protojson
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/hairyhenderson/gomplate/v3@* and google.golang.org/protobuf/encoding/protojson@v1.31.0
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/hairyhenderson/gomplate/v3@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        google.golang.org/protobuf/encoding/protojson@v1.31.0
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/dexidp/dex@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        google.golang.org/protobuf/encoding/protojson@v1.32.0
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Infinite loop via the <code>protojson.Unmarshal</code> function. An attacker can cause a denial of service condition by unmarshaling certain forms of invalid JSON.</p>
-        <p><strong>Note:</strong></p>
-        <p>This condition can occur when unmarshaling into a message which contains a <code>google.protobuf.Any</code> value, or when the <code>UnmarshalOptions.DiscardUnknown</code> option is set.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>google.golang.org/protobuf/encoding/protojson</code> to version 1.33.0 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/protocolbuffers/protobuf-go/commit/f01a588e5810b90996452eec4a28f22a0afae023">GitHub Commit</a></li>
-        <li><a href="https://github.com/protocolbuffers/protobuf-go/releases/tag/v1.33.0">GitHub Release</a></li>
-        <li><a href="https://pkg.go.dev/vuln/GO-2024-2611">Vulnerability Advisory</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOGLEGOLANGORGPROTOBUFENCODINGPROTOJSON-6393703">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Insertion of Sensitive Information into Log File</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: ghcr.io/dexidp/dex:v2.38.0/hairyhenderson/gomplate/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            github.com/hashicorp/go-retryablehttp
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/hairyhenderson/gomplate/v3@* and github.com/hashicorp/go-retryablehttp@v0.7.1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/hairyhenderson/gomplate/v3@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/hashicorp/go-retryablehttp@v0.7.1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Insertion of Sensitive Information into Log File due to not sanitizing urls when writing them to the log file. This could lead to an attacker writing sensitive HTTP basic auth credentials to the log file.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>github.com/hashicorp/go-retryablehttp</code> to version 0.7.7 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/hashicorp/go-retryablehttp/commit/a99f07beb3c5faaa0a283617e6eb6bcf25f5049a">GitHub Commit</a></li>
-        <li><a href="https://discuss.hashicorp.com/t/hcsec-2024-12-go-retryablehttp-can-leak-basic-auth-credentials-to-log-files/68027">HashiCorp Discuss</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMHASHICORPGORETRYABLEHTTP-7362036">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Improper Handling of Highly Compressed Data (Data Amplification)</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: ghcr.io/dexidp/dex:v2.38.0/dexidp/dex <span class="list-paths__item__arrow">›</span> /usr/local/bin/dex
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: golang
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            github.com/go-jose/go-jose/v3
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                github.com/dexidp/dex@* and github.com/go-jose/go-jose/v3@v3.0.1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        github.com/dexidp/dex@*
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        github.com/go-jose/go-jose/v3@v3.0.1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="overview">Overview</h2>
-        <p>Affected versions of this package are vulnerable to Improper Handling of Highly Compressed Data (Data Amplification). An attacker could send a JWE containing compressed data that, when decompressed by <code>Decrypt</code> or <code>DecryptMulti</code>, would use large amounts of memory and CPU.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>github.com/go-jose/go-jose/v3</code> to version 3.0.3 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://github.com/go-jose/go-jose/commit/0dd4dd541c665fb292d664f77604ba694726f298">GitHub Commit</a></li>
-        <li><a href="https://github.com/go-jose/go-jose/commit/add6a284ea0f844fd6628cba637be5451fe4b28a">GitHub Commit</a></li>
-        <li><a href="https://github.com/go-jose/go-jose/commit/f4c051a0653d78199a053892f7619ebf96339502">GitHub Commit</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV3-6419233">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-OPENSSL-6191692">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1257,7 +1238,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Package Manager: alpine:3.19
+                        Package Manager: alpine:3.18
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
@@ -1267,7 +1248,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|ghcr.io/dexidp/dex@v2.38.0 and busybox/busybox@1.36.1-r15
+                                docker-image|haproxy@2.6.14-alpine and busybox/busybox@1.36.1-r2
         
                     </li>
                 </ul>
@@ -1280,51 +1261,51 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox@1.36.1-r15
+                                        busybox/busybox@1.36.1-r2
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        alpine-baselayout/alpine-baselayout@3.4.3-r2
+                                        alpine-baselayout/alpine-baselayout@3.4.3-r1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox-binsh@1.36.1-r15
+                                        busybox/busybox-binsh@1.36.1-r2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox@1.36.1-r15
+                                        busybox/busybox@1.36.1-r2
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox-binsh@1.36.1-r15
+                                        busybox/busybox-binsh@1.36.1-r2
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        alpine-baselayout/alpine-baselayout@3.4.3-r2
+                                        alpine-baselayout/alpine-baselayout@3.4.3-r1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox-binsh@1.36.1-r15
+                                        busybox/busybox-binsh@1.36.1-r2
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r15
+                                        busybox/ssl_client@1.36.1-r2
                                         
                                 </span>
         
@@ -1337,10 +1318,10 @@
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>busybox</code> package and not the <code>busybox</code> package as distributed by <code>Alpine</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Alpine:3.19</code> relevant fixed versions and status.</em></p>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
         <p>A heap-buffer-overflow was discovered in BusyBox v.1.36.1 in the next_token function at awk.c:1159.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>Alpine:3.19</code> <code>busybox</code> to version 1.36.1-r16 or higher.</p>
+        <p>Upgrade <code>Alpine:3.18</code> <code>busybox</code> to version 1.36.1-r6 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="https://bugs.busybox.net/show_bug.cgi?id=15874">https://bugs.busybox.net/show_bug.cgi?id=15874</a></li>
@@ -1349,7 +1330,7 @@
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-ALPINE319-BUSYBOX-6913413">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-BUSYBOX-6913411">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1365,7 +1346,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Package Manager: alpine:3.19
+                        Package Manager: alpine:3.18
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
@@ -1375,7 +1356,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|ghcr.io/dexidp/dex@v2.38.0 and busybox/busybox@1.36.1-r15
+                                docker-image|haproxy@2.6.14-alpine and busybox/busybox@1.36.1-r2
         
                     </li>
                 </ul>
@@ -1388,51 +1369,51 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox@1.36.1-r15
+                                        busybox/busybox@1.36.1-r2
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        alpine-baselayout/alpine-baselayout@3.4.3-r2
+                                        alpine-baselayout/alpine-baselayout@3.4.3-r1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox-binsh@1.36.1-r15
+                                        busybox/busybox-binsh@1.36.1-r2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox@1.36.1-r15
+                                        busybox/busybox@1.36.1-r2
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox-binsh@1.36.1-r15
+                                        busybox/busybox-binsh@1.36.1-r2
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        alpine-baselayout/alpine-baselayout@3.4.3-r2
+                                        alpine-baselayout/alpine-baselayout@3.4.3-r1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox-binsh@1.36.1-r15
+                                        busybox/busybox-binsh@1.36.1-r2
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r15
+                                        busybox/ssl_client@1.36.1-r2
                                         
                                 </span>
         
@@ -1445,226 +1426,10 @@
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>busybox</code> package and not the <code>busybox</code> package as distributed by <code>Alpine</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Alpine:3.19</code> relevant fixed versions and status.</em></p>
-        <p>A use-after-free vulnerability was discovered in BusyBox v.1.36.1 via a crafted awk pattern in the awk.c copyvar function.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>Alpine:3.19</code> <code>busybox</code> to version 1.36.1-r19 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://bugs.busybox.net/show_bug.cgi?id=15871">https://bugs.busybox.net/show_bug.cgi?id=15871</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-ALPINE319-BUSYBOX-6928845">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Use After Free</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: alpine:3.19
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            busybox/busybox
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|ghcr.io/dexidp/dex@v2.38.0 and busybox/busybox@1.36.1-r15
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox@1.36.1-r15
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        alpine-baselayout/alpine-baselayout@3.4.3-r2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox-binsh@1.36.1-r15
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox@1.36.1-r15
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox-binsh@1.36.1-r15
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        alpine-baselayout/alpine-baselayout@3.4.3-r2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox-binsh@1.36.1-r15
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r15
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>busybox</code> package and not the <code>busybox</code> package as distributed by <code>Alpine</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Alpine:3.19</code> relevant fixed versions and status.</em></p>
-        <p>A use-after-free vulnerability in BusyBox v.1.36.1 allows attackers to cause a denial of service via a crafted awk pattern in the awk.c evaluate function.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>Alpine:3.19</code> <code>busybox</code> to version 1.36.1-r19 or higher.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="https://bugs.busybox.net/show_bug.cgi?id=15868">https://bugs.busybox.net/show_bug.cgi?id=15868</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-ALPINE319-BUSYBOX-6928846">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Use After Free</h2>
-            <div class="card__section">
-        
-                <div class="label label--medium">
-                    <span class="label__text">medium severity</span>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Package Manager: alpine:3.19
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            busybox/busybox
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|ghcr.io/dexidp/dex@v2.38.0 and busybox/busybox@1.36.1-r15
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox@1.36.1-r15
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        alpine-baselayout/alpine-baselayout@3.4.3-r2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox-binsh@1.36.1-r15
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox@1.36.1-r15
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox-binsh@1.36.1-r15
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        alpine-baselayout/alpine-baselayout@3.4.3-r2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/busybox-binsh@1.36.1-r15
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r15
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>busybox</code> package and not the <code>busybox</code> package as distributed by <code>Alpine</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Alpine:3.19</code> relevant fixed versions and status.</em></p>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
         <p>A use-after-free vulnerability was discovered in xasprintf function in xfuncs_printf.c:344 in BusyBox v.1.36.1.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>Alpine:3.19</code> <code>busybox</code> to version 1.36.1-r17 or higher.</p>
+        <p>Upgrade <code>Alpine:3.18</code> <code>busybox</code> to version 1.36.1-r7 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="https://bugs.busybox.net/show_bug.cgi?id=15865">https://bugs.busybox.net/show_bug.cgi?id=15865</a></li>
@@ -1673,7 +1438,223 @@
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-ALPINE319-BUSYBOX-6928847">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-BUSYBOX-7249236">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Use After Free</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.18
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            busybox/busybox
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|haproxy@2.6.14-alpine and busybox/busybox@1.36.1-r2
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox@1.36.1-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        alpine-baselayout/alpine-baselayout@3.4.3-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.36.1-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox@1.36.1-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.36.1-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        alpine-baselayout/alpine-baselayout@3.4.3-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.36.1-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r2
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>busybox</code> package and not the <code>busybox</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
+        <p>A use-after-free vulnerability in BusyBox v.1.36.1 allows attackers to cause a denial of service via a crafted awk pattern in the awk.c evaluate function.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.18</code> <code>busybox</code> to version 1.36.1-r7 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://bugs.busybox.net/show_bug.cgi?id=15868">https://bugs.busybox.net/show_bug.cgi?id=15868</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-BUSYBOX-7249265">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Use After Free</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.18
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            busybox/busybox
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|haproxy@2.6.14-alpine and busybox/busybox@1.36.1-r2
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox@1.36.1-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        alpine-baselayout/alpine-baselayout@3.4.3-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.36.1-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox@1.36.1-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.36.1-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        alpine-baselayout/alpine-baselayout@3.4.3-r1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/busybox-binsh@1.36.1-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r2
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>busybox</code> package and not the <code>busybox</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
+        <p>A use-after-free vulnerability was discovered in BusyBox v.1.36.1 via a crafted awk pattern in the awk.c copyvar function.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.18</code> <code>busybox</code> to version 1.36.1-r7 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://bugs.busybox.net/show_bug.cgi?id=15871">https://bugs.busybox.net/show_bug.cgi?id=15871</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-BUSYBOX-7249419">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1689,7 +1670,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Package Manager: alpine:3.19
+                        Package Manager: alpine:3.18
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
@@ -1699,7 +1680,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|ghcr.io/dexidp/dex@v2.38.0 and openssl/libcrypto3@3.1.4-r2
+                                docker-image|haproxy@2.6.14-alpine and openssl/libcrypto3@3.1.2-r0
         
                     </li>
                 </ul>
@@ -1712,75 +1693,97 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
+                                        .haproxy-rundeps@20230809.001942
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r15
+                                        apk-tools/apk-tools@2.14.0-r2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
+                                        busybox/ssl_client@1.36.1-r2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        .haproxy-rundeps@20230809.001942
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        openssl/libssl3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r15
+                                        .haproxy-rundeps@20230809.001942
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.0-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
                                         
                                 </span>
         
@@ -1793,7 +1796,7 @@
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Alpine:3.19</code> relevant fixed versions and status.</em></p>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
         <p>Issue summary: Checking excessively long invalid RSA public keys may take
         a long time.</p>
         <p>Impact summary: Applications that use the function EVP_PKEY_public_check()
@@ -1815,7 +1818,7 @@
         <p>The OpenSSL SSL/TLS implementation is not affected by this issue.</p>
         <p>The OpenSSL 3.0 and 3.1 FIPS providers are affected by this issue.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>Alpine:3.19</code> <code>openssl</code> to version 3.1.4-r4 or higher.</p>
+        <p>Upgrade <code>Alpine:3.18</code> <code>openssl</code> to version 3.1.4-r4 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="https://github.com/openssl/openssl/commit/0b0f7abfb37350794a4b8960fafc292cd5d1b84d">https://github.com/openssl/openssl/commit/0b0f7abfb37350794a4b8960fafc292cd5d1b84d</a></li>
@@ -1829,7 +1832,7 @@
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-ALPINE319-OPENSSL-6159994">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-OPENSSL-6160000">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1845,7 +1848,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Package Manager: alpine:3.19
+                        Package Manager: alpine:3.18
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
@@ -1855,7 +1858,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|ghcr.io/dexidp/dex@v2.38.0 and openssl/libcrypto3@3.1.4-r2
+                                docker-image|haproxy@2.6.14-alpine and openssl/libcrypto3@3.1.2-r0
         
                     </li>
                 </ul>
@@ -1868,75 +1871,97 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
+                                        .haproxy-rundeps@20230809.001942
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r15
+                                        apk-tools/apk-tools@2.14.0-r2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
+                                        busybox/ssl_client@1.36.1-r2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        .haproxy-rundeps@20230809.001942
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        openssl/libssl3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r15
+                                        .haproxy-rundeps@20230809.001942
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.0-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
                                         
                                 </span>
         
@@ -1949,7 +1974,7 @@
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Alpine:3.19</code> relevant fixed versions and status.</em></p>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
         <p>Issue summary: Some non-default TLS server configurations can cause unbounded
         memory growth when processing TLSv1.3 sessions</p>
         <p>Impact summary: An attacker may exploit certain server configurations to trigger
@@ -1966,7 +1991,7 @@
         <p>The FIPS modules in 3.2, 3.1 and 3.0 are not affected by this issue. OpenSSL
         1.0.2 is also not affected by this issue.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>Alpine:3.19</code> <code>openssl</code> to version 3.1.4-r6 or higher.</p>
+        <p>Upgrade <code>Alpine:3.18</code> <code>openssl</code> to version 3.1.4-r6 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="https://github.com/openssl/openssl/commit/7e4d731b1c07201ad9374c1cd9ac5263bdf35bce">https://github.com/openssl/openssl/commit/7e4d731b1c07201ad9374c1cd9ac5263bdf35bce</a></li>
@@ -1981,7 +2006,7 @@
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-ALPINE319-OPENSSL-6593965">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-OPENSSL-6593964">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -1997,7 +2022,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Package Manager: alpine:3.19
+                        Package Manager: alpine:3.18
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
@@ -2007,7 +2032,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|ghcr.io/dexidp/dex@v2.38.0 and openssl/libcrypto3@3.1.4-r2
+                                docker-image|haproxy@2.6.14-alpine and openssl/libcrypto3@3.1.2-r0
         
                     </li>
                 </ul>
@@ -2020,75 +2045,97 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
+                                        .haproxy-rundeps@20230809.001942
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r15
+                                        apk-tools/apk-tools@2.14.0-r2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
+                                        busybox/ssl_client@1.36.1-r2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        .haproxy-rundeps@20230809.001942
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        openssl/libssl3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r15
+                                        .haproxy-rundeps@20230809.001942
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.0-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
                                         
                                 </span>
         
@@ -2101,7 +2148,7 @@
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Alpine:3.19</code> relevant fixed versions and status.</em></p>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
         <p>Issue summary: Checking excessively long DSA keys or parameters may be very
         slow.</p>
         <p>Impact summary: Applications that use the functions EVP_PKEY_param_check()
@@ -2126,7 +2173,7 @@
         <p>The OpenSSL SSL/TLS implementation is not affected by this issue.</p>
         <p>The OpenSSL 3.0 and 3.1 FIPS providers are affected by this issue.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>Alpine:3.19</code> <code>openssl</code> to version 3.1.5-r0 or higher.</p>
+        <p>Upgrade <code>Alpine:3.18</code> <code>openssl</code> to version 3.1.5-r0 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="https://github.com/openssl/openssl/commit/3559e868e58005d15c6013a0c1fd832e51c73397">https://github.com/openssl/openssl/commit/3559e868e58005d15c6013a0c1fd832e51c73397</a></li>
@@ -2141,7 +2188,7 @@
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-ALPINE319-OPENSSL-6928853">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-OPENSSL-6928857">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -2157,7 +2204,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Package Manager: alpine:3.19
+                        Package Manager: alpine:3.18
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
@@ -2167,7 +2214,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|ghcr.io/dexidp/dex@v2.38.0 and openssl/libcrypto3@3.1.4-r2
+                                docker-image|haproxy@2.6.14-alpine and openssl/libcrypto3@3.1.2-r0
         
                     </li>
                 </ul>
@@ -2180,75 +2227,97 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
+                                        .haproxy-rundeps@20230809.001942
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r15
+                                        apk-tools/apk-tools@2.14.0-r2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
+                                        busybox/ssl_client@1.36.1-r2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        .haproxy-rundeps@20230809.001942
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        openssl/libssl3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r15
+                                        .haproxy-rundeps@20230809.001942
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.0-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
                                         
                                 </span>
         
@@ -2261,7 +2330,7 @@
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Alpine:3.19</code> relevant fixed versions and status.</em></p>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
         <p>Issue summary: Calling the OpenSSL API function SSL_select_next_proto with an
         empty supported client protocols buffer may cause a crash or memory contents to
         be sent to the peer.</p>
@@ -2318,7 +2387,7 @@
         OpenSSL at this time. The fix will be included in the next releases when they
         become available.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>Alpine:3.19</code> <code>openssl</code> to version 3.1.6-r0 or higher.</p>
+        <p>Upgrade <code>Alpine:3.18</code> <code>openssl</code> to version 3.1.6-r0 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="https://github.com/openssl/openssl/commit/4ada436a1946cbb24db5ab4ca082b69c1bc10f37">https://github.com/openssl/openssl/commit/4ada436a1946cbb24db5ab4ca082b69c1bc10f37</a></li>
@@ -2336,7 +2405,7 @@
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-ALPINE319-OPENSSL-7413523">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-OPENSSL-7413525">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -2352,7 +2421,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Package Manager: alpine:3.19
+                        Package Manager: alpine:3.18
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
@@ -2362,7 +2431,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|ghcr.io/dexidp/dex@v2.38.0 and openssl/libcrypto3@3.1.4-r2
+                                docker-image|haproxy@2.6.14-alpine and openssl/libcrypto3@3.1.2-r0
         
                     </li>
                 </ul>
@@ -2375,75 +2444,97 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
+                                        .haproxy-rundeps@20230809.001942
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r15
+                                        apk-tools/apk-tools@2.14.0-r2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
+                                        busybox/ssl_client@1.36.1-r2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        .haproxy-rundeps@20230809.001942
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        openssl/libssl3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r15
+                                        .haproxy-rundeps@20230809.001942
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.0-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
                                         
                                 </span>
         
@@ -2457,12 +2548,12 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>Alpine:3.19</code> <code>openssl</code> to version 3.1.6-r0 or higher.</p>
+        <p>Upgrade <code>Alpine:3.18</code> <code>openssl</code> to version 3.1.6-r0 or higher.</p>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-ALPINE319-OPENSSL-7413527">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-OPENSSL-7413536">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -2478,7 +2569,7 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
-                        Package Manager: alpine:3.19
+                        Package Manager: alpine:3.18
                     </li>
                     <li class="card__meta__item">
                             Vulnerable module:
@@ -2488,7 +2579,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|ghcr.io/dexidp/dex@v2.38.0 and openssl/libcrypto3@3.1.4-r2
+                                docker-image|haproxy@2.6.14-alpine and openssl/libcrypto3@3.1.2-r0
         
                     </li>
                 </ul>
@@ -2501,75 +2592,97 @@
                     <ul class="card__meta__paths">
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
+                                        .haproxy-rundeps@20230809.001942
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r15
+                                        apk-tools/apk-tools@2.14.0-r2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
+                                        busybox/ssl_client@1.36.1-r2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libcrypto3@3.1.4-r2
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        .haproxy-rundeps@20230809.001942
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apk-tools/apk-tools@2.14.0-r5
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        openssl/libssl3@3.1.2-r0
                                         
                                 </span>
         
                             </li>
                                 <li>
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|ghcr.io/dexidp/dex@v2.38.0
+                                        docker-image|haproxy@2.6.14-alpine
                                          <span class="list-paths__item__arrow">›</span> 
-                                        busybox/ssl_client@1.36.1-r15
+                                        .haproxy-rundeps@20230809.001942
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openssl/libssl3@3.1.4-r2
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.0-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|haproxy@2.6.14-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.36.1-r2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.1.2-r0
                                         
                                 </span>
         
@@ -2582,7 +2695,7 @@
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Alpine:3.19</code> relevant fixed versions and status.</em></p>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.18</code> relevant fixed versions and status.</em></p>
         <p>Issue summary: Applications performing certificate name checks (e.g., TLS
         clients checking server certificates) may attempt to read an invalid memory
         address resulting in abnormal termination of the application process.</p>
@@ -2603,7 +2716,7 @@
         of the issue is Moderate.</p>
         <p>The FIPS modules in 3.3, 3.2, 3.1 and 3.0 are not affected by this issue.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>Upgrade <code>Alpine:3.19</code> <code>openssl</code> to version 3.1.7-r0 or higher.</p>
+        <p>Upgrade <code>Alpine:3.18</code> <code>openssl</code> to version 3.1.7-r0 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
         <li><a href="https://github.com/openssl/openssl/commit/05f360d9e849a1b277db628f1f13083a7f8dd04f">https://github.com/openssl/openssl/commit/05f360d9e849a1b277db628f1f13083a7f8dd04f</a></li>
@@ -2616,7 +2729,7 @@
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-ALPINE319-OPENSSL-7895536">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE318-OPENSSL-7895535">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->

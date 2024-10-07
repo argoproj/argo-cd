@@ -44,6 +44,10 @@ const (
 	// EnvVarSyncWaveDelay is an environment variable which controls the delay in seconds between
 	// each sync-wave
 	EnvVarSyncWaveDelay = "ARGOCD_SYNC_WAVE_DELAY"
+
+	// serviceAccountDisallowedCharSet contains the characters that are not allowed to be present
+	// in a DefaultServiceAccount configured for a DestinationServiceAccount
+	serviceAccountDisallowedCharSet = "!*[]{}\\/"
 )
 
 func (m *appStateManager) getOpenAPISchema(server string) (openapi.Resources, error) {
@@ -287,8 +291,13 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 	}
 	trackingMethod := argo.GetTrackingMethod(m.settingsMgr)
 
-	if m.settingsMgr.IsImpersonationEnabled() {
-		serviceAccountToImpersonate, err := deriveServiceAccountName(proj, app)
+	impersonationEnabled, err := m.settingsMgr.IsImpersonationEnabled()
+	if err != nil {
+		log.Errorf("could not get impersonation feature flag: %v", err)
+		return
+	}
+	if impersonationEnabled {
+		serviceAccountToImpersonate, err := deriveServiceAccountToImpersonate(proj, app)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("failed to find a matching service account to impersonate: %v", err)
@@ -557,9 +566,9 @@ func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject
 	return !window.CanSync(isManual)
 }
 
-// deriveServiceAccountName determines the service account to be used for impersonation for the sync operation.
+// deriveServiceAccountToImpersonate determines the service account to be used for impersonation for the sync operation.
 // The returned service account will be fully qualified including namespace and the service account name in the format system:serviceaccount:<namespace>:<service_account>
-func deriveServiceAccountName(project *v1alpha1.AppProject, application *v1alpha1.Application) (string, error) {
+func deriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application *v1alpha1.Application) (string, error) {
 	// spec.Destination.Namespace is optional. If not specified, use the Application's
 	// namespace
 	serviceAccountNamespace := application.Spec.Destination.Namespace
@@ -569,10 +578,18 @@ func deriveServiceAccountName(project *v1alpha1.AppProject, application *v1alpha
 	// Loop through the destinationServiceAccounts and see if there is any destination that is a candidate.
 	// if so, return the service account specified for that destination.
 	for _, item := range project.Spec.DestinationServiceAccounts {
-		dstServerMatched := glob.Match(item.Server, application.Spec.Destination.Server)
-		dstNamespaceMatched := glob.Match(item.Namespace, application.Spec.Destination.Namespace)
+		dstServerMatched, err := glob.MatchWithError(item.Server, application.Spec.Destination.Server)
+		if err != nil {
+			return "", fmt.Errorf("invalid glob pattern for destination server: %w", err)
+		}
+		dstNamespaceMatched, err := glob.MatchWithError(item.Namespace, application.Spec.Destination.Namespace)
+		if err != nil {
+			return "", fmt.Errorf("invalid glob pattern for destination namespace: %w", err)
+		}
 		if dstServerMatched && dstNamespaceMatched {
-			if strings.Contains(item.DefaultServiceAccount, ":") {
+			if strings.Trim(item.DefaultServiceAccount, " ") == "" || strings.ContainsAny(item.DefaultServiceAccount, serviceAccountDisallowedCharSet) {
+				return "", fmt.Errorf("default service account contains invalid chars '%s'", item.DefaultServiceAccount)
+			} else if strings.Contains(item.DefaultServiceAccount, ":") {
 				// service account is specified along with its namespace.
 				return fmt.Sprintf("system:serviceaccount:%s", item.DefaultServiceAccount), nil
 			} else {
