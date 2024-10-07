@@ -4,7 +4,7 @@ import {useState} from 'react';
 import {EventsList, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
-import {Context} from '../../../shared/context';
+import {AppContext, Context} from '../../../shared/context';
 import {Application, ApplicationTree, Event, ResourceNode, State, SyncStatuses} from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceTabExtension} from '../../../shared/services/extensions-service';
@@ -31,6 +31,7 @@ interface ResourceDetailsProps {
     isAppSelected: boolean;
     tree: ApplicationTree;
     tab?: string;
+    appCxt: AppContext;
 }
 
 export const ResourceDetails = (props: ResourceDetailsProps) => {
@@ -178,6 +179,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         setPageNumber={setPageNumber}
                         collapsedSources={collapsedSources}
                         handleCollapse={handleCollapse}
+                        appContext={props.appCxt}
                     />
                 )
             },
@@ -282,7 +284,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         const logsAllowed = await services.accounts.canI('logs', 'get', application.spec.project + '/' + application.metadata.name);
                         const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
                         const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch(() => null);
-                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links, childResources};
+                        const resourceActionsMenuItems = await AppUtils.getResourceActionsMenuItems(selectedNode, application.metadata, appContext);
+                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links, childResources, resourceActionsMenuItems};
                     }}>
                     {data => (
                         <React.Fragment>
@@ -312,15 +315,17 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     className='argo-button argo-button--base'>
                                     <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
                                 </button>
-                                <DropDown
-                                    isMenu={true}
-                                    anchor={() => (
-                                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                            <i className='fa fa-ellipsis-v' />
-                                        </button>
-                                    )}>
-                                    {() => AppUtils.renderResourceActionMenu(selectedNode, application, appContext)}
-                                </DropDown>
+                                {data.resourceActionsMenuItems?.length > 0 && (
+                                    <DropDown
+                                        isMenu={true}
+                                        anchor={() => (
+                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                <i className='fa fa-ellipsis-v' />
+                                            </button>
+                                        )}>
+                                        {() => AppUtils.renderResourceActionMenu(data.resourceActionsMenuItems)}
+                                    </DropDown>
+                                )}
                             </div>
                             <Tabs
                                 navTransparent={true}

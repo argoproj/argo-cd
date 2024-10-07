@@ -127,6 +127,10 @@ export interface ResourceResult {
     hookPhase: OperationPhase;
 }
 
+export type SyncResourceResult = ResourceResult & {
+    health?: HealthStatus;
+};
+
 export const AnnotationRefreshKey = 'argocd.argoproj.io/refresh';
 export const AnnotationHookKey = 'argocd.argoproj.io/hook';
 export const AnnotationSyncWaveKey = 'argocd.argoproj.io/sync-wave';
@@ -320,12 +324,12 @@ export const SyncStatuses: {[key: string]: SyncStatusCode} = {
 export type HealthStatusCode = 'Unknown' | 'Progressing' | 'Healthy' | 'Suspended' | 'Degraded' | 'Missing';
 
 export const HealthStatuses: {[key: string]: HealthStatusCode} = {
-    Unknown: 'Unknown',
     Progressing: 'Progressing',
     Suspended: 'Suspended',
     Healthy: 'Healthy',
     Degraded: 'Degraded',
-    Missing: 'Missing'
+    Missing: 'Missing',
+    Unknown: 'Unknown'
 };
 
 export interface HealthStatus {

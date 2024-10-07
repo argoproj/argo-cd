@@ -145,7 +145,7 @@ export const Filters = (props: FiltersProps) => {
             {ResourceFilter({
                 label: 'HEALTH STATUS',
                 prefix: 'health',
-                options: ['Healthy', 'Progressing', 'Degraded', 'Suspended', 'Missing', 'Unknown'].map(label => ({
+                options: ['Progressing', 'Suspended', 'Healthy', 'Degraded', 'Missing', 'Unknown'].map(label => ({
                     label,
                     count: getOptionCount(label, 'Health'),
                     icon: <HealthStatusIcon state={{status: label as HealthStatusCode, message: ''}} noSpin={true} />

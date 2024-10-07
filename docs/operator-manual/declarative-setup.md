@@ -30,7 +30,7 @@ For each specific kind of ConfigMap and Secret resource, there is only a single 
 |------------------------------------------------------------------|-------------|--------------------------|
 | [`application.yaml`](../user-guide/application-specification.md) | Application | Example application spec |
 | [`project.yaml`](./project-specification.md)                     | AppProject  | Example project spec     |
-| -                                                                | Secret      | Repository credentials   |
+| [`argocd-repositories.yaml`](./argocd-repositories-yaml.md)                                                                | Secret      | Repository credentials   |
 
 For `Application` and `AppProject` resources, the name of the resource equals the name of the application or project within Argo CD. This also means that application and project names are unique within a given Argo CD installation - you cannot have the same application name for two different applications.
 
@@ -176,6 +176,7 @@ spec:
 Repository details are stored in secrets. To configure a repo, create a secret which contains repository details.
 Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store an encrypted secret definition as a Kubernetes manifest.
 Each repository must have a `url` field and, depending on whether you connect using HTTPS, SSH, or GitHub App, `username` and `password` (for HTTPS), `sshPrivateKey` (for SSH), or `githubAppPrivateKey` (for GitHub App).
+Credentials can be scoped to a project using the optional `project` field. When omitted, the credential will be used as the default for all projects without a scoped credential.
 
 !!!warning
     When using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) the labels will be removed and have to be readded as described here: https://github.com/bitnami-labs/sealed-secrets#sealedsecrets-as-templates-for-secrets
@@ -195,6 +196,7 @@ stringData:
   url: https://github.com/argoproj/private-repo
   password: my-password
   username: my-username
+  project: my-project
 ```
 
 Example for SSH:
@@ -785,7 +787,7 @@ the role can be appended to the `args` section like so:
 
 ```yaml
 ...
-    "args": ["aws", "--cluster-name", "my-eks-cluster", "--roleARN", "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"],
+    "args": ["aws", "--cluster-name", "my-eks-cluster", "--role-arn", "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"],
 ...
 ```
 This construct can be used in conjunction with something like the External Secrets Operator to avoid storing the keys in
@@ -818,9 +820,9 @@ stringData:
       }        
     }
 ```
-This will instruct ArgoCD to read the file at the provided path and use the credentials defined within to authenticate to
-AWS. The profile must be mounted in order for this to work. For example, the following values can be defined in a Helm
-based ArgoCD deployment:
+This will instruct Argo CD to read the file at the provided path and use the credentials defined within to authenticate to AWS. 
+The profile must be mounted in both the `argocd-server` and `argocd-application-controller` components in order for this to work.
+For example, the following values can be defined in a Helm-based Argo CD deployment:
 
 ```yaml
 controller:
@@ -1044,7 +1046,7 @@ stringData:
 
 ## Resource Exclusion/Inclusion
 
-Resources can be excluded from discovery and sync so that Argo CD is unaware of them. For example, the apiGroup/kind `events.k8s.io/*`, `metrics.k8s.io/*`, `coordination.k8s.io/Lease`, and `""/Endpoints` are always excluded. Use cases:
+Resources can be excluded from discovery and sync so that Argo CD is unaware of them. For example, the apiGroup/kind `events.k8s.io/*`, `metrics.k8s.io/*` and `coordination.k8s.io/Lease` are always excluded. Use cases:
 
 * You have temporal issues and you want to exclude problematic resources.
 * There are many of a kind of resources that impacts Argo CD's performance.

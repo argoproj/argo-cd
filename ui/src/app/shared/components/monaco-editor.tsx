@@ -2,6 +2,7 @@ import * as React from 'react';
 
 import * as monacoEditor from 'monaco-editor';
 import {services} from '../services';
+import {getTheme, useSystemTheme} from '../utils';
 
 export interface EditorInput {
     text: string;
@@ -28,10 +29,25 @@ const MonacoEditorLazy = React.lazy(() =>
     import('monaco-editor').then(monaco => {
         const Component = (props: MonacoProps) => {
             const [height, setHeight] = React.useState(0);
+            const [theme, setTheme] = React.useState('dark');
+
+            React.useEffect(() => {
+                const destroySystemThemeListener = useSystemTheme(systemTheme => {
+                    if (theme === 'auto') {
+                        monaco.editor.setTheme(systemTheme === 'dark' ? 'vs-dark' : 'vs');
+                    }
+                });
+
+                return () => {
+                    destroySystemThemeListener();
+                };
+            }, [theme]);
 
             React.useEffect(() => {
                 const subscription = services.viewPreferences.getPreferences().subscribe(preferences => {
-                    monaco.editor.setTheme(preferences.theme === 'dark' ? 'vs-dark' : 'vs');
+                    setTheme(preferences.theme);
+
+                    monaco.editor.setTheme(getTheme(preferences.theme) === 'dark' ? 'vs-dark' : 'vs');
                 });
 
                 return () => {

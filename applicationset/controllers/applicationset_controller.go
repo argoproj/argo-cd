@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -32,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -50,7 +52,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 
@@ -77,7 +78,6 @@ type ApplicationSetReconciler struct {
 	Recorder             record.EventRecorder
 	Generators           map[string]generators.Generator
 	ArgoDB               db.ArgoDB
-	ArgoAppClientset     appclientset.Interface
 	KubeClientset        kubernetes.Interface
 	Policy               argov1alpha1.ApplicationsSyncPolicy
 	EnablePolicyOverride bool
@@ -95,6 +95,7 @@ type ApplicationSetReconciler struct {
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets/status,verbs=get;update;patch
 
 func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	startReconcile := time.Now()
 	logCtx := log.WithField("applicationset", req.NamespacedName)
 
 	var applicationSetInfo argov1alpha1.ApplicationSet
@@ -332,7 +333,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		requeueAfter = ReconcileRequeueOnValidationError
 	}
 
-	logCtx.WithField("requeueAfter", requeueAfter).Info("end reconcile")
+	logCtx.WithField("requeueAfter", requeueAfter).Info("end reconcile in ", time.Since(startReconcile))
 
 	return ctrl.Result{
 		RequeueAfter: requeueAfter,
@@ -427,20 +428,29 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 
 	if needToUpdateConditions || len(applicationSet.Status.Conditions) < len(newConditions) {
 		// fetch updated Application Set object before updating it
-		namespacedName := types.NamespacedName{Namespace: applicationSet.Namespace, Name: applicationSet.Name}
-		if err := r.Get(ctx, namespacedName, applicationSet); err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				return nil
+		// DefaultRetry will retry 5 times with a backoff factor of 1, jitter of 0.1 and a duration of 10ms
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			namespacedName := types.NamespacedName{Namespace: applicationSet.Namespace, Name: applicationSet.Name}
+			updatedAppset := &argov1alpha1.ApplicationSet{}
+			if err := r.Get(ctx, namespacedName, updatedAppset); err != nil {
+				if client.IgnoreNotFound(err) != nil {
+					return nil
+				}
+				return fmt.Errorf("error fetching updated application set: %w", err)
 			}
-			return fmt.Errorf("error fetching updated application set: %w", err)
-		}
 
-		applicationSet.Status.SetConditions(
-			newConditions, evaluatedTypes,
-		)
+			updatedAppset.Status.SetConditions(
+				newConditions, evaluatedTypes,
+			)
 
-		// Update the newly fetched object with new set of conditions
-		err := r.Client.Status().Update(ctx, applicationSet)
+			// Update the newly fetched object with new set of conditions
+			err := r.Client.Status().Update(ctx, updatedAppset)
+			if err != nil {
+				return err
+			}
+			updatedAppset.DeepCopyInto(applicationSet)
+			return nil
+		})
 		if err != nil && !apierr.IsNotFound(err) {
 			return fmt.Errorf("unable to set application set condition: %w", err)
 		}
@@ -461,7 +471,9 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 			errorsByIndex[i] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSetInfo.Name, app.Name)
 			continue
 		}
-		_, err := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(r.ArgoCDNamespace).Get(ctx, app.Spec.GetProject(), metav1.GetOptions{})
+
+		appProject := &argov1alpha1.AppProject{}
+		err := r.Client.Get(ctx, types.NamespacedName{Name: app.Spec.Project, Namespace: r.ArgoCDNamespace}, appProject)
 		if err != nil {
 			if apierr.IsNotFound(err) {
 				errorsByIndex[i] = fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
@@ -1249,15 +1261,29 @@ func (r *ApplicationSetReconciler) migrateStatus(ctx context.Context, appset *ar
 	}
 
 	if update {
-		namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
-		if err := r.Client.Status().Update(ctx, appset); err != nil {
-			return fmt.Errorf("unable to set application set status: %w", err)
-		}
-		if err := r.Get(ctx, namespacedName, appset); err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				return nil
+		// DefaultRetry will retry 5 times with a backoff factor of 1, jitter of 0.1 and a duration of 10ms
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
+			updatedAppset := &argov1alpha1.ApplicationSet{}
+			if err := r.Get(ctx, namespacedName, updatedAppset); err != nil {
+				if client.IgnoreNotFound(err) != nil {
+					return nil
+				}
+				return fmt.Errorf("error fetching updated application set: %w", err)
 			}
-			return fmt.Errorf("error fetching updated application set: %w", err)
+
+			updatedAppset.Status.ApplicationStatus = appset.Status.ApplicationStatus
+
+			// Update the newly fetched object with new set of ApplicationStatus
+			err := r.Client.Status().Update(ctx, updatedAppset)
+			if err != nil {
+				return err
+			}
+			updatedAppset.DeepCopyInto(appset)
+			return nil
+		})
+		if err != nil && !apierr.IsNotFound(err) {
+			return fmt.Errorf("unable to set application set condition: %w", err)
 		}
 	}
 	return nil
@@ -1271,22 +1297,35 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 	for _, status := range statusMap {
 		statuses = append(statuses, status)
 	}
+	sort.Slice(statuses, func(i, j int) bool {
+		return statuses[i].Name < statuses[j].Name
+	})
 	appset.Status.Resources = statuses
+	// DefaultRetry will retry 5 times with a backoff factor of 1, jitter of 0.1 and a duration of 10ms
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
+		updatedAppset := &argov1alpha1.ApplicationSet{}
+		if err := r.Get(ctx, namespacedName, updatedAppset); err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				return nil
+			}
+			return fmt.Errorf("error fetching updated application set: %w", err)
+		}
 
-	namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
-	err := r.Client.Status().Update(ctx, appset)
+		updatedAppset.Status.Resources = appset.Status.Resources
+
+		// Update the newly fetched object with new status resources
+		err := r.Client.Status().Update(ctx, updatedAppset)
+		if err != nil {
+			return err
+		}
+		updatedAppset.DeepCopyInto(appset)
+		return nil
+	})
 	if err != nil {
 		logCtx.Errorf("unable to set application set status: %v", err)
 		return fmt.Errorf("unable to set application set status: %w", err)
 	}
-
-	if err := r.Get(ctx, namespacedName, appset); err != nil {
-		if client.IgnoreNotFound(err) != nil {
-			return nil
-		}
-		return fmt.Errorf("error fetching updated application set: %w", err)
-	}
-
 	return nil
 }
 
@@ -1321,19 +1360,29 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 		for i := range applicationStatuses {
 			applicationSet.Status.SetApplicationStatus(applicationStatuses[i])
 		}
+		// DefaultRetry will retry 5 times with a backoff factor of 1, jitter of 0.1 and a duration of 10ms
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			updatedAppset := &argov1alpha1.ApplicationSet{}
+			if err := r.Get(ctx, namespacedName, updatedAppset); err != nil {
+				if client.IgnoreNotFound(err) != nil {
+					return nil
+				}
+				return fmt.Errorf("error fetching updated application set: %w", err)
+			}
 
-		// Update the newly fetched object with new set of ApplicationStatus
-		err := r.Client.Status().Update(ctx, applicationSet)
+			updatedAppset.Status.ApplicationStatus = applicationSet.Status.ApplicationStatus
+
+			// Update the newly fetched object with new set of ApplicationStatus
+			err := r.Client.Status().Update(ctx, updatedAppset)
+			if err != nil {
+				return err
+			}
+			updatedAppset.DeepCopyInto(applicationSet)
+			return nil
+		})
 		if err != nil {
 			logCtx.Errorf("unable to set application set status: %v", err)
 			return fmt.Errorf("unable to set application set status: %w", err)
-		}
-
-		if err := r.Get(ctx, namespacedName, applicationSet); err != nil {
-			if client.IgnoreNotFound(err) != nil {
-				return nil
-			}
-			return fmt.Errorf("error fetching updated application set: %w", err)
 		}
 	}
 
@@ -1436,7 +1485,7 @@ func getOwnsHandlerPredicates(enableProgressiveSyncs bool) predicate.Funcs {
 				return false
 			}
 			requeue := shouldRequeueApplicationSet(appOld, appNew, enableProgressiveSyncs)
-			logCtx.WithField("requeue", requeue).Debugf("requeue: %t caused by application %s\n", requeue, appNew.Name)
+			logCtx.WithField("requeue", requeue).Debugf("requeue: %t caused by application %s", requeue, appNew.Name)
 			return requeue
 		},
 		GenericFunc: func(e event.GenericEvent) bool {

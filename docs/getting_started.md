@@ -141,6 +141,9 @@ service account token to perform its management tasks (i.e. deploy/monitoring).
 An example repository containing a guestbook application is available at
 [https://github.com/argoproj/argocd-example-apps.git](https://github.com/argoproj/argocd-example-apps.git) to demonstrate how Argo CD works.
 
+!!! note
+    Note: The following example application may only be compatible with AMD64 architecture. If you are running on a different architecture (such as ARM64 or ARMv7), you may encounter issues with dependencies or container images that are not built for your platform. Consider verifying the compatibility of the application or building architecture-specific images if necessary.
+
 ### Creating Apps Via CLI
 
 First we need to set the current namespace to argocd running the following command:

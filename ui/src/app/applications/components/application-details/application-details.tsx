@@ -842,6 +842,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                 isAppSelected={isAppSelected}
                                                 updateApp={(app: models.Application, query: {validate?: boolean}) => this.updateApp(app, query)}
                                                 selectedNode={selectedNode}
+                                                appCxt={this.context}
                                                 tab={tab}
                                             />
                                         </SlidingPanel>
@@ -854,7 +855,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                             {this.selectedRollbackDeploymentIndex > -1 && (
                                                 <ApplicationDeploymentHistory
                                                     app={application}
-                                                    selectedRollbackDeploymentIndex={this.selectedRollbackDeploymentIndex}
                                                     rollbackApp={info => this.rollbackApplication(info, application)}
                                                     selectDeployment={i => this.setRollbackPanelVisible(i)}
                                                 />
