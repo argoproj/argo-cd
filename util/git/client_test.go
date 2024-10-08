@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -437,4 +438,44 @@ func Test_IsRevisionPresent(t *testing.T) {
 	// Ensure invalid revision is not returned.
 	revisionPresent = client.IsRevisionPresent("invalid-revision")
 	assert.False(t, revisionPresent)
+}
+
+func Test_nativeGitClient_RevisionMetadata(t *testing.T) {
+	tempDir := t.TempDir()
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	p := path.Join(client.Root(), "README")
+	f, err := os.Create(p)
+	require.NoError(t, err)
+	_, err = f.WriteString("Hello.")
+	require.NoError(t, err)
+	err = f.Close()
+	require.NoError(t, err)
+
+	err = runCmd(client.Root(), "git", "config", "user.name", "FooBar ||| something\nelse")
+	require.NoError(t, err)
+	err = runCmd(client.Root(), "git", "config", "user.email", "foo@foo.com")
+	require.NoError(t, err)
+
+	err = runCmd(client.Root(), "git", "add", "README")
+	require.NoError(t, err)
+	err = runCmd(client.Root(), "git", "commit", "--date=\"Sat Jun 5 20:00:00 2021 +0000 UTC\"", "-m", `| Initial commit |
+
+
+(╯°□°)╯︵ ┻━┻
+		`, "-a")
+	require.NoError(t, err)
+
+	metadata, err := client.RevisionMetadata("HEAD")
+	require.NoError(t, err)
+	require.Equal(t, &RevisionMetadata{
+		Author:  `FooBar ||| somethingelse <foo@foo.com>`,
+		Date:    time.Date(2021, time.June, 5, 20, 0, 0, 0, time.UTC).Local(),
+		Tags:    []string{},
+		Message: "| Initial commit |\n\n(╯°□°)╯︵ ┻━┻",
+	}, metadata)
 }
