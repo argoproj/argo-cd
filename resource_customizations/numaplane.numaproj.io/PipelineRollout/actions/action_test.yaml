@@ -6,8 +6,8 @@ actionTests:
   inputPath: testdata/rollout-paused.yaml
   expectedOutputPath: testdata/rollout-running.yaml
 - action: allow-data-loss
-  inputPath: testData/rollout-in-ppnd.yaml
+  inputPath: testdata/rollout-in-ppnd.yaml
   expectedOutputPath: testdata/rollout-allowing-data-loss.yaml
 - action: disallow-data-loss
-  inputPath: testData/rollout-allowing-data-loss.yaml
+  inputPath: testdata/rollout-allowing-data-loss.yaml
   expectedOutputPath: testdata/rollout-disallowing-data-loss.yaml
