@@ -31,6 +31,7 @@ import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './application-details.scss';
 import {TopBarActionMenuExt, AppViewExtension, StatusPanelExtension} from '../../../shared/services/extensions-service';
+import {ApplicationHydrateOperationState} from '../application-hydrate-operation-state/application-hydrate-operation-state';
 
 interface ApplicationDetailsState {
     page: number;
@@ -120,6 +121,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         } else {
             this.appNamespace = this.props.match.params.appnamespace;
         }
+    }
+
+    private get showHydrateOperationState() {
+        return new URLSearchParams(this.props.history.location.search).get('hydrateOperation') === 'true';
     }
 
     private get showOperationState() {
@@ -461,6 +466,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             const isAppSelected = selectedItem === application;
                             const selectedNode = !isAppSelected && (selectedItem as appModels.ResourceNode);
                             const operationState = application.status.operationState;
+                            const hydrateOperationState = application.status.sourceHydrator.currentOperation;
                             const conditions = application.status.conditions || [];
                             const syncResourceKey = new URLSearchParams(this.props.history.location.search).get('deploy');
                             const tab = new URLSearchParams(this.props.history.location.search).get('tab');
@@ -655,6 +661,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     application={application}
                                                     showDiff={() => this.selectNode(appFullName, 0, 'diff')}
                                                     showOperation={() => this.setOperationStatusVisible(true)}
+                                                    showHydrateOperation={() => this.setHydrateOperationStatusVisible(true)}
                                                     showConditions={() => this.setConditionsStatusVisible(true)}
                                                     showExtension={id => this.setExtensionPanelVisible(id)}
                                                     showMetadataInfo={revision => this.setState({...this.state, revision})}
@@ -862,6 +869,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         </SlidingPanel>
                                         <SlidingPanel isShown={this.showOperationState && !!operationState} onClose={() => this.setOperationStatusVisible(false)}>
                                             {operationState && <ApplicationOperationState application={application} operationState={operationState} />}
+                                        </SlidingPanel>
+                                        <SlidingPanel
+                                            isShown={this.showHydrateOperationState && !!hydrateOperationState}
+                                            onClose={() => this.setHydrateOperationStatusVisible(false)}>
+                                            {hydrateOperationState && <ApplicationHydrateOperationState hydrateOperationState={hydrateOperationState} />}
                                         </SlidingPanel>
                                         <SlidingPanel isShown={this.showConditions && !!conditions} onClose={() => this.setConditionsStatusVisible(false)}>
                                             {conditions && <ApplicationConditions conditions={conditions} />}
@@ -1117,6 +1129,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
 
     private setOperationStatusVisible(isVisible: boolean) {
         this.appContext.apis.navigation.goto('.', {operation: isVisible}, {replace: true});
+    }
+
+    private setHydrateOperationStatusVisible(isVisible: boolean) {
+        this.appContext.apis.navigation.goto('.', {hydrateOperation: isVisible}, {replace: true});
     }
 
     private setConditionsStatusVisible(isVisible: boolean) {

@@ -47,19 +47,33 @@ type ArgoDB interface {
 
 	// ListRepositories lists repositories
 	ListRepositories(ctx context.Context) ([]*appv1.Repository, error)
+	// ListWriteRepositories lists repositories from write credentials
+	ListWriteRepositories(ctx context.Context) ([]*appv1.Repository, error)
 
 	// CreateRepository creates a repository
 	CreateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
+	// CreateWriteRepository creates a repository with write credentials
+	CreateWriteRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// GetRepository returns a repository by URL
 	GetRepository(ctx context.Context, url, project string) (*appv1.Repository, error)
+	// GetWriteRepository returns a repository by URL with write credentials
+	GetWriteRepository(ctx context.Context, url, project string) (*appv1.Repository, error)
 	// GetProjectRepositories returns project scoped repositories by given project name
 	GetProjectRepositories(ctx context.Context, project string) ([]*appv1.Repository, error)
+	// GetProjectWriteRepositories returns project scoped repositories from write credentials by given project name
+	GetProjectWriteRepositories(ctx context.Context, project string) ([]*appv1.Repository, error)
 	// RepositoryExists returns whether a repository is configured for the given URL
 	RepositoryExists(ctx context.Context, repoURL, project string) (bool, error)
+	// WriteRepositoryExists returns whether a repository is configured for the given URL with write credentials
+	WriteRepositoryExists(ctx context.Context, repoURL, project string) (bool, error)
 	// UpdateRepository updates a repository
 	UpdateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
+	// UpdateWriteRepository updates a repository with write credentials
+	UpdateWriteRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
 	// DeleteRepository deletes a repository from config
 	DeleteRepository(ctx context.Context, name, project string) error
+	// DeleteWriteRepository deletes a repository from config with write credentials
+	DeleteWriteRepository(ctx context.Context, name, project string) error
 
 	// ListRepositoryCredentials list all repo credential sets URL patterns
 	ListRepositoryCredentials(ctx context.Context) ([]string, error)

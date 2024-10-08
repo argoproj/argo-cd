@@ -3290,6 +3290,12 @@
             "description": "App project for query.",
             "name": "appProject",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Type determines what kind of credential we're interacting with. It can be \"read\", \"write\", or \"both\". Default is\n\"read\".",
+            "name": "type",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3334,6 +3340,12 @@
             "description": "Whether to operate on credential set instead of repository.",
             "name": "credsOnly",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Write determines whether the credential will be stored as a read credential or a write credential.",
+            "name": "write",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3374,6 +3386,12 @@
             "schema": {
               "$ref": "#/definitions/v1alpha1Repository"
             }
+          },
+          {
+            "type": "boolean",
+            "description": "Write determines whether the credential to be updated is a read credential or a write credential.",
+            "name": "write",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3418,6 +3436,12 @@
             "description": "App project for query.",
             "name": "appProject",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Type determines what kind of credential we're interacting with. It can be \"read\", \"write\", or \"both\". Default is\n\"read\".",
+            "name": "type",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3459,6 +3483,12 @@
             "type": "string",
             "description": "App project for query.",
             "name": "appProject",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Type determines what kind of credential we're interacting with. It can be \"read\", \"write\", or \"both\". Default is\n\"read\".",
+            "name": "type",
             "in": "query"
           }
         ],
@@ -3550,6 +3580,12 @@
             "description": "App project for query.",
             "name": "appProject",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Type determines what kind of credential we're interacting with. It can be \"read\", \"write\", or \"both\". Default is\n\"read\".",
+            "name": "type",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3592,6 +3628,12 @@
             "type": "string",
             "description": "App project for query.",
             "name": "appProject",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Type determines what kind of credential we're interacting with. It can be \"read\", \"write\", or \"both\". Default is\n\"read\".",
+            "name": "type",
             "in": "query"
           }
         ],

@@ -5,6 +5,7 @@ export class RepositoriesService {
     public list(): Promise<models.Repository[]> {
         return requests
             .get(`/repositories`)
+            .query({type: 'both'})
             .then(res => res.body as models.RepositoryList)
             .then(list => list.items || []);
     }
@@ -30,7 +31,8 @@ export class RepositoriesService {
         noProxy,
         project,
         forceHttpBasicAuth,
-        enableOCI
+        enableOCI,
+        write
     }: {
         type: string;
         name: string;
@@ -46,9 +48,11 @@ export class RepositoriesService {
         project?: string;
         forceHttpBasicAuth?: boolean;
         enableOCI: boolean;
+        write: boolean;
     }): Promise<models.Repository> {
         return requests
             .post('/repositories')
+            .query({write})
             .send({type, name, repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs, proxy, noProxy, project, forceHttpBasicAuth, enableOCI})
             .then(res => res.body as models.Repository);
     }
@@ -67,7 +71,8 @@ export class RepositoriesService {
         noProxy,
         project,
         forceHttpBasicAuth,
-        enableOCI
+        enableOCI,
+        write
     }: {
         type: string;
         name: string;
@@ -83,9 +88,11 @@ export class RepositoriesService {
         project?: string;
         forceHttpBasicAuth?: boolean;
         enableOCI: boolean;
+        write: boolean;
     }): Promise<models.Repository> {
         return requests
             .put(`/repositories/${encodeURIComponent(url)}`)
+            .query({write})
             .send({type, name, repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs, proxy, noProxy, project, forceHttpBasicAuth, enableOCI})
             .then(res => res.body as models.Repository);
     }
@@ -99,7 +106,8 @@ export class RepositoriesService {
         enableLfs,
         proxy,
         noProxy,
-        project
+        project,
+        write
     }: {
         type: string;
         name: string;
@@ -110,9 +118,11 @@ export class RepositoriesService {
         proxy: string;
         noProxy: string;
         project?: string;
+        write: string;
     }): Promise<models.Repository> {
         return requests
             .post('/repositories')
+            .query({write})
             .send({type, name, repo: url, sshPrivateKey, insecure, enableLfs, proxy, noProxy, project})
             .then(res => res.body as models.Repository);
     }
@@ -131,7 +141,8 @@ export class RepositoriesService {
         enableLfs,
         proxy,
         noProxy,
-        project
+        project,
+        write
     }: {
         type: string;
         name: string;
@@ -147,9 +158,11 @@ export class RepositoriesService {
         proxy: string;
         noProxy: string;
         project?: string;
+        write: boolean;
     }): Promise<models.Repository> {
         return requests
             .post('/repositories')
+            .query({write})
             .send({
                 type,
                 name,
@@ -176,7 +189,8 @@ export class RepositoriesService {
         gcpServiceAccountKey,
         proxy,
         noProxy,
-        project
+        project,
+        write
     }: {
         type: string;
         name: string;
@@ -185,9 +199,11 @@ export class RepositoriesService {
         proxy: string;
         noProxy: string;
         project?: string;
+        write: boolean;
     }): Promise<models.Repository> {
         return requests
             .post('/repositories')
+            .query({write})
             .send({
                 type,
                 name,
@@ -200,9 +216,10 @@ export class RepositoriesService {
             .then(res => res.body as models.Repository);
     }
 
-    public delete(url: string, project: string): Promise<models.Repository> {
+    public delete(url: string, project: string, write: boolean): Promise<models.Repository> {
         return requests
             .delete(`/repositories/${encodeURIComponent(url)}?appProject=${project}`)
+            .query({write})
             .send()
             .then(res => res.body as models.Repository);
     }

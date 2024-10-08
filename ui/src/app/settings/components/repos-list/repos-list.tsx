@@ -40,6 +40,8 @@ export interface NewHTTPSRepoParams {
     project?: string;
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
+    // write should be true if saving as a write credential.
+    write: boolean;
 }
 
 interface NewGitHubAppRepoParams {
@@ -57,6 +59,8 @@ interface NewGitHubAppRepoParams {
     proxy: string;
     noProxy: string;
     project?: string;
+    // write should be true if saving as a write credential.
+    write: boolean;
 }
 
 interface NewGoogleCloudSourceRepoParams {
@@ -67,11 +71,15 @@ interface NewGoogleCloudSourceRepoParams {
     proxy: string;
     noProxy: string;
     project?: string;
+    // write should be true if saving as a write credential.
+    write: boolean;
 }
 
 interface NewSSHRepoCredsParams {
     url: string;
     sshPrivateKey: string;
+    // write should be true if saving as a write credential.
+    write: boolean;
 }
 
 interface NewHTTPSRepoCredsParams {
@@ -84,6 +92,8 @@ interface NewHTTPSRepoCredsParams {
     noProxy: string;
     forceHttpBasicAuth: boolean;
     enableOCI: boolean;
+    // write should be true if saving as a write credential.
+    write: boolean;
 }
 
 interface NewGitHubAppRepoCredsParams {
@@ -96,11 +106,15 @@ interface NewGitHubAppRepoCredsParams {
     tlsClientCertKey: string;
     proxy: string;
     noProxy: string;
+    // write should be true if saving as a write credential.
+    write: boolean;
 }
 
 interface NewGoogleCloudSourceRepoCredsParams {
     url: string;
     gcpServiceAccountKey: string;
+    // write should be true if saving as a write credential.
+    write: boolean;
 }
 
 export enum ConnectionMethod {
@@ -169,7 +183,7 @@ export class ReposList extends React.Component<
     }
 
     private onChooseDefaultValues = (): FormValues => {
-        return {type: 'git', ghType: 'GitHub'};
+        return {type: 'git', ghType: 'GitHub', write: false};
     };
 
     private onValidateErrors(params: FormValues): FormErrors {
@@ -427,21 +441,38 @@ export class ReposList extends React.Component<
                                     validateError={(values: FormValues) => this.onValidateErrors(values)}>
                                     {formApi => (
                                         <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
+                                            <div className='white-box'>
+                                                <p>SAVE AS WRITE CREDENTIAL (ALPHA)</p>
+                                                <p>
+                                                    The Source Hydrator is an Alpha feature which enables Applications to push hydrated manifests to git before syncing. To use the
+                                                    Source Hydrator for a repository, you must save two credentials: a read credential for pulling manifests and a write credential
+                                                    for pushing hydrated manifests. If you add a write credential for a repository, then{' '}
+                                                    <strong>any Application that can sync from the repo can also push hydrated manifests to that repo.</strong> Do not use this
+                                                    feature until you've read its documentation and understand the security implications.
+                                                </p>
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={formApi} label='Save as write credential' field='write' component={CheckboxField} />
+                                                </div>
+                                            </div>
                                             {this.state.method === ConnectionMethod.SSH && (
                                                 <div className='white-box'>
                                                     <p>CONNECT REPO USING SSH</p>
-                                                    <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Name (mandatory for Helm)' field='name' component={Text} />
-                                                    </div>
-                                                    <div className='argo-form-row'>
-                                                        <FormField
-                                                            formApi={formApi}
-                                                            label='Project'
-                                                            field='project'
-                                                            component={AutocompleteField}
-                                                            componentProps={{items: projects}}
-                                                        />
-                                                    </div>
+                                                    {formApi.getFormState().values.write === false && (
+                                                        <div className='argo-form-row'>
+                                                            <FormField formApi={formApi} label='Name (mandatory for Helm)' field='name' component={Text} />
+                                                        </div>
+                                                    )}
+                                                    {formApi.getFormState().values.write === false && (
+                                                        <div className='argo-form-row'>
+                                                            <FormField
+                                                                formApi={formApi}
+                                                                label='Project'
+                                                                field='project'
+                                                                component={AutocompleteField}
+                                                                componentProps={{items: projects}}
+                                                            />
+                                                        </div>
+                                                    )}
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
                                                     </div>
@@ -452,10 +483,12 @@ export class ReposList extends React.Component<
                                                         <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
                                                         <HelpIcon title='This setting is ignored when creating as credential template.' />
                                                     </div>
-                                                    <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
-                                                        <HelpIcon title='This setting is ignored when creating as credential template.' />
-                                                    </div>
+                                                    {formApi.getFormState().values.write === false && (
+                                                        <div className='argo-form-row'>
+                                                            <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
+                                                            <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                                        </div>
+                                                    )}
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
                                                     </div>
@@ -475,15 +508,17 @@ export class ReposList extends React.Component<
                                                             <FormField formApi={formApi} label='Name' field='name' component={Text} />
                                                         </div>
                                                     )}
-                                                    <div className='argo-form-row'>
-                                                        <FormField
-                                                            formApi={formApi}
-                                                            label='Project'
-                                                            field='project'
-                                                            component={AutocompleteField}
-                                                            componentProps={{items: projects}}
-                                                        />
-                                                    </div>
+                                                    {formApi.getFormState().values.write === false && (
+                                                        <div className='argo-form-row'>
+                                                            <FormField
+                                                                formApi={formApi}
+                                                                label='Project'
+                                                                field='project'
+                                                                component={AutocompleteField}
+                                                                componentProps={{items: projects}}
+                                                            />
+                                                        </div>
+                                                    )}
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
                                                     </div>

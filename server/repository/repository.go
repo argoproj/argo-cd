@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -78,6 +77,14 @@ func (s *Server) getRepo(ctx context.Context, url, project string) (*appsv1.Repo
 	return repo, nil
 }
 
+func (s *Server) getWriteRepo(ctx context.Context, url, project string) (*appsv1.Repository, error) {
+	repo, err := s.db.GetWriteRepository(ctx, url, project)
+	if err != nil {
+		return nil, errPermissionDenied
+	}
+	return repo, nil
+}
+
 func createRBACObject(project string, repo string) string {
 	if project != "" {
 		return project + "/" + repo
@@ -138,12 +145,27 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 	}
 
 	// getRepo does not return an error for unconfigured repositories, so we are checking here
-	exists, err := s.db.RepositoryExists(ctx, q.Repo, repo.Project)
-	if err != nil {
-		return nil, err
+	if q.Type != "" && q.Type != "write" && q.Type != "read" && q.Type != "both" {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid repository type '%s'; must be '', 'read', 'write', or 'both'", q.Type)
 	}
-	if !exists {
-		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", q.Repo)
+	var exists bool
+	if q.Type == "write" || q.Type == "both" {
+		exists, err = s.db.WriteRepositoryExists(ctx, q.Repo, repo.Project)
+		if err != nil {
+			return nil, err
+		}
+		if !exists {
+			return nil, status.Errorf(codes.NotFound, "repo '%s' not found", q.Repo)
+		}
+	}
+	if q.Type == "" || q.Type == "read" || q.Type == "both" {
+		exists, err = s.db.RepositoryExists(ctx, q.Repo, repo.Project)
+		if err != nil {
+			return nil, err
+		}
+		if !exists {
+			return nil, status.Errorf(codes.NotFound, "repo '%s' not found", q.Repo)
+		}
 	}
 
 	// For backwards compatibility, if we have no repo type set assume a default
@@ -174,9 +196,24 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 
 // ListRepositories returns a list of all configured repositories and the state of their connections
 func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.RepositoryList, error) {
-	repos, err := s.db.ListRepositories(ctx)
-	if err != nil {
-		return nil, err
+	if q.Type != "" && q.Type != "write" && q.Type != "read" && q.Type != "both" {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid repository type '%s'; must be '', 'read', 'write', or 'both'", q.Type)
+	}
+	var repos []*appsv1.Repository
+	var err error
+	if q.Type == "write" || q.Type == "both" {
+		wRepos, err := s.db.ListWriteRepositories(ctx)
+		if err != nil {
+			return nil, err
+		}
+		repos = append(repos, wRepos...)
+	}
+	if q.Type == "" || q.Type == "read" || q.Type == "both" {
+		rRepos, err := s.db.ListRepositories(ctx)
+		if err != nil {
+			return nil, err
+		}
+		repos = append(repos, rRepos...)
 	}
 	items := appsv1.Repositories{}
 	for _, repo := range repos {
@@ -426,22 +463,35 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 
 	r := q.Repo
 	r.ConnectionState = appsv1.ConnectionState{Status: appsv1.ConnectionStatusSuccessful}
-	repo, err = s.db.CreateRepository(ctx, r)
+	if q.Write {
+		repo, err = s.db.CreateWriteRepository(ctx, r)
+	} else {
+		repo, err = s.db.CreateRepository(ctx, r)
+	}
 	if status.Convert(err).Code() == codes.AlreadyExists {
 		// act idempotent if existing spec matches new spec
-		existing, getErr := s.db.GetRepository(ctx, r.Repo, q.Repo.Project)
+		var existing *appsv1.Repository
+		var getErr error
+		if q.Write {
+			existing, getErr = s.db.GetWriteRepository(ctx, r.Repo, q.Repo.Project)
+		} else {
+			existing, getErr = s.db.GetRepository(ctx, r.Repo, q.Repo.Project)
+		}
 		if getErr != nil {
 			return nil, status.Errorf(codes.Internal, "unable to check existing repository details: %v", getErr)
 		}
 
-		existing.Type = text.FirstNonEmpty(existing.Type, "git")
 		// repository ConnectionState may differ, so make consistent before testing
 		existing.ConnectionState = r.ConnectionState
 		if reflect.DeepEqual(existing, r) {
 			repo, err = existing, nil
 		} else if q.Upsert {
 			r.Project = q.Repo.Project
-			return s.UpdateRepository(ctx, &repositorypkg.RepoUpdateRequest{Repo: r})
+			if q.Write {
+				return s.db.UpdateWriteRepository(ctx, r)
+			} else {
+				return s.db.UpdateRepository(ctx, r)
+			}
 		} else {
 			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("repository", existing, r))
 		}
@@ -464,7 +514,13 @@ func (s *Server) UpdateRepository(ctx context.Context, q *repositorypkg.RepoUpda
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
 
-	repo, err := s.getRepo(ctx, q.Repo.Repo, q.Repo.Project)
+	var repo *appsv1.Repository
+	var err error
+	if q.Write {
+		repo, err = s.getWriteRepo(ctx, q.Repo.Repo, q.Repo.Project)
+	} else {
+		repo, err = s.getRepo(ctx, q.Repo.Repo, q.Repo.Project)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -477,7 +533,11 @@ func (s *Server) UpdateRepository(ctx context.Context, q *repositorypkg.RepoUpda
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionUpdate, createRBACObject(q.Repo.Project, q.Repo.Repo)); err != nil {
 		return nil, err
 	}
-	_, err = s.db.UpdateRepository(ctx, q.Repo)
+	if q.Write {
+		_, err = s.db.UpdateWriteRepository(ctx, q.Repo)
+	} else {
+		_, err = s.db.UpdateRepository(ctx, q.Repo)
+	}
 	return &appsv1.Repository{Repo: q.Repo.Repo, Type: q.Repo.Type, Name: q.Repo.Name}, err
 }
 
@@ -503,7 +563,11 @@ func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuer
 		log.Errorf("error invalidating cache: %v", err)
 	}
 
-	err = s.db.DeleteRepository(ctx, repo.Repo, repo.Project)
+	if q.Type == "write" {
+		err = s.db.DeleteWriteRepository(ctx, repo.Repo, repo.Project)
+	} else {
+		err = s.db.DeleteRepository(ctx, repo.Repo, repo.Project)
+	}
 	return &repositorypkg.RepoResponse{}, err
 }
 

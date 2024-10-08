@@ -261,9 +261,10 @@ var (
 		}
 		return nil, nil
 	}
-	ByProjectClusterIndexer = "byProjectCluster"
-	ByProjectRepoIndexer    = "byProjectRepo"
-	byProjectIndexerFunc    = func(secretType string) func(obj interface{}) ([]string, error) {
+	ByProjectClusterIndexer   = "byProjectCluster"
+	ByProjectRepoIndexer      = "byProjectRepo"
+	ByProjectRepoWriteIndexer = "byProjectRepoWrite"
+	byProjectIndexerFunc      = func(secretType string) func(obj interface{}) ([]string, error) {
 		return func(obj interface{}) ([]string, error) {
 			s, ok := obj.(*apiv1.Secret)
 			if !ok {
@@ -1365,11 +1366,12 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 		},
 	}
 	indexers := cache.Indexers{
-		cache.NamespaceIndex:    cache.MetaNamespaceIndexFunc,
-		ByClusterURLIndexer:     byClusterURLIndexerFunc,
-		ByClusterNameIndexer:    byClusterNameIndexerFunc,
-		ByProjectClusterIndexer: byProjectIndexerFunc(common.LabelValueSecretTypeCluster),
-		ByProjectRepoIndexer:    byProjectIndexerFunc(common.LabelValueSecretTypeRepository),
+		cache.NamespaceIndex:      cache.MetaNamespaceIndexFunc,
+		ByClusterURLIndexer:       byClusterURLIndexerFunc,
+		ByClusterNameIndexer:      byClusterNameIndexerFunc,
+		ByProjectClusterIndexer:   byProjectIndexerFunc(common.LabelValueSecretTypeCluster),
+		ByProjectRepoIndexer:      byProjectIndexerFunc(common.LabelValueSecretTypeRepository),
+		ByProjectRepoWriteIndexer: byProjectIndexerFunc(common.LabelValueSecretTypeRepositoryWrite),
 	}
 	cmInformer := v1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, tweakConfigMap)
 	secretsInformer := v1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers)

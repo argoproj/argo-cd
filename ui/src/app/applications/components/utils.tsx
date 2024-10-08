@@ -223,6 +223,29 @@ export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
     return <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{color}} />;
 };
 
+export const HydrateOperationPhaseIcon = ({operationState}: {operationState?: appModels.HydrateOperation}) => {
+    if (operationState === undefined) {
+        return <React.Fragment />;
+    }
+    let className = '';
+    let color = '';
+    switch (operationState.phase) {
+        case appModels.HydrateOperationPhases.Hydrated:
+            className = 'fa fa-check-circle';
+            color = COLORS.operation.success;
+            break;
+        case appModels.HydrateOperationPhases.Failed:
+            className = 'fa fa-times-circle';
+            color = COLORS.operation.failed;
+            break;
+        default:
+            className = 'fa fa-circle-notch fa-spin';
+            color = COLORS.operation.running;
+            break;
+    }
+    return <i title={operationState.phase} qe-id='utils-operations-status-title' className={className} style={{color}} />;
+};
+
 export const ComparisonStatusIcon = ({
     status,
     resource,
@@ -783,6 +806,65 @@ export function syncStatusMessage(app: appModels.Application) {
     }
 }
 
+export function hydrationStatusMessage(app: appModels.Application) {
+    const drySource = app.status.sourceHydrator.currentOperation.sourceHydrator.drySource;
+    const dryCommit = app.status.sourceHydrator.currentOperation.drySHA;
+    const syncSource: ApplicationSource = {
+        repoURL: drySource.repoURL,
+        targetRevision:
+            app.status.sourceHydrator.currentOperation.sourceHydrator.hydrateTo?.targetBranch || app.status.sourceHydrator.currentOperation.sourceHydrator.syncSource.targetBranch,
+        path: app.status.sourceHydrator.currentOperation.sourceHydrator.syncSource.path
+    };
+    const hydratedCommit = app.status.sourceHydrator.currentOperation.hydratedSHA || '';
+
+    switch (app.status.sourceHydrator.currentOperation.phase) {
+        case appModels.HydrateOperationPhases.Hydrated:
+            return (
+                <span>
+                    from{' '}
+                    <Revision repoUrl={drySource.repoURL} revision={dryCommit}>
+                        {drySource.targetRevision + ' (' + dryCommit.substr(0, 7) + ')'}
+                    </Revision>
+                    <br />
+                    to{' '}
+                    <Revision repoUrl={syncSource.repoURL} revision={hydratedCommit}>
+                        {syncSource.targetRevision + ' (' + hydratedCommit.substr(0, 7) + ')'}
+                    </Revision>
+                </span>
+            );
+        case appModels.HydrateOperationPhases.Hydrating:
+            return (
+                <span>
+                    from{' '}
+                    <Revision repoUrl={drySource.repoURL} revision={dryCommit}>
+                        {drySource.targetRevision + ' (' + dryCommit.substr(0, 7) + ')'}
+                    </Revision>
+                    <br />
+                    to{' '}
+                    <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
+                        {syncSource.targetRevision}
+                    </Revision>
+                </span>
+            );
+        case appModels.HydrateOperationPhases.Failed:
+            return (
+                <span>
+                    from{' '}
+                    <Revision repoUrl={drySource.repoURL} revision={dryCommit}>
+                        {drySource.targetRevision + ' (' + dryCommit.substr(0, 7) + ')'}
+                    </Revision>
+                    <br />
+                    to{' '}
+                    <Revision repoUrl={syncSource.repoURL} revision={syncSource.targetRevision}>
+                        {syncSource.targetRevision}
+                    </Revision>
+                </span>
+            );
+        default:
+            return <span>{}</span>;
+    }
+}
+
 export const HealthStatusIcon = ({state, noSpin}: {state: appModels.HealthStatus; noSpin?: boolean}) => {
     let color = COLORS.health.unknown;
     let icon = 'fa-question-circle';
@@ -1146,7 +1228,7 @@ export function getAppDefaultSource(app?: appModels.Application) {
     if (!app) {
         return null;
     }
-    return app.spec.sources && app.spec.sources.length > 0 ? app.spec.sources[0] : app.spec.source;
+    return getAppSpecDefaultSource(app.spec);
 }
 
 // getAppDefaultSyncRevision gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
@@ -1205,6 +1287,13 @@ export function getAppDefaultOperationSyncRevisionExtra(app?: appModels.Applicat
 }
 
 export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {
+    if (spec.sourceHydrator) {
+        return {
+            repoURL: spec.sourceHydrator.drySource.repoURL,
+            targetRevision: spec.sourceHydrator.syncSource.targetBranch,
+            path: spec.sourceHydrator.syncSource.path
+        };
+    }
     return spec.sources && spec.sources.length > 0 ? spec.sources[0] : spec.source;
 }
 
