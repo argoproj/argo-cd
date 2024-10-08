@@ -1,10 +1,16 @@
 package commands
 
 import (
+	pluginError "errors"
 	"fmt"
-
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"syscall"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
@@ -18,6 +24,88 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
 )
 
+type ArgoCDCLIOptions struct {
+	PluginHandler PluginHandler
+	Arguments     []string
+}
+
+// PluginHandler parses command line arguments
+// and performs executable filename lookups to search
+// for valid plugin files, and execute found plugins.
+type PluginHandler interface {
+	// LookForPlugin will iterate over a list of given prefixes
+	// in order to recognize valid plugin filenames.
+	// The first filepath to match a prefix is returned.
+	LookForPlugin(filename string) (string, bool)
+	// ExecutePlugin receives an executable's filepath, a slice
+	// of arguments, and a slice of environment variables
+	// to relay to the executable.
+	ExecutePlugin(executablePath string, cmdArgs, environment []string) error
+}
+
+// DefaultPluginHandler implements the PluginHandler interface
+type DefaultPluginHandler struct {
+	ValidPrefixes []string
+}
+
+func NewDefaultPluginHandler(validPrefixes []string) *DefaultPluginHandler {
+	return &DefaultPluginHandler{
+		ValidPrefixes: validPrefixes,
+	}
+}
+
+// LookForPlugin implements PluginHandler
+func (h *DefaultPluginHandler) LookForPlugin(filename string) (string, bool) {
+	for _, prefix := range h.ValidPrefixes {
+		path, err := exec.LookPath(fmt.Sprintf("%s-%s", prefix, filename))
+		if shouldSkipOnLookPathErr(err) || len(path) == 0 {
+			continue
+		}
+		return path, true
+	}
+	return "", false
+}
+
+// ExecutePlugin implements PluginHandler
+func (h *DefaultPluginHandler) ExecutePlugin(executablePath string, cmdArgs, environment []string) error {
+	// Windows does not support exec syscall.
+	if runtime.GOOS == "windows" {
+		cmd := Command(executablePath, cmdArgs...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		cmd.Stdin = os.Stdin
+		cmd.Env = environment
+		err := cmd.Run()
+		if err == nil {
+			os.Exit(0)
+		}
+		return err
+	}
+
+	return syscall.Exec(executablePath, append([]string{executablePath}, cmdArgs...), environment)
+}
+
+func Command(name string, arg ...string) *exec.Cmd {
+	cmd := &exec.Cmd{
+		Path: name,
+		Args: append([]string{name}, arg...),
+	}
+	if filepath.Base(name) == name {
+		lp, err := exec.LookPath(name)
+		if lp != "" && !shouldSkipOnLookPathErr(err) {
+			// Update cmd.Path even if err is non-nil.
+			// If err is ErrDot (especially on Windows), lp may include a resolved
+			// extension (like .exe or .bat) that should be preserved.
+			cmd.Path = lp
+		}
+	}
+	return cmd
+}
+
+func shouldSkipOnLookPathErr(err error) bool {
+	return err != nil && !pluginError.Is(err, exec.ErrDot)
+}
+
 func init() {
 	cobra.OnInitialize(initConfig)
 }
@@ -25,6 +113,91 @@ func init() {
 func initConfig() {
 	cli.SetLogFormat(cmdutil.LogFormat)
 	cli.SetLogLevel(cmdutil.LogLevel)
+}
+
+func NewDefaultArgoCDCommand() *cobra.Command {
+	return NewDefaultArgoCDCommandWithArgs(ArgoCDCLIOptions{
+		PluginHandler: NewDefaultPluginHandler([]string{"argocd"}),
+		Arguments:     os.Args,
+	})
+}
+
+func NewDefaultArgoCDCommandWithArgs(o ArgoCDCLIOptions) *cobra.Command {
+	cmd := NewCommand()
+
+	if o.PluginHandler == nil {
+		return cmd
+	}
+
+	if len(o.Arguments) > 1 {
+		cmdPathPieces := o.Arguments[1:]
+
+		if _, _, err := cmd.Find(cmdPathPieces); err != nil {
+			var cmdName string
+			for _, arg := range cmdPathPieces {
+				if !strings.HasPrefix(arg, "-") {
+					cmdName = arg
+					break
+				}
+			}
+
+			switch cmdName {
+			case "help", cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd:
+				// Don't search for a plugin
+			default:
+				if err := HandlePluginCommand(o.PluginHandler, cmdPathPieces, 1); err != nil {
+					fmt.Errorf("Error: %v\n", err)
+					os.Exit(1)
+				}
+			}
+		}
+	}
+
+	return cmd
+}
+
+func HandlePluginCommand(pluginHandler PluginHandler, cmdArgs []string, minArgs int) error {
+	var remainingArgs []string // this will contain all "non-flag" arguments
+	for _, arg := range cmdArgs {
+		// if you encounter a flag, break the loop
+		if strings.HasPrefix(arg, "-") {
+			break
+		}
+		remainingArgs = append(remainingArgs, strings.Replace(arg, "-", "_", -1))
+	}
+
+	if len(remainingArgs) == 0 {
+		// the length of cmdArgs is at least 1
+		return fmt.Errorf("flags cannot be placed before plugin name: %s", cmdArgs[0])
+	}
+
+	foundPluginPath := ""
+
+	for len(remainingArgs) > 0 {
+		path, found := pluginHandler.LookForPlugin(strings.Join(remainingArgs, "-"))
+		if !found {
+			remainingArgs = remainingArgs[:len(remainingArgs)-1]
+			if len(remainingArgs) < minArgs {
+				break
+			}
+
+			continue
+		}
+
+		foundPluginPath = path
+		break
+	}
+
+	if len(foundPluginPath) == 0 {
+		return nil
+	}
+
+	// Execute the plugin that is found
+	if err := pluginHandler.ExecutePlugin(foundPluginPath, cmdArgs[len(remainingArgs):], os.Environ()); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // NewCommand returns a new instance of an argocd command
