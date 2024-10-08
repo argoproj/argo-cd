@@ -3,6 +3,7 @@ package util
 import (
 	"bufio"
 	"fmt"
+	"go.uber.org/automaxprocs/maxprocs"
 	"io"
 	"net/url"
 	"os"
@@ -86,6 +87,19 @@ type AppOptions struct {
 	retryBackoffMaxDuration         time.Duration
 	retryBackoffFactor              int64
 	ref                             string
+}
+
+// SetAutoMaxProcs sets the GOMAXPROCS value based on the binary name.
+// It suppresses logs for CLI binaries and logs the setting for services.
+func SetAutoMaxProcs(isCLI bool) {
+	if isCLI {
+		_, _ = maxprocs.Set() // Intentionally ignore errors for CLI binaries
+	} else {
+		_, err := maxprocs.Set(maxprocs.Logger(log.Infof))
+		if err != nil {
+			log.Errorf("Error setting GOMAXPROCS: %v", err)
+		}
+	}
 }
 
 func AddAppFlags(command *cobra.Command, opts *AppOptions) {
