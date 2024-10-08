@@ -3071,6 +3071,8 @@ spec:
               key: controller.ignore.normalizer.jq.timeout
               name: argocd-cmd-params-cm
               optional: true
+        - name: KUBECACHEDIR
+          value: /tmp/kubecache
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
@@ -3098,6 +3100,8 @@ spec:
           name: argocd-home
         - mountPath: /home/argocd/params
           name: argocd-cmd-params-cm
+        - mountPath: /tmp
+          name: argocd-application-controller-tmp
         workingDir: /home/argocd
       nodeSelector:
         kubernetes.io/os: linux
@@ -3105,6 +3109,8 @@ spec:
       volumes:
       - emptyDir: {}
         name: argocd-home
+      - emptyDir: {}
+        name: argocd-application-controller-tmp
       - name: argocd-repo-server-tls
         secret:
           items:
