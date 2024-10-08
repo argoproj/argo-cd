@@ -631,7 +631,18 @@ function getActionItems(
         concat([[] as MenuItem[]], resourceActions), // this resolves at first to [] and then whatever the API returns
         concat([[] as MenuItem[]], execAction), // this resolves at first to [] and then whatever the API returns
         concat([[] as MenuItem[]], links) // this resolves at first to [] and then whatever the API returns
-    ).pipe(map(res => ([] as MenuItem[]).concat(...res)));
+    ).pipe(
+        map(res => {
+            const combinedItems = ([] as MenuItem[]).concat(...res);
+            return combinedItems.map(
+                item =>
+                    ({
+                        ...item,
+                        disabled: item.title === 'Delete' && resource.status === appModels.SyncStatuses.OutOfSync && resource.health?.status === appModels.HealthStatuses.Missing
+                    }) as ActionMenuItem
+            );
+        })
+    );
 }
 
 export function renderResourceMenu(
