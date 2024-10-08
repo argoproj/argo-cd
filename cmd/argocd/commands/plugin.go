@@ -6,9 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
-	"syscall"
 )
 
 type ArgoCDCLIOptions struct {
@@ -105,24 +103,23 @@ func (h *DefaultPluginHandler) LookForPlugin(filename string) (string, bool) {
 
 // ExecutePlugin implements PluginHandler and executes a plugin found
 func (h *DefaultPluginHandler) ExecutePlugin(executablePath string, cmdArgs, environment []string) error {
-	// Windows does not support exec syscall.
-	if runtime.GOOS == "windows" {
-		cmd := Command(executablePath, cmdArgs...)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Stdin = os.Stdin
-		cmd.Env = environment
-		err := cmd.Run()
-		if err == nil {
-			os.Exit(0)
-		}
+	cmd := Command(executablePath, cmdArgs...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	cmd.Env = environment
+
+	err := cmd.Run()
+	if err != nil {
 		return err
 	}
 
-	return syscall.Exec(executablePath, append([]string{executablePath}, cmdArgs...), environment)
+	// Exit with status 0 if successful, though in most use cases this won't be reached
+	os.Exit(0)
+	return nil
 }
 
-// Command creates a new command for windows OS since windows doesn't support exec syscall
+// Command creates a new command for all OSs
 func Command(name string, arg ...string) *exec.Cmd {
 	cmd := &exec.Cmd{
 		Path: name,
