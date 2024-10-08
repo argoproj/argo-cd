@@ -100,11 +100,11 @@ func Test_ArgoCDPluginHandler(t *testing.T) {
 		},
 		{
 			name: "test that a plugin does not execute over Cobra's __complete command",
-			args: []string{"kubectl", cobra.ShellCompRequestCmd, "de"},
+			args: []string{"argocd", cobra.ShellCompRequestCmd, "de"},
 		},
 		{
 			name: "test that a plugin does not execute over Cobra's __completeNoDesc command",
-			args: []string{"kubectl", cobra.ShellCompNoDescRequestCmd, "de"},
+			args: []string{"argocd", cobra.ShellCompNoDescRequestCmd, "de"},
 		},
 	}
 
