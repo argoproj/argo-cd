@@ -52,6 +52,11 @@ type prGeneratorInfo struct {
 	Gitlab      *prGeneratorGitlabInfo
 }
 
+type scmGeneratorInfo struct {
+	Azuredevops *scmGeneratorAzuredevopsInfo
+	Github      *scmGeneratorGitHubInfo
+}
+
 type prGeneratorAzuredevopsInfo struct {
 	Repo    string
 	Project string
@@ -66,6 +71,14 @@ type prGeneratorGithubInfo struct {
 type prGeneratorGitlabInfo struct {
 	Project     string
 	APIHostname string
+}
+
+type scmGeneratorGitHubInfo struct {
+	Repo string
+}
+
+type scmGeneratorAzuredevopsInfo struct {
+	Repo string
 }
 
 func NewWebhookHandler(namespace string, webhookParallelism int, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
@@ -121,7 +134,8 @@ func (h *WebhookHandler) startWorkerPool(webhookParallelism int) {
 func (h *WebhookHandler) HandleEvent(payload interface{}) {
 	gitGenInfo := getGitGeneratorInfo(payload)
 	prGenInfo := getPRGeneratorInfo(payload)
-	if gitGenInfo == nil && prGenInfo == nil {
+	scmGeneratorInfo := getSCMGeneratorInfo(payload)
+	if gitGenInfo == nil && prGenInfo == nil && scmGeneratorInfo == nil {
 		return
 	}
 
@@ -139,8 +153,9 @@ func (h *WebhookHandler) HandleEvent(payload interface{}) {
 			shouldRefresh = shouldRefreshGitGenerator(gen.Git, gitGenInfo) ||
 				shouldRefreshPRGenerator(gen.PullRequest, prGenInfo) ||
 				shouldRefreshPluginGenerator(gen.Plugin) ||
-				h.shouldRefreshMatrixGenerator(gen.Matrix, &appSet, gitGenInfo, prGenInfo) ||
-				h.shouldRefreshMergeGenerator(gen.Merge, &appSet, gitGenInfo, prGenInfo)
+				shouldRefreshSCMGenerator(gen.SCMProvider, scmGeneratorInfo) ||
+				h.shouldRefreshMatrixGenerator(gen.Matrix, &appSet, gitGenInfo, prGenInfo, scmGeneratorInfo) ||
+				h.shouldRefreshMergeGenerator(gen.Merge, &appSet, gitGenInfo, prGenInfo, scmGeneratorInfo)
 			if shouldRefresh {
 				break
 			}
@@ -162,7 +177,7 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case r.Header.Get("X-GitHub-Event") != "":
-		payload, err = h.github.Parse(r, github.PushEvent, github.PullRequestEvent, github.PingEvent)
+		payload, err = h.github.Parse(r, github.PushEvent, github.PullRequestEvent, github.PingEvent, github.RepositoryEvent)
 	case r.Header.Get("X-Gitlab-Event") != "":
 		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents)
 	case r.Header.Get("X-Vss-Activityid") != "":
@@ -293,6 +308,23 @@ func getPRGeneratorInfo(payload interface{}) *prGeneratorInfo {
 		return nil
 	}
 
+	return &info
+}
+
+func getSCMGeneratorInfo(payload interface{}) *scmGeneratorInfo {
+	var info scmGeneratorInfo
+	switch payload := payload.(type) {
+	case github.RepositoryPayload:
+		info.Github = &scmGeneratorGitHubInfo{
+			Repo: payload.Repository.Name,
+		}
+	case azuredevops.GitPushEvent:
+		info.Azuredevops = &scmGeneratorAzuredevopsInfo{
+			Repo: payload.Resource.Repository.Name,
+		}
+	default:
+		return nil
+	}
 	return &info
 }
 
@@ -450,7 +482,41 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 	return false
 }
 
-func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenerator, appSet *v1alpha1.ApplicationSet, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {
+func shouldRefreshSCMGenerator(gen *v1alpha1.SCMProviderGenerator, info *scmGeneratorInfo) bool {
+	if gen == nil || info == nil {
+		return false
+	}
+
+	if gen.Github != nil && info.Github != nil {
+		return matchesAnyFilter(gen.Filters, info.Github.Repo)
+	}
+
+	if gen.AzureDevOps != nil && info.Azuredevops != nil {
+		return matchesAnyFilter(gen.Filters, info.Azuredevops.Repo)
+	}
+
+	return false
+}
+
+func matchesAnyFilter(filters []v1alpha1.SCMProviderGeneratorFilter, repo string) bool {
+	if filters == nil {
+		return true
+	}
+	for _, filter := range filters {
+		repoRegexp, err := regexp.Compile(*filter.RepositoryMatch)
+		if err != nil {
+			log.Errorf("Failed to compile repository regex in SCM generator: %v", err)
+			continue
+		}
+
+		if repoRegexp.MatchString(repo) {
+			return true
+		}
+	}
+	return false
+}
+
+func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenerator, appSet *v1alpha1.ApplicationSet, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo, scmGenInfo *scmGeneratorInfo) bool {
 	if gen == nil {
 		return false
 	}
@@ -479,7 +545,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 		}
 		if nestedMatrix != nil {
 			matrixGenerator0 = nestedMatrix.ToMatrixGenerator()
-			if h.shouldRefreshMatrixGenerator(matrixGenerator0, appSet, gitGenInfo, prGenInfo) {
+			if h.shouldRefreshMatrixGenerator(matrixGenerator0, appSet, gitGenInfo, prGenInfo, scmGenInfo) {
 				return true
 			}
 		}
@@ -496,7 +562,7 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 		}
 		if nestedMerge != nil {
 			mergeGenerator0 = nestedMerge.ToMergeGenerator()
-			if h.shouldRefreshMergeGenerator(mergeGenerator0, appSet, gitGenInfo, prGenInfo) {
+			if h.shouldRefreshMergeGenerator(mergeGenerator0, appSet, gitGenInfo, prGenInfo, scmGenInfo) {
 				return true
 			}
 		}
@@ -584,8 +650,9 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 			if shouldRefreshGitGenerator(interpolatedGenerator.Git, gitGenInfo) ||
 				shouldRefreshPRGenerator(interpolatedGenerator.PullRequest, prGenInfo) ||
 				shouldRefreshPluginGenerator(interpolatedGenerator.Plugin) ||
-				h.shouldRefreshMatrixGenerator(interpolatedGenerator.Matrix, appSet, gitGenInfo, prGenInfo) ||
-				h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo) {
+				shouldRefreshSCMGenerator(interpolatedGenerator.SCMProvider, scmGenInfo) ||
+				h.shouldRefreshMatrixGenerator(interpolatedGenerator.Matrix, appSet, gitGenInfo, prGenInfo, scmGenInfo) ||
+				h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo, scmGenInfo) {
 				return true
 			}
 		}
@@ -595,11 +662,12 @@ func (h *WebhookHandler) shouldRefreshMatrixGenerator(gen *v1alpha1.MatrixGenera
 	return shouldRefreshGitGenerator(requestedGenerator1.Git, gitGenInfo) ||
 		shouldRefreshPRGenerator(requestedGenerator1.PullRequest, prGenInfo) ||
 		shouldRefreshPluginGenerator(requestedGenerator1.Plugin) ||
-		h.shouldRefreshMatrixGenerator(requestedGenerator1.Matrix, appSet, gitGenInfo, prGenInfo) ||
-		h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo)
+		shouldRefreshSCMGenerator(requestedGenerator1.SCMProvider, scmGenInfo) ||
+		h.shouldRefreshMatrixGenerator(requestedGenerator1.Matrix, appSet, gitGenInfo, prGenInfo, scmGenInfo) ||
+		h.shouldRefreshMergeGenerator(requestedGenerator1.Merge, appSet, gitGenInfo, prGenInfo, scmGenInfo)
 }
 
-func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerator, appSet *v1alpha1.ApplicationSet, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo) bool {
+func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerator, appSet *v1alpha1.ApplicationSet, gitGenInfo *gitGeneratorInfo, prGenInfo *prGeneratorInfo, scmGenInfo *scmGeneratorInfo) bool {
 	if gen == nil {
 		return false
 	}
@@ -620,7 +688,7 @@ func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerato
 				return false
 			}
 			if nestedMatrix != nil {
-				if h.shouldRefreshMatrixGenerator(nestedMatrix.ToMatrixGenerator(), appSet, gitGenInfo, prGenInfo) {
+				if h.shouldRefreshMatrixGenerator(nestedMatrix.ToMatrixGenerator(), appSet, gitGenInfo, prGenInfo, scmGenInfo) {
 					return true
 				}
 			}
@@ -635,7 +703,7 @@ func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerato
 				return false
 			}
 			if nestedMerge != nil {
-				if h.shouldRefreshMergeGenerator(nestedMerge.ToMergeGenerator(), appSet, gitGenInfo, prGenInfo) {
+				if h.shouldRefreshMergeGenerator(nestedMerge.ToMergeGenerator(), appSet, gitGenInfo, prGenInfo, scmGenInfo) {
 					return true
 				}
 			}
