@@ -308,6 +308,116 @@ func TestGetPodInfo(t *testing.T) {
 	assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{Labels: map[string]string{"app": "guestbook"}}, info.NetworkingInfo)
 }
 
+func TestGetPodWithInitialContainerInfo(t *testing.T) {
+	pod := strToUnstructured(`
+  apiVersion: "v1"
+  kind: "Pod"
+  metadata: 
+    labels: 
+      app: "app-with-initial-container"
+    name: "app-with-initial-container-5f46976fdb-vd6rv"
+    namespace: "default"
+    ownerReferences: 
+    - apiVersion: "apps/v1"
+      kind: "ReplicaSet"
+      name: "app-with-initial-container-5f46976fdb"
+  spec: 
+    containers: 
+    - image: "alpine:latest"
+      imagePullPolicy: "Always"
+      name: "app-with-initial-container"
+    initContainers: 
+    - image: "alpine:latest"
+      imagePullPolicy: "Always"
+      name: "app-with-initial-container-logshipper"
+    nodeName: "minikube"
+  status: 
+    containerStatuses: 
+    - image: "alpine:latest"
+      name: "app-with-initial-container"
+      ready: true
+      restartCount: 0
+      started: true
+      state: 
+        running: 
+          startedAt: "2024-10-08T08:44:25Z"
+    initContainerStatuses: 
+    - image: "alpine:latest"
+      name: "app-with-initial-container-logshipper"
+      ready: true
+      restartCount: 0
+      started: false
+      state: 
+        terminated: 
+          exitCode: 0
+          reason: "Completed"
+    phase: "Running"
+`)
+
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Running"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "1/1"},
+	}, info.Info)
+}
+
+func TestGetPodInfoWithSidecar(t *testing.T) {
+	pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    labels:
+      app: app-with-sidecar
+    name: app-with-sidecar-6664cc788c-lqlrp
+    namespace: default
+    ownerReferences:
+      - apiVersion: apps/v1
+        kind: ReplicaSet
+        name: app-with-sidecar-6664cc788c
+  spec:
+    containers:
+    - image: 'docker.m.daocloud.io/library/alpine:latest'
+      imagePullPolicy: Always
+      name: app-with-sidecar
+    initContainers:
+    - image: 'docker.m.daocloud.io/library/alpine:latest'
+      imagePullPolicy: Always
+      name: logshipper
+      restartPolicy: Always
+    nodeName: minikube
+  status:
+    containerStatuses:
+    - image: 'docker.m.daocloud.io/library/alpine:latest'
+      name: app-with-sidecar
+      ready: true
+      restartCount: 0
+      started: true
+      state:
+        running:
+          startedAt: '2024-10-08T08:39:43Z'
+    initContainerStatuses:
+    - image: 'docker.m.daocloud.io/library/alpine:latest'
+      name: logshipper
+      ready: true
+      restartCount: 0
+      started: true
+      state:
+        running:
+          startedAt: '2024-10-08T08:39:40Z'
+    phase: Running
+`)
+
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Running"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "1/1"},
+	}, info.Info)
+}
+
 func TestGetNodeInfo(t *testing.T) {
 	node := strToUnstructured(`
 apiVersion: v1
