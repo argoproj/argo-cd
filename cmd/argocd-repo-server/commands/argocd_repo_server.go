@@ -76,6 +76,7 @@ func NewCommand() *cobra.Command {
 		disableManifestMaxExtractedSize   bool
 		includeHiddenDirectories          bool
 		cmpUseManifestGeneratePaths       bool
+		gitAutoPackLimit                  int
 	)
 	command := cobra.Command{
 		Use:               cliName,
@@ -138,6 +139,7 @@ func NewCommand() *cobra.Command {
 				HelmRegistryMaxIndexSize:                     helmRegistryMaxIndexSizeQuantity.ToDec().Value(),
 				IncludeHiddenDirectories:                     includeHiddenDirectories,
 				CMPUseManifestGeneratePaths:                  cmpUseManifestGeneratePaths,
+				GitAutoPackLimit:                             gitAutoPackLimit,
 			}, askPassServer)
 			errors.CheckError(err)
 
@@ -244,6 +246,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&disableManifestMaxExtractedSize, "disable-helm-manifest-max-extracted-size", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE", false), "Disable maximum size of helm manifest archives when extracted")
 	command.Flags().BoolVar(&includeHiddenDirectories, "include-hidden-directories", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES", false), "Include hidden directories from Git")
 	command.Flags().BoolVar(&cmpUseManifestGeneratePaths, "plugin-use-manifest-generate-paths", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS", false), "Pass the resources described in argocd.argoproj.io/manifest-generate-paths value to the cmpserver to generate the application manifests.")
+	command.Flags().IntVar(&gitAutoPackLimit, "git-autopack-limit", env.ParseNumFromEnv("ARGOCD_GIT_AUTOPACK_LIMIT", common.DefaultGitAutoPackLimit, 0, math.MaxInt), "Specifies the limit for automatic git repacking.")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {

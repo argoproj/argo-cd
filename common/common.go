@@ -328,6 +328,7 @@ const (
 	DefaultGitRetryMaxDuration time.Duration = time.Second * 5        // 5s
 	DefaultGitRetryDuration    time.Duration = time.Millisecond * 250 // 0.25s
 	DefaultGitRetryFactor                    = int64(2)
+	DefaultGitAutoPackLimit                  = 50
 )
 
 // Constants represent the pod selector labels of the Argo CD component names. These values are determined by the
