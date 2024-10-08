@@ -161,6 +161,30 @@ func RemoveLabel(un *unstructured.Unstructured, key string) error {
 	return nil
 }
 
+// RemoveAnnotation removes annotation with the specified name
+func RemoveAnnotation(un *unstructured.Unstructured, key string) error {
+	annotations, err := nestedNullableStringMap(un.Object, "metadata", "annotations")
+	if err != nil {
+		return fmt.Errorf("failed to get annotations for %s %s/%s: %w", un.GroupVersionKind().String(), un.GetNamespace(), un.GetName(), err)
+	}
+	if annotations == nil {
+		return nil
+	}
+
+	for k := range annotations {
+		if k == key {
+			delete(annotations, k)
+			if len(annotations) == 0 {
+				un.SetAnnotations(nil)
+			} else {
+				un.SetAnnotations(annotations)
+			}
+			break
+		}
+	}
+	return nil
+}
+
 // nestedNullableStringMap returns a copy of map[string]string value of a nested field.
 // Returns false if value is not found and an error if not one of map[string]interface{} or nil, or contains non-string values in the map.
 func nestedNullableStringMap(obj map[string]interface{}, fields ...string) (map[string]string, error) {

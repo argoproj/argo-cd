@@ -4719,6 +4719,9 @@
         "impersonationEnabled": {
           "type": "boolean"
         },
+        "installationID": {
+          "type": "string"
+        },
         "kustomizeOptions": {
           "$ref": "#/definitions/v1alpha1KustomizeOptions"
         },
@@ -6084,7 +6087,7 @@
       "properties": {
         "defaultServiceAccount": {
           "type": "string",
-          "title": "ServiceAccountName to be used for impersonation during the sync operation"
+          "title": "DefaultServiceAccount to be used for impersonation during the sync operation"
         },
         "namespace": {
           "description": "Namespace specifies the target namespace for the application's resources.",
@@ -6613,6 +6616,10 @@
         "skipCrds": {
           "type": "boolean",
           "title": "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)"
+        },
+        "skipTests": {
+          "description": "SkipTests skips test manifest installation step (Helm's --skip-tests).",
+          "type": "boolean"
         },
         "valueFiles": {
           "type": "array",
@@ -7156,6 +7163,10 @@
       "description": "ClusterGenerator defines a generator to match against clusters registered with ArgoCD.",
       "type": "object",
       "properties": {
+        "flatList": {
+          "type": "boolean",
+          "title": "returns the clusters a single 'clusters' value in the template"
+        },
         "selector": {
           "$ref": "#/definitions/v1LabelSelector"
         },
