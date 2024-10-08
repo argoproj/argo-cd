@@ -14,6 +14,7 @@ import (
 // NewConfigureCommand returns a new instance of an `argocd configure` command
 func NewConfigureCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var promptsEnabled bool
+
 	command := &cobra.Command{
 		Use:   "configure",
 		Short: "Manage local configuration",
@@ -36,7 +37,8 @@ argocd configure --prompts-enabled=false`,
 			fmt.Printf("prompts-enabled: %v\n", strconv.FormatBool(localCfg.PromptsEnabled))
 		},
 	}
-	command.Flags().BoolVar(&promptsEnabled, "prompts-enabled", false, "Enable (or disable) optional interactive prompts")
-	//command.Flags().BoolVar
+
+	command.Flags().BoolVar(&promptsEnabled, "prompts-enabled", localconfig.GetPromptsEnabled(), "Enable (or disable) optional interactive prompts")
+
 	return command
 }
