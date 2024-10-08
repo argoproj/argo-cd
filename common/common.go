@@ -26,6 +26,8 @@ const (
 const (
 	// DefaultRepoServerAddr is the gRPC address of the Argo CD repo server
 	DefaultRepoServerAddr = "argocd-repo-server:8081"
+	// DefaultCommitServerAddr is the gRPC address of the Argo CD commit server
+	DefaultCommitServerAddr = "argocd-commit-server:8086"
 	// DefaultDexServerAddr is the HTTP address of the Dex OIDC server, which we run a reverse proxy against
 	DefaultDexServerAddr = "argocd-dex-server:5556"
 	// DefaultRedisAddr is the default redis address
@@ -179,6 +181,8 @@ const (
 	LabelValueSecretTypeRepository = "repository"
 	// LabelValueSecretTypeRepoCreds indicates a secret type of repository credentials
 	LabelValueSecretTypeRepoCreds = "repo-creds"
+	// LabelValueSecretTypeRepositoryWrite indicates a secret type of repository credentials for writing
+	LabelValueSecretTypeRepositoryWrite = "repository-write"
 
 	// AnnotationKeyAppInstance is the Argo CD application name is used as the instance name
 	AnnotationKeyAppInstance = "argocd.argoproj.io/tracking-id"

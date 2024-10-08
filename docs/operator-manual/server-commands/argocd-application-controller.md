@@ -27,12 +27,14 @@ argocd-application-controller [flags]
       --client-certificate string                                 Path to a client certificate file for TLS
       --client-key string                                         Path to a client key file for TLS
       --cluster string                                            The name of the kubeconfig cluster to use
+      --commit-server string                                      Commit server address. (default "argocd-commit-server:8086")
       --context string                                            The name of the kubeconfig context to use
       --default-cache-expiration duration                         Cache expiration default (default 24h0m0s)
       --disable-compression                                       If true, opt-out of response compression for all requests to the server
       --dynamic-cluster-distribution-enabled                      Enables dynamic cluster distribution.
       --gloglevel int                                             Set the glog logging level
   -h, --help                                                      help for argocd-application-controller
+      --hydrator-enabled                                          Feature flag to enable Hydrator. Default ("false")
       --ignore-normalizer-jq-execution-timeout-seconds duration   Set ignore normalizer JQ execution timeout
       --insecure-skip-tls-verify                                  If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                                         Path to a kube config. Only required if out-of-cluster

@@ -9,12 +9,18 @@ data:
   # Repo server address. (default "argocd-repo-server:8081")
   repo.server: "argocd-repo-server:8081"
 
+  # Commit server address. (default "argocd-commit-server:8086")
+  commit.server: "argocd-commit-server:8086"
+
   # Redis server hostname and port (e.g. argocd-redis:6379)
   redis.server: "argocd-redis:6379"
   # Enable compression for data sent to Redis with the required compression algorithm. (default 'gzip')
   redis.compression: gzip
   # Redis database
   redis.db:
+
+  # Enables the alpha "manifest hydrator" feature. (default "false")
+  hydrator.enabled: "true"
 
   # Open-Telemetry collector address: (e.g. "otel-collector:4317")
   otlp.address: ""
@@ -188,6 +194,15 @@ data:
   # Include hidden directories from Git
   reposerver.include.hidden.directories: "false"
 
+  ## Commit-server properties
+  # Listen on given address for incoming connections (default "0.0.0.0")
+  commitserver.listen.address: "0.0.0.0"
+  # Set the logging format. One of: text|json (default "text")
+  commitserver.log.format: "text"
+  # Set the logging level. One of: debug|info|warn|error (default "info")
+  commitserver.log.level: "info"
+  # Listen on given address for metrics (default "0.0.0.0")
+  commitserver.metrics.listen.address: "0.0.0.0"
 
   # Set the logging format. One of: text|json (default "text")
   dexserver.log.format: "text"

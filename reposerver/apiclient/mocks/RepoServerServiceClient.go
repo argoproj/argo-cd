@@ -329,7 +329,7 @@ func (_m *RepoServerServiceClient) ListApps(ctx context.Context, in *apiclient.L
 	ret := _m.Called(_ca...)
 
 	if len(ret) == 0 {
-		panic("no return value specified for ListApps")
+		panic("no return value specified for GetProcessableApps")
 	}
 
 	var r0 *apiclient.AppList

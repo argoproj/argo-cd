@@ -215,6 +215,9 @@ func (a ApplicationSources) IsZero() bool {
 }
 
 func (a *ApplicationSpec) GetSource() ApplicationSource {
+	if a.SourceHydrator != nil {
+		return a.SourceHydrator.GetSyncSource()
+	}
 	// if Application has multiple sources, return the first source in sources
 	if a.HasMultipleSources() {
 		return a.Sources[0]
@@ -225,7 +228,26 @@ func (a *ApplicationSpec) GetSource() ApplicationSource {
 	return ApplicationSource{}
 }
 
+// GetHydrateToSource returns the hydrateTo source if it exists, otherwise returns the sync source.
+func (a *ApplicationSpec) GetHydrateToSource() ApplicationSource {
+	if a.SourceHydrator != nil {
+		targetRevision := a.SourceHydrator.SyncSource.TargetBranch
+		if a.SourceHydrator.HydrateTo != nil {
+			targetRevision = a.SourceHydrator.HydrateTo.TargetBranch
+		}
+		return ApplicationSource{
+			RepoURL:        a.SourceHydrator.DrySource.RepoURL,
+			Path:           a.SourceHydrator.SyncSource.Path,
+			TargetRevision: targetRevision,
+		}
+	}
+	return ApplicationSource{}
+}
+
 func (a *ApplicationSpec) GetSources() ApplicationSources {
+	if a.SourceHydrator != nil {
+		return ApplicationSources{a.SourceHydrator.GetSyncSource()}
+	}
 	if a.HasMultipleSources() {
 		return a.Sources
 	}
@@ -236,7 +258,7 @@ func (a *ApplicationSpec) GetSources() ApplicationSources {
 }
 
 func (a *ApplicationSpec) HasMultipleSources() bool {
-	return len(a.Sources) > 0
+	return a.SourceHydrator == nil && len(a.Sources) > 0
 }
 
 func (a *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *ApplicationSource {
@@ -245,6 +267,10 @@ func (a *ApplicationSpec) GetSourcePtrByPosition(sourcePosition int) *Applicatio
 }
 
 func (a *ApplicationSpec) GetSourcePtrByIndex(sourceIndex int) *ApplicationSource {
+	if a.SourceHydrator != nil {
+		source := a.SourceHydrator.GetSyncSource()
+		return &source
+	}
 	// if Application has multiple sources, return the first source in sources
 	if a.HasMultipleSources() {
 		if sourceIndex > 0 {
@@ -362,6 +388,30 @@ type SourceHydrator struct {
 	HydrateTo *HydrateTo `json:"hydrateTo,omitempty" protobuf:"bytes,3,opt,name=hydrateTo"`
 }
 
+// GetSyncSource gets the source from which we should sync when a source hydrator is configured.
+func (s SourceHydrator) GetSyncSource() ApplicationSource {
+	return ApplicationSource{
+		// Pull the RepoURL from the dry source. The SyncSource's RepoURL is assumed to be the same.
+		RepoURL:        s.DrySource.RepoURL,
+		Path:           s.SyncSource.Path,
+		TargetRevision: s.SyncSource.TargetBranch,
+	}
+}
+
+// GetDrySource gets the dry source when a source hydrator is configured.
+func (s SourceHydrator) GetDrySource() ApplicationSource {
+	return ApplicationSource{
+		RepoURL:        s.DrySource.RepoURL,
+		Path:           s.DrySource.Path,
+		TargetRevision: s.DrySource.TargetRevision,
+	}
+}
+
+// DeepEquals returns true if the SourceHydrator is deeply equal to the given SourceHydrator.
+func (s SourceHydrator) DeepEquals(hydrator SourceHydrator) bool {
+	return s.DrySource == hydrator.DrySource && s.SyncSource == hydrator.SyncSource && s.HydrateTo.DeepEquals(hydrator.HydrateTo)
+}
+
 // DrySource specifies a location for dry "don't repeat yourself" manifest source information.
 type DrySource struct {
 	// RepoURL is the URL to the git repository that contains the application manifests
@@ -387,6 +437,19 @@ type SyncSource struct {
 type HydrateTo struct {
 	// TargetBranch is the branch to which hydrated manifests should be committed
 	TargetBranch string `json:"targetBranch" protobuf:"bytes,1,name=targetBranch"`
+}
+
+// DeepEquals returns true if the HydrateTo is deeply equal to the given HydrateTo.
+func (in *HydrateTo) DeepEquals(to *HydrateTo) bool {
+	if in == nil {
+		return to == nil
+	}
+	if to == nil {
+		// We already know in is not nil.
+		return false
+	}
+	// Compare de-referenced structs.
+	return *in == *to
 }
 
 // RefreshType specifies how to refresh the sources of a given application
@@ -2890,6 +2953,22 @@ func (app *Application) IsRefreshRequested() (RefreshType, bool) {
 		refreshType = RefreshTypeHard
 	}
 	return refreshType, true
+}
+
+// IsHydrateRequested returns whether hydration has been requested for an application
+func (app *Application) IsHydrateRequested() bool {
+	annotations := app.GetAnnotations()
+	if annotations == nil {
+		return false
+	}
+	typeStr, ok := annotations[AnnotationKeyHydrate]
+	if !ok {
+		return false
+	}
+	if typeStr == "normal" {
+		return true
+	}
+	return false
 }
 
 func (app *Application) HasPostDeleteFinalizer(stage ...string) bool {

@@ -199,6 +199,12 @@ spec:
               name: argocd-cmd-params-cm
               key: controller.diff.server.side
               optional: true
+        - name: ARGOCD_HYDRATOR_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: hydrator.enabled
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
