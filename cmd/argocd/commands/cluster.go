@@ -191,6 +191,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command.Flags().BoolVarP(&skipConfirmation, "yes", "y", false, "Skip explicit confirmation")
 	command.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value)")
 	command.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value)")
+	command.Flags().BoolVar(&clusterOpts.DisableCompression, "compression", false, "opt-out of response compression for all requests to the server")
 	cmdutil.AddClusterFlags(command, &clusterOpts)
 	return command
 }

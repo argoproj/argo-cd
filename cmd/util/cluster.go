@@ -158,6 +158,7 @@ type ClusterOptions struct {
 	ExecProviderAPIVersion  string
 	ExecProviderInstallHint string
 	ClusterEndpoint         string
+	DisableCompression      bool
 }
 
 // InClusterEndpoint returns true if ArgoCD should reference the in-cluster

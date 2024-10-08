@@ -19,10 +19,11 @@ import (
 
 func NewDashboardCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		port           int
-		address        string
-		compressionStr string
-		clientConfig   clientcmd.ClientConfig
+		port               int
+		address            string
+		compressionStr     string
+		clientConfig       clientcmd.ClientConfig
+		disableCompression bool
 	)
 	cmd := &cobra.Command{
 		Use:   "dashboard",
@@ -51,5 +52,6 @@ $ argocd admin dashboard --redis-compress gzip
 	cmd.Flags().IntVar(&port, "port", common.DefaultPortAPIServer, "Listen on given port")
 	cmd.Flags().StringVar(&address, "address", common.DefaultAddressAdminDashboard, "Listen on given address")
 	cmd.Flags().StringVar(&compressionStr, "redis-compress", env.StringFromEnv("REDIS_COMPRESSION", string(cache.RedisCompressionGZip)), "Enable this if the application controller is configured with redis compression enabled. (possible values: gzip, none)")
+	cmd.Flags().BoolVar(&disableCompression, "disable-compression", false, "opt-out of response compression for all requests to the server")
 	return cmd
 }
