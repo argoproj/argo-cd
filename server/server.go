@@ -363,16 +363,11 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	return a
 }
 
-const (
-	// catches corrupted informer state; see https://github.com/argoproj/argo-cd/issues/4960 for more information
-	notObjectErrMsg = "object does not implement the Object interfaces"
-)
-
 func (a *ArgoCDServer) healthCheck(r *http.Request) error {
 	if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
 		argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
 		_, err := argoDB.ListClusters(r.Context())
-		if err != nil && strings.Contains(err.Error(), notObjectErrMsg) {
+		if err != nil && strings.Contains(err.Error(), healthz.NotObjectErrMsg) {
 			return err
 		}
 	}
