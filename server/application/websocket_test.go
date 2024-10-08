@@ -164,3 +164,102 @@ func TestValidateWithoutPermissions(t *testing.T) {
 
 	testServerConnection(t, validate, true)
 }
+
+func TestTerminalSession_Write(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upgrader := websocket.Upgrader{}
+		conn, err := upgrader.Upgrade(w, r, nil)
+		require.NoError(t, err)
+		defer conn.Close()
+
+		for {
+			// Read the message from the WebSocket connection
+			messageType, message, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			// Respond back the same message
+			err = conn.WriteMessage(messageType, message)
+			require.NoError(t, err)
+		}
+	}))
+	defer server.Close()
+
+	u := "ws" + strings.TrimPrefix(server.URL, "http")
+	wsConn, _, err := websocket.DefaultDialer.Dial(u, nil)
+	require.NoError(t, err)
+	defer wsConn.Close()
+
+	ts := terminalSession{
+		wsConn: wsConn,
+	}
+
+	testData := []byte("hello world")
+	expectedMessage, err := json.Marshal(TerminalMessage{
+		Operation: "stdout",
+		Data:      string(testData),
+	})
+	require.NoError(t, err)
+
+	n, err := ts.Write(testData)
+	require.NoError(t, err)
+
+	assert.Equal(t, len(testData), n)
+
+	_, receivedMessage, err := wsConn.ReadMessage()
+	require.NoError(t, err)
+
+	assert.Equal(t, expectedMessage, receivedMessage)
+}
+
+func TestTerminalSession_Read(t *testing.T) {
+	validate := func(w http.ResponseWriter, r *http.Request) {
+		ts := newTestTerminalSession(w, r)
+		ts.terminalOpts = &TerminalOptions{DisableAuth: true}
+		code, err := ts.performValidationsAndReconnect([]byte{})
+		assert.Equal(t, 0, code)
+		require.NoError(t, err)
+
+		testMessages := []TerminalMessage{
+			{
+				Operation: "stdin",
+				Data:      "test input",
+			},
+			{
+				Operation: "resize",
+				Cols:      80,
+				Rows:      24,
+			},
+			{
+				Operation: "unknown",
+			},
+		}
+
+		for _, msg := range testMessages {
+			bytes, _ := json.Marshal(msg)
+			err := ts.wsConn.WriteMessage(websocket.TextMessage, bytes)
+			require.NoError(t, err)
+
+			p := make([]byte, 1024)
+			n, err := ts.Read(p)
+			require.NoError(t, err)
+
+			switch msg.Operation {
+			case "stdin":
+				assert.Equal(t, msg.Data, string(p[:n]))
+			case "resize":
+				select {
+				case size := <-ts.sizeChan:
+					assert.Equal(t, int(msg.Cols), size.Width)
+					assert.Equal(t, int(msg.Rows), size.Height)
+				default:
+					t.Error("expected size channel output but got none")
+				}
+			case "unknown":
+				assert.Equal(t, string(EndOfTransmission), string(p[:n]))
+			}
+		}
+	}
+
+	testServerConnection(t, validate, false)
+}
