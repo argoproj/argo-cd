@@ -3,9 +3,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"io"
-
-	commitclient "github.com/argoproj/argo-cd/v2/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/controller/hydrator"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -65,12 +62,10 @@ func (ctrl *ApplicationController) RequestAppRefresh(appName string) {
 	ctrl.requestAppRefresh(appName, CompareWithLatest.Pointer(), nil)
 }
 
-func (ctrl *ApplicationController) GetCommitServerClient() (io.Closer, commitclient.CommitServiceClient, error) {
-	return ctrl.commitClientset.NewCommitServerClient()
-}
-
-func (ctrl *ApplicationController) PersistAppStatus(orig *appv1.Application, newStatus *appv1.ApplicationStatus) {
-	ctrl.persistAppStatus(orig, newStatus)
+func (ctrl *ApplicationController) PersistAppHydratorStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus) {
+	status := orig.Status.DeepCopy()
+	status.SourceHydrator = *newStatus
+	ctrl.persistAppStatus(orig, status)
 }
 
 func (ctrl *ApplicationController) AddHydrationQueueItem(key hydrator.HydrationQueueKey) {

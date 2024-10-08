@@ -10,7 +10,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
 	log "github.com/sirupsen/logrus"
-	"io"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"time"
@@ -28,22 +27,22 @@ type Dependencies interface {
 	GetWriteCredentials(ctx context.Context, repoURL string) (*appv1.Repository, error)
 	ResolveGitRevision(repoURL, targetRevision string) (string, error)
 	RequestAppRefresh(appName string)
-	// TODO: remove this and instantiate the client and hydrator in the app controller command
-	GetCommitServerClient() (io.Closer, commitclient.CommitServiceClient, error)
 	// TODO: only allow access to the hydrator status
-	PersistAppStatus(orig *appv1.Application, newStatus *appv1.ApplicationStatus)
+	PersistAppHydratorStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus)
 	AddHydrationQueueItem(key HydrationQueueKey)
 }
 
 type Hydrator struct {
 	dependencies         Dependencies
 	statusRefreshTimeout time.Duration
+	commitClientset      commitclient.Clientset
 }
 
-func NewHydrator(dependencies Dependencies, statusRefreshTimeout time.Duration) *Hydrator {
+func NewHydrator(dependencies Dependencies, statusRefreshTimeout time.Duration, commitClientset commitclient.Clientset) *Hydrator {
 	return &Hydrator{
 		dependencies:         dependencies,
 		statusRefreshTimeout: statusRefreshTimeout,
+		commitClientset:      commitClientset,
 	}
 }
 
@@ -85,7 +84,7 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 		Phase:          appv1.HydrateOperationPhaseHydrating,
 		SourceHydrator: *app.Spec.SourceHydrator,
 	}
-	h.dependencies.PersistAppStatus(origApp, &app.Status)
+	h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
 	origApp.Status.SourceHydrator = app.Status.SourceHydrator
 	h.dependencies.AddHydrationQueueItem(getHydrationQueueKey(app))
 
@@ -136,7 +135,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey HydrationQueueKey) (pr
 			failedAt := metav1.Now()
 			app.Status.SourceHydrator.CurrentOperation.FinishedAt = &failedAt
 			app.Status.SourceHydrator.CurrentOperation.Message = fmt.Sprintf("Failed to hydrated revision %s: %v", drySHA, err.Error())
-			h.dependencies.PersistAppStatus(origApp, &app.Status)
+			h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
 			logCtx.Errorf("Failed to hydrate app: %v", err)
 		}
 		return
@@ -160,7 +159,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey HydrationQueueKey) (pr
 			HydratedSHA:    hydratedSHA,
 			SourceHydrator: app.Status.SourceHydrator.CurrentOperation.SourceHydrator,
 		}
-		h.dependencies.PersistAppStatus(origApp, &app.Status)
+		h.dependencies.PersistAppHydratorStatus(origApp, &app.Status.SourceHydrator)
 		// Request a refresh since we pushed a new commit.
 		h.dependencies.RequestAppRefresh(app.QualifiedName())
 	}
@@ -304,7 +303,7 @@ func (h *Hydrator) hydrate(apps []*appv1.Application, revision string) (string, 
 		Paths:         paths,
 	}
 
-	closer, commitService, err := h.dependencies.GetCommitServerClient()
+	closer, commitService, err := h.commitClientset.NewCommitServerClient()
 	if err != nil {
 		return "", fmt.Errorf("failed to create commit service: %w", err)
 	}
