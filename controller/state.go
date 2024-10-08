@@ -533,7 +533,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	for i := len(targetObjs) - 1; i >= 0; i-- {
 		targetObj := targetObjs[i]
 		gvk := targetObj.GroupVersionKind()
-		if resFilter.IsExcludedResource(gvk.Group, gvk.Kind, app.Spec.Destination.Server) {
+		if resFilter.IsExcludedResource(gvk.Group, gvk.Kind, app.Spec.Destination.Server, app.Spec.Destination.Namespace) {
 			targetObjs = append(targetObjs[:i], targetObjs[i+1:]...)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{
 				Type:               v1alpha1.ApplicationConditionExcludedResourceWarning,
