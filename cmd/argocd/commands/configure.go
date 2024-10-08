@@ -33,7 +33,7 @@ argocd configure --prompts-enabled=false`,
 			errors.CheckError(err)
 
 			fmt.Println("Successfully updated the following configuration settings:")
-			fmt.Printf("prompts-enabled: %v", strconv.FormatBool(localCfg.PromptsEnabled))
+			fmt.Printf("prompts-enabled: %v\n", strconv.FormatBool(localCfg.PromptsEnabled))
 		},
 	}
 	command.Flags().BoolVar(&promptsEnabled, "prompts-enabled", false, "Enable (or disable) optional interactive prompts")
