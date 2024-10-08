@@ -841,6 +841,9 @@ message ClusterConfig {
 
   // ExecProviderConfig contains configuration for an exec provider
   optional ExecProviderConfig execProviderConfig = 6;
+
+  // DisableCompression bypasses automatic GZip compression requests to the server.
+  optional bool disableCompression = 7;
 }
 
 // ClusterGenerator defines a generator to match against clusters registered with ArgoCD.
