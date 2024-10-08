@@ -2533,13 +2533,10 @@ func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequ
 	}
 	res := apiclient.HelmChartsResponse{}
 	for chartName, entries := range index.Entries {
-		chart := apiclient.HelmChart{
-			Name: chartName,
-		}
-		for _, version := range entries {
-			chart.Versions = append(chart.Versions, version)
-		}
-		res.Items = append(res.Items, &chart)
+		res.Items = append(res.Items, &apiclient.HelmChart{
+			Name:     chartName,
+			Versions: entries,
+		})
 	}
 	return &res, nil
 }
