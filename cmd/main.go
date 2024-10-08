@@ -27,8 +27,8 @@ const (
 func main() {
 	var command *cobra.Command
 
-	o := util.ArgoCDCLIOptions{
-		PluginHandler: util.NewDefaultPluginHandler([]string{"argocd"}),
+	o := cli.ArgoCDCLIOptions{
+		PluginHandler: cli.NewDefaultPluginHandler([]string{"argocd"}),
 		Arguments:     os.Args,
 	}
 

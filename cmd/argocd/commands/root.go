@@ -2,10 +2,12 @@ package commands
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
-	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"strings"
+
+
+	"github.com/spf13/cobra"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
@@ -29,13 +31,13 @@ func initConfig() {
 }
 
 func NewDefaultArgoCDCommand() *cobra.Command {
-	return NewDefaultArgoCDCommandWithArgs(cmdutil.ArgoCDCLIOptions{
-		PluginHandler: cmdutil.NewDefaultPluginHandler([]string{"argocd"}),
+	return NewDefaultArgoCDCommandWithArgs(ArgoCDCLIOptions{
+		PluginHandler: NewDefaultPluginHandler([]string{"argocd"}),
 		Arguments:     os.Args,
 	})
 }
 
-func NewDefaultArgoCDCommandWithArgs(o cmdutil.ArgoCDCLIOptions) *cobra.Command {
+func NewDefaultArgoCDCommandWithArgs(o ArgoCDCLIOptions) *cobra.Command {
 	cmd := NewCommand()
 
 	if o.PluginHandler == nil {
@@ -63,7 +65,7 @@ func NewDefaultArgoCDCommandWithArgs(o cmdutil.ArgoCDCLIOptions) *cobra.Command 
 			case "help", cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd:
 				// Don't search for a plugin
 			default:
-				if err := cmdutil.HandlePluginCommand(o.PluginHandler, cmdPathPieces, 1); err != nil {
+				if err := HandlePluginCommand(o.PluginHandler, cmdPathPieces, 1); err != nil {
 					fmt.Errorf("Error: %v\n", err)
 					os.Exit(1)
 				}

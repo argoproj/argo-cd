@@ -2,11 +2,12 @@ package commands
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/cmd/util"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"os"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/spf13/cobra"
 )
 
 type testPluginHandler struct {
@@ -18,10 +19,10 @@ type testPluginHandler struct {
 	lookupErr error
 
 	// execution results
-	executed       bool
-	executedPlugin string
-	withArgs       []string
-	withEnv        []string
+	executed           bool
+	executedPluginPath string
+	withArgs           []string
+	withEnv            []string
 }
 
 func (t *testPluginHandler) LookForPlugin(filename string) (string, bool) {
@@ -61,7 +62,7 @@ func (t *testPluginHandler) LookForPlugin(filename string) (string, bool) {
 
 func (t *testPluginHandler) ExecutePlugin(executablePath string, cmdArgs, environment []string) error {
 	t.executed = true
-	t.executedPlugin = executablePath
+	t.executedPluginPath = executablePath
 	t.withArgs = cmdArgs
 	t.withEnv = environment
 	return nil
@@ -69,33 +70,52 @@ func (t *testPluginHandler) ExecutePlugin(executablePath string, cmdArgs, enviro
 
 func Test_ArgoCDPluginHandler(t *testing.T) {
 	tests := []struct {
-		name              string
-		args              []string
-		expectedPlugin    string
-		expectPluginArgs  []string
-		expectLookupError string
+		name               string
+		args               []string
+		expectedPluginPath string
+		expectPluginArgs   []string
+		expectLookupError  string
 	}{
 		{
-			name:             "test that normal commands are able to be executed, when no plugin overshadows them",
-			args:             []string{"argocd", "cluster", "list"},
-			expectedPlugin:   "",
-			expectPluginArgs: []string{},
+			name:               "test that normal commands are able to be executed, when no plugin overshadows them",
+			args:               []string{"argocd", "cluster", "list"},
+			expectedPluginPath: "",
+			expectPluginArgs:   []string{},
 		},
 		{
-			name:             "test that a plugin executable is found based on command args",
-			args:             []string{"argocd", "foo"},
-			expectedPlugin:   "testdata/argocd-foo",
-			expectPluginArgs: []string{},
+			name:               "test that a plugin executable is found based on command args",
+			args:               []string{"argocd", "foo"},
+			expectedPluginPath: "testdata/argocd-foo",
+			expectPluginArgs:   []string{},
+		},
+		{
+			name:               "test that the normal command is executed if the plugin name is same as the command",
+			args:               []string{"argocd", "cluster", "list"},
+			expectedPluginPath: "testdata/argocd-cluster-list",
+			expectPluginArgs:   []string{},
+		},
+		{
+			name: "test that a plugin does not execute over Cobra's help command",
+			args: []string{"argocd", "help"},
+		},
+		{
+			name: "test that a plugin does not execute over Cobra's __complete command",
+			args: []string{"kubectl", cobra.ShellCompRequestCmd, "de"},
+		},
+		{
+			name: "test that a plugin does not execute over Cobra's __completeNoDesc command",
+			args: []string{"kubectl", cobra.ShellCompNoDescRequestCmd, "de"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			pluginsHandler := &testPluginHandler{
-				pluginsDirectory: "testdata",
-				validPrefixes:    []string{"argocd"},
+				pluginsDirectory:   "testdata",
+				validPrefixes:      []string{"argocd"},
+				executedPluginPath: tt.expectedPluginPath,
 			}
-			root := NewDefaultArgoCDCommandWithArgs(util.ArgoCDCLIOptions{
+			root := NewDefaultArgoCDCommandWithArgs(ArgoCDCLIOptions{
 				PluginHandler: pluginsHandler,
 				Arguments:     tt.args,
 			})
@@ -120,12 +140,12 @@ func Test_ArgoCDPluginHandler(t *testing.T) {
 				t.Fatalf("expected plugin execution, but did not occur")
 			}
 
-			if pluginsHandler.executedPlugin != tt.expectedPlugin {
-				t.Fatalf("unexpected plugin execution: expected %q, got %q", tt.expectedPlugin, pluginsHandler.executedPlugin)
+			if pluginsHandler.executedPluginPath != tt.expectedPluginPath {
+				t.Fatalf("unexpected plugin execution: expected %q, got %q", tt.expectedPluginPath, pluginsHandler.executedPluginPath)
 			}
 
-			if pluginsHandler.executed && len(tt.expectedPlugin) == 0 {
-				t.Fatalf("unexpected plugin execution: expected no plugin, got %q", pluginsHandler.executedPlugin)
+			if pluginsHandler.executed && len(tt.expectedPluginPath) == 0 {
+				t.Fatalf("unexpected plugin execution: expected no plugin, got %q", pluginsHandler.executedPluginPath)
 			}
 
 			if !cmp.Equal(pluginsHandler.withArgs, tt.expectPluginArgs, cmpopts.EquateEmpty()) {
