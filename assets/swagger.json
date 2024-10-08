@@ -9167,6 +9167,11 @@
       "description": "SyncOperation contains details about a sync operation.",
       "type": "object",
       "properties": {
+        "autoHealAttemptsCount": {
+          "type": "integer",
+          "format": "int64",
+          "title": "SelfHealAttemptsCount contains the number of auto-heal attempts"
+        },
         "dryRun": {
           "type": "boolean",
           "title": "DryRun specifies to perform a `kubectl apply --dry-run` without actually performing the sync"

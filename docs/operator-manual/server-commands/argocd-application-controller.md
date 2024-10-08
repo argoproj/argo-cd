@@ -66,7 +66,10 @@ argocd-application-controller [flags]
       --repo-server-strict-tls                                    Whether to use strict validation of the TLS cert presented by the repo server
       --repo-server-timeout-seconds int                           Repo server RPC call timeout seconds. (default 60)
       --request-timeout string                                    The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
-      --self-heal-timeout-seconds int                             Specifies timeout between application self heal attempts (default 5)
+      --self-heal-backoff-cap-seconds int                         Specifies max timeout of exponential backoff between application self heal attempts (default 300)
+      --self-heal-backoff-factor int                              Specifies factor of exponential timeout between application self heal attempts (default 3)
+      --self-heal-backoff-timeout-seconds int                     Specifies initial timeout of exponential backoff between self heal attempts (default 2)
+      --self-heal-timeout-seconds int                             Specifies timeout between application self heal attempts
       --sentinel stringArray                                      Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
       --sentinelmaster string                                     Redis sentinel master group name. (default "master")
       --server string                                             The address and port of the Kubernetes API server
