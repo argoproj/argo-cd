@@ -330,7 +330,8 @@ argocd proj windows list test-project`,
 			errors.CheckError(err)
 			switch output {
 			case "yaml", "json":
-				err := PrintResourceList(proj.Spec.SyncWindows, output, false)
+				outputs := collectSyncWindowData(proj)
+				err := PrintResourceList(outputs, output, false)
 				errors.CheckError(err)
 			case "wide", "":
 				printSyncWindows(proj)
@@ -341,6 +342,26 @@ argocd proj windows list test-project`,
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	return command
+}
+
+func collectSyncWindowData(proj *v1alpha1.AppProject) []map[string]interface{} {
+	var outputs []map[string]interface{}
+	for i, window := range proj.Spec.SyncWindows {
+		output := map[string]interface{}{
+			"ID":           strconv.Itoa(i),
+			"Status":       formatBoolOutput(window.Active()),
+			"Kind":         window.Kind,
+			"Schedule":     window.Schedule,
+			"Duration":     window.Duration,
+			"Applications": formatListOutput(window.Applications),
+			"Namespaces":   formatListOutput(window.Namespaces),
+			"Clusters":     formatListOutput(window.Clusters),
+			"ManualSync":   formatManualOutput(window.ManualSync),
+			"TimeZone":     window.TimeZone,
+		}
+		outputs = append(outputs, output)
+	}
+	return outputs
 }
 
 // Print table of sync window data
