@@ -13,6 +13,7 @@ import {AppsListViewKey, AppsListPreferences, AppsListViewType, HealthStatusBarP
 import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
+import {ApplicationsTerminateSyncPanel} from '../applications-terminate-sync-panel/applications-terminate-sync-panel';
 import * as AppUtils from '../utils';
 import {ApplicationsFilter, FilteredApp, getFilterResults} from './applications-filter';
 import {ApplicationsStatusBar} from './applications-status-bar';
@@ -313,6 +314,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
     const query = new URLSearchParams(props.location.search);
     const appInput = tryJsonParse(query.get('new'));
     const syncAppsInput = tryJsonParse(query.get('syncApps'));
+    const terminateSyncInput = tryJsonParse(query.get('terminateSync'));
     const refreshAppsInput = tryJsonParse(query.get('refreshApps'));
     const [createApi, setCreateApi] = React.useState(null);
     const clusters = React.useMemo(() => services.clusters.list(), []);
@@ -460,6 +462,11 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                         action: () => ctx.navigation.goto('.', {syncApps: true}, {replace: true})
                                                                     },
                                                                     {
+                                                                        title: 'Terminate Sync Apps',
+                                                                        iconClassName: 'fa fa-stop',
+                                                                        action: () => ctx.navigation.goto('.', {terminateSync: true}, {replace: true})
+                                                                    },
+                                                                    {
                                                                         title: 'Refresh Apps',
                                                                         iconClassName: 'fa fa-redo',
                                                                         action: () => ctx.navigation.goto('.', {refreshApps: true}, {replace: true})
@@ -560,6 +567,12 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                                 )}
                                                             </>
                                                         )}
+                                                        <ApplicationsTerminateSyncPanel
+                                                            key='terminateSyncsPanel'
+                                                            show={terminateSyncInput}
+                                                            hide={() => ctx.navigation.goto('.', {terminateSync: null}, {replace: true})}
+                                                            apps={filteredApps}
+                                                        />
                                                         <ApplicationsSyncPanel
                                                             key='syncsPanel'
                                                             show={syncAppsInput}
