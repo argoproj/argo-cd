@@ -327,7 +327,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	ag := extension.NewDefaultApplicationGetter(appLister)
 	pg := extension.NewDefaultProjectGetter(projLister, dbInstance)
 	ug := extension.NewDefaultUserGetter(policyEnf)
-	em := extension.NewManager(logger, sg, ag, pg, enf, ug)
+	em := extension.NewManager(logger, opts.Namespace, sg, ag, pg, enf, ug)
 
 	a := &ArgoCDServer{
 		ArgoCDServerOpts:   opts,
