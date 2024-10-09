@@ -2039,6 +2039,9 @@ type ClusterConfig struct {
 
 	// ExecProviderConfig contains configuration for an exec provider
 	ExecProviderConfig *ExecProviderConfig `json:"execProviderConfig,omitempty" protobuf:"bytes,6,opt,name=execProviderConfig"`
+
+	// DisableCompression bypasses automatic GZip compression requests to the server.
+	DisableCompression bool `json:"disableCompression,omitempty" protobuf:"bytes,7,opt,name=disableCompression"`
 }
 
 // TLSClientConfig contains settings to enable transport layer security
@@ -3188,6 +3191,7 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Unable to create K8s REST config: %w", err)
 	}
+	config.DisableCompression = c.Config.DisableCompression
 	config.Timeout = K8sServerSideTimeout
 	config.QPS = K8sClientConfigQPS
 	config.Burst = K8sClientConfigBurst
