@@ -21,7 +21,9 @@ message ManifestRequest {
     // Deprecated: use sidecar plugins instead.
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ConfigManagementPlugin plugins = 12;
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 13;
+    // KubeVersion is the Kubernetes API version from the destination cluster.
     string kubeVersion = 14;
+    // ApiVersions is the list of API versions from the destination cluster, used for rendering Helm charts.
     repeated string apiVersions = 15;
     // Request to verify the signature when generating the manifests (only for Git repositories)
     bool verifySignature = 16;
@@ -36,6 +38,10 @@ message ManifestRequest {
     repeated string projectSourceRepos = 24;
     // This is used to surface "source not permitted" errors for Helm repositories
     string projectName = 25;
+    // argocd.argoproj.io/manifest-generate-paths annotation value of the Application to allow optimize which resources propagated to cmpserver
+    string annotationManifestGeneratePaths = 26;
+    // Holds instance installation id
+    string installationID = 27;
 }
 
 message ManifestRequestWithFiles {
@@ -73,6 +79,7 @@ message ResolveRevisionRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application app = 2;
     string ambiguousRevision = 3;
+    int64 sourceIndex = 4;
 }
 
 // ResolveRevisionResponse
@@ -91,6 +98,8 @@ message ManifestResponse {
     string sourceType = 6;
     // Raw response of git verify-commit operation (always the empty string for Helm)
     string verifyResult = 7;
+    // Commands is the list of commands used to hydrate the manifests
+    repeated string commands = 8;
 }
 
 message ListRefsRequest {
@@ -237,6 +246,7 @@ message GitFilesRequest {
     string path = 4;
     bool NewGitFileGlobbingEnabled = 5;
     bool noRevisionCache = 6;
+    bool verifyCommit = 7;
 }
 
 message GitFilesResponse {
@@ -249,11 +259,38 @@ message GitDirectoriesRequest {
     bool submoduleEnabled = 2;
     string revision = 3;
     bool noRevisionCache = 4;
+    bool verifyCommit = 5;
 }
 
 message GitDirectoriesResponse {
     // A set of directory paths
     repeated string paths = 1;
+}
+
+message UpdateRevisionForPathsRequest {
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 1;
+
+    string appLabelKey = 2;
+    string appName = 3;
+    string namespace = 4;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSource applicationSource = 5;
+    string trackingMethod = 6;
+    map<string, github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTarget> refSources = 7;
+    string kubeVersion = 8;
+    repeated string apiVersions = 9;
+    bool hasMultipleSources = 10;
+
+    string syncedRevision = 11;
+    string revision = 12;
+    repeated string paths = 13;
+
+    bool noRevisionCache = 14;
+    string installationID = 15;
+}
+
+message UpdateRevisionForPathsResponse {
+    bool changes = 1;
+    string revision = 2;
 }
 
 // ManifestService
@@ -309,5 +346,9 @@ service RepoServerService {
 
     // GetGitDirectories returns a set of directory paths for the given repo
     rpc GetGitDirectories(GitDirectoriesRequest) returns (GitDirectoriesResponse) {
+    }
+
+    // UpdateRevisionForPaths will compare two revisions and update the cache with the new revision if no changes are detected in the provided paths
+    rpc UpdateRevisionForPaths(UpdateRevisionForPathsRequest) returns (UpdateRevisionForPathsResponse) {
     }
 }

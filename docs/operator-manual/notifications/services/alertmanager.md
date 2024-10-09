@@ -43,7 +43,7 @@ You should turn off "send_resolved" or you will receive unnecessary recovery not
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.alertmanager: |
     targets:
@@ -58,7 +58,7 @@ If your alertmanager has changed the default api, you can customize "apiPath".
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.alertmanager: |
     targets:
@@ -89,7 +89,7 @@ stringData:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.alertmanager: |
     targets:
@@ -110,7 +110,7 @@ data:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: <config-map-name>
+  name: argocd-notifications-cm
 data:
   service.alertmanager: |
     targets:

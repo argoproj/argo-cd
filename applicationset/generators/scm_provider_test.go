@@ -1,83 +1,15 @@
 package generators
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
-
-func TestSCMProviderGetSecretRef(t *testing.T) {
-	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-secret", Namespace: "test"},
-		Data: map[string][]byte{
-			"my-token": []byte("secret"),
-		},
-	}
-	gen := &SCMProviderGenerator{client: fake.NewClientBuilder().WithObjects(secret).Build()}
-	ctx := context.Background()
-
-	cases := []struct {
-		name, namespace, token string
-		ref                    *argoprojiov1alpha1.SecretRef
-		hasError               bool
-	}{
-		{
-			name:      "valid ref",
-			ref:       &argoprojiov1alpha1.SecretRef{SecretName: "test-secret", Key: "my-token"},
-			namespace: "test",
-			token:     "secret",
-			hasError:  false,
-		},
-		{
-			name:      "nil ref",
-			ref:       nil,
-			namespace: "test",
-			token:     "",
-			hasError:  false,
-		},
-		{
-			name:      "wrong name",
-			ref:       &argoprojiov1alpha1.SecretRef{SecretName: "other", Key: "my-token"},
-			namespace: "test",
-			token:     "",
-			hasError:  true,
-		},
-		{
-			name:      "wrong key",
-			ref:       &argoprojiov1alpha1.SecretRef{SecretName: "test-secret", Key: "other-token"},
-			namespace: "test",
-			token:     "",
-			hasError:  true,
-		},
-		{
-			name:      "wrong namespace",
-			ref:       &argoprojiov1alpha1.SecretRef{SecretName: "test-secret", Key: "my-token"},
-			namespace: "other",
-			token:     "",
-			hasError:  true,
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			token, err := gen.getSecretRef(ctx, c.ref, c.namespace)
-			if c.hasError {
-				assert.NotNil(t, err)
-			} else {
-				assert.Nil(t, err)
-			}
-			assert.Equal(t, c.token, token)
-
-		})
-	}
-}
 
 func TestSCMProviderGenerateParams(t *testing.T) {
 	cases := []struct {
@@ -174,7 +106,7 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 			mockProvider := &scm_provider.MockProvider{
 				Repos: testCaseCopy.repos,
 			}
-			scmGenerator := &SCMProviderGenerator{overrideProvider: mockProvider, enableSCMProviders: true}
+			scmGenerator := &SCMProviderGenerator{overrideProvider: mockProvider, SCMConfig: SCMConfig{enableSCMProviders: true}}
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "set",
@@ -188,15 +120,14 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 				},
 			}
 
-			got, err := scmGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+			got, err := scmGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
 
 			if testCaseCopy.expectedError != nil {
 				assert.EqualError(t, err, testCaseCopy.expectedError.Error())
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
-
 		})
 	}
 }
@@ -205,7 +136,6 @@ func TestAllowedSCMProvider(t *testing.T) {
 	cases := []struct {
 		name           string
 		providerConfig *argoprojiov1alpha1.SCMProviderGenerator
-		expectedError  error
 	}{
 		{
 			name: "Error Github",
@@ -214,7 +144,6 @@ func TestAllowedSCMProvider(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: &ErrDisallowedSCMProvider{},
 		},
 		{
 			name: "Error Gitlab",
@@ -223,7 +152,6 @@ func TestAllowedSCMProvider(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: &ErrDisallowedSCMProvider{},
 		},
 		{
 			name: "Error Gitea",
@@ -232,7 +160,6 @@ func TestAllowedSCMProvider(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: &ErrDisallowedSCMProvider{},
 		},
 		{
 			name: "Error Bitbucket",
@@ -241,7 +168,6 @@ func TestAllowedSCMProvider(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: &ErrDisallowedSCMProvider{},
 		},
 		{
 			name: "Error AzureDevops",
@@ -250,7 +176,6 @@ func TestAllowedSCMProvider(t *testing.T) {
 					API: "https://myservice.mynamespace.svc.cluster.local",
 				},
 			},
-			expectedError: &ErrDisallowedSCMProvider{},
 		},
 	}
 
@@ -261,14 +186,16 @@ func TestAllowedSCMProvider(t *testing.T) {
 			t.Parallel()
 
 			scmGenerator := &SCMProviderGenerator{
-				allowedSCMProviders: []string{
-					"github.myorg.com",
-					"gitlab.myorg.com",
-					"gitea.myorg.com",
-					"bitbucket.myorg.com",
-					"azuredevops.myorg.com",
+				SCMConfig: SCMConfig{
+					allowedSCMProviders: []string{
+						"github.myorg.com",
+						"gitlab.myorg.com",
+						"gitea.myorg.com",
+						"bitbucket.myorg.com",
+						"azuredevops.myorg.com",
+					},
+					enableSCMProviders: true,
 				},
-				enableSCMProviders: true,
 			}
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
@@ -282,16 +209,17 @@ func TestAllowedSCMProvider(t *testing.T) {
 				},
 			}
 
-			_, err := scmGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+			_, err := scmGenerator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
 
-			assert.Error(t, err, "Must return an error")
-			assert.ErrorAs(t, err, testCaseCopy.expectedError)
+			require.Error(t, err, "Must return an error")
+			var expectedError ErrDisallowedSCMProvider
+			assert.ErrorAs(t, err, &expectedError)
 		})
 	}
 }
 
 func TestSCMProviderDisabled_SCMGenerator(t *testing.T) {
-	generator := &SCMProviderGenerator{enableSCMProviders: false}
+	generator := &SCMProviderGenerator{SCMConfig: SCMConfig{enableSCMProviders: false}}
 
 	applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -308,6 +236,6 @@ func TestSCMProviderDisabled_SCMGenerator(t *testing.T) {
 		},
 	}
 
-	_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo)
+	_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
 	assert.ErrorIs(t, err, ErrSCMProvidersDisabled)
 }

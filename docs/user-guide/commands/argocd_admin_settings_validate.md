@@ -34,11 +34,12 @@ argocd admin settings validate --group accounts --group plugins --load-cluster-s
 
 ```
       --argocd-cm-path string           Path to local argocd-cm.yaml file
+      --argocd-context string           The name of the Argo-CD server context to use
       --argocd-secret-path string       Path to local argocd-secret.yaml file
       --as string                       Username to impersonate for the operation
       --as-group stringArray            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                   UID to impersonate for the operation
-      --auth-token string               Authentication token
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --certificate-authority string    Path to a cert file for the certificate authority
       --client-certificate string       Path to a client certificate file for TLS
       --client-crt string               Client certificate file

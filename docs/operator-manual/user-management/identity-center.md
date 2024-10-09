@@ -1,7 +1,7 @@
 # Identity Center (AWS SSO)
 
 !!! note "Are you using this? Please contribute!"
-    If you're using this IdP please consider [contributing](../../developer-guide/site.md) to this document.
+    If you're using this IdP please consider [contributing](../../developer-guide/docs-site.md) to this document.
 
 A working Single Sign-On configuration using Identity Center (AWS SSO) has been achieved using the following method:
 

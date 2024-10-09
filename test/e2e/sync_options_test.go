@@ -127,3 +127,22 @@ func TestSyncWithSkipHook(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
 }
+
+func TestSyncWithForceReplace(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// app having `Replace=true` and `Force=true` annotation should sync succeed if change in immutable field
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "add", "path": "/metadata/annotations", "value": { "argocd.argoproj.io/sync-options": "Force=true,Replace=true" }}]`).
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "add", "path": "/spec/selector/matchLabels/env", "value": "e2e" }, { "op": "add", "path": "/spec/template/metadata/labels/env", "value": "e2e" }]`).
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 1 }]`).
+		Refresh(RefreshTypeNormal).
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}

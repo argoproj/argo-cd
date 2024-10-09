@@ -19,6 +19,8 @@ URL configured in the Git provider should use the `/api/webhook` endpoint of you
 (e.g. `https://argocd.example.com/api/webhook`). If you wish to use a shared secret, input an
 arbitrary value in the secret. This value will be used when configuring the webhook in the next step.
 
+To prevent DDoS attacks with unauthenticated webhook events (the `/api/webhook` endpoint currently lacks rate limiting protection), it is recommended to limit the payload size. You can achieve this by configuring the `argocd-cm` ConfigMap with the `webhook.maxPayloadSizeMB` attribute. The default value is 1GB.
+
 ## Github
 
 ![Add Webhook](../assets/webhook-config.png "Add Webhook")
@@ -97,3 +99,13 @@ stringData:
 ```
 
 After saving, the changes should take effect automatically.
+
+### Alternative
+
+If you want to store webhook data in **another** Kubernetes `Secret`, instead of `argocd-secret`. ArgoCD knows to check the keys under `data` in your Kubernetes `Secret` starts with `$`, then your Kubernetes `Secret` name and `:` (colon).
+
+Syntax: `$<k8s_secret_name>:<a_key_in_that_k8s_secret>`
+
+> NOTE: Secret must have label `app.kubernetes.io/part-of: argocd`
+
+For more information refer to the corresponding section in the [User Management Documentation](user-management/index.md#alternative).

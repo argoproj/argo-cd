@@ -8,20 +8,36 @@ Print manifests of an application
 argocd app manifests APPNAME [flags]
 ```
 
+### Examples
+
+```
+  # Get manifests for an application
+  argocd app manifests my-app
+  
+  # Get manifests for an application at a specific revision
+  argocd app manifests my-app --revision 0.0.1
+  
+  # Get manifests for a multi-source application at specific revisions for specific sources
+  argocd app manifests my-app --revisions 0.0.1 --source-positions 1 --revisions 0.0.2 --source-positions 2
+```
+
 ### Options
 
 ```
-  -h, --help                     help for manifests
-      --local string             If set, show locally-generated manifests. Value is the absolute path to app manifests within the manifest repo. Example: '/home/username/apps/env/app-1'.
-      --local-repo-root string   Path to the local repository root. Used together with --local allows setting the repository root. Example: '/home/username/apps'. (default ".")
-      --revision string          Show manifests at a specific revision
-      --source string            Source of manifests. One of: live|git (default "git")
+  -h, --help                          help for manifests
+      --local string                  If set, show locally-generated manifests. Value is the absolute path to app manifests within the manifest repo. Example: '/home/username/apps/env/app-1'.
+      --local-repo-root string        Path to the local repository root. Used together with --local allows setting the repository root. Example: '/home/username/apps'. (default ".")
+      --revision string               Show manifests at a specific revision
+      --revisions stringArray         Show manifests at specific revisions for the source at position in source-positions
+      --source string                 Source of manifests. One of: live|git (default "git")
+      --source-positions int64Slice   List of source positions. Default is empty array. Counting start at 1. (default [])
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token
+      --argocd-context string           The name of the Argo-CD server context to use
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
