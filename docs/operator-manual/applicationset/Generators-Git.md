@@ -443,3 +443,13 @@ stringData:
 ```
 
 After saving, please restart the ApplicationSet pod for the changes to take effect.
+
+## Repository caching
+
+Files or directories that are added to or removed from the Git repository are only picked up by the ApplicationSet controller
+when the repository cache on the Repo server is refreshed. The default cache expiration time is 24 hours, which may be too
+long if you expect the ApplicationSet controller to quickly add or remove Applications.
+
+The Repo cache expiration can be configured by adding the `reposerver.repo.cache.expiration` setting to the `argocd-cmd-params-cm`
+ConfigMap. To reduce the expiration time to 1 hour, the following values can be used: `1h`, `60m` or `3600s`.
+
