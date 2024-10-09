@@ -28,6 +28,8 @@ kind: ConfigMap
 metadata:
   name: argocd-notifications-cm
 data:
+  context: |
+    argocdUrl: <argocd_host_url>
   service.github: |
     appID: <app-id>
     installationID: <installation-id>
@@ -46,7 +48,7 @@ stringData:
     -----END RSA PRIVATE KEY-----
 ```
 
-6. Create subscription for your GitHub integration
+6. Create subscription for your GitHub integration. You might want to install pre-configured triggers through https://argo-cd.readthedocs.io/en/stable/operator-manual/notifications/#getting-started.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -61,12 +63,68 @@ metadata:
 ![](https://user-images.githubusercontent.com/18019529/108520497-168ce180-730e-11eb-93cb-b0b91f99bdc5.png)
 
 ```yaml
+template.app-sync-succeeded: |
+ message: |
+   Application {{.app.metadata.name}} sync succeeded at {{.app.status.operationState.finishedAt}}.
+ github:
+   repoURL: "{{.app.spec.source.repoURL}}"
+   revision: "{{.app.status.operationState.operation.sync.revision}}"
+   status:
+     state: success
+     label: "continuous-delivery/{{.app.metadata.name}}"
+     targetURL: "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true"
+   pullRequestComment:
+     content: |
+       Sync Succeeded
+
+template.app-sync-failed: |
+ message: |
+   Application {{.app.metadata.name}} sync failed at {{.app.status.operationState.finishedAt}}.
+ github:
+   repoURL: "{{.app.spec.source.repoURL}}"
+   revision: "{{.app.status.operationState.operation.sync.revision}}"
+   status:
+     state: failure
+     label: "continuous-delivery/{{.app.metadata.name}}"
+     targetURL: "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true"
+   pullRequestComment:
+     content: |
+       Sync Failed
+
+template.app-sync-running: |
+ message: |
+   Application {{.app.metadata.name}} sync started at {{.app.status.operationState.startedAt}}.
+ github:
+   repoURL: "{{.app.spec.source.repoURL}}"
+   revision: "{{.app.status.operationState.operation.sync.revision}}"
+   status:
+     state: pending
+     label: "continuous-delivery/{{.app.metadata.name}}"
+     targetURL: "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true"
+   pullRequestComment:
+     content: |
+       Sync Running
+
+template.app-sync-status-unknown: |
+ message: |
+   Application {{.app.metadata.name}} sync status is unknown as of {{.app.status.operationState.finishedAt}}.
+ github:
+   repoURL: "{{.app.spec.source.repoURL}}"
+   revision: "{{.app.status.operationState.operation.sync.revision}}"
+   status:
+     state: error
+     label: "continuous-delivery/{{.app.metadata.name}}"
+     targetURL: "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}?operation=true"
+   pullRequestComment:
+     content: |
+       Sync Status Unknown
+
 template.app-deployed: |
   message: |
     Application {{.app.metadata.name}} is now running new version of deployments manifests.
   github:
     repoURLPath: "{{.app.spec.source.repoURL}}"
-    revisionPath: "{{.app.status.operationState.syncResult.revision}}"
+    revisionPath: "{{.app.status.operationState.operation.sync.revision}}"
     status:
       state: success
       label: "continuous-delivery/{{.app.metadata.name}}"
