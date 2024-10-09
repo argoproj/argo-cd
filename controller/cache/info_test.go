@@ -414,7 +414,265 @@ func TestGetPodInfoWithSidecar(t *testing.T) {
 	assert.Equal(t, []v1alpha1.InfoItem{
 		{Name: "Status Reason", Value: "Running"},
 		{Name: "Node", Value: "minikube"},
-		{Name: "Containers", Value: "1/1"},
+		{Name: "Containers", Value: "2/2"},
+	}, info.Info)
+}
+
+func TestGetPodInfoWithInitialContainer(t *testing.T) {
+	pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    generateName: myapp-long-exist-56b7d8794d-
+    labels:
+      app: myapp-long-exist
+    name: myapp-long-exist-56b7d8794d-pbgrd
+    namespace: linghao
+    ownerReferences:
+      - apiVersion: apps/v1
+        kind: ReplicaSet
+        name: myapp-long-exist-56b7d8794d
+  spec:
+    containers:
+      - image: alpine:latest
+        imagePullPolicy: Always
+        name: myapp-long-exist
+    initContainers:
+      - image: alpine:latest
+        imagePullPolicy: Always
+        name: myapp-long-exist-logshipper
+    nodeName: minikube
+  status:
+    containerStatuses:
+      - image: alpine:latest
+        name: myapp-long-exist
+        ready: false
+        restartCount: 0
+        started: false
+        state:
+          waiting:
+            reason: PodInitializing
+    initContainerStatuses:
+      - image: alpine:latest
+        name: myapp-long-exist-logshipper
+        ready: false
+        restartCount: 0
+        started: true
+        state:
+          running:
+            startedAt: '2024-10-09T08:03:45Z'
+    phase: Pending
+    startTime: '2024-10-09T08:02:39Z'
+`)
+
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Init:0/1"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/1"},
+	}, info.Info)
+}
+
+// Test pod has 2 restartable init containers, the first one running but not started.
+func TestGetPodInfoWithRestartableInitContainer(t *testing.T) {
+	pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: test1
+  spec:
+    initContainers:
+      - name: restartable-init-1
+        restartPolicy: Always
+      - name: restartable-init-2
+        restartPolicy: Always
+    containers:
+      - name: container
+    nodeName: minikube
+  status:
+    phase: Pending
+    initContainerStatuses:
+      - name: restartable-init-1
+        ready: false
+        restartCount: 3
+        state:
+          running: {}
+        started: false
+        lastTerminationState:
+          terminated:
+            finishedAt: "2023-10-01T00:00:00Z" # Replace with actual time
+      - name: restartable-init-2
+        ready: false
+        state:
+          waiting: {}
+        started: false
+    containerStatuses:
+      - ready: false
+        restartCount: 0
+        state:
+          waiting: {}
+    conditions:
+      - type: PodInitialized
+        status: "False"
+`)
+
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Init:0/2"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/3"},
+		{Name: "Restart Count", Value: "3"},
+	}, info.Info)
+}
+
+// Test pod has 2 restartable init containers, the first one started and the second one running but not started.
+func TestGetPodInfoWithPartiallyStartedInitContainers(t *testing.T) {
+	pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: test1
+  spec:
+    initContainers:
+      - name: restartable-init-1
+        restartPolicy: Always
+      - name: restartable-init-2
+        restartPolicy: Always
+    containers:
+      - name: container
+    nodeName: minikube
+  status:
+    phase: Pending
+    initContainerStatuses:
+      - name: restartable-init-1
+        ready: false
+        restartCount: 3
+        state:
+          running: {}
+        started: true
+        lastTerminationState:
+          terminated:
+            finishedAt: "2023-10-01T00:00:00Z" # Replace with actual time
+      - name: restartable-init-2
+        ready: false
+        state:
+          running: {}
+        started: false
+    containerStatuses:
+      - ready: false
+        restartCount: 0
+        state:
+          waiting: {}
+    conditions:
+      - type: PodInitialized
+        status: "False"
+`)
+
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Init:1/2"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/3"},
+		{Name: "Restart Count", Value: "3"},
+	}, info.Info)
+}
+
+// Test pod has 2 restartable init containers started and 1 container running
+func TestGetPodInfoWithStartedInitContainers(t *testing.T) {
+	pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: test2
+  spec:
+    initContainers:
+      - name: restartable-init-1
+        restartPolicy: Always
+      - name: restartable-init-2
+        restartPolicy: Always
+    containers:
+      - name: container
+    nodeName: minikube
+  status:
+    phase: Running
+    initContainerStatuses:
+      - name: restartable-init-1
+        ready: false
+        restartCount: 3
+        state:
+          running: {}
+        started: true
+        lastTerminationState:
+          terminated:
+            finishedAt: "2023-10-01T00:00:00Z" # Replace with actual time
+      - name: restartable-init-2
+        ready: false
+        state:
+          running: {}
+        started: true
+    containerStatuses:
+      - ready: true
+        restartCount: 4
+        state:
+          running: {}
+        lastTerminationState:
+          terminated:
+            finishedAt: "2023-10-01T00:00:00Z" # Replace with actual time
+    conditions:
+      - type: PodInitialized
+        status: "True"
+`)
+
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Running"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "1/3"},
+		{Name: "Restart Count", Value: "7"},
+	}, info.Info)
+}
+
+// Test pod has 1 init container restarting and 1 container not running
+func TestGetPodInfoWithNormalInitContainer(t *testing.T) {
+	pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: test7
+  spec:
+    initContainers:
+      - name: init-container
+    containers:
+      - name: main-container
+    nodeName: minikube
+  status:
+    phase: podPhase
+    initContainerStatuses:
+      - ready: false
+        restartCount: 3
+        state:
+          running: {}
+        lastTerminationState:
+          terminated:
+            finishedAt: "2023-10-01T00:00:00Z" # Replace with the actual time
+    containerStatuses:
+      - ready: false
+        restartCount: 0
+        state:
+          waiting: {}
+`)
+
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Init:0/1"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/1"},
+		{Name: "Restart Count", Value: "3"},
 	}, info.Info)
 }
 

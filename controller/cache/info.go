@@ -361,6 +361,9 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	initContainers := make(map[string]*v1.Container)
 	for i := range pod.Spec.InitContainers {
 		initContainers[pod.Spec.InitContainers[i].Name] = &pod.Spec.InitContainers[i]
+		if isRestartableInitContainer(&pod.Spec.InitContainers[i]) {
+			totalContainers++
+		}
 	}
 
 	initializing := false
@@ -372,6 +375,9 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 			continue
 		case isRestartableInitContainer(initContainers[container.Name]) &&
 			container.Started != nil && *container.Started:
+			if container.Ready {
+				readyContainers++
+			}
 			continue
 		case container.State.Terminated != nil:
 			// initialization is failed
@@ -429,6 +435,8 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	// and https://github.com/kubernetes/kubernetes/issues/90358#issuecomment-617859364
 	if pod.DeletionTimestamp != nil && pod.Status.Reason == "NodeLost" {
 		reason = "Unknown"
+		// If the pod is being deleted and the pod phase is not succeeded or failed, set the reason to "Terminating".
+		// See https://github.com/kubernetes/kubectl/issues/1595#issuecomment-2080001023
 	} else if pod.DeletionTimestamp != nil && !IsPodPhaseTerminal(podPhase) {
 		reason = "Terminating"
 	}
