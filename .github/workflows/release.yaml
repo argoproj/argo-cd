@@ -19,7 +19,7 @@ jobs:
       contents: read
       id-token: write # for creating OIDC tokens for signing.
       packages: write # used to push images to `ghcr.io` if used.
-    if: github.repository == 'argoproj/argo-cd'
+    #if: github.repository == 'argoproj/argo-cd'
     uses: ./.github/workflows/image-reuse.yaml
     with:
       quay_image_name: quay.io/argoproj/argocd:${{ github.ref_name }}
@@ -54,7 +54,7 @@ jobs:
       - argocd-image-provenance
     permissions:
       contents: write # used for uploading assets
-    if: github.repository == 'argoproj/argo-cd'
+    #if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
@@ -124,7 +124,7 @@ jobs:
       actions: read # for detecting the Github Actions environment
       id-token: write # Needed for provenance signing and ID
       contents: write #  Needed for release uploads
-    if: github.repository == 'argoproj/argo-cd'
+    #if: github.repository == 'argoproj/argo-cd'
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
     with:
@@ -141,7 +141,7 @@ jobs:
       contents: write # Needed for release uploads
     outputs:
       hashes: ${{ steps.sbom-hash.outputs.hashes}}
-    if: github.repository == 'argoproj/argo-cd'
+    #if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
@@ -208,7 +208,7 @@ jobs:
       actions: read # for detecting the Github Actions environment
       id-token: write # Needed for provenance signing and ID
       contents: write #  Needed for release uploads
-    if: github.repository == 'argoproj/argo-cd'
+    #if: github.repository == 'argoproj/argo-cd'
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
     with:
@@ -224,7 +224,7 @@ jobs:
     permissions:
       contents: write # Needed to push commit to update stable tag
       pull-requests: write # Needed to create PR for VERSION update.
-    if: github.repository == 'argoproj/argo-cd'
+    #if: github.repository == 'argoproj/argo-cd'
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
