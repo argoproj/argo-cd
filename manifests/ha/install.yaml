@@ -24518,6 +24518,12 @@ spec:
               key: reposerver.include.hidden.directories
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_INSTANCE_ID
+          valueFrom:
+            configMapKeyRef:
+              key: url
+              name: argocd-cm
+              optional: true
         - name: HELM_CACHE_HOME
           value: /helm-working-dir
         - name: HELM_CONFIG_HOME

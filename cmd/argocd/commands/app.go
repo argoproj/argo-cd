@@ -1378,6 +1378,10 @@ func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[
 				errors.CheckError(err)
 			}
 
+			if err := resourceTracking.SetAppInstanceID(local, argoSettings.URL); err != nil {
+				log.Warnf("Failed to set Application Instance ID due to missing or invalid ArgoCD URL in ArgoCD Configmap")
+			}
+
 			items = append(items, objKeyLiveTarget{key, live, local})
 			delete(objs, key)
 		}

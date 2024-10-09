@@ -131,6 +131,37 @@ func TestSetAppInstanceAnnotationNotFound(t *testing.T) {
 	assert.Equal(t, "", app)
 }
 
+func TestSetAppInstanceIdAnnotation(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
+	require.NoError(t, err)
+
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	require.NoError(t, err)
+
+	resourceTracking := NewResourceTracking()
+
+	err = resourceTracking.SetAppInstanceID(&obj, "argocd.com")
+	require.NoError(t, err)
+
+	value := resourceTracking.GetAppInstanceID(&obj)
+	assert.Equal(t, "argocd.com", value)
+}
+
+func TestSetAppInstanceIdAnnotationNotFound(t *testing.T) {
+	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
+	require.NoError(t, err)
+
+	var obj unstructured.Unstructured
+	err = yaml.Unmarshal(yamlBytes, &obj)
+	require.NoError(t, err)
+
+	resourceTracking := NewResourceTracking()
+
+	value := resourceTracking.GetAppInstanceID(&obj)
+	assert.Equal(t, "", value)
+}
+
 func TestParseAppInstanceValue(t *testing.T) {
 	resourceTracking := NewResourceTracking()
 	appInstanceValue, err := resourceTracking.ParseAppInstanceValue("app:<group>/<kind>:<namespace>/<name>")

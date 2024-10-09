@@ -179,6 +179,9 @@ const (
 	// AnnotationKeyAppInstance is the Argo CD application name is used as the instance name
 	AnnotationKeyAppInstance = "argocd.argoproj.io/tracking-id"
 
+	// AnnotationKeyAppInstanceID is the Argo CD server URL that is managing this resource
+	AnnotationKeyAppInstanceID = "argocd.argoproj.io/instance-id"
+
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
 	AnnotationCompareOptions = "argocd.argoproj.io/compare-options"
 

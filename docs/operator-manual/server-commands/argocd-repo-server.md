@@ -17,6 +17,7 @@ argocd-repo-server [flags]
 ```
       --address string                                 Listen on given address for incoming connections (default "0.0.0.0")
       --allow-oob-symlinks                             Allow out-of-bounds symlinks in repositories (not recommended)
+      --argocd-instance-id string                      Server URL of the argocd instance that the repo server is part of
       --default-cache-expiration duration              Cache expiration default (default 24h0m0s)
       --disable-helm-manifest-max-extracted-size       Disable maximum size of helm manifest archives when extracted
       --disable-tls                                    Disable TLS on the gRPC endpoint

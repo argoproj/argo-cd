@@ -75,6 +75,7 @@ func NewCommand() *cobra.Command {
 		helmRegistryMaxIndexSize          string
 		disableManifestMaxExtractedSize   bool
 		includeHiddenDirectories          bool
+		argocdInstanceID                  string
 	)
 	command := cobra.Command{
 		Use:               cliName,
@@ -136,6 +137,7 @@ func NewCommand() *cobra.Command {
 				HelmManifestMaxExtractedSize:                 helmManifestMaxExtractedSizeQuantity.ToDec().Value(),
 				HelmRegistryMaxIndexSize:                     helmRegistryMaxIndexSizeQuantity.ToDec().Value(),
 				IncludeHiddenDirectories:                     includeHiddenDirectories,
+				ArgoCDInstanceID:                             argocdInstanceID,
 			}, askPassServer)
 			errors.CheckError(err)
 
@@ -241,6 +243,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&helmRegistryMaxIndexSize, "helm-registry-max-index-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_INDEX_SIZE", "1G"), "Maximum size of registry index file")
 	command.Flags().BoolVar(&disableManifestMaxExtractedSize, "disable-helm-manifest-max-extracted-size", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE", false), "Disable maximum size of helm manifest archives when extracted")
 	command.Flags().BoolVar(&includeHiddenDirectories, "include-hidden-directories", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES", false), "Include hidden directories from Git")
+	command.Flags().StringVar(&argocdInstanceID, "argocd-instance-id", env.StringFromEnv("ARGOCD_INSTANCE_ID", ""), "Server URL of the argocd instance that the repo server is part of")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {
