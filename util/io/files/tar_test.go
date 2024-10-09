@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 
@@ -51,16 +52,16 @@ func TestTgz(t *testing.T) {
 
 		// then
 		assert.Equal(t, 3, filesWritten)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		prepareRead(f)
 		files, err := read(f.file)
 		require.NoError(t, err)
-		assert.Equal(t, 8, len(files))
+		assert.Len(t, files, 8)
 		assert.Contains(t, files, "README.md")
 		assert.Contains(t, files, "applicationset/latest/kustomization.yaml")
 		assert.Contains(t, files, "applicationset/stable/kustomization.yaml")
 		assert.Contains(t, files, "applicationset/readme-symlink")
-		assert.Equal(t, files["applicationset/readme-symlink"], "../README.md")
+		assert.Equal(t, "../README.md", files["applicationset/readme-symlink"])
 	})
 	t.Run("will exclude files from the exclusion list", func(t *testing.T) {
 		// given
@@ -74,11 +75,11 @@ func TestTgz(t *testing.T) {
 
 		// then
 		assert.Equal(t, 2, filesWritten)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		prepareRead(f)
 		files, err := read(f.file)
 		require.NoError(t, err)
-		assert.Equal(t, 7, len(files))
+		assert.Len(t, files, 7)
 		assert.Contains(t, files, "applicationset/latest/kustomization.yaml")
 		assert.Contains(t, files, "applicationset/stable/kustomization.yaml")
 	})
@@ -94,11 +95,11 @@ func TestTgz(t *testing.T) {
 
 		// then
 		assert.Equal(t, 1, filesWritten)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		prepareRead(f)
 		files, err := read(f.file)
 		require.NoError(t, err)
-		assert.Equal(t, 5, len(files))
+		assert.Len(t, files, 5)
 		assert.Contains(t, files, "applicationset/stable/kustomization.yaml")
 	})
 }
@@ -168,19 +169,19 @@ func TestUntgz(t *testing.T) {
 		destDir := filepath.Join(tmpDir, "untgz1")
 
 		// when
-		err := files.Untgz(destDir, tgzFile, math.MaxInt64)
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
 
 		// then
 		require.NoError(t, err)
 		names := readFiles(t, destDir)
-		assert.Equal(t, 8, len(names))
+		assert.Len(t, names, 8)
 		assert.Contains(t, names, "README.md")
 		assert.Contains(t, names, "applicationset/latest/kustomization.yaml")
 		assert.Contains(t, names, "applicationset/stable/kustomization.yaml")
 		assert.Contains(t, names, "applicationset/readme-symlink")
 		assert.Equal(t, filepath.Join(destDir, "README.md"), names["applicationset/readme-symlink"])
 	})
-	t.Run("will protect agains symlink exploit", func(t *testing.T) {
+	t.Run("will protect against symlink exploit", func(t *testing.T) {
 		// given
 		tmpDir := createTmpDir(t)
 		defer deleteTmpDir(t, tmpDir)
@@ -191,11 +192,30 @@ func TestUntgz(t *testing.T) {
 		destDir := filepath.Join(tmpDir, "untgz2")
 
 		// when
-		err := files.Untgz(destDir, tgzFile, math.MaxInt64)
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
 
 		// then
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "illegal filepath in symlink")
+		assert.ErrorContains(t, err, "illegal filepath in symlink")
+	})
+
+	t.Run("preserves file mode", func(t *testing.T) {
+		// given
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+		tgzFile := createTgz(t, filepath.Join(getTestDataDir(t), "executable"), tmpDir)
+		defer tgzFile.Close()
+
+		destDir := filepath.Join(tmpDir, "untgz1")
+
+		// when
+		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
+		require.NoError(t, err)
+
+		// then
+
+		scriptFileInfo, err := os.Stat(path.Join(destDir, "script.sh"))
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0o644), scriptFileInfo.Mode())
 	})
 }
 

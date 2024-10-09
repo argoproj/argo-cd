@@ -1,4 +1,4 @@
-hs = {}
+local hs = {}
 if obj.status ~= nil then
   if obj.status.phase == "Bound" and obj.status.lastOperationStatus == "Success" then
     hs.status = "Healthy"

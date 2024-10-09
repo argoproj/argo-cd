@@ -1,8 +1,8 @@
 # Releasing
 
-## Automated release procedure
+## Introduction
 
-ArgoCD is released in a 2 step automated fashion using GitHub actions. The release process takes about 60 minutes,
+Argo CD is released in a 2 step automated fashion using GitHub actions. The release process takes about 60 minutes,
 sometimes a little less, depending on the performance of GitHub Actions runners.
 
 The target release branch must already exist in the GitHub repository. If you for
@@ -37,6 +37,8 @@ triggered. This will be automated in the very near future.
 * Update the stable tag when applicable
 * Update `VERSION` file in the master branch when a new release is GA
 
+## Steps
+
 ### Step 1 - Update Version and Manifest
 
 1. Ensure that the TARGET_BRANCH already exist.
@@ -47,54 +49,38 @@ and choose which branch you would like to work from.
 
 ![GitHub Release Action](../assets/release-action.png)
 
-1. When the action is completed a pull request will be generated that contains the updated manifest and `Version` file.
-2. Merge the pull request and proceed to step 2.
+When the action is completed a pull request will be generated that contains the updated manifest and `Version` file.
+
+5. Merge the pull request and proceed to step 2.
 
 ### Step 2 - Tag Release Branch
-The `Publish ArgoCD Release` workflow is triggered by pushing a tag to the repository.
-The tag must be in one of the following formats to trigger the GH workflow:
 
-* GA: `v<MAJOR>.<MINOR>.<PATCH>`
-* Pre-release: `v<MAJOR>.<MINOR>.<PATCH>-rc<RC#>`
+The steps below need to be executed by someone with write access in Argo CD upstream repo.
 
-For example, consider you have configured the Git remote for the repository to
-`github.com/argoproj/argo-cd` to be named `upstream` and are in your locally
-checked out repo of the release branch:
-
-```shell
-git pull upstream release-2.7
-git tag release-v2.7.0-rc1
-git push upstream release-v2.7.0-rc1
-```
-!!! tip
-    For convenience, there is a shell script in the tree that ensures all the
-    pre-requisites are met and that the trigger is well-formed before pushing
-    it to the GitHub repo.
-
-The script can be found at `hack/trigger-release.sh` and is used as follows:
+1. Checkout the release branch. Example: `git fetch upstream && git
+   checkout release-2.7`
+2. Run the script found at `hack/trigger-release.sh` as follows:
 
 ```shell
 ./hack/trigger-release.sh <version> <remote name>
 ```
 
-The `<version>` identifier needs to be specified in the format of `v<MAJOR>.<MINOR>.<PATCH>-rc<RC#>`,
-so just specify it as `v2.7.0-rc1` for example. The `<remote name>`
-specifies the name of the remote used to push to the GitHub repository. 
+Example: 
+```shell
+./hack/trigger-release.sh v2.7.2 upstream
+```
 
-!!! warning
-    It is strongly recommended to use this script to trigger the workflow
-    instead of manually pushing a tag to the repository.
+!!! tip
+    The tag must be in one of the following formats to trigger the GH workflow:<br>
+    * GA: `v<MAJOR>.<MINOR>.<PATCH>`<br>
+    * Pre-release: `v<MAJOR>.<MINOR>.<PATCH>-rc<RC#>`
 
-Once the trigger tag is pushed to the repo, the GitHub workflow will start
-execution. You can follow its progress under the [Actions](https://github.com/argoproj/argo-cd/actions/workflows/release.yaml) tab, the name of the action is `Publish ArgoCD Release`. Don't get confused by the name of the running
-workflow, it will be the last commit message of the latest commit to the release branch.
+Once the script is executed successfully, a GitHub workflow will start
+execution. You can follow its progress under the [Actions](https://github.com/argoproj/argo-cd/actions/workflows/release.yaml) tab, the name of the action is `Publish ArgoCD Release`. 
 
 !!! warning
     You cannot perform more than one release on the same release branch at the
-    same time. For example, both `v2.7.0` and `v2.7.1` would operate on the
-    `release-2.7` branch. You have to either cancel `v2.7.0` before submitting
-    `v2.7.1` or wait until it has finished. You can execute releases on different
-    release branches simultaneously, for example, `v2.7.5` and `v2.8.0-rc1` without problems.
+    same time.
 
 ### Verifying automated release
 
@@ -120,6 +106,7 @@ have been performed, you will need to manually clean up.
 The release process does not allow a manual release process. Image signatures and provenance need to be created using GitHub Actions.
 
 ## Notable files that involve the release process.
+
 | File                               | Description                                            |
 |------------------------------------|--------------------------------------------------------|
 |goreleaser.yaml                     |Config to build CLI binaries, checksums, release-notes  |

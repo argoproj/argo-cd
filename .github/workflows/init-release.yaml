@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@755da8c3cf115ac066823e79a1e1788f8940201b  # v3.2.0
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694  # v4.0.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -34,7 +34,7 @@ jobs:
           set -xue
           # Target version must not contain 'v' prefix
           if echo "${{ inputs.TARGET_VERSION }}" | grep -e '^v'; then
-            echo "::error::Target version '${{ TARGET_VERSION }}' should not begin with a 'v' prefix, refusing to continue." >&2
+            echo "::error::Target version '${{ inputs.TARGET_VERSION }}' should not begin with a 'v' prefix, refusing to continue." >&2
             exit 1
           fi
 
@@ -56,8 +56,15 @@ jobs:
           make manifests-local VERSION=${{ inputs.TARGET_VERSION }}
           git diff
 
+      - name: Generate version compatibility table
+        run: |
+          git stash
+          bash hack/update-supported-versions.sh
+          git add -u .
+          git stash pop
+
       - name: Create pull request
-        uses: peter-evans/create-pull-request@2b011faafdcbc9ceb11414d64d0573f37c774b04  # v4.2.3
+        uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f  # v7.0.5
         with:
           commit-message: "Bump version to ${{ inputs.TARGET_VERSION }}"
           title: "Bump version to ${{ inputs.TARGET_VERSION }} on ${{ inputs.TARGET_BRANCH }} branch"

@@ -1,3 +1,4 @@
+/* eslint-disable no-case-declarations */
 import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -20,6 +21,7 @@ interface NewSSHRepoParams {
     insecure: boolean;
     enableLfs: boolean;
     proxy: string;
+    noProxy: string;
     project?: string;
 }
 
@@ -34,8 +36,10 @@ export interface NewHTTPSRepoParams {
     insecure: boolean;
     enableLfs: boolean;
     proxy: string;
+    noProxy: string;
     project?: string;
     forceHttpBasicAuth?: boolean;
+    enableOCI: boolean;
 }
 
 interface NewGitHubAppRepoParams {
@@ -51,6 +55,7 @@ interface NewGitHubAppRepoParams {
     insecure: boolean;
     enableLfs: boolean;
     proxy: string;
+    noProxy: string;
     project?: string;
 }
 
@@ -60,6 +65,7 @@ interface NewGoogleCloudSourceRepoParams {
     url: string;
     gcpServiceAccountKey: string;
     proxy: string;
+    noProxy: string;
     project?: string;
 }
 
@@ -75,7 +81,9 @@ interface NewHTTPSRepoCredsParams {
     tlsClientCertData: string;
     tlsClientCertKey: string;
     proxy: string;
+    noProxy: string;
     forceHttpBasicAuth: boolean;
+    enableOCI: boolean;
 }
 
 interface NewGitHubAppRepoCredsParams {
@@ -87,6 +95,7 @@ interface NewGitHubAppRepoCredsParams {
     tlsClientCertData: string;
     tlsClientCertKey: string;
     proxy: string;
+    noProxy: string;
 }
 
 interface NewGoogleCloudSourceRepoCredsParams {
@@ -173,7 +182,9 @@ export class ReposList extends React.Component<
             case ConnectionMethod.HTTPS:
                 const httpsValues = params as NewHTTPSRepoParams;
                 return {
-                    url: (!httpsValues.url && 'Repository URL is required') || (this.credsTemplate && !this.isHTTPSUrl(httpsValues.url) && 'Not a valid HTTPS URL'),
+                    url:
+                        (!httpsValues.url && 'Repository URL is required') ||
+                        (this.credsTemplate && !this.isHTTPSUrl(httpsValues.url) && !httpsValues.enableOCI && 'Not a valid HTTPS URL'),
                     name: httpsValues.type === 'helm' && !httpsValues.name && 'Name is required',
                     username: !httpsValues.username && httpsValues.password && 'Username is required if password is given.',
                     password: !httpsValues.password && httpsValues.username && 'Password is required if username is given.',
@@ -237,7 +248,10 @@ export class ReposList extends React.Component<
             case ConnectionMethod.SSH:
                 return (params: FormValues) => this.connectSSHRepo(params as NewSSHRepoParams);
             case ConnectionMethod.HTTPS:
-                return (params: FormValues) => this.connectHTTPSRepo(params as NewHTTPSRepoParams);
+                return (params: FormValues) => {
+                    params.url = params.enableOCI ? this.stripProtocol(params.url) : params.url;
+                    return this.connectHTTPSRepo(params as NewHTTPSRepoParams);
+                };
             case ConnectionMethod.GITHUBAPP:
                 return (params: FormValues) => this.connectGitHubAppRepo(params as NewGitHubAppRepoParams);
             case ConnectionMethod.GOOGLECLOUD:
@@ -279,8 +293,9 @@ export class ReposList extends React.Component<
                                                 <div className='columns small-1' />
                                                 <div className='columns small-1'>TYPE</div>
                                                 <div className='columns small-2'>NAME</div>
-                                                <div className='columns small-5'>REPOSITORY</div>
-                                                <div className='columns small-3'>CONNECTION STATUS</div>
+                                                <div className='columns small-2'>PROJECT</div>
+                                                <div className='columns small-4'>REPOSITORY</div>
+                                                <div className='columns small-2'>CONNECTION STATUS</div>
                                             </div>
                                         </div>
                                         {repos.map(repo => (
@@ -292,20 +307,28 @@ export class ReposList extends React.Component<
                                                     <div className='columns small-1'>
                                                         <i className={'icon argo-icon-' + (repo.type || 'git')} />
                                                     </div>
-                                                    <div className='columns small-1'>{repo.type || 'git'}</div>
+                                                    <div className='columns small-1'>
+                                                        <span>{repo.type || 'git'}</span>
+                                                        {repo.enableOCI && <span> OCI</span>}
+                                                    </div>
                                                     <div className='columns small-2'>
                                                         <Tooltip content={repo.name}>
                                                             <span>{repo.name}</span>
                                                         </Tooltip>
                                                     </div>
-                                                    <div className='columns small-5'>
+                                                    <div className='columns small-2'>
+                                                        <Tooltip content={repo.project}>
+                                                            <span>{repo.project}</span>
+                                                        </Tooltip>
+                                                    </div>
+                                                    <div className='columns small-4'>
                                                         <Tooltip content={repo.repo}>
                                                             <span>
                                                                 <Repo url={repo.repo} />
                                                             </span>
                                                         </Tooltip>
                                                     </div>
-                                                    <div className='columns small-3'>
+                                                    <div className='columns small-2'>
                                                         <ConnectionStateIcon state={repo.connectionState} /> {repo.connectionState.status}
                                                         <DropDownMenu
                                                             anchor={() => (
@@ -323,7 +346,7 @@ export class ReposList extends React.Component<
                                                                 },
                                                                 {
                                                                     title: 'Disconnect',
-                                                                    action: () => this.disconnectRepo(repo.repo)
+                                                                    action: () => this.disconnectRepo(repo.repo, repo.project)
                                                                 }
                                                             ]}
                                                         />
@@ -436,6 +459,9 @@ export class ReposList extends React.Component<
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
                                                     </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
+                                                    </div>
                                                 </div>
                                             )}
                                             {this.state.method === ConnectionMethod.HTTPS && (
@@ -444,9 +470,14 @@ export class ReposList extends React.Component<
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}} />
                                                     </div>
-                                                    {formApi.getFormState().values.type === 'helm' && (
+                                                    {(formApi.getFormState().values.type === 'helm' || formApi.getFormState().values.type === 'git') && (
                                                         <div className='argo-form-row'>
-                                                            <FormField formApi={formApi} label='Name' field='name' component={Text} />
+                                                            <FormField
+                                                                formApi={formApi}
+                                                                label={`Name ${formApi.getFormState().values.type === 'git' ? '(optional)' : ''}`}
+                                                                field='name'
+                                                                component={Text}
+                                                            />
                                                         </div>
                                                     )}
                                                     <div className='argo-form-row'>
@@ -496,6 +527,12 @@ export class ReposList extends React.Component<
                                                     )}
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                                    </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
+                                                    </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Enable OCI' field='enableOCI' component={CheckboxField} />
                                                     </div>
                                                 </div>
                                             )}
@@ -575,6 +612,9 @@ export class ReposList extends React.Component<
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
                                                     </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
+                                                    </div>
                                                 </div>
                                             )}
                                             {this.state.method === ConnectionMethod.GOOGLECLOUD && (
@@ -597,6 +637,9 @@ export class ReposList extends React.Component<
                                                     </div>
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                                    </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
                                                     </div>
                                                 </div>
                                             )}
@@ -625,6 +668,10 @@ export class ReposList extends React.Component<
         }
     }
 
+    private stripProtocol(url: string) {
+        return url.replace('https://', '').replace('oci://', '');
+    }
+
     // only connections of git type which is not via GitHub App are updatable
     private isRepoUpdatable(repo: models.Repository) {
         return this.isHTTPSUrl(repo.repo) && repo.type === 'git' && !repo.githubAppId;
@@ -632,9 +679,11 @@ export class ReposList extends React.Component<
 
     // Forces a reload of configured repositories, circumventing the cache
     private async refreshRepoList(updatedRepo?: string) {
+        // Refresh the credentials template list
+        this.credsLoader.reload();
+
         try {
             await services.repos.listNoCache();
-            await services.repocreds.list();
             this.repoLoader.reload();
             this.appContext.apis.notifications.show({
                 content: updatedRepo ? `Successfully updated ${updatedRepo} repository` : 'Successfully reloaded list of repositories',
@@ -685,7 +734,9 @@ export class ReposList extends React.Component<
                 tlsClientCertData: params.tlsClientCertData,
                 tlsClientCertKey: params.tlsClientCertKey,
                 proxy: params.proxy,
-                forceHttpBasicAuth: params.forceHttpBasicAuth
+                noProxy: params.noProxy,
+                forceHttpBasicAuth: params.forceHttpBasicAuth,
+                enableOCI: params.enableOCI
             });
         } else {
             this.setState({connecting: true});
@@ -732,7 +783,8 @@ export class ReposList extends React.Component<
                 githubAppEnterpriseBaseURL: params.githubAppEnterpriseBaseURL,
                 tlsClientCertData: params.tlsClientCertData,
                 tlsClientCertKey: params.tlsClientCertKey,
-                proxy: params.proxy
+                proxy: params.proxy,
+                noProxy: params.noProxy
             });
         } else {
             this.setState({connecting: true});
@@ -828,11 +880,18 @@ export class ReposList extends React.Component<
     }
 
     // Remove a repository from the configuration
-    private async disconnectRepo(repo: string) {
+    private async disconnectRepo(repo: string, project: string) {
         const confirmed = await this.appContext.apis.popup.confirm('Disconnect repository', `Are you sure you want to disconnect '${repo}'?`);
         if (confirmed) {
-            await services.repos.delete(repo);
-            this.repoLoader.reload();
+            try {
+                await services.repos.delete(repo, project || '');
+                this.repoLoader.reload();
+            } catch (e) {
+                this.appContext.apis.notifications.show({
+                    content: <ErrorNotification title='Unable to disconnect repository' e={e} />,
+                    type: NotificationType.Error
+                });
+            }
         }
     }
 
@@ -840,8 +899,15 @@ export class ReposList extends React.Component<
     private async removeRepoCreds(url: string) {
         const confirmed = await this.appContext.apis.popup.confirm('Remove repository credentials', `Are you sure you want to remove credentials for URL prefix '${url}'?`);
         if (confirmed) {
-            await services.repocreds.delete(url);
-            this.credsLoader.reload();
+            try {
+                await services.repocreds.delete(url);
+                this.credsLoader.reload();
+            } catch (e) {
+                this.appContext.apis.notifications.show({
+                    content: <ErrorNotification title='Unable to remove repository credentials' e={e} />,
+                    type: NotificationType.Error
+                });
+            }
         }
     }
 

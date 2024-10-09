@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for MonoVertex status"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Healthy
+    message: "Successful"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "MonoVertex Failed"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for MonoVertex status"
+  inputPath: testdata/progressing-reason.yaml

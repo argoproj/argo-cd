@@ -34,7 +34,7 @@ func TestGetOutWriter_InlineOn(t *testing.T) {
 
 	assert.Equal(t, tmpFile, out.(*os.File).Name())
 	_, err = os.Stat(fmt.Sprintf("%s.back", tmpFile))
-	assert.NoError(t, err, "Back file must be created")
+	require.NoError(t, err, "Back file must be created")
 }
 
 func TestPrintResources_Secret_YAML(t *testing.T) {
@@ -43,7 +43,7 @@ func TestPrintResources_Secret_YAML(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{Name: "my-secret"},
 		Data:       map[string][]byte{"my-secret-key": []byte("my-secret-data")},
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.Equal(t, `apiVersion: v1
 kind: Secret

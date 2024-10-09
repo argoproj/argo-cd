@@ -15,6 +15,7 @@ rules:
   - delete  # supports deletion a live object in UI
   - get     # supports viewing live object manifest in UI
   - patch   # supports `argocd app patch`
+  - list    # supports `argocd appset generate` with cluster generator
 - apiGroups:
   - ""
   resources:
@@ -32,7 +33,20 @@ rules:
   - "argoproj.io"
   resources:
   - "applications"
+  - "applicationsets"
   verbs:
   - get
   - list
   - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - create   # supports triggering jobs from UI
+- apiGroups:
+  - argoproj.io
+  resources:
+  - workflows
+  verbs:
+  - create   # supports triggering workflows from UI

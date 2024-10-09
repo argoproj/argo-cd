@@ -87,10 +87,21 @@ spec:
         allBranches: true
         # If true, recurses through subgroups. If false, it searches only in the base group. Defaults to false.
         includeSubgroups: true
+        # If true and includeSubgroups is also true, include Shared Projects, which is gitlab API default.
+        # If false only search Projects under the same path. Defaults to true.
+        includeSharedProjects: false
+        # filter projects by topic. A single topic is supported by Gitlab API. Defaults to "" (all topics).
+        topic: "my-topic"
         # Reference to a Secret containing an access token. (optional)
         tokenRef:
           secretName: gitlab-token
           key: token
+        # If true, skips validating the SCM provider's TLS certificate - useful for self-signed certificates.
+        insecure: false
+        # Reference to a ConfigMap containing trusted CA certs - useful for self-signed certificates. (optional)
+        caRef:
+          configMapName: argocd-tls-certs-cm
+          key: gitlab-ca
   template:
   # ...
 ```
@@ -99,11 +110,23 @@ spec:
 * `api`: If using self-hosted GitLab, the URL to access it.
 * `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
 * `includeSubgroups`: By default (false) the controller will only search for repos directly in the base group. If this is true, it will recurse through all the subgroups searching for repos to scan.
+* `includeSharedProjects`: If true and includeSubgroups is also true, include Shared Projects, which is gitlab API default. If false only search Projects under the same path. In general most would want the behaviour when set to false. Defaults to true.
+* `topic`: filter projects by topic. A single topic is supported by Gitlab API. Defaults to "" (all topics).
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
+* `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
+* `caRef`: Optional `ConfigMap` name and key containing the GitLab certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
 
-For label filtering, the repository tags are used.
+For label filtering, the repository topics are used.
 
 Available clone protocols are `ssh` and `https`.
+
+### Self-signed TLS Certificates
+
+As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab.
+
+In order for a self-signed TLS certificate be used by an ApplicationSet's SCM / PR Gitlab Generator, the certificate needs to be mounted on the applicationset-controller. The path of the mounted certificate must be explicitly set using the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH` or alternatively using parameter `--scm-root-ca-path`. The applicationset controller will read the mounted certificate to create the Gitlab client for SCM/PR Providers
+
+This can be achieved conveniently by setting `applicationsetcontroller.scm.root.ca.path` in the argocd-cmd-params-cm ConfigMap. Be sure to restart the ApplicationSet controller after setting this value.
 
 ## Gitea
 
@@ -160,7 +183,8 @@ spec:
         api: https://mycompany.bitbucket.org
         # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
         allBranches: true
-        # Credentials for Basic authentication. Required for private repositories.
+        # Credentials for Basic authentication (App Password). Either basicAuth or bearerToken
+        # authentication is required to access private repositories
         basicAuth:
           # The username to authenticate with
           username: myuser
@@ -168,6 +192,19 @@ spec:
           passwordRef:
             secretName: mypassword
             key: password
+        # Credentials for Bearer Token (App Token) authentication. Either basicAuth or bearerToken
+        # authentication is required to access private repositories
+        bearerToken:
+          # Reference to a Secret containing the bearer token.
+          tokenRef:
+            secretName: repotoken
+            key: token
+        # If true, skips validating the SCM provider's TLS certificate - useful for self-signed certificates.
+        insecure: true
+        # Reference to a ConfigMap containing trusted CA certs - useful for self-signed certificates. (optional)
+        caRef:
+          configMapName: argocd-tls-certs-cm
+          key: bitbucket-ca
         # Support for filtering by labels is TODO. Bitbucket server labels are not supported for PRs, but they are for repos
   template:
   # ...
@@ -180,6 +217,13 @@ spec:
 If you want to access a private repository, you must also provide the credentials for Basic auth (this is the only auth supported currently):
 * `username`: The username to authenticate with. It only needs read access to the relevant repo.
 * `passwordRef`: A `Secret` name and key containing the password or personal access token to use for requests.
+
+In case of Bitbucket App Token, go with `bearerToken` section.
+* `tokenRef`: A `Secret` name and key containing the app token to use for requests.
+
+In case self-signed BitBucket Server certificates, the following options can be usefully:
+* `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
+* `caRef`: Optional `ConfigMap` name and key containing the BitBucket server certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
 
 Available clone protocols are `ssh` and `https`.
 
@@ -255,6 +299,87 @@ This SCM provider does not yet support label filtering
 
 Available clone protocols are `ssh` and `https`.
 
+## AWS CodeCommit (Alpha)
+
+Uses AWS ResourceGroupsTagging and AWS CodeCommit APIs to scan repos across AWS accounts and regions.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  generators:
+    - scmProvider:
+        awsCodeCommit:
+          # AWS region to scan repos.
+          # default to the environmental region from ApplicationSet controller.
+          region: us-east-1
+          # AWS role to assume to scan repos.
+          # default to the environmental role from ApplicationSet controller.
+          role: arn:aws:iam::111111111111:role/argocd-application-set-discovery
+          # If true, scan every branch of every repository. If false, scan only the main branch. Defaults to false.
+          allBranches: true
+          # AWS resource tags to filter repos with.
+          # see https://docs.aws.amazon.com/resourcegroupstagging/latest/APIReference/API_GetResources.html#resourcegrouptagging-GetResources-request-TagFilters for details
+          # default to no tagFilters, to include all repos in the region.
+          tagFilters:
+            - key: organization
+              value: platform-engineering
+            - key: argo-ready
+  template:
+  # ...
+```
+
+* `region`: (Optional) AWS region to scan repos. By default, use ApplicationSet controller's current region.
+* `role`: (Optional) AWS role to assume to scan repos. By default, use ApplicationSet controller's current role.
+* `allBranches`: (Optional) If `true`, scans every branch of eligible repositories. If `false`, check only the default branch of the eligible repositories. Default `false`.
+* `tagFilters`: (Optional) A list of tagFilters to filter AWS CodeCommit repos with. See [AWS ResourceGroupsTagging API](https://docs.aws.amazon.com/resourcegroupstagging/latest/APIReference/API_GetResources.html#resourcegrouptagging-GetResources-request-TagFilters) for details. By default, no filter is included.
+
+This SCM provider does not support the following features
+
+* label filtering
+* `sha`, `short_sha` and `short_sha_7` template parameters
+
+Available clone protocols are `ssh`, `https` and `https-fips`.
+
+### AWS IAM Permission Considerations
+
+In order to call AWS APIs to discover AWS CodeCommit repos, ApplicationSet controller must be configured with valid environmental AWS config, like current AWS region and AWS credentials.
+AWS config can be provided via all standard options, like Instance Metadata Service (IMDS), config file, environment variables, or IAM roles for service accounts (IRSA).
+
+Depending on whether `role` is provided in `awsCodeCommit` property, AWS IAM permission requirement is different.
+
+#### Discover AWS CodeCommit Repositories in the same AWS Account as ApplicationSet Controller
+
+Without specifying `role`, ApplicationSet controller will use its own AWS identity to scan AWS CodeCommit repos.
+This is suitable when you have a simple setup that all AWS CodeCommit repos reside in the same AWS account as your Argo CD.
+
+As the ApplicationSet controller AWS identity is used directly for repo discovery, it must be granted below AWS permissions.
+
+* `tag:GetResources`
+* `codecommit:ListRepositories`
+* `codecommit:GetRepository`
+* `codecommit:GetFolder`
+* `codecommit:ListBranches`
+
+#### Discover AWS CodeCommit Repositories across AWS Accounts and Regions
+
+By specifying `role`, ApplicationSet controller will first assume the `role`, and use it for repo discovery.
+This enables more complicated use cases to discover repos from different AWS accounts and regions.
+
+The ApplicationSet controller AWS identity should be granted permission to assume target AWS roles.
+
+* `sts:AssumeRole`
+
+All AWS roles must have repo discovery related permissions.
+
+* `tag:GetResources`
+* `codecommit:ListRepositories`
+* `codecommit:GetRepository`
+* `codecommit:GetFolder`
+* `codecommit:ListBranches`
+
 ## Filters
 
 Filters allow selecting which repositories to generate for. Each filter can declare one or more conditions, all of which must pass. If multiple filters are present, any can match for a repository to be included. If no filters are specified, all repositories will be processed.
@@ -296,16 +421,18 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - scmProvider:
     # ...
   template:
     metadata:
-      name: '{{ repository }}'
+      name: '{{ .repository }}'
     spec:
       source:
-        repoURL: '{{ url }}'
-        targetRevision: '{{ branch }}'
+        repoURL: '{{ .url }}'
+        targetRevision: '{{ .branch }}'
         path: kubernetes/
       project: default
       destination:
@@ -319,5 +446,52 @@ spec:
 * `branch`: The default branch of the repository.
 * `sha`: The Git commit SHA for the branch.
 * `short_sha`: The abbreviated Git commit SHA for the branch (8 chars or the length of the `sha` if it's shorter).
-* `labels`: A comma-separated list of repository labels.
+* `short_sha_7`: The abbreviated Git commit SHA for the branch (7 chars or the length of the `sha` if it's shorter).
+* `labels`: A comma-separated list of repository labels in case of Gitea, repository topics in case of Gitlab and Github. Not supported by Bitbucket Cloud, Bitbucket Server, or Azure DevOps.
 * `branchNormalized`: The value of `branch` normalized to contain only lowercase alphanumeric characters, '-' or '.'.
+
+## Pass additional key-value pairs via `values` field
+
+You may pass additional, arbitrary string key-value pairs via the `values` field of any SCM generator. Values added via the `values` field are added as `values.(field)`.
+
+In this example, a `name` parameter value is passed. It is interpolated from `organization` and `repository` to generate a different template name.
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - scmProvider:
+      bitbucketServer:
+        project: myproject
+        api: https://mycompany.bitbucket.org
+        allBranches: true
+        basicAuth:
+          username: myuser
+          passwordRef:
+            secretName: mypassword
+            key: password
+      values:
+        name: "{{.organization}}-{{.repository}}"
+
+  template:
+    metadata:
+      name: '{{ .values.name }}'
+    spec:
+      source:
+        repoURL: '{{ .url }}'
+        targetRevision: '{{ .branch }}'
+        path: kubernetes/
+      project: default
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: default
+```
+
+!!! note
+    The `values.` prefix is always prepended to values provided via `generators.scmProvider.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
+
+In `values` we can also interpolate all fields set by the SCM generator as mentioned above.

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/ghodss/yaml"
+	"sigs.k8s.io/yaml"
 )
 
 // UnmarshalReader is used to read manifests from stdin
@@ -30,13 +30,7 @@ func unmarshalObject(data []byte, obj interface{}) error {
 	if err != nil {
 		return err
 	}
-
-	err = json.Unmarshal(jsonData, &obj)
-	if err != nil {
-		return err
-	}
-
-	return err
+	return json.Unmarshal(jsonData, &obj)
 }
 
 // MarshalLocalYAMLFile writes JSON or YAML to a file on disk.
@@ -44,7 +38,7 @@ func unmarshalObject(data []byte, obj interface{}) error {
 func MarshalLocalYAMLFile(path string, obj interface{}) error {
 	yamlData, err := yaml.Marshal(obj)
 	if err == nil {
-		err = os.WriteFile(path, yamlData, 0600)
+		err = os.WriteFile(path, yamlData, 0o600)
 	}
 	return err
 }

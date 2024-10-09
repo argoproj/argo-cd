@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: 'PodDisruptionBudget has SufficientPods'
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Waiting for status'
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Degraded
+    message: 'PodDisruptionBudget has InsufficientPods'
+  inputPath: testdata/degraded.yaml

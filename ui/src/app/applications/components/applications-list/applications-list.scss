@@ -118,9 +118,9 @@
     }
 
     &__search {
-        border: 1px solid $argo-color-gray-4;
         @include themify($themes) {
             background-color: themed('light-argo-gray-2');
+            border: 1px solid themed('border');
         }
         border-radius: 7px;
         position: relative;

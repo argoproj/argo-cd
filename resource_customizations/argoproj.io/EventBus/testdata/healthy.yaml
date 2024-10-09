@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: EventBus
+metadata:
+  name: test
+  namespace: eventbus-test
+spec:
+  jetstream:
+    replicas: 3
+    version: latest
+status:
+  conditions:
+    - lastTransitionTime: '2022-12-30T11:44:15Z'
+      status: 'True'
+      type: Configured
+    - lastTransitionTime: '2022-12-30T11:44:15Z'
+      message: JetStream is deployed
+      reason: Succeeded
+      status: 'True'
+      type: Deployed

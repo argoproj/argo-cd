@@ -12,13 +12,18 @@ export const FullscreenButton = ({
     kind,
     name,
     namespace,
-    podName
+    podName,
+    viewPodNames,
+    viewTimestamps,
+    follow,
+    showPreviousLogs
 }: PodLogsProps & {fullscreen?: boolean}) => {
     const fullscreenURL =
-        `/applications/${applicationNamespace}/${applicationName}/${namespace}/${containerName}/logs?` + `podName=${podName}&group=${group}&kind=${kind}&name=${name}`;
+        `/applications/${applicationNamespace}/${applicationName}/${namespace}/${containerName}/logs?` +
+        `podName=${podName}&group=${group}&kind=${kind}&name=${name}&viewPodNames=${viewPodNames}&viewTimestamps=${viewTimestamps}&follow=${follow}&showPreviousLogs=${showPreviousLogs}`;
     return (
         !fullscreen && (
-            <Link to={fullscreenURL} target='_blank'>
+            <Link to={fullscreenURL} target='_blank' rel='noopener noreferrer'>
                 <Button title='Show logs in fullscreen in a new window' icon='external-link-alt' />
             </Link>
         )

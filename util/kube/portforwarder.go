@@ -56,7 +56,7 @@ func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOv
 	}
 
 	if pod == nil {
-		return -1, fmt.Errorf("cannot find pod with selector: %v", podSelectors)
+		return -1, fmt.Errorf("cannot find pod with selector: %v - use the --{component}-name flag in this command or set the environmental variable (Refer to https://argo-cd.readthedocs.io/en/stable/user-guide/environment-variables), to change the Argo CD component name in the CLI", podSelectors)
 	}
 
 	url := clientSet.CoreV1().RESTClient().Post().
@@ -100,7 +100,7 @@ func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOv
 	case <-readyChan:
 	}
 	if len(errOut.String()) != 0 {
-		return -1, fmt.Errorf(errOut.String())
+		return -1, fmt.Errorf("%s", errOut.String())
 	}
 	return port, nil
 }

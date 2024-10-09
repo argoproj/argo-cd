@@ -6,16 +6,41 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/argoproj/argo-cd/v2/util/git"
-	"github.com/argoproj/argo-cd/v2/util/glob"
-
+	globutil "github.com/gobwas/glob"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/argoproj/argo-cd/v2/util/git"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 )
+
+const (
+	// serviceAccountDisallowedCharSet contains the characters that are not allowed to be present
+	// in a DefaultServiceAccount configured for a DestinationServiceAccount
+	serviceAccountDisallowedCharSet = "!*[]{}\\/"
+)
+
+type ErrApplicationNotAllowedToUseProject struct {
+	application string
+	namespace   string
+	project     string
+}
+
+func NewErrApplicationNotAllowedToUseProject(application, namespace, project string) error {
+	return &ErrApplicationNotAllowedToUseProject{
+		application: application,
+		namespace:   namespace,
+		project:     project,
+	}
+}
+
+func (err *ErrApplicationNotAllowedToUseProject) Error() string {
+	return fmt.Sprintf("application '%s' in namespace '%s' is not allowed to use project %s", err.application, err.namespace, err.project)
+}
 
 // AppProjectList is list of AppProject resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -94,7 +119,6 @@ func (p *AppProject) GetJWTToken(roleName string, issuedAt int64, id string) (*J
 				return &token, i, nil
 			}
 		}
-
 	}
 
 	if issuedAt != -1 {
@@ -126,10 +150,10 @@ func (p AppProject) RemoveJWTToken(roleIndex int, issuedAt int64, id string) err
 	}
 
 	if err1 == nil || err2 == nil {
-		//If we find this token from either places, we can say there are no error
+		// If we find this token from either places, we can say there are no error
 		return nil
 	} else {
-		//If we could not locate this taken from either places, we can return any of the errors
+		// If we could not locate this taken from either places, we can return any of the errors
 		return err2
 	}
 }
@@ -246,6 +270,38 @@ func (p *AppProject) ValidateProject() error {
 			}
 			existingWindows[window.Kind+window.Schedule+window.Duration] = true
 		}
+	}
+
+	destServiceAccts := make(map[string]bool)
+	for _, destServiceAcct := range p.Spec.DestinationServiceAccounts {
+		if strings.Contains(destServiceAcct.Server, "!") {
+			return status.Errorf(codes.InvalidArgument, "server has an invalid format, '%s'", destServiceAcct.Server)
+		}
+
+		if strings.Contains(destServiceAcct.Namespace, "!") {
+			return status.Errorf(codes.InvalidArgument, "namespace has an invalid format, '%s'", destServiceAcct.Namespace)
+		}
+
+		if strings.Trim(destServiceAcct.DefaultServiceAccount, " ") == "" ||
+			strings.ContainsAny(destServiceAcct.DefaultServiceAccount, serviceAccountDisallowedCharSet) {
+			return status.Errorf(codes.InvalidArgument, "defaultServiceAccount has an invalid format, '%s'", destServiceAcct.DefaultServiceAccount)
+		}
+
+		_, err := globutil.Compile(destServiceAcct.Server)
+		if err != nil {
+			return status.Errorf(codes.InvalidArgument, "server has an invalid format, '%s'", destServiceAcct.Server)
+		}
+
+		_, err = globutil.Compile(destServiceAcct.Namespace)
+		if err != nil {
+			return status.Errorf(codes.InvalidArgument, "namespace has an invalid format, '%s'", destServiceAcct.Namespace)
+		}
+
+		key := fmt.Sprintf("%s/%s", destServiceAcct.Server, destServiceAcct.Namespace)
+		if _, ok := destServiceAccts[key]; ok {
+			return status.Errorf(codes.InvalidArgument, "destinationServiceAccount '%s' already added", key)
+		}
+		destServiceAccts[key] = true
 	}
 
 	return nil
@@ -410,7 +466,7 @@ func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination, projec
 	if destinationMatched && proj.Spec.PermitOnlyProjectScopedClusters {
 		clusters, err := projectClusters(proj.Name)
 		if err != nil {
-			return false, fmt.Errorf("could not retrieve project clusters: %s", err)
+			return false, fmt.Errorf("could not retrieve project clusters: %w", err)
 		}
 
 		for _, cluster := range clusters {
@@ -427,7 +483,6 @@ func (proj AppProject) IsDestinationPermitted(dst ApplicationDestination, projec
 
 func (proj AppProject) isDestinationMatched(dst ApplicationDestination) bool {
 	anyDestinationMatched := false
-	noDenyDestinationsMatched := true
 
 	for _, item := range proj.Spec.Destinations {
 		dstNameMatched := dst.Name != "" && globMatch(item.Name, dst.Name, true)
@@ -437,12 +492,14 @@ func (proj AppProject) isDestinationMatched(dst ApplicationDestination) bool {
 		matched := (dstServerMatched || dstNameMatched) && dstNamespaceMatched
 		if matched {
 			anyDestinationMatched = true
-		} else if ((!dstNameMatched && isDenyPattern(item.Name)) || (!dstServerMatched && isDenyPattern(item.Server))) || (!dstNamespaceMatched && isDenyPattern(item.Namespace)) {
-			noDenyDestinationsMatched = false
+		} else if (!dstNameMatched && isDenyPattern(item.Name)) || (!dstServerMatched && isDenyPattern(item.Server)) && dstNamespaceMatched {
+			return false
+		} else if !dstNamespaceMatched && isDenyPattern(item.Namespace) && dstServerMatched {
+			return false
 		}
 	}
 
-	return anyDestinationMatched && noDenyDestinationsMatched
+	return anyDestinationMatched
 }
 
 func isDenyPattern(pattern string) bool {
@@ -545,5 +602,5 @@ func (p AppProject) IsAppNamespacePermitted(app *Application, controllerNs strin
 		return true
 	}
 
-	return glob.MatchStringInList(p.Spec.SourceNamespaces, app.Namespace, false)
+	return glob.MatchStringInList(p.Spec.SourceNamespaces, app.Namespace, glob.REGEXP)
 }
