@@ -2727,9 +2727,6 @@ func TestSimpleSCMProviderGeneratorTokenRefStrictOk(t *testing.T) {
 			Name:       "argo-cd-guestbook",
 			Namespace:  fixture.TestNamespace(),
 			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				common.LabelKeyAppInstance: "simple-scm-provider-generator-strict",
-			},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
