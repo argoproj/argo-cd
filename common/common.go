@@ -119,6 +119,8 @@ const (
 
 	// LegacyShardingAlgorithm is the default value for Sharding Algorithm it uses an `uid` based distribution (non-uniform)
 	LegacyShardingAlgorithm = "legacy"
+	// LegacyURLShardingAlgorithm is a modification of LegacyShardingAlgorithm that ensures consistency with the same server URL
+	LegacyURLShardingAlgorithm = "legacy-url"
 	// RoundRobinShardingAlgorithm is a flag value that can be opted for Sharding Algorithm it uses an equal distribution across all shards
 	RoundRobinShardingAlgorithm = "round-robin"
 	// AppControllerHeartbeatUpdateRetryCount is the retry count for updating the Shard Mapping to the Shard Mapping ConfigMap used by Application Controller
