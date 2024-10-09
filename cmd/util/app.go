@@ -3,12 +3,13 @@ package util
 import (
 	"bufio"
 	"fmt"
-	"go.uber.org/automaxprocs/maxprocs"
 	"io"
 	"net/url"
 	"os"
 	"strings"
 	"time"
+
+	"go.uber.org/automaxprocs/maxprocs"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 

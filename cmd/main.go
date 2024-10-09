@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/argoproj/argo-cd/v2/cmd/util"
 	"os"
 	"path/filepath"
+
+	"github.com/argoproj/argo-cd/v2/cmd/util"
 
 	"github.com/spf13/cobra"
 
