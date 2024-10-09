@@ -90,6 +90,14 @@ test('OperationState.Sync OK', () => {
     expect(tree).toMatchSnapshot();
 });
 
+test('OperationState.Sync warning', () => {
+    const tree = renderer
+        .create(<OperationState app={{metadata: {}, status: {operationState: {operation: {sync: {}}, phase: OperationPhases.Warning}}} as Application} />)
+        .toJSON();
+
+    expect(tree).toMatchSnapshot();
+});
+
 test('OperationState.Sync error', () => {
     const tree = renderer.create(<OperationState app={{metadata: {}, status: {operationState: {operation: {sync: {}}, phase: OperationPhases.Error}}} as Application} />).toJSON();
 
@@ -180,6 +188,12 @@ test('ResourceResultIcon.SyncFailed', () => {
     expect(tree).toMatchSnapshot();
 });
 
+test('ResourceResultIcon.SyncedWithWarning', () => {
+    const tree = renderer.create(<ResourceResultIcon resource={{status: ResultCodes.SyncedWithWarning} as ResourceResult} />).toJSON();
+
+    expect(tree).toMatchSnapshot();
+});
+
 test('ResourceResultIcon.Hook.Running', () => {
     const tree = renderer
         .create(
@@ -218,6 +232,12 @@ test('ResourceResultIcon.Hook.Succeeded', () => {
 
 test('ResourceResultIcon.Hook.Terminating', () => {
     const tree = renderer.create(<ResourceResultIcon resource={{hookType: 'Sync', hookPhase: OperationPhases.Terminating} as ResourceResult} />).toJSON();
+
+    expect(tree).toMatchSnapshot();
+});
+
+test('ResourceResultIcon.Hook.Warning', () => {
+    const tree = renderer.create(<ResourceResultIcon resource={{hookType: 'Sync', hookPhase: OperationPhases.Warning} as ResourceResult} />).toJSON();
 
     expect(tree).toMatchSnapshot();
 });
