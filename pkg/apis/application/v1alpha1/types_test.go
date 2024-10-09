@@ -1793,7 +1793,7 @@ func TestSyncWindows_Active(t *testing.T) {
 	t.Run("WithTestProject", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		activeWindows, err := proj.Spec.SyncWindows.Active()
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Len(t, *activeWindows, 1)
 	})
 
@@ -1955,9 +1955,9 @@ func TestSyncWindows_Active(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := tt.syncWindow.active(tt.currentTime)
 			if tt.isErr {
-				assert.NotNil(t, err)
+				assert.Error(t, err)
 			} else {
-				assert.Nil(t, err)
+				assert.NoError(t, err)
 			}
 			if result == nil {
 				result = &SyncWindows{}
@@ -1976,7 +1976,7 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
 		proj.Spec.SyncWindows[0].Schedule = "0 0 1 1 1"
 		inactiveAllowWindows, err := proj.Spec.SyncWindows.InactiveAllows()
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.Len(t, *inactiveAllowWindows, 1)
 	})
 
@@ -2154,9 +2154,9 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := tt.syncWindow.inactiveAllows(tt.currentTime)
 			if tt.isErr {
-				assert.NotNil(t, err)
+				assert.Error(t, err)
 			} else {
-				assert.Nil(t, err)
+				assert.NoError(t, err)
 			}
 			if result == nil {
 				result = &SyncWindows{}
@@ -2271,7 +2271,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will allow manual sync if inactive-deny-window set with manual false", func(t *testing.T) {
@@ -2283,7 +2283,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will deny manual sync if one inactive-allow-windows set with manual false", func(t *testing.T) {
@@ -2298,7 +2298,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will allow manual sync if on active-allow-window set with manual true", func(t *testing.T) {
@@ -2312,7 +2312,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will allow manual sync if on active-allow-window set with manual false", func(t *testing.T) {
@@ -2326,7 +2326,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will allow auto sync if on active-allow-window", func(t *testing.T) {
@@ -2340,7 +2340,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will allow manual sync active-allow and inactive-deny", func(t *testing.T) {
@@ -2355,7 +2355,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will allow auto sync active-allow and inactive-deny", func(t *testing.T) {
@@ -2370,7 +2370,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will deny manual sync inactive-allow", func(t *testing.T) {
@@ -2384,7 +2384,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny auto sync inactive-allow", func(t *testing.T) {
@@ -2398,7 +2398,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will allow manual sync inactive-allow with ManualSync enabled", func(t *testing.T) {
@@ -2412,7 +2412,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will deny auto sync inactive-allow with ManualSync enabled", func(t *testing.T) {
@@ -2426,7 +2426,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny manual sync with inactive-allow and inactive-deny", func(t *testing.T) {
@@ -2441,7 +2441,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny auto sync with inactive-allow and inactive-deny", func(t *testing.T) {
@@ -2456,7 +2456,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will allow auto sync with active-allow and inactive-allow", func(t *testing.T) {
@@ -2471,7 +2471,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will deny manual sync with active-deny", func(t *testing.T) {
@@ -2485,7 +2485,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny auto sync with active-deny", func(t *testing.T) {
@@ -2499,7 +2499,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will allow manual sync with active-deny with ManualSync enabled", func(t *testing.T) {
@@ -2513,7 +2513,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will deny auto sync with active-deny with ManualSync enabled", func(t *testing.T) {
@@ -2527,7 +2527,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny manual sync with many active-deny having one with ManualSync disabled", func(t *testing.T) {
@@ -2544,7 +2544,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny auto sync with many active-deny having one with ManualSync disabled", func(t *testing.T) {
@@ -2561,7 +2561,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny manual sync with active-deny and active-allow windows with ManualSync disabled", func(t *testing.T) {
@@ -2576,7 +2576,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will allow manual sync with active-deny and active-allow windows with ManualSync enabled", func(t *testing.T) {
@@ -2591,7 +2591,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(true)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.True(t, canSync)
 	})
 	t.Run("will deny auto sync with active-deny and active-allow windows with ManualSync enabled", func(t *testing.T) {
@@ -2606,7 +2606,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.False(t, canSync)
 	})
 	t.Run("will deny and return error with invalid windows", func(t *testing.T) {
@@ -2620,7 +2620,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		canSync, err := proj.Spec.SyncWindows.CanSync(false)
 
 		// then
-		assert.NotNil(t, err)
+		assert.Error(t, err)
 		assert.False(t, canSync)
 	})
 }
@@ -2671,7 +2671,7 @@ func TestSyncWindow_Active(t *testing.T) {
 	window := &SyncWindow{Schedule: "* * * * *", Duration: "1h"}
 	t.Run("ActiveWindow", func(t *testing.T) {
 		isActive, err := window.Active()
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		assert.True(t, isActive)
 	})
 
@@ -2781,9 +2781,9 @@ func TestSyncWindow_Active(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := tt.syncWindow.active(tt.currentTime)
 			if tt.isErr {
-				assert.NotNil(t, err)
+				assert.Error(t, err)
 			} else {
-				assert.Nil(t, err)
+				assert.NoError(t, err)
 			}
 			assert.Equal(t, tt.expectedResult, result)
 		})
