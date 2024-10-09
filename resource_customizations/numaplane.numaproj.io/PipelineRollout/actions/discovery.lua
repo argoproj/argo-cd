@@ -7,7 +7,7 @@ actions["disallow-data-loss"] = {["disabled"] = true}
 -- pause/unpause
 local paused = false
 if obj.spec.pipeline.spec.lifecycle ~= nil and obj.spec.pipeline.spec.lifecycle.desiredPhase ~= nil and obj.spec.pipeline.spec.lifecycle.desiredPhase == "Paused" then
-    paused = true
+  paused = true
 end
 if paused then
   actions["unpause"]["disabled"] = false
