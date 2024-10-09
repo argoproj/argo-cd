@@ -69,14 +69,10 @@ jobs:
       - name: Fetch all tags
         run: git fetch --force --tags
 
-      - name: Set GORELEASER_PREVIOUS_TAG # Workaround, GoReleaser uses 'git-describe' to determine a previous tag. Our tags are created in realease branches.
+      - name: Set GORELEASER_PREVIOUS_TAG # Workaround, GoReleaser uses 'git-describe' to determine a previous tag. Our tags are created in release branches.
         run: |
           set -xue
-          if echo ${{ github.ref_name }} | grep -E -- '-rc1+$';then
-            echo "GORELEASER_PREVIOUS_TAG=$(git -c 'versionsort.suffix=-rc' tag --list --sort=version:refname | tail -n 2 | head -n 1)" >> $GITHUB_ENV
-          else
-            echo "This is not the first release on the branch, Using GoReleaser defaults"
-          fi
+          echo "GORELEASER_PREVIOUS_TAG=$(go run get-previous-version-for-release-notes.go ${{ github.ref_name }})" >> $GITHUB_ENV
 
       - name: Setup Golang
         uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
