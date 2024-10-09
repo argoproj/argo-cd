@@ -7144,6 +7144,10 @@
           "description": "Server requires Bearer authentication. This client will not attempt to use\nrefresh tokens for an OAuth2 flow.\nTODO: demonstrate an OAuth2 compatible client.",
           "type": "string"
         },
+        "disableCompression": {
+          "description": "DisableCompression bypasses automatic GZip compression requests to the server.",
+          "type": "boolean"
+        },
         "execProviderConfig": {
           "$ref": "#/definitions/v1alpha1ExecProviderConfig"
         },

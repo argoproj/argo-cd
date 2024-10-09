@@ -300,8 +300,8 @@ func (s *Server) updateAppSet(appset *v1alpha1.ApplicationSet, newAppset *v1alph
 	for i := 0; i < 10; i++ {
 		appset.Spec = newAppset.Spec
 		if merge {
-			appset.Labels = collections.MergeStringMaps(appset.Labels, newAppset.Labels)
-			appset.Annotations = collections.MergeStringMaps(appset.Annotations, newAppset.Annotations)
+			appset.Labels = collections.Merge(appset.Labels, newAppset.Labels)
+			appset.Annotations = collections.Merge(appset.Annotations, newAppset.Annotations)
 		} else {
 			appset.Labels = newAppset.Labels
 			appset.Annotations = newAppset.Annotations
