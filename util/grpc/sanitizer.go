@@ -1,11 +1,10 @@
 package grpc
 
 import (
+	"context"
 	"errors"
 	"regexp"
 	"strings"
-
-	"context"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
@@ -65,7 +64,7 @@ func NewSanitizer() *sanitizer {
 // AddReplacement adds a replacement to the Sanitizer
 func (s *sanitizer) AddReplacement(val string, replacement string) {
 	s.replacers = append(s.replacers, func(in string) string {
-		return strings.Replace(in, val, replacement, -1)
+		return strings.ReplaceAll(in, val, replacement)
 	})
 }
 

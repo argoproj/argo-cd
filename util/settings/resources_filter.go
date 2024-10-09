@@ -8,6 +8,8 @@ var coreExcludedResources = []FilteredResource{
 	{APIGroups: []string{"events.k8s.io", "metrics.k8s.io"}},
 	{APIGroups: []string{""}, Kinds: []string{"Event"}},
 	{APIGroups: []string{"coordination.k8s.io"}, Kinds: []string{"Lease"}},
+	{APIGroups: []string{""}, Kinds: []string{"Endpoints"}},
+	{APIGroups: []string{"discovery.k8s.io"}, Kinds: []string{"EndpointSlice"}},
 }
 
 type ResourcesFilter struct {
@@ -22,7 +24,6 @@ func (rf *ResourcesFilter) getExcludedResources() []FilteredResource {
 }
 
 func (rf *ResourcesFilter) checkResourcePresence(apiGroup, kind, cluster string, filteredResources []FilteredResource) bool {
-
 	for _, includedResource := range filteredResources {
 		if includedResource.Match(apiGroup, kind, cluster) {
 			return true

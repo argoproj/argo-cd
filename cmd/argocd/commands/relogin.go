@@ -20,10 +20,11 @@ import (
 // NewReloginCommand returns a new instance of `argocd relogin` command
 func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		password string
-		ssoPort  int
+		password         string
+		ssoPort          int
+		ssoLaunchBrowser bool
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "relogin",
 		Short: "Refresh an expired authenticate token",
 		Long:  "Refresh an expired authenticate token",
@@ -72,7 +73,7 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				errors.CheckError(err)
 				oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
 				errors.CheckError(err)
-				tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider)
+				tokenString, refreshToken = oauth2Login(ctx, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser)
 			}
 
 			localCfg.UpsertUser(localconfig.User{
@@ -99,5 +100,6 @@ argocd login cd.argoproj.io --core
 	}
 	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
+	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the default browser when performing SSO login")
 	return command
 }

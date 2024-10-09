@@ -1,0 +1,29 @@
+apiVersion: db.atlasgo.io/v1alpha1
+kind: AtlasMigration
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"db.atlasgo.io/v1alpha1","kind":"AtlasMigration","metadata":{"annotations":{},"name":"atlasmigration-sample","namespace":"default"},"spec":{"dir":{"configMapRef":{"name":"migration-dir"}},"urlFrom":{"secretKeyRef":{"key":"url","name":"mysql-credentials"}}}}
+  creationTimestamp: "2023-11-16T08:37:23Z"
+  generation: 1
+  name: atlasmigration-sample
+  namespace: default
+  resourceVersion: "49923"
+  uid: 0d5bc3d6-750e-4f5a-82a3-8b9173106ef4
+spec:
+  dir:
+    configMapRef:
+      name: migration-dir
+  urlFrom:
+    secretKeyRef:
+      key: url
+      name: mysql-credentials
+status:
+  conditions:
+    - lastTransitionTime: "2023-11-16T08:37:23Z"
+      message: 'Error: checksum mismatch'
+      reason: Migrating
+      status: "False"
+      type: Ready
+  lastApplied: 0
+  observed_hash: ""

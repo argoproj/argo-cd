@@ -3,6 +3,7 @@
 const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
+const {codecovWebpackPlugin} = require("@codecov/webpack-plugin");
 const webpack = require('webpack');
 
 const isProd = process.env.NODE_ENV === 'production';
@@ -94,7 +95,12 @@ const config = {
         new MonacoWebpackPlugin({
             // https://github.com/microsoft/monaco-editor-webpack-plugin#options
             languages: ['yaml']
-        })
+        }),
+        codecovWebpackPlugin({
+            enableBundleAnalysis: process.env.CODECOV_TOKEN !== undefined,
+            bundleName: "argo-cd-ui",
+            uploadToken: process.env.CODECOV_TOKEN,
+        }),
     ],
     devServer: {
         compress: false,

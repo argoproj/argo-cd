@@ -26,8 +26,8 @@ argocd admin settings rbac validate --policy-file policy.csv
 # i.e. 'policy.csv' and (optionally) 'policy.default'
 argocd admin settings rbac validate --policy-file argocd-rbac-cm.yaml
 
-# If --policy-file is not given, and instead --namespace is giventhe ConfigMap 'argocd-rbac-cm' 
-# from K8s is used. 
+# If --policy-file is not given, and instead --namespace is giventhe ConfigMap 'argocd-rbac-cm'
+# from K8s is used.
 argocd admin settings rbac validate --namespace argocd
 
 # Either --policy-file or --namespace must be given.
@@ -65,8 +65,9 @@ argocd admin settings rbac validate --namespace argocd
 
 ```
       --argocd-cm-path string           Path to local argocd-cm.yaml file
+      --argocd-context string           The name of the Argo-CD server context to use
       --argocd-secret-path string       Path to local argocd-secret.yaml file
-      --auth-token string               Authentication token
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")

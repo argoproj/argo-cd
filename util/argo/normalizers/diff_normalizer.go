@@ -1,9 +1,12 @@
 package normalizers
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -14,6 +17,11 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/glob"
+)
+
+const (
+	// DefaultJQExecutionTimeout is the maximum time allowed for a JQ patch to execute
+	DefaultJQExecutionTimeout = 1 * time.Second
 )
 
 type normalizerPatch interface {
@@ -57,7 +65,8 @@ func (np *jsonPatchNormalizerPatch) Apply(data []byte) ([]byte, error) {
 
 type jqNormalizerPatch struct {
 	baseNormalizerPatch
-	code *gojq.Code
+	code               *gojq.Code
+	jqExecutionTimeout time.Duration
 }
 
 func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {
@@ -67,12 +76,18 @@ func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	iter := np.code.Run(dataJson)
+	ctx, cancel := context.WithTimeout(context.Background(), np.jqExecutionTimeout)
+	defer cancel()
+
+	iter := np.code.RunWithContext(ctx, dataJson)
 	first, ok := iter.Next()
 	if !ok {
 		return nil, fmt.Errorf("JQ patch did not return any data")
 	}
 	if err, ok = first.(error); ok {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return nil, fmt.Errorf("JQ patch execution timed out (%v)", np.jqExecutionTimeout.String())
+		}
 		return nil, fmt.Errorf("JQ patch returned error: %w", err)
 	}
 	_, ok = iter.Next()
@@ -91,8 +106,19 @@ type ignoreNormalizer struct {
 	patches []normalizerPatch
 }
 
+type IgnoreNormalizerOpts struct {
+	JQExecutionTimeout time.Duration
+}
+
+func (opts *IgnoreNormalizerOpts) getJQExecutionTimeout() time.Duration {
+	if opts == nil || opts.JQExecutionTimeout == 0 {
+		return DefaultJQExecutionTimeout
+	}
+	return opts.JQExecutionTimeout
+}
+
 // NewIgnoreNormalizer creates diff normalizer which removes ignored fields according to given application spec and resource overrides
-func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride) (diff.Normalizer, error) {
+func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride, opts IgnoreNormalizerOpts) (diff.Normalizer, error) {
 	for key, override := range overrides {
 		group, kind, err := getGroupKindForOverrideKey(key)
 		if err != nil {
@@ -147,7 +173,8 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 					name:      ignore[i].Name,
 					namespace: ignore[i].Namespace,
 				},
-				code: jqDeletionCode,
+				code:               jqDeletionCode,
+				jqExecutionTimeout: opts.getJQExecutionTimeout(),
 			})
 		}
 	}
@@ -167,7 +194,6 @@ func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 			glob.Match(patch.GetGroupKind().Kind, groupKind.Kind) &&
 			(patch.GetName() == "" || patch.GetName() == un.GetName()) &&
 			(patch.GetNamespace() == "" || patch.GetNamespace() == un.GetNamespace()) {
-
 			matched = append(matched, patch)
 		}
 	}

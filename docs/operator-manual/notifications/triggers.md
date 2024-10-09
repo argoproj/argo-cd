@@ -1,7 +1,7 @@
 The trigger defines the condition when the notification should be sent. The definition includes name, condition
 and notification templates reference. The condition is a predicate expression that returns true if the notification
 should be sent. The trigger condition evaluation is powered by [antonmedv/expr](https://github.com/antonmedv/expr).
-The condition language syntax is described at [Language-Definition.md](https://github.com/antonmedv/expr/blob/master/docs/Language-Definition.md).
+The condition language syntax is described at [language-definition.md](https://github.com/antonmedv/expr/blob/master/docs/language-definition.md).
 
 The trigger is configured in the `argocd-notifications-cm` ConfigMap. For example the following trigger sends a notification
 when application sync status changes to `Unknown` using the `app-sync-status` template:
@@ -71,7 +71,7 @@ When one repo is used to sync multiple applications, the `oncePer: app.status.sy
 
 ### oncePer
 
-The `oncePer` filed is supported like as follows.
+The `oncePer` field is supported like as follows.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1

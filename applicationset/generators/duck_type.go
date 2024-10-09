@@ -7,6 +7,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v2/util/settings"
 
@@ -32,7 +33,6 @@ type DuckTypeGenerator struct {
 }
 
 func NewDuckTypeGenerator(ctx context.Context, dynClient dynamic.Interface, clientset kubernetes.Interface, namespace string) Generator {
-
 	settingsManager := settings.NewSettingsManager(ctx, clientset, namespace)
 
 	g := &DuckTypeGenerator{
@@ -46,22 +46,20 @@ func NewDuckTypeGenerator(ctx context.Context, dynClient dynamic.Interface, clie
 }
 
 func (g *DuckTypeGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) time.Duration {
-
 	// Return a requeue default of 3 minutes, if no override is specified.
 
 	if appSetGenerator.ClusterDecisionResource.RequeueAfterSeconds != nil {
 		return time.Duration(*appSetGenerator.ClusterDecisionResource.RequeueAfterSeconds) * time.Second
 	}
 
-	return DefaultRequeueAfterSeconds
+	return getDefaultRequeueAfter()
 }
 
 func (g *DuckTypeGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
 	return &appSetGenerator.ClusterDecisionResource.Template
 }
 
-func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
-
+func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]interface{}, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -83,7 +81,6 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 
 	// Read the configMapRef
 	cm, err := g.clientset.CoreV1().ConfigMaps(g.namespace).Get(g.ctx, appSetGenerator.ClusterDecisionResource.ConfigMapRef, metav1.GetOptions{})
-
 	if err != nil {
 		return nil, fmt.Errorf("error reading configMapRef: %w", err)
 	}
@@ -104,7 +101,6 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 
 	if (resourceName == "" && labelSelector.MatchLabels == nil && labelSelector.MatchExpressions == nil) ||
 		(resourceName != "" && (labelSelector.MatchExpressions != nil || labelSelector.MatchLabels != nil)) {
-
 		log.Warningf("You must choose either resourceName=%v, labelSelector.matchLabels=%v or labelSelect.matchExpressions=%v", resourceName, labelSelector.MatchLabels, labelSelector.MatchExpressions)
 		return nil, fmt.Errorf("There is a problem with the definition of the ClusterDecisionResource generator")
 	}
@@ -122,15 +118,14 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 		log.WithField("listOptions.LabelSelector", listOptions.LabelSelector).Info("selection type")
 	} else {
 		listOptions.FieldSelector = fields.OneTermEqualSelector("metadata.name", resourceName).String()
-		//metav1.Convert_fields_Selector_To_string(fields.).Sprintf("metadata.name=%s", resourceName)
+		// metav1.Convert_fields_Selector_To_string(fields.).Sprintf("metadata.name=%s", resourceName)
 		log.WithField("listOptions.FieldSelector", listOptions.FieldSelector).Info("selection type")
 	}
 
 	duckResources, err := g.dynClient.Resource(duckGVR).Namespace(g.namespace).List(g.ctx, listOptions)
-
 	if err != nil {
 		log.WithField("GVK", duckGVR).Warning("resources were not found")
-		return nil, err
+		return nil, fmt.Errorf("failed to get dynamic resources: %w", err)
 	}
 
 	if len(duckResources.Items) == 0 {
@@ -149,7 +144,6 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 	if matchKey == "" {
 		log.WithField("matchKey", matchKey).Warning("matchKey not found in " + cm.Name)
 		return nil, nil
-
 	}
 
 	res := []map[string]interface{}{}
@@ -167,7 +161,6 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 		log.WithField("duckResourceStatus", duckResource.Object["status"]).Debug("found resource")
 
 		clusterDecisions = append(clusterDecisions, duckResource.Object["status"].(map[string]interface{})[statusListKey].([]interface{})...)
-
 	}
 	log.Infof("Number of decisions found: %v", len(clusterDecisions))
 
@@ -176,7 +169,6 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 
 	if len(clusterDecisions) > 0 {
 		for _, cluster := range clusterDecisions {
-
 			// generated instance of cluster params
 			params := map[string]interface{}{}
 
@@ -194,7 +186,6 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 
 			for _, argoCluster := range argoClusters {
 				if argoCluster.Name == strMatchValue {
-
 					log.WithField(matchKey, argoCluster.Name).Info("matched cluster in ArgoCD")
 					params["name"] = argoCluster.Name
 					params["server"] = argoCluster.Server
@@ -202,7 +193,6 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 					found = true
 					break // Stop looking
 				}
-
 			}
 
 			if !found {
@@ -228,7 +218,7 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 			res = append(res, params)
 		}
 	} else {
-		log.Warningf("clusterDecisionResource status." + statusListKey + " missing")
+		log.Warningf("clusterDecisionResource status.%s missing", statusListKey)
 		return nil, nil
 	}
 

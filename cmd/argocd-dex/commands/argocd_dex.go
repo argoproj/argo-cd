@@ -28,7 +28,7 @@ const (
 )
 
 func NewCommand() *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:               cliName,
 		Short:             "argocd-dex tools used by Argo CD",
 		Long:              "argocd-dex has internal utility tools used by Argo CD",
@@ -48,7 +48,7 @@ func NewRunDexCommand() *cobra.Command {
 		clientConfig clientcmd.ClientConfig
 		disableTLS   bool
 	)
-	var command = cobra.Command{
+	command := cobra.Command{
 		Use:   "rundex",
 		Short: "Runs dex generating a config using settings from the Argo CD configmap and secret",
 		RunE: func(c *cobra.Command, args []string) error {
@@ -79,11 +79,11 @@ func NewRunDexCommand() *cobra.Command {
 					log.Fatalf("could not create TLS config: %v", err)
 				}
 				certPem, keyPem := tls.EncodeX509KeyPair(config.Certificates[0])
-				err = os.WriteFile("/tmp/tls.crt", certPem, 0600)
+				err = os.WriteFile("/tmp/tls.crt", certPem, 0o600)
 				if err != nil {
 					log.Fatalf("could not write TLS certificate: %v", err)
 				}
-				err = os.WriteFile("/tmp/tls.key", keyPem, 0600)
+				err = os.WriteFile("/tmp/tls.key", keyPem, 0o600)
 				if err != nil {
 					log.Fatalf("could not write TLS key: %v", err)
 				}
@@ -102,7 +102,7 @@ func NewRunDexCommand() *cobra.Command {
 				if len(dexCfgBytes) == 0 {
 					log.Infof("dex is not configured")
 				} else {
-					err = os.WriteFile("/tmp/dex.yaml", dexCfgBytes, 0644)
+					err = os.WriteFile("/tmp/dex.yaml", dexCfgBytes, 0o644)
 					errors.CheckError(err)
 					log.Debug(redactor(string(dexCfgBytes)))
 					cmd = exec.Command("dex", "serve", "/tmp/dex.yaml")
@@ -136,8 +136,8 @@ func NewRunDexCommand() *cobra.Command {
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
-	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
-	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_DEX_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_DEX_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_DEX_SERVER_DISABLE_TLS", false), "Disable TLS on the HTTP endpoint")
 	return &command
 }
@@ -148,7 +148,7 @@ func NewGenDexConfigCommand() *cobra.Command {
 		out          string
 		disableTLS   bool
 	)
-	var command = cobra.Command{
+	command := cobra.Command{
 		Use:   "gendexcfg",
 		Short: "Generates a dex config from Argo CD settings",
 		RunE: func(c *cobra.Command, args []string) error {
@@ -196,7 +196,7 @@ func NewGenDexConfigCommand() *cobra.Command {
 				errors.CheckError(err)
 				fmt.Print(string(maskedDexCfgBytes))
 			} else {
-				err = os.WriteFile(out, dexCfgBytes, 0644)
+				err = os.WriteFile(out, dexCfgBytes, 0o644)
 				errors.CheckError(err)
 			}
 			return nil
@@ -204,8 +204,8 @@ func NewGenDexConfigCommand() *cobra.Command {
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
-	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", "text", "Set the logging format. One of: text|json")
-	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", "info", "Set the logging level. One of: debug|info|warn|error")
+	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_DEX_SERVER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
+	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_DEX_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().StringVarP(&out, "out", "o", "", "Output to the specified file instead of stdout")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_DEX_SERVER_DISABLE_TLS", false), "Disable TLS on the HTTP endpoint")
 	return &command

@@ -119,27 +119,26 @@ func TestEncodeX509KeyPairString(t *testing.T) {
 	if strings.TrimSpace(chain) != strings.TrimSpace(cert) {
 		t.Errorf("Incorrect, got: %s, want: %s", cert, chain)
 	}
-
 }
 
 func TestGetTLSVersionByString(t *testing.T) {
 	t.Run("Valid versions", func(t *testing.T) {
 		for k, v := range tlsVersionByString {
 			r, err := getTLSVersionByString(k)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, v, r)
 		}
 	})
 
 	t.Run("Invalid versions", func(t *testing.T) {
 		_, err := getTLSVersionByString("1.4")
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 
 	t.Run("Empty versions", func(t *testing.T) {
 		r, err := getTLSVersionByString("")
-		assert.NoError(t, err)
-		assert.Equal(t, r, uint16(0))
+		require.NoError(t, err)
+		assert.Equal(t, uint16(0), r)
 	})
 }
 
@@ -148,7 +147,7 @@ func TestGetTLSCipherSuitesByString(t *testing.T) {
 	for _, s := range tls.CipherSuites() {
 		t.Run(fmt.Sprintf("Test for valid suite %s", s.Name), func(t *testing.T) {
 			ids, err := getTLSCipherSuitesByString(s.Name)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Len(t, ids, 1)
 			assert.Equal(t, s.ID, ids[0])
 			suites = append(suites, s.Name)
@@ -157,16 +156,15 @@ func TestGetTLSCipherSuitesByString(t *testing.T) {
 
 	t.Run("Test colon separated list", func(t *testing.T) {
 		ids, err := getTLSCipherSuitesByString(strings.Join(suites, ":"))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, ids, len(suites))
 	})
 
 	suites = append([]string{"invalid"}, suites...)
 	t.Run("Test invalid values", func(t *testing.T) {
 		_, err := getTLSCipherSuitesByString(strings.Join(suites, ":"))
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
-
 }
 
 func TestTLSVersionToString(t *testing.T) {
@@ -189,39 +187,36 @@ func TestGenerate(t *testing.T) {
 	t.Run("Invalid: No hosts specified", func(t *testing.T) {
 		opts := CertOptions{Hosts: []string{}, Organization: "Acme", ValidFrom: time.Now(), ValidFor: 10 * time.Hour}
 		_, _, err := generate(opts)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "hosts not supplied")
+		assert.ErrorContains(t, err, "hosts not supplied")
 	})
 
 	t.Run("Invalid: No organization specified", func(t *testing.T) {
 		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "", ValidFrom: time.Now(), ValidFor: 10 * time.Hour}
 		_, _, err := generate(opts)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "organization not supplied")
+		assert.ErrorContains(t, err, "organization not supplied")
 	})
 
 	t.Run("Invalid: Unsupported curve specified", func(t *testing.T) {
 		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ECDSACurve: "Curve?", ValidFrom: time.Now(), ValidFor: 10 * time.Hour}
 		_, _, err := generate(opts)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Unrecognized elliptic curve")
+		assert.ErrorContains(t, err, "Unrecognized elliptic curve")
 	})
 
 	for _, curve := range []string{"P224", "P256", "P384", "P521"} {
 		t.Run(fmt.Sprintf("Create certificate with curve %s", curve), func(t *testing.T) {
 			opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ECDSACurve: curve}
 			_, _, err := generate(opts)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
 	}
 
 	t.Run("Create certificate with default options", func(t *testing.T) {
 		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme"}
 		certBytes, privKey, err := generate(opts)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, privKey)
 		cert, err := x509.ParseCertificate(certBytes)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, cert)
 		assert.Len(t, cert.DNSNames, 1)
 		assert.Equal(t, "localhost", cert.DNSNames[0])
@@ -232,10 +227,10 @@ func TestGenerate(t *testing.T) {
 	t.Run("Create certificate with IP ", func(t *testing.T) {
 		opts := CertOptions{Hosts: []string{"localhost", "127.0.0.1"}, Organization: "Acme"}
 		certBytes, privKey, err := generate(opts)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, privKey)
 		cert, err := x509.ParseCertificate(certBytes)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, cert)
 		assert.Len(t, cert.DNSNames, 1)
 		assert.Equal(t, "localhost", cert.DNSNames[0])
@@ -247,10 +242,10 @@ func TestGenerate(t *testing.T) {
 	t.Run("Create certificate with specific validity timeframe", func(t *testing.T) {
 		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ValidFrom: time.Now().Add(1 * time.Hour)}
 		certBytes, privKey, err := generate(opts)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, privKey)
 		cert, err := x509.ParseCertificate(certBytes)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, cert)
 		assert.GreaterOrEqual(t, (time.Now().Unix())+int64(1*time.Hour), cert.NotBefore.Unix())
 	})
@@ -260,10 +255,10 @@ func TestGenerate(t *testing.T) {
 			validFrom, validFor := time.Now(), 365*24*time.Hour*time.Duration(year)
 			opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ValidFrom: validFrom, ValidFor: validFor}
 			certBytes, privKey, err := generate(opts)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NotNil(t, privKey)
 			cert, err := x509.ParseCertificate(certBytes)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NotNil(t, cert)
 			t.Logf("certificate expiration time %s", cert.NotAfter)
 			assert.Equal(t, validFrom.Unix()+int64(validFor.Seconds()), cert.NotAfter.Unix())
@@ -275,7 +270,7 @@ func TestGeneratePEM(t *testing.T) {
 	t.Run("Invalid - PEM creation failure", func(t *testing.T) {
 		opts := CertOptions{Hosts: nil, Organization: "Acme"}
 		cert, key, err := generatePEM(opts)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, cert)
 		assert.Nil(t, key)
 	})
@@ -283,7 +278,7 @@ func TestGeneratePEM(t *testing.T) {
 	t.Run("Create PEM from certficate options", func(t *testing.T) {
 		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme"}
 		cert, key, err := generatePEM(opts)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, cert)
 		assert.NotNil(t, key)
 	})
@@ -291,7 +286,7 @@ func TestGeneratePEM(t *testing.T) {
 	t.Run("Create X509KeyPair", func(t *testing.T) {
 		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme"}
 		cert, err := GenerateX509KeyPair(opts)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, cert)
 	})
 }
@@ -299,7 +294,7 @@ func TestGeneratePEM(t *testing.T) {
 func TestGetTLSConfigCustomizer(t *testing.T) {
 	t.Run("Valid TLS customization", func(t *testing.T) {
 		cfunc, err := getTLSConfigCustomizer(DefaultTLSMinVersion, DefaultTLSMaxVersion, DefaultTLSCipherSuite)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, cfunc)
 		config := tls.Config{}
 		cfunc(&config)
@@ -309,50 +304,49 @@ func TestGetTLSConfigCustomizer(t *testing.T) {
 
 	t.Run("Valid TLS customization - No cipher customization for TLSv1.3 only with default ciphers", func(t *testing.T) {
 		cfunc, err := getTLSConfigCustomizer("1.3", "1.3", DefaultTLSCipherSuite)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, cfunc)
 		config := tls.Config{}
 		cfunc(&config)
 		assert.Equal(t, config.MinVersion, uint16(tls.VersionTLS13))
 		assert.Equal(t, config.MaxVersion, uint16(tls.VersionTLS13))
-		assert.Len(t, config.CipherSuites, 0)
+		assert.Empty(t, config.CipherSuites)
 	})
 
 	t.Run("Valid TLS customization - No cipher customization for TLSv1.3 only with custom ciphers", func(t *testing.T) {
 		cfunc, err := getTLSConfigCustomizer("1.3", "1.3", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, cfunc)
 		config := tls.Config{}
 		cfunc(&config)
 		assert.Equal(t, config.MinVersion, uint16(tls.VersionTLS13))
 		assert.Equal(t, config.MaxVersion, uint16(tls.VersionTLS13))
-		assert.Len(t, config.CipherSuites, 0)
+		assert.Empty(t, config.CipherSuites)
 	})
 
 	t.Run("Invalid TLS customization - Min version higher than max version", func(t *testing.T) {
 		cfunc, err := getTLSConfigCustomizer("1.3", "1.2", DefaultTLSCipherSuite)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, cfunc)
 	})
 
 	t.Run("Invalid TLS customization - Invalid min version given", func(t *testing.T) {
 		cfunc, err := getTLSConfigCustomizer("2.0", "1.2", DefaultTLSCipherSuite)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, cfunc)
 	})
 
 	t.Run("Invalid TLS customization - Invalid max version given", func(t *testing.T) {
 		cfunc, err := getTLSConfigCustomizer("1.2", "2.0", DefaultTLSCipherSuite)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, cfunc)
 	})
 
 	t.Run("Invalid TLS customization - Unknown cipher suite given", func(t *testing.T) {
 		cfunc, err := getTLSConfigCustomizer("1.3", "1.2", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:invalid")
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, cfunc)
 	})
-
 }
 
 func TestBestEffortSystemCertPool(t *testing.T) {

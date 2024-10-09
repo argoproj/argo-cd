@@ -13,13 +13,15 @@ argocd repo get [flags]
 ```
   -h, --help             help for get
   -o, --output string    Output format. One of: json|yaml|wide|url (default "wide")
+      --project string   project of the repository
       --refresh string   Force a cache refresh on connection status , must be one of: 'hard'
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token
+      --argocd-context string           The name of the Argo-CD server context to use
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")

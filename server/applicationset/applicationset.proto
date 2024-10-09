@@ -37,6 +37,7 @@ message ApplicationSetResponse {
 message ApplicationSetCreateRequest {
 	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSet applicationset = 1;
 	bool upsert = 2;
+	bool dryRun = 3;
 }
 
 
@@ -46,13 +47,36 @@ message ApplicationSetDeleteRequest {
 	string appsetNamespace = 2;
 }
 
+message ApplicationSetTreeQuery {
+	string name = 1;
+	// The application set namespace. Default empty is argocd control plane namespace
+	string appsetNamespace = 2;
+}
+
+// ApplicationSetGetQuery is a query for applicationset resources
+message ApplicationSetGenerateRequest {
+	// the applicationsets
+	github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSet applicationSet = 1;
+}
+
+// ApplicationSetGenerateResponse is a response for applicationset generate request
+message ApplicationSetGenerateResponse {
+	repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Application applications = 1;
+}
 
 // ApplicationSetService
 service ApplicationSetService {
-	
 	// Get returns an applicationset by name
 	rpc Get (ApplicationSetGetQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSet) {
 		option (google.api.http).get = "/api/v1/applicationsets/{name}";
+	}
+
+	// Generate generates
+	rpc Generate (ApplicationSetGenerateRequest) returns (ApplicationSetGenerateResponse) {
+		option (google.api.http) = {
+			post: "/api/v1/applicationsets"
+			body: "*"
+		};
 	}
 
 	//List returns list of applicationset
@@ -72,5 +96,10 @@ service ApplicationSetService {
 	rpc Delete(ApplicationSetDeleteRequest) returns (ApplicationSetResponse) {
 		option (google.api.http).delete = "/api/v1/applicationsets/{name}";
 	}
+
+  // ResourceTree returns resource tree
+  rpc ResourceTree(ApplicationSetTreeQuery) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ApplicationSetTree) {
+    option (google.api.http).get = "/api/v1/applicationsets/{name}/resource-tree";
+  }
 
 }

@@ -1,0 +1,21 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for Pipeline status"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Healthy
+    message: "Successful"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Suspended
+    message: "Pipeline paused"
+  inputPath: testdata/paused.yaml
+- healthStatus:
+    status: Degraded
+    message: "Pipeline Failed"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for Pipeline status"
+  inputPath: testdata/progressing-reason.yaml

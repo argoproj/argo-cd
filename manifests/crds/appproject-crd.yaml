@@ -20,22 +20,28 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: 'AppProject provides a logical grouping of applications, providing
-          controls for: * where the apps may deploy to (cluster whitelist) * what
-          may be deployed (repository whitelist, resource whitelist/blacklist) * who
-          can access these applications (roles, OIDC group claims bindings) * and
-          what they can do (RBAC policies) * automation access to these roles (JWT
-          tokens)'
+        description: |-
+          AppProject provides a logical grouping of applications, providing controls for:
+          * where the apps may deploy to (cluster whitelist)
+          * what may be deployed (repository whitelist, resource whitelist/blacklist)
+          * who can access these applications (roles, OIDC group claims bindings)
+          * and what they can do (RBAC policies)
+          * automation access to these roles (JWT tokens)
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
             type: object
@@ -46,9 +52,9 @@ spec:
                 description: ClusterResourceBlacklist contains list of blacklisted
                   cluster level resources
                 items:
-                  description: GroupKind specifies a Group and a Kind, but does not
-                    force a version.  This is useful for identifying concepts during
-                    lookup stages without having partially valid types
+                  description: |-
+                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
+                    concepts during lookup stages without having partially valid types
                   properties:
                     group:
                       type: string
@@ -63,9 +69,9 @@ spec:
                 description: ClusterResourceWhitelist contains list of whitelisted
                   cluster level resources
                 items:
-                  description: GroupKind specifies a Group and a Kind, but does not
-                    force a version.  This is useful for identifying concepts during
-                    lookup stages without having partially valid types
+                  description: |-
+                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
+                    concepts during lookup stages without having partially valid types
                   properties:
                     group:
                       type: string
@@ -79,6 +85,32 @@ spec:
               description:
                 description: Description contains optional project description
                 type: string
+              destinationServiceAccounts:
+                description: DestinationServiceAccounts holds information about the
+                  service accounts to be impersonated for the application sync operation
+                  for each destination.
+                items:
+                  description: ApplicationDestinationServiceAccount holds information
+                    about the service account to be impersonated for the application
+                    sync operation.
+                  properties:
+                    defaultServiceAccount:
+                      description: DefaultServiceAccount to be used for impersonation
+                        during the sync operation
+                      type: string
+                    namespace:
+                      description: Namespace specifies the target namespace for the
+                        application's resources.
+                      type: string
+                    server:
+                      description: Server specifies the URL of the target cluster's
+                        Kubernetes control plane API.
+                      type: string
+                  required:
+                  - defaultServiceAccount
+                  - server
+                  type: object
+                type: array
               destinations:
                 description: Destinations contains list of destinations available
                   for deployment
@@ -92,9 +124,9 @@ spec:
                         not set.
                       type: string
                     namespace:
-                      description: Namespace specifies the target namespace for the
-                        application's resources. The namespace will only be set for
-                        namespace-scoped resources that have not set a value for .metadata.namespace
+                      description: |-
+                        Namespace specifies the target namespace for the application's resources.
+                        The namespace will only be set for namespace-scoped resources that have not set a value for .metadata.namespace
                       type: string
                     server:
                       description: Server specifies the URL of the target cluster's
@@ -107,9 +139,9 @@ spec:
                 description: NamespaceResourceBlacklist contains list of blacklisted
                   namespace level resources
                 items:
-                  description: GroupKind specifies a Group and a Kind, but does not
-                    force a version.  This is useful for identifying concepts during
-                    lookup stages without having partially valid types
+                  description: |-
+                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
+                    concepts during lookup stages without having partially valid types
                   properties:
                     group:
                       type: string
@@ -124,9 +156,9 @@ spec:
                 description: NamespaceResourceWhitelist contains list of whitelisted
                   namespace level resources
                 items:
-                  description: GroupKind specifies a Group and a Kind, but does not
-                    force a version.  This is useful for identifying concepts during
-                    lookup stages without having partially valid types
+                  description: |-
+                    GroupKind specifies a Group and a Kind, but does not force a version.  This is useful for identifying
+                    concepts during lookup stages without having partially valid types
                   properties:
                     group:
                       type: string

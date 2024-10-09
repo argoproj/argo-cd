@@ -52,7 +52,8 @@ argocd appset [flags]
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token
+      --argocd-context string           The name of the Argo-CD server context to use
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
@@ -82,6 +83,7 @@ argocd appset [flags]
 * [argocd](argocd.md)	 - argocd controls a Argo CD server
 * [argocd appset create](argocd_appset_create.md)	 - Create one or more ApplicationSets
 * [argocd appset delete](argocd_appset_delete.md)	 - Delete one or more ApplicationSets
+* [argocd appset generate](argocd_appset_generate.md)	 - Generate apps of ApplicationSet rendered templates
 * [argocd appset get](argocd_appset_get.md)	 - Get ApplicationSet details
 * [argocd appset list](argocd_appset_list.md)	 - List ApplicationSets
 

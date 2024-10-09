@@ -4,8 +4,13 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    open-pull-requests-limit: 20
     ignore:
     - dependency-name: k8s.io/*
+    groups:
+      otel:
+        patterns:
+          - "^go.opentelemetry.io/.*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -17,10 +22,20 @@ updates:
     schedule:
       interval: "daily"
 
+  - package-ecosystem: "npm"
+    directory: "/ui-test/"
+    schedule:
+      interval: "daily"
+
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "daily"
+    ignore:
+      # We use consistent go and node versions across a lot of different files, and updating via dependabot would cause
+      # drift among those files, instead we let renovate bot handle them.
+      - dependency-name: "library/golang"
+      - dependency-name: "library/node"
 
   - package-ecosystem: "docker"
     directory: "/test/container/"

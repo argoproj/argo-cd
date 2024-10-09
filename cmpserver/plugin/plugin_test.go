@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
@@ -103,7 +103,7 @@ func TestMatchRepository(t *testing.T) {
 		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, match)
 		assert.True(t, discovery)
 	})
@@ -118,7 +118,7 @@ func TestMatchRepository(t *testing.T) {
 		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, match)
 		assert.True(t, discovery)
 	})
@@ -133,7 +133,7 @@ func TestMatchRepository(t *testing.T) {
 		_, _, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
-		assert.ErrorContains(t, err, "syntax error")
+		require.ErrorContains(t, err, "syntax error")
 	})
 	t.Run("will match plugin by glob", func(t *testing.T) {
 		// given
@@ -148,7 +148,7 @@ func TestMatchRepository(t *testing.T) {
 		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, match)
 		assert.True(t, discovery)
 	})
@@ -165,7 +165,7 @@ func TestMatchRepository(t *testing.T) {
 		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, match)
 		assert.True(t, discovery)
 	})
@@ -182,7 +182,7 @@ func TestMatchRepository(t *testing.T) {
 		_, _, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
-		assert.ErrorContains(t, err, "error finding glob match for pattern")
+		require.ErrorContains(t, err, "error finding glob match for pattern")
 	})
 	t.Run("will match plugin by command when returns any output", func(t *testing.T) {
 		// given
@@ -199,7 +199,7 @@ func TestMatchRepository(t *testing.T) {
 		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, match)
 		assert.True(t, discovery)
 	})
@@ -217,7 +217,7 @@ func TestMatchRepository(t *testing.T) {
 		// when
 		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, match)
 		assert.True(t, discovery)
 	})
@@ -236,7 +236,7 @@ func TestMatchRepository(t *testing.T) {
 		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, match)
 		assert.True(t, discovery)
 	})
@@ -256,7 +256,7 @@ func TestMatchRepository(t *testing.T) {
 		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, match)
 		assert.True(t, discovery)
 	})
@@ -275,7 +275,7 @@ func TestMatchRepository(t *testing.T) {
 		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.False(t, match)
 		assert.True(t, discovery)
 	})
@@ -288,7 +288,7 @@ func TestMatchRepository(t *testing.T) {
 		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, match)
 		assert.False(t, discovery)
 	})
@@ -323,7 +323,7 @@ func TestGenerateManifest(t *testing.T) {
 		service.WithGenerateCommand(Command{Command: []string{"bad-command"}})
 
 		res, err := service.generateManifest(context.Background(), "testdata/kustomize", nil)
-		assert.ErrorContains(t, err, "executable file not found")
+		require.ErrorContains(t, err, "executable file not found")
 		assert.Nil(t, res.Manifests)
 	})
 	t.Run("bad yaml output", func(t *testing.T) {
@@ -332,7 +332,7 @@ func TestGenerateManifest(t *testing.T) {
 		service.WithGenerateCommand(Command{Command: []string{"echo", "invalid yaml: }"}})
 
 		res, err := service.generateManifest(context.Background(), "testdata/kustomize", nil)
-		assert.ErrorContains(t, err, "failed to unmarshal manifest")
+		require.ErrorContains(t, err, "failed to unmarshal manifest")
 		assert.Nil(t, res.Manifests)
 	})
 }
@@ -345,7 +345,7 @@ func TestGenerateManifest_deadline_exceeded(t *testing.T) {
 	expiredCtx, cancel := context.WithTimeout(context.Background(), time.Second*0)
 	defer cancel()
 	_, err = service.generateManifest(expiredCtx, "", nil)
-	assert.ErrorContains(t, err, "context deadline exceeded")
+	require.ErrorContains(t, err, "context deadline exceeded")
 }
 
 // TestRunCommandContextTimeout makes sure the command dies at timeout rather than sleeping past the timeout.
@@ -360,16 +360,16 @@ func TestRunCommandContextTimeout(t *testing.T) {
 	before := time.Now()
 	_, err := runCommand(ctx, command, "", []string{})
 	after := time.Now()
-	assert.Error(t, err) // The command should time out, causing an error.
+	require.Error(t, err) // The command should time out, causing an error.
 	assert.Less(t, after.Sub(before), 1*time.Second)
 }
 
 func TestRunCommandEmptyCommand(t *testing.T) {
 	_, err := runCommand(context.Background(), Command{}, "", nil)
-	assert.ErrorContains(t, err, "Command is empty")
+	require.ErrorContains(t, err, "Command is empty")
 }
 
-// TestRunCommandContextTimeoutWithGracefulTermination makes sure that the process is given enough time to cleanup before sending SIGKILL.
+// TestRunCommandContextTimeoutWithCleanup makes sure that the process is given enough time to cleanup before sending SIGKILL.
 func TestRunCommandContextTimeoutWithCleanup(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 900*time.Millisecond)
 	defer cancel()
@@ -385,7 +385,7 @@ func TestRunCommandContextTimeoutWithCleanup(t *testing.T) {
 	output, err := runCommand(ctx, command, "", []string{})
 	after := time.Now()
 
-	assert.Error(t, err) // The command should time out, causing an error.
+	require.Error(t, err) // The command should time out, causing an error.
 	assert.Less(t, after.Sub(before), 1*time.Second)
 	// The command should still have completed the cleanup after termination.
 	assert.Contains(t, output, "cleanup completed")
@@ -451,8 +451,7 @@ func Test_getParametersAnnouncement_invalid_json(t *testing.T) {
 		Args:    []string{`[`},
 	}
 	_, err := getParametersAnnouncement(context.Background(), "", []*repoclient.ParameterAnnouncement{}, command, []*apiclient.EnvEntry{})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unexpected end of JSON input")
+	assert.ErrorContains(t, err, "unexpected end of JSON input")
 }
 
 func Test_getParametersAnnouncement_bad_command(t *testing.T) {
@@ -461,20 +460,19 @@ func Test_getParametersAnnouncement_bad_command(t *testing.T) {
 		Args:    []string{"1"},
 	}
 	_, err := getParametersAnnouncement(context.Background(), "", []*repoclient.ParameterAnnouncement{}, command, []*apiclient.EnvEntry{})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "error executing dynamic parameter output command")
+	assert.ErrorContains(t, err, "error executing dynamic parameter output command")
 }
 
 func Test_getTempDirMustCleanup(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Induce a directory create error to verify error handling.
-	err := os.Chmod(tempDir, 0000)
+	err := os.Chmod(tempDir, 0o000)
 	require.NoError(t, err)
 	_, _, err = getTempDirMustCleanup(path.Join(tempDir, "test"))
-	assert.ErrorContains(t, err, "error creating temp dir")
+	require.ErrorContains(t, err, "error creating temp dir")
 
-	err = os.Chmod(tempDir, 0700)
+	err = os.Chmod(tempDir, 0o700)
 	require.NoError(t, err)
 	workDir, cleanup, err := getTempDirMustCleanup(tempDir)
 	require.NoError(t, err)
@@ -487,7 +485,7 @@ func TestService_Init(t *testing.T) {
 	// Set up a base directory containing a test directory and a test file.
 	tempDir := t.TempDir()
 	workDir := path.Join(tempDir, "workDir")
-	err := os.MkdirAll(workDir, 0700)
+	err := os.MkdirAll(workDir, 0o700)
 	require.NoError(t, err)
 	testfile := path.Join(workDir, "testfile")
 	file, err := os.Create(testfile)
@@ -496,17 +494,17 @@ func TestService_Init(t *testing.T) {
 	require.NoError(t, err)
 
 	// Make the base directory read-only so Init's cleanup fails.
-	err = os.Chmod(tempDir, 0000)
+	err = os.Chmod(tempDir, 0o000)
 	require.NoError(t, err)
 	s := NewService(CMPServerInitConstants{PluginConfig: PluginConfig{}})
 	err = s.Init(workDir)
-	assert.ErrorContains(t, err, "error removing workdir", "Init must throw an error if it can't remove the work directory")
+	require.ErrorContains(t, err, "error removing workdir", "Init must throw an error if it can't remove the work directory")
 
 	// Make the base directory writable so Init's cleanup succeeds.
-	err = os.Chmod(tempDir, 0700)
+	err = os.Chmod(tempDir, 0o700)
 	require.NoError(t, err)
 	err = s.Init(workDir)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.DirExists(t, workDir)
 	assert.NoFileExists(t, testfile)
 }
@@ -529,6 +527,76 @@ func TestEnviron(t *testing.T) {
 			{Name: "name2", Value: "value2"},
 		})
 		assert.Equal(t, []string{"name1=value1", "name2=value2"}, env)
+	})
+}
+
+func TestIsDiscoveryConfigured(t *testing.T) {
+	type fixture struct {
+		service *Service
+	}
+	setup := func(t *testing.T, opts ...pluginOpt) *fixture {
+		t.Helper()
+		cic := buildPluginConfig(opts...)
+		s := NewService(*cic)
+		return &fixture{
+			service: s,
+		}
+	}
+	t.Run("discovery is enabled when is configured by FileName", func(t *testing.T) {
+		// given
+		d := Discover{
+			FileName: "kustomization.yaml",
+		}
+		f := setup(t, withDiscover(d))
+
+		// when
+		isDiscoveryConfigured := f.service.isDiscoveryConfigured()
+
+		// then
+		assert.True(t, isDiscoveryConfigured)
+	})
+	t.Run("discovery is enabled when is configured by Glob", func(t *testing.T) {
+		// given
+		d := Discover{
+			Find: Find{
+				Glob: "**/*/plugin.yaml",
+			},
+		}
+		f := setup(t, withDiscover(d))
+
+		// when
+		isDiscoveryConfigured := f.service.isDiscoveryConfigured()
+
+		// then
+		assert.True(t, isDiscoveryConfigured)
+	})
+	t.Run("discovery is enabled when is configured by Command", func(t *testing.T) {
+		// given
+		d := Discover{
+			Find: Find{
+				Command: Command{
+					Command: []string{"echo", "test"},
+				},
+			},
+		}
+		f := setup(t, withDiscover(d))
+
+		// when
+		isDiscoveryConfigured := f.service.isDiscoveryConfigured()
+
+		// then
+		assert.True(t, isDiscoveryConfigured)
+	})
+	t.Run("discovery is disabled when discover is not configured", func(t *testing.T) {
+		// given
+		d := Discover{}
+		f := setup(t, withDiscover(d))
+
+		// when
+		isDiscoveryConfigured := f.service.isDiscoveryConfigured()
+
+		// then
+		assert.False(t, isDiscoveryConfigured)
 	})
 }
 
@@ -779,29 +847,43 @@ func TestService_GetParametersAnnouncement(t *testing.T) {
 	})
 }
 
-func Test_getCommandArgsToLog(t *testing.T) {
-	testCases := []struct {
-		name     string
-		args     []string
-		expected string
-	}{
-		{
-			name:     "no spaces",
-			args:     []string{"sh", "-c", "cat"},
-			expected: "sh -c cat",
-		},
-		{
-			name:     "spaces",
-			args:     []string{"sh", "-c", `echo "hello world"`},
-			expected: `sh -c "echo \"hello world\""`,
-		},
+func TestService_CheckPluginConfiguration(t *testing.T) {
+	type fixture struct {
+		service *Service
 	}
+	setup := func(t *testing.T, opts ...pluginOpt) *fixture {
+		t.Helper()
+		cic := buildPluginConfig(opts...)
+		s := NewService(*cic)
+		return &fixture{
+			service: s,
+		}
+	}
+	t.Run("discovery is enabled when is configured", func(t *testing.T) {
+		// given
+		d := Discover{
+			FileName: "kustomization.yaml",
+		}
+		f := setup(t, withDiscover(d))
 
-	for _, tc := range testCases {
-		tcc := tc
-		t.Run(tcc.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tcc.expected, getCommandArgsToLog(exec.Command(tcc.args[0], tcc.args[1:]...)))
-		})
-	}
+		// when
+		resp, err := f.service.CheckPluginConfiguration(context.Background(), &empty.Empty{})
+
+		// then
+		require.NoError(t, err)
+		assert.True(t, resp.IsDiscoveryConfigured)
+	})
+
+	t.Run("discovery is disabled when is not configured", func(t *testing.T) {
+		// given
+		d := Discover{}
+		f := setup(t, withDiscover(d))
+
+		// when
+		resp, err := f.service.CheckPluginConfiguration(context.Background(), &empty.Empty{})
+
+		// then
+		require.NoError(t, err)
+		assert.False(t, resp.IsDiscoveryConfigured)
+	})
 }

@@ -8,9 +8,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-jose/go-jose/v3"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/square/go-jose.v2"
 )
 
 // Cert is a certificate for tests. It was generated like this:
@@ -191,7 +191,7 @@ func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.R
 			}
 			out, err := json.Marshal(jwks)
 			require.NoError(t, err)
-			_, err = io.WriteString(w, string(out))
+			_, err = w.Write(out)
 			require.NoError(t, err)
 		default:
 			w.WriteHeader(http.StatusNotFound)

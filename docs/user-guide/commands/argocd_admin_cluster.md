@@ -31,7 +31,8 @@ argocd admin cluster namespaces my-cluster
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token
+      --argocd-context string           The name of the Argo-CD server context to use
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
@@ -62,6 +63,6 @@ argocd admin cluster namespaces my-cluster
 * [argocd admin cluster generate-spec](argocd_admin_cluster_generate-spec.md)	 - Generate declarative config for a cluster
 * [argocd admin cluster kubeconfig](argocd_admin_cluster_kubeconfig.md)	 - Generates kubeconfig for the specified cluster
 * [argocd admin cluster namespaces](argocd_admin_cluster_namespaces.md)	 - Print information namespaces which Argo CD manages in each cluster.
-* [argocd admin cluster shards](argocd_admin_cluster_shards.md)	 - Print information about each controller shard and portion of Kubernetes resources it is responsible for.
+* [argocd admin cluster shards](argocd_admin_cluster_shards.md)	 - Print information about each controller shard and the estimated portion of Kubernetes resources it is responsible for.
 * [argocd admin cluster stats](argocd_admin_cluster_stats.md)	 - Prints information cluster statistics and inferred shard number
 

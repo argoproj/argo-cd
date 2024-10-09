@@ -15,7 +15,7 @@ argocd cluster list [flags]
 # List Clusters in Default "Wide" Format
 argocd cluster list
 
-# List Cluster via specifing the server
+# List Cluster via specifying the server
 argocd cluster list --server <ARGOCD_SERVER_ADDRESS>
 
 # List Clusters in JSON Format
@@ -40,7 +40,8 @@ argocd cluster list -o server <ARGOCD_SERVER_ADDRESS>
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token
+      --argocd-context string           The name of the Argo-CD server context to use
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")

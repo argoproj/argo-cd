@@ -12,6 +12,7 @@ installation:
 
 - Argo CD RBAC model
 - Argo CD API
+- Argo CD Notification Controller
 - OIDC based authentication
 
 The following features will be partially available (see the
@@ -25,7 +26,7 @@ A few use-cases that justify running Argo CD Core are:
 
 - As a cluster admin, I want to rely on Kubernetes RBAC only.
 - As a devops engineer, I don't want to learn a new API or depend on
-  another CLI to automate my deployments. I want instead rely in
+  another CLI to automate my deployments. I want to rely on the
   Kubernetes API only.
 - As a cluster admin, I don't want to provide Argo CD UI or Argo CD
   CLI to developers.

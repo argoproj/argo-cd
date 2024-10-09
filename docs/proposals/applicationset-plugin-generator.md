@@ -89,7 +89,7 @@ data:
   baseUrl: http://myplugin.plugin.svc.cluster.local
 ```
 
-- token is used a a bearer token in the RPC request. It could be a [sensitive reference](https://argo-cd.readthedocs.io/en/stable/operator-manual/user-management/#sensitive-data-and-sso-client-secrets).
+- token is used a bearer token in the RPC request. It could be a [sensitive reference](https://argo-cd.readthedocs.io/en/stable/operator-manual/user-management/#sensitive-data-and-sso-client-secrets).
 
 ### Reconciliation logic
 

@@ -105,9 +105,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                     {pref => {
                         const favList = pref.appList.favoritesAppList || [];
                         return (
-                            <div
-                                className='applications-tiles argo-table-list argo-table-list--clickable row small-up-1 medium-up-2 large-up-3 xxxlarge-up-4'
-                                ref={appContainerRef}>
+                            <div className='applications-tiles argo-table-list argo-table-list--clickable' ref={appContainerRef}>
                                 {applications.map((app, i) => {
                                     const source = getAppDefaultSource(app);
                                     return (
@@ -120,7 +118,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                             <div
                                                 className='row applications-tiles__wrapper'
                                                 onClick={e =>
-                                                    ctx.navigation.goto(`/applications/${app.metadata.namespace}/${app.metadata.name}`, {view: pref.appDetails.view}, {event: e})
+                                                    ctx.navigation.goto(`applications/${app.metadata.namespace}/${app.metadata.name}`, {view: pref.appDetails.view}, {event: e})
                                                 }>
                                                 <div
                                                     className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(

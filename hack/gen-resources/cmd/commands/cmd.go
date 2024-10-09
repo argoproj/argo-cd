@@ -30,10 +30,9 @@ func initConfig() {
 
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
-
 	var generateOpts util.GenerateOpts
 
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   cliName,
 		Short: "Generator for argocd resources",
 		Run: func(c *cobra.Command, args []string) {
@@ -50,7 +49,7 @@ func NewCommand() *cobra.Command {
 
 func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 	var file string
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "generate [-f file]",
 		Short: "Generate entities",
 		Long:  "Generate entities",
@@ -94,7 +93,7 @@ func NewGenerateCommand(opts *util.GenerateOpts) *cobra.Command {
 }
 
 func NewCleanCommand(opts *util.GenerateOpts) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "clean",
 		Short: "Clean entities",
 		Long:  "Clean entities",

@@ -17,6 +17,12 @@ argocd repo add REPOURL [flags]
   # Add a Git repository via SSH on a non-default port - need to use ssh:// style URLs here
   argocd repo add ssh://git@git.example.com:2222/repos/repo --ssh-private-key-path ~/id_rsa
 
+  # Add a Git repository via SSH using socks5 proxy with no proxy credentials
+  argocd repo add ssh://git@github.com/argoproj/argocd-example-apps --ssh-private-key-path ~/id_rsa --proxy socks5://your.proxy.server.ip:1080
+
+  # Add a Git repository via SSH using socks5 proxy with proxy credentials
+  argocd repo add ssh://git@github.com/argoproj/argocd-example-apps --ssh-private-key-path ~/id_rsa --proxy socks5://username:password@your.proxy.server.ip:1080
+
   # Add a private Git repository via HTTPS using username/password and TLS client certificates:
   argocd repo add https://git.example.com/repos/repo --username git --password secret --tls-client-cert-path ~/mycert.crt --tls-client-cert-key-path ~/mycert.key
 
@@ -58,6 +64,7 @@ argocd repo add REPOURL [flags]
       --insecure-ignore-host-key                disables SSH strict host key checking (deprecated, use --insecure-skip-server-verification instead)
       --insecure-skip-server-verification       disables server certificate and host key checks
       --name string                             name of the repository, mandatory for repositories of type helm
+      --no-proxy string                         don't access these targets via proxy
       --password string                         password to the repository
       --project string                          project of the repository
       --proxy string                            use proxy to access repository
@@ -72,7 +79,8 @@ argocd repo add REPOURL [flags]
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token
+      --argocd-context string           The name of the Argo-CD server context to use
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")

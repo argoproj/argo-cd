@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"regexp"
+	"slices"
 	"strconv"
 	"time"
 
@@ -22,7 +22,10 @@ import (
 	applister "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/healthz"
+	metricsutil "github.com/argoproj/argo-cd/v2/util/metrics"
 	"github.com/argoproj/argo-cd/v2/util/profile"
+
+	ctrl_metrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 type MetricsServer struct {
@@ -52,7 +55,8 @@ const (
 var (
 	descAppDefaultLabels = []string{"namespace", "name", "project"}
 
-	descAppLabels *prometheus.Desc
+	descAppLabels     *prometheus.Desc
+	descAppConditions *prometheus.Desc
 
 	descAppInfo = prometheus.NewDesc(
 		"argocd_app_info",
@@ -60,21 +64,22 @@ var (
 		append(descAppDefaultLabels, "autosync_enabled", "repo", "dest_server", "dest_namespace", "sync_status", "health_status", "operation"),
 		nil,
 	)
-	// DEPRECATED
+
+	// Deprecated
 	descAppCreated = prometheus.NewDesc(
 		"argocd_app_created_time",
 		"Creation time in unix timestamp for an application.",
 		descAppDefaultLabels,
 		nil,
 	)
-	// DEPRECATED: superseded by sync_status label in argocd_app_info
+	// Deprecated: superseded by sync_status label in argocd_app_info
 	descAppSyncStatusCode = prometheus.NewDesc(
 		"argocd_app_sync_status",
 		"The application current sync status.",
 		append(descAppDefaultLabels, "sync_status"),
 		nil,
 	)
-	// DEPRECATED: superseded by health_status label in argocd_app_info
+	// Deprecated: superseded by health_status label in argocd_app_info
 	descAppHealthStatus = prometheus.NewDesc(
 		"argocd_app_health_status",
 		"The application current health status.",
@@ -111,7 +116,7 @@ var (
 	reconcileHistogram = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name: "argocd_app_reconcile",
-			Help: "Application reconciliation performance.",
+			Help: "Application reconciliation performance in seconds.",
 			// Buckets chosen after observing a ~2100ms mean reconcile time
 			Buckets: []float64{0.25, .5, 1, 2, 4, 8, 16},
 		},
@@ -142,14 +147,14 @@ var (
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
-func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, healthCheck func(r *http.Request) error, appLabels []string) (*MetricsServer, error) {
+func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string) (*MetricsServer, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
 	}
 
 	if len(appLabels) > 0 {
-		normalizedLabels := normalizeLabels("label", appLabels)
+		normalizedLabels := metricsutil.NormalizeLabels("label", appLabels)
 		descAppLabels = prometheus.NewDesc(
 			"argocd_app_labels",
 			"Argo Application labels converted to Prometheus labels",
@@ -158,14 +163,23 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		)
 	}
 
+	if len(appConditions) > 0 {
+		descAppConditions = prometheus.NewDesc(
+			"argocd_app_condition",
+			"Report application conditions.",
+			append(descAppDefaultLabels, "condition"),
+			nil,
+		)
+	}
+
 	mux := http.NewServeMux()
-	registry := NewAppRegistry(appLister, appFilter, appLabels)
-	registry.MustRegister(depth, adds, latency, workDuration, unfinished, longestRunningProcessor, retries)
+	registry := NewAppRegistry(appLister, appFilter, appLabels, appConditions)
+
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
 		registry,
-		// contains process, golang and controller workqueues metrics
-		prometheus.DefaultGatherer,
+		// contains workqueue metrics, process and golang metrics
+		ctrl_metrics.Registry,
 	}, promhttp.HandlerOpts{}))
 	profile.RegisterProfiler(mux)
 	healthz.ServeHealthCheck(mux, healthCheck)
@@ -199,20 +213,6 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		// so there is no possibility of panic, but we will add a chain to keep robfig/cron v1 behavior.
 		cron: cron.New(cron.WithChain(cron.Recover(cron.PrintfLogger(log.StandardLogger())))),
 	}, nil
-}
-
-// Prometheus invalid labels, more info: https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels.
-var invalidPromLabelChars = regexp.MustCompile(`[^a-zA-Z0-9_]`)
-
-func normalizeLabels(prefix string, appLabels []string) []string {
-	results := []string{}
-	for _, label := range appLabels {
-		//prometheus labels don't accept dash in their name
-		curr := invalidPromLabelChars.ReplaceAllString(label, "_")
-		result := fmt.Sprintf("%s_%s", prefix, curr)
-		results = append(results, result)
-	}
-	return results
 }
 
 func (m *MetricsServer) RegisterClustersInfoSource(ctx context.Context, source HasClustersInfo) {
@@ -305,24 +305,26 @@ func (m *MetricsServer) SetExpiration(cacheExpiration time.Duration) error {
 }
 
 type appCollector struct {
-	store     applister.ApplicationLister
-	appFilter func(obj interface{}) bool
-	appLabels []string
+	store         applister.ApplicationLister
+	appFilter     func(obj interface{}) bool
+	appLabels     []string
+	appConditions []string
 }
 
 // NewAppCollector returns a prometheus collector for application metrics
-func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, appLabels []string) prometheus.Collector {
+func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, appLabels []string, appConditions []string) prometheus.Collector {
 	return &appCollector{
-		store:     appLister,
-		appFilter: appFilter,
-		appLabels: appLabels,
+		store:         appLister,
+		appFilter:     appFilter,
+		appLabels:     appLabels,
+		appConditions: appConditions,
 	}
 }
 
 // NewAppRegistry creates a new prometheus registry that collects applications
-func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, appLabels []string) *prometheus.Registry {
+func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj interface{}) bool, appLabels []string, appConditions []string) *prometheus.Registry {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels))
+	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions))
 	return registry
 }
 
@@ -330,6 +332,9 @@ func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj in
 func (c *appCollector) Describe(ch chan<- *prometheus.Desc) {
 	if len(c.appLabels) > 0 {
 		ch <- descAppLabels
+	}
+	if len(c.appConditions) > 0 {
+		ch <- descAppConditions
 	}
 	ch <- descAppInfo
 	ch <- descAppSyncStatusCode
@@ -393,6 +398,19 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 			labelValues = append(labelValues, value)
 		}
 		addGauge(descAppLabels, 1, labelValues...)
+	}
+
+	if len(c.appConditions) > 0 {
+		conditionCount := make(map[string]int)
+		for _, condition := range app.Status.Conditions {
+			if slices.Contains(c.appConditions, condition.Type) {
+				conditionCount[condition.Type]++
+			}
+		}
+
+		for conditionType, count := range conditionCount {
+			addGauge(descAppConditions, float64(count), conditionType)
+		}
 	}
 
 	// Deprecated controller metrics
