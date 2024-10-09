@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -10,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,6 +20,7 @@ import (
 
 	"github.com/argoproj/pkg/rand"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -2702,6 +2706,222 @@ func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request
 			w.WriteHeader(http.StatusNotFound)
 		}
 	}
+}
+
+func TestSimpleSCMProviderGeneratorTokenRefStrictOk(t *testing.T) {
+	secretName := uuid.New().String()
+
+	ts := testServerWithPort(t, 8341, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		githubSCMMockHandler(t)(w, r)
+	}))
+
+	ts.Start()
+	defer ts.Close()
+
+	expectedApp := argov1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "argo-cd-guestbook",
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels: map[string]string{
+				common.LabelKeyAppInstance: "simple-scm-provider-generator-strict",
+			},
+		},
+		Spec: argov1alpha1.ApplicationSpec{
+			Project: "default",
+			Source: &argov1alpha1.ApplicationSource{
+				RepoURL:        "git@github.com:argoproj/argo-cd.git",
+				TargetRevision: "master",
+				Path:           "guestbook",
+			},
+			Destination: argov1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "guestbook",
+			},
+		},
+	}
+
+	// Because you can't &"".
+	repoMatch := "argo-cd"
+
+	Given(t).
+		And(func() {
+			_, err := utils.GetE2EFixtureK8sClient().KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Create(context.Background(), &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: fixture.TestNamespace(),
+					Name:      secretName,
+					Labels: map[string]string{
+						common.LabelKeySecretType: common.LabelValueSecretTypeSCMCreds,
+					},
+				},
+				Data: map[string][]byte{
+					"hello": []byte("world"),
+				},
+			}, metav1.CreateOptions{})
+
+			assert.NoError(t, err)
+		}).
+		// Create an SCMProviderGenerator-based ApplicationSet
+		When().Create(v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "simple-scm-provider-generator-strict",
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{ repository }}-guestbook"},
+				Spec: argov1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &argov1alpha1.ApplicationSource{
+						RepoURL:        "{{ url }}",
+						TargetRevision: "{{ branch }}",
+						Path:           "guestbook",
+					},
+					Destination: argov1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook",
+					},
+				},
+			},
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					SCMProvider: &v1alpha1.SCMProviderGenerator{
+						Github: &v1alpha1.SCMProviderGeneratorGithub{
+							Organization: "argoproj",
+							API:          ts.URL,
+							TokenRef: &argov1alpha1.SecretRef{
+								SecretName: secretName,
+								Key:        "hello",
+							},
+						},
+						Filters: []v1alpha1.SCMProviderGeneratorFilter{
+							{
+								RepositoryMatch: &repoMatch,
+							},
+						},
+					},
+				},
+			},
+		},
+	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
+		When().And(func() {
+		err := utils.GetE2EFixtureK8sClient().KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Delete(context.Background(), secretName, metav1.DeleteOptions{})
+		assert.NoError(t, err)
+	})
+}
+
+func TestSimpleSCMProviderGeneratorTokenRefStrictKo(t *testing.T) {
+	secretName := uuid.New().String()
+
+	ts := testServerWithPort(t, 8341, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		githubSCMMockHandler(t)(w, r)
+	}))
+
+	ts.Start()
+	defer ts.Close()
+
+	expectedApp := argov1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "argo-cd-guestbook",
+			Namespace:  fixture.TestNamespace(),
+			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+			Labels: map[string]string{
+				common.LabelKeyAppInstance: "simple-scm-provider-generator-strict-ko",
+			},
+		},
+		Spec: argov1alpha1.ApplicationSpec{
+			Project: "default",
+			Source: &argov1alpha1.ApplicationSource{
+				RepoURL:        "git@github.com:argoproj/argo-cd.git",
+				TargetRevision: "master",
+				Path:           "guestbook",
+			},
+			Destination: argov1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "guestbook",
+			},
+		},
+	}
+
+	// Because you can't &"".
+	repoMatch := "argo-cd"
+
+	Given(t).
+		And(func() {
+			_, err := utils.GetE2EFixtureK8sClient().KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Create(context.Background(), &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: fixture.TestNamespace(),
+					Name:      secretName,
+					Labels: map[string]string{
+						// Try to exfiltrate cluster secret
+						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+					},
+				},
+				Data: map[string][]byte{
+					"hello": []byte("world"),
+				},
+			}, metav1.CreateOptions{})
+
+			assert.NoError(t, err)
+		}).
+		// Create an SCMProviderGenerator-based ApplicationSet
+		When().Create(v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "simple-scm-provider-generator-strict-ko",
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{ repository }}-guestbook"},
+				Spec: argov1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &argov1alpha1.ApplicationSource{
+						RepoURL:        "{{ url }}",
+						TargetRevision: "{{ branch }}",
+						Path:           "guestbook",
+					},
+					Destination: argov1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook",
+					},
+				},
+			},
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					SCMProvider: &v1alpha1.SCMProviderGenerator{
+						Github: &v1alpha1.SCMProviderGeneratorGithub{
+							Organization: "argoproj",
+							API:          ts.URL,
+							TokenRef: &argov1alpha1.SecretRef{
+								SecretName: secretName,
+								Key:        "hello",
+							},
+						},
+						Filters: []v1alpha1.SCMProviderGeneratorFilter{
+							{
+								RepositoryMatch: &repoMatch,
+							},
+						},
+					},
+				},
+			},
+		},
+	}).Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedApp})).
+		When().
+		And(func() {
+			// app should be listed
+			output, err := fixture.RunCli("appset", "get", "simple-scm-provider-generator-strict-ko")
+			require.NoError(t, err)
+			assert.Contains(t, output, fmt.Sprintf("scm provider: error fetching Github token: secret %s/%s is not a valid SCM creds secret", fixture.TestNamespace(), secretName))
+			err2 := utils.GetE2EFixtureK8sClient().KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Delete(context.Background(), secretName, metav1.DeleteOptions{})
+			assert.NoError(t, err2)
+		})
 }
 
 func TestSimplePullRequestGenerator(t *testing.T) {
