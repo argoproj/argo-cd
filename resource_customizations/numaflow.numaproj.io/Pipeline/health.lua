@@ -1,25 +1,17 @@
 local hs = {}
-local daemonHealth = {}
-local sideInputHealth = {}
-local verticesHealth = {}
+local healthy = {}
 
 if obj.status ~= nil then
   if obj.status.conditions ~= nil then
     for i, condition in ipairs(obj.status.conditions) do
-      if condition.type == "SideInputsManagersHealthy" then
-        sideInputHealth = condition
-      end
-      if condition.type == "VerticesHealthy" then
-        verticesHealth = condition
-      end
-      if condition.type == "DaemonServiceHealthy" then
-        daemonHealth = condition
+      if condition.status == "False" then
+        healthy.status = "False"
       end
     end
   end
 
   if obj.metadata.generation == obj.status.observedGeneration then
-    if (sideInputHealth ~= {} and sideInputHealth.status == "False") or (daemonHealth ~= {} and daemonHealth.status == "False") or (verticesHealth ~= {} and verticesHealth.status == "False") or obj.status.phase == "Failed" then
+    if (healthy ~= {} and healthy.status == "False") or obj.status.phase == "Failed" then
       hs.status = "Degraded"
       if obj.status.phase == "Failed" then
         hs.message = obj.status.message
@@ -31,7 +23,7 @@ if obj.status ~= nil then
       hs.status = "Suspended"
       hs.message = "Pipeline is paused"
       return hs
-    elseif (sideInputHealth ~= {} and sideInputHealth.status == "True") and (daemonHealth ~= {} and daemonHealth.status == "True") and (verticesHealth ~= {} and verticesHealth.status == "True") and obj.status.phase == "Running" then
+    elseif obj.status.phase == "Running" then
       hs.status = "Healthy"
       hs.message = "Pipeline is healthy"
       return hs
