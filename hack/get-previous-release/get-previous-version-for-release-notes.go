@@ -52,29 +52,29 @@ func extractPatchAndRC(tag string) (string, string, error) {
 	return patch, rc, nil
 }
 
-func findPreviousTag(currentTag string, tags []string) (string, error) {
+func findPreviousTag(proposedTag string, tags []string) (string, error) {
 	var previousTag string
-	currentMajor := semver.Major(currentTag)
-	currentMinor := semver.MajorMinor(currentTag)
+	proposedMajor := semver.Major(proposedTag)
+	proposedMinor := semver.MajorMinor(proposedTag)
 
-	currentPatch, currentRC, err := extractPatchAndRC(currentTag)
+	proposedPatch, proposedRC, err := extractPatchAndRC(proposedTag)
 	if err != nil {
 		return "", err
 	}
 
-	// If the current tag is a .0 patch release or a 1 release candidate, adjust to the previous minor release series
-	if (currentPatch == "0" && currentRC == "0") || currentRC == "1" {
-		currentMinorInt, err := strconv.Atoi(strings.TrimPrefix(currentMinor, currentMajor+"."))
+	// If the current tag is a .0 patch release or a 1 release candidate, adjust to the previous minor release series.
+	if (proposedPatch == "0" && proposedRC == "0") || proposedRC == "1" {
+		proposedMinorInt, err := strconv.Atoi(strings.TrimPrefix(proposedMinor, proposedMajor+"."))
 		if err != nil {
 			return "", fmt.Errorf("invalid minor version: %v", err)
 		}
-		if currentMinorInt > 0 {
-			currentMinor = fmt.Sprintf("%s.%d", currentMajor, currentMinorInt-1)
+		if proposedMinorInt > 0 {
+			proposedMinor = fmt.Sprintf("%s.%d", proposedMajor, proposedMinorInt-1)
 		}
 	}
 
 	for _, tag := range tags {
-		if tag == currentTag {
+		if tag == proposedTag {
 			continue
 		}
 		tagMajor := semver.Major(tag)
@@ -84,18 +84,25 @@ func findPreviousTag(currentTag string, tags []string) (string, error) {
 			continue
 		}
 
-		if tagMajor == currentMajor && tagMinor == currentMinor {
-			if currentRC != "0" && tagRC != "0" && tagPatch == currentPatch {
-				if semver.Compare(tag, previousTag) > 0 {
-					previousTag = tag
+		// Only bother considering tags with the same major and minor version.
+		if tagMajor == proposedMajor && tagMinor == proposedMinor {
+			// If it's a non-RC release...
+			if proposedRC == "0" {
+				// Only consider non-RC tags.
+				if tagRC == "0" {
+					if semver.Compare(tag, previousTag) > 0 {
+						previousTag = tag
+					}
 				}
-			} else if currentRC == "0" && tagRC == "0" {
-				if semver.Compare(tag, previousTag) > 0 {
-					previousTag = tag
-				}
-			} else if currentRC != "0" && tagRC == "0" {
-				if semver.Compare(tag, previousTag) > 0 {
-					previousTag = tag
+			} else {
+				if tagRC != "0" && tagPatch == proposedPatch {
+					if semver.Compare(tag, previousTag) > 0 {
+						previousTag = tag
+					}
+				} else if tagRC == "0" {
+					if semver.Compare(tag, previousTag) > 0 {
+						previousTag = tag
+					}
 				}
 			}
 		}
