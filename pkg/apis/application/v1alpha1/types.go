@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"math"
 	"net"
 	"net/http"
@@ -36,7 +37,6 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/helm"
 	utilhttp "github.com/argoproj/argo-cd/v2/util/http"
@@ -1939,11 +1939,11 @@ func (c *Cluster) Equals(other *Cluster) bool {
 		return false
 	}
 
-	if !collections.StringMapsEqual(c.Annotations, other.Annotations) {
+	if !maps.Equal(c.Annotations, other.Annotations) {
 		return false
 	}
 
-	if !collections.StringMapsEqual(c.Labels, other.Labels) {
+	if !maps.Equal(c.Labels, other.Labels) {
 		return false
 	}
 
