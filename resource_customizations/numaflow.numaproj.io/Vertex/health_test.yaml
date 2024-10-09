@@ -5,7 +5,7 @@ tests:
   inputPath: testdata/progressing.yaml
 - healthStatus:
     status: Healthy
-    message: "All pods are healthy"
+    message: "Vertex is healthy"
   inputPath: testdata/healthy.yaml
 - healthStatus:
     status: Degraded

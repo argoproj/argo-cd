@@ -5,7 +5,7 @@ tests:
   inputPath: testdata/progressing.yaml
 - healthStatus:
     status: Healthy
-    message: "partitioned roll out complete: 3 new pods have been updated...\n"
+    message: "InterStepBufferService is healthy"
   inputPath: testdata/healthy.yaml
 - healthStatus:
     status: Degraded
