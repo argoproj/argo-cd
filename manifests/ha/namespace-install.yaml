@@ -822,7 +822,8 @@ data:
     1\n  use-server R2 if { srv_is_up(R2) } { nbsrv(check_if_redis_is_master_2) ge
     2 }\n  server R2 argocd-redis-ha-announce-2:6379 check inter 3s fall 1 rise 1\nfrontend
     stats\n  mode http\n  bind :9101 \n  http-request use-service prometheus-exporter
-    if { path /metrics }\n  stats enable\n  stats uri /stats\n  stats refresh 10s\n"
+    if { path /metrics }\n  stats enable\n  stats uri /stats\n  stats refresh 10s\n#
+    Additional configuration\nglobal\n  maxconn 4096\n"
   haproxy_init.sh: |
     HAPROXY_CONF=/data/haproxy.cfg
     cp /readonly/haproxy.cfg "$HAPROXY_CONF"
@@ -1987,7 +1988,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: e34e8124c38bcfd2f16e75620bbde30158686692b13bc449eecc44c51b207d54
+        checksum/config: cd6508bdf9819601c454d0cc491fb77a209e3a88761d92514d105b6681829953
         prometheus.io/path: /metrics
         prometheus.io/port: "9101"
         prometheus.io/scrape: "true"
