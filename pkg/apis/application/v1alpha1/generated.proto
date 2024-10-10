@@ -841,6 +841,9 @@ message ClusterConfig {
 
   // ExecProviderConfig contains configuration for an exec provider
   optional ExecProviderConfig execProviderConfig = 6;
+
+  // DisableCompression bypasses automatic GZip compression requests to the server.
+  optional bool disableCompression = 7;
 }
 
 // ClusterGenerator defines a generator to match against clusters registered with ArgoCD.
@@ -2262,6 +2265,9 @@ message SyncOperation {
   // Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
   // If omitted, will use the revision specified in app spec.
   repeated string revisions = 11;
+
+  // SelfHealAttemptsCount contains the number of auto-heal attempts
+  optional int64 autoHealAttemptsCount = 12;
 }
 
 // SyncOperationResource contains resources to sync.

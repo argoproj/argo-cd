@@ -61,6 +61,27 @@ template.example: |
     repoURLPath: "{{ (index .app.spec.sources 0).repoURL }}"
 ```
 
+### Error message `POST https://api.github.com/repos/xxxx/yyyy/statuses/: 404 Not Found`
+
+This case is similar to the previous one, you have multiple sources in the Application manifest. 
+Default `revisionPath` template `{{.app.status.operationState.syncResult.revision}}` is for an Application with single source.
+
+Multi-source applications report application statuses in an array:
+
+```yaml
+status:
+  operationState:
+    syncResult:
+      revisions:
+        - 38cfa22edf9148caabfecb288bfb47dc4352dfc6
+        - 38cfa22edf9148caabfecb288bfb47dc4352dfc6
+Quick fix for this is to use `index` function to get the first revision:
+```yaml
+template.example: |
+  github:
+    revisionPath: "{{index .app.status.operationState.syncResult.revisions 0}}"
+```
+
 ## config referenced xxx, but key does not exist in secret
 
 - If you are using a custom secret, check that the secret is in the same namespace

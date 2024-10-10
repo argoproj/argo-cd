@@ -3,6 +3,7 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"math"
 	"net"
 	"net/http"
@@ -36,7 +37,6 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/helm"
 	utilhttp "github.com/argoproj/argo-cd/v2/util/http"
@@ -1173,6 +1173,8 @@ type SyncOperation struct {
 	// Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
 	// If omitted, will use the revision specified in app spec.
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,11,opt,name=revisions"`
+	// SelfHealAttemptsCount contains the number of auto-heal attempts
+	SelfHealAttemptsCount int64 `json:"autoHealAttemptsCount,omitempty" protobuf:"bytes,12,opt,name=autoHealAttemptsCount"`
 }
 
 // IsApplyStrategy returns true if the sync strategy is "apply"
@@ -1937,11 +1939,11 @@ func (c *Cluster) Equals(other *Cluster) bool {
 		return false
 	}
 
-	if !collections.StringMapsEqual(c.Annotations, other.Annotations) {
+	if !maps.Equal(c.Annotations, other.Annotations) {
 		return false
 	}
 
-	if !collections.StringMapsEqual(c.Labels, other.Labels) {
+	if !maps.Equal(c.Labels, other.Labels) {
 		return false
 	}
 
@@ -2037,6 +2039,9 @@ type ClusterConfig struct {
 
 	// ExecProviderConfig contains configuration for an exec provider
 	ExecProviderConfig *ExecProviderConfig `json:"execProviderConfig,omitempty" protobuf:"bytes,6,opt,name=execProviderConfig"`
+
+	// DisableCompression bypasses automatic GZip compression requests to the server.
+	DisableCompression bool `json:"disableCompression,omitempty" protobuf:"bytes,7,opt,name=disableCompression"`
 }
 
 // TLSClientConfig contains settings to enable transport layer security
@@ -3186,6 +3191,7 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Unable to create K8s REST config: %w", err)
 	}
+	config.DisableCompression = c.Config.DisableCompression
 	config.Timeout = K8sServerSideTimeout
 	config.QPS = K8sClientConfigQPS
 	config.Burst = K8sClientConfigBurst

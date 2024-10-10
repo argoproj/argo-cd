@@ -746,11 +746,11 @@ func (m *nativeGitClient) CommitSHA() (string, error) {
 
 // returns the meta-data for the commit
 func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, error) {
-	out, err := m.runCmd("show", "-s", "--format=%an <%ae>|%at|%B", revision)
+	out, err := m.runCmd("show", "-s", "--format=%an <%ae>%n%at%n%B", revision)
 	if err != nil {
 		return nil, err
 	}
-	segments := strings.SplitN(out, "|", 3)
+	segments := strings.SplitN(out, "\n", 3)
 	if len(segments) != 3 {
 		return nil, fmt.Errorf("expected 3 segments, got %v", segments)
 	}
