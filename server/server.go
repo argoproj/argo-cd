@@ -100,6 +100,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/server/settings"
 	"github.com/argoproj/argo-cd/v2/server/version"
 	"github.com/argoproj/argo-cd/v2/ui"
+	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/db"
@@ -325,7 +326,9 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	logger := log.NewEntry(log.StandardLogger())
 
 	sg := extension.NewDefaultSettingsGetter(settingsMgr)
-	ag := extension.NewDefaultApplicationGetter(appLister)
+	ag := extension.NewDefaultApplicationGetter(appLister, func(ctx context.Context, dest *v1alpha1.ApplicationDestination) error {
+		return argoutil.ValidateDestination(ctx, dest, dbInstance)
+	})
 	pg := extension.NewDefaultProjectGetter(projLister, dbInstance)
 	ug := extension.NewDefaultUserGetter(policyEnf)
 	em := extension.NewManager(logger, opts.Namespace, sg, ag, pg, enf, ug)
