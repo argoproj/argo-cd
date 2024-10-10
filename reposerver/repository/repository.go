@@ -1517,7 +1517,6 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 				if err := resourceTracking.SetAppInstanceID(target, opt.argocdInstanceID); err != nil {
 					log.Warnf("Failed to set Application Instance ID due to missing or invalid ArgoCD URL in ArgoCD Configmap")
 				}
-
 			}
 			manifestStr, err := json.Marshal(target.Object)
 			if err != nil {
