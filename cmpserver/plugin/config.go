@@ -28,6 +28,7 @@ type PluginConfigSpec struct {
 	Discover         Discover   `json:"discover"`
 	Parameters       Parameters `yaml:"parameters"`
 	PreserveFileMode bool       `json:"preserveFileMode,omitempty"`
+	ProvideGitCreds  bool       `json:"provideGitCreds,omitempty"`
 }
 
 // Discover holds find and fileName
