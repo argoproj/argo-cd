@@ -82,12 +82,12 @@ func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, i
 	return value
 }
 
-func (rt *resourceTracking) getAppInstanceIdValue(un *unstructured.Unstructured) string {
-	appInstanceIdValue, err := argokube.GetAppInstanceAnnotation(un, common.AnnotationKeyAppInstanceID)
-	if err != nil {
-		return ""
-	}
-	return appInstanceIdValue
+func (rt *resourceTracking) getAppInstanceIdValue(un *unstructured.Unstructured) *string {
+    appInstanceIdValue, err := argokube.GetAppInstanceAnnotation(un, common.AnnotationKeyAppInstanceID)
+    if err != nil {
+        return nil
+    }
+    return &appInstanceIdValue
 }
 
 // GetAppName retrieve application name base on tracking method
@@ -133,7 +133,11 @@ func (rt *resourceTracking) GetAppInstance(un *unstructured.Unstructured, key st
 
 // GetAppInstanceID retrieve instance ID of the resource.
 func (rt *resourceTracking) GetAppInstanceID(un *unstructured.Unstructured) string {
-	return rt.getAppInstanceIdValue(un)
+    appInstanceIdValue := rt.getAppInstanceIdValue(un)
+    if appInstanceIdValue == nil {
+        return ""
+    }
+    return *appInstanceIdValue
 }
 
 // UnstructuredToAppInstanceValue will build the AppInstanceValue based
