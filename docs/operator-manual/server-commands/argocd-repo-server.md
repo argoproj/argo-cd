@@ -20,6 +20,7 @@ argocd-repo-server [flags]
       --default-cache-expiration duration              Cache expiration default (default 24h0m0s)
       --disable-helm-manifest-max-extracted-size       Disable maximum size of helm manifest archives when extracted
       --disable-tls                                    Disable TLS on the gRPC endpoint
+      --git-autopack-limit int                         Specifies the limit for automatic git repacking. (default 50)
       --helm-manifest-max-extracted-size string        Maximum size of helm manifest archives when extracted (default "1G")
       --helm-registry-max-index-size string            Maximum size of registry index file (default "1G")
   -h, --help                                           help for argocd-repo-server

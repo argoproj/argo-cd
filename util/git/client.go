@@ -109,6 +109,8 @@ type nativeGitClient struct {
 	proxy string
 	// list of targets that shouldn't use the proxy, applies only if the proxy is set
 	noProxy string
+	// specifies the limit for automatic git repacking
+	autopackLimit int
 }
 
 type runOpts struct {
@@ -154,6 +156,13 @@ func WithEventHandlers(handlers EventHandlers) ClientOpts {
 	}
 }
 
+// WithAutoPackLimit sets the git autopacklimit
+func WithAutoPackLimit(autopackLimit int) ClientOpts {
+	return func(c *nativeGitClient) {
+		c.autopackLimit = autopackLimit
+	}
+}
+
 func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
 	r := regexp.MustCompile("(/|:)")
 	normalizedGitURL := NormalizeGitURL(rawRepoURL)
@@ -177,8 +186,8 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 		proxy:     proxy,
 		noProxy:   noProxy,
 	}
-	for i := range opts {
-		opts[i](client)
+	for _, opt := range opts {
+		opt(client)
 	}
 	return client, nil
 }
@@ -341,6 +350,14 @@ func (m *nativeGitClient) Init() error {
 		Name: git.DefaultRemoteName,
 		URLs: []string{m.repoURL},
 	})
+	if err != nil {
+		return err
+	}
+
+	if m.autopackLimit != common.DefaultGitAutoPackLimit {
+		err = m.runCredentialedCmd("config", "gc.autopacklimit", fmt.Sprintf("%d", m.autopackLimit))
+	}
+
 	return err
 }
 
