@@ -2,7 +2,7 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "customManagers": [
     {
-      "description": "A generic custom manager for updating any yaml fields ending by *version: case incensitive",
+      "description": "A generic custom manager for updating any yaml fields ending by 'version:' (case insensitive)",
       "customType": "regex",
       "fileMatch": [
         ".github\\/workflows.+\\.(?:yml|yaml)$"

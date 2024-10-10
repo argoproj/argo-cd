@@ -581,6 +581,8 @@ tlsClientConfig:
     # certificates against. If ServerName is empty, the hostname used to contact the
     # server is used.
     serverName: string
+# Disable automatic compression for requests to the cluster 
+disableCompression: boolean
 ```
 
 Note that if you specify a command to run under `execProviderConfig`, that command must be available in the Argo CD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
