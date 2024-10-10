@@ -1382,7 +1382,7 @@ type (
 		cmpTarDoneCh                chan<- bool
 		cmpTarExcludedGlobs         []string
 		cmpUseManifestGeneratePaths bool
-		argocdInstanceID    string
+		argocdInstanceID            string
 	}
 )
 
