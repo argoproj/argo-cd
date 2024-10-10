@@ -11,11 +11,20 @@ When a resource update is ignored, if the resource's [health status](./health.md
 
 ## System-Level Configuration
 
+By default, `resource.ignoreResourceUpdatesEnabled` is set to `true`, enabling Argo CD to ignore resource updates. This default setting ensures that Argo CD maintains sustainable performance by reducing unnecessary reconcile operations. If you need to alter this behavior, you can explicitly set `resource.ignoreResourceUpdatesEnabled` to `false` in the `argocd-cm` ConfigMap:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  resource.ignoreResourceUpdatesEnabled: "false"
+```
+
 Argo CD allows ignoring resource updates at a specific JSON path, using [RFC6902 JSON patches](https://tools.ietf.org/html/rfc6902) and [JQ path expressions](https://stedolan.github.io/jq/manual/#path(path_expression)). It can be configured for a specified group and kind
 in `resource.customizations` key of the `argocd-cm` ConfigMap.
-
-!!!important "Enabling the feature"
-    The feature is behind a flag. To enable it, set `resource.ignoreResourceUpdatesEnabled` to `"true"` in the `argocd-cm` ConfigMap.
 
 Following is an example of a customization which ignores the `refreshTime` status field of an [`ExternalSecret`](https://external-secrets.io/main/api/externalsecret/) resource:
 
