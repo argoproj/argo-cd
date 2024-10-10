@@ -29,6 +29,10 @@ packages:
   github.com/argoproj/argo-cd/v2/controller/cache:
     interfaces:
       LiveStateCache:
+  github.com/argoproj/argo-cd/v2/cmpserver/apiclient:
+    interfaces:
+      ConfigManagementPluginServiceClient:
+      ConfigManagementPluginService_MatchRepositoryClient:
   github.com/argoproj/argo-cd/v2/reposerver/apiclient:
     interfaces:
       RepoServerServiceClient:
@@ -44,6 +48,9 @@ packages:
       RbacEnforcer:
       SettingsGetter:
       UserGetter:
+  github.com/argoproj/argo-cd/v2/util/app/discovery:
+    interfaces:
+      CMPClientConstructor:
   github.com/argoproj/argo-cd/v2/util/db:
     interfaces:
       ArgoDB:
