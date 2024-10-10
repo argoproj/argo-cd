@@ -10,7 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/services"
 )
 
-func GetGenerators(ctx context.Context, c client.Client, k8sClient kubernetes.Interface, namespace string, argoCDService services.Repos, dynamicClient dynamic.Interface, scmConfig SCMConfig) map[string]Generator {
+func GetGenerators(ctx context.Context, c client.Client, k8sClient kubernetes.Interface, namespace string, argoCDService services.Repos, dynamicClient dynamic.Interface, scmConfig SCMConfig, matrixConfig MatrixConfig) map[string]Generator {
 	terminalGenerators := map[string]Generator{
 		"List":                    NewListGenerator(),
 		"Clusters":                NewClusterGenerator(c, ctx, k8sClient, namespace),
@@ -29,7 +29,7 @@ func GetGenerators(ctx context.Context, c client.Client, k8sClient kubernetes.In
 		"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
 		"PullRequest":             terminalGenerators["PullRequest"],
 		"Plugin":                  terminalGenerators["Plugin"],
-		"Matrix":                  NewMatrixGenerator(terminalGenerators),
+		"Matrix":                  NewMatrixGenerator(terminalGenerators, matrixConfig),
 		"Merge":                   NewMergeGenerator(terminalGenerators),
 	}
 
@@ -41,7 +41,7 @@ func GetGenerators(ctx context.Context, c client.Client, k8sClient kubernetes.In
 		"ClusterDecisionResource": terminalGenerators["ClusterDecisionResource"],
 		"PullRequest":             terminalGenerators["PullRequest"],
 		"Plugin":                  terminalGenerators["Plugin"],
-		"Matrix":                  NewMatrixGenerator(nestedGenerators),
+		"Matrix":                  NewMatrixGenerator(nestedGenerators, matrixConfig),
 		"Merge":                   NewMergeGenerator(nestedGenerators),
 	}
 

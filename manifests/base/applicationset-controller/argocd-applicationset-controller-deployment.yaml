@@ -139,6 +139,12 @@ spec:
                   key: applicationsetcontroller.namespaces
                   name: argocd-cmd-params-cm
                   optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_MAX_MATRIX_CHILDREN
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.matrix.children.max
+                  optional: true
             - name: ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH
               valueFrom:
                 configMapKeyRef:

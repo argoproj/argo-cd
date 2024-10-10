@@ -290,13 +290,14 @@ func mockGenerators() map[string]generators.Generator {
 		"Plugin":      generatorMockPlugin,
 	}
 
+	matrixConfig := generators.NewMatrixConfig(0)
 	nestedGenerators := map[string]generators.Generator{
 		"List":        terminalMockGenerators["List"],
 		"Git":         terminalMockGenerators["Git"],
 		"SCMProvider": terminalMockGenerators["SCMProvider"],
 		"PullRequest": terminalMockGenerators["PullRequest"],
 		"Plugin":      terminalMockGenerators["Plugin"],
-		"Matrix":      generators.NewMatrixGenerator(terminalMockGenerators),
+		"Matrix":      generators.NewMatrixGenerator(terminalMockGenerators, matrixConfig),
 		"Merge":       generators.NewMergeGenerator(terminalMockGenerators),
 	}
 
@@ -306,7 +307,7 @@ func mockGenerators() map[string]generators.Generator {
 		"SCMProvider": terminalMockGenerators["SCMProvider"],
 		"PullRequest": terminalMockGenerators["PullRequest"],
 		"Plugin":      terminalMockGenerators["Plugin"],
-		"Matrix":      generators.NewMatrixGenerator(nestedGenerators),
+		"Matrix":      generators.NewMatrixGenerator(nestedGenerators, matrixConfig),
 		"Merge":       generators.NewMergeGenerator(nestedGenerators),
 	}
 }

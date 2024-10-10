@@ -356,7 +356,7 @@ func TestGetRelevantGenerators(t *testing.T) {
 		"Git":      getMockGitGenerator(),
 	}
 
-	testGenerators["Matrix"] = NewMatrixGenerator(testGenerators)
+	testGenerators["Matrix"] = NewMatrixGenerator(testGenerators, NewMatrixConfig(0))
 	testGenerators["Merge"] = NewMergeGenerator(testGenerators)
 	testGenerators["List"] = NewListGenerator()
 
