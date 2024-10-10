@@ -354,7 +354,9 @@ func (m *nativeGitClient) Init() error {
 		return err
 	}
 
-	err = m.runCredentialedCmd("config", "gc.autopacklimit", fmt.Sprintf("%d", m.autopackLimit))
+	if m.autopackLimit != common.DefaultGitAutoPackLimit {
+		err = m.runCredentialedCmd("config", "gc.autopacklimit", fmt.Sprintf("%d", m.autopackLimit))
+	}
 
 	return err
 }
