@@ -20,6 +20,7 @@ import userInfo from './user-info';
 import {AuthSettings} from './shared/models';
 import {PKCEVerification} from './login/components/pkce-verify';
 import {SystemLevelExtension} from './shared/services/extensions-service';
+import {getPKCERedirectURI, pkceLogin} from './login/components/utils';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -101,7 +102,13 @@ requests.onError.subscribe(async err => {
         // If basehref is the default `/` it will become an empty string.
         const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
         if (isSSO) {
-            window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
+            const authSettings = await services.authService.settings();
+
+            if (authSettings?.oidcConfig?.enablePKCEAuthentication) {
+                pkceLogin(authSettings.oidcConfig, getPKCERedirectURI().toString());
+            } else {
+                window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
+            }
         } else {
             history.push(`/login?return_url=${encodeURIComponent(location.href)}`);
         }
