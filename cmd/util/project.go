@@ -48,6 +48,8 @@ func AddProjFlags(command *cobra.Command, opts *ProjectOpts) {
 	command.Flags().StringArrayVar(&opts.allowedNamespacedResources, "allow-namespaced-resource", []string{}, "List of allowed namespaced resources")
 	command.Flags().StringArrayVar(&opts.deniedNamespacedResources, "deny-namespaced-resource", []string{}, "List of denied namespaced resources")
 	command.Flags().StringSliceVar(&opts.SourceNamespaces, "source-namespaces", []string{}, "List of source namespaces for applications")
+	command.Flags().StringArrayVar(&opts.destinationServiceAccounts, "dest-service-accounts", []string{},
+		"Destination server, namespace and target service account (e.g. https://192.168.99.100:8443,default,default-sa)")
 }
 
 func getGroupKindList(values []string) []v1.GroupKind {
@@ -98,8 +100,8 @@ func (opts *ProjectOpts) GetDestinationServiceAccounts() []v1alpha1.ApplicationD
 	destinationServiceAccounts := make([]v1alpha1.ApplicationDestinationServiceAccount, 0)
 	for _, destStr := range opts.destinationServiceAccounts {
 		parts := strings.Split(destStr, ",")
-		if len(parts) != 2 {
-			log.Fatalf("Expected destination of the form: server,namespace. Received: %s", destStr)
+		if len(parts) != 3 {
+			log.Fatalf("Expected destination service account of the form: server,namespace, defaultServiceAccount. Received: %s", destStr)
 		} else {
 			destinationServiceAccounts = append(destinationServiceAccounts, v1alpha1.ApplicationDestinationServiceAccount{
 				Server:                parts[0],

@@ -283,6 +283,9 @@ data:
   # - annotation+label : Also uses an annotation for tracking, but additionally labels the resource with the application name
   application.resourceTrackingMethod: annotation
 
+  # Optional installation id. Allows to have multiple installations of Argo CD in the same cluster.
+  installationID: "my-unique-id"
+
   # disables admin user. Admin is enabled by default
   admin.enabled: "false"
   # add an additional local user with apiKey and login capabilities
@@ -329,14 +332,14 @@ data:
   # spread out the refreshes and give time to the repo-server to catch up. The jitter is the maximum duration that can be
   # added to the sync timeout. So, if the sync timeout is 3 minutes and the jitter is 1 minute, then the actual timeout will
   # be between 3 and 4 minutes. Disabled when the value is 0, defaults to 0.
-  timeout.reconciliation.jitter: 0
+  timeout.reconciliation.jitter: "0"
 
   # cluster.inClusterEnabled indicates whether to allow in-cluster server address. This is enabled by default.
   cluster.inClusterEnabled: "true"
 
   # The maximum number of pod logs to render in UI. If the application has more than this number of pods, the logs will not be rendered.
   # This is to prevent the UI from becoming unresponsive when rendering a large number of logs. Default is 10.
-  server.maxPodLogsToRender: 10
+  server.maxPodLogsToRender: "10"
 
   # Application pod logs RBAC enforcement enables control over who can and who can't view application pod logs.
   # When you enable the switch, pod logs will be visible only to admin role by default. Other roles/users will not be able to view them via cli and UI.
@@ -425,7 +428,7 @@ data:
                 name: some-cluster
                 server: https://some-cluster
   # The maximum size of the payload that can be sent to the webhook server.
-  webhook.maxPayloadSizeMB: 1024
+  webhook.maxPayloadSizeMB: "1024"
 
-  # application.sync.impersonation.enabled indicates whether the application sync can be decoupled from control plane service account using impersonation.
+  # application.sync.impersonation.enabled enables application sync to use a custom service account, via impersonation. This allows decoupling sync from control-plane service account.
   application.sync.impersonation.enabled: "false"

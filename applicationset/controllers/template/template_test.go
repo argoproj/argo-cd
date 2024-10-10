@@ -2,6 +2,7 @@ package template
 
 import (
 	"fmt"
+	"maps"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -18,7 +19,6 @@ import (
 	rendmock "github.com/argoproj/argo-cd/v2/applicationset/utils/mocks"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/collections"
 )
 
 func TestGenerateApplications(t *testing.T) {
@@ -344,7 +344,7 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 			assert.EqualValues(t, cases.expectedApp[0].ObjectMeta.Name, gotApp[0].ObjectMeta.Name)
 			assert.EqualValues(t, cases.expectedApp[0].Spec.Source.TargetRevision, gotApp[0].Spec.Source.TargetRevision)
 			assert.EqualValues(t, cases.expectedApp[0].Spec.Destination.Namespace, gotApp[0].Spec.Destination.Namespace)
-			assert.True(t, collections.StringMapsEqual(cases.expectedApp[0].ObjectMeta.Labels, gotApp[0].ObjectMeta.Labels))
+			assert.True(t, maps.Equal(cases.expectedApp[0].ObjectMeta.Labels, gotApp[0].ObjectMeta.Labels))
 		})
 	}
 }

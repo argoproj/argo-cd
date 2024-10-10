@@ -200,8 +200,7 @@ admissionregistration.k8s.io/MutatingWebhookConfiguration:
 				require.NoError(t, err)
 				assert.Contains(t, summary, tc.containsSummary)
 			} else if tc.containsError != "" {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tc.containsError)
+				assert.ErrorContains(t, err, tc.containsError)
 			}
 		})
 	}

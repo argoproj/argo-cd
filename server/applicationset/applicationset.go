@@ -88,6 +88,7 @@ func NewServer(
 	scmRootCAPath string,
 	allowedScmProviders []string,
 	enableScmProviders bool,
+	enableK8sEvent []string,
 ) applicationset.ApplicationSetServiceServer {
 	s := &Server{
 		ns:                       namespace,
@@ -103,7 +104,7 @@ func NewServer(
 		projLister:               projLister,
 		settings:                 settings,
 		projectLock:              projectLock,
-		auditLogger:              argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
+		auditLogger:              argo.NewAuditLogger(namespace, kubeclientset, "argocd-server", enableK8sEvent),
 		enabledNamespaces:        enabledNamespaces,
 		GitSubmoduleEnabled:      gitSubmoduleEnabled,
 		EnableNewGitFileGlobbing: enableNewGitFileGlobbing,
@@ -299,8 +300,8 @@ func (s *Server) updateAppSet(appset *v1alpha1.ApplicationSet, newAppset *v1alph
 	for i := 0; i < 10; i++ {
 		appset.Spec = newAppset.Spec
 		if merge {
-			appset.Labels = collections.MergeStringMaps(appset.Labels, newAppset.Labels)
-			appset.Annotations = collections.MergeStringMaps(appset.Annotations, newAppset.Annotations)
+			appset.Labels = collections.Merge(appset.Labels, newAppset.Labels)
+			appset.Annotations = collections.Merge(appset.Annotations, newAppset.Annotations)
 		} else {
 			appset.Labels = newAppset.Labels
 			appset.Annotations = newAppset.Annotations

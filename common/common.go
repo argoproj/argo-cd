@@ -178,6 +178,7 @@ const (
 
 	// AnnotationKeyAppInstance is the Argo CD application name is used as the instance name
 	AnnotationKeyAppInstance = "argocd.argoproj.io/tracking-id"
+	AnnotationInstallationID = "argocd.argoproj.io/installation-id"
 
 	// AnnotationKeyAppInstanceID is the Argo CD server URL that is managing this resource
 	AnnotationKeyAppInstanceID = "argocd.argoproj.io/instance-id"
@@ -257,6 +258,8 @@ const (
 	EnvHelmIndexCacheDuration = "ARGOCD_HELM_INDEX_CACHE_DURATION"
 	// EnvAppConfigPath allows to override the configuration path for repo server
 	EnvAppConfigPath = "ARGOCD_APP_CONF_PATH"
+	// EnvAuthToken is the environment variable name for the auth token used by the CLI
+	EnvAuthToken = "ARGOCD_AUTH_TOKEN"
 	// EnvLogFormat log format that is defined by `--logformat` option
 	EnvLogFormat = "ARGOCD_LOG_FORMAT"
 	// EnvLogLevel log level that is defined by `--loglevel` option
@@ -316,7 +319,10 @@ const (
 // Constants used by util/clusterauth package
 const (
 	ClusterAuthRequestTimeout = 10 * time.Second
-	BearerTokenTimeout        = 30 * time.Second
+)
+
+const (
+	BearerTokenTimeout = 30 * time.Second
 )
 
 const (
@@ -426,8 +432,10 @@ var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission 
 
 // Redis password consts
 const (
-	DefaultRedisInitialPasswordSecretName = "argocd-redis"
-	DefaultRedisInitialPasswordKey        = "auth"
+	// RedisInitialCredentials is the name for the argocd kubernetes secret which will have the redis password
+	RedisInitialCredentials = "argocd-redis"
+	// RedisInitialCredentialsKey is the key for the argocd kubernetes secret that maps to the redis password
+	RedisInitialCredentialsKey = "auth"
 )
 
 /*
@@ -436,17 +444,17 @@ SetOptionalRedisPasswordFromKubeConfig sets the optional Redis password if it ex
 We specify kubeClient as kubernetes.Interface to allow for mocking in tests, but this should be treated as a kubernetes.Clientset param.
 */
 func SetOptionalRedisPasswordFromKubeConfig(ctx context.Context, kubeClient kubernetes.Interface, namespace string, redisOptions *redis.Options) error {
-	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, DefaultRedisInitialPasswordSecretName, v1.GetOptions{})
+	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, RedisInitialCredentials, v1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get secret %s/%s: %w", namespace, DefaultRedisInitialPasswordSecretName, err)
+		return fmt.Errorf("failed to get secret %s/%s: %w", namespace, RedisInitialCredentials, err)
 	}
 	if secret == nil {
-		return fmt.Errorf("failed to get secret %s/%s: secret is nil", namespace, DefaultRedisInitialPasswordSecretName)
+		return fmt.Errorf("failed to get secret %s/%s: secret is nil", namespace, RedisInitialCredentials)
 	}
-	_, ok := secret.Data[DefaultRedisInitialPasswordKey]
+	_, ok := secret.Data[RedisInitialCredentialsKey]
 	if !ok {
-		return fmt.Errorf("secret %s/%s does not contain key %s", namespace, DefaultRedisInitialPasswordSecretName, DefaultRedisInitialPasswordKey)
+		return fmt.Errorf("secret %s/%s does not contain key %s", namespace, RedisInitialCredentials, RedisInitialCredentialsKey)
 	}
-	redisOptions.Password = string(secret.Data[DefaultRedisInitialPasswordKey])
+	redisOptions.Password = string(secret.Data[RedisInitialCredentialsKey])
 	return nil
 }

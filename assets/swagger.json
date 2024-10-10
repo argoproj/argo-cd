@@ -4719,6 +4719,9 @@
         "impersonationEnabled": {
           "type": "boolean"
         },
+        "installationID": {
+          "type": "string"
+        },
         "kustomizeOptions": {
           "$ref": "#/definitions/v1alpha1KustomizeOptions"
         },
@@ -6084,7 +6087,7 @@
       "properties": {
         "defaultServiceAccount": {
           "type": "string",
-          "title": "ServiceAccountName to be used for impersonation during the sync operation"
+          "title": "DefaultServiceAccount to be used for impersonation during the sync operation"
         },
         "namespace": {
           "description": "Namespace specifies the target namespace for the application's resources.",
@@ -6614,6 +6617,10 @@
           "type": "boolean",
           "title": "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)"
         },
+        "skipTests": {
+          "description": "SkipTests skips test manifest installation step (Helm's --skip-tests).",
+          "type": "boolean"
+        },
         "valueFiles": {
           "type": "array",
           "title": "ValuesFiles is a list of Helm value files to use when generating a template",
@@ -7137,6 +7144,10 @@
           "description": "Server requires Bearer authentication. This client will not attempt to use\nrefresh tokens for an OAuth2 flow.\nTODO: demonstrate an OAuth2 compatible client.",
           "type": "string"
         },
+        "disableCompression": {
+          "description": "DisableCompression bypasses automatic GZip compression requests to the server.",
+          "type": "boolean"
+        },
         "execProviderConfig": {
           "$ref": "#/definitions/v1alpha1ExecProviderConfig"
         },
@@ -7156,6 +7167,10 @@
       "description": "ClusterGenerator defines a generator to match against clusters registered with ArgoCD.",
       "type": "object",
       "properties": {
+        "flatList": {
+          "type": "boolean",
+          "title": "returns the clusters a single 'clusters' value in the template"
+        },
         "selector": {
           "$ref": "#/definitions/v1LabelSelector"
         },
@@ -9167,6 +9182,11 @@
       "description": "SyncOperation contains details about a sync operation.",
       "type": "object",
       "properties": {
+        "autoHealAttemptsCount": {
+          "type": "integer",
+          "format": "int64",
+          "title": "SelfHealAttemptsCount contains the number of auto-heal attempts"
+        },
         "dryRun": {
           "type": "boolean",
           "title": "DryRun specifies to perform a `kubectl apply --dry-run` without actually performing the sync"
