@@ -2,6 +2,8 @@ package localconfig
 
 import (
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/config"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 	"os"
 	"path"
 	"strings"
@@ -17,6 +19,7 @@ type LocalConfig struct {
 	Contexts       []ContextRef `json:"contexts"`
 	Servers        []Server     `json:"servers"`
 	Users          []User       `json:"users"`
+	PromptsEnabled bool         `json:"prompts-enabled"`
 }
 
 // ContextRef is a reference to a Server and User for an API client
@@ -305,4 +308,16 @@ func GetUsername(subject string) string {
 		return parts[0]
 	}
 	return subject
+}
+
+func GetPromptsEnabled() bool {
+	defaultLocalConfigPath, err := DefaultLocalConfigPath()
+	errors.CheckError(err)
+
+	localConfigPath := config.GetFlag("config", defaultLocalConfigPath)
+
+	localConfig, err := ReadLocalConfig(localConfigPath)
+	errors.CheckError(err)
+
+	return localConfig.PromptsEnabled
 }
