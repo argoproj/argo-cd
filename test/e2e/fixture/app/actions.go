@@ -269,6 +269,9 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	if a.context.helmSkipCrds {
 		args = append(args, "--helm-skip-crds")
 	}
+	if a.context.helmSkipTests {
+		args = append(args, "--helm-skip-tests")
+	}
 	return args
 }
 
@@ -466,6 +469,11 @@ func (a *Actions) verifyAction() {
 
 func (a *Actions) SetTrackingMethod(trackingMethod string) *Actions {
 	fixture.SetTrackingMethod(trackingMethod)
+	return a
+}
+
+func (a *Actions) SetInstallationID(installationID string) *Actions {
+	fixture.SetInstallationID(installationID)
 	return a
 }
 

@@ -471,7 +471,7 @@ Once we create this service, we can configure the Ingress to conditionally route
 ```
 
 ## [Istio](https://www.istio.io)
-You can put Argo CD behind Istio using following configurations. Here we will achive both serving Argo CD behind istio and using subpath on Istio
+You can put Argo CD behind Istio using following configurations. Here we will achieve both serving Argo CD behind istio and using subpath on Istio
 
 First we need to make sure that we can run Argo CD with subpath (ie /argocd). For this we have used install.yaml from argocd project as is
 

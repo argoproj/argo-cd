@@ -277,6 +277,9 @@ spec:
 # ...
 ```
 
+!!! note
+    If application manifest generation using the `argocd.argoproj.io/manifest-generate-paths` annotation feature is enabled, only the resources specified by this annotation will be sent to the CMP server for manifest generation, rather than the entire repository. To determine the appropriate resources, a common root path is calculated based on the paths provided in the annotation. The application path serves as the deepest path that can be selected as the root.
+
 ### Application Sync Timeout & Jitter
 
 Argo CD has a timeout for application syncs. It will trigger a refresh for each application periodically when the timeout expires.

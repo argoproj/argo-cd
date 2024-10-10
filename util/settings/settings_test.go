@@ -1221,8 +1221,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		)
 		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "could not read from secret")
+		require.ErrorContains(t, err, "could not read from secret")
 		assert.NotNil(t, settings)
 	})
 	t.Run("No external TLS secret", func(t *testing.T) {
@@ -1724,4 +1723,47 @@ func TestRedirectAdditionalURLs(t *testing.T) {
 			require.Equal(t, tc.ExpectedResult, result)
 		})
 	}
+}
+
+func TestIsImpersonationEnabled(t *testing.T) {
+	// When there is no argocd-cm itself,
+	// Then IsImpersonationEnabled() must return false (default value) and an error with appropriate error message.
+	kubeClient := fake.NewSimpleClientset()
+	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
+	featureFlag, err := settingsManager.IsImpersonationEnabled()
+	require.False(t, featureFlag,
+		"with no argocd-cm config map, IsImpersonationEnabled() must return return false (default value)")
+	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
+		"with no argocd-cm config map, IsImpersonationEnabled() must return an error")
+
+	// When there is no impersonation feature flag present in the argocd-cm,
+	// Then IsImpersonationEnabled() must return false (default value) and nil error.
+	_, settingsManager = fixtures(map[string]string{})
+	featureFlag, err = settingsManager.IsImpersonationEnabled()
+	require.False(t, featureFlag,
+		"with empty argocd-cm config map, IsImpersonationEnabled() must return false (default value)")
+	require.NoError(t, err,
+		"with empty argocd-cm config map, IsImpersonationEnabled() must not return any error")
+
+	// When user disables the feature explicitly,
+	// Then IsImpersonationEnabled() must return false and nil error.
+	_, settingsManager = fixtures(map[string]string{
+		"application.sync.impersonation.enabled": "false",
+	})
+	featureFlag, err = settingsManager.IsImpersonationEnabled()
+	require.False(t, featureFlag,
+		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must return user set value")
+	require.NoError(t, err,
+		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must not return any error")
+
+	// When user enables the feature explicitly,
+	// Then IsImpersonationEnabled() must return true and nil error.
+	_, settingsManager = fixtures(map[string]string{
+		"application.sync.impersonation.enabled": "true",
+	})
+	featureFlag, err = settingsManager.IsImpersonationEnabled()
+	require.True(t, featureFlag,
+		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must return user set value")
+	require.NoError(t, err,
+		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must not return any error")
 }

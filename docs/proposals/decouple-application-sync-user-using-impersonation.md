@@ -68,9 +68,9 @@ This proposal would allow ArgoCD administrators to manage the cluster permission
 
 ### Goals
 - Applications may only impersonate ServiceAccounts that live in the same namespace as the destination namespace configured in the application.If the service account is created in a different namespace, then the user can provide the service account name in the format `<namespace>:<service_account_name>` . ServiceAccount to be used for syncing each application is determined by the target destination configured in the `AppProject` associated with the `Application`.
-- If impersonation feature is enabled, and no service account name is provided in the associated `AppProject`, then the sync operation would fail with an appropriate error message. Users can configure a catch all service account matching all destinations to avoid such sync errors.
+- If impersonation feature is enabled, and no service account name is provided in the associated `AppProject`, then the default service account of the destination namespace of the `Application` should be used.
 - Access restrictions implemented through properties in AppProject (if done) must have the existing behavior. From a security standpoint, any restrictions that were available before switching to a service account based approach should continue to exist even when the impersonation feature is enabled.
-- The feature can be enabled/disabled only at the system level. Once enabled/disabled, it is applicable to all ArgoCD `Applications`.
+- The feature can be enabled/disabled only at the system level. Once enabled/disabled, it is applicable to all Argo CD `Applications`.
 
 ### Non-Goals
 
@@ -82,7 +82,7 @@ As part of this proposal, it would be possible for an ArgoCD Admin to specify a 
 
 When applications gets synced, based on its destination (target cluster and namespace combination), the `defaultServiceAccount` configured in the `AppProject` will be selected and used for impersonation when executing the kubectl commands for the sync operation.
 
-We would be introducing a new element `destinationServiceAccounts` in `AppProject.spec`. This element is used for the sole purpose of specifying the impersonation configuration. The `defaultServiceAccount` configured for the `AppProject` would be used for the sync operation for a particular destination cluster and namespace. If impersonation feature is enabled and no specific service account is provided in the `AppProject` CR, then the sync operation will fail with an error. Users can configure a catch all service account matching all destinations to avoid such sync errors.
+We would be introducing a new element `destinationServiceAccounts` in `AppProject.spec`. This element is used for the sole purpose of specifying the impersonation configuration. The `defaultServiceAccount` configured for the `AppProject` would be used for the sync operation for a particular destination cluster and namespace. If impersonation feature is enabled and no specific service account is provided in the `AppProject` CR, then the `default` service account in the destination namespace would be used for impersonation.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -109,7 +109,7 @@ spec:
     - server: https://kubernetes.default.svc
       namespace: guestbook-stage
       defaultServiceAccount: guestbook-stage-deployer
-    - server: '*
+    - server: '*'
       namespace: '*'
       defaultServiceAccount: default # catch all service account to be used when all other matches fail.
 ```
@@ -161,7 +161,10 @@ So that, I can use a generic convention of naming service accounts and avoid ass
 
 #### Component: ArgoCD Application Controller
 
-- Provide a configuration in `argocd-cm`  which can be modified to enable the Impersonation feature. Set `application.sync.impersonation.enabled: "true"` in the Argo CD ConfigMap. Default value of `application.sync.impersonation.enabled` would be `"false"` and user has to explicitly override it to use this feature.
+- Provide a configuration in `argocd-cm`  which can be modified to enable the Impersonation feature. Set `applicationcontroller.enable.impersonation: true` in the Argo CD ConfigMap. Default value of `applicationcontroller.enable.impersonation` would be `false` and user has to explicitly override it to use this feature.
+- Provide an option to override the Impersonation feature using environment variables.
+Set `ARGOCD_APPLICATION_CONTROLLER_ENABLE_IMPERSONATION=true` in the Application controller environment variables. Default value of the environment variable must be `false` and user has to explicitly set it to `true` to use this feature.
+- Provide an option to enable this feature using a command line flag `--enable-impersonation`. This new argument option needs to be added to the Application controller args.
 - Fix Application Controller `sync.go` to set the Impersonate configuration from the AppProject CR to the `SyncContext` Object (rawConfig and restConfig field, need to understand which config is used for the actual sync and if both configs need to be impersonated.)
 
 #### Component: ArgoCD UI

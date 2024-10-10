@@ -451,8 +451,7 @@ func Test_getParametersAnnouncement_invalid_json(t *testing.T) {
 		Args:    []string{`[`},
 	}
 	_, err := getParametersAnnouncement(context.Background(), "", []*repoclient.ParameterAnnouncement{}, command, []*apiclient.EnvEntry{})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unexpected end of JSON input")
+	assert.ErrorContains(t, err, "unexpected end of JSON input")
 }
 
 func Test_getParametersAnnouncement_bad_command(t *testing.T) {
@@ -461,8 +460,7 @@ func Test_getParametersAnnouncement_bad_command(t *testing.T) {
 		Args:    []string{"1"},
 	}
 	_, err := getParametersAnnouncement(context.Background(), "", []*repoclient.ParameterAnnouncement{}, command, []*apiclient.EnvEntry{})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "error executing dynamic parameter output command")
+	assert.ErrorContains(t, err, "error executing dynamic parameter output command")
 }
 
 func Test_getTempDirMustCleanup(t *testing.T) {

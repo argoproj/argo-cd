@@ -20,6 +20,7 @@ export interface AppDetailsPreferences {
     inlineDiff: boolean;
     compactDiff: boolean;
     hideManagedFields?: boolean;
+    enableWordWrap?: boolean;
     orphanedResources: boolean;
     podView: PodViewPreferences;
     darkMode: boolean;

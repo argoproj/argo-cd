@@ -74,10 +74,10 @@ jobs:
           go-version: ${{ inputs.go-version }}
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@4959ce089c160fddf62f7b42464195ba1a56d382 # v3.6.0
+        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
 
       - uses: docker/setup-qemu-action@49b3bc8e6bdd4a60e6116a5414239cba5943d3cf # v3.2.0
-      - uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db # v3.6.1
+      - uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
 
       - name: Setup tags for container image as a CSV type
         run: |
@@ -143,7 +143,7 @@ jobs:
 
       - name: Build and push container image
         id: image
-        uses: docker/build-push-action@5cd11c3a4ced054e52742c5fd54dca954e0edd85 #v6.7.0
+        uses: docker/build-push-action@4f58ea79222b3b9dc2c8bbdd6debcef730109a75 #v6.9.0
         with:
           context: .
           platforms: ${{ inputs.platforms }}

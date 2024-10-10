@@ -197,6 +197,7 @@ type cacheSettings struct {
 	clusterSettings     clustercache.Settings
 	appInstanceLabelKey string
 	trackingMethod      appv1.TrackingMethod
+	installationID      string
 	// resourceOverrides provides a list of ignored differences to ignore watched resource updates
 	resourceOverrides map[string]appv1.ResourceOverride
 
@@ -225,6 +226,10 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	if err != nil {
 		return nil, err
 	}
+	installationID, err := c.settingsMgr.GetInstallationID()
+	if err != nil {
+		return nil, err
+	}
 	resourceUpdatesOverrides, err := c.settingsMgr.GetIgnoreResourceUpdatesOverrides()
 	if err != nil {
 		return nil, err
@@ -246,7 +251,7 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 		ResourcesFilter:        resourcesFilter,
 	}
 
-	return &cacheSettings{clusterSettings, appInstanceLabelKey, argo.GetTrackingMethod(c.settingsMgr), resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
+	return &cacheSettings{clusterSettings, appInstanceLabelKey, argo.GetTrackingMethod(c.settingsMgr), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
 }
 
 func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
@@ -490,7 +495,10 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		return nil, fmt.Errorf("error getting value for %v: %w", settings.RespectRBAC, err)
 	}
 
-	clusterCacheConfig := cluster.RESTConfig()
+	clusterCacheConfig, err := cluster.RESTConfig()
+	if err != nil {
+		return nil, fmt.Errorf("error getting cluster RESTConfig: %w", err)
+	}
 	// Controller dynamically fetches all resource types available on the cluster
 	// using a discovery API that may contain deprecated APIs.
 	// This causes log flooding when managing a large number of clusters.
@@ -523,7 +531,7 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 
 			res.Health, _ = health.GetResourceHealth(un, cacheSettings.clusterSettings.ResourceHealthOverride)
 
-			appName := c.resourceTracking.GetAppName(un, cacheSettings.appInstanceLabelKey, cacheSettings.trackingMethod)
+			appName := c.resourceTracking.GetAppName(un, cacheSettings.appInstanceLabelKey, cacheSettings.trackingMethod, cacheSettings.installationID)
 			if isRoot && appName != "" {
 				res.AppName = appName
 			}
@@ -821,7 +829,12 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 
 		var updateSettings []clustercache.UpdateSettingsFunc
 		if !reflect.DeepEqual(oldCluster.Config, newCluster.Config) {
-			updateSettings = append(updateSettings, clustercache.SetConfig(newCluster.RESTConfig()))
+			newClusterRESTConfig, err := newCluster.RESTConfig()
+			if err == nil {
+				updateSettings = append(updateSettings, clustercache.SetConfig(newClusterRESTConfig))
+			} else {
+				log.Errorf("error getting cluster REST config: %v", err)
+			}
 		}
 		if !reflect.DeepEqual(oldCluster.Namespaces, newCluster.Namespaces) {
 			updateSettings = append(updateSettings, clustercache.SetNamespaces(newCluster.Namespaces))

@@ -113,6 +113,7 @@ type RepoServerInitConstants struct {
 	HelmRegistryMaxIndexSize                     int64
 	DisableHelmManifestMaxExtractedSize          bool
 	IncludeHiddenDirectories                     bool
+	CMPUseManifestGeneratePaths                  bool
 	ArgoCDInstanceID                             string
 }
 
@@ -806,7 +807,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithArgoCDInstanceID(s.initConstants.ArgoCDInstanceID))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths), WithArgoCDInstanceID(s.initConstants.ArgoCDInstanceID))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1377,8 +1378,9 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 type (
 	GenerateManifestOpt func(*generateManifestOpt)
 	generateManifestOpt struct {
-		cmpTarDoneCh        chan<- bool
-		cmpTarExcludedGlobs []string
+		cmpTarDoneCh                chan<- bool
+		cmpTarExcludedGlobs         []string
+		cmpUseManifestGeneratePaths bool
 		argocdInstanceID    string
 	}
 )
@@ -1405,6 +1407,14 @@ func WithCMPTarDoneChannel(ch chan<- bool) GenerateManifestOpt {
 func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
 	return func(o *generateManifestOpt) {
 		o.cmpTarExcludedGlobs = excludedGlobs
+	}
+}
+
+// WithCMPUseManifestGeneratePaths enables or disables the use of the
+// 'argocd.argoproj.io/manifest-generate-paths' annotation for manifest generation instead of transmit the whole repository.
+func WithCMPUseManifestGeneratePaths(enabled bool) GenerateManifestOpt {
+	return func(o *generateManifestOpt) {
+		o.cmpUseManifestGeneratePaths = enabled
 	}
 }
 
@@ -1506,7 +1516,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 				if err := resourceTracking.SetAppInstanceID(target, opt.argocdInstanceID); err != nil {
 					log.Warnf("Failed to set Application Instance ID due to missing or invalid ArgoCD URL in ArgoCD Configmap")
 				}
-
+				
 			}
 			manifestStr, err := json.Marshal(target.Object)
 			if err != nil {

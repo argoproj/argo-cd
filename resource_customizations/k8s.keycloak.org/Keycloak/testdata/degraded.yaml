@@ -1,0 +1,73 @@
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: Keycloak
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: '2'
+    argocd.argoproj.io/tracking-id: foobar-keycloak:k8s.keycloak.org/Keycloak:foo/keycloak
+  creationTimestamp: '2024-10-07T09:06:33Z'
+  generation: 4
+  name: keycloak
+  namespace: foo
+  resourceVersion: '343382'
+  uid: 4e08e59c-1b6b-4b13-8a1a-bbce3f91bd68
+spec:
+  db:
+    host: keycloak-db
+    passwordSecret:
+      key: password
+      name: keycloak.keycloak-db.credentials.postgresql.acid.zalan.do
+    usernameSecret:
+      key: username
+      name: keycloak.keycloak-db.credentials.postgresql.acid.zalan.do
+    vendor: postgres
+  hostname:
+    admin: https://keycloak.apps-crc.testing
+    hostname: keycloak.apps-crc.testing
+  http:
+    httpEnabled: false
+    tlsSecret: keycloak-tls
+  ingress:
+    enabled: false
+  instances: 2
+  unsupported:
+    podTemplate:
+      spec:
+        containers:
+          - env:
+              - name: KC_HTTPS_TRUST_STORE_FILE
+                value: /truststore/openshiftca.jks
+              - name: KC_HTTPS_TRUST_STORE_PASSWORD
+                value: OpenshiftCA
+              - name: KC_HTTPS_TRUST_STORE_TYPE
+                value: JKS
+              - name: KC_LOG_LEVEL
+                value: INFO
+            volumeMounts:
+              - mountPath: /truststore
+                name: truststore-volume
+        volumes:
+          - name: truststore-volume
+            secret:
+              secretName: keycloak-truststore
+status:
+  conditions:
+    - lastTransitionTime: '2024-10-09T10:13:00.097073410Z'
+      message: Waiting for more replicas
+      observedGeneration: 5
+      status: 'False'
+      type: Ready
+    - lastTransitionTime: '2024-10-09T10:14:12.070548569Z'
+      message: >-
+        Waiting for foo/keycloak-1 due to CrashLoopBackOff: back-off 10s
+      observedGeneration: 5
+      status: 'True'
+      type: HasErrors
+    - lastTransitionTime: '2024-10-09T10:12:59.087234931Z'
+      message: Rolling out deployment update
+      observedGeneration: 5
+      status: 'True'
+      type: RollingUpdate
+  instances: 1
+  observedGeneration: 5
+  selector: >-
+    app=keycloak,app.kubernetes.io/managed-by=keycloak-operator,app.kubernetes.io/instance=keycloak

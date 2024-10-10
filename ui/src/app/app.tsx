@@ -8,7 +8,7 @@ import applications from './applications';
 import help from './help';
 import login from './login';
 import settings from './settings';
-import {Layout} from './shared/components/layout/layout';
+import {Layout, ThemeWrapper} from './shared/components/layout/layout';
 import {Page} from './shared/components/page/page';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
 import {AuthSettingsCtx, Provider} from './shared/context';
@@ -194,7 +194,7 @@ export class App extends React.Component<
                 <PageContext.Provider value={{title: 'Argo CD'}}>
                     <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}}>
                         <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                            {pref => <div className={pref.theme ? 'theme-' + pref.theme : 'theme-light'}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</div>}
+                            {pref => <ThemeWrapper theme={pref.theme}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</ThemeWrapper>}
                         </DataLoader>
                         <AuthSettingsCtx.Provider value={this.state.authSettings}>
                             <Router history={history}>
