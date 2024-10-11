@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/v2/util/config"
-	"github.com/golang-jwt/jwt/v4"
-
 	configUtil "github.com/argoproj/argo-cd/v2/util/config"
 )
 
@@ -318,7 +316,7 @@ func GetPromptsEnabled(fallback bool) bool {
 	localConfigPath := config.GetFlag("config", defaultLocalConfigPath)
 
 	localConfig, err := ReadLocalConfig(localConfigPath)
-	if err != nil {
+	if localConfig == nil || err != nil {
 		return fallback
 	}
 
