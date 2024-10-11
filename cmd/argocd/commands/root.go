@@ -39,10 +39,6 @@ func NewDefaultArgoCDCommand() *cobra.Command {
 func NewDefaultArgoCDCommandWithArgs(o ArgoCDCLIOptions) *cobra.Command {
 	cmd := NewCommand()
 
-	if o.PluginHandler == nil {
-		return cmd
-	}
-
 	// the first argument will be the binary, followed by other arguments
 	if len(o.Arguments) > 1 {
 		cmdPathPieces := o.Arguments[1:]
