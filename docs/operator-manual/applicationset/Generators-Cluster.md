@@ -9,6 +9,7 @@ It automatically provides the following parameter values to the Application temp
 - `name`
 - `nameNormalized` *('name' but normalized to contain only lowercase alphanumeric characters, '-' or '.')*
 - `server`
+- `project` *(the Secret's 'project' field, if present; otherwise, it defaults to '')*
 - `metadata.labels.<key>` *(for each label in the Secret)*
 - `metadata.annotations.<key>` *(for each annotation in the Secret)*
 
