@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -70,8 +71,19 @@ func main() {
 		isCLI = true
 	}
 	util.SetAutoMaxProcs(isCLI)
+	if isCLI {
+		command.SilenceErrors = true
+		command.SilenceUsage = true
+	}
 
 	if err := command.Execute(); err != nil {
+		if isCLI {
+			if pluginErr := cli.HandlePluginCommand(o.PluginHandler, o.Arguments[1:], 1); pluginErr != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", pluginErr)
+				os.Exit(1)
+			}
+		}
+		fmt.Fprintf(os.Stderr, "Error: %v\nRun 'argocd --help' for usage.", err)
 		os.Exit(1)
 	}
 }
