@@ -2,12 +2,11 @@ package utils
 
 import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
-
-const testConfigFilePath = "../testdata/local.config"
 
 func TestNewPrompt_PromptsEnabled_True(t *testing.T) {
 	clientOpts := apiclient.ClientOptions{
