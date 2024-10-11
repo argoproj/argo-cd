@@ -7,8 +7,6 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/v2/util/config"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-
 	"github.com/golang-jwt/jwt/v4"
 
 	configUtil "github.com/argoproj/argo-cd/v2/util/config"
@@ -311,14 +309,18 @@ func GetUsername(subject string) string {
 	return subject
 }
 
-func GetPromptsEnabled() bool {
+func GetPromptsEnabled(fallback bool) bool {
 	defaultLocalConfigPath, err := DefaultLocalConfigPath()
-	errors.CheckError(err)
+	if err != nil {
+		return fallback
+	}
 
 	localConfigPath := config.GetFlag("config", defaultLocalConfigPath)
 
 	localConfig, err := ReadLocalConfig(localConfigPath)
-	errors.CheckError(err)
+	if err != nil {
+		return fallback
+	}
 
 	return localConfig.PromptsEnabled
 }
