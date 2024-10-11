@@ -233,8 +233,11 @@ source:
   helm:
     fileParameters:
       - name: some.key
-        path: path/to/file.ext
+        value: path/to/file.ext
 ```
+
+!!! warning "Reference in multiple sources not supported"
+    Please note that using a multiple sources application will not let you load the file by reference. See [argoproj/argo-cd#13220](https://github.com/argoproj/argo-cd/issues/13220)
 
 ## Helm Release Name
 
