@@ -123,6 +123,9 @@ func (c *httpApplicationClient) GetManifests(ctx context.Context, in *appclient.
 	params := fmt.Sprintf("?appNamespace=%s&project=%s",
 		*in.AppNamespace,
 		*in.Project)
+	if in.Revision != nil {
+		params = fmt.Sprintf("%s&revision=%s", params, *in.Revision)
+	}
 	url := fmt.Sprintf("%s/api/v1/applications/%s/manifests%s", c.baseUrl, *in.Name, params)
 
 	manifest := &repoapiclient.ManifestResponse{}

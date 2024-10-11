@@ -1598,7 +1598,13 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		if codefreshApplicationVersioningEnabled {
 			appVersions, err := getAppVersions(appPath, versionConfig)
 			if err != nil {
-				log.Errorf("failed to retrieve application version, app name: %q: %s", q.AppName, err.Error())
+				errorMessage := fmt.Sprintf("failed to retrieve application version, app name: %q: %s", q.AppName, err.Error())
+				if (versionConfig.ResourceName == version_config_manager.DefaultVersionSource) &&
+					(err.Error() == "unknown key appVersion") {
+					log.Info(errorMessage)
+				} else {
+					log.Error(errorMessage)
+				}
 			} else {
 				res.ApplicationVersions = &apiclient.ApplicationVersions{
 					AppVersion: appVersions.AppVersion,

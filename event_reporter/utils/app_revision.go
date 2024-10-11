@@ -65,6 +65,14 @@ func GetOperationRevision(a *appv1.Application) string {
 	return revision
 }
 
+func GetOperationStateRevision(a *appv1.Application) *string {
+	if a == nil || a.Status.OperationState == nil || a.Status.OperationState.SyncResult == nil {
+		return nil
+	}
+
+	return &a.Status.OperationState.SyncResult.Revision
+}
+
 func GetOperationSyncRevisions(a *appv1.Application) []string {
 	if a == nil {
 		return []string{}

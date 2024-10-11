@@ -87,13 +87,13 @@ func (s *applicationEventReporter) shouldSendResourceEvent(a *appv1.Application,
 	return true
 }
 
-func (r *applicationEventReporter) getDesiredManifests(ctx context.Context, a *appv1.Application, logCtx *log.Entry) (*apiclient.ManifestResponse, error, bool) {
+func (r *applicationEventReporter) getDesiredManifests(ctx context.Context, a *appv1.Application, revision *string, logCtx *log.Entry) (*apiclient.ManifestResponse, bool) {
 	// get the desired state manifests of the application
 	project := a.Spec.GetProject()
 	desiredManifests, err := r.applicationServiceClient.GetManifests(ctx, &application.ApplicationManifestQuery{
 		Name:         &a.Name,
 		AppNamespace: &a.Namespace,
-		Revision:     &a.Status.Sync.Revision,
+		Revision:     revision,
 		Project:      &project,
 	})
 	if err != nil {
@@ -102,9 +102,9 @@ func (r *applicationEventReporter) getDesiredManifests(ctx context.Context, a *a
 		// each resource with empty desired state
 		logCtx.WithError(err).Warn("failed to get application desired state manifests, reporting actual state only")
 		desiredManifests = &apiclient.ManifestResponse{Manifests: []*apiclient.Manifest{}}
-		return desiredManifests, nil, true // will ignore requiresPruning=true to not delete resources with actual state
+		return desiredManifests, true // will ignore requiresPruning=true to not delete resources with actual state
 	}
-	return desiredManifests, nil, false
+	return desiredManifests, false
 }
 
 func (s *applicationEventReporter) StreamApplicationEvents(
@@ -132,15 +132,21 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 		}
 
 		// we still need process app even without tree, it is in case of app yaml originally contain error,
-		// we still want to show it the erorrs that related to it on codefresh ui
+		// we still want to show it the errors that related to it on codefresh ui
 		logCtx.WithError(err).Warn("failed to get application tree, resuming")
 	}
 
 	logCtx.Info("getting desired manifests")
 
-	desiredManifests, err, manifestGenErr := s.getDesiredManifests(ctx, a, logCtx)
-	if err != nil {
-		return err
+	desiredManifests, manifestGenErr := s.getDesiredManifests(ctx, a, nil, logCtx)
+
+	syncRevision := utils.GetOperationStateRevision(a)
+	var applicationVersions *apiclient.ApplicationVersions
+	if syncRevision != nil {
+		syncManifests, _ := s.getDesiredManifests(ctx, a, syncRevision, logCtx)
+		applicationVersions = syncManifests.GetApplicationVersions()
+	} else {
+		applicationVersions = nil
 	}
 
 	logCtx.Info("getting parent application name")
@@ -159,10 +165,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 		rs := utils.GetAppAsResource(a)
 
-		parentDesiredManifests, err, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, logCtx)
-		if err != nil {
-			logCtx.WithError(err).Warn("failed to get parent application's desired manifests, resuming")
-		}
+		parentDesiredManifests, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, nil, logCtx)
 
 		// helm app hasnt revision
 		// TODO: add check if it helm application
@@ -172,7 +175,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 		}
 
 		utils.SetHealthStatusIfMissing(rs)
-		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, parentDesiredManifests, appTree, manifestGenErr, a, parentAppSyncRevisionsMetadata, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
+		err = s.processResource(ctx, *rs, parentApplicationEntity, logCtx, ts, parentDesiredManifests, appTree, manifestGenErr, a, parentAppSyncRevisionsMetadata, appInstanceLabelKey, trackingMethod, applicationVersions)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricChildAppEventType, metrics.MetricEventUnknownErrorType, a.Name)
 			return err
@@ -182,7 +185,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 	} else {
 		logCtx.Info("processing as root application")
 		// will get here only for root applications (not managed as a resource by another application)
-		appEvent, err := s.getApplicationEventPayload(ctx, a, appTree, ts, appInstanceLabelKey, trackingMethod, desiredManifests.ApplicationVersions)
+		appEvent, err := s.getApplicationEventPayload(ctx, a, appTree, ts, appInstanceLabelKey, trackingMethod, applicationVersions)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricParentAppEventType, metrics.MetricEventGetPayloadErrorType, a.Name)
 			return fmt.Errorf("failed to get application event: %w", err)
