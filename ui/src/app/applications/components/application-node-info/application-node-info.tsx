@@ -233,25 +233,11 @@ export const ApplicationNodeInfo = (props: {
                                                 }
                                             />
                                             <label htmlFor='hideManagedFields'>Hide Managed Fields</label>
-                                            <Checkbox
-                                                id='enableWordWrap'
-                                                checked={!!pref.appDetails.enableWordWrap}
-                                                onChange={() =>
-                                                    services.viewPreferences.updatePreferences({
-                                                        appDetails: {
-                                                            ...pref.appDetails,
-                                                            enableWordWrap: !pref.appDetails.enableWordWrap
-                                                        }
-                                                    })
-                                                }
-                                            />
-                                            <label htmlFor='enableWordWrap'>Enable Word Wrap</label>
                                         </div>
                                         <YamlEditor
                                             input={live}
                                             hideModeButtons={!live}
                                             vScrollbar={live}
-                                            enableWordWrap={pref.appDetails.enableWordWrap}
                                             onSave={(patch, patchType) =>
                                                 services.applications.patchResource(
                                                     props.application.metadata.name,
@@ -294,30 +280,7 @@ export const ApplicationNodeInfo = (props: {
         tabs.push({
             key: 'desiredManifest',
             title: 'Desired Manifest',
-            content: (
-                <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                    {pref => (
-                        <React.Fragment>
-                            <div className='application-node-info__checkboxes'>
-                                <Checkbox
-                                    id='enableWordWrap'
-                                    checked={!!pref.appDetails.enableWordWrap}
-                                    onChange={() =>
-                                        services.viewPreferences.updatePreferences({
-                                            appDetails: {
-                                                ...pref.appDetails,
-                                                enableWordWrap: !pref.appDetails.enableWordWrap
-                                            }
-                                        })
-                                    }
-                                />
-                                <label htmlFor='enableWordWrap'>Enable Word Wrap</label>
-                            </div>
-                            <YamlEditor enableWordWrap={pref.appDetails.enableWordWrap} input={props.controlled.state.targetState} hideModeButtons={true} />
-                        </React.Fragment>
-                    )}
-                </DataLoader>
-            )
+            content: <YamlEditor input={props.controlled.state.targetState} hideModeButtons={true} />
         });
     }
 

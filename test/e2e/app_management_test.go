@@ -99,7 +99,8 @@ func TestGetLogsDenySwitchOn(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
 			_, err := RunCliWithRetry(appLogsRetryCount, "app", "logs", app.Name, "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
-			assert.ErrorContains(t, err, "permission denied")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "permission denied")
 		})
 }
 
@@ -817,7 +818,8 @@ func TestAppWithSecrets(t *testing.T) {
 			_, err = RunCli("app", "patch-resource", "test-app-with-secrets", "--resource-name", "test-secret",
 				"--kind", "Secret", "--patch", `{"op": "add", "path": "/data", "value": "hello"}'`,
 				"--patch-type", "application/json-patch+json")
-			require.ErrorContains(t, err, fmt.Sprintf("failed to patch Secret %s/test-secret", DeploymentNamespace()))
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), fmt.Sprintf("failed to patch Secret %s/test-secret", DeploymentNamespace()))
 			assert.NotContains(t, err.Error(), "username")
 			assert.NotContains(t, err.Error(), "password")
 
@@ -1322,7 +1324,8 @@ func TestSyncResourceByLabel(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			_, err := RunCli("app", "sync", app.Name, "--label", "this-label=does-not-exist")
-			assert.ErrorContains(t, err, "level=fatal")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "level=fatal")
 		})
 }
 
@@ -1339,7 +1342,8 @@ func TestSyncResourceByProject(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			_, err := RunCli("app", "sync", app.Name, "--project", "this-project-does-not-exist")
-			assert.ErrorContains(t, err, "level=fatal")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "level=fatal")
 		})
 }
 
@@ -1446,7 +1450,8 @@ func assertResourceActions(t *testing.T, appName string, successful bool) {
 		if successful {
 			require.NoError(t, err)
 		} else {
-			assert.ErrorContains(t, err, message)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), message)
 		}
 	}
 
@@ -2241,7 +2246,8 @@ func TestNamespaceAutoCreation(t *testing.T) {
 		And(func(app *Application) {
 			// Make sure the namespace we are about to update to does not exist
 			_, err := Run("", "kubectl", "get", "namespace", updatedNamespace)
-			assert.ErrorContains(t, err, "not found")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "not found")
 		}).
 		When().
 		AppSet("--dest-namespace", updatedNamespace).
@@ -2916,50 +2922,4 @@ data:
 		Expect(ResourceSyncStatusWithNamespaceIs("ConfigMap", "other-map", DeploymentNamespace(), SyncStatusCodeSynced)).
 		Expect(ResourceHealthWithNamespaceIs("ConfigMap", "yet-another-map", DeploymentNamespace(), health.HealthStatusHealthy)).
 		Expect(ResourceSyncStatusWithNamespaceIs("ConfigMap", "yet-another-map", DeploymentNamespace(), SyncStatusCodeSynced))
-}
-
-func TestInstallationID(t *testing.T) {
-	ctx := Given(t)
-	ctx.
-		SetTrackingMethod(string(argo.TrackingMethodAnnotation)).
-		And(func() {
-			_, err := fixture.KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Create(
-				context.Background(), &v1.ConfigMap{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test-configmap",
-						Annotations: map[string]string{
-							common.AnnotationKeyAppInstance: fmt.Sprintf("%s:/ConfigMap:%s/test-configmap", ctx.AppName(), DeploymentNamespace()),
-						},
-					},
-				}, metav1.CreateOptions{})
-			require.NoError(t, err)
-		}).
-		Path(guestbookPath).
-		Prune(false).
-		When().IgnoreErrors().CreateApp().Sync().
-		Then().Expect(OperationPhaseIs(OperationSucceeded)).Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		And(func(app *Application) {
-			var cm *ResourceStatus
-			for i := range app.Status.Resources {
-				if app.Status.Resources[i].Kind == "ConfigMap" && app.Status.Resources[i].Name == "test-configmap" {
-					cm = &app.Status.Resources[i]
-					break
-				}
-			}
-			require.NotNil(t, cm)
-			assert.Equal(t, SyncStatusCodeOutOfSync, cm.Status)
-		}).
-		When().SetInstallationID("test").Sync().
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			require.Len(t, app.Status.Resources, 2)
-			svc, err := fixture.KubeClientset.CoreV1().Services(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
-			require.NoError(t, err)
-			require.Equal(t, "test", svc.Annotations[common.AnnotationInstallationID])
-
-			deploy, err := fixture.KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
-			require.NoError(t, err)
-			require.Equal(t, "test", deploy.Annotations[common.AnnotationInstallationID])
-		})
 }

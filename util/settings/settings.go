@@ -451,8 +451,6 @@ const (
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
 	// settingsResourceTrackingMethodKey is the key to configure tracking method for application resources
 	settingsResourceTrackingMethodKey = "application.resourceTrackingMethod"
-	// settingsInstallationID holds the key for the instance installation ID
-	settingsInstallationID = "installationID"
 	// resourcesCustomizationsKey is the key to the map of resource overrides
 	resourceCustomizationsKey = "resource.customizations"
 	// resourceExclusions is the key to the list of excluded resources
@@ -797,14 +795,6 @@ func (mgr *SettingsManager) GetTrackingMethod() (string, error) {
 	return argoCDCM.Data[settingsResourceTrackingMethodKey], nil
 }
 
-func (mgr *SettingsManager) GetInstallationID() (string, error) {
-	argoCDCM, err := mgr.getConfigMap()
-	if err != nil {
-		return "", err
-	}
-	return argoCDCM.Data[settingsInstallationID], nil
-}
-
 func (mgr *SettingsManager) GetPasswordPattern() (string, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -919,7 +909,7 @@ func (mgr *SettingsManager) GetIsIgnoreResourceUpdatesEnabled() (bool, error) {
 	}
 
 	if argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey] == "" {
-		return true, nil
+		return false, nil
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey])

@@ -56,7 +56,6 @@ argocd admin app generate-spec APPNAME [flags]
       --helm-set-file stringArray                  Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)
       --helm-set-string stringArray                Helm set STRING values on the command line (can be repeated to set several values: --helm-set-string key1=val1 --helm-set-string key2=val2)
       --helm-skip-crds                             Skip helm crd installation step
-      --helm-skip-tests                            Skip helm test manifests installation step
       --helm-version string                        Helm version
   -h, --help                                       help for generate-spec
       --ignore-missing-value-files                 Ignore locally missing valueFiles when setting helm template --values
@@ -108,7 +107,7 @@ argocd admin app generate-spec APPNAME [flags]
 
 ```
       --argocd-context string           The name of the Argo-CD server context to use
-      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
+      --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")

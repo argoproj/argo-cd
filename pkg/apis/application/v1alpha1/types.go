@@ -3,7 +3,6 @@ package v1alpha1
 import (
 	"encoding/json"
 	"fmt"
-	"maps"
 	"math"
 	"net"
 	"net/http"
@@ -37,6 +36,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	"github.com/argoproj/argo-cd/v2/util/helm"
 	utilhttp "github.com/argoproj/argo-cd/v2/util/http"
@@ -395,8 +395,6 @@ type ApplicationSourceHelm struct {
 	// APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
 	// Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
 	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,13,opt,name=apiVersions"`
-	// SkipTests skips test manifest installation step (Helm's --skip-tests).
-	SkipTests bool `json:"skipTests,omitempty" protobuf:"bytes,14,opt,name=skipTests"`
 }
 
 // HelmParameter is a parameter that's passed to helm template during manifest generation
@@ -478,7 +476,7 @@ func (in *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
 
 // IsZero Returns true if the Helm options in an application source are considered zero
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.ValuesIsEmpty() && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds && !h.SkipTests && h.KubeVersion == "" && len(h.APIVersions) == 0 && h.Namespace == ""
+	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.ValuesIsEmpty() && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds && h.KubeVersion == "" && len(h.APIVersions) == 0 && h.Namespace == ""
 }
 
 // KustomizeImage represents a Kustomize image definition in the format [old_image_name=]<image_name>:<image_tag>
@@ -1173,8 +1171,6 @@ type SyncOperation struct {
 	// Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
 	// If omitted, will use the revision specified in app spec.
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,11,opt,name=revisions"`
-	// SelfHealAttemptsCount contains the number of auto-heal attempts
-	SelfHealAttemptsCount int64 `json:"autoHealAttemptsCount,omitempty" protobuf:"bytes,12,opt,name=autoHealAttemptsCount"`
 }
 
 // IsApplyStrategy returns true if the sync strategy is "apply"
@@ -1939,11 +1935,11 @@ func (c *Cluster) Equals(other *Cluster) bool {
 		return false
 	}
 
-	if !maps.Equal(c.Annotations, other.Annotations) {
+	if !collections.StringMapsEqual(c.Annotations, other.Annotations) {
 		return false
 	}
 
-	if !maps.Equal(c.Labels, other.Labels) {
+	if !collections.StringMapsEqual(c.Labels, other.Labels) {
 		return false
 	}
 
@@ -2039,9 +2035,6 @@ type ClusterConfig struct {
 
 	// ExecProviderConfig contains configuration for an exec provider
 	ExecProviderConfig *ExecProviderConfig `json:"execProviderConfig,omitempty" protobuf:"bytes,6,opt,name=execProviderConfig"`
-
-	// DisableCompression bypasses automatic GZip compression requests to the server.
-	DisableCompression bool `json:"disableCompression,omitempty" protobuf:"bytes,7,opt,name=disableCompression"`
 }
 
 // TLSClientConfig contains settings to enable transport layer security
@@ -3105,7 +3098,7 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 }
 
 // RawRestConfig returns a go-client REST config from cluster that might be serialized into the file using kube.WriteKubeConfig method.
-func (c *Cluster) RawRestConfig() (*rest.Config, error) {
+func (c *Cluster) RawRestConfig() *rest.Config {
 	var config *rest.Config
 	var err error
 	if c.Server == KubernetesInternalAPIServerAddr && env.ParseBoolFromEnv(EnvVarFakeInClusterConfig, false) {
@@ -3189,26 +3182,22 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 		}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("Unable to create K8s REST config: %w", err)
+		panic(fmt.Sprintf("Unable to create K8s REST config: %v", err))
 	}
-	config.DisableCompression = c.Config.DisableCompression
 	config.Timeout = K8sServerSideTimeout
 	config.QPS = K8sClientConfigQPS
 	config.Burst = K8sClientConfigBurst
-	return config, nil
+	return config
 }
 
 // RESTConfig returns a go-client REST config from cluster with tuned throttling and HTTP client settings.
-func (c *Cluster) RESTConfig() (*rest.Config, error) {
-	config, err := c.RawRestConfig()
+func (c *Cluster) RESTConfig() *rest.Config {
+	config := c.RawRestConfig()
+	err := SetK8SConfigDefaults(config)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get K8s RAW REST config: %w", err)
+		panic(fmt.Sprintf("Unable to apply K8s REST config defaults: %v", err))
 	}
-	err = SetK8SConfigDefaults(config)
-	if err != nil {
-		return nil, fmt.Errorf("Unable to apply K8s REST config defaults: %w", err)
-	}
-	return config, nil
+	return config
 }
 
 // UnmarshalToUnstructured unmarshals a resource representation in JSON to unstructured data
@@ -3289,16 +3278,4 @@ func (a *Application) QualifiedName() string {
 // in a backwards-compatible way.
 func (a *Application) RBACName(defaultNS string) string {
 	return security.RBACName(defaultNS, a.Spec.GetProject(), a.Namespace, a.Name)
-}
-
-// GetAnnotation returns the value of the specified annotation if it exists,
-// e.g., a.GetAnnotation("argocd.argoproj.io/manifest-generate-paths").
-// If the annotation does not exist, it returns an empty string.
-func (a *Application) GetAnnotation(annotation string) string {
-	v, exists := a.Annotations[annotation]
-	if !exists {
-		return ""
-	}
-
-	return v
 }

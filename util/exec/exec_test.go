@@ -52,7 +52,7 @@ func TestRunWithExecRunOpts(t *testing.T) {
 		},
 	}
 	_, err := RunWithExecRunOpts(exec.Command("sh", "-c", "trap 'trap - 15 && echo captured && exit' 15 && sleep 2"), opts)
-	assert.ErrorContains(t, err, "failed timeout after 200ms")
+	assert.Contains(t, err.Error(), "failed timeout after 200ms")
 }
 
 func Test_getCommandArgsToLog(t *testing.T) {

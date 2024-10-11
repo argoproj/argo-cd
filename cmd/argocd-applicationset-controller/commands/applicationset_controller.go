@@ -38,6 +38,7 @@ import (
 	appsetmetrics "github.com/argoproj/argo-cd/v2/applicationset/metrics"
 	"github.com/argoproj/argo-cd/v2/applicationset/services"
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -161,6 +162,7 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			argoSettingsMgr := argosettings.NewSettingsManager(ctx, k8sClient, namespace)
+			appSetConfig := appclientset.NewForConfigOrDie(mgr.GetConfig())
 			argoCDDB := db.NewDB(namespace, argoSettingsMgr, k8sClient)
 
 			scmConfig := generators.NewSCMConfig(scmRootCAPath, allowedScmProviders, enableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)))
@@ -209,6 +211,7 @@ func NewCommand() *cobra.Command {
 				Renderer:                   &utils.Render{},
 				Policy:                     policyObj,
 				EnablePolicyOverride:       enablePolicyOverride,
+				ArgoAppClientset:           appSetConfig,
 				KubeClientset:              k8sClient,
 				ArgoDB:                     argoCDDB,
 				ArgoCDNamespace:            namespace,
