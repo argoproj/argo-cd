@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/common"
 	"reflect"
 	"sort"
 	"strings"
@@ -16,7 +17,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -128,6 +128,7 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 
 // Get return the requested configured repository by URL and the state of its connections.
 func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
+	// ListRepositories normalizes the repo, sanitizes it, and augments it with connection details.
 	repo, err := getRepository(ctx, s.ListRepositories, q)
 	if err != nil {
 		return nil, err
@@ -146,30 +147,7 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", q.Repo)
 	}
 
-	// For backwards compatibility, if we have no repo type set assume a default
-	rType := repo.Type
-	if rType == "" {
-		rType = common.DefaultRepoType
-	}
-	// remove secrets
-	item := appsv1.Repository{
-		Repo:                       repo.Repo,
-		Type:                       rType,
-		Name:                       repo.Name,
-		Username:                   repo.Username,
-		Insecure:                   repo.IsInsecure(),
-		EnableLFS:                  repo.EnableLFS,
-		GithubAppId:                repo.GithubAppId,
-		GithubAppInstallationId:    repo.GithubAppInstallationId,
-		GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
-		Proxy:                      repo.Proxy,
-		Project:                    repo.Project,
-		InheritedCreds:             repo.InheritedCreds,
-	}
-
-	item.ConnectionState = s.getConnectionState(ctx, item.Repo, item.Project, q.ForceRefresh)
-
-	return &item, nil
+	return repo, nil
 }
 
 // ListRepositories returns a list of all configured repositories and the state of their connections
