@@ -146,6 +146,10 @@ func TestSetAppInstanceIdAnnotation(t *testing.T) {
 
 	value := resourceTracking.GetAppInstanceID(&obj)
 	assert.Equal(t, "argocd.com", value)
+
+	err = resourceTracking.SetAppInstanceID(&obj, "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ArgoCD URL is missing")
 }
 
 func TestSetAppInstanceIdAnnotationNotFound(t *testing.T) {
