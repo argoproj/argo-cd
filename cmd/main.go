@@ -26,6 +26,10 @@ const (
 
 func main() {
 	var command *cobra.Command
+	o := cli.ArgoCDCLIOptions{
+		PluginHandler: cli.NewDefaultPluginHandler([]string{"argocd"}),
+		Arguments:     os.Args,
+	}
 
 	binaryName := filepath.Base(os.Args[0])
 	if val := os.Getenv(binaryNameEnv); val != "" {
@@ -37,6 +41,7 @@ func main() {
 	case "argocd", "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe":
 		command = cli.NewCommand()
 		isCLI = true
+		command = cli.NewDefaultArgoCDCommandWithArgs(o)
 	case "argocd-server":
 		command = apiserver.NewCommand()
 	case "argocd-application-controller":
@@ -61,6 +66,7 @@ func main() {
 	default:
 		command = cli.NewCommand()
 		isCLI = true
+		command = cli.NewDefaultArgoCDCommand()
 	}
 	util.SetAutoMaxProcs(isCLI)
 
