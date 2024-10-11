@@ -1,11 +1,9 @@
 package oidc
 
 import (
-	"errors"
 	"html/template"
 	"log"
 	"net/http"
-	"reflect"
 )
 
 type tokenTmplData struct {
@@ -57,11 +55,10 @@ func renderTemplate(w http.ResponseWriter, tmpl *template.Template, data interfa
 		return
 	}
 
-	var templateErr *template.Error
-	switch {
-	case errors.As(err, &templateErr):
+	switch err := err.(type) {
+	case *template.Error:
 		// An ExecError guarantees that Execute has not written to the underlying reader.
-		log.Printf("Error rendering template %s: %s", tmpl.Name(), reflect.TypeOf(err))
+		log.Printf("Error rendering template %s: %s", tmpl.Name(), err)
 
 		// TODO(ericchiang): replace with better internal server error.
 		http.Error(w, "Internal server error", http.StatusInternalServerError)

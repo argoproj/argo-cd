@@ -37,8 +37,10 @@ func generateRandomPassword() (string, error) {
 
 // NewRedisInitialPasswordCommand defines a new command to ensure Argo CD Redis password secret exists.
 func NewRedisInitialPasswordCommand() *cobra.Command {
-	var clientConfig clientcmd.ClientConfig
-	command := cobra.Command{
+	var (
+		clientConfig clientcmd.ClientConfig
+	)
+	var command = cobra.Command{
 		Use:   "redis-initial-password",
 		Short: "Ensure the Redis password exists, creating a new one if necessary.",
 		Run: func(c *cobra.Command, args []string) {

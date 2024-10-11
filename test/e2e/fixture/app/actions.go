@@ -106,7 +106,6 @@ func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	a.runCli(args...)
 	return a
 }
-
 func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string) *Actions {
 	a.context.t.Helper()
 	app := &Application{
@@ -301,9 +300,9 @@ func (a *Actions) PatchApp(patch string) *Actions {
 func (a *Actions) PatchAppHttp(patch string) *Actions {
 	a.context.t.Helper()
 	var application Application
-	patchType := "merge"
-	appName := a.context.AppQualifiedName()
-	appNamespace := a.context.AppNamespace()
+	var patchType = "merge"
+	var appName = a.context.AppQualifiedName()
+	var appNamespace = a.context.AppNamespace()
 	patchRequest := &client.ApplicationPatchRequest{
 		Name:         &appName,
 		PatchType:    &patchType,
