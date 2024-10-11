@@ -2,11 +2,12 @@ package localconfig
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/config"
-	"github.com/argoproj/argo-cd/v2/util/errors"
 	"os"
 	"path"
 	"strings"
+
+	"github.com/argoproj/argo-cd/v2/util/config"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 
 	"github.com/golang-jwt/jwt/v4"
 
