@@ -1,7 +1,6 @@
 package util
 
 import (
-	"fmt"
 	"os"
 
 	"gopkg.in/yaml.v2"
@@ -56,7 +55,7 @@ func setDefaults(opts *GenerateOpts) {
 func Parse(opts *GenerateOpts, file string) error {
 	fp, err := os.ReadFile(file)
 	if err != nil {
-		return fmt.Errorf("error reading the template file: %s : %w", file, err)
+		return err
 	}
 
 	if e := yaml.Unmarshal(fp, &opts); e != nil {

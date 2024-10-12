@@ -100,7 +100,6 @@ func NewCluster(name string, namespaces []string, clusterResources bool, conf *r
 			TLSClientConfig:    tlsClientConfig,
 			AWSAuthConfig:      awsAuthConf,
 			ExecProviderConfig: execProviderConf,
-			DisableCompression: conf.DisableCompression,
 		},
 		Labels:      labels,
 		Annotations: annotations,
@@ -159,7 +158,6 @@ type ClusterOptions struct {
 	ExecProviderAPIVersion  string
 	ExecProviderInstallHint string
 	ClusterEndpoint         string
-	DisableCompression      bool
 }
 
 // InClusterEndpoint returns true if ArgoCD should reference the in-cluster
@@ -184,5 +182,4 @@ func AddClusterFlags(command *cobra.Command, opts *ClusterOptions) {
 	command.Flags().StringVar(&opts.ExecProviderAPIVersion, "exec-command-api-version", "", "Preferred input version of the ExecInfo for the --exec-command executable")
 	command.Flags().StringVar(&opts.ExecProviderInstallHint, "exec-command-install-hint", "", "Text shown to the user when the --exec-command executable doesn't seem to be present")
 	command.Flags().StringVar(&opts.ClusterEndpoint, "cluster-endpoint", "", "Cluster endpoint to use. Can be one of the following: 'kubeconfig', 'kube-public', or 'internal'.")
-	command.Flags().BoolVar(&opts.DisableCompression, "disable-compression", false, "Bypasses automatic GZip compression requests to the server")
 }

@@ -86,13 +86,6 @@ make start-local ARGOCD_GPG_ENABLED=false
 
 ## Making Changes
 
-### Docs Changes
-
-Modifying the docs auto-reloads the changes on the [documentation website](https://argo-cd.readthedocs.io/) that can be locally built using `make serve-docs` command. 
-Once running, you can view your locally built documentation on port 8000.
-
-Read more about this [here](https://argo-cd.readthedocs.io/en/latest/developer-guide/docs-site/).
-
 ### UI Changes
 
 Modifying the User-Interface (by editing .tsx or .scss files) auto-reloads the changes on port 4000.

@@ -146,12 +146,7 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 		return nil, err
 	}
 	c := q.Cluster
-	clusterRESTConfig, err := c.RESTConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	serverVersion, err := s.kubectl.GetServerVersion(clusterRESTConfig)
+	serverVersion, err := s.kubectl.GetServerVersion(c.RESTConfig())
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +165,7 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 			} else if q.Upsert {
 				return s.Update(ctx, &cluster.ClusterUpdateRequest{Cluster: c})
 			} else {
-				return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("cluster", existing, c))
+				return nil, status.Errorf(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("cluster", existing, c))
 			}
 		} else {
 			return nil, err
@@ -318,13 +313,9 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 		}
 		q.Cluster = c
 	}
-	clusterRESTConfig, err := q.Cluster.RESTConfig()
-	if err != nil {
-		return nil, err
-	}
 
 	// Test the token we just created before persisting it
-	serverVersion, err := s.kubectl.GetServerVersion(clusterRESTConfig)
+	serverVersion, err := s.kubectl.GetServerVersion(q.Cluster.RESTConfig())
 	if err != nil {
 		return nil, err
 	}
@@ -415,10 +406,7 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 	for _, server := range servers {
 		logCtx := log.WithField("cluster", server)
 		logCtx.Info("Rotating auth")
-		restCfg, err := clust.RESTConfig()
-		if err != nil {
-			return nil, err
-		}
+		restCfg := clust.RESTConfig()
 		if restCfg.BearerToken == "" {
 			return nil, status.Errorf(codes.InvalidArgument, "Cluster '%s' does not use bearer token authentication", server)
 		}
@@ -440,12 +428,8 @@ func (s *Server) RotateAuth(ctx context.Context, q *cluster.ClusterQuery) (*clus
 		clust.Config.CertData = nil
 		clust.Config.BearerToken = string(newSecret.Data["token"])
 
-		clusterRESTConfig, err := clust.RESTConfig()
-		if err != nil {
-			return nil, err
-		}
 		// Test the token we just created before persisting it
-		serverVersion, err := s.kubectl.GetServerVersion(clusterRESTConfig)
+		serverVersion, err := s.kubectl.GetServerVersion(clust.RESTConfig())
 		if err != nil {
 			return nil, err
 		}
@@ -487,9 +471,7 @@ func (s *Server) toAPIResponse(clust *appv1.Cluster) *appv1.Cluster {
 		clust.Config.ExecProviderConfig.Args = nil
 	}
 	// populate deprecated fields for backward compatibility
-	// nolint:staticcheck
 	clust.ServerVersion = clust.Info.ServerVersion
-	// nolint:staticcheck
 	clust.ConnectionState = clust.Info.ConnectionState
 	return clust
 }

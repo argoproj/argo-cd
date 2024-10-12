@@ -8,7 +8,7 @@ import applications from './applications';
 import help from './help';
 import login from './login';
 import settings from './settings';
-import {Layout, ThemeWrapper} from './shared/components/layout/layout';
+import {Layout} from './shared/components/layout/layout';
 import {Page} from './shared/components/page/page';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
 import {AuthSettingsCtx, Provider} from './shared/context';
@@ -19,7 +19,6 @@ import {Banner} from './ui-banner/ui-banner';
 import userInfo from './user-info';
 import {AuthSettings} from './shared/models';
 import {PKCEVerification} from './login/components/pkce-verify';
-import {SystemLevelExtension} from './shared/services/extensions-service';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -135,7 +134,6 @@ export class App extends React.Component<
         this.navigationManager = new NavigationManager(history);
         this.navItems = navItems;
         this.routes = routes;
-        services.extensions.addEventListener('systemLevel', this.onAddSystemLevelExtension.bind(this));
     }
 
     public async componentDidMount() {
@@ -164,7 +162,31 @@ export class App extends React.Component<
             document.head.appendChild(link);
         }
 
-        this.setState({...this.state, navItems: this.navItems, routes: this.routes, extensionsLoaded: false, authSettings});
+        const systemExtensions = services.extensions.getSystemExtensions();
+        const extendedNavItems = this.navItems;
+        const extendedRoutes = this.routes;
+        for (const extension of systemExtensions) {
+            extendedNavItems.push({
+                title: extension.title,
+                path: extension.path,
+                iconClassName: `fa ${extension.icon}`
+            });
+            const component = () => (
+                <>
+                    <Helmet>
+                        <title>{extension.title} - Argo CD</title>
+                    </Helmet>
+                    <Page title={extension.title}>
+                        <extension.component />
+                    </Page>
+                </>
+            );
+            extendedRoutes[extension.path] = {
+                component: component as React.ComponentType<React.ComponentProps<any>>
+            };
+        }
+
+        this.setState({...this.state, navItems: extendedNavItems, routes: extendedRoutes, extensionsLoaded: true, authSettings});
     }
 
     public render() {
@@ -194,7 +216,7 @@ export class App extends React.Component<
                 <PageContext.Provider value={{title: 'Argo CD'}}>
                     <Provider value={{history, popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager, baseHref: base}}>
                         <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                            {pref => <ThemeWrapper theme={pref.theme}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</ThemeWrapper>}
+                            {pref => <div className={pref.theme ? 'theme-' + pref.theme : 'theme-light'}>{this.state.popupProps && <Popup {...this.state.popupProps} />}</div>}
                         </DataLoader>
                         <AuthSettingsCtx.Provider value={this.state.authSettings}>
                             <Router history={history}>
@@ -240,29 +262,5 @@ export class App extends React.Component<
 
     public getChildContext() {
         return {history, apis: {popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager}};
-    }
-
-    private onAddSystemLevelExtension(extension: SystemLevelExtension) {
-        const extendedNavItems = this.navItems;
-        const extendedRoutes = this.routes;
-        extendedNavItems.push({
-            title: extension.title,
-            path: extension.path,
-            iconClassName: `fa ${extension.icon}`
-        });
-        const component = () => (
-            <>
-                <Helmet>
-                    <title>{extension.title} - Argo CD</title>
-                </Helmet>
-                <Page title={extension.title}>
-                    <extension.component />
-                </Page>
-            </>
-        );
-        extendedRoutes[extension.path] = {
-            component: component as React.ComponentType<React.ComponentProps<any>>
-        };
-        this.setState({...this.state, navItems: extendedNavItems, routes: extendedRoutes, extensionsLoaded: true});
     }
 }

@@ -160,7 +160,8 @@ func TestSessionManager_AdminToken_Deactivated(t *testing.T) {
 	}
 
 	_, _, err = mgr.Parse(token)
-	assert.ErrorContains(t, err, "account admin is disabled")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "account admin is disabled")
 }
 
 func TestSessionManager_AdminToken_LoginCapabilityDisabled(t *testing.T) {
@@ -173,7 +174,8 @@ func TestSessionManager_AdminToken_LoginCapabilityDisabled(t *testing.T) {
 	}
 
 	_, _, err = mgr.Parse(token)
-	assert.ErrorContains(t, err, "account admin does not have 'apiKey' capability")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "account admin does not have 'apiKey' capability")
 }
 
 func TestSessionManager_ProjectToken(t *testing.T) {
@@ -216,7 +218,9 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 		require.NoError(t, err)
 
 		_, _, err = mgr.Parse(jwtToken)
-		assert.ErrorContains(t, err, "does not exist in project 'default'")
+		require.Error(t, err)
+
+		assert.Contains(t, err.Error(), "does not exist in project 'default'")
 	})
 }
 
@@ -534,7 +538,8 @@ func TestMaxUsernameLength(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 	err := mgr.VerifyUsernamePassword(username, "password")
-	assert.ErrorContains(t, err, fmt.Sprintf(usernameTooLongError, maxUsernameLength))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), fmt.Sprintf(usernameTooLongError, maxUsernameLength))
 }
 
 func TestMaxCacheSize(t *testing.T) {

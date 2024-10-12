@@ -63,24 +63,24 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 			expectedPassword: "password123",
 			expectedErr:      "",
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{Name: RedisInitialCredentials},
-				Data:       map[string][]byte{RedisInitialCredentialsKey: []byte("password123")},
+				ObjectMeta: metav1.ObjectMeta{Name: DefaultRedisInitialPasswordSecretName},
+				Data:       map[string][]byte{DefaultRedisInitialPasswordKey: []byte("password123")},
 			},
 		},
 		{
 			name:             "Secret does not exist",
 			namespace:        "default",
 			expectedPassword: "",
-			expectedErr:      fmt.Sprintf("failed to get secret default/%s", RedisInitialCredentials),
+			expectedErr:      fmt.Sprintf("failed to get secret default/%s", DefaultRedisInitialPasswordSecretName),
 			secret:           nil,
 		},
 		{
 			name:             "Secret exists without correct key",
 			namespace:        "default",
 			expectedPassword: "",
-			expectedErr:      fmt.Sprintf("secret default/%s does not contain key %s", RedisInitialCredentials, RedisInitialCredentialsKey),
+			expectedErr:      fmt.Sprintf("secret default/%s does not contain key %s", DefaultRedisInitialPasswordSecretName, DefaultRedisInitialPasswordKey),
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{Name: RedisInitialCredentials},
+				ObjectMeta: metav1.ObjectMeta{Name: DefaultRedisInitialPasswordSecretName},
 				Data:       map[string][]byte{},
 			},
 		},
@@ -101,7 +101,8 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 			}
 			err := SetOptionalRedisPasswordFromKubeConfig(ctx, kubeClient, tc.namespace, redisOptions)
 			if tc.expectedErr != "" {
-				require.ErrorContains(t, err, tc.expectedErr)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.expectedErr)
 			} else {
 				require.NoError(t, err)
 			}

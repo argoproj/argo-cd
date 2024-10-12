@@ -16,12 +16,10 @@ import (
 	"github.com/spf13/pflag"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	cache2 "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
 	"github.com/argoproj/argo-cd/v2/common"
@@ -232,17 +230,6 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		return fmt.Errorf("error creating kubernetes clientset: %w", err)
 	}
 
-	dynamicClientset, err := dynamic.NewForConfig(restConfig)
-	if err != nil {
-		return fmt.Errorf("error creating kubernetes dynamic clientset: %w", err)
-	}
-
-	controllerClientset, err := client.New(restConfig, client.Options{})
-	if err != nil {
-		return fmt.Errorf("error creating kubernetes controller clientset: %w", err)
-	}
-	controllerClientset = client.NewDryRunClient(controllerClientset)
-
 	namespace, _, err := clientConfig.Namespace()
 	if err != nil {
 		return fmt.Errorf("error getting namespace: %w", err)
@@ -259,21 +246,19 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 
 	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: compression, redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName, redisPassword: redisOptions.Password}), time.Hour)
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
-		EnableGZip:              false,
-		Namespace:               namespace,
-		ListenPort:              *port,
-		AppClientset:            appClientset,
-		DisableAuth:             true,
-		RedisClient:             redis.NewClient(redisOptions),
-		Cache:                   servercache.NewCache(appstateCache, 0, 0, 0),
-		KubeClientset:           kubeClientset,
-		DynamicClientset:        dynamicClientset,
-		KubeControllerClientset: controllerClientset,
-		Insecure:                true,
-		ListenHost:              *address,
-		RepoClientset:           &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName, kubeClientset: kubeClientset},
-		EnableProxyExtension:    false,
-	}, server.ApplicationSetOpts{})
+		EnableGZip:           false,
+		Namespace:            namespace,
+		ListenPort:           *port,
+		AppClientset:         appClientset,
+		DisableAuth:          true,
+		RedisClient:          redis.NewClient(redisOptions),
+		Cache:                servercache.NewCache(appstateCache, 0, 0, 0),
+		KubeClientset:        kubeClientset,
+		Insecure:             true,
+		ListenHost:           *address,
+		RepoClientset:        &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName, kubeClientset: kubeClientset},
+		EnableProxyExtension: false,
+	})
 	srv.Init(ctx)
 
 	lns, err := srv.Listen()

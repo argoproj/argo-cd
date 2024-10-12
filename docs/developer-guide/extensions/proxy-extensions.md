@@ -264,14 +264,6 @@ Note that additional pre-configured headers can be added to outgoing
 request. See [backend service headers](#extensionsbackendservicesheaders-list)
 section for more details.
 
-#### `Argocd-Username`
-
-Will be populated with the username logged in Argo CD.
-
-#### `Argocd-User-Groups`
-
-Will be populated with the 'groups' claim from the user logged in Argo CD.
-
 ### Multi Backend Use-Case
 
 In some cases when Argo CD is configured to sync with multiple remote

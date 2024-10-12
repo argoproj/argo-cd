@@ -1191,58 +1191,6 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     });
     const graphNodes = graph.nodes();
     const size = getGraphSize(graphNodes.map(id => graph.node(id)));
-
-    const resourceTreeRef = React.useRef<HTMLDivElement>();
-
-    const graphMoving = React.useRef({
-        enable: false,
-        x: 0,
-        y: 0
-    });
-
-    const onGraphDragStart: React.PointerEventHandler<HTMLDivElement> = e => {
-        if (e.target !== resourceTreeRef.current) {
-            return;
-        }
-
-        if (!resourceTreeRef.current?.parentElement) {
-            return;
-        }
-
-        graphMoving.current.enable = true;
-        graphMoving.current.x = e.clientX;
-        graphMoving.current.y = e.clientY;
-    };
-
-    const onGraphDragMoving: React.PointerEventHandler<HTMLDivElement> = e => {
-        if (!graphMoving.current.enable) {
-            return;
-        }
-
-        if (!resourceTreeRef.current?.parentElement) {
-            return;
-        }
-
-        const graphContainer = resourceTreeRef.current?.parentElement;
-
-        const currentPositionX = graphContainer.scrollLeft;
-        const currentPositionY = graphContainer.scrollTop;
-
-        const scrollLeft = currentPositionX + graphMoving.current.x - e.clientX;
-        const scrollTop = currentPositionY + graphMoving.current.y - e.clientY;
-
-        graphContainer.scrollTo(scrollLeft, scrollTop);
-
-        graphMoving.current.x = e.clientX;
-        graphMoving.current.y = e.clientY;
-    };
-
-    const onGraphDragEnd: React.PointerEventHandler<HTMLDivElement> = e => {
-        if (graphMoving.current.enable) {
-            graphMoving.current.enable = false;
-            e.preventDefault();
-        }
-    };
     return (
         (graphNodes.length === 0 && (
             <EmptyState icon=' fa fa-network-wired'>
@@ -1251,13 +1199,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             </EmptyState>
         )) || (
             <div
-                ref={resourceTreeRef}
-                onPointerDown={onGraphDragStart}
-                onPointerMove={onGraphDragMoving}
-                onPointerUp={onGraphDragEnd}
-                onPointerLeave={onGraphDragEnd}
                 className={classNames('application-resource-tree', {'application-resource-tree--network': props.useNetworkingHierarchy})}
-                style={{width: size.width + 150, height: size.height + 250, transformOrigin: '0% 4%', transform: `scale(${props.zoom})`}}>
+                style={{width: size.width + 150, height: size.height + 250, transformOrigin: '0% 0%', transform: `scale(${props.zoom})`}}>
                 {graphNodes.map(key => {
                     const node = graph.node(key);
                     const nodeType = node.type;

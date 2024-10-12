@@ -46,7 +46,6 @@ const (
 	ArgoCDGPGKeysConfigMapName  = "argocd-gpg-keys-cm"
 	// ArgoCDAppControllerShardConfigMapName contains the application controller to shard mapping
 	ArgoCDAppControllerShardConfigMapName = "argocd-app-controller-shard-cm"
-	ArgoCDCmdParamsConfigMapName          = "argocd-cmd-params-cm"
 )
 
 // Some default configurables
@@ -178,7 +177,6 @@ const (
 
 	// AnnotationKeyAppInstance is the Argo CD application name is used as the instance name
 	AnnotationKeyAppInstance = "argocd.argoproj.io/tracking-id"
-	AnnotationInstallationID = "argocd.argoproj.io/installation-id"
 
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
 	AnnotationCompareOptions = "argocd.argoproj.io/compare-options"
@@ -223,7 +221,7 @@ const (
 	EnvGitRetryMaxDuration = "ARGOCD_GIT_RETRY_MAX_DURATION"
 	// EnvGitRetryDuration specifies duration of git remote operation retry
 	EnvGitRetryDuration = "ARGOCD_GIT_RETRY_DURATION"
-	// EnvGitRetryFactor specifies factor of git remote operation retry
+	// EnvGitRetryFactor specifies fator of git remote operation retry
 	EnvGitRetryFactor = "ARGOCD_GIT_RETRY_FACTOR"
 	// EnvGitSubmoduleEnabled overrides git submodule support, true by default
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
@@ -255,8 +253,6 @@ const (
 	EnvHelmIndexCacheDuration = "ARGOCD_HELM_INDEX_CACHE_DURATION"
 	// EnvAppConfigPath allows to override the configuration path for repo server
 	EnvAppConfigPath = "ARGOCD_APP_CONF_PATH"
-	// EnvAuthToken is the environment variable name for the auth token used by the CLI
-	EnvAuthToken = "ARGOCD_AUTH_TOKEN"
 	// EnvLogFormat log format that is defined by `--logformat` option
 	EnvLogFormat = "ARGOCD_LOG_FORMAT"
 	// EnvLogLevel log level that is defined by `--loglevel` option
@@ -316,10 +312,7 @@ const (
 // Constants used by util/clusterauth package
 const (
 	ClusterAuthRequestTimeout = 10 * time.Second
-)
-
-const (
-	BearerTokenTimeout = 30 * time.Second
+	BearerTokenTimeout        = 30 * time.Second
 )
 
 const (
@@ -429,10 +422,8 @@ var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission 
 
 // Redis password consts
 const (
-	// RedisInitialCredentials is the name for the argocd kubernetes secret which will have the redis password
-	RedisInitialCredentials = "argocd-redis"
-	// RedisInitialCredentialsKey is the key for the argocd kubernetes secret that maps to the redis password
-	RedisInitialCredentialsKey = "auth"
+	DefaultRedisInitialPasswordSecretName = "argocd-redis"
+	DefaultRedisInitialPasswordKey        = "auth"
 )
 
 /*
@@ -441,17 +432,17 @@ SetOptionalRedisPasswordFromKubeConfig sets the optional Redis password if it ex
 We specify kubeClient as kubernetes.Interface to allow for mocking in tests, but this should be treated as a kubernetes.Clientset param.
 */
 func SetOptionalRedisPasswordFromKubeConfig(ctx context.Context, kubeClient kubernetes.Interface, namespace string, redisOptions *redis.Options) error {
-	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, RedisInitialCredentials, v1.GetOptions{})
+	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, DefaultRedisInitialPasswordSecretName, v1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("failed to get secret %s/%s: %w", namespace, RedisInitialCredentials, err)
+		return fmt.Errorf("failed to get secret %s/%s: %w", namespace, DefaultRedisInitialPasswordSecretName, err)
 	}
 	if secret == nil {
-		return fmt.Errorf("failed to get secret %s/%s: secret is nil", namespace, RedisInitialCredentials)
+		return fmt.Errorf("failed to get secret %s/%s: secret is nil", namespace, DefaultRedisInitialPasswordSecretName)
 	}
-	_, ok := secret.Data[RedisInitialCredentialsKey]
+	_, ok := secret.Data[DefaultRedisInitialPasswordKey]
 	if !ok {
-		return fmt.Errorf("secret %s/%s does not contain key %s", namespace, RedisInitialCredentials, RedisInitialCredentialsKey)
+		return fmt.Errorf("secret %s/%s does not contain key %s", namespace, DefaultRedisInitialPasswordSecretName, DefaultRedisInitialPasswordKey)
 	}
-	redisOptions.Password = string(secret.Data[RedisInitialCredentialsKey])
+	redisOptions.Password = string(secret.Data[DefaultRedisInitialPasswordKey])
 	return nil
 }

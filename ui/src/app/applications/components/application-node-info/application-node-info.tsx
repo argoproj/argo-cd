@@ -22,18 +22,17 @@ const RenderContainerState = (props: {container: any}) => {
     return (
         <div className='application-node-info__container'>
             <div className='application-node-info__container--name'>
-                {props.container.state?.running ? (
+                {props.container.state?.running && (
                     <span style={{marginRight: '4px'}}>
                         <i className='fa fa-check-circle' style={{color: 'rgb(24, 190, 148)'}} />
                     </span>
-                ) : (
-                    (props.container.state.terminated && props.container.state.terminated?.exitCode !== 0) ||
+                )}
+                {(props.container.state.terminated && props.container.state.terminated?.exitCode !== 0) ||
                     (lastState && lastState?.exitCode !== 0 && (
                         <span style={{marginRight: '4px'}}>
                             <i className='fa fa-times-circle' style={{color: 'red'}} />
                         </span>
-                    ))
-                )}
+                    ))}
                 {props.container.name}
             </div>
             <div>
@@ -233,25 +232,11 @@ export const ApplicationNodeInfo = (props: {
                                                 }
                                             />
                                             <label htmlFor='hideManagedFields'>Hide Managed Fields</label>
-                                            <Checkbox
-                                                id='enableWordWrap'
-                                                checked={!!pref.appDetails.enableWordWrap}
-                                                onChange={() =>
-                                                    services.viewPreferences.updatePreferences({
-                                                        appDetails: {
-                                                            ...pref.appDetails,
-                                                            enableWordWrap: !pref.appDetails.enableWordWrap
-                                                        }
-                                                    })
-                                                }
-                                            />
-                                            <label htmlFor='enableWordWrap'>Enable Word Wrap</label>
                                         </div>
                                         <YamlEditor
                                             input={live}
                                             hideModeButtons={!live}
                                             vScrollbar={live}
-                                            enableWordWrap={pref.appDetails.enableWordWrap}
                                             onSave={(patch, patchType) =>
                                                 services.applications.patchResource(
                                                     props.application.metadata.name,
@@ -294,30 +279,7 @@ export const ApplicationNodeInfo = (props: {
         tabs.push({
             key: 'desiredManifest',
             title: 'Desired Manifest',
-            content: (
-                <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                    {pref => (
-                        <React.Fragment>
-                            <div className='application-node-info__checkboxes'>
-                                <Checkbox
-                                    id='enableWordWrap'
-                                    checked={!!pref.appDetails.enableWordWrap}
-                                    onChange={() =>
-                                        services.viewPreferences.updatePreferences({
-                                            appDetails: {
-                                                ...pref.appDetails,
-                                                enableWordWrap: !pref.appDetails.enableWordWrap
-                                            }
-                                        })
-                                    }
-                                />
-                                <label htmlFor='enableWordWrap'>Enable Word Wrap</label>
-                            </div>
-                            <YamlEditor enableWordWrap={pref.appDetails.enableWordWrap} input={props.controlled.state.targetState} hideModeButtons={true} />
-                        </React.Fragment>
-                    )}
-                </DataLoader>
-            )
+            content: <YamlEditor input={props.controlled.state.targetState} hideModeButtons={true} />
         });
     }
 

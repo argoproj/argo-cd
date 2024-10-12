@@ -7,7 +7,7 @@ import {FormApi, Text} from 'react-form';
 import * as moment from 'moment';
 import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime, map} from 'rxjs/operators';
-import {AppContext, Context, ContextApis} from '../../shared/context';
+import {Context, ContextApis} from '../../shared/context';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
@@ -346,46 +346,6 @@ const deletePodAction = async (ctx: ContextApis, pod: appModels.ResourceNode, ap
     );
 };
 
-export const deleteSourceAction = (app: appModels.Application, source: appModels.ApplicationSource, appContext: AppContext) => {
-    appContext.apis.popup.prompt(
-        'Delete source',
-        () => (
-            <div>
-                <p>
-                    <>
-                        Are you sure you want to delete the source with URL: <kbd>{source.repoURL}</kbd>
-                        {source.path ? (
-                            <>
-                                {' '}
-                                and path: <kbd>{source.path}</kbd>?
-                            </>
-                        ) : (
-                            <>?</>
-                        )}
-                    </>
-                </p>
-            </div>
-        ),
-        {
-            submit: async (vals, _, close) => {
-                try {
-                    const i = app.spec.sources.indexOf(source);
-                    app.spec.sources.splice(i, 1);
-                    await services.applications.update(app);
-                    close();
-                } catch (e) {
-                    appContext.apis.notifications.show({
-                        content: <ErrorNotification title='Unable to delete source' e={e} />,
-                        type: NotificationType.Error
-                    });
-                }
-            }
-        },
-        {name: 'argo-icon-warning', color: 'warning'},
-        'yellow'
-    );
-};
-
 export const deletePopup = async (
     ctx: ContextApis,
     resource: ResourceTreeNode,
@@ -496,7 +456,7 @@ export const deletePopup = async (
     );
 };
 
-export function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
+function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
     return services.applications
         .getResourceActions(metadata.name, metadata.namespace, resource)
         .then(actions => {
@@ -683,24 +643,30 @@ export function renderResourceMenu(
     );
 }
 
-export function renderResourceActionMenu(menuItems: ActionMenuItem[]): React.ReactNode {
+export function renderResourceActionMenu(resource: ResourceTreeNode, application: appModels.Application, apis: ContextApis): React.ReactNode {
+    const menuItems = getResourceActionsMenuItems(resource, application.metadata, apis);
+
     return (
-        <ul>
-            {menuItems.map((item, i) => (
-                <li
-                    className={classNames('application-details__action-menu', {disabled: item.disabled})}
-                    key={i}
-                    onClick={e => {
-                        e.stopPropagation();
-                        if (!item.disabled) {
-                            item.action();
-                            document.body.click();
-                        }
-                    }}>
-                    {item.iconClassName && <i className={item.iconClassName} />} {item.title}
-                </li>
-            ))}
-        </ul>
+        <DataLoader load={() => menuItems}>
+            {items => (
+                <ul>
+                    {items.map((item, i) => (
+                        <li
+                            className={classNames('application-details__action-menu', {disabled: item.disabled})}
+                            key={i}
+                            onClick={e => {
+                                e.stopPropagation();
+                                if (!item.disabled) {
+                                    item.action();
+                                    document.body.click();
+                                }
+                            }}>
+                            {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </DataLoader>
     );
 }
 
@@ -807,7 +773,7 @@ export const HealthStatusIcon = ({state, noSpin}: {state: appModels.HealthStatus
     if (state.message) {
         title = `${state.status}: ${state.message}`;
     }
-    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon + ' utils-health-status-icon'} style={{color}} />;
+    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{color}} />;
 };
 
 export const PodHealthIcon = ({state}: {state: appModels.HealthStatus}) => {
