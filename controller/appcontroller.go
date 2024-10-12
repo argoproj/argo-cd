@@ -8,6 +8,7 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
+	"path/filepath"
 	"reflect"
 	"runtime/debug"
 	"sort"
@@ -1862,10 +1863,9 @@ type hydrationQueueKey struct {
 }
 
 type uniqueHydrationDestination struct {
-	sourceRepoURL        string
-	sourceTargetRevision string
-	destinationBranch    string
-	destinationPath      string
+	sourceRepoURL     string
+	destinationBranch string
+	destinationPath   string
 }
 
 func (ctrl *ApplicationController) processHydrationQueueItem() (processNext bool) {
@@ -1996,10 +1996,9 @@ func (ctrl *ApplicationController) getRelevantAppsForHydration(logCtx *log.Entry
 		}
 
 		uniqueDestinationKey := uniqueHydrationDestination{
-			sourceRepoURL:        app.Spec.SourceHydrator.DrySource.RepoURL,
-			sourceTargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
-			destinationBranch:    destinationBranch,
-			destinationPath:      app.Spec.SourceHydrator.SyncSource.Path,
+			sourceRepoURL:     app.Spec.SourceHydrator.DrySource.RepoURL,
+			destinationBranch: destinationBranch,
+			destinationPath:   filepath.Clean(app.Spec.SourceHydrator.SyncSource.Path),
 		}
 		// TODO: test the dupe detection
 		if _, ok := uniqueDestinations[uniqueDestinationKey]; ok {
