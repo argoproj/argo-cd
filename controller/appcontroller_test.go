@@ -367,6 +367,28 @@ spec:
     automated: {}
 `
 
+var fakeAppWithHydrator = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  uid: "123"
+  name: my-app
+  namespace: ` + test.FakeArgoCDNamespace + `
+spec:
+  destination:
+    namespace: ` + test.FakeDestNamespace + `
+    server: https://localhost:6443
+  project: default
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps
+      path: helm-guestbook
+      targetRevision: HEAD
+    syncSource:
+      targetBranch: environments/dev
+      path: helm-guestbook
+`
+
 var fakeStrayResource = `
 apiVersion: v1
 kind: ConfigMap
@@ -495,6 +517,10 @@ func newFakeAppWithDestMismatch() *v1alpha1.Application {
 
 func newFakeAppWithDestName() *v1alpha1.Application {
 	return createFakeApp(fakeAppWithDestName)
+}
+
+func newFakeAppWithHydrator() *v1alpha1.Application {
+	return createFakeApp(fakeAppWithHydrator)
 }
 
 func createFakeApp(testApp string) *v1alpha1.Application {
@@ -2222,4 +2248,58 @@ func Test_appNeedsHydration(t *testing.T) {
 			assert.Equal(t, tc.expected, result)
 		})
 	}
+}
+
+func Test_getRelevantAppsForHydration(t *testing.T) {
+	defaultProj := v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "default",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{
+				{
+					Server:    "*",
+					Namespace: "*",
+				},
+			},
+		},
+	}
+
+	t.Run("throw error on conflicting write destination", func(t *testing.T) {
+		sourceRepoURL := "https://github.com/argoproj/argocd-example-apps"
+		sourceTargetRevision := "HEAD"
+		destinationBranch := "environments/dev"
+		destinationPath := "helm-guestbook"
+
+		app1 := newFakeAppWithHydrator()
+		app1.Name = "hydrator-app-1"
+		app1.Spec.SourceHydrator.DrySource.RepoURL = sourceRepoURL
+		app1.Spec.SourceHydrator.DrySource.TargetRevision = sourceTargetRevision
+		app1.Spec.SourceHydrator.SyncSource.TargetBranch = destinationBranch
+		app1.Spec.SourceHydrator.SyncSource.Path = destinationPath
+
+		app2 := newFakeAppWithHydrator()
+		app2.Name = "hydrator-app-2"
+		app2.Spec.SourceHydrator.DrySource.RepoURL = sourceRepoURL
+		app2.Spec.SourceHydrator.DrySource.TargetRevision = sourceTargetRevision
+		app2.Spec.SourceHydrator.SyncSource.TargetBranch = destinationBranch
+		app2.Spec.SourceHydrator.SyncSource.Path = destinationPath
+
+		ctrl := newFakeController(&fakeData{
+			apps: []runtime.Object{app1, app2, &defaultProj},
+		}, nil)
+		_, err := ctrl.getRelevantAppsForHydration(
+			logrus.NewEntry(logrus.New()),
+			hydrationQueueKey{
+				sourceRepoURL:        sourceRepoURL,
+				sourceTargetRevision: sourceTargetRevision,
+				destinationBranch:    destinationBranch,
+			},
+		)
+
+		assert.NotNil(t, err)
+		assert.Contains(t, err.Error(), "multiple app hydrators use the same destination: ")
+	})
 }

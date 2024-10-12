@@ -2000,7 +2000,6 @@ func (ctrl *ApplicationController) getRelevantAppsForHydration(logCtx *log.Entry
 			destinationBranch: destinationBranch,
 			destinationPath:   filepath.Clean(app.Spec.SourceHydrator.SyncSource.Path),
 		}
-		// TODO: test the dupe detection
 		if _, ok := uniqueDestinations[uniqueDestinationKey]; ok {
 			return nil, fmt.Errorf("multiple app hydrators use the same destination: %v", uniqueDestinationKey)
 		}
