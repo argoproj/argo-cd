@@ -1690,7 +1690,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Summary = tree.GetSummary(app)
 	}
 
-	if project.Spec.SyncWindows.Matches(app).CanSync(false) {
+	canSync, _ := project.Spec.SyncWindows.Matches(app).CanSync(false)
+	if canSync {
 		syncErrCond, opMS := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources, compareResult.revisionUpdated)
 		setOpMs = opMS
 		if syncErrCond != nil {
