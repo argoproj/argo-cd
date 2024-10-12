@@ -129,3 +129,16 @@ from pushing to the hydrated branches, enable branch protection in your SCM.
 
 It is best practice to prefix the hydrated branches with a common prefix, such as `environment/`. This makes it easier 
 to configure branch protection rules on the destination repository.
+
+### Make Destination Unique
+
+Only one application can safely commit code to the same repository, branch, and path combination.
+Paths are cleaned before check so `/my-app` and `/my-app/some-dir/..` are same.
+
+Below is an example of an incorrect configuration.
+
+When two application have same `drySource.repoURL` + `drySource.targetRevision`,
+
+1. both applications have same `syncSource.targetBranch` + `syncSource.path`.
+2. both applications have same `hydrateTo.targetBranch` + `syncSource.path`.
+3. both applications have same `syncSource.path`, then app1's `syncSource.targetBranch` and app2's `hydrateTo.targetBranch` are same.
