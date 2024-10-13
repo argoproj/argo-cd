@@ -107,6 +107,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 			params["name"] = cluster.Name
 			params["nameNormalized"] = cluster.Name
 			params["server"] = cluster.Server
+			params["project"] = ""
 
 			err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 			if err != nil {
@@ -130,6 +131,13 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 		params["name"] = string(cluster.Data["name"])
 		params["nameNormalized"] = utils.SanitizeName(string(cluster.Data["name"]))
 		params["server"] = string(cluster.Data["server"])
+
+		project, ok := cluster.Data["project"]
+		if ok {
+			params["project"] = string(project)
+		} else {
+			params["project"] = ""
+		}
 
 		if appSet.Spec.GoTemplate {
 			meta := map[string]interface{}{}
