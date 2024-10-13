@@ -88,7 +88,6 @@ func NewServer(
 	scmRootCAPath string,
 	allowedScmProviders []string,
 	enableScmProviders bool,
-	enableK8sEvent []string,
 ) applicationset.ApplicationSetServiceServer {
 	s := &Server{
 		ns:                       namespace,
@@ -104,7 +103,7 @@ func NewServer(
 		projLister:               projLister,
 		settings:                 settings,
 		projectLock:              projectLock,
-		auditLogger:              argo.NewAuditLogger(namespace, kubeclientset, "argocd-server", enableK8sEvent),
+		auditLogger:              argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
 		enabledNamespaces:        enabledNamespaces,
 		GitSubmoduleEnabled:      gitSubmoduleEnabled,
 		EnableNewGitFileGlobbing: enableNewGitFileGlobbing,

@@ -156,7 +156,7 @@ message ApplicationDestinationServiceAccount {
   // Namespace specifies the target namespace for the application's resources.
   optional string namespace = 2;
 
-  // ServiceAccountName to be used for impersonation during the sync operation
+  // DefaultServiceAccount to be used for impersonation during the sync operation
   optional string defaultServiceAccount = 3;
 }
 

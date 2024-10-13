@@ -220,7 +220,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                                                         },
                                                         {
                                                             key: 'windows',
-                                                            title: 'Sync Windows',
+                                                            title: 'Windows',
                                                             content: this.SyncWindowsTab(proj, ctx)
                                                         },
                                                         {
@@ -671,7 +671,7 @@ export class ProjectDetails extends React.Component<RouteComponentProps<{name: s
                 />
                 <AuthSettingsCtx.Consumer>
                     {authCtx =>
-                        authCtx?.appsInAnyNamespaceEnabled && (
+                        authCtx.appsInAnyNamespaceEnabled && (
                             <EditablePanel
                                 save={item => this.saveProject(item)}
                                 values={proj}
