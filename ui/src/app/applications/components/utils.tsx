@@ -988,6 +988,10 @@ export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?
 };
 
 function isPodInitializedConditionTrue(status: any): boolean {
+    if (!status?.conditions) {
+        return false;
+    }
+
     for (const condition of status.conditions) {
         if (condition.type !== 'Initialized') {
             continue;
