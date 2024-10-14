@@ -107,8 +107,8 @@ data:
     - /spec/replicas
 
   # Enable resource.customizations.ignoreResourceUpdates rules. If "false," those rules are not applied, and all updates
-  # to resources are applied to the cluster cache. Default is false.
-  resource.ignoreResourceUpdatesEnabled: "false"
+  # to resources are applied to the cluster cache. Default is true.
+  resource.ignoreResourceUpdatesEnabled: "true"
 
   # Configuration to define customizations ignoring differences during watched resource updates to skip application reconciles.
   resource.customizations.ignoreResourceUpdates.all: |
