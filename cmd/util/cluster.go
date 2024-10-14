@@ -105,7 +105,13 @@ func NewCluster(name string, namespaces []string, clusterResources bool, conf *r
 		Labels:      labels,
 		Annotations: annotations,
 	}
-
+	// it's a tradeoff to get proxy url from rest config
+	// more detail: https://github.com/kubernetes/kubernetes/pull/81443
+	if conf.Proxy != nil {
+		if url, err := conf.Proxy(nil); err == nil {
+			clst.Config.ProxyUrl = url.String()
+		}
+	}
 	// Bearer token will preferentially be used for auth if present,
 	// Even in presence of key/cert credentials
 	// So set bearer token only if the key/cert data is absent
@@ -160,6 +166,7 @@ type ClusterOptions struct {
 	ExecProviderInstallHint string
 	ClusterEndpoint         string
 	DisableCompression      bool
+	ProxyUrl string
 }
 
 // InClusterEndpoint returns true if ArgoCD should reference the in-cluster
