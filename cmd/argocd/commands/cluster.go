@@ -114,7 +114,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				conf.Proxy = http.ProxyURL(u)
 			}
 			clientset, err := kubernetes.NewForConfig(conf)
-			errors.CheckError(err)
+			errors.CheckError(err) 
 			managerBearerToken := ""
 			var awsAuthConf *argoappv1.AWSAuthConfig
 			var execProviderConf *argoappv1.ExecProviderConfig
