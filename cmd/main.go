@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -27,12 +28,19 @@ const (
 func main() {
 	var command *cobra.Command
 
+	o := cli.ArgoCDCLIOptions{
+		PluginHandler: cli.NewDefaultPluginHandler([]string{"argocd"}),
+		Arguments:     os.Args,
+	}
+
 	binaryName := filepath.Base(os.Args[0])
 	if val := os.Getenv(binaryNameEnv); val != "" {
 		binaryName = val
 	}
 
 	isCLI := false
+	o.Arguments[0] = binaryName
+
 	switch binaryName {
 	case "argocd", "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe":
 		command = cli.NewCommand()
@@ -63,8 +71,19 @@ func main() {
 		isCLI = true
 	}
 	util.SetAutoMaxProcs(isCLI)
+	if isCLI {
+		command.SilenceErrors = true
+		command.SilenceUsage = true
+	}
 
 	if err := command.Execute(); err != nil {
+		if isCLI {
+			if pluginErr := cli.HandlePluginCommand(o.PluginHandler, o.Arguments[1:], 1); pluginErr != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", pluginErr)
+				os.Exit(1)
+			}
+		}
+		fmt.Fprintf(os.Stderr, "Error: %v\nRun 'argocd --help' for usage.", err)
 		os.Exit(1)
 	}
 }

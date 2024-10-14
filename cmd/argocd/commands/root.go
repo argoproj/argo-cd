@@ -2,6 +2,8 @@ package commands
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
@@ -25,6 +27,48 @@ func init() {
 func initConfig() {
 	cli.SetLogFormat(cmdutil.LogFormat)
 	cli.SetLogLevel(cmdutil.LogLevel)
+}
+
+func NewDefaultArgoCDCommand() *cobra.Command {
+	return NewDefaultArgoCDCommandWithArgs(ArgoCDCLIOptions{
+		PluginHandler: NewDefaultPluginHandler([]string{"argocd"}),
+		Arguments:     os.Args,
+	})
+}
+
+func NewDefaultArgoCDCommandWithArgs(o ArgoCDCLIOptions) *cobra.Command {
+	cmd := NewCommand()
+
+	// the first argument will be the binary, followed by other arguments
+	if len(o.Arguments) > 1 {
+		cmdPathPieces := o.Arguments[1:]
+
+		// Try to find a valid Argo CD command that matches the arguments provided (e.g., foo in the case of argocd foo)
+		// If it finds a command, it continues without invoking the plugin.
+		// If it doesn't find the command (err is non-nil), it means foo isn't a built-in Argo CD command,
+		// so it might be a plugin like argocd-foo.
+		if _, _, err := cmd.Find(cmdPathPieces); err != nil {
+			var cmdName string
+			for _, arg := range cmdPathPieces {
+				if !strings.HasPrefix(arg, "-") {
+					cmdName = arg
+					break
+				}
+			}
+
+			switch cmdName {
+			case "help", cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd:
+				// Don't search for a plugin
+			default:
+				if err := HandlePluginCommand(o.PluginHandler, cmdPathPieces, 1); err != nil {
+					fmt.Errorf("Error: %v\n", err)
+					os.Exit(1)
+				}
+			}
+		}
+	}
+
+	return cmd
 }
 
 // NewCommand returns a new instance of an argocd command
