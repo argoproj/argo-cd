@@ -3,7 +3,6 @@ package commands
 import (
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -109,7 +108,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			conf, err := getRestConfig(pathOpts, contextName)
 			errors.CheckError(err)
 			if clusterOpts.ProxyUrl != "" && conf.Proxy == nil {
-				u, err := url.Parse(clusterOpts.ProxyUrl)
+				u, err := argoappv1.ParseProxyUrl(clusterOpts.ProxyUrl)
 				errors.CheckError(err)
 				conf.Proxy = http.ProxyURL(u)
 			}
@@ -382,6 +381,7 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 		fmt.Printf("  oAuth authentication:  %v\n", cluster.Config.BearerToken != "")
 		fmt.Printf("  AWS authentication:    %v\n", cluster.Config.AWSAuthConfig != nil)
 		fmt.Printf("\nDisable compression: %v\n", cluster.Config.DisableCompression)
+		fmt.Printf("\nUse proxy: %v\n", cluster.Config.ProxyUrl != "")
 		fmt.Println()
 	}
 }

@@ -3135,7 +3135,8 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	return nil
 }
 
-func (c *Cluster) ParseProxyUrl(proxyUrl string) (*url.URL, error) {
+// ParseProxyUrl returns a parsed url and verifies that schema is correct
+func ParseProxyUrl(proxyUrl string) (*url.URL, error) {
 	u, err := url.Parse(proxyUrl)
 	if err != nil {
 		return nil, err
@@ -3236,7 +3237,7 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 		return nil, fmt.Errorf("Unable to create K8s REST config: %w", err)
 	}
 	if c.Config.ProxyUrl != "" {
-		u, err := c.ParseProxyUrl(c.Config.ProxyUrl)
+		u, err := ParseProxyUrl(c.Config.ProxyUrl)
 		if err != nil {
 			return nil, fmt.Errorf("Unable to create K8s REST config, can`t parse proxy url: %w", err)
 		}
