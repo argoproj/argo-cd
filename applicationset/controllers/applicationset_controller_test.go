@@ -3751,8 +3751,17 @@ func TestBuildAppSyncMap(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 			},
@@ -3768,8 +3777,17 @@ func TestBuildAppSyncMap(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 			},
@@ -3791,8 +3809,17 @@ func TestBuildAppSyncMap(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 			},
@@ -3814,8 +3841,17 @@ func TestBuildAppSyncMap(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -3883,8 +3919,17 @@ func TestBuildAppSyncMap(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -3952,8 +3997,17 @@ func TestBuildAppSyncMap(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4021,8 +4075,17 @@ func TestBuildAppSyncMap(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4090,8 +4153,17 @@ func TestBuildAppSyncMap(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4159,8 +4231,17 @@ func TestBuildAppSyncMap(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4333,8 +4414,17 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 			},
@@ -4350,8 +4440,17 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 			},
@@ -4373,6 +4472,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					},
 				},
 			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
@@ -4392,8 +4494,17 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{},
@@ -4416,6 +4527,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					},
 				},
 			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
@@ -4435,8 +4549,17 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4468,6 +4591,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					},
 				},
 			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
@@ -4487,8 +4613,17 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4534,6 +4669,10 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					},
 				},
 			},
+			appStepMap: map[string]int{
+				"app1":             0,
+				"app2-multisource": 0,
+			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
@@ -4560,8 +4699,17 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4588,6 +4736,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					},
 				},
 			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
@@ -4607,8 +4758,17 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4641,6 +4801,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					},
 				},
 			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
@@ -4660,8 +4823,17 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4694,6 +4866,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					},
 				},
 			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
@@ -4713,8 +4888,17 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4747,6 +4931,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					},
 				},
 			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
@@ -4766,8 +4953,17 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 			},
@@ -4816,8 +5012,17 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4866,6 +5071,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					},
 				},
 			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
@@ -4885,8 +5093,17 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -4935,6 +5152,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					},
 				},
 			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
@@ -4954,8 +5174,17 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -5003,6 +5232,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					},
 				},
 			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:     "app1",
@@ -5022,8 +5254,17 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{
 					Strategy: &v1alpha1.ApplicationSetStrategy{
-						Type:        "RollingSync",
-						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
 					},
 				},
 				Status: v1alpha1.ApplicationSetStatus{
@@ -5062,6 +5303,9 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						},
 					},
 				},
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
 			},
 			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
