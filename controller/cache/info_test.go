@@ -682,6 +682,178 @@ func TestGetPodInfoWithNormalInitContainer(t *testing.T) {
 	}, info.Info)
 }
 
+// Test pod condition succeed
+func TestPodConditionSucceeded(t *testing.T) {
+	pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: test8
+  spec:
+    nodeName: minikube
+    containers:
+      - name: container
+  status:
+    phase: Succeeded
+    containerStatuses:
+      - ready: false
+        restartCount: 0
+        state:
+          terminated:
+            reason: Completed
+            exitCode: 0
+`)
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Completed"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/1"},
+	}, info.Info)
+}
+
+// Test pod condition failed
+func TestPodConditionFailed(t *testing.T) {
+	pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: test9
+  spec:
+    nodeName: minikube
+    containers:
+      - name: container
+  status:
+    phase: Failed
+    containerStatuses:
+      - ready: false
+        restartCount: 0
+        state:
+          terminated:
+            reason: Error
+            exitCode: 1
+`)
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Error"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/1"},
+	}, info.Info)
+}
+
+// Test pod condition succeed with deletion
+func TestPodConditionSucceededWithDeletion(t *testing.T) {
+	pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: test10
+    deletionTimestamp: "2023-10-01T00:00:00Z"
+  spec:
+    nodeName: minikube
+    containers:
+      - name: container
+  status:
+    phase: Succeeded
+    containerStatuses:
+      - ready: false
+        restartCount: 0
+        state:
+          terminated:
+            reason: Completed
+            exitCode: 0
+`)
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Completed"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/1"},
+	}, info.Info)
+}
+
+// Test pod condition running with deletion
+func TestPodConditionRunningWithDeletion(t *testing.T) {
+	pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: test11
+    deletionTimestamp: "2023-10-01T00:00:00Z"
+  spec:
+    nodeName: minikube
+    containers:
+      - name: container
+  status:
+    phase: Running
+    containerStatuses:
+      - ready: false
+        restartCount: 0
+        state:
+          running: {}
+`)
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Terminating"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/1"},
+	}, info.Info)
+}
+
+// Test pod condition pending with deletion
+func TestPodConditionPendingWithDeletion(t *testing.T) {
+	pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: test12
+    deletionTimestamp: "2023-10-01T00:00:00Z"
+  spec:
+    nodeName: minikube
+    containers:
+      - name: container
+  status:
+    phase: Pending
+`)
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "Terminating"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/1"},
+	}, info.Info)
+}
+
+// Test PodScheduled condition with reason SchedulingGated
+func TestPodScheduledWithSchedulingGated(t *testing.T) {
+	pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: test13
+  spec:
+    nodeName: minikube
+    containers:
+      - name: container1
+      - name: container2
+  status:
+    phase: podPhase
+    conditions:
+      - type: PodScheduled
+        status: "False"
+        reason: SchedulingGated
+`)
+	info := &ResourceInfo{}
+	populateNodeInfo(pod, info, []string{})
+	assert.Equal(t, []v1alpha1.InfoItem{
+		{Name: "Status Reason", Value: "SchedulingGated"},
+		{Name: "Node", Value: "minikube"},
+		{Name: "Containers", Value: "0/2"},
+	}, info.Info)
+}
+
 func TestGetNodeInfo(t *testing.T) {
 	node := strToUnstructured(`
 apiVersion: v1

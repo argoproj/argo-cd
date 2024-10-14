@@ -318,7 +318,7 @@ func isRestartableInitContainer(initContainer *v1.Container) bool {
 	return *initContainer.RestartPolicy == v1.ContainerRestartPolicyAlways
 }
 
-func IsPodPhaseTerminal(phase v1.PodPhase) bool {
+func isPodPhaseTerminal(phase v1.PodPhase) bool {
 	return phase == v1.PodFailed || phase == v1.PodSucceeded
 }
 
@@ -437,7 +437,7 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		reason = "Unknown"
 		// If the pod is being deleted and the pod phase is not succeeded or failed, set the reason to "Terminating".
 		// See https://github.com/kubernetes/kubectl/issues/1595#issuecomment-2080001023
-	} else if pod.DeletionTimestamp != nil && !IsPodPhaseTerminal(podPhase) {
+	} else if pod.DeletionTimestamp != nil && !isPodPhaseTerminal(podPhase) {
 		reason = "Terminating"
 	}
 
