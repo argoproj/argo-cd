@@ -3238,7 +3238,7 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 	if c.Config.ProxyUrl != "" {
 		u, err := c.ParseProxyUrl(c.Config.ProxyUrl)
 		if err != nil {
-			panic(fmt.Sprintf("Unable to use proxy: %v", err))
+			return nil, fmt.Errorf("Unable to create K8s REST config, can`t parse proxy url: %w", err)
 		}
 		config.Proxy = http.ProxyURL(u)
 	}
