@@ -21,9 +21,15 @@ cd $GOPATH/src/github.com/argoproj &&
 git clone https://github.com/argoproj/argo-cd.git
 ```
 
-### Install Docker
+### Install Docker or Podman
+
+#### Installation guide for docker:
 
 <https://docs.docker.com/engine/install/>
+
+#### Installation guide for podman:
+
+<https://podman.io/docs/installation>
 
 ### Install or Upgrade a Tool for Running Local Clusters (e.g. kind or minikube)
 
@@ -46,6 +52,12 @@ Or, if you are using minikube:
 
 ```shell
 minikube start
+```
+
+Or, if you are using minikube with podman driver:
+
+```shell
+minikube start --driver=podman
 ```
 
 ### Install Argo CD
@@ -75,6 +87,13 @@ kubectl config set-context --current --namespace=argocd
 ```shell
 cd argo-cd
 make start-local ARGOCD_GPG_ENABLED=false
+```
+
+By default, Argo CD uses Docker. To use Podman instead, set the `DOCKER` environment variable to `podman` before running the `make` command:
+
+```shell
+cd argo-cd
+DOCKER=podman make start-local ARGOCD_GPG_ENABLED=false
 ```
 
 - Navigate to [localhost:4000](http://localhost:4000) in your browser to load the Argo CD UI
