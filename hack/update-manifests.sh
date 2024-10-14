@@ -49,3 +49,21 @@ $KUSTOMIZE build "${SRCROOT}/manifests/ha/namespace-install" >> "${SRCROOT}/mani
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/core-install.yaml"
 $KUSTOMIZE build "${SRCROOT}/manifests/core-install" >> "${SRCROOT}/manifests/core-install.yaml"
+
+# Copies enabling manifest hydrator. These can be removed once the manifest hydrator is either removed or enabled by 
+# default.
+
+echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/install-with-hydrator.yaml"
+$KUSTOMIZE build "${SRCROOT}/manifests/cluster-install-with-hydrator" >> "${SRCROOT}/manifests/install-with-hydrator.yaml"
+
+echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/namespace-install-with-hydrator.yaml"
+$KUSTOMIZE build "${SRCROOT}/manifests/namespace-install-with-hydrator" >> "${SRCROOT}/manifests/namespace-install-with-hydrator.yaml"
+
+echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/ha/install-with-hydrator.yaml"
+$KUSTOMIZE build "${SRCROOT}/manifests/ha/cluster-install-with-hydrator" >> "${SRCROOT}/manifests/ha/install-with-hydrator.yaml"
+
+echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/ha/namespace-install-with-hydrator.yaml"
+$KUSTOMIZE build "${SRCROOT}/manifests/ha/namespace-install-with-hydrator" >> "${SRCROOT}/manifests/ha/namespace-install-with-hydrator.yaml"
+
+echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/core-install-with-hydrator.yaml"
+$KUSTOMIZE build "${SRCROOT}/manifests/core-install-with-hydrator" >> "${SRCROOT}/manifests/core-install-with-hydrator.yaml"
