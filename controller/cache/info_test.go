@@ -513,7 +513,9 @@ func TestGetPodInfoWithRestartableInitContainer(t *testing.T) {
         state:
           waiting: {}
     conditions:
-      - type: PodInitialized
+      - type: ContainersReady
+        status: "False"
+      - type: Initialized
         status: "False"
 `)
 
@@ -566,7 +568,9 @@ func TestGetPodInfoWithPartiallyStartedInitContainers(t *testing.T) {
         state:
           waiting: {}
     conditions:
-      - type: PodInitialized
+      - type: ContainersReady
+        status: "False"
+      - type: Initialized
         status: "False"
 `)
 
@@ -622,7 +626,9 @@ func TestGetPodInfoWithStartedInitContainers(t *testing.T) {
           terminated:
             finishedAt: "2023-10-01T00:00:00Z" # Replace with actual time
     conditions:
-      - type: PodInitialized
+      - type: ContainersReady
+        status: "False"
+      - type: Initialized
         status: "True"
 `)
 
