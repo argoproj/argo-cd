@@ -30,7 +30,7 @@ import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './application-details.scss';
-import {AppViewExtension, StatusPanelExtension} from '../../../shared/services/extensions-service';
+import {TopBarActionMenuExt, AppViewExtension, StatusPanelExtension} from '../../../shared/services/extensions-service';
 
 interface ApplicationDetailsState {
     page: number;
@@ -44,6 +44,8 @@ interface ApplicationDetailsState {
     extensionsMap?: {[key: string]: AppViewExtension};
     statusExtensions?: StatusPanelExtension[];
     statusExtensionsMap?: {[key: string]: StatusPanelExtension};
+    topBarActionMenuExts?: TopBarActionMenuExt[];
+    topBarActionMenuExtsMap?: {[key: string]: TopBarActionMenuExt};
 }
 
 interface FilterInput {
@@ -94,6 +96,11 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         statusExtensions.forEach(ext => {
             statusExtensionsMap[ext.id] = ext;
         });
+        const topBarActionMenuExts = services.extensions.getActionMenuExtensions();
+        const topBarActionMenuExtsMap: {[key: string]: TopBarActionMenuExt} = {};
+        topBarActionMenuExts.forEach(ext => {
+            topBarActionMenuExtsMap[ext.id] = ext;
+        });
         this.state = {
             page: 0,
             groupedResources: [],
@@ -104,7 +111,9 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             extensions,
             extensionsMap,
             statusExtensions,
-            statusExtensionsMap
+            statusExtensionsMap,
+            topBarActionMenuExts,
+            topBarActionMenuExtsMap
         };
         if (typeof this.props.match.params.appnamespace === 'undefined') {
             this.appNamespace = '';
@@ -567,7 +576,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                 namespace: application.metadata.namespace
                             });
 
-                            const activeExtension = this.state.statusExtensionsMap[this.selectedExtension];
+                            const activeStatusExt = this.state.statusExtensionsMap[this.selectedExtension];
+                            const activeTopBarActionMenuExt = this.state.topBarActionMenuExtsMap[this.selectedExtension];
 
                             return (
                                 <div className={`application-details ${this.props.match.params.name}`}>
@@ -580,7 +590,14 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                 {title: 'Applications', path: '/applications'},
                                                 {title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />}
                                             ],
-                                            actionMenu: {items: this.getApplicationActionMenu(application, true)},
+                                            actionMenu: {
+                                                items: [
+                                                    ...this.getApplicationActionMenu(application, true),
+                                                    ...(this.state.topBarActionMenuExts
+                                                        ?.filter(ext => ext.shouldDisplay?.(application))
+                                                        .map(ext => this.renderActionMenuItem(ext, tree, application, this.setExtensionPanelVisible)) || [])
+                                                ]
+                                            },
                                             tools: (
                                                 <React.Fragment key='app-list-tools'>
                                                     <div className='application-details__view-type'>
@@ -825,6 +842,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                 isAppSelected={isAppSelected}
                                                 updateApp={(app: models.Application, query: {validate?: boolean}) => this.updateApp(app, query)}
                                                 selectedNode={selectedNode}
+                                                appCxt={this.context}
                                                 tab={tab}
                                             />
                                         </SlidingPanel>
@@ -837,7 +855,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                             {this.selectedRollbackDeploymentIndex > -1 && (
                                                 <ApplicationDeploymentHistory
                                                     app={application}
-                                                    selectedRollbackDeploymentIndex={this.selectedRollbackDeploymentIndex}
                                                     rollbackApp={info => this.rollbackApplication(info, application)}
                                                     selectDeployment={i => this.setRollbackPanelVisible(i)}
                                                 />
@@ -866,10 +883,16 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                 )}
                                         </SlidingPanel>
                                         <SlidingPanel
-                                            isShown={this.selectedExtension !== '' && activeExtension != null && activeExtension.flyout != null}
+                                            isShown={this.selectedExtension !== '' && activeStatusExt != null && activeStatusExt.flyout != null}
                                             onClose={() => this.setExtensionPanelVisible('')}>
-                                            {this.selectedExtension !== '' && activeExtension && activeExtension.flyout && (
-                                                <activeExtension.flyout application={application} tree={tree} />
+                                            {this.selectedExtension !== '' && activeStatusExt?.flyout && <activeStatusExt.flyout application={application} tree={tree} />}
+                                        </SlidingPanel>
+                                        <SlidingPanel
+                                            isMiddle={activeTopBarActionMenuExt?.isMiddle}
+                                            isShown={this.selectedExtension !== '' && activeTopBarActionMenuExt != null && activeTopBarActionMenuExt.flyout != null}
+                                            onClose={() => this.setExtensionPanelVisible('')}>
+                                            {this.selectedExtension !== '' && activeTopBarActionMenuExt?.flyout && (
+                                                <activeTopBarActionMenuExt.flyout application={application} tree={tree} />
                                             )}
                                         </SlidingPanel>
                                     </Page>
@@ -881,7 +904,13 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             </ObservableQuery>
         );
     }
-
+    private renderActionMenuItem(ext: TopBarActionMenuExt, tree: appModels.ApplicationTree, application: appModels.Application, showExtension?: (id: string) => any): any {
+        return {
+            action: () => this.setExtensionPanelVisible(ext.id),
+            title: <ext.component application={application} tree={tree} openFlyout={() => showExtension && showExtension(ext.id)} />,
+            iconClassName: ext.iconClassName
+        };
+    }
     private getApplicationActionMenu(app: appModels.Application, needOverlapLabelOnNarrowScreen: boolean) {
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});

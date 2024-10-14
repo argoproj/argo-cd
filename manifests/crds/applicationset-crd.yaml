@@ -51,11 +51,13 @@ spec:
                                     items:
                                       type: string
                                     type: array
+                                    x-kubernetes-list-type: atomic
                                 required:
                                 - key
                                 - operator
                                 type: object
                               type: array
+                              x-kubernetes-list-type: atomic
                             matchLabels:
                               additionalProperties:
                                 type: string
@@ -228,6 +230,8 @@ spec:
                                         releaseName:
                                           type: string
                                         skipCrds:
+                                          type: boolean
+                                        skipTests:
                                           type: boolean
                                         valueFiles:
                                           items:
@@ -458,6 +462,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipTests:
                                             type: boolean
                                           valueFiles:
                                             items:
@@ -663,6 +669,8 @@ spec:
                       type: object
                     clusters:
                       properties:
+                        flatList:
+                          type: boolean
                         selector:
                           properties:
                             matchExpressions:
@@ -676,11 +684,13 @@ spec:
                                     items:
                                       type: string
                                     type: array
+                                    x-kubernetes-list-type: atomic
                                 required:
                                 - key
                                 - operator
                                 type: object
                               type: array
+                              x-kubernetes-list-type: atomic
                             matchLabels:
                               additionalProperties:
                                 type: string
@@ -848,6 +858,8 @@ spec:
                                         releaseName:
                                           type: string
                                         skipCrds:
+                                          type: boolean
+                                        skipTests:
                                           type: boolean
                                         valueFiles:
                                           items:
@@ -1078,6 +1090,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipTests:
                                             type: boolean
                                           valueFiles:
                                             items:
@@ -1472,6 +1486,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipTests:
+                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -1701,6 +1717,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipTests:
                                             type: boolean
                                           valueFiles:
                                             items:
@@ -2075,6 +2093,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipTests:
+                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -2305,6 +2325,8 @@ spec:
                                             type: string
                                           skipCrds:
                                             type: boolean
+                                          skipTests:
+                                            type: boolean
                                           valueFiles:
                                             items:
                                               type: string
@@ -2523,11 +2545,13 @@ spec:
                                               items:
                                                 type: string
                                               type: array
+                                              x-kubernetes-list-type: atomic
                                           required:
                                           - key
                                           - operator
                                           type: object
                                         type: array
+                                        x-kubernetes-list-type: atomic
                                       matchLabels:
                                         additionalProperties:
                                           type: string
@@ -2700,6 +2724,8 @@ spec:
                                                   releaseName:
                                                     type: string
                                                   skipCrds:
+                                                    type: boolean
+                                                  skipTests:
                                                     type: boolean
                                                   valueFiles:
                                                     items:
@@ -2930,6 +2956,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipTests:
                                                       type: boolean
                                                     valueFiles:
                                                       items:
@@ -3135,6 +3163,8 @@ spec:
                                 type: object
                               clusters:
                                 properties:
+                                  flatList:
+                                    type: boolean
                                   selector:
                                     properties:
                                       matchExpressions:
@@ -3148,11 +3178,13 @@ spec:
                                               items:
                                                 type: string
                                               type: array
+                                              x-kubernetes-list-type: atomic
                                           required:
                                           - key
                                           - operator
                                           type: object
                                         type: array
+                                        x-kubernetes-list-type: atomic
                                       matchLabels:
                                         additionalProperties:
                                           type: string
@@ -3320,6 +3352,8 @@ spec:
                                                   releaseName:
                                                     type: string
                                                   skipCrds:
+                                                    type: boolean
+                                                  skipTests:
                                                     type: boolean
                                                   valueFiles:
                                                     items:
@@ -3550,6 +3584,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipTests:
                                                       type: boolean
                                                     valueFiles:
                                                       items:
@@ -3944,6 +3980,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipTests:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -4173,6 +4211,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipTests:
                                                       type: boolean
                                                     valueFiles:
                                                       items:
@@ -4547,6 +4587,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipTests:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -4776,6 +4818,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipTests:
                                                       type: boolean
                                                     valueFiles:
                                                       items:
@@ -5158,6 +5202,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipTests:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -5387,6 +5433,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipTests:
                                                       type: boolean
                                                     valueFiles:
                                                       items:
@@ -5988,6 +6036,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipTests:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -6217,6 +6267,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipTests:
                                                       type: boolean
                                                     valueFiles:
                                                       items:
@@ -6813,6 +6865,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipTests:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -7043,6 +7097,8 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
+                                                    skipTests:
+                                                      type: boolean
                                                     valueFiles:
                                                       items:
                                                         type: string
@@ -7256,11 +7312,13 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                          x-kubernetes-list-type: atomic
                                       required:
                                       - key
                                       - operator
                                       type: object
                                     type: array
+                                    x-kubernetes-list-type: atomic
                                   matchLabels:
                                     additionalProperties:
                                       type: string
@@ -7430,6 +7488,8 @@ spec:
                                         releaseName:
                                           type: string
                                         skipCrds:
+                                          type: boolean
+                                        skipTests:
                                           type: boolean
                                         valueFiles:
                                           items:
@@ -7660,6 +7720,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipTests:
                                             type: boolean
                                           valueFiles:
                                             items:
@@ -7881,11 +7943,13 @@ spec:
                                               items:
                                                 type: string
                                               type: array
+                                              x-kubernetes-list-type: atomic
                                           required:
                                           - key
                                           - operator
                                           type: object
                                         type: array
+                                        x-kubernetes-list-type: atomic
                                       matchLabels:
                                         additionalProperties:
                                           type: string
@@ -8058,6 +8122,8 @@ spec:
                                                   releaseName:
                                                     type: string
                                                   skipCrds:
+                                                    type: boolean
+                                                  skipTests:
                                                     type: boolean
                                                   valueFiles:
                                                     items:
@@ -8288,6 +8354,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipTests:
                                                       type: boolean
                                                     valueFiles:
                                                       items:
@@ -8493,6 +8561,8 @@ spec:
                                 type: object
                               clusters:
                                 properties:
+                                  flatList:
+                                    type: boolean
                                   selector:
                                     properties:
                                       matchExpressions:
@@ -8506,11 +8576,13 @@ spec:
                                               items:
                                                 type: string
                                               type: array
+                                              x-kubernetes-list-type: atomic
                                           required:
                                           - key
                                           - operator
                                           type: object
                                         type: array
+                                        x-kubernetes-list-type: atomic
                                       matchLabels:
                                         additionalProperties:
                                           type: string
@@ -8678,6 +8750,8 @@ spec:
                                                   releaseName:
                                                     type: string
                                                   skipCrds:
+                                                    type: boolean
+                                                  skipTests:
                                                     type: boolean
                                                   valueFiles:
                                                     items:
@@ -8908,6 +8982,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipTests:
                                                       type: boolean
                                                     valueFiles:
                                                       items:
@@ -9302,6 +9378,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipTests:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -9531,6 +9609,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipTests:
                                                       type: boolean
                                                     valueFiles:
                                                       items:
@@ -9905,6 +9985,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipTests:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -10134,6 +10216,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipTests:
                                                       type: boolean
                                                     valueFiles:
                                                       items:
@@ -10516,6 +10600,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipTests:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -10745,6 +10831,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipTests:
                                                       type: boolean
                                                     valueFiles:
                                                       items:
@@ -11346,6 +11434,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipTests:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -11575,6 +11665,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipTests:
                                                       type: boolean
                                                     valueFiles:
                                                       items:
@@ -12171,6 +12263,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipTests:
+                                                    type: boolean
                                                   valueFiles:
                                                     items:
                                                       type: string
@@ -12401,6 +12495,8 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
+                                                    skipTests:
+                                                      type: boolean
                                                     valueFiles:
                                                       items:
                                                         type: string
@@ -12614,11 +12710,13 @@ spec:
                                           items:
                                             type: string
                                           type: array
+                                          x-kubernetes-list-type: atomic
                                       required:
                                       - key
                                       - operator
                                       type: object
                                     type: array
+                                    x-kubernetes-list-type: atomic
                                   matchLabels:
                                     additionalProperties:
                                       type: string
@@ -12792,6 +12890,8 @@ spec:
                                         releaseName:
                                           type: string
                                         skipCrds:
+                                          type: boolean
+                                        skipTests:
                                           type: boolean
                                         valueFiles:
                                           items:
@@ -13022,6 +13122,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipTests:
                                             type: boolean
                                           valueFiles:
                                             items:
@@ -13403,6 +13505,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipTests:
+                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -13632,6 +13736,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipTests:
                                             type: boolean
                                           valueFiles:
                                             items:
@@ -14233,6 +14339,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipTests:
+                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -14462,6 +14570,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipTests:
                                             type: boolean
                                           valueFiles:
                                             items:
@@ -15058,6 +15168,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipTests:
+                                          type: boolean
                                         valueFiles:
                                           items:
                                             type: string
@@ -15288,6 +15400,8 @@ spec:
                                             type: string
                                           skipCrds:
                                             type: boolean
+                                          skipTests:
+                                            type: boolean
                                           valueFiles:
                                             items:
                                               type: string
@@ -15501,11 +15615,13 @@ spec:
                                 items:
                                   type: string
                                 type: array
+                                x-kubernetes-list-type: atomic
                             required:
                             - key
                             - operator
                             type: object
                           type: array
+                          x-kubernetes-list-type: atomic
                         matchLabels:
                           additionalProperties:
                             type: string
@@ -15751,6 +15867,8 @@ spec:
                                 type: string
                               skipCrds:
                                 type: boolean
+                              skipTests:
+                                type: boolean
                               valueFiles:
                                 items:
                                   type: string
@@ -15980,6 +16098,8 @@ spec:
                                 releaseName:
                                   type: string
                                 skipCrds:
+                                  type: boolean
+                                skipTests:
                                   type: boolean
                                 valueFiles:
                                   items:

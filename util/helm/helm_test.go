@@ -25,7 +25,7 @@ func template(h Helm, opts *TemplateOpts) ([]*unstructured.Unstructured, error) 
 }
 
 func TestHelmTemplateParams(t *testing.T) {
-	h, err := NewHelmApp("./testdata/minio", []HelmRepository{}, false, "", "", false)
+	h, err := NewHelmApp("./testdata/minio", []HelmRepository{}, false, "", "", "", false)
 	require.NoError(t, err)
 	opts := TemplateOpts{
 		Name: "test",
@@ -57,7 +57,7 @@ func TestHelmTemplateValues(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, []HelmRepository{}, false, "", "", false)
+	h, err := NewHelmApp(repoRootAbs, []HelmRepository{}, false, "", "", "", false)
 	require.NoError(t, err)
 	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
@@ -83,7 +83,7 @@ func TestHelmGetParams(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", false)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false)
 	require.NoError(t, err)
 	params, err := h.GetParameters(nil, repoRootAbs, repoRootAbs)
 	require.NoError(t, err)
@@ -96,7 +96,7 @@ func TestHelmGetParamsValueFiles(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", false)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false)
 	require.NoError(t, err)
 	valuesPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-production.yaml", nil)
 	require.NoError(t, err)
@@ -111,7 +111,7 @@ func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 	repoRoot := "./testdata/redis"
 	repoRootAbs, err := filepath.Abs(repoRoot)
 	require.NoError(t, err)
-	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", false)
+	h, err := NewHelmApp(repoRootAbs, nil, false, "", "", "", false)
 	require.NoError(t, err)
 	valuesMissingPath, _, err := path.ResolveValueFilePathOrUrl(repoRootAbs, repoRootAbs, "values-missing.yaml", nil)
 	require.NoError(t, err)
@@ -125,7 +125,7 @@ func TestHelmGetParamsValueFilesThatExist(t *testing.T) {
 }
 
 func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
+	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{Name: "my-release"})
@@ -143,7 +143,7 @@ func TestHelmTemplateReleaseNameOverwrite(t *testing.T) {
 }
 
 func TestHelmTemplateReleaseName(t *testing.T) {
-	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", false)
+	h, err := NewHelmApp("./testdata/redis", nil, false, "", "", "", false)
 	require.NoError(t, err)
 	objs, err := template(h, &TemplateOpts{Name: "test"})
 	require.NoError(t, err)
@@ -166,6 +166,8 @@ func TestHelmArgCleaner(t *testing.T) {
 		`not, clean`: `not\, clean`,
 		`a\,b,c`:     `a\,b\,c`,
 		`{a,b,c}`:    `{a,b,c}`,
+		`,,,,,\,`:    `\,\,\,\,\,\,`,
+		`\,,\\,,`:    `\,\,\\,\,`,
 	} {
 		cleaned := cleanSetParameters(input)
 		assert.Equal(t, expected, cleaned)
@@ -203,7 +205,7 @@ func Test_flatVals(t *testing.T) {
 }
 
 func TestAPIVersions(t *testing.T) {
-	h, err := NewHelmApp("./testdata/api-versions", nil, false, "", "", false)
+	h, err := NewHelmApp("./testdata/api-versions", nil, false, "", "", "", false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{})
@@ -218,7 +220,7 @@ func TestAPIVersions(t *testing.T) {
 }
 
 func TestSkipCrds(t *testing.T) {
-	h, err := NewHelmApp("./testdata/crds", nil, false, "", "", false)
+	h, err := NewHelmApp("./testdata/crds", nil, false, "", "", "", false)
 	require.NoError(t, err)
 
 	objs, err := template(h, &TemplateOpts{SkipCrds: false})
@@ -230,6 +232,23 @@ func TestSkipCrds(t *testing.T) {
 	require.Len(t, objs, 1)
 
 	objs, err = template(h, &TemplateOpts{SkipCrds: true})
+	require.NoError(t, err)
+	require.Empty(t, objs)
+}
+
+func TestSkipTests(t *testing.T) {
+	h, err := NewHelmApp("./testdata/tests", nil, false, "", "", "", false)
+	require.NoError(t, err)
+
+	objs, err := template(h, &TemplateOpts{SkipTests: false})
+	require.NoError(t, err)
+	require.Len(t, objs, 1)
+
+	objs, err = template(h, &TemplateOpts{})
+	require.NoError(t, err)
+	require.Len(t, objs, 1)
+
+	objs, err = template(h, &TemplateOpts{SkipTests: true})
 	require.NoError(t, err)
 	require.Empty(t, objs)
 }

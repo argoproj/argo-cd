@@ -150,7 +150,7 @@ func (c *legacyServicesConfig) merge(cfg *api.Config) {
 	}
 	for i := range c.Webhook {
 		opts := c.Webhook[i]
-		cfg.Services[fmt.Sprintf(opts.Name)] = func() (services.NotificationService, error) {
+		cfg.Services[opts.Name] = func() (services.NotificationService, error) {
 			return services.NewWebhookService(opts.WebhookOptions), nil
 		}
 	}

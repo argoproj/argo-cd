@@ -66,6 +66,8 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 		switch gvk.Kind {
 		case "VirtualService":
 			populateIstioVirtualServiceInfo(un, res)
+		case "ServiceEntry":
+			populateIstioServiceEntryInfo(un, res)
 		}
 	}
 }
@@ -276,6 +278,22 @@ func populateIstioVirtualServiceInfo(un *unstructured.Unstructured, res *Resourc
 	}
 
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, ExternalURLs: urls}
+}
+
+func populateIstioServiceEntryInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	targetLabels, ok, err := unstructured.NestedStringMap(un.Object, "spec", "workloadSelector", "labels")
+	if err != nil {
+		return
+	}
+	if !ok {
+		return
+	}
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{
+		TargetLabels: targetLabels,
+		TargetRefs: []v1alpha1.ResourceRef{{
+			Kind: kube.PodKind,
+		}},
+	}
 }
 
 func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {

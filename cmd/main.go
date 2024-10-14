@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/argoproj/argo-cd/v2/cmd/util"
+
 	"github.com/spf13/cobra"
 
 	appcontroller "github.com/argoproj/argo-cd/v2/cmd/argocd-application-controller/commands"
@@ -29,9 +31,12 @@ func main() {
 	if val := os.Getenv(binaryNameEnv); val != "" {
 		binaryName = val
 	}
+
+	isCLI := false
 	switch binaryName {
 	case "argocd", "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe":
 		command = cli.NewCommand()
+		isCLI = true
 	case "argocd-server":
 		command = apiserver.NewCommand()
 	case "argocd-application-controller":
@@ -40,19 +45,24 @@ func main() {
 		command = reposerver.NewCommand()
 	case "argocd-cmp-server":
 		command = cmpserver.NewCommand()
+		isCLI = true
 	case "argocd-dex":
 		command = dex.NewCommand()
 	case "argocd-notifications":
 		command = notification.NewCommand()
 	case "argocd-git-ask-pass":
 		command = gitaskpass.NewCommand()
+		isCLI = true
 	case "argocd-applicationset-controller":
 		command = applicationset.NewCommand()
 	case "argocd-k8s-auth":
 		command = k8sauth.NewCommand()
+		isCLI = true
 	default:
 		command = cli.NewCommand()
+		isCLI = true
 	}
+	util.SetAutoMaxProcs(isCLI)
 
 	if err := command.Execute(); err != nil {
 		os.Exit(1)

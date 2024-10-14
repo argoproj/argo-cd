@@ -21,6 +21,7 @@ interface NewSSHRepoParams {
     insecure: boolean;
     enableLfs: boolean;
     proxy: string;
+    noProxy: string;
     project?: string;
 }
 
@@ -35,6 +36,7 @@ export interface NewHTTPSRepoParams {
     insecure: boolean;
     enableLfs: boolean;
     proxy: string;
+    noProxy: string;
     project?: string;
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
@@ -53,6 +55,7 @@ interface NewGitHubAppRepoParams {
     insecure: boolean;
     enableLfs: boolean;
     proxy: string;
+    noProxy: string;
     project?: string;
 }
 
@@ -62,6 +65,7 @@ interface NewGoogleCloudSourceRepoParams {
     url: string;
     gcpServiceAccountKey: string;
     proxy: string;
+    noProxy: string;
     project?: string;
 }
 
@@ -77,6 +81,7 @@ interface NewHTTPSRepoCredsParams {
     tlsClientCertData: string;
     tlsClientCertKey: string;
     proxy: string;
+    noProxy: string;
     forceHttpBasicAuth: boolean;
     enableOCI: boolean;
 }
@@ -90,6 +95,7 @@ interface NewGitHubAppRepoCredsParams {
     tlsClientCertData: string;
     tlsClientCertKey: string;
     proxy: string;
+    noProxy: string;
 }
 
 interface NewGoogleCloudSourceRepoCredsParams {
@@ -453,6 +459,9 @@ export class ReposList extends React.Component<
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
                                                     </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
+                                                    </div>
                                                 </div>
                                             )}
                                             {this.state.method === ConnectionMethod.HTTPS && (
@@ -461,9 +470,14 @@ export class ReposList extends React.Component<
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}} />
                                                     </div>
-                                                    {formApi.getFormState().values.type === 'helm' && (
+                                                    {(formApi.getFormState().values.type === 'helm' || formApi.getFormState().values.type === 'git') && (
                                                         <div className='argo-form-row'>
-                                                            <FormField formApi={formApi} label='Name' field='name' component={Text} />
+                                                            <FormField
+                                                                formApi={formApi}
+                                                                label={`Name ${formApi.getFormState().values.type === 'git' ? '(optional)' : ''}`}
+                                                                field='name'
+                                                                component={Text}
+                                                            />
                                                         </div>
                                                     )}
                                                     <div className='argo-form-row'>
@@ -513,6 +527,9 @@ export class ReposList extends React.Component<
                                                     )}
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                                    </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
                                                     </div>
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Enable OCI' field='enableOCI' component={CheckboxField} />
@@ -595,6 +612,9 @@ export class ReposList extends React.Component<
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
                                                     </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
+                                                    </div>
                                                 </div>
                                             )}
                                             {this.state.method === ConnectionMethod.GOOGLECLOUD && (
@@ -617,6 +637,9 @@ export class ReposList extends React.Component<
                                                     </div>
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                                    </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
                                                     </div>
                                                 </div>
                                             )}
@@ -656,9 +679,11 @@ export class ReposList extends React.Component<
 
     // Forces a reload of configured repositories, circumventing the cache
     private async refreshRepoList(updatedRepo?: string) {
+        // Refresh the credentials template list
+        this.credsLoader.reload();
+
         try {
             await services.repos.listNoCache();
-            await services.repocreds.list();
             this.repoLoader.reload();
             this.appContext.apis.notifications.show({
                 content: updatedRepo ? `Successfully updated ${updatedRepo} repository` : 'Successfully reloaded list of repositories',
@@ -709,6 +734,7 @@ export class ReposList extends React.Component<
                 tlsClientCertData: params.tlsClientCertData,
                 tlsClientCertKey: params.tlsClientCertKey,
                 proxy: params.proxy,
+                noProxy: params.noProxy,
                 forceHttpBasicAuth: params.forceHttpBasicAuth,
                 enableOCI: params.enableOCI
             });
@@ -757,7 +783,8 @@ export class ReposList extends React.Component<
                 githubAppEnterpriseBaseURL: params.githubAppEnterpriseBaseURL,
                 tlsClientCertData: params.tlsClientCertData,
                 tlsClientCertKey: params.tlsClientCertKey,
-                proxy: params.proxy
+                proxy: params.proxy,
+                noProxy: params.noProxy
             });
         } else {
             this.setState({connecting: true});

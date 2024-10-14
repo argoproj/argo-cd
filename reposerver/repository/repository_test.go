@@ -148,10 +148,10 @@ func newServiceWithOpt(t *testing.T, cf clientFunc, root string) (*Service, *git
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, root)
 
-	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
 	}
-	service.newHelmClient = func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client {
+	service.newHelmClient = func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client {
 		return helmClient
 	}
 	service.gitRepoInitializer = func(rootPath string) goio.Closer {
@@ -191,7 +191,7 @@ func newServiceWithCommitSHA(t *testing.T, root, revision string) *Service {
 		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
 	}, root)
 
-	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
 	}
 
@@ -280,7 +280,7 @@ func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
 			res, err := GenerateManifests(context.Background(), repoDir, "", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 			require.Error(t, err)
 			assert.NotContains(t, err.Error(), mustNotContain)
-			assert.Contains(t, err.Error(), "illegal filepath")
+			require.ErrorContains(t, err, "illegal filepath")
 			assert.Nil(t, res)
 		})
 	}
@@ -313,7 +313,7 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 
 	cachedFakeResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}, Revision: mock.Anything}
 
-	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse}, nil)
+	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse}, nil, "")
 	require.NoError(t, err)
 
 	res, err := service.GenerateManifest(context.Background(), &q)
@@ -338,7 +338,7 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 
-	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: nil}, nil)
+	err := service.cache.SetManifests(mock.Anything, &src, q.RefSources, &q, "", "", "", "", &cache.CachedManifestResponse{ManifestResponse: nil}, nil, "")
 	require.NoError(t, err)
 
 	res, err := service.GenerateManifest(context.Background(), &q)
@@ -363,7 +363,7 @@ func TestGenerateManifest_RefOnlyShortCircuit(t *testing.T) {
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, repopath)
-	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		opts = append(opts, git.WithEventHandlers(git.EventHandlers{
 			// Primary check, we want to make sure ls-remote is not called when the item is in cache
 			OnLsRemote: func(repo string) func() {
@@ -377,7 +377,7 @@ func TestGenerateManifest_RefOnlyShortCircuit(t *testing.T) {
 				}
 			},
 		}))
-		gitClient, err := git.NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, opts...)
+		gitClient, err := git.NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, noProxy, opts...)
 		return gitClient, err
 	}
 	revision := initGitRepo(t, newGitRepoOptions{
@@ -431,7 +431,7 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, repopath)
 	var gitClient git.Client
 	var err error
-	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		opts = append(opts, git.WithEventHandlers(git.EventHandlers{
 			// Primary check, we want to make sure ls-remote is not called when the item is in cache
 			OnLsRemote: func(repo string) func() {
@@ -440,7 +440,7 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 				}
 			},
 		}))
-		gitClient, err = git.NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, opts...)
+		gitClient, err = git.NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, noProxy, opts...)
 		return gitClient, err
 	}
 	repoRemote := fmt.Sprintf("file://%s", repopath)
@@ -684,8 +684,7 @@ func TestInvalidMetadata(t *testing.T) {
 	src := argoappv1.ApplicationSource{Path: "./testdata/invalid-metadata", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, AppLabelKey: "test", AppName: "invalid-metadata", TrackingMethod: "annotation+label"}
 	_, err := service.GenerateManifest(context.Background(), &q)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "contains non-string value in the map under key \"invalid\"")
+	assert.ErrorContains(t, err, "contains non-string value in the map under key \"invalid\"")
 }
 
 func TestNilMetadataAccessors(t *testing.T) {
@@ -763,8 +762,7 @@ func TestGenerateJsonnetLibOutside(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 	_, err := service.GenerateManifest(context.Background(), &q)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "file '../../../testdata/jsonnet/vendor' resolved to outside repository root")
+	require.ErrorContains(t, err, "file '../../../testdata/jsonnet/vendor' resolved to outside repository root")
 }
 
 func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
@@ -774,7 +772,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 		assert.NotNil(t, manifestRequest)
 
 		cachedManifestResponse := &cache.CachedManifestResponse{}
-		err := service.cache.GetManifests(mock.Anything, manifestRequest.ApplicationSource, manifestRequest.RefSources, manifestRequest, manifestRequest.Namespace, "", manifestRequest.AppLabelKey, manifestRequest.AppName, cachedManifestResponse, nil)
+		err := service.cache.GetManifests(mock.Anything, manifestRequest.ApplicationSource, manifestRequest.RefSources, manifestRequest, manifestRequest.Namespace, "", manifestRequest.AppLabelKey, manifestRequest.AppName, cachedManifestResponse, nil, "")
 		require.NoError(t, err)
 		return cachedManifestResponse
 	}
@@ -1141,8 +1139,7 @@ func TestHelmWithMissingValueFiles(t *testing.T) {
 
 	// Should fail since we're passing a non-existent values file, and error should indicate that
 	_, err := service.GenerateManifest(context.Background(), req)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), fmt.Sprintf("%s: no such file or directory", missingValuesFile))
+	require.ErrorContains(t, err, fmt.Sprintf("%s: no such file or directory", missingValuesFile))
 
 	// Should template without error even if defining a non-existent values file
 	req.ApplicationSource.Helm.IgnoreMissingValueFiles = true
@@ -1330,8 +1327,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "outside repository root")
+		assert.ErrorContains(t, err, "outside repository root")
 	})
 
 	t.Run("Values file with relative path pointing inside repo root", func(t *testing.T) {
@@ -1385,8 +1381,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "outside repository root")
+		assert.ErrorContains(t, err, "outside repository root")
 	})
 
 	t.Run("Remote values file from forbidden protocol", func(t *testing.T) {
@@ -1404,8 +1399,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "is not allowed")
+		assert.ErrorContains(t, err, "is not allowed")
 	})
 
 	t.Run("Remote values file from custom allowed protocol", func(t *testing.T) {
@@ -1423,8 +1417,7 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "s3://my-bucket/my-chart-values.yaml: no such file or directory")
+		assert.ErrorContains(t, err, "s3://my-bucket/my-chart-values.yaml: no such file or directory")
 	})
 }
 
@@ -1817,6 +1810,7 @@ func Test_newEnv(t *testing.T) {
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: "my-namespace"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: "my-revision"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT", Value: "my-revi"},
+		&argoappv1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT_8", Value: "my-revis"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: "https://github.com/my-org/my-repo"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: "my-path"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: "my-target-revision"},
@@ -2113,7 +2107,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			// Try to pull from the cache with a `source` that does not include any overrides. Overrides should not be
 			// part of the cache key, because you can't get the overrides without a repo operation. And avoiding repo
 			// operations is the point of the cache.
-			err = service.cache.GetManifests(mock.Anything, source, argoappv1.RefTargetRevisionMapping{}, &argoappv1.ClusterInfo{}, "", "", "", "test", res, nil)
+			err = service.cache.GetManifests(mock.Anything, source, argoappv1.RefTargetRevisionMapping{}, &argoappv1.ClusterInfo{}, "", "", "", "test", res, nil, "")
 			require.NoError(t, err)
 		})
 	})
@@ -2856,8 +2850,7 @@ func TestTestRepoOCI(t *testing.T) {
 			EnableOCI: true,
 		},
 	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "OCI Helm repository URL should include hostname and port only")
+	assert.ErrorContains(t, err, "OCI Helm repository URL should include hostname and port only")
 }
 
 func Test_getHelmDependencyRepos(t *testing.T) {
@@ -3036,7 +3029,7 @@ func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
 	destRepoPath, err := os.MkdirTemp(rootPath, "")
 	require.NoError(t, err)
 
-	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "")
+	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 
 	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
@@ -3742,7 +3735,9 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				SyncedRevision: "SYNCEDHEAD",
 				Paths:          []string{"."},
 			},
-		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
+		}, wantErr: assert.NoError},
 		{name: "ChangedFilesDoNothing", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Init").Return(nil)
@@ -3768,7 +3763,10 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				SyncedRevision: "SYNCEDHEAD",
 				Paths:          []string{"."},
 			},
-		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
+			Changes:  true,
+		}, wantErr: assert.NoError},
 		{name: "NoChangesUpdateCache", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Init").Return(nil)
@@ -3801,7 +3799,9 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				ApplicationSource: &argoappv1.ApplicationSource{Path: "."},
 				KubeVersion:       "v1.16.0",
 			},
-		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError, cacheHit: &cacheHit{
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
+		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
 			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
 		}},
@@ -3839,7 +3839,9 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 
 				HasMultipleSources: true,
 			},
-		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError, cacheHit: &cacheHit{
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
+		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
 			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
 		}},
@@ -3899,7 +3901,7 @@ func TestGetRefs_CacheWithLockDisabled(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, true))
+			client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 			require.NoError(t, err)
 			refs, err := client.LsRefs()
 			require.NoError(t, err)
@@ -3926,7 +3928,7 @@ func TestGetRefs_CacheDisabled(t *testing.T) {
 	})
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
-	client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, false))
+	client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, false))
 	require.NoError(t, err)
 	refs, err := client.LsRefs()
 	require.NoError(t, err)
@@ -3955,7 +3957,7 @@ func TestGetRefs_CacheWithLock(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, true))
+			client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 			require.NoError(t, err)
 			refs, err := client.LsRefs()
 			require.NoError(t, err)
@@ -3984,7 +3986,7 @@ func TestGetRefs_CacheUnlockedOnUpdateFailed(t *testing.T) {
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	repoUrl := fmt.Sprintf("file://%s", dir)
-	client, err := git.NewClient(repoUrl, git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, true))
+	client, err := git.NewClient(repoUrl, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 	require.NoError(t, err)
 	refs, err := client.LsRefs()
 	require.NoError(t, err)
@@ -4015,7 +4017,7 @@ func TestGetRefs_CacheLockTryLockGitRefCacheError(t *testing.T) {
 	repoUrl := fmt.Sprintf("file://%s", dir)
 	// buf := bytes.Buffer{}
 	// log.SetOutput(&buf)
-	client, err := git.NewClient(repoUrl, git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, true))
+	client, err := git.NewClient(repoUrl, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
 	require.NoError(t, err)
 	refs, err := client.LsRefs()
 	require.NoError(t, err)
