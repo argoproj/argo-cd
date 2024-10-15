@@ -497,21 +497,43 @@ export const deletePopup = async (
 };
 
 export function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
-    return services.applications
-        .getResourceActions(metadata.name, metadata.namespace, resource)
-        .then(actions => {
-            return actions.map(
-                action =>
-                    ({
-                        title: action.displayName ?? action.name,
-                        disabled: !!action.disabled,
-                        iconClassName: action.iconClass,
-                        action: async () => {
+    return services.applications.getResourceActions(metadata.name, metadata.namespace, resource).then(actions => {
+        return actions.map(action => ({
+            title: action.displayName ?? action.name,
+            disabled: !!action.disabled,
+            iconClassName: action.iconClass,
+            action: async () => {
+                const confirmed = false;
+                const title = action.hasParameters ? `Enter input parameters for action: ${action.name}` : `Execute ${action.name} action?`;
+                console.log('title:', title);
+                await apis.popup.prompt(
+                    title,
+                    api => (
+                        <div>
+                            {!action.hasParameters && (
+                                <div className='argo-form-row'>
+                                    <div> Are you sure you want to execute {action.name} action?</div>
+                                </div>
+                            )}
+                            {action.hasParameters && (
+                                <div className='argo-form-row'>
+                                    <FormField formApi={api} field='inputParameter' component={Text} componentProps={{showErrors: true}} />
+                                </div>
+                            )}
+                        </div>
+                    ),
+                    {
+                        validate: vals => {
+                            return {
+                                inputParameter: vals.inputParameter && action.regexp && !vals.inputParameter.match(action.regexp) ? action.errorMessage : undefined
+                            };
+                        },
+
+                        submit: async (vals, _, close) => {
                             try {
-                                const confirmed = await apis.popup.confirm(`Execute '${action.name}' action?`, `Are you sure you want to execute '${action.name}' action?`);
-                                if (confirmed) {
-                                    await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name);
-                                }
+                                const resourceActionParameters = action.hasParameters ? [{name: action.name, value: vals.inputParameter}] : [];
+                                await services.applications.runResourceAction(metadata.name, metadata.namespace, resource, action.name, resourceActionParameters);
+                                close();
                             } catch (e) {
                                 apis.notifications.show({
                                     content: <ErrorNotification title='Unable to execute resource action' e={e} />,
@@ -519,10 +541,15 @@ export function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata
                                 });
                             }
                         }
-                    }) as MenuItem
-            );
-        })
-        .catch(() => [] as MenuItem[]);
+                    },
+                    null,
+                    null,
+                    {inputParameter: action.defaultValue}
+                );
+                return confirmed;
+            }
+        }));
+    });
 }
 
 function getActionItems(
