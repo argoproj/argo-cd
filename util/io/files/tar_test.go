@@ -195,7 +195,8 @@ func TestUntgz(t *testing.T) {
 		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
 
 		// then
-		assert.ErrorContains(t, err, "illegal filepath in symlink")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "illegal filepath in symlink")
 	})
 
 	t.Run("preserves file mode", func(t *testing.T) {

@@ -246,29 +246,6 @@ spec:
         - destination:
             host: service
 `)
-
-	testIstioServiceEntry = strToUnstructured(`
-apiVersion: networking.istio.io/v1beta1
-kind: ServiceEntry
-metadata:
-  name: echo
-spec:
-  exportTo:
-  - '*'
-  hosts:
-  - echo.internal
-  location: MESH_INTERNAL
-  ports:
-  - name: http
-    number: 80
-    protocol: HTTP
-    targetPort: 5678 
-  resolution: DNS
-
-  workloadSelector:
-    labels:
-      app.kubernetes.io/name: echo-2
-`)
 )
 
 func TestGetPodInfo(t *testing.T) {
@@ -376,21 +353,6 @@ func TestGetIstioVirtualServiceInfo(t *testing.T) {
 		Name:      "service",
 		Namespace: "demo",
 	})
-}
-
-func TestGetIstioServiceEntryInfo(t *testing.T) {
-	info := &ResourceInfo{}
-	populateNodeInfo(testIstioServiceEntry, info, []string{})
-	assert.Empty(t, info.Info)
-	require.NotNil(t, info.NetworkingInfo)
-	require.NotNil(t, info.NetworkingInfo.TargetRefs)
-	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
-		Kind: kube.PodKind,
-	})
-
-	assert.Equal(t, map[string]string{
-		"app.kubernetes.io/name": "echo-2",
-	}, info.NetworkingInfo.TargetLabels)
 }
 
 func TestGetIngressInfo(t *testing.T) {

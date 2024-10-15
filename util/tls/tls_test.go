@@ -187,19 +187,22 @@ func TestGenerate(t *testing.T) {
 	t.Run("Invalid: No hosts specified", func(t *testing.T) {
 		opts := CertOptions{Hosts: []string{}, Organization: "Acme", ValidFrom: time.Now(), ValidFor: 10 * time.Hour}
 		_, _, err := generate(opts)
-		assert.ErrorContains(t, err, "hosts not supplied")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "hosts not supplied")
 	})
 
 	t.Run("Invalid: No organization specified", func(t *testing.T) {
 		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "", ValidFrom: time.Now(), ValidFor: 10 * time.Hour}
 		_, _, err := generate(opts)
-		assert.ErrorContains(t, err, "organization not supplied")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "organization not supplied")
 	})
 
 	t.Run("Invalid: Unsupported curve specified", func(t *testing.T) {
 		opts := CertOptions{Hosts: []string{"localhost"}, Organization: "Acme", ECDSACurve: "Curve?", ValidFrom: time.Now(), ValidFor: 10 * time.Hour}
 		_, _, err := generate(opts)
-		assert.ErrorContains(t, err, "Unrecognized elliptic curve")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Unrecognized elliptic curve")
 	})
 
 	for _, curve := range []string{"P224", "P256", "P384", "P521"} {

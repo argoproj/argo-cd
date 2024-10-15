@@ -163,19 +163,22 @@ func TestAddProjectDestination(t *testing.T) {
 		"https://192.168.99.100:8443",
 		"test1",
 	)
-	require.ErrorContains(t, err, "already defined")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already defined")
 
 	_, err = fixture.RunCli("proj", "add-destination", projectName,
 		"!*",
 		"test1",
 	)
-	require.ErrorContains(t, err, "server has an invalid format, '!*'")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "server has an invalid format, '!*'")
 
 	_, err = fixture.RunCli("proj", "add-destination", projectName,
 		"https://192.168.99.100:8443",
 		"!*",
 	)
-	require.ErrorContains(t, err, "namespace has an invalid format, '!*'")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "namespace has an invalid format, '!*'")
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	require.NoError(t, err)
@@ -246,7 +249,8 @@ func TestRemoveProjectDestination(t *testing.T) {
 		"https://192.168.99.100:8443",
 		"test1",
 	)
-	require.ErrorContains(t, err, "does not exist")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "does not exist")
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	if err != nil {
@@ -415,7 +419,8 @@ func TestAddOrphanedIgnore(t *testing.T) {
 		"--name",
 		"name",
 	)
-	require.ErrorContains(t, err, "already defined")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already defined")
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	require.NoError(t, err)
@@ -461,7 +466,8 @@ func TestRemoveOrphanedIgnore(t *testing.T) {
 		"--name",
 		"name",
 	)
-	require.ErrorContains(t, err, "does not exist")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "does not exist")
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	if err != nil {
@@ -606,11 +612,12 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 
 	// App trying to sync a resource which is not blacked listed anywhere
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
-	require.ErrorContains(t, err, "blocked by sync window")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "blocked by sync window")
 
 	// app trying to sync a resource which is black listed by global project
 	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
-	assert.ErrorContains(t, err, "blocked by sync window")
+	assert.Contains(t, err.Error(), "blocked by sync window")
 }
 
 func TestAddProjectDestinationServiceAccount(t *testing.T) {
@@ -669,7 +676,8 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"test-ns",
 		"test-sa",
 	)
-	require.ErrorContains(t, err, "already defined")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already defined")
 
 	// Given, an existing project,
 	// When, a duplicate default destination service account is added,
@@ -679,7 +687,8 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"test-ns",
 		"asdf",
 	)
-	require.ErrorContains(t, err, "already added")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already added")
 
 	// Given, an existing project,
 	// When, a default destination service account with negation glob pattern for server is added,
@@ -689,7 +698,8 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"test-ns",
 		"test-sa",
 	)
-	require.ErrorContains(t, err, "server has an invalid format, '!*'")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "server has an invalid format, '!*'")
 
 	// Given, an existing project,
 	// When, a default destination service account with negation glob pattern for server is added,
@@ -699,7 +709,8 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"test-ns",
 		"test-sa",
 	)
-	require.ErrorContains(t, err, "server has an invalid format, '!abc'")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "server has an invalid format, '!abc'")
 
 	// Given, an existing project,
 	// When, a default destination service account with negation glob pattern for namespace is added,
@@ -709,7 +720,8 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"!*",
 		"test-sa",
 	)
-	require.ErrorContains(t, err, "namespace has an invalid format, '!*'")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "namespace has an invalid format, '!*'")
 
 	// Given, an existing project,
 	// When, a default destination service account with negation glob pattern for namespace is added,
@@ -719,7 +731,8 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"!abc",
 		"test-sa",
 	)
-	require.ErrorContains(t, err, "namespace has an invalid format, '!abc'")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "namespace has an invalid format, '!abc'")
 
 	// Given, an existing project,
 	// When, a default destination service account with empty service account is added,
@@ -729,7 +742,8 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"test-ns",
 		"",
 	)
-	require.ErrorContains(t, err, "defaultServiceAccount has an invalid format, ''")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "defaultServiceAccount has an invalid format, ''")
 
 	// Given, an existing project,
 	// When, a default destination service account with service account having just white spaces is added,
@@ -739,7 +753,8 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"test-ns",
 		"   ",
 	)
-	require.ErrorContains(t, err, "defaultServiceAccount has an invalid format, '   '")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "defaultServiceAccount has an invalid format, '   '")
 
 	// Given, an existing project,
 	// When, a default destination service account with service account having backwards slash char is added,
@@ -749,7 +764,8 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"test-ns",
 		"test\\sa",
 	)
-	require.ErrorContains(t, err, "defaultServiceAccount has an invalid format, 'test\\\\sa'")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "defaultServiceAccount has an invalid format, 'test\\\\sa'")
 
 	// Given, an existing project,
 	// When, a default destination service account with service account having forward slash char is added,
@@ -759,7 +775,8 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"test-ns",
 		"test/sa",
 	)
-	require.ErrorContains(t, err, "defaultServiceAccount has an invalid format, 'test/sa'")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "defaultServiceAccount has an invalid format, 'test/sa'")
 
 	// Given, an existing project,
 	// When, a default destination service account with service account having square braces char is added,
@@ -769,7 +786,8 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"test-ns",
 		"[test-sa]",
 	)
-	require.ErrorContains(t, err, "defaultServiceAccount has an invalid format, '[test-sa]'")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "defaultServiceAccount has an invalid format, '[test-sa]'")
 
 	// Given, an existing project,
 	// When, a default destination service account with service account having curly braces char is added,
@@ -779,7 +797,8 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"test-ns",
 		"{test-sa}",
 	)
-	require.ErrorContains(t, err, "defaultServiceAccount has an invalid format, '{test-sa}'")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "defaultServiceAccount has an invalid format, '{test-sa}'")
 
 	// Given, an existing project,
 	// When, a default destination service account with service account having curly braces char is added,
@@ -789,7 +808,8 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"test-ns",
 		"test-sa",
 	)
-	require.ErrorContains(t, err, "server has an invalid format, '[[ech*'")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "server has an invalid format, '[[ech*'")
 
 	// Given, an existing project,
 	// When, a default destination service account with service account having curly braces char is added,
@@ -799,7 +819,8 @@ func TestAddProjectDestinationServiceAccount(t *testing.T) {
 		"[[ech*",
 		"test-sa",
 	)
-	require.ErrorContains(t, err, "namespace has an invalid format, '[[ech*'")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "namespace has an invalid format, '[[ech*'")
 
 	proj, err := fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Get(context.Background(), projectName, metav1.GetOptions{})
 	require.NoError(t, err)

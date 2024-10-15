@@ -90,7 +90,8 @@ func TestRedisSetCache(t *testing.T) {
 		var res string
 		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
 		err = client.Get("foo", &res)
-		assert.ErrorContains(t, err, "cache: key is missing")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "cache: key is missing")
 	})
 }
 

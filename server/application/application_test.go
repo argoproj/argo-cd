@@ -69,8 +69,6 @@ const (
 	fakeRepoURL   = "https://git.com/repo.git"
 )
 
-var testEnableEventList []string = argo.DefaultEnableEventList()
-
 func fakeRepo() *appsv1.Repository {
 	return &appsv1.Repository{
 		Repo: fakeRepoURL,
@@ -308,7 +306,6 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 		settingsMgr,
 		projInformer,
 		[]string{},
-		testEnableEventList,
 	)
 	return server.(*Server)
 }
@@ -489,7 +486,6 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(f func(*rbac.Enforcer), 
 		settingsMgr,
 		projInformer,
 		[]string{},
-		testEnableEventList,
 	)
 	return server.(*Server)
 }
@@ -2007,7 +2003,7 @@ func TestServer_GetApplicationSyncWindowsState(t *testing.T) {
 		appServer := newTestAppServer(t, testApp)
 
 		active, err := appServer.GetApplicationSyncWindows(context.Background(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name})
-		require.ErrorContains(t, err, "not exist")
+		assert.Contains(t, err.Error(), "not exist")
 		assert.Nil(t, active)
 	})
 }
@@ -2718,6 +2714,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			Name:         ptr.To("test-app"),
 			AppNamespace: ptr.To("argocd-1"),
 		})
+		require.Error(t, err)
 		require.ErrorContains(t, err, "permission denied")
 		require.Nil(t, app)
 	})

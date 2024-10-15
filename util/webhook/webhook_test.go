@@ -49,10 +49,6 @@ func (f fakeSettingsSrc) GetTrackingMethod() (string, error) {
 	return "", nil
 }
 
-func (f fakeSettingsSrc) GetInstallationID() (string, error) {
-	return "", nil
-}
-
 type reactorDef struct {
 	verb     string
 	resource string

@@ -163,14 +163,16 @@ func TestUpdatePassword_DoesNotHavePermissions(t *testing.T) {
 		})
 		ctx := adminContext(context.Background())
 		_, err := accountServer.UpdatePassword(ctx, &account.UpdatePasswordRequest{CurrentPassword: "oldpassword", NewPassword: "newpassword", Name: "anotherUser"})
-		assert.ErrorContains(t, err, "permission denied")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "permission denied")
 	})
 
 	t.Run("SSOAccountWithTheSameName", func(t *testing.T) {
 		accountServer, _ := newTestAccountServerExt(context.Background(), enforcer)
 		ctx := ssoAdminContext(context.Background(), time.Now())
 		_, err := accountServer.UpdatePassword(ctx, &account.UpdatePasswordRequest{CurrentPassword: "oldpassword", NewPassword: "newpassword", Name: "admin"})
-		assert.ErrorContains(t, err, "permission denied")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "permission denied")
 	})
 }
 
@@ -180,7 +182,8 @@ func TestUpdatePassword_ProjectToken(t *testing.T) {
 	})
 	ctx := projTokenContext(context.Background())
 	_, err := accountServer.UpdatePassword(ctx, &account.UpdatePasswordRequest{CurrentPassword: "oldpassword", NewPassword: "newpassword"})
-	assert.ErrorContains(t, err, "password can only be changed for local users")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "password can only be changed for local users")
 }
 
 func TestUpdatePassword_OldSSOToken(t *testing.T) {
@@ -288,8 +291,9 @@ func TestCreateToken_UserSpecifiedID(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = accountServer.CreateToken(ctx, &account.CreateTokenRequest{Name: "account1", Id: "test"})
-	require.ErrorContains(t, err, "failed to update account with new token:")
-	assert.ErrorContains(t, err, "account already has token with id 'test'")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to update account with new token:")
+	assert.Contains(t, err.Error(), "account already has token with id 'test'")
 }
 
 func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {
