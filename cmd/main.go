@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
+	"github.com/argoproj/argo-cd/v2/cmd/util"
 	"os"
 	"path/filepath"
-
-	"github.com/argoproj/argo-cd/v2/cmd/util"
 
 	"github.com/spf13/cobra"
 
@@ -38,13 +36,13 @@ func main() {
 		binaryName = val
 	}
 
-	isCLI := false
+	isArgocdCLI := false
 	o.Arguments[0] = binaryName
 
 	switch binaryName {
 	case "argocd", "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe":
 		command = cli.NewCommand()
-		isCLI = true
+		isArgocdCLI = true
 	case "argocd-server":
 		command = apiserver.NewCommand()
 	case "argocd-application-controller":
@@ -53,37 +51,33 @@ func main() {
 		command = reposerver.NewCommand()
 	case "argocd-cmp-server":
 		command = cmpserver.NewCommand()
-		isCLI = true
+		isArgocdCLI = true
 	case "argocd-dex":
 		command = dex.NewCommand()
 	case "argocd-notifications":
 		command = notification.NewCommand()
 	case "argocd-git-ask-pass":
 		command = gitaskpass.NewCommand()
-		isCLI = true
+		isArgocdCLI = true
 	case "argocd-applicationset-controller":
 		command = applicationset.NewCommand()
 	case "argocd-k8s-auth":
 		command = k8sauth.NewCommand()
-		isCLI = true
+		isArgocdCLI = true
 	default:
 		command = cli.NewCommand()
-		isCLI = true
+		isArgocdCLI = true
 	}
-	util.SetAutoMaxProcs(isCLI)
-	if isCLI {
+	util.SetAutoMaxProcs(isArgocdCLI)
+
+	// silence errors and usages since we'll be printing them manually.
+	// This is because if we execute a plugin, the initial
+	// errors and usage are always going to get printed that we don't want.
+	if isArgocdCLI {
 		command.SilenceErrors = true
 		command.SilenceUsage = true
 	}
 
-	if err := command.Execute(); err != nil {
-		if isCLI {
-			if pluginErr := cli.HandlePluginCommand(o.PluginHandler, o.Arguments[1:], 1); pluginErr != nil {
-				fmt.Fprintf(os.Stderr, "Error: %v\n", pluginErr)
-				os.Exit(1)
-			}
-		}
-		fmt.Fprintf(os.Stderr, "Error: %v\nRun 'argocd --help' for usage.", err)
-		os.Exit(1)
-	}
+	err := command.Execute()
+	cli.HandleCommandExecutionError(err, isArgocdCLI, o)
 }

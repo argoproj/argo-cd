@@ -2,11 +2,10 @@ package commands
 
 import (
 	"fmt"
-	"os"
-	"strings"
-
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
+	"os"
+	"strings"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
@@ -27,48 +26,6 @@ func init() {
 func initConfig() {
 	cli.SetLogFormat(cmdutil.LogFormat)
 	cli.SetLogLevel(cmdutil.LogLevel)
-}
-
-func NewDefaultArgoCDCommand() *cobra.Command {
-	return NewDefaultArgoCDCommandWithArgs(ArgoCDCLIOptions{
-		PluginHandler: NewDefaultPluginHandler([]string{"argocd"}),
-		Arguments:     os.Args,
-	})
-}
-
-func NewDefaultArgoCDCommandWithArgs(o ArgoCDCLIOptions) *cobra.Command {
-	cmd := NewCommand()
-
-	// the first argument will be the binary, followed by other arguments
-	if len(o.Arguments) > 1 {
-		cmdPathPieces := o.Arguments[1:]
-
-		// Try to find a valid Argo CD command that matches the arguments provided (e.g., foo in the case of argocd foo)
-		// If it finds a command, it continues without invoking the plugin.
-		// If it doesn't find the command (err is non-nil), it means foo isn't a built-in Argo CD command,
-		// so it might be a plugin like argocd-foo.
-		if _, _, err := cmd.Find(cmdPathPieces); err != nil {
-			var cmdName string
-			for _, arg := range cmdPathPieces {
-				if !strings.HasPrefix(arg, "-") {
-					cmdName = arg
-					break
-				}
-			}
-
-			switch cmdName {
-			case "help", cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd:
-				// Don't search for a plugin
-			default:
-				if err := HandlePluginCommand(o.PluginHandler, cmdPathPieces, 1); err != nil {
-					fmt.Errorf("Error: %v\n", err)
-					os.Exit(1)
-				}
-			}
-		}
-	}
-
-	return cmd
 }
 
 // NewCommand returns a new instance of an argocd command
@@ -135,4 +92,34 @@ func NewCommand() *cobra.Command {
 	command.PersistentFlags().StringVar(&clientOpts.KubeOverrides.CurrentContext, "kube-context", "", "Directs the command to the given kube-context")
 
 	return command
+}
+
+// HandleCommandExecutionError processes the error returned from executing the command.
+// It handles both standard Argo CD commands and plugin commands.
+func HandleCommandExecutionError(err error, isArgocdCLI bool, o ArgoCDCLIOptions) {
+	if err != nil {
+		if isArgocdCLI && strings.Contains(err.Error(), "unknown command") {
+			// If it's an unknown command error, attempt to handle it as a plugin.
+			// Unfortunately, cobra doesn't handle this error, so we need to assume
+			// that error consists of substring "unknown command".
+			// If the Plugin gets executed successfully, it'll call os.Exit(0)
+			// and the program stops there itself. However, if the plugin gives
+			// an error, return it. Furthermore, if a command doesn't even exist as a plugin
+			// the else block will get executed.
+			pluginErr := HandlePluginCommand(o.PluginHandler, o.Arguments[1:], 1)
+			if pluginErr != nil {
+				// If plugin handling fails, report the plugin error and exit
+				fmt.Fprintf(os.Stderr, "Error: %v\n", pluginErr)
+				os.Exit(1)
+			} else {
+				// If the command is neither a normal Argo CD command nor plugin
+				fmt.Fprintf(os.Stderr, "Error: %v\nRun 'argocd --help' for usage.\n", err)
+				os.Exit(1)
+			}
+		} else {
+			// If it's any other error (not an unknown command), report it directly and exit
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+	}
 }
