@@ -4265,3 +4265,35 @@ func TestAppProject_ValidateDestinationServiceAccount(t *testing.T) {
 		}
 	}
 }
+
+func TestCluster_ParseProxyUrl(t *testing.T) {
+	testData := []struct {
+		url            string
+		expectedErrMsg string
+	}{
+		{
+			url:            "https://192.168.99.100:8443",
+			expectedErrMsg: "",
+		},
+		{
+			url:            "test://!abc",
+			expectedErrMsg: "Failed to parse proxy url, unsupported scheme \"test\", must be http, https, or socks5",
+		},
+		{
+			url:            "http://192.168.99.100:8443",
+			expectedErrMsg: "",
+		},
+		{
+			url:            "socks5://192.168.99.100:8443",
+			expectedErrMsg: "",
+		},
+	}
+	for _, data := range testData {
+		_, err := ParseProxyUrl(data.url)
+		if data.expectedErrMsg == "" {
+			require.NoError(t, err)
+		} else {
+			require.ErrorContains(t, err, data.expectedErrMsg)
+		}
+	}
+}
