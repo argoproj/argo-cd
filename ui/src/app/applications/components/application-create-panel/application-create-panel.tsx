@@ -85,7 +85,7 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
 function normalizeAppSource(app: models.Application, type: string): boolean {
     const source = getAppDefaultSource(app);
     const repoType = (source.hasOwnProperty('chart') && 'helm') || 'git';
-    if (repoType !== type) {
+    if (source && repoType !== type) {
         if (type === 'git') {
             source.path = source.chart;
             delete source.chart;
@@ -173,8 +173,8 @@ export const ApplicationCreatePanel = (props: {
                                         'spec.project': !a.spec.project && 'Project Name is required',
                                         'spec.source.repoURL': !a.spec.source.repoURL && 'Repository URL is required',
                                         'spec.source.targetRevision': !a.spec.source.targetRevision && a.spec.source.hasOwnProperty('chart') && 'Version is required',
-                                        'spec.source.path': !a.spec.source.path && !a.spec.source.chart && 'Path is required',
-                                        'spec.source.chart': !a.spec.source.path && !a.spec.source.chart && 'Chart is required',
+                                        'spec.source.path': !a.spec?.source?.path && !a.spec?.source.chart && 'Path is required',
+                                        'spec.source.chart': !a.spec?.source?.path && !a.spec?.source.chart && 'Chart is required',
                                         // Verify cluster URL when there is no cluster name field or the name value is empty
                                         'spec.destination.server':
                                             !a.spec.destination.server &&
@@ -444,14 +444,14 @@ export const ApplicationCreatePanel = (props: {
                                             <DataLoader
                                                 input={{
                                                     repoURL: app.spec.source.repoURL,
-                                                    path: app.spec.source.path,
-                                                    chart: app.spec.source.chart,
-                                                    targetRevision: app.spec.source.targetRevision,
+                                                    path: app.spec?.source?.path,
+                                                    chart: app.spec?.source?.chart,
+                                                    targetRevision: app.spec?.source?.targetRevision,
                                                     appName: app.metadata.name
                                                 }}
                                                 load={async src => {
-                                                    if (src.repoURL && src.targetRevision && (src.path || src.chart)) {
-                                                        return services.repos.appDetails(src, src.appName, app.spec.project, 0, 0).catch(() => ({
+                                                    if (src?.repoURL && src?.targetRevision && (src?.path || src?.chart)) {
+                                                        return services.repos.appDetails(src, src?.appName, app.spec.project, 0, 0).catch(() => ({
                                                             type: 'Directory',
                                                             details: {}
                                                         }));
@@ -463,7 +463,7 @@ export const ApplicationCreatePanel = (props: {
                                                     }
                                                 }}>
                                                 {(details: models.RepoAppDetails) => {
-                                                    const type = (explicitPathType && explicitPathType.path === app.spec.source.path && explicitPathType.type) || details.type;
+                                                    const type = (explicitPathType && explicitPathType.path === app.spec?.source?.path && explicitPathType.type) || details.type;
                                                     if (details.type !== type) {
                                                         switch (type) {
                                                             case 'Helm':
@@ -497,7 +497,7 @@ export const ApplicationCreatePanel = (props: {
                                                                 items={appTypes.map(item => ({
                                                                     title: item.type,
                                                                     action: () => {
-                                                                        setExplicitPathType({type: item.type, path: app.spec.source.path});
+                                                                        setExplicitPathType({type: item.type, path: app.spec?.source?.path});
                                                                         normalizeTypeFields(api, item.type);
                                                                     }
                                                                 }))}

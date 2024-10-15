@@ -172,7 +172,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         },
         !hasMultipleSources && {
             title: 'REPO URL',
-            view: <Repo url={source.repoURL} />,
+            view: <Repo url={source?.repoURL} />,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.repoURL' component={Text} />
         },
         ...(!hasMultipleSources
@@ -182,7 +182,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                           title: 'CHART',
                           view: (
                               <span>
-                                  {source.chart}:{source.targetRevision}
+                                  {source?.chart}:{source?.targetRevision}
                               </span>
                           ),
                           edit: (formApi: FormApi) =>

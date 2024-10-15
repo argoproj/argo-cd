@@ -740,13 +740,13 @@ export function renderResourceButtons(
 export function syncStatusMessage(app: appModels.Application) {
     const source = getAppDefaultSource(app);
     const revision = getAppDefaultSyncRevision(app);
-    const rev = app.status.sync.revision || source.targetRevision || 'HEAD';
-    let message = source.targetRevision || 'HEAD';
+    const rev = app.status.sync.revision || source?.targetRevision || 'HEAD';
+    let message = source?.targetRevision || 'HEAD';
 
     if (revision) {
-        if (source.chart) {
+        if (source?.chart) {
             message += ' (' + revision + ')';
-        } else if (revision.length >= 7 && !revision.startsWith(source.targetRevision)) {
+        } else if (revision.length >= 7 && !revision.startsWith(source?.targetRevision)) {
             message += ' (' + revision.substr(0, 7) + ')';
         }
     }
@@ -1125,10 +1125,10 @@ export function isAppNode(node: appModels.ResourceNode) {
 
 export function getAppOverridesCount(app: appModels.Application) {
     const source = getAppDefaultSource(app);
-    if (source.kustomize && source.kustomize.images) {
+    if (source?.kustomize && source?.kustomize?.images) {
         return source.kustomize.images.length;
     }
-    if (source.helm && source.helm.parameters) {
+    if (source?.helm && source?.helm?.parameters) {
         return source.helm.parameters.length;
     }
     return 0;

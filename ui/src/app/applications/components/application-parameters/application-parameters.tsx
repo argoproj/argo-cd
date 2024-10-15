@@ -646,21 +646,21 @@ function gatherCoreSourceDetails(i: number, attributes: EditablePanelItem[], sou
         } else {
             attributes.push({
                 title: 'TARGET REVISION',
-                view: <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} />,
-                edit: (formApi: FormApi) => <RevisionFormField helpIconTop={'0'} hideLabel={true} formApi={formApi} repoURL={source.repoURL} fieldValue={revisionField} />
+                view: <Revision repoUrl={source?.repoURL} revision={source?.targetRevision || 'HEAD'} />,
+                edit: (formApi: FormApi) => <RevisionFormField helpIconTop={'0'} hideLabel={true} formApi={formApi} repoURL={source?.repoURL} fieldValue={revisionField} />
             });
             attributes.push({
                 title: 'PATH',
                 view: (
-                    <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} path={source.path} isForPath={true}>
-                        {processPath(source.path)}
+                    <Revision repoUrl={source?.repoURL} revision={source?.targetRevision || 'HEAD'} path={source?.path} isForPath={true}>
+                        {processPath(source?.path)}
                     </Revision>
                 ),
                 edit: (formApi: FormApi) => <FormField formApi={formApi} field={sourcesPathField} component={Text} />
             });
             attributes.push({
                 title: 'REF',
-                view: <span>{source.ref}</span>,
+                view: <span>{source?.ref}</span>,
                 edit: (formApi: FormApi) => <FormField formApi={formApi} field={refField} component={Text} />
             });
         }
