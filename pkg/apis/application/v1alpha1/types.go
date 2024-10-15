@@ -3144,7 +3144,7 @@ func ParseProxyUrl(proxyUrl string) (*url.URL, error) {
 	switch u.Scheme {
 	case "http", "https", "socks5":
 	default:
-		return nil, fmt.Errorf("unsupported scheme %q, must be http, https, or socks5", u.Scheme)
+		return nil, fmt.Errorf("Failed to parse proxy url, unsupported scheme %q, must be http, https, or socks5", u.Scheme)
 	}
 	return u, nil
 }

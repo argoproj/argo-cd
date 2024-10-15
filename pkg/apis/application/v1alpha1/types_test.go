@@ -4277,7 +4277,7 @@ func TestCluster_ParseProxyUrl(t *testing.T) {
 		},
 		{
 			url:            "test://!abc",
-			expectedErrMsg: "unsupported scheme \"test\", must be http, https, or socks5",
+			expectedErrMsg: "Failed to parse proxy url, unsupported scheme \"test\", must be http, https, or socks5",
 		},
 		{
 			url:            "http://192.168.99.100:8443",
