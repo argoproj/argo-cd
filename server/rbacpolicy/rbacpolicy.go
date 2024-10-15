@@ -46,8 +46,11 @@ var (
 		ResourceApplicationSets,
 		ResourceRepositories,
 		ResourceCertificates,
+		ResourceAccounts,
+		ResourceGPGKeys,
 		ResourceLogs,
 		ResourceExec,
+		ResourceExtensions,
 	}
 	Actions = []string{
 		ActionGet,
@@ -56,6 +59,8 @@ var (
 		ActionDelete,
 		ActionSync,
 		ActionOverride,
+		ActionAction,
+		ActionInvoke,
 	}
 )
 
