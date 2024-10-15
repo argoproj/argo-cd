@@ -1008,6 +1008,10 @@ function isPodPhaseTerminal(phase: appModels.PodPhase): boolean {
 }
 
 export function getPodStateReason(pod: appModels.State): {message: string; reason: string; netContainerStatuses: any[]} {
+    if (!pod.status) {
+        return {reason: 'Unknown', message: '', netContainerStatuses: []};
+    }
+
     const podPhase = pod.status.phase;
     let reason = podPhase;
     let message = '';
@@ -1031,7 +1035,9 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
     }
 
     let initializing = false;
-    for (const container of (pod.status.initContainerStatuses || []).slice().reverse()) {
+    let i = -1;
+    for (const container of (pod.status.initContainerStatuses || []).slice()) {
+        i++;
         if (container.state.terminated && container.state.terminated.exitCode === 0) {
             continue;
         }
@@ -1051,7 +1057,7 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
             reason = `Init:${container.state.waiting.reason}`;
             message = `Init:${container.state.waiting.message}`;
         } else {
-            reason = `Init: ${(pod.spec.initContainers || []).length})`;
+            reason = `Init:${i}/${(pod.spec.initContainers || []).length}`;
         }
         initializing = true;
         break;

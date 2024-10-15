@@ -379,12 +379,6 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 				readyContainers++
 			}
 			continue
-		case isRestartableInitContainer(initContainers[container.Name]) &&
-			container.Started != nil && *container.Started:
-			if container.Ready {
-				readyContainers++
-			}
-			continue
 		case container.State.Terminated != nil:
 			// initialization is failed
 			if len(container.State.Terminated.Reason) == 0 {
