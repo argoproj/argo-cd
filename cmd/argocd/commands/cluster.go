@@ -107,7 +107,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			contextName := args[0]
 			conf, err := getRestConfig(pathOpts, contextName)
 			errors.CheckError(err)
-			if clusterOpts.ProxyUrl != "" && conf.Proxy == nil {
+			if clusterOpts.ProxyUrl != "" {
 				u, err := argoappv1.ParseProxyUrl(clusterOpts.ProxyUrl)
 				errors.CheckError(err)
 				conf.Proxy = http.ProxyURL(u)
