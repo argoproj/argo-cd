@@ -24,7 +24,7 @@ export const ApplicationHydrateOperationState: React.FunctionComponent<Props> = 
                     {time => (
                         <Duration
                             durationMs={
-                                ((hydrateOperationState.finishedAt && moment(hydrateOperationState.finishedAt)) || time).diff(moment(hydrateOperationState.startedAt)) / 1000
+                                ((hydrateOperationState.finishedAt && moment(hydrateOperationState.finishedAt)) || moment(time)).diff(moment(hydrateOperationState.startedAt)) / 1000
                             }
                         />
                     )}
