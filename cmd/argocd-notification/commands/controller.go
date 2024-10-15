@@ -25,10 +25,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/argoproj/argo-cd/v2/util/healthz"
 )
 
 const (
@@ -150,6 +153,32 @@ func NewCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to initialize controller: %w", err)
 			}
+
+			// Health check logic for testing connection with ArgoCD RepoServer from the Notification Controller
+			healthz.ServeHealthCheck(http.DefaultServeMux, func(r *http.Request) error {
+				if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
+					// Use argocdRepoServer directly as it may already contain the port
+					conn, err := apiclient.NewConnection(argocdRepoServer, 60, &apiclient.TLSConfiguration{DisableTLS: argocdRepoServerPlaintext})
+					if err != nil {
+						log.Errorf("Notification Controller failed to communicate with RepoServer: %v", err)
+						return err
+					}
+					defer conn.Close()
+					
+					client := grpc_health_v1.NewHealthClient(conn)
+					res, err := client.Check(r.Context(), &grpc_health_v1.HealthCheckRequest{})
+					if err != nil {
+						log.Errorf("Health check from Notification Controller to RepoServer failed: %v", err)
+						return err
+					}
+					if res.Status != grpc_health_v1.HealthCheckResponse_SERVING {
+						return fmt.Errorf("Notification Controller RepoServer health check status is '%v'", res.Status)
+					}
+					log.Debug("Notification Controller can communicate with RepoServer successfully")
+					return nil
+				}
+				return nil
+			})
 
 			sigCh := make(chan os.Signal, 1)
 			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
