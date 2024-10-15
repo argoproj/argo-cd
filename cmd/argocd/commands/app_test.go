@@ -14,6 +14,8 @@ import (
 
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/discovery/fake"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 
@@ -39,6 +41,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/go-cmp/cmp"
@@ -1934,9 +1937,66 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 		suspended: false,
 	}
 	watch = getWatchOpts(watch)
-
+	kubernetes := kubefake.NewClientset()
+	discoveryFakeClient := kubernetes.Discovery().(*fake.FakeDiscovery)
+	discoveryFakeClient.Fake.Resources = []*metav1.APIResourceList{
+		{
+			TypeMeta:     metav1.TypeMeta{},
+			GroupVersion: "apps/v1",
+			APIResources: []metav1.APIResource{
+				{
+					Namespaced:         true,
+					SingularName:       "Deployment",
+					Name:               "Deployments",
+					Group:              "apps",
+					Version:            "v1",
+					Kind:               "Deployment",
+					Verbs:              metav1.Verbs{},
+					ShortNames:         []string{},
+					Categories:         []string{},
+					StorageVersionHash: "",
+				},
+			},
+		},
+		{
+			TypeMeta:     metav1.TypeMeta{},
+			GroupVersion: "v1",
+			APIResources: []metav1.APIResource{
+				{
+					Name:               "Services",
+					SingularName:       "Service",
+					Namespaced:         true,
+					Group:              "",
+					Version:            "v1",
+					Kind:               "Service",
+					Verbs:              metav1.Verbs{},
+					ShortNames:         []string{"svc"},
+					Categories:         []string{},
+					StorageVersionHash: "",
+				},
+			},
+		},
+		{
+			TypeMeta:     metav1.TypeMeta{},
+			GroupVersion: "rbac.authorization.k8s.io/v1",
+			APIResources: []metav1.APIResource{
+				{
+					Name:               "ClusterRoles",
+					SingularName:       "ClusterRole",
+					Namespaced:         false,
+					Group:              "rbac.authorization.k8s.io",
+					Version:            "v1",
+					Kind:               "ClusterRole",
+					Verbs:              metav1.Verbs{},
+					ShortNames:         []string{"svc"},
+					Categories:         []string{},
+					StorageVersionHash: "",
+				},
+			},
+		},
+	}
 	output, err := captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json", discoveryFakeClient)
 		return nil
 	},
 	)
@@ -1944,7 +2004,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	assert.True(t, json.Valid([]byte(output)))
 
 	output, err = captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "yaml")
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "yaml", discoveryFakeClient)
 		return nil
 	})
 
@@ -1953,14 +2013,15 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	require.NoError(t, err)
 
 	output, _ = captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "")
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "", discoveryFakeClient)
 		return nil
 	})
 	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
 
-	expectation := `TIMESTAMP                  GROUP        KIND   NAMESPACE                  NAME    STATUS   HEALTH        HOOK  MESSAGE
-%s            Service     default         service-name1    Synced  Healthy              
-%s   apps  Deployment     default                  test    Synced  Healthy              
+	expectation := `TIMESTAMP                  GROUP                            KIND    NAMESPACE                  NAME    STATUS   HEALTH        HOOK  MESSAGE
+%s   apps                      Deployment      default                  test    Synced  Healthy              
+%s  rbac.authorization.k8s.io  ClusterRole                 test-cluster-role    Synced  Healthy              clusterrole.rbac.authorization.k8s.io/test-cluster-role reconciled. clusterrole.rbac.authorization.k8s.io/test-cluster-role configured
+%s                                Service      default         service-name1    Synced  Healthy              
 
 Name:               argocd/test
 Project:            default
@@ -1986,11 +2047,12 @@ Finished:           2020-11-10 23:00:00 +0000 UTC
 Duration:           2333448h16m18.871345152s
 Message:            test
 
-GROUP  KIND        NAMESPACE  NAME           STATUS  HEALTH   HOOK  MESSAGE
-       Service     default    service-name1  Synced  Healthy        
-apps   Deployment  default    test           Synced  Healthy        
+GROUP                      KIND         NAMESPACE  NAME               STATUS  HEALTH   HOOK  MESSAGE
+apps                       Deployment   default    test               Synced  Healthy        
+rbac.authorization.k8s.io  ClusterRole             test-cluster-role  Synced  Healthy        clusterrole.rbac.authorization.k8s.io/test-cluster-role reconciled. clusterrole.rbac.authorization.k8s.io/test-cluster-role configured
+                           Service      default    service-name1      Synced  Healthy        
 `
-	expectation = fmt.Sprintf(expectation, timeStr, timeStr)
+	expectation = fmt.Sprintf(expectation, timeStr, timeStr, timeStr)
 	expectationParts := strings.Split(expectation, "\n")
 	slices.Sort(expectationParts)
 	expectationSorted := strings.Join(expectationParts, "\n")
@@ -2090,6 +2152,7 @@ func (c *fakeAppServiceClient) Get(ctx context.Context, in *applicationpkg.Appli
 					Namespace: "default",
 					Name:      "service-name1",
 					Status:    "Synced",
+					Version:   "v1",
 					Health: &v1alpha1.HealthStatus{
 						Status:  health.HealthStatusHealthy,
 						Message: "health-message",
@@ -2101,6 +2164,21 @@ func (c *fakeAppServiceClient) Get(ctx context.Context, in *applicationpkg.Appli
 					Namespace: "default",
 					Name:      "test",
 					Status:    "Synced",
+					Version:   "v1",
+					Health: &v1alpha1.HealthStatus{
+						Status:  health.HealthStatusHealthy,
+						Message: "health-message",
+					},
+				},
+				{
+					// This resource is included to exclude the bug https://github.com/argoproj/argo-cd/issues/18669
+					Group:     "rbac.authorization.k8s.io",
+					Kind:      "ClusterRole",
+					Namespace: "",
+					Name:      "test-cluster-role",
+					Status:    "Synced",
+					Version:   "v1",
+
 					Health: &v1alpha1.HealthStatus{
 						Status:  health.HealthStatusHealthy,
 						Message: "health-message",
@@ -2110,6 +2188,45 @@ func (c *fakeAppServiceClient) Get(ctx context.Context, in *applicationpkg.Appli
 			OperationState: &v1alpha1.OperationState{
 				SyncResult: &v1alpha1.SyncOperationResult{
 					Revision: "revision",
+					// Resources included here due to bug: https://github.com/argoproj/argo-cd/issues/18669
+					Resources: []*v1alpha1.ResourceResult{
+						{
+							Group:     "",
+							Kind:      "Service",
+							Namespace: "default",
+							Name:      "service-name1",
+							Status:    common.ResultCodeSynced,
+							HookType:  "",
+							HookPhase: common.OperationRunning,
+							Version:   "v1",
+							Message:   "",
+							SyncPhase: common.SyncPhaseSync,
+						},
+						{
+							Group:     "apps",
+							Kind:      "Deployment",
+							Namespace: "default",
+							Name:      "test",
+							Status:    common.ResultCodeSynced,
+							HookType:  "",
+							HookPhase: common.OperationRunning,
+							Version:   "v1",
+							Message:   "",
+							SyncPhase: common.SyncPhaseSync,
+						},
+						{
+							Group:     "rbac.authorization.k8s.io",
+							Kind:      "ClusterRole",
+							Namespace: "default",
+							Name:      "test-cluster-role",
+							Status:    common.ResultCodeSynced,
+							HookType:  "",
+							HookPhase: common.OperationRunning,
+							Version:   "v1",
+							Message:   "clusterrole.rbac.authorization.k8s.io/test-cluster-role reconciled. clusterrole.rbac.authorization.k8s.io/test-cluster-role configured",
+							SyncPhase: common.SyncPhaseSync,
+						},
+					},
 				},
 				FinishedAt: &time,
 				Message:    "test",
