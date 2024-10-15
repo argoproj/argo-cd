@@ -5,7 +5,14 @@ import {Revision} from '../../../shared/components/revision';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppDefaultSource, getAppDefaultSyncRevisionExtra, getAppOperationState} from '../utils';
+import {
+    ApplicationSyncWindowStatusIcon,
+    ComparisonStatusIcon,
+    getAppDefaultSource,
+    getAppDefaultSyncRevisionExtra,
+    getAppOperationState,
+    HydrateOperationPhaseIcon, hydrationStatusMessage
+} from '../utils';
 import {getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage, getAppDefaultSyncRevision, getAppDefaultOperationSyncRevision} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
 import * as utils from '../utils';
@@ -16,6 +23,7 @@ interface Props {
     application: models.Application;
     showDiff?: () => any;
     showOperation?: () => any;
+    showHydrateOperation?: () => any;
     showConditions?: () => any;
     showExtension?: (id: string) => any;
     showMetadataInfo?: (revision: string) => any;
@@ -46,7 +54,7 @@ const sectionHeader = (info: SectionInfo, onClick?: () => any) => {
     );
 };
 
-export const ApplicationStatusPanel = ({application, showDiff, showOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
+export const ApplicationStatusPanel = ({application, showDiff, showOperation, showHydrateOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
     const today = new Date();
 
     let daysSinceLastSynchronized = 0;
@@ -84,6 +92,40 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                 </div>
                 {application.status.health.message && <div className='application-status-panel__item-name'>{application.status.health.message}</div>}
             </div>
+            {application.spec.sourceHydrator && application.status?.sourceHydrator?.currentOperation && (
+                <div className='application-status-panel__item'>
+                    <div style={{lineHeight: '19.5px', marginBottom: '0.3em'}}>
+                        {sectionLabel({
+                            title: 'SOURCE HYDRATOR',
+                            helpContent: 'The source hydrator reads manifests from git, hydrates (renders) them, and pushes them to a different location in git.'
+                        })}
+                    </div>
+                    <div className='application-status-panel__item-value'>
+                        <a className='application-status-panel__item-value__hydrator-link' onClick={() => showHydrateOperation && showHydrateOperation()}>
+                            <HydrateOperationPhaseIcon operationState={application.status.sourceHydrator.currentOperation} />
+                            &nbsp;
+                            {application.status.sourceHydrator.currentOperation.phase}
+                        </a>
+                        <div className='application-status-panel__item-value__revision show-for-large'>{hydrationStatusMessage(application)}</div>
+                    </div>
+                    <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
+                        {application.status.sourceHydrator.currentOperation.phase}{' '}
+                        <Timestamp date={application.status.sourceHydrator.currentOperation.finishedAt || application.status.sourceHydrator.currentOperation.startedAt} />
+                    </div>
+                    {application.status.sourceHydrator.currentOperation.message && (
+                        <div className='application-status-panel__item-name'>{application.status.sourceHydrator.currentOperation.message}</div>
+                    )}
+                    <div className='application-status-panel__item-name'>
+                        <RevisionMetadataPanel
+                            appName={application.metadata.name}
+                            appNamespace={application.metadata.namespace}
+                            type={''}
+                            revision={application.status.sourceHydrator.currentOperation.drySHA}
+                            versionId={utils.getAppCurrentVersion(application)}
+                        />
+                    </div>
+                </div>
+            )}
             <div className='application-status-panel__item'>
                 <React.Fragment>
                     {sectionHeader(
@@ -112,12 +154,12 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                         application.status.sync &&
                         (hasMultipleSources
                             ? application.status.sync.revisions && application.status.sync.revisions[0] && application.spec.sources && !application.spec.sources[0].chart
-                            : application.status.sync.revision && !application.spec.source.chart) && (
+                            : application.status.sync.revision && !application.spec.source?.chart) && (
                             <div className='application-status-panel__item-name'>
                                 <RevisionMetadataPanel
                                     appName={application.metadata.name}
                                     appNamespace={application.metadata.namespace}
-                                    type={source.chart && 'helm'}
+                                    type={source?.chart && 'helm'}
                                     revision={revision}
                                     versionId={utils.getAppCurrentVersion(application)}
                                 />
