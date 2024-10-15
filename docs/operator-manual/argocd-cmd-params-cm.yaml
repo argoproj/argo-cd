@@ -246,6 +246,8 @@ data:
   applicationsetcontroller.webhook.parallelism.limit: "50"
   # Override the default requeue time for the controller. (default 3m)
   applicationsetcontroller.requeue.after: "3m"
+  # Enable strict mode for tokenRef in ApplicationSet resources. When enabled, the referenced secret must have a label `argocd.argoproj.io/secret-type` with value `scm-creds`.
+  applicationsetcontroller.enable.tokenref.strict.mode: "false"
 
   ## Argo CD Notifications Controller Properties
   # Set the logging level. One of: debug|info|warn|error (default "info")
