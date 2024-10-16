@@ -77,6 +77,12 @@ const validateAndGetOIDCForPKCE = async (oidcConfig: AuthSettings['oidcConfig'])
 export const pkceLogin = async (oidcConfig: AuthSettings['oidcConfig'], redirectURI: string) => {
     const {authorizationServer} = await validateAndGetOIDCForPKCE(oidcConfig);
 
+    // This sets the return path for the user after the pkce auth flow.
+    // This is ignored if the return path would be the login page as it would just loop.
+    if (!location.pathname.startsWith(requests.toAbsURL('/login'))) {
+        sessionStorage.setItem('return_url', location.pathname + location.search);
+    }
+
     if (!authorizationServer.authorization_endpoint) {
         throw new PKCELoginError('No Authorization Server endpoint found');
     }
@@ -160,5 +166,12 @@ export const pkceCallback = async (queryParams: string, oidcConfig: AuthSettings
     // This pattern is used to handle both cases.
     document.cookie = `argocd.token=${result.id_token}; path=/${requests.toAbsURL('').replace(/^\/|\/$/g, '')}`;
 
-    window.location.replace(requests.toAbsURL('/applications'));
+    const returnURL = sessionStorage.getItem('return_url');
+
+    if (returnURL) {
+        sessionStorage.removeItem('return_url');
+        window.location.replace(returnURL);
+    } else {
+        window.location.replace(requests.toAbsURL('/applications'));
+    }
 };
