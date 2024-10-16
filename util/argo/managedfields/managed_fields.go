@@ -95,12 +95,12 @@ type typedResults struct {
 // and compare them. Returns a typedResults with the converted types and the comparison.
 // If pt is nil, will use the DeducedParseableType.
 func newTypedResults(live, config *unstructured.Unstructured, pt *typed.ParseableType) (*typedResults, error) {
-	typedLive, err := pt.FromUnstructured(live.Object)
+	typedLive, err := pt.FromUnstructured(live.Object, typed.AllowDuplicates)
 	if err != nil {
 		return nil, fmt.Errorf("error creating typedLive: %w", err)
 	}
 
-	typedConfig, err := pt.FromUnstructured(config.Object)
+	typedConfig, err := pt.FromUnstructured(config.Object, typed.AllowDuplicates)
 	if err != nil {
 		return nil, fmt.Errorf("error creating typedConfig: %w", err)
 	}
