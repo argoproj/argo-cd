@@ -20,6 +20,7 @@ linters:
     - misspell
     - staticcheck
     - testifylint
+    - thelper
     - unparam
     - unused
     - usestdlibvars

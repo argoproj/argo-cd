@@ -2246,6 +2246,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 				},
 			},
 			testfunc: func(t *testing.T, appset v1alpha1.ApplicationSet) {
+				t.Helper()
 				assert.Len(t, appset.Status.Conditions, 3)
 			},
 		},
@@ -2281,6 +2282,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 				},
 			},
 			testfunc: func(t *testing.T, appset v1alpha1.ApplicationSet) {
+				t.Helper()
 				assert.Len(t, appset.Status.Conditions, 3)
 
 				isProgressingCondition := false
@@ -2343,6 +2345,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 				},
 			},
 			testfunc: func(t *testing.T, appset v1alpha1.ApplicationSet) {
+				t.Helper()
 				assert.Len(t, appset.Status.Conditions, 4)
 
 				isProgressingCondition := false
@@ -2389,6 +2392,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 }
 
 func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alpha1.ApplicationsSyncPolicy, recordBuffer int, allowPolicyOverride bool) v1alpha1.Application {
+	t.Helper()
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
@@ -2550,6 +2554,7 @@ func TestUpdatePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *t
 }
 
 func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alpha1.ApplicationsSyncPolicy, recordBuffer int, allowPolicyOverride bool) v1alpha1.ApplicationList {
+	t.Helper()
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)

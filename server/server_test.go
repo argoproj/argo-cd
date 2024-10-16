@@ -51,6 +51,7 @@ type FakeArgoCDServer struct {
 }
 
 func fakeServer(t *testing.T) (*FakeArgoCDServer, func()) {
+	t.Helper()
 	cm := test.NewFakeConfigMap()
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
@@ -477,6 +478,7 @@ func TestAuthenticate(t *testing.T) {
 }
 
 func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
@@ -542,6 +544,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 }
 
 func getTestServer(t *testing.T, anonymousEnabled bool, withFakeSSO bool, useDexForSSO bool, additionalOIDCConfig settings_util.OIDCConfig) (argocd *ArgoCDServer, oidcURL string) {
+	t.Helper()
 	cm := test.NewFakeConfigMap()
 	if anonymousEnabled {
 		cm.Data["users.anonymous.enabled"] = "true"
@@ -1532,6 +1535,7 @@ func TestReplaceBaseHRef(t *testing.T) {
 
 func Test_enforceContentTypes(t *testing.T) {
 	getBaseHandler := func(t *testing.T, allow bool) http.Handler {
+		t.Helper()
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			assert.True(t, allow, "http handler was hit when it should have been blocked by content type enforcement")
 			writer.WriteHeader(http.StatusOK)

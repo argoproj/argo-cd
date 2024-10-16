@@ -259,6 +259,7 @@ func buildArgoCDClusterSecret(secretName, secretNamespace, clusterName, clusterS
 // - username = name of Namespace the simulated user is able to deploy to
 // - clusterScopedSecrets = whether the Service Account is namespace-scoped or cluster-scoped.
 func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecrets bool) {
+	t.Helper()
 	// Create a new Namespace for our simulated user
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
