@@ -110,7 +110,7 @@ requests.onError.subscribe(async err => {
                     ctx.notifications.show({
                         type: NotificationType.Error,
                         content: err?.message || JSON.stringify(err)
-                    })
+                    });
                 });
             } else {
                 window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
