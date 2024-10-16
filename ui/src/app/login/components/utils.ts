@@ -13,6 +13,7 @@ import {
     validateAuthResponse
 } from 'oauth4webapi';
 import {AuthSettings} from '../../shared/models';
+import requests from '../../shared/services/requests';
 
 export const discoverAuthServer = (issuerURL: URL): Promise<AuthorizationServer> => discoveryRequest(issuerURL).then(res => processDiscoveryResponse(issuerURL, res));
 
@@ -31,7 +32,7 @@ export const PKCEState = {
 export const getPKCERedirectURI = () => {
     const currentOrigin = new URL(window.location.origin);
 
-    currentOrigin.pathname = '/pkce/verify';
+    currentOrigin.pathname = requests.toAbsURL('/pkce/verify');
 
     return currentOrigin;
 };
@@ -153,7 +154,11 @@ export const pkceCallback = async (queryParams: string, oidcConfig: AuthSettings
         throw new PKCELoginError('No token in response');
     }
 
-    document.cookie = `argocd.token=${result.id_token}; path=/`;
+    // This regex removes any leading or trailing '/' characters and the result is appended to a '/'.
+    // This is because when base href if not just '/' toAbsURL() will append a trailing '/'.
+    // Just removing a trailing '/' from the string would break when base href is not specified, defaulted to '/'.
+    // This pattern is used to handle both cases.
+    document.cookie = `argocd.token=${result.id_token}; path=/${requests.toAbsURL('').replace(/^\/|\/$/g, '')}`;
 
-    window.location.replace('/applications');
+    window.location.replace(requests.toAbsURL('/applications'));
 };
