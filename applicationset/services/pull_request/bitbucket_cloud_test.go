@@ -233,7 +233,7 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 
 func TestListResponseErrorCloud(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(500)
+		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer ts.Close()
 	svc, _ := NewBitbucketCloudServiceNoAuth(ts.URL, "OWNER", "REPO")
