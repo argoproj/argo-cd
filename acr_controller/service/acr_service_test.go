@@ -69,6 +69,68 @@ spec:
     targetRevision: HEAD
 `
 
+const syncedAppWithSingleHistory = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    argocd.argoproj.io/manifest-generate-paths: .
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/instance: guestbook
+  name: guestbook
+  namespace: codefresh
+operation:
+  initiatedBy:
+    automated: true
+  retry:
+    limit: 5
+  sync:
+    prune: true
+    revision: c732f4d2ef24c7eeb900e9211ff98f90bb646505
+    syncOptions:
+    - CreateNamespace=true
+spec:
+  destination:
+    namespace: guestbook
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    path: apps/guestbook
+    repoURL: https://github.com/pasha-codefresh/precisely-gitsource.git
+    targetRevision: HEAD
+status:
+  history:
+  - deployStartedAt: "2024-06-20T19:35:36Z"
+    deployedAt: "2024-06-20T19:35:44Z"
+    id: 3
+    initiatedBy: {}
+    revision: 792822850fd2f6db63597533e16dfa27e6757dc5
+    source:
+      path: apps/guestbook
+      repoURL: https://github.com/pasha-codefresh/precisely-gitsource.git
+      targetRevision: HEAD
+  operationState:
+    operation:
+      sync:
+        prune: true
+        revision: c732f4d2ef24c7eeb900e9211ff98f90bb646506
+        syncOptions:
+        - CreateNamespace=true
+    phase: Running
+    startedAt: "2024-06-20T19:47:34Z"
+    syncResult:
+      revision: c732f4d2ef24c7eeb900e9211ff98f90bb646505
+      source:
+        path: apps/guestbook
+        repoURL: https://github.com/pasha-codefresh/precisely-gitsource.git
+        targetRevision: HEAD
+  sync: 
+    revision: 00d423763fbf56d2ea452de7b26a0ab20590f521
+    status: Synced
+`
+
 const syncedAppWithHistory = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -171,6 +233,13 @@ func Test_getRevisions(r *testing.T) {
 	r.Run("history list is empty, but operation happens right now", func(t *testing.T) {
 		acrService := newTestACRService(&mocks.ApplicationClient{})
 		current, previous := acrService.getRevisions(context.TODO(), createTestApp(fakeAppWithOperation))
+		assert.Equal(t, "c732f4d2ef24c7eeb900e9211ff98f90bb646505", current)
+		assert.Equal(t, "", previous)
+	})
+
+	r.Run("history list contains only one element, also sync result is here", func(t *testing.T) {
+		acrService := newTestACRService(&mocks.ApplicationClient{})
+		current, previous := acrService.getRevisions(context.TODO(), createTestApp(syncedAppWithSingleHistory))
 		assert.Equal(t, "c732f4d2ef24c7eeb900e9211ff98f90bb646505", current)
 		assert.Equal(t, "", previous)
 	})

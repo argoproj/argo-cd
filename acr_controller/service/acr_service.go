@@ -187,6 +187,10 @@ func (c *acrService) getRevisions(ctx context.Context, a *application.Applicatio
 	// in case if sync is already done, we need to use revision from sync result and previous revision from history
 	if a.Status.Sync.Status == "Synced" && a.Status.OperationState != nil && a.Status.OperationState.SyncResult != nil {
 		currentRevision := a.Status.OperationState.SyncResult.Revision
+		// in case if we have only one history record, we need to return empty previous revision, because it is first sync result
+		if len(a.Status.History) == 1 {
+			return currentRevision, ""
+		}
 		return currentRevision, a.Status.History[len(a.Status.History)-2].Revision
 	}
 

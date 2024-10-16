@@ -911,7 +911,7 @@ func (m *nativeGitClient) ListRevisions(revision string, targetRevision string) 
 	if revision == "" {
 		return []string{targetRevision}, nil
 	}
-	
+
 	if !IsCommitSHA(revision) || !IsCommitSHA(targetRevision) {
 		return nil, fmt.Errorf("invalid revision provided, must be SHA")
 	}
