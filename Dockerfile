@@ -157,7 +157,7 @@ FROM argocd-final AS argocd
 
 FROM amazon/aws-cli:2.11.19 AS awscli
 
-FROM registry1.dso.mil/ironbank/opensource/alpinelinux/alpine:3.19
+FROM registry1.dso.mil/ironbank/opensource/alpinelinux/alpine:3.20
 
 ARG HELM_SECRETS_VERSION="4.4.2"
 
@@ -231,7 +231,7 @@ USER $ARGOCD_USER_ID
 WORKDIR ${HOME}
 
 HEALTHCHECK --start-period=3s \
-  CMD curl -f http://localhost:8080/healthz || exit 1
+    CMD curl -f http://localhost:8080/healthz || exit 1
 
 ENTRYPOINT ["entrypoint.sh"]
 CMD ["argocd-server"]
