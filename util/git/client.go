@@ -907,6 +907,11 @@ func (m *nativeGitClient) Diff(targetRevision string) ([]string, error) {
 }
 
 func (m *nativeGitClient) ListRevisions(revision string, targetRevision string) ([]string, error) {
+	// it happens when app just created and there is no revision yet
+	if revision == "" {
+		return []string{targetRevision}, nil
+	}
+	
 	if !IsCommitSHA(revision) || !IsCommitSHA(targetRevision) {
 		return nil, fmt.Errorf("invalid revision provided, must be SHA")
 	}

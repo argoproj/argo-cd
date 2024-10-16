@@ -36,6 +36,39 @@ spec:
     server: https://cluster-api.example.com
 `
 
+const fakeAppWithOperation = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    argocd.argoproj.io/manifest-generate-paths: .
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/instance: guestbook
+  name: guestbook
+  namespace: codefresh
+operation:
+  initiatedBy:
+    automated: true
+  retry:
+    limit: 5
+  sync:
+    prune: true
+    revision: c732f4d2ef24c7eeb900e9211ff98f90bb646505
+    syncOptions:
+    - CreateNamespace=true
+spec:
+  destination:
+    namespace: guestbook
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    path: apps/guestbook
+    repoURL: https://github.com/pasha-codefresh/precisely-gitsource.git
+    targetRevision: HEAD
+`
+
 const syncedAppWithHistory = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -132,6 +165,13 @@ func Test_getRevisions(r *testing.T) {
 		acrService := newTestACRService(&mocks.ApplicationClient{})
 		current, previous := acrService.getRevisions(context.TODO(), createTestApp(fakeApp))
 		assert.Equal(t, "", current)
+		assert.Equal(t, "", previous)
+	})
+
+	r.Run("history list is empty, but operation happens right now", func(t *testing.T) {
+		acrService := newTestACRService(&mocks.ApplicationClient{})
+		current, previous := acrService.getRevisions(context.TODO(), createTestApp(fakeAppWithOperation))
+		assert.Equal(t, "c732f4d2ef24c7eeb900e9211ff98f90bb646505", current)
 		assert.Equal(t, "", previous)
 	})
 
