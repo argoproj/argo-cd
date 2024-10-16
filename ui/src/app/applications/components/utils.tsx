@@ -1125,10 +1125,10 @@ export function isAppNode(node: appModels.ResourceNode) {
 
 export function getAppOverridesCount(app: appModels.Application) {
     const source = getAppDefaultSource(app);
-    if (source?.kustomize && source?.kustomize?.images) {
+    if (source?.kustomize?.images) {
         return source.kustomize.images.length;
     }
-    if (source?.helm && source?.helm?.parameters) {
+    if (source?.helm?.parameters) {
         return source.helm.parameters.length;
     }
     return 0;
