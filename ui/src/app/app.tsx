@@ -103,11 +103,10 @@ requests.onError.subscribe(async err => {
         const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
         if (isSSO) {
             const authSettings = await services.authService.settings();
-            const ctx = React.useContext(Context);
 
             if (authSettings?.oidcConfig?.enablePKCEAuthentication) {
                 pkceLogin(authSettings.oidcConfig, getPKCERedirectURI().toString()).catch(err => {
-                    ctx.notifications.show({
+                    Context.notifications.show({
                         type: NotificationType.Error,
                         content: err?.message || JSON.stringify(err)
                     });
