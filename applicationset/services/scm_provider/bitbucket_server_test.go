@@ -14,6 +14,7 @@ import (
 )
 
 func defaultHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		var err error
@@ -82,6 +83,7 @@ func defaultHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 }
 
 func verifyDefaultRepo(t *testing.T, err error, repos []*Repository) {
+	t.Helper()
 	require.NoError(t, err)
 	assert.Len(t, repos, 1)
 	assert.Equal(t, Repository{

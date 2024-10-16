@@ -547,6 +547,7 @@ func TestAppRevisionsMultiSource(t *testing.T) {
 }
 
 func toJSON(t *testing.T, obj *unstructured.Unstructured) string {
+	t.Helper()
 	data, err := json.Marshal(obj)
 	require.NoError(t, err)
 	return string(data)
