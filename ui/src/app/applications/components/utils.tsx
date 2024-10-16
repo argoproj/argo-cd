@@ -740,13 +740,13 @@ export function renderResourceButtons(
 export function syncStatusMessage(app: appModels.Application) {
     const source = getAppDefaultSource(app);
     const revision = getAppDefaultSyncRevision(app);
-    const rev = app.status.sync.revision || source?.targetRevision || 'HEAD';
-    let message = source?.targetRevision || 'HEAD';
+    const rev = app.status.sync.revision || (source ? source.targetRevision || 'HEAD' : 'Unknown');
+    let message = source ? source?.targetRevision || 'HEAD' : 'Unknown';
 
-    if (revision) {
-        if (source?.chart) {
+    if (revision && source) {
+        if (source.chart) {
             message += ' (' + revision + ')';
-        } else if (revision.length >= 7 && !revision.startsWith(source?.targetRevision)) {
+        } else if (revision.length >= 7 && !revision.startsWith(source.targetRevision)) {
             message += ' (' + revision.substr(0, 7) + ')';
         }
     }
@@ -1078,7 +1078,7 @@ export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingCon
     for (const condition of podStatusConditions) {
         existingConditions.set(condition.type, true);
         // priority order of conditions
-        // eg. if there are multiple conditions set with same name then the one which comes first is evaluated
+        // e.g. if there are multiple conditions set with same name then the one which comes first is evaluated
         if (podConditions.has(condition.type)) {
             continue;
         }

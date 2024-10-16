@@ -108,6 +108,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                             <div className='applications-tiles argo-table-list argo-table-list--clickable' ref={appContainerRef}>
                                 {applications.map((app, i) => {
                                     const source = getAppDefaultSource(app);
+                                    const targetRevision = source ? source.targetRevision || 'HEAD' : 'Unknown';
                                     return (
                                         <div
                                             key={AppUtils.appInstanceName(app)}
@@ -217,7 +218,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         <div className='columns small-3' title='Target Revision:'>
                                                             Target Revision:
                                                         </div>
-                                                        <div className='columns small-9'>{source?.targetRevision || 'HEAD'}</div>
+                                                        <div className='columns small-9'>{targetRevision}</div>
                                                     </div>
                                                     {source?.path && (
                                                         <div className='row'>

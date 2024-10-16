@@ -644,15 +644,16 @@ function gatherCoreSourceDetails(i: number, attributes: EditablePanelItem[], sou
                 )
             });
         } else {
+            const targetRevision = source ? source.targetRevision || 'HEAD' : 'Unknown';
             attributes.push({
                 title: 'TARGET REVISION',
-                view: <Revision repoUrl={source?.repoURL} revision={source?.targetRevision || 'HEAD'} />,
+                view: <Revision repoUrl={source?.repoURL} revision={targetRevision} />,
                 edit: (formApi: FormApi) => <RevisionFormField helpIconTop={'0'} hideLabel={true} formApi={formApi} repoURL={source?.repoURL} fieldValue={revisionField} />
             });
             attributes.push({
                 title: 'PATH',
                 view: (
-                    <Revision repoUrl={source?.repoURL} revision={source?.targetRevision || 'HEAD'} path={source?.path} isForPath={true}>
+                    <Revision repoUrl={source?.repoURL} revision={targetRevision} path={source?.path} isForPath={true}>
                         {processPath(source?.path)}
                     </Revision>
                 ),

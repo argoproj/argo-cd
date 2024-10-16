@@ -180,11 +180,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 ? [
                       {
                           title: 'CHART',
-                          view: (
-                              <span>
-                                  {source?.chart}:{source?.targetRevision}
-                              </span>
-                          ),
+                          view: <span>{source && `${source.chart}:${source.targetRevision}`}</span>,
                           edit: (formApi: FormApi) =>
                               hasMultipleSources ? (
                                   helpTip('CHART is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
