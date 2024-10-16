@@ -19,9 +19,11 @@ argocd cluster set NAME [flags]
 ### Options
 
 ```
-  -h, --help                    help for set
-      --name string             Overwrite the cluster name
-      --namespace stringArray   List of namespaces which are allowed to manage. Specify '*' to manage all namespaces
+      --annotation stringArray   Set metadata annotations (e.g. --annotation key=value)
+  -h, --help                     help for set
+      --label stringArray        Set metadata labels (e.g. --label key=value)
+      --name string              Overwrite the cluster name
+      --namespace stringArray    List of namespaces which are allowed to manage. Specify '*' to manage all namespaces
 ```
 
 ### Options inherited from parent commands

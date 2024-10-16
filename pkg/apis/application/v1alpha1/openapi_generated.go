@@ -2835,6 +2835,20 @@ func schema_pkg_apis_application_v1alpha1_ClusterConfig(ref common.ReferenceCall
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ExecProviderConfig"),
 						},
 					},
+					"disableCompression": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DisableCompression bypasses automatic GZip compression requests to the server.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"proxyUrl": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ProxyURL is the URL to the proxy to be used for all requests send to the server",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"tlsClientConfig"},
 			},
