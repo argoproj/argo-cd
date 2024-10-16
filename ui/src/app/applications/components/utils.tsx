@@ -1035,9 +1035,9 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
     }
 
     let initializing = false;
-    let i = -1;
-    for (const container of (pod.status.initContainerStatuses || []).slice()) {
-        i++;
+    const initContainerStatuses = pod.status.initContainerStatuses || [];
+    for (let i = 0; i < initContainerStatuses.length; i++) {
+        const container = initContainerStatuses[i];
         if (container.state.terminated && container.state.terminated.exitCode === 0) {
             continue;
         }
