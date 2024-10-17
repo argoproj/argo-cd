@@ -2260,7 +2260,6 @@ func TestSelfHealExponentialBackoff(t *testing.T) {
 }
 
 func TestRefreshTimeoutAnnotations(t *testing.T) {
-
 	ctrl := newFakeController(&fakeData{apps: []runtime.Object{}}, nil)
 
 	ctrl.statusRefreshTimeout = time.Minute * 5
