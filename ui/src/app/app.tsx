@@ -11,7 +11,7 @@ import settings from './settings';
 import {Layout, ThemeWrapper} from './shared/components/layout/layout';
 import {Page} from './shared/components/page/page';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
-import {AuthSettingsCtx, Context, Provider} from './shared/context';
+import {AuthSettingsCtx, Provider} from './shared/context';
 import {services} from './shared/services';
 import requests from './shared/services/requests';
 import {hashCode} from './shared/utils';
@@ -87,39 +87,6 @@ async function isExpiredSSO() {
     return false;
 }
 
-requests.onError.subscribe(async err => {
-    if (err.status === 401) {
-        if (history.location.pathname.startsWith('/login')) {
-            return;
-        }
-
-        const isSSO = await isExpiredSSO();
-        // location might change after async method call, so we need to check again.
-        if (history.location.pathname.startsWith('/login')) {
-            return;
-        }
-        // Query for basehref and remove trailing /.
-        // If basehref is the default `/` it will become an empty string.
-        const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
-        if (isSSO) {
-            const authSettings = await services.authService.settings();
-
-            if (authSettings?.oidcConfig?.enablePKCEAuthentication) {
-                pkceLogin(authSettings.oidcConfig, getPKCERedirectURI().toString()).catch(err => {
-                    Context.notifications.show({
-                        type: NotificationType.Error,
-                        content: err?.message || JSON.stringify(err)
-                    });
-                });
-            } else {
-                window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
-            }
-        } else {
-            history.push(`/login?return_url=${encodeURIComponent(location.href)}`);
-        }
-    }
-});
-
 export class App extends React.Component<
     {},
     {popupProps: PopupProps; showVersionPanel: boolean; error: Error; navItems: NavItem[]; routes: Routes; extensionsLoaded: boolean; authSettings: AuthSettings}
@@ -152,6 +119,7 @@ export class App extends React.Component<
 
     public async componentDidMount() {
         this.popupManager.popupProps.subscribe(popupProps => this.setState({popupProps}));
+        this.subscribeUnauthorized();
         const authSettings = await services.authService.settings();
         const {trackingID, anonymizeUsers} = authSettings.googleAnalytics || {trackingID: '', anonymizeUsers: true};
         const {loggedIn, username} = await services.users.get();
@@ -177,6 +145,11 @@ export class App extends React.Component<
         }
 
         this.setState({...this.state, navItems: this.navItems, routes: this.routes, extensionsLoaded: false, authSettings});
+    }
+
+    public componentWillUnmount() {
+        this.popupManager.popupProps.unsubscribe();
+        this.unsubscribeUnauthorized();
     }
 
     public render() {
@@ -252,6 +225,45 @@ export class App extends React.Component<
 
     public getChildContext() {
         return {history, apis: {popup: this.popupManager, notifications: this.notificationsManager, navigation: this.navigationManager}};
+    }
+
+    private async subscribeUnauthorized() {
+        requests.onError.subscribe(async err => {
+            if (err.status === 401) {
+                if (history.location.pathname.startsWith('/login')) {
+                    return;
+                }
+        
+                const isSSO = await isExpiredSSO();
+                // location might change after async method call, so we need to check again.
+                if (history.location.pathname.startsWith('/login')) {
+                    return;
+                }
+                // Query for basehref and remove trailing /.
+                // If basehref is the default `/` it will become an empty string.
+                const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
+                if (isSSO) {
+                    const authSettings = await services.authService.settings();
+        
+                    if (authSettings?.oidcConfig?.enablePKCEAuthentication) {
+                        pkceLogin(authSettings.oidcConfig, getPKCERedirectURI().toString()).catch(err => {
+                            this.getChildContext().apis.notifications.show({
+                                type: NotificationType.Error,
+                                content: err?.message || JSON.stringify(err)
+                            });
+                        });
+                    } else {
+                        window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
+                    }
+                } else {
+                    history.push(`/login?return_url=${encodeURIComponent(location.href)}`);
+                }
+            }
+        });
+    }
+
+    private unsubscribeUnauthorized() {
+        requests.onError.unsubscribe();
     }
 
     private onAddSystemLevelExtension(extension: SystemLevelExtension) {
