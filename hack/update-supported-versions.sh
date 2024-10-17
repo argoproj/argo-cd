@@ -11,7 +11,11 @@ for n in 0 1 2; do
   minor_version_num=$((argocd_minor_version_num - n))
   minor_version="${argocd_major_version_num}.${minor_version_num}"
   git checkout "release-$minor_version" > /dev/null || exit 1
-  line=$(yq '.jobs["test-e2e"].strategy.matrix["k3s-version"][]' .github/workflows/ci-build.yaml | \
+
+  line=$(yq '.jobs["test-e2e"].strategy.matrix |
+    # k3s-version was an array prior to 2.12. This checks for the old format first and then falls back to the new format.
+    (.["k3s-version"] // (.k3s | map(.version))) |
+    .[]' .github/workflows/ci-build.yaml | \
     jq --arg minor_version "$minor_version" --raw-input --slurp --raw-output \
     'split("\n")[:-1] | map(sub("\\.[0-9]+$"; "")) | join(", ") | "| \($minor_version) | \(.) |"')
   out+="$line\n"
