@@ -88,7 +88,7 @@ type comparisonResult struct {
 	timings            map[string]time.Duration
 	diffResultList     *diff.DiffResultList
 	hasPostDeleteHooks bool
-	revisionUpdated bool
+	revisionUpdated    bool
 }
 
 func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
@@ -182,13 +182,13 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get ref sources: %w", err)
 	}
-	
+
 	revisionUpdated := false
 
 	atLeastOneRevisionIsNotPossibleToBeUpdated := false
-	
+
 	keyManifestGenerateAnnotationVal, keyManifestGenerateAnnotationExists := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
-	
+
 	for i, source := range sources {
 		if len(revisions) < len(sources) || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
@@ -232,7 +232,6 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 				RefSources:         refSources,
 				HasMultipleSources: app.Spec.HasMultipleSources(),
 			})
-
 			if err != nil {
 				return nil, nil, false, fmt.Errorf("failed to compare revisions for source %d of %d: %w", i+1, len(sources), err)
 			}
@@ -244,7 +243,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 			if updateRevisionResult.Revision != "" {
 				revision = updateRevisionResult.Revision
 			}
-		}  else {
+		} else {
 			// revisionUpdated is set to true if at least one revision is not possible to be updated,
 			atLeastOneRevisionIsNotPossibleToBeUpdated = true
 		}
@@ -254,7 +253,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 			Repo:                repo,
 			Repos:               permittedHelmRepos,
-			Revision:            revisions[i],
+			Revision:            revision,
 			NoCache:             noCache,
 			NoRevisionCache:     noRevisionCache,
 			AppLabelKey:         appLabelKey,
@@ -468,7 +467,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	targetNsExists := false
 
 	var revisionUpdated bool
-	
+
 	if len(localManifests) == 0 {
 		// If the length of revisions is not same as the length of sources,
 		// we take the revisions from the sources directly for all the sources.
@@ -850,8 +849,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				Sources:           sources,
 				IgnoreDifferences: app.Spec.IgnoreDifferences,
 			},
-			Status:           syncCode,
-			Revisions:        manifestRevisions,
+			Status:    syncCode,
+			Revisions: manifestRevisions,
 		}
 	} else {
 		syncStatus = v1alpha1.SyncStatus{
@@ -860,8 +859,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 				Source:            app.Spec.GetSource(),
 				IgnoreDifferences: app.Spec.IgnoreDifferences,
 			},
-			Status:           syncCode,
-			Revision:         revision,
+			Status:   syncCode,
+			Revision: revision,
 		}
 	}
 
@@ -890,7 +889,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		diffConfig:           diffConfig,
 		diffResultList:       diffResults,
 		hasPostDeleteHooks:   hasPostDeleteHooks,
-		revisionUpdated: revisionUpdated,
+		revisionUpdated:      revisionUpdated,
 	}
 
 	if hasMultipleSources {
