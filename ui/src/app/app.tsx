@@ -231,7 +231,7 @@ export class App extends React.Component<
     }
 
     private async subscribeUnauthorized() {
-        requests.onError.subscribe(async err => {
+        return requests.onError.subscribe(async err => {
             if (err.status === 401) {
                 if (history.location.pathname.startsWith('/login')) {
                     return;
