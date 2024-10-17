@@ -327,7 +327,10 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 
 // NewApplicationSetDeleteCommand returns a new instance of an `argocd appset delete` command
 func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var noPrompt bool
+	var (
+		noPrompt bool
+		cascade  bool
+	)
 	command := &cobra.Command{
 		Use:   "delete",
 		Short: "Delete one or more ApplicationSets",
@@ -389,6 +392,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 		},
 	}
 	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm cascaded deletion of Application resources")
+	command.Flags().BoolVar(&cascade, "cascade", false, "Allow the deletion of appsets without deleting the argocd applications")
 	return command
 }
 
