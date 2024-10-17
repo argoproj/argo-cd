@@ -993,20 +993,56 @@ export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?
     );
 };
 
+function isPodInitializedConditionTrue(status: any): boolean {
+    if (!status?.conditions) {
+        return false;
+    }
+
+    for (const condition of status.conditions) {
+        if (condition.type !== 'Initialized') {
+            continue;
+        }
+        return condition.status === 'True';
+    }
+
+    return false;
+}
+
+// isPodPhaseTerminal returns true if the pod's phase is terminal.
+function isPodPhaseTerminal(phase: appModels.PodPhase): boolean {
+    return phase === appModels.PodPhase.PodFailed || phase === appModels.PodPhase.PodSucceeded;
+}
+
 export function getPodStateReason(pod: appModels.State): {message: string; reason: string; netContainerStatuses: any[]} {
-    let reason = pod.status.phase;
+    const podPhase = pod.status.phase;
+    let reason = podPhase;
     let message = '';
     if (pod.status.reason) {
         reason = pod.status.reason;
     }
 
-    let initializing = false;
-
     let netContainerStatuses = pod.status.initContainerStatuses || [];
     netContainerStatuses = netContainerStatuses.concat(pod.status.containerStatuses || []);
 
+    for (const condition of pod.status.conditions || []) {
+        if (condition.type === 'PodScheduled' && condition.reason === 'SchedulingGated') {
+            reason = 'SchedulingGated';
+        }
+    }
+
+    const initContainers: Record<string, any> = {};
+
+    for (const container of pod.spec.initContainers ?? []) {
+        initContainers[container.name] = container;
+    }
+
+    let initializing = false;
     for (const container of (pod.status.initContainerStatuses || []).slice().reverse()) {
         if (container.state.terminated && container.state.terminated.exitCode === 0) {
+            continue;
+        }
+
+        if (container.started && initContainers[container.name].restartPolicy === 'Always') {
             continue;
         }
 
@@ -1027,7 +1063,7 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
         break;
     }
 
-    if (!initializing) {
+    if (!initializing || isPodInitializedConditionTrue(pod.status)) {
         let hasRunning = false;
         for (const container of pod.status.containerStatuses || []) {
             if (container.state.waiting && container.state.waiting.reason) {
@@ -1059,7 +1095,7 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
     if ((pod as any).metadata.deletionTimestamp && pod.status.reason === 'NodeLost') {
         reason = 'Unknown';
         message = '';
-    } else if ((pod as any).metadata.deletionTimestamp) {
+    } else if ((pod as any).metadata.deletionTimestamp && !isPodPhaseTerminal(podPhase)) {
         reason = 'Terminating';
         message = '';
     }
