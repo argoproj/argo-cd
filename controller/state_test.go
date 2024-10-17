@@ -1714,11 +1714,6 @@ func TestUseDiffCache(t *testing.T) {
 					Sync: argoappv1.SyncStatus{
 						Status: argoappv1.SyncStatusCodeSynced,
 						ComparedTo: argoappv1.ComparedTo{
-							Source: argoappv1.ApplicationSource{
-								RepoURL:        "https://some-repo.com",
-								Path:           "argocd/httpbin",
-								TargetRevision: "HEAD",
-							},
 							Destination: argoappv1.ApplicationDestination{
 								Server:    "https://kubernetes.default.svc",
 								Namespace: "httpbin",

@@ -936,7 +936,7 @@ func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sou
 		return false
 	}
 
-	if specEqualsCompareTo(app.Spec, app.Status.Sync.ComparedTo) {
+	if !specEqualsCompareTo(app.Spec, app.Status.Sync.ComparedTo) {
 		log.WithField("useDiffCache", "false").Debug("specChanged")
 		return false
 	}
