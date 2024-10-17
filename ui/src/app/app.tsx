@@ -21,6 +21,7 @@ import {AuthSettings} from './shared/models';
 import {PKCEVerification} from './login/components/pkce-verify';
 import {getPKCERedirectURI, pkceLogin} from './login/components/utils';
 import {SystemLevelExtension} from './shared/services/extensions-service';
+import {Subscription} from 'rxjs';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
@@ -105,6 +106,8 @@ export class App extends React.Component<
     private navigationManager: NavigationManager;
     private navItems: NavItem[];
     private routes: Routes;
+    private popupPropsSubscription: Subscription;
+    private unauthorizedSubscription: Subscription;
 
     constructor(props: {}) {
         super(props);
@@ -148,8 +151,8 @@ export class App extends React.Component<
     }
 
     public componentWillUnmount() {
-        this.popupManager.popupProps.unsubscribe();
-        this.unsubscribeUnauthorized();
+        this.popupPropsSubscription.unsubscribe();
+        this.unauthorizedSubscription.unsubscribe();
     }
 
     public render() {
@@ -260,10 +263,6 @@ export class App extends React.Component<
                 }
             }
         });
-    }
-
-    private unsubscribeUnauthorized() {
-        requests.onError.unsubscribe();
     }
 
     private onAddSystemLevelExtension(extension: SystemLevelExtension) {
