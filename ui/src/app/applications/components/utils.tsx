@@ -746,10 +746,10 @@ export function renderResourceButtons(
 export function syncStatusMessage(app: appModels.Application) {
     const source = getAppDefaultSource(app);
     const revision = getAppDefaultSyncRevision(app);
-    const rev = app.status.sync.revision || source.targetRevision || 'HEAD';
-    let message = source.targetRevision || 'HEAD';
+    const rev = app.status.sync.revision || (source ? source.targetRevision || 'HEAD' : 'Unknown');
+    let message = source ? source?.targetRevision || 'HEAD' : 'Unknown';
 
-    if (revision) {
+    if (revision && source) {
         if (source.chart) {
             message += ' (' + revision + ')';
         } else if (revision.length >= 7 && !revision.startsWith(source.targetRevision)) {
@@ -1120,7 +1120,7 @@ export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingCon
     for (const condition of podStatusConditions) {
         existingConditions.set(condition.type, true);
         // priority order of conditions
-        // eg. if there are multiple conditions set with same name then the one which comes first is evaluated
+        // e.g. if there are multiple conditions set with same name then the one which comes first is evaluated
         if (podConditions.has(condition.type)) {
             continue;
         }
@@ -1167,10 +1167,10 @@ export function isAppNode(node: appModels.ResourceNode) {
 
 export function getAppOverridesCount(app: appModels.Application) {
     const source = getAppDefaultSource(app);
-    if (source.kustomize && source.kustomize.images) {
+    if (source?.kustomize?.images) {
         return source.kustomize.images.length;
     }
-    if (source.helm && source.helm.parameters) {
+    if (source?.helm?.parameters) {
         return source.helm.parameters.length;
     }
     return 0;
