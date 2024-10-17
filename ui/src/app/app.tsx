@@ -123,9 +123,7 @@ export class App extends React.Component<
     }
 
     public async componentDidMount() {
-        this.popupManager.popupProps.subscribe(popupProps => this.setState({popupProps})).then((subscription) => {
-            this.popupPropsSubscription = subscription;
-        });
+        this.popupPropsSubscription = this.popupManager.popupProps.subscribe(popupProps => this.setState({popupProps}));
         this.subscribeUnauthorized().then((subscription) => {
             this.unauthorizedSubscription = subscription;
         });
