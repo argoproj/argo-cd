@@ -117,12 +117,18 @@ export class App extends React.Component<
         this.navigationManager = new NavigationManager(history);
         this.navItems = navItems;
         this.routes = routes;
+        this.popupPropsSubscription = null;
+        this.unauthorizedSubscription = null;
         services.extensions.addEventListener('systemLevel', this.onAddSystemLevelExtension.bind(this));
     }
 
     public async componentDidMount() {
-        this.popupPropsSubscription = this.popupManager.popupProps.subscribe(popupProps => this.setState({popupProps}));
-        this.unauthorizedSubscription = this.subscribeUnauthorized();
+        this.popupManager.popupProps.subscribe(popupProps => this.setState({popupProps})).then((subscription) => {
+            this.popupPropsSubscription = subscription;
+        });
+        this.subscribeUnauthorized().then((subscription) => {
+            this.unauthorizedSubscription = subscription;
+        });
         const authSettings = await services.authService.settings();
         const {trackingID, anonymizeUsers} = authSettings.googleAnalytics || {trackingID: '', anonymizeUsers: true};
         const {loggedIn, username} = await services.users.get();
@@ -151,8 +157,12 @@ export class App extends React.Component<
     }
 
     public componentWillUnmount() {
-        this.popupPropsSubscription.unsubscribe();
-        this.unauthorizedSubscription.unsubscribe();
+        if (this.popupPropsSubscription) {
+            this.popupPropsSubscription.unsubscribe();
+        }
+        if (this.unauthorizedSubscription) {
+            this.unauthorizedSubscription.unsubscribe();
+        }
     }
 
     public render() {
