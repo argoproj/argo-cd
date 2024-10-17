@@ -221,6 +221,8 @@ const (
 	EnvVarTLSDataPath = "ARGOCD_TLS_DATA_PATH"
 	// EnvGitAttemptsCount specifies number of git remote operations attempts count
 	EnvGitAttemptsCount = "ARGOCD_GIT_ATTEMPTS_COUNT"
+	// EnvGitAutopackLimit specifies the limit for automatic git repacking
+	EnvGitAutopackLimit = "ARGOCD_GIT_AUTOPACK_LIMIT"
 	// EnvGitRetryMaxDuration specifies max duration of git remote operation retry
 	EnvGitRetryMaxDuration = "ARGOCD_GIT_RETRY_MAX_DURATION"
 	// EnvGitRetryDuration specifies duration of git remote operation retry
@@ -328,6 +330,7 @@ const (
 	DefaultGitRetryMaxDuration time.Duration = time.Second * 5        // 5s
 	DefaultGitRetryDuration    time.Duration = time.Millisecond * 250 // 0.25s
 	DefaultGitRetryFactor                    = int64(2)
+	DefaultGitAutoPackLimit                  = 50
 )
 
 // Constants represent the pod selector labels of the Argo CD component names. These values are determined by the
