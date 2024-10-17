@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: CronJob
+name: activeJobsCronJob
+namespace: default
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: activeJobsCronJob
+            image: busybox
+            command:
+            - /bin/sh
+            - -c
+            - date; echo Hello from the Kubernetes cluster
+          restartPolicy: OnFailure
+status:
+  active:
+  - apiVersion: batch/v1
+    kind: Job
+    name: activeJobsCronJob-1597969200
+    namespace: default
+    uid: 0a0a0a0a-0a0a-0a0a-0a0a-0a0a0a0a0a0a
+  lastScheduleTime: "2020-08-20T18:00:00Z"
