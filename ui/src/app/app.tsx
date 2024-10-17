@@ -4,6 +4,7 @@ import * as PropTypes from 'prop-types';
 import * as React from 'react';
 import {Helmet} from 'react-helmet';
 import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router';
+import {Subscription} from 'rxjs';
 import applications from './applications';
 import help from './help';
 import login from './login';
@@ -21,7 +22,6 @@ import {AuthSettings} from './shared/models';
 import {PKCEVerification} from './login/components/pkce-verify';
 import {getPKCERedirectURI, pkceLogin} from './login/components/utils';
 import {SystemLevelExtension} from './shared/services/extensions-service';
-import {Subscription} from 'rxjs';
 
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
