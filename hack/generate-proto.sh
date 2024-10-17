@@ -95,7 +95,7 @@ MOD_ROOT=${GOPATH}/pkg/mod
 grpc_gateway_version=$(go list -m github.com/grpc-ecosystem/grpc-gateway | awk '{print $NF}' | head -1)
 GOOGLE_PROTO_API_PATH=${MOD_ROOT}/github.com/grpc-ecosystem/grpc-gateway@${grpc_gateway_version}/third_party/googleapis
 GOGO_PROTOBUF_PATH=${PROJECT_ROOT}/vendor/github.com/gogo/protobuf
-PROTO_FILES=$(find "$PROJECT_ROOT" \( -name "*.proto" -and -path '*/server/*' -or -path '*/reposerver/*' -and -name "*.proto" -or -path '*/cmpserver/*' -and -name "*.proto" \) | sort)
+PROTO_FILES=$(find "$PROJECT_ROOT" \( -name "*.proto" -and -path '*/server/*' -or -path '*/reposerver/*' -and -name "*.proto" -or -path '*/cmpserver/*' -and -name "*.proto" -or -path '*/commitserver/*' -and -name "*.proto" \) | sort)
 for i in ${PROTO_FILES}; do
     protoc \
         -I"${PROJECT_ROOT}" \
@@ -162,3 +162,4 @@ clean_swagger server
 clean_swagger reposerver
 clean_swagger controller
 clean_swagger cmpserver
+clean_swagger commitserver
