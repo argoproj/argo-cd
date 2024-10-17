@@ -6840,6 +6840,9 @@
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         },
+        "sourceHydrator": {
+          "$ref": "#/definitions/v1alpha1SourceHydrator"
+        },
         "sources": {
           "type": "array",
           "title": "Sources is a reference to the location of the application's manifests or chart",
@@ -6896,6 +6899,9 @@
           "items": {
             "$ref": "#/definitions/applicationv1alpha1ResourceStatus"
           }
+        },
+        "sourceHydrator": {
+          "$ref": "#/definitions/v1alpha1SourceHydratorStatus"
         },
         "sourceType": {
           "type": "string",
@@ -7324,6 +7330,24 @@
         }
       }
     },
+    "v1alpha1DrySource": {
+      "description": "DrySource specifies a location for dry \"don't repeat yourself\" manifest source information.",
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "title": "Path is a directory path within the Git repository where the manifests are located"
+        },
+        "repoURL": {
+          "type": "string",
+          "title": "RepoURL is the URL to the git repository that contains the application manifests"
+        },
+        "targetRevision": {
+          "type": "string",
+          "title": "TargetRevision defines the revision of the source to hydrate"
+        }
+      }
+    },
     "v1alpha1DuckTypeGenerator": {
       "description": "DuckType defines a generator to match against clusters registered with ArgoCD.",
       "type": "object",
@@ -7572,6 +7596,47 @@
         },
         "resourceName": {
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1HydrateOperation": {
+      "type": "object",
+      "title": "HydrateOperation contains information about the most recent hydrate operation",
+      "properties": {
+        "drySHA": {
+          "type": "string",
+          "title": "DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation"
+        },
+        "finishedAt": {
+          "$ref": "#/definitions/v1Time"
+        },
+        "hydratedSHA": {
+          "type": "string",
+          "title": "HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation"
+        },
+        "message": {
+          "type": "string",
+          "title": "Message contains a message describing the current status of the hydrate operation"
+        },
+        "phase": {
+          "type": "string",
+          "title": "Phase indicates the status of the hydrate operation"
+        },
+        "sourceHydrator": {
+          "$ref": "#/definitions/v1alpha1SourceHydrator"
+        },
+        "startedAt": {
+          "$ref": "#/definitions/v1Time"
+        }
+      }
+    },
+    "v1alpha1HydrateTo": {
+      "description": "HydrateTo specifies a location to which hydrated manifests should be pushed as a \"staging area\" before being moved to\nthe SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.",
+      "type": "object",
+      "properties": {
+        "targetBranch": {
+          "type": "string",
+          "title": "TargetBranch is the branch to which hydrated manifests should be committed"
         }
       }
     },
@@ -9182,6 +9247,50 @@
         }
       }
     },
+    "v1alpha1SourceHydrator": {
+      "description": "SourceHydrator specifies a dry \"don't repeat yourself\" source for manifests, a sync source from which to sync\nhydrated manifests, and an optional hydrateTo location to act as a \"staging\" aread for hydrated manifests.",
+      "type": "object",
+      "properties": {
+        "drySource": {
+          "$ref": "#/definitions/v1alpha1DrySource"
+        },
+        "hydrateTo": {
+          "$ref": "#/definitions/v1alpha1HydrateTo"
+        },
+        "syncSource": {
+          "$ref": "#/definitions/v1alpha1SyncSource"
+        }
+      }
+    },
+    "v1alpha1SourceHydratorStatus": {
+      "type": "object",
+      "title": "SourceHydratorStatus contains information about the current state of source hydration",
+      "properties": {
+        "currentOperation": {
+          "$ref": "#/definitions/v1alpha1HydrateOperation"
+        },
+        "lastSuccessfulOperation": {
+          "$ref": "#/definitions/v1alpha1SuccessfulHydrateOperation"
+        }
+      }
+    },
+    "v1alpha1SuccessfulHydrateOperation": {
+      "type": "object",
+      "title": "SuccessfulHydrateOperation contains information about the most recent successful hydrate operation",
+      "properties": {
+        "drySHA": {
+          "type": "string",
+          "title": "DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation"
+        },
+        "hydratedSHA": {
+          "type": "string",
+          "title": "HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation"
+        },
+        "sourceHydrator": {
+          "$ref": "#/definitions/v1alpha1SourceHydrator"
+        }
+      }
+    },
     "v1alpha1SyncOperation": {
       "description": "SyncOperation contains details about a sync operation.",
       "type": "object",
@@ -9338,6 +9447,20 @@
         "selfHeal": {
           "type": "boolean",
           "title": "SelfHeal specifies whether to revert resources back to their desired state upon modification in the cluster (default: false)"
+        }
+      }
+    },
+    "v1alpha1SyncSource": {
+      "description": "SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the\nassociated DrySource config in the SourceHydrator.",
+      "type": "object",
+      "properties": {
+        "path": {
+          "description": "Path is a directory path within the git repository where hydrated manifests should be committed to and synced\nfrom. If hydrateTo is set, this is just the path from which hydrated manifests will be synced.",
+          "type": "string"
+        },
+        "targetBranch": {
+          "type": "string",
+          "title": "TargetBranch is the branch to which hydrated manifests should be committed"
         }
       }
     },
