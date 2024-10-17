@@ -74,7 +74,7 @@ data:
           }
         {{end}}
         ]
-      potentialAction: |-
+      potentialAction: |
         [{
           "@type":"OpenUri",
           "name":"Operation Application",
@@ -224,7 +224,7 @@ data:
           }
         {{end}}
         ]
-      potentialAction: |-
+      potentialAction: |
         [{
           "@type":"OpenUri",
           "name":"Open Operation",
@@ -301,7 +301,7 @@ data:
           }
         {{end}}
         ]
-      potentialAction: |-
+      potentialAction: |
         [{
           "@type":"OpenUri",
           "name":"Open Operation",
@@ -378,7 +378,7 @@ data:
           }
         {{end}}
         ]
-      potentialAction: |-
+      potentialAction: |
         [{
           "@type":"OpenUri",
           "name":"Open Application",
@@ -454,7 +454,7 @@ data:
           }
         {{end}}
         ]
-      potentialAction: |-
+      potentialAction: |
         [{
           "@type":"OpenUri",
           "name":"Operation Details",
