@@ -121,8 +121,8 @@ export class App extends React.Component<
     }
 
     public async componentDidMount() {
-        this.popupManager.popupProps.subscribe(popupProps => this.setState({popupProps}));
-        this.subscribeUnauthorized();
+        this.popupPropsSubscription = this.popupManager.popupProps.subscribe(popupProps => this.setState({popupProps}));
+        this.unauthorizedSubscription = this.subscribeUnauthorized();
         const authSettings = await services.authService.settings();
         const {trackingID, anonymizeUsers} = authSettings.googleAnalytics || {trackingID: '', anonymizeUsers: true};
         const {loggedIn, username} = await services.users.get();
