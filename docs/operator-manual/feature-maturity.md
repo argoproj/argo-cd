@@ -3,8 +3,12 @@
 Argo CD features may be marked with a certain [status](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md)
 to indicate their stability and maturity. These are the statuses of non-stable features in Argo CD:
 
+TODO: add alpha admonition warning
+
+## Overview
+
 | Feature                             | Introduced | Status |
-|-------------------------------------|------------|--------|
+| ----------------------------------- | ---------- | ------ |
 | [Structured Merge Diff Strategy][1] | v2.5.0     | Beta   |
 | [AppSet Progressive Syncs][2]       | v2.6.0     | Alpha  |
 | [Proxy Extensions][3]               | v2.7.0     | Alpha  |
@@ -22,3 +26,29 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 [6]: dynamic-cluster-distribution.md
 [7]: ../user-guide/diff-strategies.md#server-side-diff
 [8]: app-sync-using-impersonation.md
+
+## Unstable Configurations
+
+### Application CRD
+
+| Feature      | Property | Status |
+| ------------ | -------- | ------ |
+| [TODO][TODO] | `TODO`   | TODO   |
+
+### AppProject CRD
+
+| Feature      | Property | Status |
+| ------------ | -------- | ------ |
+| [TODO][TODO] | `TODO`   | TODO   |
+
+### ApplicationSet CRD
+
+| Feature      | Property | Status |
+| ------------ | -------- | ------ |
+| [TODO][TODO] | `TODO`   | TODO   |
+
+### Configuration
+
+| Feature      | Object | Property / Variable | Status |
+| ------------ | ------ | ------------------- | ------ |
+| [TODO][TODO] | `TODO` | `TODO`              | TODO   |
