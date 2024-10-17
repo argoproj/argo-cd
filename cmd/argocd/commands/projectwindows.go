@@ -352,10 +352,9 @@ func printSyncWindows(proj *v1alpha1.AppProject) {
 	fmt.Fprintf(w, fmtStr, headers...)
 	if proj.Spec.SyncWindows.HasWindows() {
 		for i, window := range proj.Spec.SyncWindows {
-			isActive, _ := window.Active()
 			vals := []interface{}{
 				strconv.Itoa(i),
-				formatBoolOutput(isActive),
+				formatBoolOutput(window.Active()),
 				window.Kind,
 				window.Schedule,
 				window.Duration,

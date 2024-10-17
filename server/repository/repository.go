@@ -128,7 +128,6 @@ func (s *Server) List(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.
 
 // Get return the requested configured repository by URL and the state of its connections.
 func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
-	// ListRepositories normalizes the repo, sanitizes it, and augments it with connection details.
 	repo, err := getRepository(ctx, s.ListRepositories, q)
 	if err != nil {
 		return nil, err
@@ -147,7 +146,30 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 		return nil, status.Errorf(codes.NotFound, "repo '%s' not found", q.Repo)
 	}
 
-	return repo, nil
+	// For backwards compatibility, if we have no repo type set assume a default
+	rType := repo.Type
+	if rType == "" {
+		rType = common.DefaultRepoType
+	}
+	// remove secrets
+	item := appsv1.Repository{
+		Repo:                       repo.Repo,
+		Type:                       rType,
+		Name:                       repo.Name,
+		Username:                   repo.Username,
+		Insecure:                   repo.IsInsecure(),
+		EnableLFS:                  repo.EnableLFS,
+		GithubAppId:                repo.GithubAppId,
+		GithubAppInstallationId:    repo.GithubAppInstallationId,
+		GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
+		Proxy:                      repo.Proxy,
+		Project:                    repo.Project,
+		InheritedCreds:             repo.InheritedCreds,
+	}
+
+	item.ConnectionState = s.getConnectionState(ctx, item.Repo, item.Project, q.ForceRefresh)
+
+	return &item, nil
 }
 
 // ListRepositories returns a list of all configured repositories and the state of their connections
@@ -174,7 +196,6 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 				EnableLFS:          repo.EnableLFS,
 				EnableOCI:          repo.EnableOCI,
 				Proxy:              repo.Proxy,
-				NoProxy:            repo.NoProxy,
 				Project:            repo.Project,
 				ForceHttpBasicAuth: repo.ForceHttpBasicAuth,
 				InheritedCreds:     repo.InheritedCreds,
@@ -329,15 +350,6 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		return nil, err
 	}
 
-	refSources := make(appsv1.RefTargetRevisionMapping)
-	if app != nil && app.Spec.HasMultipleSources() {
-		// Store the map of all sources having ref field into a map for applications with sources field
-		refSources, err = argo.GetRefSources(ctx, app.Spec.Sources, q.AppProject, s.db.GetRepository, []string{}, false)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get ref sources: %w", err)
-		}
-	}
-
 	return repoClient.GetAppDetails(ctx, &apiclient.RepoServerAppDetailsQuery{
 		Repo:             repo,
 		Source:           q.Source,
@@ -345,7 +357,6 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		KustomizeOptions: kustomizeOptions,
 		HelmOptions:      helmOptions,
 		AppName:          q.AppName,
-		RefSources:       refSources,
 	})
 }
 
@@ -421,7 +432,7 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 			r.Project = q.Repo.Project
 			return s.UpdateRepository(ctx, &repositorypkg.RepoUpdateRequest{Repo: r})
 		} else {
-			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("repository", existing, r))
+			return nil, status.Errorf(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("repository", existing, r))
 		}
 	}
 	if err != nil {

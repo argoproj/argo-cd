@@ -106,7 +106,6 @@ func GetE2EFixtureK8sClient() *E2EFixtureK8sClient {
 
 // EnsureCleanSlate ensures that the Kubernetes resources on the cluster are in a 'clean' state, before a test is run.
 func EnsureCleanState(t *testing.T) {
-	t.Helper()
 	start := time.Now()
 
 	fixtureClient := GetE2EFixtureK8sClient()
@@ -269,7 +268,7 @@ func cleanUpNamespace(fixtureClient *E2EFixtureK8sClient, namespace string) erro
 		msg = err.Error()
 	}
 
-	return fmt.Errorf("%s", msg)
+	return fmt.Errorf(msg)
 }
 
 // waitForSuccess waits for the condition to return a non-error value.
@@ -367,7 +366,6 @@ func ToUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
 //
 // Note: This only applies to tests that use the GitHub API (different from GitHub's Git service)
 func IsGitHubAPISkippedTest(t *testing.T) bool {
-	t.Helper()
 	if strings.TrimSpace(os.Getenv("GITHUB_TOKEN")) == "" {
 		t.Skip("Skipping this test, as the GITHUB_TOKEN is not set. Please ensure this test passes locally, with your own GITHUB_TOKEN.")
 		return true
