@@ -1,8 +1,5 @@
 # Proxy Extensions
-
-!!! warning "Alpha Feature (Since 2.7.0)"
-    This is an experimental, [alpha-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#alpha)
-    feature. It may be removed in future releases or modified in backwards-incompatible ways.
+*Current Status: [Alpha][1] (Since v2.7.0)*
 
 ## Overview
 
@@ -63,7 +60,7 @@ data:
             server: https://some-cluster
 ```
 
-Note: There is no need to restart Argo CD Server after modifying the
+Note: There is no need to restart Argo CD Server after modifiying the
 `extension.config` entry in Argo CD configmap. Changes will be
 automatically applied. A new proxy registry will be built making
 all new incoming extensions requests (`<argocd-host>/extensions/*`) to
@@ -123,7 +120,7 @@ Is the address where the extension backend must be available.
 
 If provided, the headers list will be added on all outgoing requests
 for this service config. Existing headers in the incoming request with
-the same name will be overridden by the one in this list. Reserved header
+the same name will be overriden by the one in this list. Reserved header
 names will be ignored (see the [headers](#incoming-request-headers) below).
 
 #### `extensions.backend.services.headers.name` (*string*)
@@ -266,14 +263,6 @@ it is not empty string is the Application resource.
 Note that additional pre-configured headers can be added to outgoing
 request. See [backend service headers](#extensionsbackendservicesheaders-list)
 section for more details.
-
-#### `Argocd-Username`
-
-Will be populated with the username logged in Argo CD.
-
-#### `Argocd-User-Groups`
-
-Will be populated with the 'groups' claim from the user logged in Argo CD.
 
 ### Multi Backend Use-Case
 

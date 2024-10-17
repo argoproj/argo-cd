@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 )
@@ -29,7 +28,7 @@ func TestNewReloginCommand(t *testing.T) {
 	ssoPortFlag := cmd.Flags().Lookup("sso-port")
 	port, err := strconv.Atoi(ssoPortFlag.Value.String())
 	assert.NotNil(t, ssoPortFlag, "Expected flag --sso-port to be defined")
-	require.NoError(t, err, "Failed to convert sso-port flag value to integer")
+	assert.NoError(t, err, "Failed to convert sso-port flag value to integer")
 	assert.Equal(t, 8085, port, "Unexpected default value for --sso-port flag")
 }
 
@@ -60,6 +59,6 @@ func TestNewReloginCommandWithGlobalClientOptions(t *testing.T) {
 	ssoPortFlag := cmd.Flags().Lookup("sso-port")
 	port, err := strconv.Atoi(ssoPortFlag.Value.String())
 	assert.NotNil(t, ssoPortFlag, "Expected flag --sso-port to be defined")
-	require.NoError(t, err, "Failed to convert sso-port flag value to integer")
+	assert.NoError(t, err, "Failed to convert sso-port flag value to integer")
 	assert.Equal(t, 8085, port, "Unexpected default value for --sso-port flag")
 }

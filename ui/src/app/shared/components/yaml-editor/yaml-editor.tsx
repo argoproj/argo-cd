@@ -15,7 +15,6 @@ export class YamlEditor<T> extends React.Component<
         hideModeButtons?: boolean;
         initialEditMode?: boolean;
         vScrollbar?: boolean;
-        enableWordWrap?: boolean;
         onSave?: (patch: string, patchType: string) => Promise<any>;
         onCancel?: () => any;
         minHeight?: number;
@@ -33,7 +32,7 @@ export class YamlEditor<T> extends React.Component<
 
     public render() {
         const props = this.props;
-        const yaml = props.input ? jsYaml.dump(props.input) : '';
+        const yaml = props.input ? jsYaml.safeDump(props.input) : '';
 
         return (
             <div className='yaml-editor'>
@@ -75,7 +74,7 @@ export class YamlEditor<T> extends React.Component<
                                         </button>{' '}
                                         <button
                                             onClick={() => {
-                                                this.model.setValue(jsYaml.dump(props.input));
+                                                this.model.setValue(jsYaml.safeDump(props.input));
                                                 this.setState({editing: !this.state.editing});
                                                 if (props.onCancel) {
                                                     props.onCancel();
@@ -99,11 +98,7 @@ export class YamlEditor<T> extends React.Component<
                     vScrollBar={props.vScrollbar}
                     editor={{
                         input: {text: yaml, language: 'yaml'},
-                        options: {
-                            readOnly: !this.state.editing,
-                            minimap: {enabled: false},
-                            wordWrap: props.enableWordWrap ? 'on' : 'off'
-                        },
+                        options: {readOnly: !this.state.editing, minimap: {enabled: false}},
                         getApi: api => {
                             this.model = api.getModel() as monacoEditor.editor.ITextModel;
                         }

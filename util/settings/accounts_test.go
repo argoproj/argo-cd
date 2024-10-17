@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	v1 "k8s.io/api/core/v1"
@@ -18,11 +17,11 @@ import (
 func TestGetAccounts_NoAccountsConfigured(t *testing.T) {
 	_, settingsManager := fixtures(nil)
 	accounts, err := settingsManager.GetAccounts()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	adminAccount, ok := accounts[common.ArgoCDAdminUsername]
 	assert.True(t, ok)
-	assert.EqualValues(t, []AccountCapability{AccountCapabilityLogin}, adminAccount.Capabilities)
+	assert.EqualValues(t, adminAccount.Capabilities, []AccountCapability{AccountCapabilityLogin})
 }
 
 func TestGetAccounts_HasConfiguredAccounts(t *testing.T) {
@@ -30,7 +29,7 @@ func TestGetAccounts_HasConfiguredAccounts(t *testing.T) {
 		secret.Data["accounts.test.tokens"] = []byte(`[{"id":"123","iat":1583789194,"exp":1583789194}]`)
 	})
 	accounts, err := settingsManager.GetAccounts()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	acc, ok := accounts["test"]
 	assert.True(t, ok)
@@ -45,7 +44,7 @@ func TestGetAccounts_DisableAccount(t *testing.T) {
 		"accounts.test.enabled": "false",
 	})
 	accounts, err := settingsManager.GetAccounts()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	acc, ok := accounts["test"]
 	assert.True(t, ok)
@@ -60,14 +59,14 @@ func TestGetAccount(t *testing.T) {
 	t.Run("ExistingUserName", func(t *testing.T) {
 		_, err := settingsManager.GetAccount("test")
 
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("IncorrectName", func(t *testing.T) {
 		_, err := settingsManager.GetAccount("incorrect-name")
 
-		require.Error(t, err)
-		assert.Equal(t, codes.NotFound, status.Code(err))
+		assert.Error(t, err)
+		assert.Equal(t, status.Code(err), codes.NotFound)
 	})
 }
 
@@ -89,7 +88,7 @@ func TestGetAccount_WithInvalidToken(t *testing.T) {
 	)
 
 	_, err := settingsManager.GetAccounts()
-	require.NoError(t, err)
+	assert.NoError(t, err)
 }
 
 func TestGetAdminAccount(t *testing.T) {
@@ -100,7 +99,7 @@ func TestGetAdminAccount(t *testing.T) {
 	})
 
 	acc, err := settingsManager.GetAccount(common.ArgoCDAdminUsername)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, "admin-password", acc.PasswordHash)
 	assert.Equal(t, mTime, acc.FormatPasswordMtime())
@@ -151,16 +150,16 @@ func TestAddAccount_AccountAdded(t *testing.T) {
 		PasswordMtime: &mTime,
 	}
 	err := settingsManager.AddAccount("test", addedAccount)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	cm, err := clientset.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
-	assert.Equal(t, "login", cm.Data["accounts.test"])
-	assert.Equal(t, "false", cm.Data["accounts.test.enabled"])
+	assert.Equal(t, cm.Data["accounts.test"], "login")
+	assert.Equal(t, cm.Data["accounts.test.enabled"], "false")
 
 	secret, err := clientset.CoreV1().Secrets("default").Get(context.Background(), common.ArgoCDSecretName, metav1.GetOptions{})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, "hash", string(secret.Data["accounts.test.password"]))
 	assert.Equal(t, mTime.Format(time.RFC3339), string(secret.Data["accounts.test.passwordMtime"]))
@@ -170,13 +169,13 @@ func TestAddAccount_AccountAdded(t *testing.T) {
 func TestAddAccount_AlreadyExists(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{"accounts.test": "login"})
 	err := settingsManager.AddAccount("test", Account{})
-	require.Error(t, err)
+	assert.Error(t, err)
 }
 
 func TestAddAccount_CannotAddAdmin(t *testing.T) {
 	_, settingsManager := fixtures(nil)
 	err := settingsManager.AddAccount("admin", Account{})
-	require.Error(t, err)
+	assert.Error(t, err)
 }
 
 func TestUpdateAccount_SuccessfullyUpdated(t *testing.T) {
@@ -191,16 +190,16 @@ func TestUpdateAccount_SuccessfullyUpdated(t *testing.T) {
 		account.PasswordMtime = &mTime
 		return nil
 	})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	cm, err := clientset.CoreV1().ConfigMaps("default").Get(context.Background(), common.ArgoCDConfigMapName, metav1.GetOptions{})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
-	assert.Equal(t, "login", cm.Data["accounts.test"])
-	assert.Equal(t, "false", cm.Data["accounts.test.enabled"])
+	assert.Equal(t, cm.Data["accounts.test"], "login")
+	assert.Equal(t, cm.Data["accounts.test.enabled"], "false")
 
 	secret, err := clientset.CoreV1().Secrets("default").Get(context.Background(), common.ArgoCDSecretName, metav1.GetOptions{})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, "hash", string(secret.Data["accounts.test.password"]))
 	assert.Equal(t, mTime.Format(time.RFC3339), string(secret.Data["accounts.test.passwordMtime"]))
@@ -216,10 +215,10 @@ func TestUpdateAccount_UpdateAdminPassword(t *testing.T) {
 		account.PasswordMtime = &mTime
 		return nil
 	})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	secret, err := clientset.CoreV1().Secrets("default").Get(context.Background(), common.ArgoCDSecretName, metav1.GetOptions{})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, "newPassword", string(secret.Data["admin.password"]))
 	assert.Equal(t, mTime.Format(time.RFC3339), string(secret.Data["admin.passwordMtime"]))
@@ -232,5 +231,5 @@ func TestUpdateAccount_AccountDoesNotExist(t *testing.T) {
 		account.Enabled = false
 		return nil
 	})
-	require.Error(t, err)
+	assert.Error(t, err)
 }

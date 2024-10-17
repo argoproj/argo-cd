@@ -25,27 +25,27 @@ const (
 
 func Test_URIToSecretName(t *testing.T) {
 	name, err := URIToSecretName("cluster", "http://foo")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "cluster-foo-752281925", name)
 
 	name, err = URIToSecretName("cluster", "http://thelongestdomainnameintheworld.argocd-project.com:3000")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "cluster-thelongestdomainnameintheworld.argocd-project.com-2721640553", name)
 
 	name, err = URIToSecretName("cluster", "http://[fe80::1ff:fe23:4567:890a]")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "cluster-fe80--1ff-fe23-4567-890a-3877258831", name)
 
 	name, err = URIToSecretName("cluster", "http://[fe80::1ff:fe23:4567:890a]:8000")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "cluster-fe80--1ff-fe23-4567-890a-664858999", name)
 
 	name, err = URIToSecretName("cluster", "http://[FE80::1FF:FE23:4567:890A]:8000")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "cluster-fe80--1ff-fe23-4567-890a-682802007", name)
 
 	name, err = URIToSecretName("cluster", "http://:/abc")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "cluster--1969338796", name)
 }
 
@@ -67,7 +67,7 @@ func Test_secretToCluster(t *testing.T) {
 	}
 	cluster, err := SecretToCluster(secret)
 	require.NoError(t, err)
-	assert.Equal(t, v1alpha1.Cluster{
+	assert.Equal(t, *cluster, v1alpha1.Cluster{
 		Name:   "test",
 		Server: "http://mycluster",
 		Config: v1alpha1.ClusterConfig{
@@ -75,7 +75,7 @@ func Test_secretToCluster(t *testing.T) {
 		},
 		Labels:      labels,
 		Annotations: annotations,
-	}, *cluster)
+	})
 }
 
 func Test_secretToCluster_LastAppliedConfigurationDropped(t *testing.T) {
@@ -93,7 +93,7 @@ func Test_secretToCluster_LastAppliedConfigurationDropped(t *testing.T) {
 	}
 	cluster, err := SecretToCluster(secret)
 	require.NoError(t, err)
-	assert.Empty(t, cluster.Annotations)
+	assert.Len(t, cluster.Annotations, 0)
 }
 
 func TestClusterToSecret(t *testing.T) {
@@ -108,7 +108,7 @@ func TestClusterToSecret(t *testing.T) {
 	}
 	s := &v1.Secret{}
 	err := clusterToSecret(cluster, s)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	assert.Equal(t, []byte(cluster.Server), s.Data["server"])
 	assert.Equal(t, []byte(cluster.Name), s.Data["name"])
@@ -145,13 +145,13 @@ func Test_secretToCluster_NoConfig(t *testing.T) {
 		},
 	}
 	cluster, err := SecretToCluster(secret)
-	require.NoError(t, err)
-	assert.Equal(t, v1alpha1.Cluster{
+	assert.NoError(t, err)
+	assert.Equal(t, *cluster, v1alpha1.Cluster{
 		Name:        "test",
 		Server:      "http://mycluster",
 		Labels:      map[string]string{},
 		Annotations: map[string]string{},
-	}, *cluster)
+	})
 }
 
 func Test_secretToCluster_InvalidConfig(t *testing.T) {
@@ -193,10 +193,14 @@ func TestUpdateCluster(t *testing.T) {
 		Server:             "http://mycluster",
 		RefreshRequestedAt: &requestedAt,
 	})
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	secret, err := kubeclientset.CoreV1().Secrets(fakeNamespace).Get(context.Background(), "mycluster", metav1.GetOptions{})
-	require.NoError(t, err)
+	if !assert.NoError(t, err) {
+		return
+	}
 
 	assert.Equal(t, secret.Annotations[v1alpha1.AnnotationKeyRefresh], requestedAt.Format(time.RFC3339))
 }
@@ -251,11 +255,10 @@ func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
 		Server: appv1.KubernetesInternalAPIServerAddr,
 		Name:   "incluster-name",
 	})
-	require.Error(t, err)
+	assert.Error(t, err)
 }
 
 func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster)) {
-	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -294,6 +297,7 @@ func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster,
 	case <-time.After(timeout):
 		assert.Fail(t, "Failed due to timeout")
 	}
+
 }
 
 func TestListClusters(t *testing.T) {
@@ -408,7 +412,7 @@ func TestListClusters(t *testing.T) {
 
 		clusters, err := db.ListClusters(context.TODO())
 		require.NoError(t, err)
-		assert.Empty(t, clusters.Items)
+		assert.Len(t, clusters.Items, 0)
 	})
 
 	t.Run("ListClusters() should add this cluster since it does not contain in-cluster server address even though in-cluster is disabled", func(t *testing.T) {

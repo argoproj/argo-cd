@@ -8,17 +8,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-	"k8s.io/utils/ptr"
-
-	"github.com/microsoft/azure-devops-go-api/azuredevops"
-	azureGit "github.com/microsoft/azure-devops-go-api/azuredevops/git"
+	"k8s.io/utils/pointer"
 
 	azureMock "github.com/argoproj/argo-cd/v2/applicationset/services/scm_provider/azure_devops/git/mocks"
+	"github.com/microsoft/azure-devops-go-api/azuredevops"
+	azureGit "github.com/microsoft/azure-devops-go-api/azuredevops/git"
 )
 
 func s(input string) *string {
-	return ptr.To(input)
+	return pointer.String(input)
 }
 
 func TestAzureDevopsRepoHasPath(t *testing.T) {
@@ -91,24 +89,26 @@ func TestAzureDevopsRepoHasPath(t *testing.T) {
 			hasPath, err := provider.RepoHasPath(ctx, repo, path)
 
 			if testCase.clientError != nil {
-				require.ErrorContains(t, err, testCase.clientError.Error())
+				assert.ErrorContains(t, err, testCase.clientError.Error())
 				gitClientMock.AssertNotCalled(t, "GetItem", ctx, azureGit.GetItemArgs{Project: &teamProject, Path: &path, VersionDescriptor: &azureGit.GitVersionDescriptor{Version: &branchName}, RepositoryId: repoId})
 
 				return
 			}
 
 			if testCase.returnError {
-				require.ErrorContains(t, err, testCase.errorMessage)
+				assert.ErrorContains(t, err, testCase.errorMessage)
 			}
 
 			assert.Equal(t, testCase.pathFound, hasPath)
 
 			gitClientMock.AssertCalled(t, "GetItem", ctx, azureGit.GetItemArgs{Project: &teamProject, Path: &path, VersionDescriptor: &azureGit.GitVersionDescriptor{Version: &branchName}, RepositoryId: repoId})
+
 		})
 	}
 }
 
 func TestGetDefaultBranchOnDisabledRepo(t *testing.T) {
+
 	organization := "myorg"
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
@@ -155,9 +155,9 @@ func TestGetDefaultBranchOnDisabledRepo(t *testing.T) {
 			branches, err := provider.GetBranches(ctx, repo)
 
 			if testCase.shouldReturnError {
-				require.Error(t, err)
+				assert.Error(t, err)
 			} else {
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			}
 
 			assert.Empty(t, branches)
@@ -168,6 +168,7 @@ func TestGetDefaultBranchOnDisabledRepo(t *testing.T) {
 }
 
 func TestGetAllBranchesOnDisabledRepo(t *testing.T) {
+
 	organization := "myorg"
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
@@ -214,9 +215,9 @@ func TestGetAllBranchesOnDisabledRepo(t *testing.T) {
 			branches, err := provider.GetBranches(ctx, repo)
 
 			if testCase.shouldReturnError {
-				require.Error(t, err)
+				assert.Error(t, err)
 			} else {
-				require.NoError(t, err)
+				assert.NoError(t, err)
 			}
 
 			assert.Empty(t, branches)
@@ -227,7 +228,9 @@ func TestGetAllBranchesOnDisabledRepo(t *testing.T) {
 }
 
 func TestAzureDevOpsGetDefaultBranchStripsRefsName(t *testing.T) {
+
 	t.Run("Get branches only default branch removes characters before querying azure devops", func(t *testing.T) {
+
 		organization := "myorg"
 		teamProject := "myorg_project"
 		repoName := "myorg_project_repo"
@@ -250,7 +253,7 @@ func TestAzureDevOpsGetDefaultBranchStripsRefsName(t *testing.T) {
 		provider := AzureDevOpsProvider{organization: organization, teamProject: teamProject, clientFactory: clientFactoryMock, allBranches: false}
 		branches, err := provider.GetBranches(ctx, repo)
 
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Len(t, branches, 1)
 		assert.Equal(t, strippedBranchName, branches[0].Branch)
 
@@ -307,7 +310,7 @@ func TestAzureDevOpsGetBranchesDefultBranchOnly(t *testing.T) {
 			branches, err := provider.GetBranches(ctx, repo)
 
 			if testCase.clientError != nil {
-				require.ErrorContains(t, err, testCase.clientError.Error())
+				assert.ErrorContains(t, err, testCase.clientError.Error())
 				gitClientMock.AssertNotCalled(t, "GetBranch", ctx, azureGit.GetBranchArgs{RepositoryId: &repoName, Project: &teamProject, Name: &defaultBranch})
 
 				return
@@ -315,7 +318,7 @@ func TestAzureDevOpsGetBranchesDefultBranchOnly(t *testing.T) {
 
 			if testCase.getBranchesApiError != nil {
 				assert.Empty(t, branches)
-				require.ErrorContains(t, err, testCase.getBranchesApiError.Error())
+				assert.ErrorContains(t, err, testCase.getBranchesApiError.Error())
 			} else {
 				if testCase.expectedBranch != nil {
 					assert.NotEmpty(t, branches)
@@ -391,20 +394,21 @@ func TestAzureDevopsGetBranches(t *testing.T) {
 			branches, err := provider.GetBranches(ctx, repo)
 
 			if testCase.expectedProcessingErrorMsg != "" {
-				require.ErrorContains(t, err, testCase.expectedProcessingErrorMsg)
+				assert.ErrorContains(t, err, testCase.expectedProcessingErrorMsg)
 				assert.Nil(t, branches)
 
 				return
 			}
 			if testCase.clientError != nil {
-				require.ErrorContains(t, err, testCase.clientError.Error())
+				assert.ErrorContains(t, err, testCase.clientError.Error())
 				gitClientMock.AssertNotCalled(t, "GetBranches", ctx, azureGit.GetBranchesArgs{RepositoryId: &repoName, Project: &teamProject})
 				return
+
 			}
 
 			if testCase.getBranchesApiError != nil {
 				assert.Empty(t, branches)
-				require.ErrorContains(t, err, testCase.getBranchesApiError.Error())
+				assert.ErrorContains(t, err, testCase.getBranchesApiError.Error())
 			} else {
 				if len(*testCase.expectedBranches) > 0 {
 					assert.NotEmpty(t, branches)
@@ -468,14 +472,14 @@ func TestGetAzureDevopsRepositories(t *testing.T) {
 				{Name: s("missing_default_branch"), RemoteUrl: s("https://remoteurl.u"), Id: repoId},
 				{DefaultBranch: s("missing_name"), RemoteUrl: s("https://remoteurl.u"), Id: repoId},
 				{Name: s("missing_remote_url"), DefaultBranch: s("main"), Id: repoId},
-				{Name: s("missing_id"), DefaultBranch: s("main"), RemoteUrl: s("https://remoteurl.u")},
-			},
+				{Name: s("missing_id"), DefaultBranch: s("main"), RemoteUrl: s("https://remoteurl.u")}},
 			expectedNumberOfRepos: 1,
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
+
 			gitClientMock := azureMock.Client{}
 			gitClientMock.On("GetRepositories", ctx, azureGit.GetRepositoriesArgs{Project: s(teamProject)}).Return(&testCase.repositories, testCase.getRepositoriesError)
 
@@ -487,7 +491,7 @@ func TestGetAzureDevopsRepositories(t *testing.T) {
 			repositories, err := provider.ListRepos(ctx, "https")
 
 			if testCase.getRepositoriesError != nil {
-				require.Error(t, err, "Expected an error from test case %v", testCase.name)
+				assert.Error(t, err, "Expected an error from test case %v", testCase.name)
 			}
 
 			if testCase.expectedNumberOfRepos == 0 {

@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"sigs.k8s.io/yaml"
-
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"sigs.k8s.io/yaml"
 )
 
 func getChartDetails(chartYAML string) (*v1alpha1.ChartDetails, error) {
