@@ -525,7 +525,10 @@ func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindows
 
 	res := &project.SyncWindowsResponse{}
 
-	windows := proj.Spec.SyncWindows.Active()
+	windows, err := proj.Spec.SyncWindows.Active()
+	if err != nil {
+		return nil, err
+	}
 	if windows.HasWindows() {
 		res.Windows = *windows
 	} else {
