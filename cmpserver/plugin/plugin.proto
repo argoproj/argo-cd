@@ -45,6 +45,12 @@ message ManifestResponse {
 
 message RepositoryResponse {
     bool isSupported = 1;
+    // IsDiscoveryEnabled is a flag that indicates if the CMP supports discovery.
+    //
+    // Deprecated: Use the IsDiscoveryConfigured field from the CheckPluginConfigurationResponse instead. Argo CD no
+    //             longer uses an expensive MatchRepository service to determine if discovery is enabled. Instead, we
+    //             make a relatively cheap pre-flight request to the CheckPluginConfiguration service. We'll leave this
+    //             field here to avoid errors on mismatched repo-server and cmp-server versions.
     bool isDiscoveryEnabled = 2;
 }
 
