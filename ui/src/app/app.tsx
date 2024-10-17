@@ -124,7 +124,7 @@ export class App extends React.Component<
 
     public async componentDidMount() {
         this.popupPropsSubscription = this.popupManager.popupProps.subscribe(popupProps => this.setState({popupProps}));
-        this.subscribeUnauthorized().then((subscription) => {
+        this.subscribeUnauthorized().then(subscription => {
             this.unauthorizedSubscription = subscription;
         });
         const authSettings = await services.authService.settings();
@@ -244,7 +244,7 @@ export class App extends React.Component<
                 if (history.location.pathname.startsWith('/login')) {
                     return;
                 }
-        
+
                 const isSSO = await isExpiredSSO();
                 // location might change after async method call, so we need to check again.
                 if (history.location.pathname.startsWith('/login')) {
@@ -255,7 +255,7 @@ export class App extends React.Component<
                 const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
                 if (isSSO) {
                     const authSettings = await services.authService.settings();
-        
+
                     if (authSettings?.oidcConfig?.enablePKCEAuthentication) {
                         pkceLogin(authSettings.oidcConfig, getPKCERedirectURI().toString()).catch(err => {
                             this.getChildContext().apis.notifications.show({
