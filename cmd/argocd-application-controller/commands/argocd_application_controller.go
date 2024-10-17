@@ -18,6 +18,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
+	commitclient "github.com/argoproj/argo-cd/v2/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/controller"
 	"github.com/argoproj/argo-cd/v2/controller/sharding"
@@ -57,6 +58,7 @@ func NewCommand() *cobra.Command {
 		repoErrorGracePeriod             int64
 		repoServerAddress                string
 		repoServerTimeoutSeconds         int
+		commitServerAddress              string
 		selfHealTimeoutSeconds           int
 		selfHealBackoffTimeoutSeconds    int
 		selfHealBackoffFactor            int
@@ -85,7 +87,8 @@ func NewCommand() *cobra.Command {
 		ignoreNormalizerOpts             normalizers.IgnoreNormalizerOpts
 
 		// argocd k8s event logging flag
-		enableK8sEvent []string
+		enableK8sEvent  []string
+		hydratorEnabled bool
 	)
 	command := cobra.Command{
 		Use:               cliName,
@@ -148,6 +151,8 @@ func NewCommand() *cobra.Command {
 
 			repoClientset := apiclient.NewRepoServerClientset(repoServerAddress, repoServerTimeoutSeconds, tlsConfig)
 
+			commitClientset := commitclient.NewCommitServerClientset(commitServerAddress)
+
 			cache, err := cacheSource()
 			errors.CheckError(err)
 			cache.Cache.SetClient(cacheutil.NewTwoLevelClient(cache.Cache.GetClient(), 10*time.Minute))
@@ -174,6 +179,7 @@ func NewCommand() *cobra.Command {
 				kubeClient,
 				appClient,
 				repoClientset,
+				commitClientset,
 				cache,
 				kubectl,
 				resyncDuration,
@@ -195,6 +201,7 @@ func NewCommand() *cobra.Command {
 				enableDynamicClusterDistribution,
 				ignoreNormalizerOpts,
 				enableK8sEvent,
+				hydratorEnabled,
 			)
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
@@ -237,6 +244,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().Int64Var(&repoErrorGracePeriod, "repo-error-grace-period-seconds", int64(env.ParseDurationFromEnv("ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS", defaultAppResyncPeriod*time.Second, 0, math.MaxInt64).Seconds()), "Grace period in seconds for ignoring consecutive errors while communicating with repo server.")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER", common.DefaultRepoServerAddr), "Repo server address.")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
+	command.Flags().StringVar(&commitServerAddress, "commit-server", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_COMMIT_SERVER", common.DefaultCommitServerAddr), "Commit server address.")
 	command.Flags().IntVar(&statusProcessors, "status-processors", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_STATUS_PROCESSORS", 20, 0, math.MaxInt32), "Number of application status processors")
 	command.Flags().IntVar(&operationProcessors, "operation-processors", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_OPERATION_PROCESSORS", 10, 0, math.MaxInt32), "Number of application operation processors")
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_LOGFORMAT", "text"), "Set the logging format. One of: text|json")
@@ -274,7 +282,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout-seconds", env.ParseDurationFromEnv("ARGOCD_IGNORE_NORMALIZER_JQ_TIMEOUT", 0*time.Second, 0, math.MaxInt64), "Set ignore normalizer JQ execution timeout")
 	// argocd k8s event logging flag
 	command.Flags().StringSliceVar(&enableK8sEvent, "enable-k8s-event", env.StringsFromEnv("ARGOCD_ENABLE_K8S_EVENT", argo.DefaultEnableEventList(), ","), "Enable ArgoCD to use k8s event. For disabling all events, set the value as `none`. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated)")
-
+	command.Flags().BoolVar(&hydratorEnabled, "hydrator-enabled", env.ParseBoolFromEnv("ARGOCD_HYDRATOR_ENABLED", false), "Feature flag to enable Hydrator. Default (\"false\")")
 	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {
 			redisClient = client

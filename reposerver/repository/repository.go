@@ -1136,6 +1136,9 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		if appHelm.ReleaseName != "" {
 			templateOpts.Name = appHelm.ReleaseName
 		}
+		if appHelm.Namespace != "" {
+			templateOpts.Namespace = appHelm.Namespace
+		}
 
 		resolvedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, env, q.GetValuesFileSchemes(), appHelm.ValueFiles, q.RefSources, gitRepoPaths, appHelm.IgnoreMissingValueFiles)
 		if err != nil {

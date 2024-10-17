@@ -895,7 +895,7 @@ func (c *repositoryServiceClient) ListRefs(ctx context.Context, in *RepoQuery, o
 
 func (c *repositoryServiceClient) ListApps(ctx context.Context, in *RepoAppsQuery, opts ...grpc.CallOption) (*RepoAppsResponse, error) {
 	out := new(RepoAppsResponse)
-	err := c.cc.Invoke(ctx, "/repository.RepositoryService/ListApps", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/repository.RepositoryService/GetProcessableApps", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1034,7 +1034,7 @@ func (*UnimplementedRepositoryServiceServer) ListRefs(ctx context.Context, req *
 	return nil, status.Errorf(codes.Unimplemented, "method ListRefs not implemented")
 }
 func (*UnimplementedRepositoryServiceServer) ListApps(ctx context.Context, req *RepoAppsQuery) (*RepoAppsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListApps not implemented")
+	return nil, status.Errorf(codes.Unimplemented, "method GetProcessableApps not implemented")
 }
 func (*UnimplementedRepositoryServiceServer) GetAppDetails(ctx context.Context, req *RepoAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAppDetails not implemented")
@@ -1150,7 +1150,7 @@ func _RepositoryService_ListApps_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/repository.RepositoryService/ListApps",
+		FullMethod: "/repository.RepositoryService/GetProcessableApps",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RepositoryServiceServer).ListApps(ctx, req.(*RepoAppsQuery))
@@ -1341,7 +1341,7 @@ var _RepositoryService_serviceDesc = grpc.ServiceDesc{
 			Handler:    _RepositoryService_ListRefs_Handler,
 		},
 		{
-			MethodName: "ListApps",
+			MethodName: "GetProcessableApps",
 			Handler:    _RepositoryService_ListApps_Handler,
 		},
 		{
