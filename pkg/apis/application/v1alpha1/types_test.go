@@ -1448,6 +1448,27 @@ func TestApplicationSource_IsZero(t *testing.T) {
 	}
 }
 
+func TestApplicationSource_Equals(t *testing.T) {
+	t.Run("Escaped Characters", func(t *testing.T) {
+		src1 := ApplicationSource{
+			Helm: &ApplicationSourceHelm{
+				ValuesObject: &runtime.RawExtension{
+					Raw: []byte(`{"Test":"testvalue&<>  "}`),
+				},
+			},
+		}
+		src2 := ApplicationSource{
+			Helm: &ApplicationSourceHelm{
+				ValuesObject: &runtime.RawExtension{
+					Raw: []byte(`{"Test":"testvalue\u0026\u003c\u003e\u2028\u2029"}`),
+				},
+			},
+		}
+
+		assert.True(t, src1.Equals(&src2))
+	})
+}
+
 func TestApplicationSourceHelm_AddParameter(t *testing.T) {
 	src := ApplicationSourceHelm{}
 	t.Run("Add", func(t *testing.T) {
