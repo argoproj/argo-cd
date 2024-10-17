@@ -7871,22 +7871,6 @@ func schema_pkg_apis_application_v1alpha1_SyncStatus(ref common.ReferenceCallbac
 							},
 						},
 					},
-					"manifestsChanged": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ManifestsChanged indicates whether the manifests have changed base on argocd.argoproj.io/manifest-generate-paths annotation",
-							Type:        []string{"object"},
-							AdditionalProperties: &spec.SchemaOrBool{
-								Allows: true,
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: false,
-										Type:    []string{"boolean"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
 				},
 				Required: []string{"status"},
 			},

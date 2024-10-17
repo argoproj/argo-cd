@@ -2096,72 +2096,6 @@ func TestAddControllerNamespace(t *testing.T) {
 	})
 }
 
-func TestAlreadyAttemptSync(t *testing.T) {
-	app := newFakeApp()
-	t.Run("same manifest with sync result, with disabled flag", func(t *testing.T) {
-		manifestChangedMap := make(map[string]bool)
-		manifestChangedMap["sha"] = false
-
-		app.Status.Sync.ManifestsChanged = manifestChangedMap
-
-		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, nil)
-		assert.False(t, attempted)
-	})
-
-	t.Run("same manifest with sync result, with enabled flag", func(t *testing.T) {
-		_ = os.Setenv("PERSIST_CHANGE_REVISIONS", "1")
-
-		manifestChangedMap := make(map[string]bool)
-		manifestChangedMap["sha"] = false
-
-		app.Status.Sync.ManifestsChanged = manifestChangedMap
-
-		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, manifestChangedMap)
-		assert.True(t, attempted)
-	})
-
-	t.Run("different manifest with sync result, with disabled flag", func(t *testing.T) {
-		manifestChangedMap := make(map[string]bool)
-		manifestChangedMap["sha"] = true
-
-		app.Status.Sync.ManifestsChanged = manifestChangedMap
-
-		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, nil)
-		assert.False(t, attempted)
-	})
-
-	t.Run("different manifest with sync result, with enabled flag", func(t *testing.T) {
-		_ = os.Setenv("PERSIST_CHANGE_REVISIONS", "1")
-
-		manifestChangedMap := make(map[string]bool)
-		manifestChangedMap["sha"] = true
-
-		app.Status.Sync.ManifestsChanged = manifestChangedMap
-
-		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, manifestChangedMap)
-		assert.False(t, attempted)
-	})
-
-	t.Run("different manifest with sync result, with enabled flag", func(t *testing.T) {
-		_ = os.Setenv("PERSIST_CHANGE_REVISIONS", "1")
-
-		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, nil)
-		assert.False(t, attempted)
-	})
-
-	t.Run("different manifest with sync result, with enabled flag v2", func(t *testing.T) {
-		_ = os.Setenv("PERSIST_CHANGE_REVISIONS", "1")
-
-		manifestChangedMap := make(map[string]bool)
-		manifestChangedMap["sha"] = false
-
-		app.Status.Sync.ManifestsChanged = manifestChangedMap
-
-		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, manifestChangedMap)
-		assert.True(t, attempted)
-	})
-}
-
 func TestHelmValuesObjectHasReplaceStrategy(t *testing.T) {
 	app := v1alpha1.Application{
 		Status: v1alpha1.ApplicationStatus{Sync: v1alpha1.SyncStatus{ComparedTo: v1alpha1.ComparedTo{
@@ -2222,4 +2156,17 @@ func TestAppStatusIsReplaced(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, has)
 	require.Nil(t, val)
+}
+
+func TestAlreadyAttemptSync(t *testing.T) {
+	app := newFakeApp()
+	t.Run("same manifest with sync result", func(t *testing.T) {
+		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, false)
+		assert.True(t, attempted)
+	})
+
+	t.Run("different manifest with sync result", func(t *testing.T) {
+		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, true)
+		assert.False(t, attempted)
+	})
 }

@@ -9446,13 +9446,6 @@
         "comparedTo": {
           "$ref": "#/definitions/v1alpha1ComparedTo"
         },
-        "manifestsChanged": {
-          "type": "object",
-          "title": "ManifestsChanged indicates whether the manifests have changed base on argocd.argoproj.io/manifest-generate-paths annotation",
-          "additionalProperties": {
-            "type": "boolean"
-          }
-        },
         "revision": {
           "type": "string",
           "title": "Revision contains information about the revision the comparison has been performed to"

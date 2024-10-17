@@ -1531,8 +1531,6 @@ type SyncStatus struct {
 	Revision string `json:"revision,omitempty" protobuf:"bytes,3,opt,name=revision"`
 	// Revisions contains information about the revisions of multiple sources the comparison has been performed to
 	Revisions []string `json:"revisions,omitempty" protobuf:"bytes,4,opt,name=revisions"`
-	// ManifestsChanged indicates whether the manifests have changed base on argocd.argoproj.io/manifest-generate-paths annotation
-	ManifestsChanged map[string]bool `json:"manifestsChanged,omitempty" protobuf:"bytes,5,opt,name=manifestsChanged"`
 }
 
 // HealthStatus contains information about the currently observed health state of an application or resource

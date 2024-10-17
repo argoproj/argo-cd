@@ -5040,13 +5040,6 @@ spec:
                     required:
                     - destination
                     type: object
-                  manifestsChanged:
-                    additionalProperties:
-                      type: boolean
-                    description: ManifestsChanged indicates whether the manifests
-                      have changed base on argocd.argoproj.io/manifest-generate-paths
-                      annotation
-                    type: object
                   revision:
                     description: Revision contains information about the revision
                       the comparison has been performed to
