@@ -992,15 +992,15 @@ func (a *ApplicationStatus) GetRevisions() []string {
 
 // BuildComparedToStatus will build a ComparedTo object based on the current
 // Application state.
-func (app *Application) BuildComparedToStatus() ComparedTo {
+func (spec *ApplicationSpec) BuildComparedToStatus() ComparedTo {
 	ct := ComparedTo{
-		Destination:       app.Spec.Destination,
-		IgnoreDifferences: app.Spec.IgnoreDifferences,
+		Destination:       spec.Destination,
+		IgnoreDifferences: spec.IgnoreDifferences,
 	}
-	if app.Spec.HasMultipleSources() {
-		ct.Sources = app.Spec.Sources
+	if spec.HasMultipleSources() {
+		ct.Sources = spec.Sources
 	} else {
-		ct.Source = app.Spec.GetSource()
+		ct.Source = spec.GetSource()
 	}
 	return ct
 }
