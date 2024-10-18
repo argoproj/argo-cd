@@ -182,6 +182,9 @@ const (
 	AnnotationKeyAppInstance = "argocd.argoproj.io/tracking-id"
 	AnnotationInstallationID = "argocd.argoproj.io/installation-id"
 
+	// AnnotationKeyAppInstanceID is the Argo CD server URL that is managing this resource
+	AnnotationKeyAppInstanceID = "argocd.argoproj.io/instance-id"
+
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
 	AnnotationCompareOptions = "argocd.argoproj.io/compare-options"
 
