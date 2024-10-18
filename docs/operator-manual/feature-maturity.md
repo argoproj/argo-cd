@@ -42,9 +42,9 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 
 | Feature                         | Property                                                                                | Status |
 | ------------------------------- | --------------------------------------------------------------------------------------- | ------ |
-| [Skip Application Reconcile][4] | `metadata.annotations[argocd.argoproj.io/skip-reconcile]`                               | Alpha  |
 | [Server Side Diff][8]           | `metadata.annotations[argocd.argoproj.io/compare-options]: ServerSideDiff=true`         | Beta   |
 | [Server Side Diff][8]           | `metadata.annotations[argocd.argoproj.io/compare-options]: IncludeMutationWebhook=true` | Beta   |
+| [Skip Application Reconcile][4] | `metadata.annotations[argocd.argoproj.io/skip-reconcile]`                               | Alpha  |
 
 ### AppProject CRD
 
@@ -63,23 +63,23 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 
 | Feature                                   | Resource                                      | Property / Variable                                         | Status |
 | ----------------------------------------- | --------------------------------------------- | ----------------------------------------------------------- | ------ |
-| [AppSet Progressive Syncs][2]             | `ConfigMap/argocd-cmd-params-cm`              | `applicationsetcontroller.enable.progressive.syncs`         | Alpha  |
-| [AppSet Progressive Syncs][2]             | `Deployment/argocd-applicationset-controller` | `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS` | Alpha  |
-| [Proxy Extensions][3]                     | `ConfigMap/argocd-cmd-params-cm`              | `server.enable.proxy.extension`                             | Alpha  |
-| [Proxy Extensions][3]                     | `Deployment/argocd-server`                    | `ARGOCD_SERVER_ENABLE_PROXY_EXTENSION`                      | Alpha  |
-| [Proxy Extensions][3]                     | `ConfigMap/argocd-cm`                         | `extension.config`                                          | Alpha  |
 | [AppSets in any Namespace][5]             | `Deployment/argocd-applicationset-controller` | `ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS`    | Beta   |
 | [AppSets in any Namespace][5]             | `ConfigMap/argocd-cmd-params-cm`              | `applicationsetcontroller.allowed.scm.providers`            | Beta   |
 | [AppSets in any Namespace][5]             | `ConfigMap/argocd-cmd-params-cm`              | `applicationsetcontroller.enable.scm.providers`             | Beta   |
 | [AppSets in any Namespace][5]             | `Deployment/argocd-applicationset-controller` | `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS`     | Beta   |
 | [AppSets in any Namespace][5]             | `Deployment/argocd-applicationset-controller` | `ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES`               | Beta   |
 | [AppSets in any Namespace][5]             | `ConfigMap/argocd-cmd-params-cm`              | `applicationsetcontroller.namespaces`                       | Beta   |
+| [Server Side Diff][8]                     | `ConfigMap/argocd-cmd-params-cm`              | `controller.diff.server.side`                               | Beta   |
+| [Server Side Diff][8]                     | `StatefulSet/argocd-application-controller`   | `ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF`            | Beta   |
+| [AppSet Progressive Syncs][2]             | `ConfigMap/argocd-cmd-params-cm`              | `applicationsetcontroller.enable.progressive.syncs`         | Alpha  |
+| [AppSet Progressive Syncs][2]             | `Deployment/argocd-applicationset-controller` | `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS` | Alpha  |
+| [Proxy Extensions][3]                     | `ConfigMap/argocd-cmd-params-cm`              | `server.enable.proxy.extension`                             | Alpha  |
+| [Proxy Extensions][3]                     | `Deployment/argocd-server`                    | `ARGOCD_SERVER_ENABLE_PROXY_EXTENSION`                      | Alpha  |
+| [Proxy Extensions][3]                     | `ConfigMap/argocd-cm`                         | `extension.config`                                          | Alpha  |
 | [Dynamic Cluster Distribution][7]         | `Deployment/argocd-application-controller`    | `ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION`                | Alpha  |
 | [Dynamic Cluster Distribution][7]         | `Deployment/argocd-application-controller`    | `ARGOCD_CONTROLLER_HEARTBEAT_TIME`                          | Alpha  |
 | [Cluster Sharding: round-robin][6]        | `ConfigMap/argocd-cmd-params-cm`              | `controller.sharding.algorithm: round-robin`                | Alpha  |
 | [Cluster Sharding: round-robin][6]        | `StatefulSet/argocd-application-controller`   | `ARGOCD_CONTROLLER_SHARDING_ALGORITHM=round-robin`          | Alpha  |
 | [Cluster Sharding: consistent-hashing][9] | `ConfigMap/argocd-cmd-params-cm`              | `controller.sharding.algorithm: consistent-hashing`         | Alpha  |
 | [Cluster Sharding: consistent-hashing][9] | `StatefulSet/argocd-application-controller`   | `ARGOCD_CONTROLLER_SHARDING_ALGORITHM=consistent-hashing`   | Alpha  |
-| [Server Side Diff][8]                     | `ConfigMap/argocd-cmd-params-cm`              | `controller.diff.server.side`                               | Beta   |
-| [Server Side Diff][8]                     | `StatefulSet/argocd-application-controller`   | `ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF`            | Beta   |
 | [Service Account Impersonation][10]       | `ConfigMap/argocd-cm`                         | `application.sync.impersonation.enabled`                    | Alpha  |
