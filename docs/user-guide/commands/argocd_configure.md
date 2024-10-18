@@ -1,49 +1,48 @@
-# `argocd proj role delete-token` Command Reference
+# `argocd configure` Command Reference
 
-## argocd proj role delete-token
+## argocd configure
 
-Delete a project token
+Manage local configuration
 
 ```
-argocd proj role delete-token PROJECT ROLE-NAME ISSUED-AT [flags]
+argocd configure [flags]
 ```
 
 ### Examples
 
 ```
-#Create project test-project
-$ argocd proj create test-project
+# Enable optional interactive prompts
+argocd configure --prompts-enabled
+argocd configure --prompts-enabled=true
 
-# Create a role associated with test-project
-$ argocd proj role create test-project test-role
-Role 'test-role' created
-
-# Create test-role associated with test-project
-$ argocd proj role create-token test-project test-role
-Create token succeeded for proj:test-project:test-role.
-  ID: c312450e-12e1-4e0d-9f65-fac9cb027b32
-  Issued At: 2023-10-08T13:58:57+01:00
-  Expires At: Never
-  Token: xxx
-
-# Get test-role id to input into the delete-token command below
-$ argocd proj role get test-project test-role
-Role Name:     test-role
-Description:
-Policies:
-p, proj:test-project:test-role, projects, get, test-project, allow
-JWT Tokens:
-ID          ISSUED-AT                                  EXPIRES-AT
-1696769937  2023-10-08T13:58:57+01:00 (6 minutes ago)  <none>
-
-$ argocd proj role delete-token test-project test-role 1696769937
-
+# Disable optional interactive prompts
+argocd configure --prompts-enabled=false
 ```
 
 ### Options
 
 ```
-  -h, --help   help for delete-token
+      --as string                      Username to impersonate for the operation
+      --as-group stringArray           Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --as-uid string                  UID to impersonate for the operation
+      --certificate-authority string   Path to a cert file for the certificate authority
+      --client-certificate string      Path to a client certificate file for TLS
+      --client-key string              Path to a client key file for TLS
+      --cluster string                 The name of the kubeconfig cluster to use
+      --context string                 The name of the kubeconfig context to use
+      --disable-compression            If true, opt-out of response compression for all requests to the server
+  -h, --help                           help for configure
+      --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
+      --kubeconfig string              Path to a kube config. Only required if out-of-cluster
+  -n, --namespace string               If present, the namespace scope for this CLI request
+      --password string                Password for basic authentication to the API server
+      --prompts-enabled                Enable (or disable) optional interactive prompts
+      --proxy-url string               If provided, this URL will be used to connect via proxy
+      --request-timeout string         The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
+      --tls-server-name string         If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
+      --token string                   Bearer token for authentication to the API server
+      --user string                    The name of the kubeconfig user to use
+      --username string                Username for basic authentication to the API server
 ```
 
 ### Options inherited from parent commands
@@ -78,5 +77,5 @@ $ argocd proj role delete-token test-project test-role 1696769937
 
 ### SEE ALSO
 
-* [argocd proj role](argocd_proj_role.md)	 - Manage a project's roles
+* [argocd](argocd.md)	 - argocd controls a Argo CD server
 
