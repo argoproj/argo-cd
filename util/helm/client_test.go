@@ -306,7 +306,6 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 }
 
 func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
-
 	bearerToken := "Zm9vOmJhcg=="
 	expectedAuthorization := "Basic " + bearerToken
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

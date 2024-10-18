@@ -2431,7 +2431,6 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 		if err != nil {
 			return nil, "", fmt.Errorf("unable to get tags: %w", err)
 		}
-
 	} else {
 		index, err := helmClient.GetIndex(noRevisionCache, s.initConstants.HelmRegistryMaxIndexSize)
 		if err != nil {
