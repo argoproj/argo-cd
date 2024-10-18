@@ -24,6 +24,10 @@ type fakeIndexCache struct {
 	data []byte
 }
 
+type fakeTagsList struct {
+	Tags []string `json:"tags"`
+}
+
 func (f *fakeIndexCache) SetHelmIndex(_ string, indexData []byte) error {
 	f.data = indexData
 	return nil
@@ -57,7 +61,7 @@ func TestIndex(t *testing.T) {
 	})
 
 	t.Run("Cached", func(t *testing.T) {
-		fakeIndex := Index{Entries: map[string][]string{"fake": {}}}
+		fakeIndex := Index{Entries: map[string]Entries{"fake": {}}}
 		data := bytes.Buffer{}
 		err := yaml.NewEncoder(&data).Encode(fakeIndex)
 		require.NoError(t, err)
@@ -169,19 +173,23 @@ func TestGetTagsFromUrl(t *testing.T) {
 	t.Run("should return tags correctly while following the link header", func(t *testing.T) {
 		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			t.Logf("called %s", r.URL.Path)
-			var responseTags []string
+			var responseTags fakeTagsList
 			w.Header().Set("Content-Type", "application/json")
 			if !strings.Contains(r.URL.String(), "token") {
 				w.Header().Set("Link", fmt.Sprintf("<https://%s%s?token=next-token>; rel=next", r.Host, r.URL.Path))
-				responseTags = []string{"first"}
+				responseTags = fakeTagsList{
+					Tags: []string{"first"},
+				}
 			} else {
-				responseTags = []string{
-					"second",
-					"2.8.0",
-					"2.8.0-prerelease",
-					"2.8.0_build",
-					"2.8.0-prerelease_build",
-					"2.8.0-prerelease.1_build.1234",
+				responseTags = fakeTagsList{
+					Tags: []string{
+						"second",
+						"2.8.0",
+						"2.8.0-prerelease",
+						"2.8.0_build",
+						"2.8.0-prerelease_build",
+						"2.8.0-prerelease.1_build.1234",
+					},
 				}
 			}
 			w.WriteHeader(http.StatusOK)
@@ -231,12 +239,14 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 
 		assert.Equal(t, expectedAuthorization, authorization)
 
-		responseTags := []string{
-			"2.8.0",
-			"2.8.0-prerelease",
-			"2.8.0_build",
-			"2.8.0-prerelease_build",
-			"2.8.0-prerelease.1_build.1234",
+		responseTags := fakeTagsList{
+			Tags: []string{
+				"2.8.0",
+				"2.8.0-prerelease",
+				"2.8.0_build",
+				"2.8.0-prerelease_build",
+				"2.8.0-prerelease.1_build.1234",
+			},
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -296,6 +306,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 }
 
 func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
+
 	bearerToken := "Zm9vOmJhcg=="
 	expectedAuthorization := "Basic " + bearerToken
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -310,12 +321,14 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 
 		assert.Equal(t, expectedAuthorization, authorization)
 
-		responseTags := []string{
-			"2.8.0",
-			"2.8.0-prerelease",
-			"2.8.0_build",
-			"2.8.0-prerelease_build",
-			"2.8.0-prerelease.1_build.1234",
+		responseTags := fakeTagsList{
+			Tags: []string{
+				"2.8.0",
+				"2.8.0-prerelease",
+				"2.8.0_build",
+				"2.8.0-prerelease_build",
+				"2.8.0-prerelease.1_build.1234",
+			},
 		}
 
 		w.Header().Set("Content-Type", "application/json")

@@ -18,7 +18,7 @@ var tags = []string{
 	"0.5.0",
 }
 
-func TestTagsList_MaxVersion(t *testing.T) {
+func TestTags_MaxVersion(t *testing.T) {
 	t.Run("Exact", func(t *testing.T) {
 		version, err := MaxVersion("0.5.3", tags)
 		require.NoError(t, err)

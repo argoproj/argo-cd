@@ -2420,7 +2420,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, noRevisionCache bool) (helm.Client, string, error) {
 	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
 	helmClient := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), enableOCI, repo.Proxy, repo.NoProxy, helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths))
-	if !versions.IsConstraint(revision) {
+	if versions.IsVersion(revision) {
 		return helmClient, revision, nil
 	}
 
@@ -2437,10 +2437,11 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 		if err != nil {
 			return nil, "", err
 		}
-		tags, err = index.GetTags(chart)
+		entries, err := index.GetEntries(chart)
 		if err != nil {
 			return nil, "", err
 		}
+		tags = entries.Tags()
 	}
 
 	version, err := versions.MaxVersion(revision, tags)
@@ -2535,7 +2536,7 @@ func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequ
 	for chartName, entries := range index.Entries {
 		res.Items = append(res.Items, &apiclient.HelmChart{
 			Name:     chartName,
-			Versions: entries,
+			Versions: entries.Tags(),
 		})
 	}
 	return &res, nil

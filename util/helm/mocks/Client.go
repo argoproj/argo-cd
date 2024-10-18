@@ -104,7 +104,7 @@ func (_m *Client) GetTags(chart string, noCache bool) ([]string, error) {
 	ret := _m.Called(chart, noCache)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetTags")
+		panic("no return value specified for GetEntries")
 	}
 
 	var r0 []string
