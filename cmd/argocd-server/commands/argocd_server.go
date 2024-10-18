@@ -247,11 +247,11 @@ func NewCommand() *cobra.Command {
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
-			argocd := server.NewServer(ctx, argoCDOpts, appsetOpts)
-			argocd.Init(ctx)
-			lns, err := argocd.Listen()
-			errors.CheckError(err)
 			for {
+				argocd := server.NewServer(ctx, argoCDOpts, appsetOpts)
+				argocd.Init(ctx)
+				lns, err := argocd.Listen()
+				errors.CheckError(err)
 				var closer func()
 				ctx, cancel := context.WithCancel(ctx)
 				if otlpAddress != "" {
@@ -265,6 +265,7 @@ func NewCommand() *cobra.Command {
 				if closer != nil {
 					closer()
 				}
+				lns.Close()
 			}
 		},
 		Example: templates.Examples(`
