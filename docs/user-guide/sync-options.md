@@ -167,13 +167,8 @@ metadata:
 
 ## Force Sync
 
-For certain resources you might want to delete and recreate. e.g. job resources that should run every time when syncing.
-
-!!! warning
-      During the sync process, the resources will be synchronized using the 'kubectl delete/create' command.
-      This sync option has a destructive action, which could cause an outage for your application.
-
-In such cases you might use `Force=true` sync option in target resources annotation:
+For certain resources, e.g. Jobs that should run on every sync operation, you might want to delete and recreate them.
+This can be achieved by setting the `Force` sync option using an annotation on the target resources:
 
 ```yaml
 metadata:
@@ -182,7 +177,8 @@ metadata:
 ```
 
 !!! warning
-      Setting `Force=true` is equivalent to using the `--force` flag in `kubectl`.
+      Using the `Force=true` sync option bypasses graceful deletion in the same way `kubectl apply --force` does.
+      This is a potentially destructive action and will immediately remove resources from the API and bypasses graceful deletion. Immediate deletion of some resources may result in inconsistency or data loss.
       This may have unintended consequences for some resources ([for example Pods](https://kubernetes.io/docs/tasks/run-application/force-delete-stateful-set-pod/#force-deletion))!
 
 ## Force and Replace
