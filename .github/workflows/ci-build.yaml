@@ -308,7 +308,7 @@ jobs:
         uses: actions/setup-node@0a44ba7841725637a19e28fa30b79a866c81b0a6 # v4.0.4
         with:
           # renovate: datasource=node-version packageName=node versioning=node
-          node-version: '22.9.0'
+          node-version: '22.10.0'
       - name: Restore node dependency cache
         id: cache-dependencies
         uses: actions/cache@3624ceb22c1c5a301c8db4169662070a689d9ea8 # v4.1.1
