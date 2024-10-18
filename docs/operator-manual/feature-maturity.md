@@ -4,6 +4,7 @@ Argo CD features may be marked with a certain [status](https://github.com/argopr
 to indicate their stability and maturity. These are the statuses of non-stable features in Argo CD:
 
 TODO: add alpha admonition warning
+if it is a spec, annotation or configmap config, they are all subject to breaking changes and removal
 
 ## Overview
 
@@ -31,24 +32,32 @@ TODO: add alpha admonition warning
 
 ### Application CRD
 
-| Feature      | Property | Status |
-| ------------ | -------- | ------ |
-| [TODO][TODO] | `TODO`   | TODO   |
+| Feature                             | Property                                                                                | Status |
+| ----------------------------------- | --------------------------------------------------------------------------------------- | ------ |
+| [Structured Merge Diff Strategy][1] | `metadata.annotations[argocd.argoproj.io/compare-options]: ServerSideDiff=true`         | Beta   |
+| [Structured Merge Diff Strategy][1] | `metadata.annotations[argocd.argoproj.io/compare-options]: IncludeMutationWebhook=true` | Beta   |
+| TODO                                | `TODO`                                                                                  | TODO   |
 
 ### AppProject CRD
 
-| Feature      | Property | Status |
-| ------------ | -------- | ------ |
-| [TODO][TODO] | `TODO`   | TODO   |
+| Feature | Property | Status |
+| ------- | -------- | ------ |
+| TODO    | `TODO`   | TODO   |
+| TODO    | `TODO`   | TODO   |
 
 ### ApplicationSet CRD
 
-| Feature      | Property | Status |
-| ------------ | -------- | ------ |
-| [TODO][TODO] | `TODO`   | TODO   |
+| Feature                       | Property                   | Status |
+| ----------------------------- | -------------------------- | ------ |
+| [AppSet Progressive Syncs][2] | `spec.strategy`            | Alpha  |
+| [AppSet Progressive Syncs][2] | `status.applicationStatus` | Alpha  |
+| TODO                          | `TODO`                     | TODO   |
 
 ### Configuration
 
-| Feature      | Object | Property / Variable | Status |
-| ------------ | ------ | ------------------- | ------ |
-| [TODO][TODO] | `TODO` | `TODO`              | TODO   |
+| Feature                             | Object                                        | Property / Variable                                         | Status |
+| ----------------------------------- | --------------------------------------------- | ----------------------------------------------------------- | ------ |
+| [Structured Merge Diff Strategy][1] | `ConfigMap/argocd-cmd-params-cm`              | `controller.diff.server.side`                               | Beta   |
+| [Structured Merge Diff Strategy][1] | `StatefulSet/argocd-application-controller`   | `ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF`            | Beta   |
+| [AppSet Progressive Syncs][2]       | `ConfigMap/argocd-cmd-params-cm`              | `applicationsetcontroller.enable.progressive.syncs`         | Alpha  |
+| [AppSet Progressive Syncs][2]       | `Deployment/argocd-applicationset-controller` | `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS` | Alpha  |
