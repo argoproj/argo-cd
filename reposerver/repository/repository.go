@@ -1136,6 +1136,9 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		if appHelm.ReleaseName != "" {
 			templateOpts.Name = appHelm.ReleaseName
 		}
+		if appHelm.Namespace != "" {
+			templateOpts.Namespace = appHelm.Namespace
+		}
 
 		resolvedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, env, q.GetValuesFileSchemes(), appHelm.ValueFiles, q.RefSources, gitRepoPaths, appHelm.IgnoreMissingValueFiles)
 		if err != nil {
@@ -2510,7 +2513,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		}
 	}
 
-	err = gitClient.Checkout(revision, submoduleEnabled)
+	_, err = gitClient.Checkout(revision, submoduleEnabled)
 	if err != nil {
 		// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If checkout fails
 		// for the given revision, try explicitly fetching it.
@@ -2522,7 +2525,7 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 		}
 
-		err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
+		_, err = gitClient.Checkout("FETCH_HEAD", submoduleEnabled)
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
 		}
