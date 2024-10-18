@@ -477,7 +477,7 @@ func TestExecuteOldStyleResourceAction(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	expectedLuaUpdatedObj := StrToUnstructured(expectedLuaUpdatedResult)
 	vm := VM{}
-	newObjects, err := vm.ExecuteResourceAction(testObj, validActionLua)
+	newObjects, err := vm.ExecuteResourceAction(testObj, validActionLua, nil)
 	require.NoError(t, err)
 	assert.Len(t, newObjects, 1)
 	assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
@@ -650,7 +650,7 @@ func TestExecuteNewStyleCreateActionSingleResource(t *testing.T) {
 	expectedObjects, err := UnmarshalToImpactedResources(bytes.NewBuffer(jsonBytes).String())
 	require.NoError(t, err)
 	vm := VM{}
-	newObjects, err := vm.ExecuteResourceAction(testObj, createJobActionLua)
+	newObjects, err := vm.ExecuteResourceAction(testObj, createJobActionLua, nil)
 	require.NoError(t, err)
 	assert.Equal(t, expectedObjects, newObjects)
 }
@@ -663,7 +663,7 @@ func TestExecuteNewStyleCreateActionMultipleResources(t *testing.T) {
 	expectedObjects, err := UnmarshalToImpactedResources(bytes.NewBuffer(jsonBytes).String())
 	require.NoError(t, err)
 	vm := VM{}
-	newObjects, err := vm.ExecuteResourceAction(testObj, createMultipleJobsActionLua)
+	newObjects, err := vm.ExecuteResourceAction(testObj, createMultipleJobsActionLua, nil)
 	require.NoError(t, err)
 	assert.Equal(t, expectedObjects, newObjects)
 }
@@ -676,7 +676,7 @@ func TestExecuteNewStyleActionMixedOperationsOk(t *testing.T) {
 	expectedObjects, err := UnmarshalToImpactedResources(bytes.NewBuffer(jsonBytes).String())
 	require.NoError(t, err)
 	vm := VM{}
-	newObjects, err := vm.ExecuteResourceAction(testObj, mixedOperationActionLuaOk)
+	newObjects, err := vm.ExecuteResourceAction(testObj, mixedOperationActionLuaOk, nil)
 	require.NoError(t, err)
 	assert.Equal(t, expectedObjects, newObjects)
 }
@@ -684,14 +684,14 @@ func TestExecuteNewStyleActionMixedOperationsOk(t *testing.T) {
 func TestExecuteNewStyleActionMixedOperationsFailure(t *testing.T) {
 	testObj := StrToUnstructured(cronJobObjYaml)
 	vm := VM{}
-	_, err := vm.ExecuteResourceAction(testObj, createMixedOperationActionLuaFailing)
+	_, err := vm.ExecuteResourceAction(testObj, createMixedOperationActionLuaFailing, nil)
 	assert.ErrorContains(t, err, "unsupported operation")
 }
 
 func TestExecuteResourceActionNonTableReturn(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	_, err := vm.ExecuteResourceAction(testObj, returnInt)
+	_, err := vm.ExecuteResourceAction(testObj, returnInt, nil)
 	assert.Errorf(t, err, incorrectReturnType, "table", "number")
 }
 
@@ -703,7 +703,7 @@ return newObj
 func TestExecuteResourceActionInvalidUnstructured(t *testing.T) {
 	testObj := StrToUnstructured(objJSON)
 	vm := VM{}
-	_, err := vm.ExecuteResourceAction(testObj, invalidTableReturn)
+	_, err := vm.ExecuteResourceAction(testObj, invalidTableReturn, nil)
 	require.Error(t, err)
 }
 
@@ -758,7 +758,7 @@ func TestCleanPatch(t *testing.T) {
 	testObj := StrToUnstructured(objWithEmptyStruct)
 	expectedObj := StrToUnstructured(expectedUpdatedObjWithEmptyStruct)
 	vm := VM{}
-	newObjects, err := vm.ExecuteResourceAction(testObj, pausedToFalseLua)
+	newObjects, err := vm.ExecuteResourceAction(testObj, pausedToFalseLua, nil)
 	require.NoError(t, err)
 	assert.Len(t, newObjects, 1)
 	assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))

@@ -150,7 +150,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				require.NoError(t, err)
 
 				require.NoError(t, err)
-				impactedResources, err := vm.ExecuteResourceAction(sourceObj, action.ActionLua)
+				impactedResources, err := vm.ExecuteResourceAction(sourceObj, action.ActionLua, nil)
 				require.NoError(t, err)
 
 				// Treat the Lua expected output as a list
