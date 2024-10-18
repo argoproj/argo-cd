@@ -2261,11 +2261,11 @@ func (s *SyncWindows) HasWindows() bool {
 }
 
 // Active returns a list of sync windows that are currently active
-func (s *SyncWindows) Active() *SyncWindows {
+func (s *SyncWindows) Active() (*SyncWindows, error) {
 	return s.active(time.Now())
 }
 
-func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
+func (s *SyncWindows) active(currentTime time.Time) (*SyncWindows, error) {
 	// If SyncWindows.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before we scan through the SyncWindows.
 	currentTime = currentTime.In(time.UTC)
@@ -2274,8 +2274,14 @@ func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
 		var active SyncWindows
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 		for _, w := range *s {
-			schedule, _ := specParser.Parse(w.Schedule)
-			duration, _ := time.ParseDuration(w.Duration)
+			schedule, sErr := specParser.Parse(w.Schedule)
+			if sErr != nil {
+				return nil, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
+			}
+			duration, dErr := time.ParseDuration(w.Duration)
+			if dErr != nil {
+				return nil, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
+			}
 
 			// Offset the nextWindow time to consider the timeZone of the sync window
 			timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
@@ -2285,20 +2291,20 @@ func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
 			}
 		}
 		if len(active) > 0 {
-			return &active
+			return &active, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // InactiveAllows will iterate over the SyncWindows and return all inactive allow windows
 // for the current time. If the current time is in an inactive allow window, syncs will
 // be denied.
-func (s *SyncWindows) InactiveAllows() *SyncWindows {
+func (s *SyncWindows) InactiveAllows() (*SyncWindows, error) {
 	return s.inactiveAllows(time.Now())
 }
 
-func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
+func (s *SyncWindows) inactiveAllows(currentTime time.Time) (*SyncWindows, error) {
 	// If SyncWindows.InactiveAllows() is called outside of a UTC locale, it should be
 	// first converted to UTC before we scan through the SyncWindows.
 	currentTime = currentTime.In(time.UTC)
@@ -2309,21 +2315,27 @@ func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
 		for _, w := range *s {
 			if w.Kind == "allow" {
 				schedule, sErr := specParser.Parse(w.Schedule)
+				if sErr != nil {
+					return nil, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
+				}
 				duration, dErr := time.ParseDuration(w.Duration)
+				if dErr != nil {
+					return nil, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
+				}
 				// Offset the nextWindow time to consider the timeZone of the sync window
 				timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
 				nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
 
-				if !nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) && sErr == nil && dErr == nil {
+				if !nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) {
 					inactive = append(inactive, w)
 				}
 			}
 		}
 		if len(inactive) > 0 {
-			return &inactive
+			return &inactive, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
@@ -2427,36 +2439,42 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 }
 
 // CanSync returns true if a sync window currently allows a sync. isManual indicates whether the sync has been triggered manually.
-func (w *SyncWindows) CanSync(isManual bool) bool {
+func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
 	if !w.HasWindows() {
-		return true
+		return true, nil
 	}
 
-	active := w.Active()
+	active, err := w.Active()
+	if err != nil {
+		return false, fmt.Errorf("invalid sync windows: %w", err)
+	}
 	hasActiveDeny, manualEnabled := active.hasDeny()
 
 	if hasActiveDeny {
 		if isManual && manualEnabled {
-			return true
+			return true, nil
 		} else {
-			return false
+			return false, nil
 		}
 	}
 
 	if active.hasAllow() {
-		return true
+		return true, nil
 	}
 
-	inactiveAllows := w.InactiveAllows()
+	inactiveAllows, err := w.InactiveAllows()
+	if err != nil {
+		return false, fmt.Errorf("invalid sync windows: %w", err)
+	}
 	if inactiveAllows.HasWindows() {
 		if isManual && inactiveAllows.manualEnabled() {
-			return true
+			return true, nil
 		} else {
-			return false
+			return false, nil
 		}
 	}
 
-	return true
+	return true, nil
 }
 
 // hasDeny will iterate over the SyncWindows and return if a deny window is found and if
@@ -2511,24 +2529,30 @@ func (w *SyncWindows) manualEnabled() bool {
 }
 
 // Active returns true if the sync window is currently active
-func (w SyncWindow) Active() bool {
+func (w SyncWindow) Active() (bool, error) {
 	return w.active(time.Now())
 }
 
-func (w SyncWindow) active(currentTime time.Time) bool {
+func (w SyncWindow) active(currentTime time.Time) (bool, error) {
 	// If SyncWindow.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before search
 	currentTime = currentTime.UTC()
 
 	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-	schedule, _ := specParser.Parse(w.Schedule)
-	duration, _ := time.ParseDuration(w.Duration)
+	schedule, sErr := specParser.Parse(w.Schedule)
+	if sErr != nil {
+		return false, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
+	}
+	duration, dErr := time.ParseDuration(w.Duration)
+	if dErr != nil {
+		return false, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
+	}
 
 	// Offset the nextWindow time to consider the timeZone of the sync window
 	timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
 	nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
 
-	return nextWindow.Before(currentTime.Add(timeZoneOffsetDuration))
+	return nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)), nil
 }
 
 // Update updates a sync window's settings with the given parameter
