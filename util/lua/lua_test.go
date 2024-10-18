@@ -266,7 +266,7 @@ func TestGetHealthScriptNoPredefined(t *testing.T) {
 	vm := VM{}
 	script, useOpenLibs, err := vm.GetHealthScript(testObj)
 	require.NoError(t, err)
-	assert.True(t, useOpenLibs)
+	assert.False(t, useOpenLibs)
 	assert.Equal(t, "", script)
 }
 
@@ -283,7 +283,8 @@ func TestGetResourceActionNoPredefined(t *testing.T) {
 	testObj := StrToUnstructured(objWithNoScriptJSON)
 	vm := VM{}
 	action, err := vm.GetResourceAction(testObj, "test")
-	require.NoError(t, err)
+	var expectedErr *ScriptDoesNotExistError
+	require.ErrorAs(t, err, &expectedErr)
 	assert.Empty(t, action.ActionLua)
 }
 
