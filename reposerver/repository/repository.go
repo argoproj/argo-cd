@@ -114,6 +114,7 @@ type RepoServerInitConstants struct {
 	DisableHelmManifestMaxExtractedSize          bool
 	IncludeHiddenDirectories                     bool
 	CMPUseManifestGeneratePaths                  bool
+	ArgoCDInstanceID                             string
 }
 
 // NewService returns a new instance of the Manifest service
@@ -806,7 +807,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths), WithArgoCDInstanceID(s.initConstants.ArgoCDInstanceID))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1381,6 +1382,7 @@ type (
 		cmpTarDoneCh                chan<- bool
 		cmpTarExcludedGlobs         []string
 		cmpUseManifestGeneratePaths bool
+		argocdInstanceID            string
 	}
 )
 
@@ -1414,6 +1416,13 @@ func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
 func WithCMPUseManifestGeneratePaths(enabled bool) GenerateManifestOpt {
 	return func(o *generateManifestOpt) {
 		o.cmpUseManifestGeneratePaths = enabled
+	}
+}
+
+// WithArgoCDInstanceID sets the argocd instance server url which manages this resource.
+func WithArgoCDInstanceID(argocdInstanceID string) GenerateManifestOpt {
+	return func(o *generateManifestOpt) {
+		o.argocdInstanceID = argocdInstanceID
 	}
 }
 
@@ -1504,6 +1513,9 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 				err = resourceTracking.SetAppInstance(target, q.AppLabelKey, q.AppName, q.Namespace, v1alpha1.TrackingMethod(q.TrackingMethod), q.InstallationID)
 				if err != nil {
 					return nil, fmt.Errorf("failed to set app instance tracking info on manifest: %w", err)
+				}
+				if err := resourceTracking.SetAppInstanceID(target, opt.argocdInstanceID); err != nil {
+					log.Warnf("Failed to set Application Instance ID due to missing or invalid ArgoCD URL in ArgoCD Configmap")
 				}
 			}
 			manifestStr, err := json.Marshal(target.Object)
