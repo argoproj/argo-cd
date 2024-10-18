@@ -180,6 +180,10 @@ metadata:
     argocd.argoproj.io/sync-options: Force=true,Replace=true
 ```
 
+!!! warning
+      Setting `Force=true` is equivalent to using the `--force` flag in `kubectl`.
+      This may have unintended consequences for some resources ([for example Pods](https://kubernetes.io/docs/tasks/run-application/force-delete-stateful-set-pod/#force-deletion))!
+
 ## Server-Side Apply
 
 This option enables Kubernetes
