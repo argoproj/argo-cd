@@ -427,7 +427,7 @@ func getParametersAnnouncement(ctx context.Context, appDir string, announcements
 
 func (s *Service) CheckPluginConfiguration(ctx context.Context, _ *empty.Empty) (*apiclient.CheckPluginConfigurationResponse, error) {
 	isDiscoveryConfigured := s.isDiscoveryConfigured()
-	response := &apiclient.CheckPluginConfigurationResponse{IsDiscoveryConfigured: isDiscoveryConfigured}
+	response := &apiclient.CheckPluginConfigurationResponse{IsDiscoveryConfigured: isDiscoveryConfigured, ProvideGitCreds: s.initConstants.PluginConfig.Spec.ProvideGitCreds}
 
 	return response, nil
 }
