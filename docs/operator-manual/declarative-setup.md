@@ -30,7 +30,7 @@ For each specific kind of ConfigMap and Secret resource, there is only a single 
 |------------------------------------------------------------------|-------------|--------------------------|
 | [`application.yaml`](../user-guide/application-specification.md) | Application | Example application spec |
 | [`project.yaml`](./project-specification.md)                     | AppProject  | Example project spec     |
-| [`argocd-repositories.yaml`](./argocd-repositories-yaml.md)                                                                | Secret      | Repository credentials   |
+| -                                                                | Secret      | Repository credentials   |
 
 For `Application` and `AppProject` resources, the name of the resource equals the name of the application or project within Argo CD. This also means that application and project names are unique within a given Argo CD installation - you cannot have the same application name for two different applications.
 
@@ -176,7 +176,6 @@ spec:
 Repository details are stored in secrets. To configure a repo, create a secret which contains repository details.
 Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store an encrypted secret definition as a Kubernetes manifest.
 Each repository must have a `url` field and, depending on whether you connect using HTTPS, SSH, or GitHub App, `username` and `password` (for HTTPS), `sshPrivateKey` (for SSH), or `githubAppPrivateKey` (for GitHub App).
-Credentials can be scoped to a project using the optional `project` field. When omitted, the credential will be used as the default for all projects without a scoped credential.
 
 !!!warning
     When using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) the labels will be removed and have to be readded as described here: https://github.com/bitnami-labs/sealed-secrets#sealedsecrets-as-templates-for-secrets
@@ -196,7 +195,6 @@ stringData:
   url: https://github.com/argoproj/private-repo
   password: my-password
   username: my-username
-  project: my-project
 ```
 
 Example for SSH:
@@ -470,9 +468,9 @@ data:
 
 ### Configure repositories with proxy
 
-Proxy for your repository can be specified in the `proxy` field of the repository secret, along with a corresponding `noProxy` config. Argo CD uses this proxy/noProxy config to access the repository and do related helm/kustomize operations. Argo CD looks for the standard proxy environment variables in the repository server if the custom proxy config is absent.
+Proxy for your repository can be specified in the `proxy` field of the repository secret, along with other repository configurations. Argo CD uses this proxy to access the repository. Argo CD looks for the standard proxy environment variables in the repository server if the custom proxy is absent.
 
-An example repository with proxy and noProxy:
+An example repository with proxy:
 
 ```yaml
 apiVersion: v1
@@ -486,12 +484,9 @@ stringData:
   type: git
   url: https://github.com/argoproj/private-repo
   proxy: https://proxy-server-url:8888
-  noProxy: ".internal.example.com,company.org,10.123.0.0/16"
   password: my-password
   username: my-username
 ```
-
-A note on noProxy: Argo CD uses exec to interact with different tools such as helm and kustomize. Not all of these tools support the same noProxy syntax as the [httpproxy go package](https://cs.opensource.google/go/x/net/+/internal-branch.go1.21-vendor:http/httpproxy/proxy.go;l=38-50) does. In case you run in trouble with noProxy not beeing respected you might want to try using the full domain instead of a wildcard pattern or IP range to find a common syntax that all tools support.
 
 ### Legacy behaviour
 
@@ -554,7 +549,6 @@ bearerToken: string
 awsAuthConfig:
     clusterName: string
     roleARN: string
-    profile: string
 # Configure external command to supply client credentials
 # See https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
 execProviderConfig:
@@ -567,8 +561,6 @@ execProviderConfig:
     }
     apiVersion: string
     installHint: string
-# Proxy URL for the kubernetes client to use when connecting to the cluster api server
-proxyUrl: string
 # Transport layer security configuration settings
 tlsClientConfig:
     # Base64 encoded PEM-encoded bytes (typically read from a client certificate file).
@@ -583,8 +575,6 @@ tlsClientConfig:
     # certificates against. If ServerName is empty, the hostname used to contact the
     # server is used.
     serverName: string
-# Disable automatic compression for requests to the cluster 
-disableCompression: boolean
 ```
 
 Note that if you specify a command to run under `execProviderConfig`, that command must be available in the Argo CD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
@@ -679,9 +669,9 @@ extended to allow assumption of multiple roles, either as an explicit array of r
     "Statement" : {
       "Effect" : "Allow",
       "Action" : "sts:AssumeRole",
-      "Resource" : [
-        "<arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"
-      ]
+      "Principal" : {
+        "AWS" : "<arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"
+      }
     }
   }
 ```
@@ -741,140 +731,6 @@ data:
       "rolearn": "<arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"
       "username": "<some-username>"
 ```
-
-#### Alternative EKS Authentication Methods
-In some scenarios it may not be possible to use IRSA, such as when the Argo CD cluster is running on a different cloud
-provider's platform. In this case, there are two options:
-1. Use `execProviderConfig` to call the AWS authentication mechanism which enables the injection of environment variables to supply credentials
-2. Leverage the new AWS profile option available in Argo CD release 2.10
-
-Both of these options will require the steps involving IAM and the `aws-auth` config map (defined above) to provide the 
-principal with access to the cluster.
-
-##### Using execProviderConfig with Environment Variables
-```yaml
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mycluster-secret
-  labels:
-    argocd.argoproj.io/secret-type: cluster
-type: Opaque
-stringData:
-  name: mycluster
-  server: https://mycluster.example.com
-  namespaces: "my,managed,namespaces"
-  clusterResources: "true"
-  config: |
-    {
-      "execProviderConfig": {
-        "command": "argocd-k8s-auth",
-        "args": ["aws", "--cluster-name", "my-eks-cluster"],
-        "apiVersion": "client.authentication.k8s.io/v1beta1",
-        "env": {
-          "AWS_REGION": "xx-east-1",
-          "AWS_ACCESS_KEY_ID": "{{ .aws_key_id }}",
-          "AWS_SECRET_ACCESS_KEY": "{{ .aws_key_secret }}",
-          "AWS_SESSION_TOKEN": "{{ .aws_token }}"
-        }
-      },
-      "tlsClientConfig": {
-        "insecure": false,
-        "caData": "{{ .cluster_cert }}"
-      }
-    }
-```
-
-This example assumes that the role being attached to the credentials that have been supplied, if this is not the case
-the role can be appended to the `args` section like so:
-
-```yaml
-...
-    "args": ["aws", "--cluster-name", "my-eks-cluster", "--role-arn", "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"],
-...
-```
-This construct can be used in conjunction with something like the External Secrets Operator to avoid storing the keys in
-plain text and additionally helps to provide a foundation for key rotation.
-
-##### Using An AWS Profile For Authentication
-The option to use profiles, added in release 2.10, provides a method for supplying credentials while still using the
-standard Argo CD EKS cluster declaration with an additional command flag that points to an AWS credentials file:
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: mycluster-secret
-  labels:
-    argocd.argoproj.io/secret-type: cluster
-type: Opaque
-stringData:
-  name: "mycluster.com"
-  server: "https://mycluster.com"
-  config: |
-    {
-      "awsAuthConfig": {
-        "clusterName": "my-eks-cluster-name",
-        "roleARN": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>",
-        "profile": "/mount/path/to/my-profile-file"
-      },
-      "tlsClientConfig": {
-        "insecure": false,
-        "caData": "<base64 encoded certificate>"
-      }        
-    }
-```
-This will instruct Argo CD to read the file at the provided path and use the credentials defined within to authenticate to AWS. 
-The profile must be mounted in both the `argocd-server` and `argocd-application-controller` components in order for this to work.
-For example, the following values can be defined in a Helm-based Argo CD deployment:
-
-```yaml
-controller:
-  extraVolumes:
-    - name: my-profile-volume
-      secret:
-        secretName: my-aws-profile
-        items:
-          - key: my-profile-file
-            path: my-profile-file
-  extraVolumeMounts:
-    - name: my-profile-mount
-      mountPath: /mount/path/to
-      readOnly: true
-
-server:
-  extraVolumes:
-    - name: my-profile-volume
-      secret:
-        secretName: my-aws-profile
-        items:
-          - key: my-profile-file
-            path: my-profile-file
-  extraVolumeMounts:
-    - name: my-profile-mount
-      mountPath: /mount/path/to
-      readOnly: true
-```
-
-Where the secret is defined as follows:
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: my-aws-profile
-type: Opaque
-stringData:
-  my-profile-file: |
-    [default]
-    region = <aws_region>
-    aws_access_key_id = <aws_access_key_id>
-    aws_secret_access_key = <aws_secret_access_key>
-    aws_session_token = <aws_session_token>
-```
-
-> ⚠️ Secret mounts are updated on an interval, not real time. If rotation is a requirement ensure the token lifetime outlives the mount update interval and the rotation process doesn't immediately invalidate the existing token
-
-
 ### GKE
 
 GKE cluster secret example using argocd-k8s-auth and [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity):
@@ -932,17 +788,6 @@ In addition to the environment variables above, argocd-k8s-auth accepts two extr
 
 This is an example of using the [federated workload login flow](https://github.com/Azure/kubelogin#azure-workload-federated-identity-non-interactive).  The federated token file needs to be mounted as a secret into argoCD, so it can be used in the flow.  The location of the token file needs to be set in the environment variable AZURE_FEDERATED_TOKEN_FILE.
 
-If your AKS cluster utilizes the [Mutating Admission Webhook](https://azure.github.io/azure-workload-identity/docs/installation/mutating-admission-webhook.html) from the Azure Workload Identity project, follow these steps to enable the `argocd-application-controller` and `argocd-server` pods to use the federated identity:
-
-1. **Label the Pods**: Add the `azure.workload.identity/use: "true"` label to the `argocd-application-controller` and `argocd-server` pods.
-
-2. **Create Federated Identity Credential**: Generate an Azure federated identity credential for the `argocd-application-controller` and `argocd-server` service accounts. Refer to the [Federated Identity Credential](https://azure.github.io/azure-workload-identity/docs/topics/federated-identity-credential.html) documentation for detailed instructions.
-
-3. **Add Annotations to Service Account** Add `"azure.workload.identity/client-id": "$CLIENT_ID"` and `"azure.workload.identity/tenant-id": "$TENANT_ID"` annotations to the `argocd-application-controller` and `argocd-server` service accounts using the details from the federated credential.
-
-4. **Set the AZURE_CLIENT_ID**: Update the `AZURE_CLIENT_ID` in the cluster secret to match the client id of the newly created federated identity credential.
-
-
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -961,9 +806,9 @@ stringData:
         "env": {
           "AAD_ENVIRONMENT_NAME": "AzurePublicCloud",
           "AZURE_CLIENT_ID": "fill in client id",
-          "AZURE_TENANT_ID": "fill in tenant id", # optional, injected by workload identity mutating admission webhook if enabled
-          "AZURE_FEDERATED_TOKEN_FILE": "/opt/path/to/federated_file.json", # optional, injected by workload identity mutating admission webhook if enabled
-          "AZURE_AUTHORITY_HOST": "https://login.microsoftonline.com/", # optional, injected by workload identity mutating admission webhook if enabled
+          "AZURE_TENANT_ID": "fill in tenant id",
+          "AZURE_FEDERATED_TOKEN_FILE": "/opt/path/to/federated_file.json",
+          "AZURE_AUTHORITY_HOST": "https://login.microsoftonline.com/",
           "AAD_LOGIN_METHOD": "workloadidentity"
         },
         "args": ["azure"],
@@ -1050,7 +895,7 @@ stringData:
 
 ## Resource Exclusion/Inclusion
 
-Resources can be excluded from discovery and sync so that Argo CD is unaware of them. For example, the apiGroup/kind `events.k8s.io/*`, `metrics.k8s.io/*` and `coordination.k8s.io/Lease` are always excluded. Use cases:
+Resources can be excluded from discovery and sync so that Argo CD is unaware of them. For example, the apiGroup/kind `events.k8s.io/*`, `metrics.k8s.io/*`, `coordination.k8s.io/Lease`, and `""/Endpoints` are always excluded. Use cases:
 
 * You have temporal issues and you want to exclude problematic resources.
 * There are many of a kind of resources that impacts Argo CD's performance.
@@ -1141,22 +986,6 @@ data:
 
 Custom Labels configured with `resource.customLabels` (comma separated string) will be displayed in the UI (for any resource that defines them).
 
-## Labels on Application Events
-
-An optional comma-separated list of `metadata.labels` keys can be configured with `resource.includeEventLabelKeys` to add to Kubernetes events generated for Argo CD Applications. When events are generated for Applications containing the specified labels, the controller adds the matching labels to the event. This establishes an easy link between the event and the application, allowing for filtering using labels. In case of conflict between labels on the Application and AppProject, the Application label values are prioritized and added to the event.
-
-```yaml
-  resource.includeEventLabelKeys: team,env*
-```
-
-To exclude certain labels from events, use the `resource.excludeEventLabelKeys` key, which takes a comma-separated list of `metadata.labels` keys.
-
-```yaml
-  resource.excludeEventLabelKeys: environment,bu
-```
-
-Both `resource.includeEventLabelKeys` and `resource.excludeEventLabelKeys` support wildcards.
-
 ## SSO & RBAC
 
 * SSO configuration details: [SSO](./user-management/index.md)
@@ -1172,7 +1001,7 @@ Example of `kustomization.yaml`:
 ```yaml
 # additional resources like ingress rules, cluster and repository secrets.
 resources:
-- github.com/argoproj/argo-cd//manifests/cluster-install?ref=stable
+- github.com/argoproj/argo-cd//manifests/cluster-install?ref=v1.0.1
 - clusters-secrets.yaml
 - repos-secrets.yaml
 

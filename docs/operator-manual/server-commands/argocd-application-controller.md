@@ -31,7 +31,6 @@ argocd-application-controller [flags]
       --default-cache-expiration duration                         Cache expiration default (default 24h0m0s)
       --disable-compression                                       If true, opt-out of response compression for all requests to the server
       --dynamic-cluster-distribution-enabled                      Enables dynamic cluster distribution.
-      --enable-k8s-event none                                     Enable ArgoCD to use k8s event. For disabling all events, set the value as none. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated) (default [all])
       --gloglevel int                                             Set the glog logging level
   -h, --help                                                      help for argocd-application-controller
       --ignore-normalizer-jq-execution-timeout-seconds duration   Set ignore normalizer JQ execution timeout
@@ -40,7 +39,6 @@ argocd-application-controller [flags]
       --kubectl-parallelism-limit int                             Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit. (default 20)
       --logformat string                                          Set the logging format. One of: text|json (default "text")
       --loglevel string                                           Set the logging level. One of: debug|info|warn|error (default "info")
-      --metrics-application-conditions strings                    List of Application conditions that will be added to the argocd_application_conditions metric
       --metrics-application-labels strings                        List of Application labels that will be added to the argocd_application_labels metric
       --metrics-cache-expiration duration                         Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)
       --metrics-port int                                          Start metrics server on given port (default 8082)
@@ -67,15 +65,12 @@ argocd-application-controller [flags]
       --repo-server-strict-tls                                    Whether to use strict validation of the TLS cert presented by the repo server
       --repo-server-timeout-seconds int                           Repo server RPC call timeout seconds. (default 60)
       --request-timeout string                                    The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
-      --self-heal-backoff-cap-seconds int                         Specifies max timeout of exponential backoff between application self heal attempts (default 300)
-      --self-heal-backoff-factor int                              Specifies factor of exponential timeout between application self heal attempts (default 3)
-      --self-heal-backoff-timeout-seconds int                     Specifies initial timeout of exponential backoff between self heal attempts (default 2)
-      --self-heal-timeout-seconds int                             Specifies timeout between application self heal attempts
+      --self-heal-timeout-seconds int                             Specifies timeout between application self heal attempts (default 5)
       --sentinel stringArray                                      Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
       --sentinelmaster string                                     Redis sentinel master group name. (default "master")
       --server string                                             The address and port of the Kubernetes API server
       --server-side-diff-enabled                                  Feature flag to enable ServerSide diff. Default ("false")
-      --sharding-method string                                    Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin, consistent-hashing]  (default "legacy")
+      --sharding-method string                                    Enables choice of sharding method. Supported sharding methods are : [legacy, round-robin]  (default "legacy")
       --status-processors int                                     Number of application status processors (default 20)
       --tls-server-name string                                    If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                                              Bearer token for authentication to the API server

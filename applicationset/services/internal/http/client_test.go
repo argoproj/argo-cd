@@ -17,13 +17,14 @@ func TestClient(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("Hello, World!"))
 		if err != nil {
-			assert.NoError(t, fmt.Errorf("Error Write %w", err))
+			assert.NoError(t, fmt.Errorf("Error Write %v", err))
 		}
 	}))
 	defer server.Close()
 
 	var clientOptionFns []ClientOptionFunc
 	_, err := NewClient(server.URL, clientOptionFns...)
+
 	if err != nil {
 		t.Fatalf("Failed to create client: %v", err)
 	}
@@ -61,7 +62,7 @@ func TestClientDo(t *testing.T) {
 					"key3": 123
 				 }]`))
 				if err != nil {
-					assert.NoError(t, fmt.Errorf("Error Write %w", err))
+					assert.NoError(t, fmt.Errorf("Error Write %v", err))
 				}
 			})),
 			clientOptionFns: nil,
@@ -77,7 +78,7 @@ func TestClientDo(t *testing.T) {
 					"key3": float64(123),
 				},
 			},
-			expectedCode:  http.StatusOK,
+			expectedCode:  200,
 			expectedError: nil,
 		},
 		{
@@ -104,12 +105,12 @@ func TestClientDo(t *testing.T) {
 					"key3": 123
 				 }]`))
 				if err != nil {
-					assert.NoError(t, fmt.Errorf("Error Write %w", err))
+					assert.NoError(t, fmt.Errorf("Error Write %v", err))
 				}
 			})),
 			clientOptionFns: nil,
 			expected:        []map[string]interface{}(nil),
-			expectedCode:    http.StatusUnauthorized,
+			expectedCode:    401,
 			expectedError:   fmt.Errorf("API error with status code 401: "),
 		},
 	} {
@@ -118,11 +119,13 @@ func TestClientDo(t *testing.T) {
 			defer cc.fakeServer.Close()
 
 			client, err := NewClient(cc.fakeServer.URL, cc.clientOptionFns...)
+
 			if err != nil {
 				t.Fatalf("NewClient returned unexpected error: %v", err)
 			}
 
 			req, err := client.NewRequest("POST", "", cc.params, nil)
+
 			if err != nil {
 				t.Fatalf("NewRequest returned unexpected error: %v", err)
 			}
@@ -134,8 +137,8 @@ func TestClientDo(t *testing.T) {
 			if cc.expectedError != nil {
 				assert.EqualError(t, err, cc.expectedError.Error())
 			} else {
-				assert.Equal(t, cc.expectedCode, resp.StatusCode)
-				assert.Equal(t, cc.expected, data)
+				assert.Equal(t, resp.StatusCode, cc.expectedCode)
+				assert.Equal(t, data, cc.expected)
 				assert.NoError(t, err)
 			}
 		})

@@ -11,18 +11,16 @@ argocd app rollback APPNAME [ID] [flags]
 ### Options
 
 ```
-  -N, --app-namespace string   Rollback application in namespace
-  -h, --help                   help for rollback
-  -o, --output string          Output format. One of: json|yaml|wide|tree|tree=detailed (default "wide")
-      --prune                  Allow deleting unexpected resources
-      --timeout uint           Time out after this many seconds
+  -h, --help            help for rollback
+  -o, --output string   Output format. One of: json|yaml|wide|tree|tree=detailed (default "wide")
+      --prune           Allow deleting unexpected resources
+      --timeout uint    Time out after this many seconds
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --argocd-context string           The name of the Argo-CD server context to use
-      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
+      --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")

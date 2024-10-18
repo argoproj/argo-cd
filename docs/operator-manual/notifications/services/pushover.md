@@ -1,13 +1,13 @@
 # Pushover
 
 1. Create an app at [pushover.net](https://pushover.net/apps/build).
-2. Store the API key in `<secret-name>` Secret and define the secret name in `argocd-notifications-cm` ConfigMap:
+2. Store the API key in `<secret-name>` Secret and define the secret name in `<config-map-name>` ConfigMap:
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: argocd-notifications-cm
+  name: <config-map-name>
 data:
   service.pushover: |
     token: $pushover-token

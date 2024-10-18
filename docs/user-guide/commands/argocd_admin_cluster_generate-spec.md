@@ -13,12 +13,10 @@ argocd admin cluster generate-spec CONTEXT [flags]
 ```
       --annotation stringArray             Set metadata annotations (e.g. --annotation key=value)
       --aws-cluster-name string            AWS Cluster name if set then aws cli eks token command will be used to access cluster
-      --aws-profile string                 Optional AWS profile. If set then AWS IAM Authenticator uses this profile to perform cluster operations instead of the default AWS credential provider chain.
       --aws-role-arn string                Optional AWS role arn. If set then AWS IAM Authenticator assumes a role to perform cluster operations instead of the default AWS credential provider chain.
       --bearer-token string                Authentication token that should be used to access K8S API server
       --cluster-endpoint string            Cluster endpoint to use. Can be one of the following: 'kubeconfig', 'kube-public', or 'internal'.
       --cluster-resources                  Indicates if cluster level resources should be managed. The setting is used only if list of managed namespaces is not empty.
-      --disable-compression                Bypasses automatic GZip compression requests to the server
       --exec-command string                Command to run to provide client credentials to the cluster. You may need to build a custom ArgoCD image to ensure the command is available at runtime.
       --exec-command-api-version string    Preferred input version of the ExecInfo for the --exec-command executable
       --exec-command-args stringArray      Arguments to supply to the --exec-command executable
@@ -41,8 +39,7 @@ argocd admin cluster generate-spec CONTEXT [flags]
 ### Options inherited from parent commands
 
 ```
-      --argocd-context string           The name of the Argo-CD server context to use
-      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
+      --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")

@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
@@ -19,7 +18,7 @@ func TestBitbucketHasRepo(t *testing.T) {
 			res.WriteHeader(http.StatusNotFound)
 			_, err := res.Write([]byte(""))
 			if err != nil {
-				require.NoError(t, fmt.Errorf("Error in mock response %w", err))
+				assert.NoError(t, fmt.Errorf("Error in mock response %v", err))
 			}
 		}
 		if req.URL.Path == "/repositories/test-owner/testmike/src/dc1edb6c7d650d8ba67719ddf7b662ad8f8fb798/.gitignore" {
@@ -56,7 +55,7 @@ func TestBitbucketHasRepo(t *testing.T) {
 				"size": 624
 			}`))
 			if err != nil {
-				require.NoError(t, fmt.Errorf("Error in mock response %w", err))
+				assert.NoError(t, fmt.Errorf("Error in mock response %v", err))
 			}
 		}
 	}))
@@ -96,7 +95,7 @@ func TestBitbucketHasRepo(t *testing.T) {
 			}
 			hasPath, err := provider.RepoHasPath(context.Background(), repo, c.path)
 			if err != nil {
-				require.Error(t, fmt.Errorf("Error in test %w", err))
+				assert.Error(t, fmt.Errorf("Error in test %v", err))
 			}
 			if c.status != http.StatusOK {
 				assert.False(t, hasPath)
@@ -209,7 +208,7 @@ func TestBitbucketListRepos(t *testing.T) {
 				"size": 1
 			}`))
 			if err != nil {
-				require.NoError(t, fmt.Errorf("Error in mock response %w", err))
+				assert.NoError(t, fmt.Errorf("Error in mock response %v", err))
 			}
 		}
 		if req.URL.Path == "/repositories/test-owner/testmike/refs/branches/main" {
@@ -304,7 +303,7 @@ func TestBitbucketListRepos(t *testing.T) {
 				}
 			}`))
 			if err != nil {
-				require.NoError(t, fmt.Errorf("Error in mock response %w", err))
+				assert.NoError(t, fmt.Errorf("Error in mock response %v", err))
 			}
 		}
 		if req.URL.Path == "/repositories/test-owner" {
@@ -443,7 +442,7 @@ func TestBitbucketListRepos(t *testing.T) {
 			"size": 1
 		}`))
 			if err != nil {
-				require.NoError(t, fmt.Errorf("Error in mock response %w", err))
+				assert.NoError(t, fmt.Errorf("Error in mock response %v", err))
 			}
 		}
 	}))
@@ -490,9 +489,9 @@ func TestBitbucketListRepos(t *testing.T) {
 			provider, _ := NewBitBucketCloudProvider(context.Background(), c.owner, "user", "password", c.allBranches)
 			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
 			if c.hasError {
-				require.Error(t, err)
+				assert.Error(t, err)
 			} else {
-				require.NoError(t, err)
+				assert.NoError(t, err)
 				repos := []*Repository{}
 				branches := []string{}
 				for _, r := range rawRepos {

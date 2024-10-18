@@ -18,6 +18,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/util/notification/settings"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 	"github.com/argoproj/notifications-engine/pkg/api"
 	"github.com/argoproj/notifications-engine/pkg/controller"
 	"github.com/argoproj/notifications-engine/pkg/services"
@@ -31,8 +32,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
 )
 
 const (
@@ -91,8 +90,7 @@ func NewController(
 		configMapInformer: configMapInformer,
 		appInformer:       appInformer,
 		appProjInformer:   appProjInformer,
-		apiFactory:        apiFactory,
-	}
+		apiFactory:        apiFactory}
 	skipProcessingOpt := controller.WithSkipProcessing(func(obj v1.Object) (bool, string) {
 		app, ok := (obj).(*unstructured.Unstructured)
 		if !ok {
@@ -122,7 +120,7 @@ func NewController(
 
 // Check if app is not in the namespace where the controller is in, and also app is not in one of the applicationNamespaces
 func checkAppNotInAdditionalNamespaces(app *unstructured.Unstructured, namespace string, applicationNamespaces []string) bool {
-	return namespace != app.GetNamespace() && !glob.MatchStringInList(applicationNamespaces, app.GetNamespace(), glob.REGEXP)
+	return namespace != app.GetNamespace() && !glob.MatchStringInList(applicationNamespaces, app.GetNamespace(), false)
 }
 
 func (c *notificationController) alterDestinations(obj v1.Object, destinations services.Destinations, cfg api.Config) services.Destinations {
@@ -139,6 +137,7 @@ func (c *notificationController) alterDestinations(obj v1.Object, destinations s
 }
 
 func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string, applicationNamespaces []string, selector string) cache.SharedIndexInformer {
+
 	informer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
@@ -151,7 +150,7 @@ func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string
 				}
 				newItems := []unstructured.Unstructured{}
 				for _, res := range appList.Items {
-					if controllerNamespace == res.GetNamespace() || glob.MatchStringInList(applicationNamespaces, res.GetNamespace(), glob.REGEXP) {
+					if controllerNamespace == res.GetNamespace() || glob.MatchStringInList(applicationNamespaces, res.GetNamespace(), false) {
 						newItems = append(newItems, res)
 					}
 				}
@@ -166,7 +165,9 @@ func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string
 		&unstructured.Unstructured{},
 		resyncPeriod,
 		cache.Indexers{
-			cache.NamespaceIndex: cache.MetaNamespaceIndexFunc,
+			cache.NamespaceIndex: func(obj interface{}) ([]string, error) {
+				return cache.MetaNamespaceIndexFunc(obj)
+			},
 		},
 	)
 	return informer

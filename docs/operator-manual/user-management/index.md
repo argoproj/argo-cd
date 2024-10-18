@@ -172,8 +172,6 @@ kubectl edit configmap argocd-cm -n argocd
 ```
 
 * In the `url` key, input the base URL of Argo CD. In this example, it is `https://argocd.example.com`
-* (Optional): If Argo CD should be accessible via multiple base URLs you may
-  specify any additional base URLs via the `additionalUrls` key.
 * In the `dex.config` key, add the `github` connector to the `connectors` sub field. See Dex's
   [GitHub connector](https://github.com/dexidp/website/blob/main/content/docs/connectors/github.md)
   documentation for explanation of the fields. A minimal config should populate the clientID,
@@ -502,7 +500,7 @@ data:
 
 #### Alternative
 
-If you want to store sensitive data in **another** Kubernetes `Secret`, instead of `argocd-secret`. ArgoCD knows to check the keys under `data` in your Kubernetes `Secret` for a corresponding key whenever a value in a configmap or secret starts with `$`, then your Kubernetes `Secret` name and `:` (colon).
+If you want to store sensitive data in **another** Kubernetes `Secret`, instead of `argocd-secret`. ArgoCD knows to check the keys under `data` in your Kubernetes `Secret` for a corresponding key whenever a value in a configmap starts with `$`, then your Kubernetes `Secret` name and `:` (colon).
 
 Syntax: `$<k8s_secret_name>:<a_key_in_that_k8s_secret>`
 

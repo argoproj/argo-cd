@@ -9,9 +9,7 @@ and the [toolchain guide](toolchain-guide.md).
 
 ### Install Go
 
-<https://go.dev/doc/install/>
-
-Install Go with a version equal to or greater than the version listed in `go.mod` (verify go version with `go version`). 
+Install version 1.18 or newer (Verify version by running `go version`)
 
 ### Clone the Argo CD repo
 
@@ -21,43 +19,18 @@ cd $GOPATH/src/github.com/argoproj &&
 git clone https://github.com/argoproj/argo-cd.git
 ```
 
-### Install Docker or Podman
-
-#### Installation guide for docker:
+### Install Docker
 
 <https://docs.docker.com/engine/install/>
 
-#### Installation guide for podman:
-
-<https://podman.io/docs/installation>
-
-### Install or Upgrade a Tool for Running Local Clusters (e.g. kind or minikube)
-
-#### Installation guide for kind:
+### Install or Upgrade `kind` (Optional - Should work with any local cluster)
 
 <https://kind.sigs.k8s.io/docs/user/quick-start/>
 
-#### Installation guide for minikube:
-
-<https://minikube.sigs.k8s.io/docs/start/>
-
 ### Start Your Local Cluster
 
-For example, if you are using kind:
 ```shell
 kind create cluster
-```
-
-Or, if you are using minikube:
-
-```shell
-minikube start
-```
-
-Or, if you are using minikube with podman driver:
-
-```shell
-minikube start --driver=podman
 ```
 
 ### Install Argo CD
@@ -89,13 +62,6 @@ cd argo-cd
 make start-local ARGOCD_GPG_ENABLED=false
 ```
 
-By default, Argo CD uses Docker. To use Podman instead, set the `DOCKER` environment variable to `podman` before running the `make` command:
-
-```shell
-cd argo-cd
-DOCKER=podman make start-local ARGOCD_GPG_ENABLED=false
-```
-
 - Navigate to [localhost:4000](http://localhost:4000) in your browser to load the Argo CD UI
 - It may take a few minutes for the UI to be responsive
 
@@ -104,13 +70,6 @@ DOCKER=podman make start-local ARGOCD_GPG_ENABLED=false
     too noisy to find the problem, try editing log levels for the commands in the `Procfile` in the root of the Argo CD repo.
 
 ## Making Changes
-
-### Docs Changes
-
-Modifying the docs auto-reloads the changes on the [documentation website](https://argo-cd.readthedocs.io/) that can be locally built using `make serve-docs` command. 
-Once running, you can view your locally built documentation on port 8000.
-
-Read more about this [here](https://argo-cd.readthedocs.io/en/latest/developer-guide/docs-site/).
 
 ### UI Changes
 

@@ -16,7 +16,7 @@ Additionally, you can specify `:empty` to use empty secret with no notification 
 
     ```bash
     argocd admin notifications trigger get \
-      --config-map ./argocd-notifications-cm.yaml --secret :empty
+      --config-map ./argocd admin notifications-cm.yaml --secret :empty
     ```
 
 * Trigger notification using in-cluster config map and secret:
@@ -65,7 +65,7 @@ configuration.
 **Example**
 ```bash
 kubectl exec -it argocd-notifications-controller-<pod-hash> \
-  /usr/local/bin/argocd admin notifications trigger get
+  /app/argocd admin notifications trigger get
 ```
 
 ## Commands

@@ -21,17 +21,15 @@ argocd app patch APPNAME [flags]
 ### Options
 
 ```
-  -N, --app-namespace string   Only patch application in namespace
-  -h, --help                   help for patch
-      --patch string           Patch body
-      --type string            The type of patch being provided; one of [json merge] (default "json")
+  -h, --help           help for patch
+      --patch string   Patch body
+      --type string    The type of patch being provided; one of [json merge] (default "json")
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --argocd-context string           The name of the Argo-CD server context to use
-      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
+      --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")

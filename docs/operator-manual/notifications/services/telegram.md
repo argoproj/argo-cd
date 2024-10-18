@@ -2,13 +2,13 @@
 
 1. Get an API token using [@Botfather](https://t.me/Botfather).
 2. Store token in `<secret-name>` Secret and configure telegram integration
-in `argocd-notifications-cm` ConfigMap:
+in `<config-map-name>` ConfigMap:
 
 ```yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: argocd-notifications-cm
+  name: <config-map-name>
 data:
   service.telegram: |
     token: $telegram-token
@@ -32,13 +32,4 @@ kind: Application
 metadata:
   annotations:
     notifications.argoproj.io/subscribe.on-sync-succeeded.telegram: -1000000000000
-```
-
-If your private chat contains threads, you can optionally specify a thread id by seperating it with a `|`:
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  annotations:
-    notifications.argoproj.io/subscribe.on-sync-succeeded.telegram: -1000000000000|2
 ```
