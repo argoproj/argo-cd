@@ -310,24 +310,30 @@ func (u *DefaultUserGetter) GetGroups(ctx context.Context) []string {
 
 // ApplicationGetter defines the contract to retrieve the application resource.
 type ApplicationGetter interface {
-	Get(ns, name string) (*v1alpha1.Application, error)
+	Get(ctx context.Context, ns, name string) (*v1alpha1.Application, error)
 }
 
 // DefaultApplicationGetter is the real application getter implementation.
 type DefaultApplicationGetter struct {
-	appLister applisters.ApplicationLister
+	appLister           applisters.ApplicationLister
+	validateDestination func(ctx context.Context, dest *v1alpha1.ApplicationDestination) error
 }
 
 // NewDefaultApplicationGetter returns the default application getter.
-func NewDefaultApplicationGetter(al applisters.ApplicationLister) *DefaultApplicationGetter {
+func NewDefaultApplicationGetter(al applisters.ApplicationLister, validateDestination func(ctx context.Context, dest *v1alpha1.ApplicationDestination) error) *DefaultApplicationGetter {
 	return &DefaultApplicationGetter{
-		appLister: al,
+		appLister:           al,
+		validateDestination: validateDestination,
 	}
 }
 
 // Get will retrieve the application resource for the given namespace and name.
-func (a *DefaultApplicationGetter) Get(ns, name string) (*v1alpha1.Application, error) {
-	return a.appLister.Applications(ns).Get(name)
+func (a *DefaultApplicationGetter) Get(ctx context.Context, ns, name string) (*v1alpha1.Application, error) {
+	app, err := a.appLister.Applications(ns).Get(name)
+	if err != nil {
+		return nil, err
+	}
+	return app, a.validateDestination(ctx, &app.Spec.Destination)
 }
 
 // RbacEnforcer defines the contract to enforce rbac rules
@@ -648,7 +654,7 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 	}
 
 	// just retrieve the app after checking if subject has access to it
-	app, err := m.application.Get(rr.ApplicationNamespace, rr.ApplicationName)
+	app, err := m.application.Get(ctx, rr.ApplicationNamespace, rr.ApplicationName)
 	if err != nil {
 		return nil, fmt.Errorf("error getting application: %w", err)
 	}
