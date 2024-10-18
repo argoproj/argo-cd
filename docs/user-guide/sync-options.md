@@ -174,15 +174,26 @@ For certain resources you might want to delete and recreate. e.g. job resources 
       This sync option has a destructive action, which could cause an outage for your application.
 
 In such cases you might use `Force=true` sync option in target resources annotation:
+
 ```yaml
 metadata:
   annotations:
-    argocd.argoproj.io/sync-options: Force=true,Replace=true
+    argocd.argoproj.io/sync-options: Force=true
 ```
 
 !!! warning
       Setting `Force=true` is equivalent to using the `--force` flag in `kubectl`.
       This may have unintended consequences for some resources ([for example Pods](https://kubernetes.io/docs/tasks/run-application/force-delete-stateful-set-pod/#force-deletion))!
+
+## Force and Replace
+
+And of course, `Force` can be composed together with `Replace` to achieve something similar to `kubectl replace --force`:
+
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: Force=true,Replace=true
+```
 
 ## Server-Side Apply
 
