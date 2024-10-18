@@ -22,6 +22,8 @@ export interface AppDetailsPreferences {
     hideManagedFields?: boolean;
     enableWordWrap?: boolean;
     orphanedResources: boolean;
+    hideOldRevisions: boolean;
+    latestRevision: string;
     podView: PodViewPreferences;
     darkMode: boolean;
     followLogs: boolean;
