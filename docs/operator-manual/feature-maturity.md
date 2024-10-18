@@ -48,16 +48,16 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 
 ### AppProject CRD
 
-| Feature                             | Property                          | Status |
-| ----------------------------------- | --------------------------------- | ------ |
-| [Service Account Impersonation][10] | `spec.destinationServiceAccounts` | Alpha  |
+| Feature                             | Property                            | Status |
+| ----------------------------------- | ----------------------------------- | ------ |
+| [Service Account Impersonation][10] | `spec.destinationServiceAccounts.*` | Alpha  |
 
 ### ApplicationSet CRD
 
-| Feature                       | Property                   | Status |
-| ----------------------------- | -------------------------- | ------ |
-| [AppSet Progressive Syncs][2] | `spec.strategy`            | Alpha  |
-| [AppSet Progressive Syncs][2] | `status.applicationStatus` | Alpha  |
+| Feature                       | Property                     | Status |
+| ----------------------------- | ---------------------------- | ------ |
+| [AppSet Progressive Syncs][2] | `spec.strategy.*`            | Alpha  |
+| [AppSet Progressive Syncs][2] | `status.applicationStatus.*` | Alpha  |
 
 ### Configuration
 
