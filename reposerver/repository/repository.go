@@ -2445,7 +2445,7 @@ func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revisi
 
 	version, err := versions.MaxVersion(revision, tags)
 	if err != nil {
-		return nil, "", fmt.Errorf("no version for constraints: %w", err)
+		return nil, "", fmt.Errorf("invalid revision: %w", err)
 	}
 
 	return helmClient, version.String(), nil
