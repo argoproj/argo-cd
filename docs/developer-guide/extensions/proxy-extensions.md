@@ -63,7 +63,7 @@ data:
             server: https://some-cluster
 ```
 
-Note: There is no need to restart Argo CD Server after modifiying the
+Note: There is no need to restart Argo CD Server after modifying the
 `extension.config` entry in Argo CD configmap. Changes will be
 automatically applied. A new proxy registry will be built making
 all new incoming extensions requests (`<argocd-host>/extensions/*`) to

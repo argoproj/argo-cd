@@ -66,7 +66,7 @@ require (
 	github.com/minio/blake2b-simd v0.0.0-20160723061019-3f5f724cb5b1
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/prometheus/client_golang v1.20.4
+	github.com/prometheus/client_golang v1.20.5
 	github.com/r3labs/diff v1.1.0
 	github.com/redis/go-redis/v9 v9.6.2
 	github.com/robfig/cron/v3 v3.0.1
@@ -79,7 +79,7 @@ require (
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/xanzy/go-gitlab v0.112.0
 	github.com/yuin/gopher-lua v1.1.1
-	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.55.0
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.56.0
 	go.opentelemetry.io/otel v1.31.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.31.0
 	go.opentelemetry.io/otel/sdk v1.31.0
