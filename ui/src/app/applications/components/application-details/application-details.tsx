@@ -920,19 +920,19 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 iconClassName: 'fa fa-info-circle',
                 title: <ActionMenuItem actionLabel='Details' />,
                 action: () => this.selectNode(fullName),
-                disabled: !app.spec.source
+                disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0)
             },
             {
                 iconClassName: 'fa fa-file-medical',
                 title: <ActionMenuItem actionLabel='Diff' />,
                 action: () => this.selectNode(fullName, 0, 'diff'),
-                disabled: app.status.sync.status === appModels.SyncStatuses.Synced || !app.spec.source
+                disabled: app.status.sync.status === appModels.SyncStatuses.Synced || (!app.spec.source && (!app.spec.sources || app.spec.sources.length === 0))
             },
             {
                 iconClassName: 'fa fa-sync',
                 title: <ActionMenuItem actionLabel='Sync' />,
                 action: () => AppUtils.showDeploy('all', null, this.appContext.apis),
-                disabled: !app.spec.source
+                disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0)
             },
             {
                 iconClassName: 'fa fa-info-circle',
