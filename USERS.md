@@ -217,6 +217,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [My Job Glasses](https://myjobglasses.com)
 1. [Natura &Co](https://naturaeco.com/)
 1. [Nethopper](https://nethopper.io)
+1. [NeorPro](https://neor.pro/)
 1. [New Relic](https://newrelic.com/)
 1. [Nextbasket](https://nextbasket.com)
 1. [Nextdoor](https://nextdoor.com/)
