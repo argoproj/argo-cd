@@ -70,7 +70,11 @@ type VM struct {
 	UseOpenLibs bool
 }
 
-func (vm VM) runLua(obj *unstructured.Unstructured, script string, resourceActionParameters []*applicationpkg.ResourceActionParameters) (*lua.LState, error) {
+func (vm VM) runLua(obj *unstructured.Unstructured, script string) (*lua.LState, error) {
+	return vm.runLuaWithResourceActionParameters(obj, script, nil)
+}
+
+func (vm VM) runLuaWithResourceActionParameters(obj *unstructured.Unstructured, script string, resourceActionParameters []*applicationpkg.ResourceActionParameters) (*lua.LState, error) {
 	l := lua.NewState(lua.Options{
 		SkipOpenLibs: !vm.UseOpenLibs,
 	})
@@ -114,7 +118,7 @@ func (vm VM) runLua(obj *unstructured.Unstructured, script string, resourceActio
 
 // ExecuteHealthLua runs the lua script to generate the health status of a resource
 func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*health.HealthStatus, error) {
-	l, err := vm.runLua(obj, script, nil)
+	l, err := vm.runLua(obj, script)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +185,7 @@ func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (script string, use
 }
 
 func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string, resourceActionParameters []*applicationpkg.ResourceActionParameters) ([]ImpactedResource, error) {
-	l, err := vm.runLua(obj, script, resourceActionParameters)
+	l, err := vm.runLuaWithResourceActionParameters(obj, script, resourceActionParameters)
 	if err != nil {
 		return nil, err
 	}
@@ -305,7 +309,7 @@ func (vm VM) ExecuteResourceActionDiscovery(obj *unstructured.Unstructured, scri
 	availableActionsMap := make(map[string]appv1.ResourceAction)
 
 	for _, script := range scripts {
-		l, err := vm.runLua(obj, script, nil)
+		l, err := vm.runLua(obj, script)
 		if err != nil {
 			return nil, err
 		}
