@@ -4,7 +4,7 @@ metadata:
   annotations:
     deployment.kubernetes.io/revision: "1"
   creationTimestamp: "2019-09-12T01:33:53Z"
-  generation: 174
+  generation: 1
   name: nginx-deploy
   namespace: default
   resourceVersion: "6897444"
@@ -40,7 +40,7 @@ spec:
       securityContext: {}
       terminationGracePeriodSeconds: 30
 status:
-  availableReplicas: 1
+  availableReplicas: 5
   conditions:
     - lastTransitionTime: '2024-09-28T23:08:00Z'
       lastUpdateTime: '2024-10-02T03:34:02Z'
@@ -54,7 +54,7 @@ status:
       reason: MinimumReplicasAvailable
       status: 'True'
       type: Available
-  observedGeneration: 175
-  readyReplicas: 1
-  replicas: 1
-  updatedReplicas: 1
+  observedGeneration: 174
+  readyReplicas: 5
+  replicas: 5
+  updatedReplicas: 5

@@ -8,3 +8,6 @@ actionTests:
 - action: resume
   inputPath: testdata/deployment-pause.yaml
   expectedOutputPath: testdata/deployment-resume.yaml
+- action: scale
+  inputPath: testdata/deployment.yaml
+  expectedOutputPath: testdata/deployment-scaled.yaml

@@ -49,16 +49,16 @@ func TestResourceOverrideActionWithParameters(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
-			// Setup: Create a ConfigMap with a custom resource override action
 			SetResourceOverrides(map[string]ResourceOverride{
 				"apps/Deployment": {
 					Actions: `
-testAction:
+scaleDeployment:
   lua:
     action: |
       function run(obj, args)
-        if args.label ~= nil then
-          obj.metadata.labels["test-label"] = args.label
+        local replicas = tonumber(args.replicas)
+        if replicas ~= nil then
+          obj.spec.replicas = replicas
         end
         return obj
       end
@@ -66,16 +66,17 @@ testAction:
 				},
 			})
 
+			// Test: Run the action with a parameter to scale the deployment
 			output, err := RunCli("admin", "settings", "resource-overrides", "run-action",
-				"guestbook-ui", "testAction",
-				"--param", "label=test-value")
+				"guestbook-ui", "scaleDeployment",
+				"--param", "replicas=3")
 
 			// Verify: Check the output and error
 			assert.NoError(t, err)
-			assert.Contains(t, output, `+ "test-label": "test-value"`)
+			assert.Contains(t, output, `"replicas": 3`)
 
 			deployment, err := KubeClientset.AppsV1().Deployments(DeploymentNamespace()).Get(context.Background(), "guestbook-ui", metav1.GetOptions{})
 			assert.NoError(t, err)
-			assert.Equal(t, "test-value", deployment.ObjectMeta.Labels["test-label"])
+			assert.Equal(t, int32(3), *deployment.Spec.Replicas)
 		})
 }

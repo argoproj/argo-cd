@@ -2,3 +2,6 @@ actionTests:
 - action: restart
   inputPath: testdata/statefulset.yaml
   expectedOutputPath: testdata/statefulset-restarted.yaml
+- action: scale
+  inputPath: testdata/statefulset.yaml
+  expectedOutputPath: testdata/statefulset-scaled.yaml
