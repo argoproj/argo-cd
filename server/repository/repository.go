@@ -164,8 +164,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 			if rType == "" {
 				rType = common.DefaultRepoType
 			}
-			// remove secrets
-			items = append(items, &appsv1.Repository{
+			repository := &appsv1.Repository{
 				Repo:               repo.Repo,
 				Type:               rType,
 				Name:               repo.Name,
@@ -178,7 +177,14 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 				Project:            repo.Project,
 				ForceHttpBasicAuth: repo.ForceHttpBasicAuth,
 				InheritedCreds:     repo.InheritedCreds,
-			})
+			}
+
+			if q.Repo != "" && q.Repo == repo.Repo {
+				items = append(items, repository)
+				continue
+			}
+			// remove secrets
+			items = append(items, repository)
 		}
 	}
 	err = kube.RunAllAsync(len(items), func(i int) error {
