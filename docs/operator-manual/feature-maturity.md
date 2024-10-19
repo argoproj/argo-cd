@@ -26,16 +26,6 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 | [Cluster Sharding: consistent-hashing][9] | v2.12.0    | Alpha  |
 | [Service Account Impersonation][10]       | v2.13.0    | Alpha  |
 
-[2]: applicationset/Progressive-Syncs.md
-[3]: ../developer-guide/extensions/proxy-extensions.md
-[4]: ../user-guide/skip_reconcile.md
-[5]: applicationset/Appset-Any-Namespace.md
-[6]: ./high_availability.md#argocd-application-controller
-[7]: dynamic-cluster-distribution.md
-[8]: ../user-guide/diff-strategies.md#server-side-diff
-[9]: ./high_availability.md#argocd-application-controller
-[10]: app-sync-using-impersonation.md
-
 ## Unstable Configurations
 
 ### Application CRD
@@ -83,3 +73,13 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 | [Cluster Sharding: consistent-hashing][9] | `ConfigMap/argocd-cmd-params-cm`              | `controller.sharding.algorithm: consistent-hashing`         | Alpha  |
 | [Cluster Sharding: consistent-hashing][9] | `StatefulSet/argocd-application-controller`   | `ARGOCD_CONTROLLER_SHARDING_ALGORITHM=consistent-hashing`   | Alpha  |
 | [Service Account Impersonation][10]       | `ConfigMap/argocd-cm`                         | `application.sync.impersonation.enabled`                    | Alpha  |
+
+[2]: applicationset/Progressive-Syncs.md
+[3]: ../developer-guide/extensions/proxy-extensions.md
+[4]: ../user-guide/skip_reconcile.md
+[5]: applicationset/Appset-Any-Namespace.md
+[6]: ./high_availability.md#argocd-application-controller
+[7]: dynamic-cluster-distribution.md
+[8]: ../user-guide/diff-strategies.md#server-side-diff
+[9]: ./high_availability.md#argocd-application-controller
+[10]: app-sync-using-impersonation.md
