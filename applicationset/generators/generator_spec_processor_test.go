@@ -65,8 +65,8 @@ func TestMatchValues(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			listGenerator := NewListGenerator()
-			data := map[string]Generator{
+			var listGenerator = NewListGenerator()
+			var data = map[string]Generator{
 				"List": listGenerator,
 			}
 
@@ -84,13 +84,12 @@ func TestMatchValues(t *testing.T) {
 				List: &argov1alpha1.ListGenerator{
 					Elements: testCase.elements,
 					Template: emptyTemplate(),
-				},
-			},
+				}},
 				data,
 				emptyTemplate(),
-				&applicationSetInfo, nil, nil)
+				&applicationSetInfo, nil)
 
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			assert.ElementsMatch(t, testCase.expected, results[0].Params)
 		})
 	}
@@ -149,8 +148,8 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			listGenerator := NewListGenerator()
-			data := map[string]Generator{
+			var listGenerator = NewListGenerator()
+			var data = map[string]Generator{
 				"List": listGenerator,
 			}
 
@@ -168,13 +167,12 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 				List: &argov1alpha1.ListGenerator{
 					Elements: testCase.elements,
 					Template: emptyTemplate(),
-				},
-			},
+				}},
 				data,
 				emptyTemplate(),
-				&applicationSetInfo, nil, nil)
+				&applicationSetInfo, nil)
 
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			assert.ElementsMatch(t, testCase.expected, results[0].Params)
 		})
 	}
@@ -238,13 +236,12 @@ func TestTransForm(t *testing.T) {
 						Selector: metav1.LabelSelector{},
 						Template: argov1alpha1.ApplicationSetTemplate{},
 						Values:   nil,
-					},
-				},
+					}},
 				testGenerators,
 				emptyTemplate(),
-				&applicationSetInfo, nil, nil)
+				&applicationSetInfo, nil)
 
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			assert.ElementsMatch(t, testCase.expected, results[0].Params)
 		})
 	}
@@ -346,11 +343,12 @@ func getMockClusterGenerator() Generator {
 func getMockGitGenerator() Generator {
 	argoCDServiceMock := mocks.Repos{}
 	argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return([]string{"app1", "app2", "app_3", "p1/app4"}, nil)
-	gitGenerator := NewGitGenerator(&argoCDServiceMock, "namespace")
+	var gitGenerator = NewGitGenerator(&argoCDServiceMock)
 	return gitGenerator
 }
 
 func TestGetRelevantGenerators(t *testing.T) {
+
 	testGenerators := map[string]Generator{
 		"Clusters": getMockClusterGenerator(),
 		"Git":      getMockGitGenerator(),
@@ -363,8 +361,7 @@ func TestGetRelevantGenerators(t *testing.T) {
 	requestedGenerator := &argov1alpha1.ApplicationSetGenerator{
 		List: &argov1alpha1.ListGenerator{
 			Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","values":{"foo":"bar"}}`)}},
-		},
-	}
+		}}
 
 	relevantGenerators := GetRelevantGenerators(requestedGenerator, testGenerators)
 	assert.Len(t, relevantGenerators, 1)
@@ -407,8 +404,7 @@ func TestInterpolateGenerator(t *testing.T) {
 					"path-basename":                  "{{path.basename}}",
 					"path-zero":                      "{{path[0]}}",
 					"path-full":                      "{{path}}",
-				},
-			},
+				}},
 		},
 	}
 	gitGeneratorParams := map[string]interface{}{
@@ -462,8 +458,7 @@ func TestInterpolateGenerator_go(t *testing.T) {
 					"path-zero":                      "{{index .path.segments 0}}",
 					"path-full":                      "{{.path.path}}",
 					"kubernetes.io/environment":      `{{default "foo" .my_label}}`,
-				},
-			},
+				}},
 		},
 	}
 	gitGeneratorParams := map[string]interface{}{
@@ -555,7 +550,7 @@ func TestInterpolateGeneratorError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := InterpolateGenerator(tt.args.requestedGenerator, tt.args.params, tt.args.useGoTemplate, tt.args.goTemplateOptions)
 			if tt.expectedErrStr != "" {
-				require.EqualError(t, err, tt.expectedErrStr)
+				assert.EqualError(t, err, tt.expectedErrStr)
 			} else {
 				require.NoError(t, err)
 			}

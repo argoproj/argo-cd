@@ -35,7 +35,8 @@ func Test_UserAgentEnforcer(t *testing.T) {
 		md := metadata.New(map[string]string{"user-agent": "argo-cd/3.0"})
 		ctx := metadata.NewIncomingContext(context.Background(), md)
 		err := userAgentEnforcer(ctx, clientName, constraintStr, semverConstraint)
-		require.ErrorContains(t, err, "unsatisfied client version constraint")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unsatisfied client version constraint")
 	})
 	t.Run("Test legacy user-agent", func(t *testing.T) {
 		clientName := "argo-cd"
@@ -44,7 +45,8 @@ func Test_UserAgentEnforcer(t *testing.T) {
 		md := metadata.New(map[string]string{"user-agent": "grpc-go/1.15.0"})
 		ctx := metadata.NewIncomingContext(context.Background(), md)
 		err := userAgentEnforcer(ctx, clientName, constraintStr, semverConstraint)
-		require.ErrorContains(t, err, "unsatisfied client version constraint")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unsatisfied client version constraint")
 	})
 	t.Run("Test invalid version", func(t *testing.T) {
 		clientName := "argo-cd"
@@ -53,6 +55,7 @@ func Test_UserAgentEnforcer(t *testing.T) {
 		md := metadata.New(map[string]string{"user-agent": "argo-cd/super"})
 		ctx := metadata.NewIncomingContext(context.Background(), md)
 		err := userAgentEnforcer(ctx, clientName, constraintStr, semverConstraint)
-		require.ErrorContains(t, err, "could not parse version")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "could not parse version")
 	})
 }

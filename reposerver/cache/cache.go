@@ -3,7 +3,6 @@ package cache
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"hash/fnv"
 	"math"
@@ -24,10 +23,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/hash"
 )
 
-var (
-	ErrCacheMiss      = cacheutil.ErrCacheMiss
-	ErrCacheKeyLocked = cacheutil.ErrCacheKeyLocked
-)
+var ErrCacheMiss = cacheutil.ErrCacheMiss
+var ErrCacheKeyLocked = cacheutil.ErrCacheKeyLocked
 
 type Cache struct {
 	cache                    *cacheutil.Cache
@@ -157,8 +154,7 @@ func (c *Cache) SetApps(repoUrl, revision string, apps map[string]string) error 
 		apps,
 		&cacheutil.CacheActionOpts{
 			Expiration: c.repoCacheExpiration,
-			Delete:     apps == nil,
-		})
+			Delete:     apps == nil})
 }
 
 func helmIndexRefsKey(repo string) string {
@@ -215,8 +211,7 @@ func (c *Cache) TryLockGitRefCache(repo string, lockId string, references *[]*pl
 	// leads to duplicate requests
 	err := c.cache.SetItem(gitRefsKey(repo), [][2]string{{cacheutil.CacheLockedValue, lockId}}, &cacheutil.CacheActionOpts{
 		Expiration:       c.revisionCacheLockTimeout,
-		DisableOverwrite: true,
-	})
+		DisableOverwrite: true})
 	if err != nil {
 		// Log but ignore this error since we'll want to retry, failing to obtain the lock should not throw an error
 		log.Errorf("Error attempting to acquire git references cache lock: %v", err)
@@ -231,7 +226,7 @@ func (c *Cache) GetGitReferences(repo string, references *[]*plumbing.Reference)
 	valueExists := len(input) > 0 && len(input[0]) > 0
 	switch {
 	// Unexpected Error
-	case err != nil && !errors.Is(err, ErrCacheMiss):
+	case err != nil && err != ErrCacheMiss:
 		log.Errorf("Error attempting to retrieve git references from cache: %v", err)
 		return "", err
 	// Value is set
@@ -290,17 +285,13 @@ func (c *Cache) UnlockGitReferences(repo string, lockId string) error {
 
 // refSourceCommitSHAs is a list of resolved revisions for each ref source. This allows us to invalidate the cache
 // when someone pushes a commit to a source which is referenced from the main source (the one referred to by `revision`).
-func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, namespace string, trackingMethod string, appLabelKey string, appName string, info ClusterRuntimeInfo, refSourceCommitSHAs ResolvedRevisions, installationID string) string {
+func manifestCacheKey(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, namespace string, trackingMethod string, appLabelKey string, appName string, info ClusterRuntimeInfo, refSourceCommitSHAs ResolvedRevisions) string {
 	// TODO: this function is getting unwieldy. We should probably consolidate some of this stuff into a struct. For
 	//       example, revision could be part of ResolvedRevisions. And srcRefs is probably redundant now that
 	//       refSourceCommitSHAs has been added. We don't need to know the _target_ revisions of the referenced sources
 	//       when the _resolved_ revisions are already part of the key.
 	trackingKey := trackingKey(appLabelKey, trackingMethod)
-	key := fmt.Sprintf("mfst|%s|%s|%s|%s|%d", trackingKey, appName, revision, namespace, appSourceKey(appSrc, srcRefs, refSourceCommitSHAs)+clusterRuntimeInfoKey(info))
-	if installationID != "" {
-		key = fmt.Sprintf("%s|%s", key, installationID)
-	}
-	return key
+	return fmt.Sprintf("mfst|%s|%s|%s|%s|%d", trackingKey, appName, revision, namespace, appSourceKey(appSrc, srcRefs, refSourceCommitSHAs)+clusterRuntimeInfoKey(info))
 }
 
 func trackingKey(appLabelKey string, trackingMethod string) string {
@@ -327,21 +318,22 @@ func LogDebugManifestCacheKeyFields(message string, reason string, revision stri
 	}
 }
 
-func (c *Cache) SetNewRevisionManifests(newRevision string, revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, refSourceCommitSHAs ResolvedRevisions, installationID string) error {
-	oldKey := manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs, installationID)
-	newKey := manifestCacheKey(newRevision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs, installationID)
+func (c *Cache) SetNewRevisionManifests(newRevision string, revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, refSourceCommitSHAs ResolvedRevisions) error {
+	oldKey := manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs)
+	newKey := manifestCacheKey(newRevision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs)
 	return c.cache.RenameItem(oldKey, newKey, c.repoCacheExpiration)
 }
 
-func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse, refSourceCommitSHAs ResolvedRevisions, installationID string) error {
-	err := c.cache.GetItem(manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs, installationID), res)
+func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse, refSourceCommitSHAs ResolvedRevisions) error {
+	err := c.cache.GetItem(manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs), res)
+
 	if err != nil {
 		return err
 	}
 
 	hash, err := res.generateCacheEntryHash()
 	if err != nil {
-		return fmt.Errorf("Unable to generate hash value: %w", err)
+		return fmt.Errorf("Unable to generate hash value: %s", err)
 	}
 
 	// If cached result does not have manifests or the expected hash of the cache entry does not match the actual hash value...
@@ -350,9 +342,9 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, s
 
 		LogDebugManifestCacheKeyFields("deleting manifests cache", "manifest hash did not match or cached response is empty", revision, appSrc, srcRefs, clusterInfo, namespace, trackingMethod, appLabelKey, appName, refSourceCommitSHAs)
 
-		err = c.DeleteManifests(revision, appSrc, srcRefs, clusterInfo, namespace, trackingMethod, appLabelKey, appName, refSourceCommitSHAs, installationID)
+		err = c.DeleteManifests(revision, appSrc, srcRefs, clusterInfo, namespace, trackingMethod, appLabelKey, appName, refSourceCommitSHAs)
 		if err != nil {
-			return fmt.Errorf("Unable to delete manifest after hash mismatch, %w", err)
+			return fmt.Errorf("Unable to delete manifest after hash mismatch, %v", err)
 		}
 
 		// Treat hash mismatches as cache misses, so that the underlying resource is reacquired
@@ -370,29 +362,28 @@ func (c *Cache) GetManifests(revision string, appSrc *appv1.ApplicationSource, s
 	return nil
 }
 
-func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse, refSourceCommitSHAs ResolvedRevisions, installationID string) error {
+func (c *Cache) SetManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace string, trackingMethod string, appLabelKey string, appName string, res *CachedManifestResponse, refSourceCommitSHAs ResolvedRevisions) error {
 	// Generate and apply the cache entry hash, before writing
 	if res != nil {
 		res = res.shallowCopy()
 		hash, err := res.generateCacheEntryHash()
 		if err != nil {
-			return fmt.Errorf("Unable to generate hash value: %w", err)
+			return fmt.Errorf("Unable to generate hash value: %s", err)
 		}
 		res.CacheEntryHash = hash
 	}
 
 	return c.cache.SetItem(
-		manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs, installationID),
+		manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs),
 		res,
 		&cacheutil.CacheActionOpts{
 			Expiration: c.repoCacheExpiration,
-			Delete:     res == nil,
-		})
+			Delete:     res == nil})
 }
 
-func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace, trackingMethod, appLabelKey, appName string, refSourceCommitSHAs ResolvedRevisions, installationID string) error {
+func (c *Cache) DeleteManifests(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, clusterInfo ClusterRuntimeInfo, namespace, trackingMethod, appLabelKey, appName string, refSourceCommitSHAs ResolvedRevisions) error {
 	return c.cache.SetItem(
-		manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs, installationID),
+		manifestCacheKey(revision, appSrc, srcRefs, namespace, trackingMethod, appLabelKey, appName, clusterInfo, refSourceCommitSHAs),
 		"",
 		&cacheutil.CacheActionOpts{Delete: true})
 }
@@ -414,8 +405,7 @@ func (c *Cache) SetAppDetails(revision string, appSrc *appv1.ApplicationSource, 
 		res,
 		&cacheutil.CacheActionOpts{
 			Expiration: c.repoCacheExpiration,
-			Delete:     res == nil,
-		})
+			Delete:     res == nil})
 }
 
 func revisionMetadataKey(repoURL, revision string) string {
@@ -498,6 +488,7 @@ func (cmr *CachedManifestResponse) shallowCopy() *CachedManifestResponse {
 }
 
 func (cmr *CachedManifestResponse) generateCacheEntryHash() (string, error) {
+
 	// Copy, then remove the old hash
 	copy := cmr.shallowCopy()
 	copy.CacheEntryHash = ""
@@ -514,11 +505,13 @@ func (cmr *CachedManifestResponse) generateCacheEntryHash() (string, error) {
 	}
 	fnvHash := h.Sum(nil)
 	return base64.URLEncoding.EncodeToString(fnvHash), nil
+
 }
 
 // CachedManifestResponse represents a cached result of a previous manifest generation operation, including the caching
 // of a manifest generation error, plus additional information on previous failures
 type CachedManifestResponse struct {
+
 	// NOTE: When adding fields to this struct, you MUST also update shallowCopy()
 
 	CacheEntryHash                  string                      `json:"cacheEntryHash"`
