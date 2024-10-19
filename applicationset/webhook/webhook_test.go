@@ -149,6 +149,24 @@ func TestWebhookHandler(t *testing.T) {
 			expectedRefresh:    true,
 		},
 		{
+			desc:               "WebHook from a Gitea repository via pull_reqeuest opened event",
+			headerKey:          "X-GitHub-Event",
+			headerValue:        "pull_request",
+			payloadFile:        "gitea-pull-request-opened-event.json",
+			effectedAppSets:    []string{"pull-request-gitea"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from a Gitea repository via pull_reqeuest assigned event",
+			headerKey:          "X-GitHub-Event",
+			headerValue:        "pull_request",
+			payloadFile:        "gitea-pull-request-assigned-event.json",
+			effectedAppSets:    []string{"pull-request-gitea"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    false,
+		},
+		{
 			desc:               "WebHook from a GitLab repository via open merge request event",
 			headerKey:          "X-Gitlab-Event",
 			headerValue:        "Merge Request Hook",
@@ -199,10 +217,12 @@ func TestWebhookHandler(t *testing.T) {
 		t.Run(test.desc, func(t *testing.T) {
 			fc := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
 				fakeAppWithGitGenerator("git-github", namespace, "https://github.com/org/repo"),
+				fakeAppWithGitGenerator("git-gitea", namespace, "https://gitea/org/repo"),
 				fakeAppWithGitGenerator("git-gitlab", namespace, "https://gitlab/group/name"),
 				fakeAppWithGitGenerator("git-azure-devops", namespace, "https://dev.azure.com/fabrikam-fiber-inc/DefaultCollection/_git/Fabrikam-Fiber-Git"),
 				fakeAppWithGitGeneratorWithRevision("github-shorthand", namespace, "https://github.com/org/repo", "env/dev"),
 				fakeAppWithGithubPullRequestGenerator("pull-request-github", namespace, "CodErTOcat", "Hello-World"),
+				fakeAppWithGiteaPullRequestGenerator("pull-request-gitea", namespace, "Codertocat", "Hello-World", "https://gitea/org/repo"),
 				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab", namespace, "100500"),
 				fakeAppWithAzureDevOpsPullRequestGenerator("pull-request-azure-devops", namespace, "DefaultCollection", "Fabrikam"),
 				fakeAppWithPluginGenerator("plugin", namespace),
@@ -428,6 +448,28 @@ func fakeAppWithGithubPullRequestGenerator(name, namespace, owner, repo string) 
 						Github: &v1alpha1.PullRequestGeneratorGithub{
 							Owner: owner,
 							Repo:  repo,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func fakeAppWithGiteaPullRequestGenerator(name, namespace, owner, repo string, api string) *v1alpha1.ApplicationSet {
+	return &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					PullRequest: &v1alpha1.PullRequestGenerator{
+						Gitea: &v1alpha1.PullRequestGeneratorGitea{
+							Owner: owner,
+							Repo:  repo,
+							API:   api,
 						},
 					},
 				},
