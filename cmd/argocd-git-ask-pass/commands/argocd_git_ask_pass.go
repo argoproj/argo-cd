@@ -25,6 +25,10 @@ func NewCommand() *cobra.Command {
 		Use:               cliName,
 		Short:             "Argo CD git credential helper",
 		DisableAutoGenTag: true,
+		FParseErrWhitelist: cobra.FParseErrWhitelist{
+			// Allow unknown flags for backward-compatibility.
+			UnknownFlags: true,
+		},
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 

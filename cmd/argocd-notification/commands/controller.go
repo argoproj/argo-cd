@@ -166,6 +166,11 @@ func NewCommand() *cobra.Command {
 			<-ctx.Done()
 			return nil
 		},
+		DisableAutoGenTag: true,
+		FParseErrWhitelist: cobra.FParseErrWhitelist{
+			// Allow unknown flags for backward-compatibility.
+			UnknownFlags: true,
+		},
 	}
 	clientConfig = addK8SFlagsToCmd(&command)
 	command.Flags().IntVar(&processorsCount, "processors-count", 1, "Processors count.")

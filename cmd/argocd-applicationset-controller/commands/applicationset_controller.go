@@ -232,6 +232,11 @@ func NewCommand() *cobra.Command {
 			}
 			return nil
 		},
+		DisableAutoGenTag: true,
+		FParseErrWhitelist: cobra.FParseErrWhitelist{
+			// Allow unknown flags for backward-compatibility.
+			UnknownFlags: true,
+		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
