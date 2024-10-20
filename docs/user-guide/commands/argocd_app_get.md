@@ -29,6 +29,9 @@ argocd app get APPNAME [flags]
   # Show application parameters and overrides for a source at position 1 under spec.sources of app my-app
   argocd app get my-app --show-params --source-position 1
   
+  # Show application parameters and overrides for a source named "test"
+  argocd app get my-app --show-params --source-name test
+  
   # Refresh application data when retrieving
   argocd app get my-app --refresh
   
@@ -52,6 +55,7 @@ argocd app get APPNAME [flags]
       --refresh                Refresh application data when retrieving
       --show-operation         Show application operation
       --show-params            Show application parameters and overrides
+      --source-name string     Name of the source from the list of sources of the app.
       --source-position int    Position of the source from the list of sources of the app. Counting starts at 1. (default -1)
 ```
 

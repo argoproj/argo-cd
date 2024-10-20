@@ -25,7 +25,8 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
   argocd app sync -l 'app.kubernetes.io/instance notin (my-app,other-app)'
 
   # Sync a multi-source application for specific revision of specific sources
-  argocd app manifests my-app --revisions 0.0.1 --source-positions 1 --revisions 0.0.2 --source-positions 2
+  argocd app sync my-app --revisions 0.0.1 --source-positions 1 --revisions 0.0.2 --source-positions 2
+  argocd app sync my-app --revisions 0.0.1 --source-names my-chart --revisions 0.0.2 --source-names my-values
 
   # Sync a specific resource
   # Resource should be formatted as GROUP:KIND:NAME. If no GROUP is specified then :KIND:NAME
@@ -67,6 +68,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --revisions stringArray                             Show manifests at specific revisions for source position in source-positions
   -l, --selector string                                   Sync apps that match this label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
       --server-side                                       Use server-side apply while syncing the application
+      --source-names stringArray                          List of source names. Default is an empty array.
       --source-positions int64Slice                       List of source positions. Default is empty array. Counting start at 1. (default [])
       --strategy string                                   Sync strategy (one of: apply|hook)
       --timeout uint                                      Time out after this many seconds

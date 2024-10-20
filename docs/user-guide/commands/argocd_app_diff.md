@@ -31,6 +31,7 @@ argocd app diff APPNAME [flags]
       --revision string                                   Compare live app to a particular revision
       --revisions stringArray                             Show manifests at specific revisions for source position in source-positions
       --server-side-generate                              Used with --local, this will send your manifests to the server for diffing
+      --source-names stringArray                          List of source names. Default is an empty array.
       --source-positions int64Slice                       List of source positions. Default is empty array. Counting start at 1. (default [])
 ```
 
