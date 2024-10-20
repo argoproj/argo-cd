@@ -6,4 +6,4 @@ actionTests:
   inputPath: testdata/statefulset.yaml
   expectedOutputPath: testdata/statefulset-scaled.yaml
   parameters:
-    replicas: "6"
+    scale: "6"

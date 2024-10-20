@@ -152,6 +152,9 @@ func TestLuaResourceActionsScript(t *testing.T) {
 
 				require.NoError(t, err)
 
+				// Log the action Lua script
+				t.Logf("Action Lua script: %s", action.ActionLua)
+
 				// Parse action parameters
 				var params []*applicationpkg.ResourceActionParameters
 				if test.Parameters != nil {
@@ -211,44 +214,17 @@ func TestLuaResourceActionsScript(t *testing.T) {
 					}
 
 					// Add specific checks for parameter-based actions
-					if test.Action == "scale" && sourceObj.GetKind() == "Deployment" {
+					if test.Action == "scale" {
 						// Check spec.replicas
-						specMap, found, err := unstructured.NestedMap(result.Object, "spec")
-						if err != nil {
-								t.Errorf("Error accessing spec field: %v", err)
-						} else if !found {
-								t.Errorf("spec not found in actual result. Result object: %+v", result.Object)
+						expectedScale, err := strconv.ParseInt(test.Parameters["scale"], 10, 64)
+						require.NoError(t, err)
+
+						actualReplicas, found, err := unstructured.NestedInt64(result.Object, "spec", "replicas")
+						if !found {
+								t.Errorf("spec.replicas not found in actual result. Result object: %+v", result.Object)
 						} else {
-								t.Logf("Spec field: %+v", specMap)
-						}
-
-						if specMap != nil {
-								// Try to access replicas directly from the spec map
-								replicasRaw, found := specMap["replicas"]
-								if !found {
-										t.Errorf("replicas field not found in spec. Spec: %+v", specMap)
-								} else {
-										t.Logf("Replicas field (raw): %v", replicasRaw)
-										
-										var actualReplicas int64
-										switch v := replicasRaw.(type) {
-										case int64:
-												actualReplicas = v
-										case float64:
-												actualReplicas = int64(v)
-										case int:
-												actualReplicas = int64(v)
-										default:
-												t.Errorf("Unexpected type for replicas: %T", replicasRaw)
-										}
-
-										expectedReplicas, err := strconv.ParseInt(test.Parameters["replicas"], 10, 64)
-										if err != nil {
-												t.Errorf("Error parsing expected replicas: %v", err)
-										} else {
-												assert.Equal(t, expectedReplicas, actualReplicas, "replica count mismatch")
-										}
-								}
+								require.NoError(t, err)
+								assert.Equal(t, expectedScale, actualReplicas, "replica count mismatch")
 						}
 					}
 

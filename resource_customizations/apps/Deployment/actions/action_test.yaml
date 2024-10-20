@@ -12,4 +12,4 @@ actionTests:
   inputPath: testdata/deployment.yaml
   expectedOutputPath: testdata/deployment-scaled.yaml
   parameters:
-    replicas: "6"
+    scale: "6"
