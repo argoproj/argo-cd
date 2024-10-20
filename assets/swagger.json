@@ -4084,6 +4084,504 @@
         }
       }
     },
+    "/api/v1/write-repocreds": {
+      "get": {
+        "tags": [
+          "RepoCredsService"
+        ],
+        "summary": "ListWriteRepositoryCredentials gets a list of all configured repository credential sets that have write access",
+        "operationId": "RepoCredsService_ListWriteRepositoryCredentials",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query.",
+            "name": "url",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCredsList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "RepoCredsService"
+        ],
+        "summary": "CreateWriteRepositoryCredentials creates a new repository credential set with write access",
+        "operationId": "RepoCredsService_CreateWriteRepositoryCredentials",
+        "parameters": [
+          {
+            "description": "Repository definition",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCreds"
+            }
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to create in upsert mode.",
+            "name": "upsert",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCreds"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/write-repocreds/{creds.url}": {
+      "put": {
+        "tags": [
+          "RepoCredsService"
+        ],
+        "summary": "UpdateWriteRepositoryCredentials updates a repository credential set with write access",
+        "operationId": "RepoCredsService_UpdateWriteRepositoryCredentials",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "URL is the URL to which these credentials match",
+            "name": "creds.url",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCreds"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepoCreds"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/write-repocreds/{url}": {
+      "delete": {
+        "tags": [
+          "RepoCredsService"
+        ],
+        "summary": "DeleteWriteRepositoryCredentials deletes a repository credential set with write access from the configuration",
+        "operationId": "RepoCredsService_DeleteWriteRepositoryCredentials",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "url",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repocredsRepoCredsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/write-repositories": {
+      "get": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "ListWriteRepositories gets a list of all configured write repositories",
+        "operationId": "RepositoryService_ListWriteRepositories",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query.",
+            "name": "repo",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1RepositoryList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "CreateWriteRepository creates a new write repository configuration",
+        "operationId": "RepositoryService_CreateWriteRepository",
+        "parameters": [
+          {
+            "description": "Repository definition",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to create in upsert mode.",
+            "name": "upsert",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to operate on credential set instead of repository.",
+            "name": "credsOnly",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/write-repositories/{repo.repo}": {
+      "put": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "UpdateWriteRepository updates a write repository configuration",
+        "operationId": "RepositoryService_UpdateWriteRepository",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo contains the URL to the remote repository",
+            "name": "repo.repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/write-repositories/{repo}": {
+      "get": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "GetWrite returns a repository or its write credentials",
+        "operationId": "RepositoryService_GetWrite",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Repository"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "DeleteWriteRepository deletes a write repository from the configuration",
+        "operationId": "RepositoryService_DeleteWriteRepository",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Repo URL for query",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to force a cache refresh on repo's connection state.",
+            "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/write-repositories/{repo}/validate": {
+      "post": {
+        "tags": [
+          "RepositoryService"
+        ],
+        "summary": "ValidateWriteAccess validates write access to a repository with given parameters",
+        "operationId": "RepositoryService_ValidateWriteAccess",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "The URL to the repo",
+            "name": "repo",
+            "in": "path",
+            "required": true
+          },
+          {
+            "description": "The URL to the repo",
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "type": "string",
+            "description": "Username for accessing repo.",
+            "name": "username",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Password for accessing repo.",
+            "name": "password",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Private key data for accessing SSH repository.",
+            "name": "sshPrivateKey",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to skip certificate or host key validation.",
+            "name": "insecure",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "TLS client cert data for accessing HTTPS repository.",
+            "name": "tlsClientCertData",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "TLS client cert key for accessing HTTPS repository.",
+            "name": "tlsClientCertKey",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "The type of the repo.",
+            "name": "type",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "The name of the repo.",
+            "name": "name",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether helm-oci support should be enabled for this repo.",
+            "name": "enableOci",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Github App Private Key PEM data.",
+            "name": "githubAppPrivateKey",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "Github App ID of the app used to access the repo.",
+            "name": "githubAppID",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "Github App Installation ID of the installed GitHub App.",
+            "name": "githubAppInstallationID",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Github App Enterprise base url if empty will default to https://api.github.com.",
+            "name": "githubAppEnterpriseBaseUrl",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "HTTP/HTTPS proxy to access the repository.",
+            "name": "proxy",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity.",
+            "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "Google Cloud Platform service account key.",
+            "name": "gcpServiceAccountKey",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether to force HTTP basic auth.",
+            "name": "forceHttpBasicAuth",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/repositoryRepoResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/version": {
       "get": {
         "tags": [

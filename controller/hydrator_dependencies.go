@@ -51,8 +51,8 @@ func (ctrl *ApplicationController) GetRepoObjs(app *appv1.Application, source ap
 	return objs, resp[0], nil
 }
 
-func (ctrl *ApplicationController) GetWriteCredentials(ctx context.Context, repoURL string) (*appv1.Repository, error) {
-	return ctrl.db.GetWriteCredentials(ctx, repoURL)
+func (ctrl *ApplicationController) GetWriteCredentials(ctx context.Context, repoURL string, project string) (*appv1.Repository, error) {
+	return ctrl.db.GetWriteRepository(ctx, repoURL, project)
 }
 
 func (ctrl *ApplicationController) ResolveGitRevision(repoURL, targetRevision string) (string, error) {

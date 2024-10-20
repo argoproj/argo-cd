@@ -477,6 +477,7 @@ func TestRepositoryServer(t *testing.T) {
 		})
 
 		require.NoError(t, err)
+		require.NotNil(t, repo)
 		assert.Equal(t, "test", repo.Repo)
 	})
 

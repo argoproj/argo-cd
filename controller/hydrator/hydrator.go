@@ -26,7 +26,7 @@ type Dependencies interface {
 	GetProcessableAppProj(app *appv1.Application) (*appv1.AppProject, error)
 	GetProcessableApps() (*appv1.ApplicationList, error)
 	GetRepoObjs(app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject) ([]*unstructured.Unstructured, *apiclient.ManifestResponse, error)
-	GetWriteCredentials(ctx context.Context, repoURL string) (*appv1.Repository, error)
+	GetWriteCredentials(ctx context.Context, repoURL string, project string) (*appv1.Repository, error)
 	ResolveGitRevision(repoURL, targetRevision string) (string, error)
 	RequestAppRefresh(appName string)
 	// TODO: only allow access to the hydrator status
@@ -284,7 +284,8 @@ func (h *Hydrator) hydrate(apps []*appv1.Application, revision string) (string, 
 		})
 	}
 
-	repo, err := h.dependencies.GetWriteCredentials(context.Background(), repoURL)
+	// FIXME: handle project-scoped credentials
+	repo, err := h.dependencies.GetWriteCredentials(context.Background(), repoURL, "")
 	if err != nil {
 		return "", fmt.Errorf("failed to get hydrator credentials: %w", err)
 	}

@@ -47,6 +47,8 @@ type ArgoDB interface {
 
 	// ListRepositories lists repositories
 	ListRepositories(ctx context.Context) ([]*appv1.Repository, error)
+	// ListWriteRepositories lists repositories from write credentials
+	ListWriteRepositories(ctx context.Context) ([]*appv1.Repository, error)
 
 	// CreateRepository creates a repository
 	CreateRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
@@ -61,6 +63,19 @@ type ArgoDB interface {
 	// DeleteRepository deletes a repository from config
 	DeleteRepository(ctx context.Context, name, project string) error
 
+	// CreateWriteRepository creates a repository with write credentials
+	CreateWriteRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
+	// GetWriteRepository returns a repository by URL with write credentials
+	GetWriteRepository(ctx context.Context, url, project string) (*appv1.Repository, error)
+	// GetProjectWriteRepositories returns project scoped repositories from write credentials by given project name
+	GetProjectWriteRepositories(ctx context.Context, project string) ([]*appv1.Repository, error)
+	// WriteRepositoryExists returns whether a repository is configured for the given URL with write credentials
+	WriteRepositoryExists(ctx context.Context, repoURL, project string) (bool, error)
+	// UpdateWriteRepository updates a repository with write credentials
+	UpdateWriteRepository(ctx context.Context, r *appv1.Repository) (*appv1.Repository, error)
+	// DeleteWriteRepository deletes a repository from config with write credentials
+	DeleteWriteRepository(ctx context.Context, name, project string) error
+
 	// ListRepositoryCredentials list all repo credential sets URL patterns
 	ListRepositoryCredentials(ctx context.Context) ([]string, error)
 	// GetRepositoryCredentials gets repo credentials for given URL
@@ -72,6 +87,17 @@ type ArgoDB interface {
 	// DeleteRepositoryCredentials deletes a repository credential set from config
 	DeleteRepositoryCredentials(ctx context.Context, name string) error
 
+	// ListWriteRepositoryCredentials list all repo write credential sets URL patterns
+	ListWriteRepositoryCredentials(ctx context.Context) ([]string, error)
+	// GetWriteRepositoryCredentials gets repo write credentials for given URL
+	GetWriteRepositoryCredentials(ctx context.Context, name string) (*appv1.RepoCreds, error)
+	// CreateWriteRepositoryCredentials creates a repository write credential set
+	CreateWriteRepositoryCredentials(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error)
+	// UpdateWriteRepositoryCredentials updates a repository write credential set
+	UpdateWriteRepositoryCredentials(ctx context.Context, r *appv1.RepoCreds) (*appv1.RepoCreds, error)
+	// DeleteWriteRepositoryCredentials deletes a repository write credential set from config
+	DeleteWriteRepositoryCredentials(ctx context.Context, name string) error
+
 	// ListRepoCertificates lists all configured certificates
 	ListRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
 	// CreateRepoCertificate creates a new certificate entry
@@ -80,9 +106,6 @@ type ArgoDB interface {
 	RemoveRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
 	// GetAllHelmRepositoryCredentials gets all repo credentials
 	GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appv1.RepoCreds, error)
-
-	// GetWriteCredentials gets repo credentials specific to the hydrator for given URL
-	GetWriteCredentials(ctx context.Context, repoURL string) (*appv1.Repository, error)
 
 	// ListHelmRepositories lists repositories
 	ListHelmRepositories(ctx context.Context) ([]*appv1.Repository, error)

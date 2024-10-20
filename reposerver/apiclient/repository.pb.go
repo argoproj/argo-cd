@@ -966,7 +966,7 @@ func (m *ListAppsRequest) GetEnabledSourceTypes() map[string]bool {
 	return nil
 }
 
-// AppList returns the contents of the repo of a GetProcessableApps request
+// AppList returns the contents of the repo of a ListApps request
 type AppList struct {
 	Apps                 map[string]string `protobuf:"bytes,1,rep,name=apps,proto3" json:"apps,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
@@ -2749,7 +2749,7 @@ func (c *repoServerServiceClient) ListRefs(ctx context.Context, in *ListRefsRequ
 
 func (c *repoServerServiceClient) ListApps(ctx context.Context, in *ListAppsRequest, opts ...grpc.CallOption) (*AppList, error) {
 	out := new(AppList)
-	err := c.cc.Invoke(ctx, "/repository.RepoServerService/GetProcessableApps", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/repository.RepoServerService/ListApps", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -2880,7 +2880,7 @@ func (*UnimplementedRepoServerServiceServer) ListRefs(ctx context.Context, req *
 	return nil, status.Errorf(codes.Unimplemented, "method ListRefs not implemented")
 }
 func (*UnimplementedRepoServerServiceServer) ListApps(ctx context.Context, req *ListAppsRequest) (*AppList, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetProcessableApps not implemented")
+	return nil, status.Errorf(codes.Unimplemented, "method ListApps not implemented")
 }
 func (*UnimplementedRepoServerServiceServer) ListPlugins(ctx context.Context, req *emptypb.Empty) (*PluginList, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListPlugins not implemented")
@@ -3019,7 +3019,7 @@ func _RepoServerService_ListApps_Handler(srv interface{}, ctx context.Context, d
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/repository.RepoServerService/GetProcessableApps",
+		FullMethod: "/repository.RepoServerService/ListApps",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RepoServerServiceServer).ListApps(ctx, req.(*ListAppsRequest))
@@ -3192,7 +3192,7 @@ var _RepoServerService_serviceDesc = grpc.ServiceDesc{
 			Handler:    _RepoServerService_ListRefs_Handler,
 		},
 		{
-			MethodName: "GetProcessableApps",
+			MethodName: "ListApps",
 			Handler:    _RepoServerService_ListApps_Handler,
 		},
 		{
