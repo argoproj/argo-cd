@@ -40,12 +40,11 @@ spec:
       partition: 0
     type: RollingUpdate
 status:
-  availableReplicas: 6
   collisionCount: 0
-  currentReplicas: 6
+  currentReplicas: 3
   currentRevision: statefulset-85b7f767c6
   observedGeneration: 2
-  readyReplicas: 6
-  replicas: 6
+  readyReplicas: 3
+  replicas: 3
   updateRevision: statefulset-85b7f767c6
-  updatedReplicas: 6
+  updatedReplicas: 3

@@ -5,3 +5,5 @@ actionTests:
 - action: scale
   inputPath: testdata/statefulset.yaml
   expectedOutputPath: testdata/statefulset-scaled.yaml
+  parameters:
+    replicas: "6"

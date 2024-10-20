@@ -40,21 +40,22 @@ spec:
       securityContext: {}
       terminationGracePeriodSeconds: 30
 status:
-  availableReplicas: 6
+  availableReplicas: 2
   conditions:
-    - lastTransitionTime: '2024-09-28T23:08:00Z'
-      lastUpdateTime: '2024-10-02T03:34:02Z'
-      message: ReplicaSet "nginx-deploy-7bf8c77b5b" has successfully progressed.
-      reason: NewReplicaSetAvailable
-      status: 'True'
-      type: Progressing
-    - lastTransitionTime: '2024-10-06T15:37:34Z'
-      lastUpdateTime: '2024-10-06T15:37:34Z'
-      message: Deployment has minimum availability.
-      reason: MinimumReplicasAvailable
-      status: 'True'
-      type: Available
+  - lastTransitionTime: "2019-09-12T01:33:53Z"
+    lastUpdateTime: "2019-09-12T01:33:53Z"
+    message: Deployment does not have minimum availability.
+    reason: MinimumReplicasUnavailable
+    status: "False"
+    type: Available
+  - lastTransitionTime: "2019-09-12T01:33:53Z"
+    lastUpdateTime: "2019-09-12T01:34:05Z"
+    message: ReplicaSet "nginx-deploy-9cb4784bd" is progressing.
+    reason: ReplicaSetUpdated
+    status: "True"
+    type: Progressing
   observedGeneration: 1
-  readyReplicas: 6
-  replicas: 6
-  updatedReplicas: 6
+  readyReplicas: 2
+  replicas: 3
+  unavailableReplicas: 1
+  updatedReplicas: 3

@@ -203,6 +203,25 @@ func TestLuaResourceActionsScript(t *testing.T) {
 							result.SetName(expectedObj.GetName())
 						}
 					}
+
+					// Add specific checks for parameter-based actions
+					if test.Action == "scale" && sourceObj.GetKind() == "Deployment" {
+						// Check spec.replicas
+						expectedReplicas, err := strconv.ParseInt(test.Parameters["replicas"], 10, 64)
+						require.NoError(t, err)
+
+						actualReplicas, found, err := unstructured.NestedInt64(result.Object, "spec", "replicas")
+						require.NoError(t, err)
+						require.True(t, found, "spec.replicas not found in actual result")
+						assert.Equal(t, expectedReplicas, actualReplicas, "replica count mismatch in spec")
+
+						// Check against expected output
+						expectedReplicas, found, err = unstructured.NestedInt64(expectedObj.Object, "spec", "replicas")
+						require.NoError(t, err)
+						require.True(t, found, "spec.replicas not found in expected output")
+						assert.Equal(t, expectedReplicas, actualReplicas, "replica count mismatch with expected output")
+					}
+
 					// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
 					diffResult, err := diff.Diff(expectedObj, result, diff.WithNormalizer(testNormalizer{}))
 					require.NoError(t, err)
@@ -210,23 +229,6 @@ func TestLuaResourceActionsScript(t *testing.T) {
 						t.Error("Output does not match input:")
 						err = cli.PrintDiff(test.Action, expectedObj, result)
 						require.NoError(t, err)
-					}
-				}
-
-				// Add specific checks for parameter-based actions
-				if len(params) > 0 {
-					for _, impactedResource := range impactedResources {
-						result := impactedResource.UnstructuredObj
-						// Check for specific changes based on the action and parameters
-						// For example, if we're scaling a deployment:
-						if test.Action == "scale" && sourceObj.GetKind() == "Deployment" {
-							replicas, found, err := unstructured.NestedInt64(result.Object, "spec", "replicas")
-							require.NoError(t, err)
-							require.True(t, found, "replicas field not found in deployment spec")
-							expectedReplicas, _ := strconv.ParseInt(test.Parameters["replicas"], 10, 64)
-							assert.Equal(t, expectedReplicas, replicas, "replica count mismatch")
-						}
-						// Add more checks for other parameter-based actions as needed
 					}
 				}
 			})
