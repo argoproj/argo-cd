@@ -211,15 +211,21 @@ func TestLuaResourceActionsScript(t *testing.T) {
 						require.NoError(t, err)
 
 						actualReplicas, found, err := unstructured.NestedInt64(result.Object, "spec", "replicas")
-						require.NoError(t, err)
-						require.True(t, found, "spec.replicas not found in actual result")
-						assert.Equal(t, expectedReplicas, actualReplicas, "replica count mismatch in spec")
+						if !found {
+							t.Errorf("spec.replicas not found in actual result. Result object: %+v", result.Object)
+						} else {
+							require.NoError(t, err)
+							assert.Equal(t, expectedReplicas, actualReplicas, "replica count mismatch in spec")
+						}
 
 						// Check against expected output
 						expectedReplicas, found, err = unstructured.NestedInt64(expectedObj.Object, "spec", "replicas")
-						require.NoError(t, err)
-						require.True(t, found, "spec.replicas not found in expected output")
-						assert.Equal(t, expectedReplicas, actualReplicas, "replica count mismatch with expected output")
+						if !found {
+							t.Errorf("spec.replicas not found in expected output. Expected object: %+v", expectedObj.Object)
+						} else {
+							require.NoError(t, err)
+							assert.Equal(t, expectedReplicas, actualReplicas, "replica count mismatch with expected output")
+						}
 					}
 
 					// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
