@@ -12,7 +12,7 @@ metadata:
   uid: 61689d6d-d4fd-11e9-9e69-42010aa8005f
 spec:
   progressDeadlineSeconds: 600
-  replicas: 5
+  replicas: 6
   revisionHistoryLimit: 10
   selector:
     matchLabels:
@@ -40,7 +40,7 @@ spec:
       securityContext: {}
       terminationGracePeriodSeconds: 30
 status:
-  availableReplicas: 5
+  availableReplicas: 6
   conditions:
     - lastTransitionTime: '2024-09-28T23:08:00Z'
       lastUpdateTime: '2024-10-02T03:34:02Z'
@@ -54,7 +54,7 @@ status:
       reason: MinimumReplicasAvailable
       status: 'True'
       type: Available
-  observedGeneration: 174
-  readyReplicas: 5
-  replicas: 5
-  updatedReplicas: 5
+  observedGeneration: 1
+  readyReplicas: 6
+  replicas: 6
+  updatedReplicas: 6

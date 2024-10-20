@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -15,6 +16,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -97,10 +99,11 @@ type IndividualDiscoveryTest struct {
 }
 
 type IndividualActionTest struct {
-	Action             string `yaml:"action"`
-	InputPath          string `yaml:"inputPath"`
-	ExpectedOutputPath string `yaml:"expectedOutputPath"`
-	InputStr           string `yaml:"input"`
+	Action             string            `yaml:"action"`
+	InputPath          string            `yaml:"inputPath"`
+	ExpectedOutputPath string            `yaml:"expectedOutputPath"`
+	InputStr           string            `yaml:"input"`
+	Parameters         map[string]string `yaml:"parameters"`
 }
 
 func TestLuaResourceActionsScript(t *testing.T) {
@@ -149,8 +152,19 @@ func TestLuaResourceActionsScript(t *testing.T) {
 
 				require.NoError(t, err)
 
+				// Parse action parameters
+				var params []*applicationpkg.ResourceActionParameters
+				if test.Parameters != nil {
+					for k, v := range test.Parameters {
+						params = append(params, &applicationpkg.ResourceActionParameters{
+							Name:  &k,
+							Value: &v,
+						})
+					}
+				}
+
 				require.NoError(t, err)
-				impactedResources, err := vm.ExecuteResourceAction(sourceObj, action.ActionLua, nil)
+				impactedResources, err := vm.ExecuteResourceAction(sourceObj, action.ActionLua, params)
 				require.NoError(t, err)
 
 				// Treat the Lua expected output as a list
@@ -196,6 +210,23 @@ func TestLuaResourceActionsScript(t *testing.T) {
 						t.Error("Output does not match input:")
 						err = cli.PrintDiff(test.Action, expectedObj, result)
 						require.NoError(t, err)
+					}
+				}
+
+				// Add specific checks for parameter-based actions
+				if len(params) > 0 {
+					for _, impactedResource := range impactedResources {
+						result := impactedResource.UnstructuredObj
+						// Check for specific changes based on the action and parameters
+						// For example, if we're scaling a deployment:
+						if test.Action == "scale" && sourceObj.GetKind() == "Deployment" {
+							replicas, found, err := unstructured.NestedInt64(result.Object, "spec", "replicas")
+							require.NoError(t, err)
+							require.True(t, found, "replicas field not found in deployment spec")
+							expectedReplicas, _ := strconv.ParseInt(test.Parameters["replicas"], 10, 64)
+							assert.Equal(t, expectedReplicas, replicas, "replica count mismatch")
+						}
+						// Add more checks for other parameter-based actions as needed
 					}
 				}
 			})
