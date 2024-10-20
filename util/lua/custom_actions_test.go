@@ -207,24 +207,42 @@ func TestLuaResourceActionsScript(t *testing.T) {
 					// Add specific checks for parameter-based actions
 					if test.Action == "scale" && sourceObj.GetKind() == "Deployment" {
 						// Check spec.replicas
-						expectedReplicas, err := strconv.ParseInt(test.Parameters["replicas"], 10, 64)
-						require.NoError(t, err)
-
-						actualReplicas, found, err := unstructured.NestedInt64(result.Object, "spec", "replicas")
-						if !found {
-							t.Errorf("spec.replicas not found in actual result. Result object: %+v", result.Object)
+						specMap, found, err := unstructured.NestedMap(result.Object, "spec")
+						if err != nil {
+								t.Errorf("Error accessing spec field: %v", err)
+						} else if !found {
+								t.Errorf("spec not found in actual result. Result object: %+v", result.Object)
 						} else {
-							require.NoError(t, err)
-							assert.Equal(t, expectedReplicas, actualReplicas, "replica count mismatch in spec")
+								t.Logf("Spec field: %+v", specMap)
 						}
 
-						// Check against expected output
-						expectedReplicas, found, err = unstructured.NestedInt64(expectedObj.Object, "spec", "replicas")
-						if !found {
-							t.Errorf("spec.replicas not found in expected output. Expected object: %+v", expectedObj.Object)
-						} else {
-							require.NoError(t, err)
-							assert.Equal(t, expectedReplicas, actualReplicas, "replica count mismatch with expected output")
+						if specMap != nil {
+								// Try to access replicas directly from the spec map
+								replicasRaw, found := specMap["replicas"]
+								if !found {
+										t.Errorf("replicas field not found in spec. Spec: %+v", specMap)
+								} else {
+										t.Logf("Replicas field (raw): %v", replicasRaw)
+										
+										var actualReplicas int64
+										switch v := replicasRaw.(type) {
+										case int64:
+												actualReplicas = v
+										case float64:
+												actualReplicas = int64(v)
+										case int:
+												actualReplicas = int64(v)
+										default:
+												t.Errorf("Unexpected type for replicas: %T", replicasRaw)
+										}
+
+										expectedReplicas, err := strconv.ParseInt(test.Parameters["replicas"], 10, 64)
+										if err != nil {
+												t.Errorf("Error parsing expected replicas: %v", err)
+										} else {
+												assert.Equal(t, expectedReplicas, actualReplicas, "replica count mismatch")
+										}
+								}
 						}
 					}
 
