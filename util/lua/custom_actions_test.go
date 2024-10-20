@@ -163,9 +163,15 @@ func TestLuaResourceActionsScript(t *testing.T) {
 					}
 				}
 
+				// Log the parameters
+				t.Logf("Parameters: %+v", params)
+
 				require.NoError(t, err)
 				impactedResources, err := vm.ExecuteResourceAction(sourceObj, action.ActionLua, params)
 				require.NoError(t, err)
+
+				// Log the impacted resources
+        t.Logf("Impacted resources: %+v", impactedResources)
 
 				// Treat the Lua expected output as a list
 				expectedObjects := getExpectedObjectList(t, filepath.Join(dir, test.ExpectedOutputPath))
