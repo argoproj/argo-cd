@@ -446,6 +446,6 @@ After saving, please restart the ApplicationSet pod for the changes to take effe
 
 ## Repository credentials for ApplicationSets
 If your [ApplicationSets](index.md) uses a repository where you need credentials to be able to access it, you need to add the repoistory as an "non project scoped" repository.  
-- In the UI, this is the "blank" value in the dropdown menu.
+- When doing that through the UI, set this to a **blank** value in the dropdown menu.
 - When doing that through the CLI, make sure you **DO NOT** supply the parameter `--project` ([argocd repo add docs](../../user-guide/commands/argocd_repo_add.md))
 - When doing that declaratively, make sure you **DO NOT** have `project:` defined under `stringData:` ([complete yaml example](../argocd-repositories-yaml.md))
