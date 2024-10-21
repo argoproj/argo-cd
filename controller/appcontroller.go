@@ -1771,6 +1771,21 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	compareWith := CompareWithLatest
 	refreshType := appv1.RefreshTypeNormal
 
+	if val, ok := app.Annotations[appv1.AnnotationAppRefreshTimeout]; ok {
+		seconds, err := strconv.Atoi(val)
+		if err != nil {
+			logCtx.Warnf("Invalid refresh timeout label value: %s", val)
+		}
+		statusRefreshTimeout = time.Duration(seconds) * time.Second
+	}
+	if val, ok := app.Annotations[appv1.AnnotationAppHardRefreshTimeout]; ok {
+		seconds, err := strconv.Atoi(val)
+		if err != nil {
+			logCtx.Warnf("Invalid hard refresh timeout label value: %s", val)
+		}
+		statusHardRefreshTimeout = time.Duration(seconds) * time.Second
+	}
+
 	softExpired := app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
 	hardExpired := (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusHardRefreshTimeout).Before(time.Now().UTC())) && statusHardRefreshTimeout.Seconds() != 0
 
