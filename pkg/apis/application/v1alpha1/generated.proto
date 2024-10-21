@@ -638,6 +638,9 @@ message ApplicationSpec {
 
   // Sources is a reference to the location of the application's manifests or chart
   repeated ApplicationSource sources = 8;
+
+  // SourceHydrator provides a way to push hydrated manifests back to git before syncing them to the cluster.
+  optional SourceHydrator sourceHydrator = 9;
 }
 
 // ApplicationStatus contains status information for the application
@@ -681,6 +684,9 @@ message ApplicationStatus {
 
   // ControllerNamespace indicates the namespace in which the application controller is located
   optional string controllerNamespace = 13;
+
+  // SourceHydrator stores information about the current state of source hydration
+  optional SourceHydratorStatus sourceHydrator = 14;
 }
 
 // ApplicationSummary contains information about URLs and container images used by an application
@@ -951,6 +957,18 @@ message ConnectionState {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time attemptedAt = 3;
 }
 
+// DrySource specifies a location for dry "don't repeat yourself" manifest source information.
+message DrySource {
+  // RepoURL is the URL to the git repository that contains the application manifests
+  optional string repoURL = 1;
+
+  // TargetRevision defines the revision of the source to hydrate
+  optional string targetRevision = 2;
+
+  // Path is a directory path within the Git repository where the manifests are located
+  optional string path = 3;
+}
+
 // DuckType defines a generator to match against clusters registered with ArgoCD.
 message DuckTypeGenerator {
   // ConfigMapRef is a ConfigMap with the duck type definitions needed to retrieve the data
@@ -1114,6 +1132,37 @@ message HostResourceInfo {
   optional int64 requestedByNeighbors = 3;
 
   optional int64 capacity = 4;
+}
+
+// HydrateOperation contains information about the most recent hydrate operation
+message HydrateOperation {
+  // StartedAt indicates when the hydrate operation started
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time startedAt = 1;
+
+  // FinishedAt indicates when the hydrate operation finished
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time finishedAt = 2;
+
+  // Phase indicates the status of the hydrate operation
+  optional string phase = 3;
+
+  // Message contains a message describing the current status of the hydrate operation
+  optional string message = 4;
+
+  // DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation
+  optional string drySHA = 5;
+
+  // HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation
+  optional string hydratedSHA = 6;
+
+  // SourceHydrator holds the hydrator config used for the hydrate operation
+  optional SourceHydrator sourceHydrator = 7;
+}
+
+// HydrateTo specifies a location to which hydrated manifests should be pushed as a "staging area" before being moved to
+// the SyncSource. The RepoURL and Path are assumed based on the associated SyncSource config in the SourceHydrator.
+message HydrateTo {
+  // TargetBranch is the branch to which hydrated manifests should be committed
+  optional string targetBranch = 1;
 }
 
 message Info {
@@ -2233,6 +2282,41 @@ message SignatureKey {
   optional string keyID = 1;
 }
 
+// SourceHydrator specifies a dry "don't repeat yourself" source for manifests, a sync source from which to sync
+// hydrated manifests, and an optional hydrateTo location to act as a "staging" aread for hydrated manifests.
+message SourceHydrator {
+  // DrySource specifies where the dry "don't repeat yourself" manifest source lives.
+  optional DrySource drySource = 1;
+
+  // SyncSource specifies where to sync hydrated manifests from.
+  optional SyncSource syncSource = 2;
+
+  // HydrateTo specifies an optional "staging" location to push hydrated manifests to. An external system would then
+  // have to move manifests to the SyncSource, e.g. by pull request.
+  optional HydrateTo hydrateTo = 3;
+}
+
+// SourceHydratorStatus contains information about the current state of source hydration
+message SourceHydratorStatus {
+  // LastSuccessfulOperation holds info about the most recent successful hydration
+  optional SuccessfulHydrateOperation lastSuccessfulOperation = 1;
+
+  // CurrentOperation holds the status of the hydrate operation
+  optional HydrateOperation currentOperation = 2;
+}
+
+// SuccessfulHydrateOperation contains information about the most recent successful hydrate operation
+message SuccessfulHydrateOperation {
+  // DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation
+  optional string drySHA = 5;
+
+  // HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation
+  optional string hydratedSHA = 6;
+
+  // SourceHydrator holds the hydrator config used for the hydrate operation
+  optional SourceHydrator sourceHydrator = 7;
+}
+
 // SyncOperation contains details about a sync operation.
 message SyncOperation {
   // Revision is the revision (Git) or chart version (Helm) which to sync the application to
@@ -2330,6 +2414,17 @@ message SyncPolicyAutomated {
 
   // AllowEmpty allows apps have zero live resources (default: false)
   optional bool allowEmpty = 3;
+}
+
+// SyncSource specifies a location from which hydrated manifests may be synced. RepoURL is assumed based on the
+// associated DrySource config in the SourceHydrator.
+message SyncSource {
+  // TargetBranch is the branch to which hydrated manifests should be committed
+  optional string targetBranch = 1;
+
+  // Path is a directory path within the git repository where hydrated manifests should be committed to and synced
+  // from. If hydrateTo is set, this is just the path from which hydrated manifests will be synced.
+  optional string path = 2;
 }
 
 // SyncStatus contains information about the currently observed live and desired states of an application

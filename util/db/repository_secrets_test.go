@@ -83,7 +83,8 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		// given
 		t.Parallel()
 		secret := &corev1.Secret{}
-		repositoryToSecret(repo, secret)
+		s := secretsRepositoryBackend{}
+		s.repositoryToSecret(repo, secret)
 		delete(secret.Labels, common.LabelKeySecretType)
 		f := setupWithK8sObjects(secret)
 		f.clientSet.ReactionChain = nil
@@ -119,7 +120,8 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 				Namespace: "default",
 			},
 		}
-		repositoryToSecret(repo, secret)
+		s := secretsRepositoryBackend{}
+		s.repositoryToSecret(repo, secret)
 		f := setupWithK8sObjects(secret)
 		f.clientSet.ReactionChain = nil
 		f.clientSet.WatchReactionChain = nil
@@ -682,7 +684,7 @@ func TestSecretsRepositoryBackend_GetRepoCreds(t *testing.T) {
 
 	repoCred, err := testee.GetRepoCreds(context.TODO(), "git@github.com:argoproj")
 	require.NoError(t, err)
-	assert.NotNil(t, repoCred)
+	require.NotNil(t, repoCred)
 	assert.Equal(t, "git@github.com:argoproj", repoCred.URL)
 	assert.Equal(t, "someUsername", repoCred.Username)
 	assert.Equal(t, "somePassword", repoCred.Password)
