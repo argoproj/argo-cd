@@ -5,6 +5,8 @@ import {DataLoader} from '../../../shared/components';
 import {Application} from '../../../shared/models';
 import {services} from '../../../shared/services';
 
+require('./project-role-policies-edit.scss');
+
 interface ProjectRolePoliciesProps {
     projName: string;
     roleName: string;
@@ -13,8 +15,8 @@ interface ProjectRolePoliciesProps {
     newRole: boolean;
 }
 
-function generatePolicy(project: string, role: string, action?: string, object?: string, permission?: string): string {
-    return `p, proj:${project}:${role}, applications, ${action || ''}, ${object ? project + '/' + object : ''}, ${permission || ''}`;
+function generatePolicy(project: string, role: string, resource?: string, action?: string, object?: string, permission?: string): string {
+    return `p, proj:${project}:${role}, ${resource || ''}, ${action || ''}, ${object ? project + '/' + object : ''}, ${permission || ''}`;
 }
 
 const actions = ['get', 'create', 'update', 'delete', 'sync', 'override'];
@@ -24,13 +26,14 @@ export const ProjectRolePoliciesEdit = (props: ProjectRolePoliciesProps) => (
         {applications => (
             <React.Fragment>
                 <p>POLICY RULES</p>
-                <div>Manage this role's permissions to applications</div>
+                <div>Manage this role's permissions to applications or repositories</div>
                 <div className='argo-table-list'>
                     <div className='argo-table-list__head'>
                         <div className='row'>
-                            <div className='columns small-4'>ACTION</div>
-                            <div className='columns small-4'>APPLICATION</div>
-                            <div className='columns small-4'>PERMISSION</div>
+                            <div className='columns small-3'>RESOURCE</div>
+                            <div className='columns small-3'>ACTION</div>
+                            <div className='columns small-3'>OBJECT</div>
+                            <div className='columns small-3'>PERMISSION</div>
                         </div>
                     </div>
                     <div className='argo-table-list__row'>
@@ -84,8 +87,22 @@ function removeEl(items: any[], index: number) {
 class PolicyWrapper extends React.Component<PolicyProps, any> {
     public render() {
         return (
-            <div className='row'>
-                <div className='columns small-4'>
+            <div className='row project-role-policies-edit__wrapper-row'>
+                <div className='columns small-3'>
+                    <datalist id='resource'>
+                        <option>applications</option>
+                        <option>repositories</option>
+                    </datalist>
+                    <input
+                        className='argo-field'
+                        list='resource'
+                        value={this.getResource()}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                            this.setResource(e.target.value);
+                        }}
+                    />
+                </div>
+                <div className='columns small-3'>
                     <datalist id='action'>
                         {this.props.actions !== undefined && this.props.actions.length > 0 && this.props.actions.map(action => <option key={action}>{action}</option>)}
                         <option key='wildcard'>*</option>
@@ -99,7 +116,7 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
                         }}
                     />
                 </div>
-                <div className='columns small-4'>
+                <div className='columns small-3'>
                     <datalist id='object'>
                         {this.props.availableApps !== undefined &&
                             this.props.availableApps.length > 0 &&
@@ -133,11 +150,28 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
                         }}
                     />
                 </div>
-                <div className='columns small-1'>
+                <div style={{position: 'absolute', right: '0.5em'}}>
                     <i className='fa fa-times' onClick={() => this.props.deletePolicy()} style={{cursor: 'pointer'}} />
                 </div>
             </div>
         );
+    }
+
+    private getResource(): string {
+        const fields = (this.props.fieldApi.getValue() as string).split(',');
+        if (fields.length !== 6) {
+            return '';
+        }
+        return fields[2].trim();
+    }
+    private setResource(resource: string) {
+        const fields = (this.props.fieldApi.getValue() as string).split(',');
+        if (fields.length !== 6) {
+            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, resource, '', '', ''));
+            return;
+        }
+        fields[2] = ` ${resource}`;
+        this.props.fieldApi.setValue(fields.join());
     }
 
     private getAction(): string {
@@ -151,7 +185,7 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
     private setAction(action: string) {
         const fields = (this.props.fieldApi.getValue() as string).split(',');
         if (fields.length !== 6) {
-            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, action, '', ''));
+            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, '', action, '', ''));
             return;
         }
         fields[3] = ` ${action}`;
@@ -169,7 +203,7 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
     private setObject(object: string) {
         const fields = (this.props.fieldApi.getValue() as string).split(',');
         if (fields.length !== 6) {
-            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, '', object, ''));
+            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, '', '', object, ''));
             return;
         }
         fields[4] = ` ${object}`;
@@ -186,7 +220,7 @@ class PolicyWrapper extends React.Component<PolicyProps, any> {
     private setPermission(permission: string) {
         const fields = (this.props.fieldApi.getValue() as string).split(',');
         if (fields.length !== 6) {
-            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, '', '', permission));
+            this.props.fieldApi.setValue(generatePolicy(this.props.projName, this.props.roleName, '', '', '', permission));
             return;
         }
         fields[5] = ` ${permission}`;
