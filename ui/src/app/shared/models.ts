@@ -789,12 +789,21 @@ export interface ResourceActionParam {
     default: string;
 }
 
+export interface ResourceActionParameters {
+    name: string;
+    value: string;
+}
+
 export interface ResourceAction {
     name: string;
     params: ResourceActionParam[];
     disabled: boolean;
     iconClass: string;
     displayName: string;
+    defaultValue: string;
+    regexp: string;
+    hasParameters: boolean;
+    errorMessage: string;
 }
 
 export interface SyncWindowsState {

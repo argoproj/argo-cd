@@ -325,18 +325,27 @@ export class ApplicationsService {
             });
     }
 
-    public runResourceAction(name: string, appNamespace: string, resource: models.ResourceNode, action: string): Promise<models.ResourceAction[]> {
+    public runResourceAction(
+        name: string,
+        appNamespace: string,
+        resource: models.ResourceNode,
+        action: string,
+        resourceActionParameters: models.ResourceActionParameters[]
+    ): Promise<models.ResourceAction[]> {
         return requests
             .post(`/applications/${name}/resource/actions`)
-            .query({
-                appNamespace,
-                namespace: resource.namespace,
-                resourceName: resource.name,
-                version: resource.version,
-                kind: resource.kind,
-                group: resource.group
-            })
-            .send(JSON.stringify(action))
+            .send(
+                JSON.stringify({
+                    appNamespace,
+                    namespace: resource.namespace,
+                    resourceName: resource.name,
+                    version: resource.version,
+                    kind: resource.kind,
+                    group: resource.group,
+                    resourceActionParameters: resourceActionParameters,
+                    action
+                })
+            )
             .then(res => (res.body.actions as models.ResourceAction[]) || []);
     }
 
