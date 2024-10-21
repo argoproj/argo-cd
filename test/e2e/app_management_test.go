@@ -640,6 +640,9 @@ func TestTrackAppStateAndSyncApp(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().
+		Get().
+		Then().
 		Expect(Success(fmt.Sprintf("Service     %s  guestbook-ui  Synced ", DeploymentNamespace()))).
 		Expect(Success(fmt.Sprintf("apps   Deployment  %s  guestbook-ui  Synced", DeploymentNamespace()))).
 		Expect(Event(EventReasonResourceUpdated, "sync")).
@@ -1029,7 +1032,10 @@ func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode 
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		Get().
+		Then()
 	for i := range message {
 		expect = expect.Expect(Success(message[i]))
 	}
@@ -1057,6 +1063,7 @@ func TestOldStyleResourceAction(t *testing.T) {
 		CreateApp().
 		Sync().
 		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			closer, client, err := ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
@@ -1163,6 +1170,7 @@ func TestNewStyleResourceActionPermitted(t *testing.T) {
 		CreateApp().
 		Sync().
 		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			closer, client, err := ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
@@ -1274,6 +1282,8 @@ func TestNewStyleResourceActionMixedOk(t *testing.T) {
 		CreateApp().
 		Sync().
 		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			closer, client, err := ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
@@ -1547,6 +1557,9 @@ func TestPermissions(t *testing.T) {
 		CreateApp().
 		Sync().
 		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		// make sure application resource actiions are successful
 		And(func(app *Application) {
 			assertResourceActions(t, app.Name, true)
