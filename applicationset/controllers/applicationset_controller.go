@@ -1430,7 +1430,8 @@ func syncApplication(application argov1alpha1.Application, prune bool) argov1alp
 				Value: "ApplicationSet RollingSync triggered a sync of this Application resource.",
 			},
 		},
-		Sync: &argov1alpha1.SyncOperation{},
+		Sync:  &argov1alpha1.SyncOperation{},
+		Retry: argov1alpha1.RetryStrategy{Limit: 5},
 	}
 
 	if application.Spec.SyncPolicy != nil {
