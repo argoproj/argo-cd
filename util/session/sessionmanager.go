@@ -490,10 +490,26 @@ type TokenVerifier interface {
 func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !disabled {
-			cookies := r.Cookies()
-			tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
-			if err != nil {
-				http.Error(w, "Auth cookie not found", http.StatusBadRequest)
+			var tokenString string
+			authHeader := r.Header.Get("Authorization")
+			if authHeader != "" {
+				// Check if Authorization header is present and starts with "Bearer"
+				if strings.HasPrefix(authHeader, "Bearer ") {
+					tokenString = strings.TrimPrefix(authHeader, "Bearer ")
+				}
+			} else {
+				// Extract token from cookies
+				cookies := r.Cookies()
+				var err error
+				tokenString, err = httputil.JoinCookies(common.AuthCookieName, cookies)
+				if err != nil {
+					http.Error(w, "Auth cookie not found", http.StatusBadRequest)
+					return
+				}
+			}
+
+			if tokenString == "" {
+				http.Error(w, "Authorization token not found", http.StatusBadRequest)
 				return
 			}
 			claims, _, err := authn.VerifyToken(tokenString)
