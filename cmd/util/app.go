@@ -605,6 +605,10 @@ func constructAppsFromFileUrl(fileURL, appName string, labels, annotations, args
 		return nil, err
 	}
 	for _, app := range apps {
+		// if app.Name is empty, it should be picked from the command line
+		if len(args) == 1 && app.Name == "" {
+			app.Name = args[0]
+		}
 		if len(args) == 1 && args[0] != app.Name {
 			return nil, fmt.Errorf("app name '%s' does not match app spec metadata.name '%s'", args[0], app.Name)
 		}
