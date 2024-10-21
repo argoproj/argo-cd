@@ -1061,6 +1061,7 @@ func TestOldStyleResourceAction(t *testing.T) {
 		CreateApp().
 		Sync().
 		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			closer, client, err := ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
@@ -1167,6 +1168,7 @@ func TestNewStyleResourceActionPermitted(t *testing.T) {
 		CreateApp().
 		Sync().
 		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			closer, client, err := ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)

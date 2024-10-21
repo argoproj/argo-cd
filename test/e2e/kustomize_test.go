@@ -90,6 +90,7 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 		PatchFile("kustomization.yaml", `[{"op": "replace", "path": "/configMapGenerator/0/literals/0", "value": "foo=baz"}]`).
 		Refresh(RefreshTypeHard).
 		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
 		// this is standard logging from the command - tough one - true statement
 		When().
 		Sync().
