@@ -127,6 +127,7 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 			chart:    {{Version: "1.0.0"}, {Version: version}},
 			oobChart: {{Version: "1.0.0"}, {Version: version}},
 		}}, nil)
+		helmClient.On("GetTags", mock.AnythingOfType("string"), mock.AnythingOfType("bool")).Return([]string{"1.0.0", version}, nil)
 		helmClient.On("ExtractChart", chart, version, "", false, int64(0), false).Return("./testdata/my-chart", io.NopCloser, nil)
 		helmClient.On("ExtractChart", oobChart, version, "", false, int64(0), false).Return("./testdata2/out-of-bounds-chart", io.NopCloser, nil)
 		helmClient.On("CleanChartCache", chart, version, "").Return(nil)
@@ -1834,12 +1835,12 @@ func TestService_newHelmClientResolveRevision(t *testing.T) {
 	service := newService(t, ".")
 
 	t.Run("EmptyRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&argoappv1.Repository{}, "", "", true)
-		assert.EqualError(t, err, "invalid revision '': improper constraint: ")
+		_, _, err := service.newHelmClientResolveRevision(&argoappv1.Repository{}, "", "my-chart", true)
+		assert.EqualError(t, err, "invalid revision: failed to determine semver constraint: improper constraint: ")
 	})
 	t.Run("InvalidRevision", func(t *testing.T) {
-		_, _, err := service.newHelmClientResolveRevision(&argoappv1.Repository{}, "???", "", true)
-		assert.EqualError(t, err, "invalid revision '???': improper constraint: ???", true)
+		_, _, err := service.newHelmClientResolveRevision(&argoappv1.Repository{}, "???", "my-chart", true)
+		assert.EqualError(t, err, "invalid revision: failed to determine semver constraint: improper constraint: ???", true)
 	})
 }
 
@@ -4048,7 +4049,7 @@ func TestGetRefs_CacheLockTryLockGitRefCacheError(t *testing.T) {
 }
 
 func TestGetRevisionChartDetails(t *testing.T) {
-	t.Run("Test revision semvar", func(t *testing.T) {
+	t.Run("Test revision semver", func(t *testing.T) {
 		root := t.TempDir()
 		service := newService(t, root)
 		_, err := service.GetRevisionChartDetails(context.Background(), &apiclient.RepoServerRevisionChartDetailsRequest{
