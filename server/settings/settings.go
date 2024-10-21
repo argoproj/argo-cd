@@ -115,7 +115,7 @@ func (s *Server) Get(ctx context.Context, q *settingspkg.SettingsQuery) (*settin
 		ImpersonationEnabled:      argoCDSettings.ImpersonationEnabled,
 	}
 
-	if sessionmgr.LoggedIn(ctx) || s.disableAuth {
+	if sessionmgr.LoggedIn(ctx) || s.disableAuth || argoCDSettings.AnonymousUserEnabled {
 		set.UiBannerContent = argoCDSettings.UiBannerContent
 		set.UiBannerURL = argoCDSettings.UiBannerURL
 		set.UiBannerPermanent = argoCDSettings.UiBannerPermanent
