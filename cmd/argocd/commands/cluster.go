@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"regexp"
 	"strings"
@@ -106,6 +107,11 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			contextName := args[0]
 			conf, err := getRestConfig(pathOpts, contextName)
 			errors.CheckError(err)
+			if clusterOpts.ProxyUrl != "" {
+				u, err := argoappv1.ParseProxyUrl(clusterOpts.ProxyUrl)
+				errors.CheckError(err)
+				conf.Proxy = http.ProxyURL(u)
+			}
 			clientset, err := kubernetes.NewForConfig(conf)
 			errors.CheckError(err)
 			managerBearerToken := ""
@@ -191,6 +197,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command.Flags().BoolVarP(&skipConfirmation, "yes", "y", false, "Skip explicit confirmation")
 	command.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value)")
 	command.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value)")
+	command.Flags().StringVar(&clusterOpts.ProxyUrl, "proxy-url", "", "use proxy to connect cluster")
 	cmdutil.AddClusterFlags(command, &clusterOpts)
 	return command
 }
@@ -374,6 +381,7 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 		fmt.Printf("  oAuth authentication:  %v\n", cluster.Config.BearerToken != "")
 		fmt.Printf("  AWS authentication:    %v\n", cluster.Config.AWSAuthConfig != nil)
 		fmt.Printf("\nDisable compression: %v\n", cluster.Config.DisableCompression)
+		fmt.Printf("\nUse proxy: %v\n", cluster.Config.ProxyUrl != "")
 		fmt.Println()
 	}
 }

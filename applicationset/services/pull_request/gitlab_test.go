@@ -15,6 +15,7 @@ import (
 )
 
 func writeMRListResponse(t *testing.T, w io.Writer) {
+	t.Helper()
 	f, err := os.Open("fixtures/gitlab_mr_list_response.json")
 	if err != nil {
 		t.Fatalf("error opening fixture file: %v", err)

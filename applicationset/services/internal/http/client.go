@@ -134,7 +134,7 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*htt
 
 // CheckResponse checks the API response for errors, and returns them if present.
 func CheckResponse(resp *http.Response) error {
-	if c := resp.StatusCode; 200 <= c && c <= 299 {
+	if c := resp.StatusCode; http.StatusOK <= c && c < http.StatusMultipleChoices {
 		return nil
 	}
 

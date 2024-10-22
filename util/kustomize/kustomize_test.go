@@ -29,6 +29,7 @@ const (
 )
 
 func testDataDir(tb testing.TB, testData string) (string, error) {
+	tb.Helper()
 	res := tb.TempDir()
 	_, err := exec.RunCommand("cp", exec.CmdOpts{}, "-r", "./testdata/"+testData, filepath.Join(res, "testdata"))
 	if err != nil {

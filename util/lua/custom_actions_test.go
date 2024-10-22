@@ -209,6 +209,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 // Handling backward compatibility.
 // The old-style actions return a single object in the expected output from testdata, so will wrap them in a list
 func getExpectedObjectList(t *testing.T, path string) *unstructured.UnstructuredList {
+	t.Helper()
 	yamlBytes, err := os.ReadFile(path)
 	errors.CheckError(err)
 	unstructuredList := &unstructured.UnstructuredList{}

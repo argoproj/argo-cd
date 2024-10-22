@@ -21,8 +21,8 @@ argocd account can-i update projects 'default'
 # Can I create a cluster?
 argocd account can-i create clusters '*'
 
-Actions: [get create update delete sync override]
-Resources: [clusters projects applications applicationsets repositories certificates logs exec]
+Actions: [get create update delete sync override action invoke]
+Resources: [clusters projects applications applicationsets repositories certificates accounts gpgkeys logs exec extensions]
 
 ```
 

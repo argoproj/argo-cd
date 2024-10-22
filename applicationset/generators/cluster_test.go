@@ -76,9 +76,10 @@ func TestGenerateParams(t *testing.T) {
 				},
 			},
 			Data: map[string][]byte{
-				"config": []byte("{}"),
-				"name":   []byte("production_01/west"),
-				"server": []byte("https://production-01.example.com"),
+				"config":  []byte("{}"),
+				"name":    []byte("production_01/west"),
+				"server":  []byte("https://production-01.example.com"),
+				"project": []byte("prod-project"),
 			},
 			Type: corev1.SecretType("Opaque"),
 		},
@@ -106,15 +107,15 @@ func TestGenerateParams(t *testing.T) {
 				"aaa":   "{{ server }}",
 				"no-op": "{{ this-does-not-exist }}",
 			}, expected: []map[string]interface{}{
-				{"values.lol1": "lol", "values.lol2": "{{values.lol1}}{{values.lol1}}", "values.lol3": "{{values.lol2}}{{values.lol2}}{{values.lol2}}", "values.foo": "bar", "values.bar": "{{ metadata.annotations.foo.argoproj.io }}", "values.no-op": "{{ this-does-not-exist }}", "values.bat": "{{ metadata.labels.environment }}", "values.aaa": "https://kubernetes.default.svc", "nameNormalized": "in-cluster", "name": "in-cluster", "server": "https://kubernetes.default.svc"},
+				{"values.lol1": "lol", "values.lol2": "{{values.lol1}}{{values.lol1}}", "values.lol3": "{{values.lol2}}{{values.lol2}}{{values.lol2}}", "values.foo": "bar", "values.bar": "{{ metadata.annotations.foo.argoproj.io }}", "values.no-op": "{{ this-does-not-exist }}", "values.bat": "{{ metadata.labels.environment }}", "values.aaa": "https://kubernetes.default.svc", "nameNormalized": "in-cluster", "name": "in-cluster", "server": "https://kubernetes.default.svc", "project": ""},
 				{
 					"values.lol1": "lol", "values.lol2": "{{values.lol1}}{{values.lol1}}", "values.lol3": "{{values.lol2}}{{values.lol2}}{{values.lol2}}", "values.foo": "bar", "values.bar": "production", "values.no-op": "{{ this-does-not-exist }}", "values.bat": "production", "values.aaa": "https://production-01.example.com", "name": "production_01/west", "nameNormalized": "production-01-west", "server": "https://production-01.example.com", "metadata.labels.environment": "production", "metadata.labels.org": "bar",
-					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production",
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production", "project": "prod-project",
 				},
 
 				{
 					"values.lol1": "lol", "values.lol2": "{{values.lol1}}{{values.lol1}}", "values.lol3": "{{values.lol2}}{{values.lol2}}{{values.lol2}}", "values.foo": "bar", "values.bar": "staging", "values.no-op": "{{ this-does-not-exist }}", "values.bat": "staging", "values.aaa": "https://staging-01.example.com", "name": "staging-01", "nameNormalized": "staging-01", "server": "https://staging-01.example.com", "metadata.labels.environment": "staging", "metadata.labels.org": "foo",
-					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging",
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging", "project": "",
 				},
 			},
 			clientError:   false,
@@ -131,12 +132,12 @@ func TestGenerateParams(t *testing.T) {
 			expected: []map[string]interface{}{
 				{
 					"name": "production_01/west", "nameNormalized": "production-01-west", "server": "https://production-01.example.com", "metadata.labels.environment": "production", "metadata.labels.org": "bar",
-					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production",
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production", "project": "prod-project",
 				},
 
 				{
 					"name": "staging-01", "nameNormalized": "staging-01", "server": "https://staging-01.example.com", "metadata.labels.environment": "staging", "metadata.labels.org": "foo",
-					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging",
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging", "project": "",
 				},
 			},
 			clientError:   false,
@@ -155,7 +156,7 @@ func TestGenerateParams(t *testing.T) {
 			expected: []map[string]interface{}{
 				{
 					"values.foo": "bar", "name": "production_01/west", "nameNormalized": "production-01-west", "server": "https://production-01.example.com", "metadata.labels.environment": "production", "metadata.labels.org": "bar",
-					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production",
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production", "project": "prod-project",
 				},
 			},
 			clientError:   false,
@@ -181,11 +182,11 @@ func TestGenerateParams(t *testing.T) {
 			expected: []map[string]interface{}{
 				{
 					"values.foo": "bar", "name": "staging-01", "nameNormalized": "staging-01", "server": "https://staging-01.example.com", "metadata.labels.environment": "staging", "metadata.labels.org": "foo",
-					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging",
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging", "project": "",
 				},
 				{
 					"values.foo": "bar", "name": "production_01/west", "nameNormalized": "production-01-west", "server": "https://production-01.example.com", "metadata.labels.environment": "production", "metadata.labels.org": "bar",
-					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production",
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production", "project": "prod-project",
 				},
 			},
 			clientError:   false,
@@ -214,7 +215,7 @@ func TestGenerateParams(t *testing.T) {
 			expected: []map[string]interface{}{
 				{
 					"values.name": "baz", "name": "staging-01", "nameNormalized": "staging-01", "server": "https://staging-01.example.com", "metadata.labels.environment": "staging", "metadata.labels.org": "foo",
-					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging",
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging", "project": "",
 				},
 			},
 			clientError:   false,
@@ -244,15 +245,15 @@ func TestGenerateParams(t *testing.T) {
 			expected: []map[string]interface{}{
 				{
 					"clusters": []map[string]interface{}{
-						{"values.lol1": "lol", "values.lol2": "{{values.lol1}}{{values.lol1}}", "values.lol3": "{{values.lol2}}{{values.lol2}}{{values.lol2}}", "values.foo": "bar", "values.bar": "{{ metadata.annotations.foo.argoproj.io }}", "values.no-op": "{{ this-does-not-exist }}", "values.bat": "{{ metadata.labels.environment }}", "values.aaa": "https://kubernetes.default.svc", "nameNormalized": "in-cluster", "name": "in-cluster", "server": "https://kubernetes.default.svc"},
+						{"values.lol1": "lol", "values.lol2": "{{values.lol1}}{{values.lol1}}", "values.lol3": "{{values.lol2}}{{values.lol2}}{{values.lol2}}", "values.foo": "bar", "values.bar": "{{ metadata.annotations.foo.argoproj.io }}", "values.no-op": "{{ this-does-not-exist }}", "values.bat": "{{ metadata.labels.environment }}", "values.aaa": "https://kubernetes.default.svc", "nameNormalized": "in-cluster", "name": "in-cluster", "server": "https://kubernetes.default.svc", "project": ""},
 						{
 							"values.lol1": "lol", "values.lol2": "{{values.lol1}}{{values.lol1}}", "values.lol3": "{{values.lol2}}{{values.lol2}}{{values.lol2}}", "values.foo": "bar", "values.bar": "production", "values.no-op": "{{ this-does-not-exist }}", "values.bat": "production", "values.aaa": "https://production-01.example.com", "name": "production_01/west", "nameNormalized": "production-01-west", "server": "https://production-01.example.com", "metadata.labels.environment": "production", "metadata.labels.org": "bar",
-							"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production",
+							"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production", "project": "prod-project",
 						},
 
 						{
 							"values.lol1": "lol", "values.lol2": "{{values.lol1}}{{values.lol1}}", "values.lol3": "{{values.lol2}}{{values.lol2}}{{values.lol2}}", "values.foo": "bar", "values.bar": "staging", "values.no-op": "{{ this-does-not-exist }}", "values.bat": "staging", "values.aaa": "https://staging-01.example.com", "name": "staging-01", "nameNormalized": "staging-01", "server": "https://staging-01.example.com", "metadata.labels.environment": "staging", "metadata.labels.org": "foo",
-							"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging",
+							"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging", "project": "",
 						},
 					},
 				},
@@ -284,11 +285,11 @@ func TestGenerateParams(t *testing.T) {
 					"clusters": []map[string]interface{}{
 						{
 							"values.foo": "bar", "name": "production_01/west", "nameNormalized": "production-01-west", "server": "https://production-01.example.com", "metadata.labels.environment": "production", "metadata.labels.org": "bar",
-							"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production",
+							"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production", "project": "prod-project",
 						},
 						{
 							"values.foo": "bar", "name": "staging-01", "nameNormalized": "staging-01", "server": "https://staging-01.example.com", "metadata.labels.environment": "staging", "metadata.labels.org": "foo",
-							"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging",
+							"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging", "project": "",
 						},
 					},
 				},
@@ -419,6 +420,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 					"name":           "production_01/west",
 					"nameNormalized": "production-01-west",
 					"server":         "https://production-01.example.com",
+					"project":        "",
 					"metadata": map[string]interface{}{
 						"labels": map[string]string{
 							"argocd.argoproj.io/secret-type": "cluster",
@@ -444,6 +446,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 					"name":           "staging-01",
 					"nameNormalized": "staging-01",
 					"server":         "https://staging-01.example.com",
+					"project":        "",
 					"metadata": map[string]interface{}{
 						"labels": map[string]string{
 							"argocd.argoproj.io/secret-type": "cluster",
@@ -469,6 +472,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 					"nameNormalized": "in-cluster",
 					"name":           "in-cluster",
 					"server":         "https://kubernetes.default.svc",
+					"project":        "",
 					"values": map[string]string{
 						"lol1":  "lol",
 						"lol2":  "<no value><no value>",
@@ -497,6 +501,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 					"name":           "production_01/west",
 					"nameNormalized": "production-01-west",
 					"server":         "https://production-01.example.com",
+					"project":        "",
 					"metadata": map[string]interface{}{
 						"labels": map[string]string{
 							"argocd.argoproj.io/secret-type": "cluster",
@@ -512,6 +517,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 					"name":           "staging-01",
 					"nameNormalized": "staging-01",
 					"server":         "https://staging-01.example.com",
+					"project":        "",
 					"metadata": map[string]interface{}{
 						"labels": map[string]string{
 							"argocd.argoproj.io/secret-type": "cluster",
@@ -542,6 +548,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 					"name":           "production_01/west",
 					"nameNormalized": "production-01-west",
 					"server":         "https://production-01.example.com",
+					"project":        "",
 					"metadata": map[string]interface{}{
 						"labels": map[string]string{
 							"argocd.argoproj.io/secret-type": "cluster",
@@ -582,6 +589,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 					"name":           "production_01/west",
 					"nameNormalized": "production-01-west",
 					"server":         "https://production-01.example.com",
+					"project":        "",
 					"metadata": map[string]interface{}{
 						"labels": map[string]string{
 							"argocd.argoproj.io/secret-type": "cluster",
@@ -600,6 +608,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 					"name":           "staging-01",
 					"nameNormalized": "staging-01",
 					"server":         "https://staging-01.example.com",
+					"project":        "",
 					"metadata": map[string]interface{}{
 						"labels": map[string]string{
 							"argocd.argoproj.io/secret-type": "cluster",
@@ -643,6 +652,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 					"name":           "staging-01",
 					"nameNormalized": "staging-01",
 					"server":         "https://staging-01.example.com",
+					"project":        "",
 					"metadata": map[string]interface{}{
 						"labels": map[string]string{
 							"argocd.argoproj.io/secret-type": "cluster",
@@ -690,6 +700,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 							"nameNormalized": "in-cluster",
 							"name":           "in-cluster",
 							"server":         "https://kubernetes.default.svc",
+							"project":        "",
 							"values": map[string]string{
 								"lol1":  "lol",
 								"lol2":  "<no value><no value>",
@@ -705,6 +716,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 							"name":           "production_01/west",
 							"nameNormalized": "production-01-west",
 							"server":         "https://production-01.example.com",
+							"project":        "",
 							"metadata": map[string]interface{}{
 								"labels": map[string]string{
 									"argocd.argoproj.io/secret-type": "cluster",
@@ -730,6 +742,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 							"name":           "staging-01",
 							"nameNormalized": "staging-01",
 							"server":         "https://staging-01.example.com",
+							"project":        "",
 							"metadata": map[string]interface{}{
 								"labels": map[string]string{
 									"argocd.argoproj.io/secret-type": "cluster",
@@ -782,6 +795,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 							"name":           "production_01/west",
 							"nameNormalized": "production-01-west",
 							"server":         "https://production-01.example.com",
+							"project":        "",
 							"metadata": map[string]interface{}{
 								"labels": map[string]string{
 									"argocd.argoproj.io/secret-type": "cluster",
@@ -800,6 +814,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 							"name":           "staging-01",
 							"nameNormalized": "staging-01",
 							"server":         "https://staging-01.example.com",
+							"project":        "",
 							"metadata": map[string]interface{}{
 								"labels": map[string]string{
 									"argocd.argoproj.io/secret-type": "cluster",

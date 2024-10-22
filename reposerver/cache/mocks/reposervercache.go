@@ -41,6 +41,7 @@ type CacheCallCounts struct {
 
 // Checks that the cache was called the expected number of times
 func (mockCache *MockRepoCache) AssertCacheCalledTimes(t *testing.T, calls *CacheCallCounts) {
+	t.Helper()
 	mockCache.RedisClient.AssertNumberOfCalls(t, "Get", calls.ExternalGets)
 	mockCache.RedisClient.AssertNumberOfCalls(t, "Set", calls.ExternalSets)
 	mockCache.RedisClient.AssertNumberOfCalls(t, "Delete", calls.ExternalDeletes)

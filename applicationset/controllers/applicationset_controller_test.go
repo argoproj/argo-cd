@@ -36,6 +36,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 
 	appsetmetrics "github.com/argoproj/argo-cd/v2/applicationset/metrics"
+	argocommon "github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
 
@@ -1150,7 +1151,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 					Name:      "my-secret",
 					Namespace: "namespace",
 					Labels: map[string]string{
-						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
 					},
 				},
 				Data: map[string][]byte{
@@ -1306,7 +1307,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 					Name:      "my-secret",
 					Namespace: "namespace",
 					Labels: map[string]string{
-						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
 					},
 				},
 				Data: map[string][]byte{
@@ -2052,7 +2053,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					Name:      "my-secret",
 					Namespace: "namespace",
 					Labels: map[string]string{
-						generators.ArgoCDSecretTypeLabel: generators.ArgoCDSecretTypeCluster,
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
 					},
 				},
 				Data: map[string][]byte{
@@ -2245,6 +2246,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 				},
 			},
 			testfunc: func(t *testing.T, appset v1alpha1.ApplicationSet) {
+				t.Helper()
 				assert.Len(t, appset.Status.Conditions, 3)
 			},
 		},
@@ -2280,6 +2282,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 				},
 			},
 			testfunc: func(t *testing.T, appset v1alpha1.ApplicationSet) {
+				t.Helper()
 				assert.Len(t, appset.Status.Conditions, 3)
 
 				isProgressingCondition := false
@@ -2342,6 +2345,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 				},
 			},
 			testfunc: func(t *testing.T, appset v1alpha1.ApplicationSet) {
+				t.Helper()
 				assert.Len(t, appset.Status.Conditions, 4)
 
 				isProgressingCondition := false
@@ -2388,6 +2392,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 }
 
 func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alpha1.ApplicationsSyncPolicy, recordBuffer int, allowPolicyOverride bool) v1alpha1.Application {
+	t.Helper()
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
@@ -2549,6 +2554,7 @@ func TestUpdatePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *t
 }
 
 func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alpha1.ApplicationsSyncPolicy, recordBuffer int, allowPolicyOverride bool) v1alpha1.ApplicationList {
+	t.Helper()
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)

@@ -273,6 +273,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [PT Boer Technology (Btech)](https://btech.id/)
 1. [PUBG](https://www.pubg.com)
 1. [Puzzle ITC](https://www.puzzle.ch/)
+1. [Pvotal Technologies](https://pvotal.tech/)
 1. [Qonto](https://qonto.com)
 1. [QuintoAndar](https://quintoandar.com.br)
 1. [Quipper](https://www.quipper.com/)

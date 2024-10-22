@@ -844,6 +844,9 @@ message ClusterConfig {
 
   // DisableCompression bypasses automatic GZip compression requests to the server.
   optional bool disableCompression = 7;
+
+  // ProxyURL is the URL to the proxy to be used for all requests send to the server
+  optional string proxyUrl = 8;
 }
 
 // ClusterGenerator defines a generator to match against clusters registered with ArgoCD.

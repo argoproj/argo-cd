@@ -273,7 +273,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			cookieHeader:         true,
 			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       nil,
-			expectedStatusCode:   200,
+			expectedStatusCode:   http.StatusOK,
 			expectedResponseBody: strPointer("Ok"),
 		},
 		{
@@ -282,7 +282,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			cookieHeader:         false,
 			verifiedClaims:       nil,
 			verifyTokenErr:       nil,
-			expectedStatusCode:   200,
+			expectedStatusCode:   http.StatusOK,
 			expectedResponseBody: strPointer("Ok"),
 		},
 		{
@@ -291,7 +291,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			cookieHeader:         false,
 			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       nil,
-			expectedStatusCode:   400,
+			expectedStatusCode:   http.StatusBadRequest,
 			expectedResponseBody: nil,
 		},
 		{
@@ -300,7 +300,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			cookieHeader:         true,
 			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       stderrors.New("token error"),
-			expectedStatusCode:   401,
+			expectedStatusCode:   http.StatusUnauthorized,
 			expectedResponseBody: nil,
 		},
 		{
@@ -309,7 +309,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			cookieHeader:         true,
 			verifiedClaims:       nil,
 			verifyTokenErr:       nil,
-			expectedStatusCode:   200,
+			expectedStatusCode:   http.StatusOK,
 			expectedResponseBody: strPointer("Ok"),
 		},
 	}

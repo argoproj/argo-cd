@@ -53,17 +53,20 @@ type ContextArgs struct {
 }
 
 func Given(t *testing.T, opts ...fixture.TestOption) *Context {
+	t.Helper()
 	fixture.EnsureCleanState(t, opts...)
 	return GivenWithSameState(t)
 }
 
 func GivenWithNamespace(t *testing.T, namespace string) *Context {
+	t.Helper()
 	ctx := Given(t)
 	ctx.appNamespace = namespace
 	return ctx
 }
 
 func GivenWithSameState(t *testing.T) *Context {
+	t.Helper()
 	// ARGOCE_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
 	// for any context.
 	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 20, 0, 180)

@@ -199,6 +199,7 @@ func TestTransForm(t *testing.T) {
 				"name":                                           "production_01/west",
 				"nameNormalized":                                 "production-01-west",
 				"server":                                         "https://production-01.example.com",
+				"project":                                        "",
 			}},
 		},
 		{
@@ -214,6 +215,7 @@ func TestTransForm(t *testing.T) {
 				"name":                                           "some-really-long-server-url",
 				"nameNormalized":                                 "some-really-long-server-url",
 				"server":                                         "https://some-really-long-url-that-will-exceed-63-characters.com",
+				"project":                                        "",
 			}},
 		},
 	}

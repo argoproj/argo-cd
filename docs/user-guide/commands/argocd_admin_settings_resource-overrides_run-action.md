@@ -16,7 +16,7 @@ argocd admin settings resource-overrides run-action RESOURCE_YAML_PATH ACTION [f
 
 ```
 
-argocd admin settings resource-overrides action run /tmp/deploy.yaml restart --argocd-cm-path ./argocd-cm.yaml
+argocd admin settings resource-overrides action /tmp/deploy.yaml restart --argocd-cm-path ./argocd-cm.yaml
 ```
 
 ### Options

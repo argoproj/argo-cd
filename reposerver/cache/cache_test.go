@@ -261,6 +261,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 }
 
 func getInMemoryCacheContents(t *testing.T, inMemCache *cacheutil.InMemoryCache) map[string]*CachedManifestResponse {
+	t.Helper()
 	items, err := inMemCache.Items(func() interface{} { return &CachedManifestResponse{} })
 	if err != nil {
 		t.Fatal(err)

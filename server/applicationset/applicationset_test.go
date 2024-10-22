@@ -190,6 +190,7 @@ func newTestAppSet(opts ...func(appset *appsv1.ApplicationSet)) *appsv1.Applicat
 }
 
 func testListAppsetsWithLabels(t *testing.T, appsetQuery applicationset.ApplicationSetListQuery, appServer *Server) {
+	t.Helper()
 	validTests := []struct {
 		testName       string
 		label          string

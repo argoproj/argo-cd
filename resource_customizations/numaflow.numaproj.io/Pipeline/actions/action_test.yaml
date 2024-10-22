@@ -1,0 +1,7 @@
+actionTests:
+- action: pause
+  inputPath: testdata/pipeline.yaml
+  expectedOutputPath: testdata/pipeline-paused.yaml
+- action: unpause
+  inputPath: testdata/pipeline-paused.yaml
+  expectedOutputPath: testdata/pipeline.yaml

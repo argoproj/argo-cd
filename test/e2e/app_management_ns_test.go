@@ -876,6 +876,7 @@ func TestNamespacedConfigMap(t *testing.T) {
 }
 
 func testNSEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode health.HealthStatusCode, message ...string) {
+	t.Helper()
 	ctx := Given(t)
 	expect := ctx.
 		Path(appPath).
@@ -1085,6 +1086,7 @@ func TestNamespacedSyncAsync(t *testing.T) {
 
 // assertResourceActions verifies if view/modify resource actions are successful/failing for given application
 func assertNSResourceActions(t *testing.T, appName string, successful bool) {
+	t.Helper()
 	assertError := func(err error, message string) {
 		if successful {
 			require.NoError(t, err)

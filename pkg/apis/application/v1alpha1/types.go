@@ -7,6 +7,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -1055,15 +1056,15 @@ func (a *ApplicationStatus) GetRevisions() []string {
 
 // BuildComparedToStatus will build a ComparedTo object based on the current
 // Application state.
-func (app *Application) BuildComparedToStatus() ComparedTo {
+func (spec *ApplicationSpec) BuildComparedToStatus() ComparedTo {
 	ct := ComparedTo{
-		Destination:       app.Spec.Destination,
-		IgnoreDifferences: app.Spec.IgnoreDifferences,
+		Destination:       spec.Destination,
+		IgnoreDifferences: spec.IgnoreDifferences,
 	}
-	if app.Spec.HasMultipleSources() {
-		ct.Sources = app.Spec.Sources
+	if spec.HasMultipleSources() {
+		ct.Sources = spec.Sources
 	} else {
-		ct.Source = app.Spec.GetSource()
+		ct.Source = spec.GetSource()
 	}
 	return ct
 }
@@ -2042,6 +2043,9 @@ type ClusterConfig struct {
 
 	// DisableCompression bypasses automatic GZip compression requests to the server.
 	DisableCompression bool `json:"disableCompression,omitempty" protobuf:"bytes,7,opt,name=disableCompression"`
+
+	// ProxyURL is the URL to the proxy to be used for all requests send to the server
+	ProxyUrl string `json:"proxyUrl,omitempty" protobuf:"bytes,8,opt,name=proxyUrl"`
 }
 
 // TLSClientConfig contains settings to enable transport layer security
@@ -2386,11 +2390,11 @@ func (s *SyncWindows) HasWindows() bool {
 }
 
 // Active returns a list of sync windows that are currently active
-func (s *SyncWindows) Active() *SyncWindows {
+func (s *SyncWindows) Active() (*SyncWindows, error) {
 	return s.active(time.Now())
 }
 
-func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
+func (s *SyncWindows) active(currentTime time.Time) (*SyncWindows, error) {
 	// If SyncWindows.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before we scan through the SyncWindows.
 	currentTime = currentTime.In(time.UTC)
@@ -2399,8 +2403,14 @@ func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
 		var active SyncWindows
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 		for _, w := range *s {
-			schedule, _ := specParser.Parse(w.Schedule)
-			duration, _ := time.ParseDuration(w.Duration)
+			schedule, sErr := specParser.Parse(w.Schedule)
+			if sErr != nil {
+				return nil, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
+			}
+			duration, dErr := time.ParseDuration(w.Duration)
+			if dErr != nil {
+				return nil, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
+			}
 
 			// Offset the nextWindow time to consider the timeZone of the sync window
 			timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
@@ -2410,20 +2420,20 @@ func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
 			}
 		}
 		if len(active) > 0 {
-			return &active
+			return &active, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // InactiveAllows will iterate over the SyncWindows and return all inactive allow windows
 // for the current time. If the current time is in an inactive allow window, syncs will
 // be denied.
-func (s *SyncWindows) InactiveAllows() *SyncWindows {
+func (s *SyncWindows) InactiveAllows() (*SyncWindows, error) {
 	return s.inactiveAllows(time.Now())
 }
 
-func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
+func (s *SyncWindows) inactiveAllows(currentTime time.Time) (*SyncWindows, error) {
 	// If SyncWindows.InactiveAllows() is called outside of a UTC locale, it should be
 	// first converted to UTC before we scan through the SyncWindows.
 	currentTime = currentTime.In(time.UTC)
@@ -2434,21 +2444,27 @@ func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
 		for _, w := range *s {
 			if w.Kind == "allow" {
 				schedule, sErr := specParser.Parse(w.Schedule)
+				if sErr != nil {
+					return nil, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
+				}
 				duration, dErr := time.ParseDuration(w.Duration)
+				if dErr != nil {
+					return nil, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
+				}
 				// Offset the nextWindow time to consider the timeZone of the sync window
 				timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
 				nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
 
-				if !nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) && sErr == nil && dErr == nil {
+				if !nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) {
 					inactive = append(inactive, w)
 				}
 			}
 		}
 		if len(inactive) > 0 {
-			return &inactive
+			return &inactive, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
@@ -2552,36 +2568,42 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 }
 
 // CanSync returns true if a sync window currently allows a sync. isManual indicates whether the sync has been triggered manually.
-func (w *SyncWindows) CanSync(isManual bool) bool {
+func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
 	if !w.HasWindows() {
-		return true
+		return true, nil
 	}
 
-	active := w.Active()
+	active, err := w.Active()
+	if err != nil {
+		return false, fmt.Errorf("invalid sync windows: %w", err)
+	}
 	hasActiveDeny, manualEnabled := active.hasDeny()
 
 	if hasActiveDeny {
 		if isManual && manualEnabled {
-			return true
+			return true, nil
 		} else {
-			return false
+			return false, nil
 		}
 	}
 
 	if active.hasAllow() {
-		return true
+		return true, nil
 	}
 
-	inactiveAllows := w.InactiveAllows()
+	inactiveAllows, err := w.InactiveAllows()
+	if err != nil {
+		return false, fmt.Errorf("invalid sync windows: %w", err)
+	}
 	if inactiveAllows.HasWindows() {
 		if isManual && inactiveAllows.manualEnabled() {
-			return true
+			return true, nil
 		} else {
-			return false
+			return false, nil
 		}
 	}
 
-	return true
+	return true, nil
 }
 
 // hasDeny will iterate over the SyncWindows and return if a deny window is found and if
@@ -2636,24 +2658,30 @@ func (w *SyncWindows) manualEnabled() bool {
 }
 
 // Active returns true if the sync window is currently active
-func (w SyncWindow) Active() bool {
+func (w SyncWindow) Active() (bool, error) {
 	return w.active(time.Now())
 }
 
-func (w SyncWindow) active(currentTime time.Time) bool {
+func (w SyncWindow) active(currentTime time.Time) (bool, error) {
 	// If SyncWindow.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before search
 	currentTime = currentTime.UTC()
 
 	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-	schedule, _ := specParser.Parse(w.Schedule)
-	duration, _ := time.ParseDuration(w.Duration)
+	schedule, sErr := specParser.Parse(w.Schedule)
+	if sErr != nil {
+		return false, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
+	}
+	duration, dErr := time.ParseDuration(w.Duration)
+	if dErr != nil {
+		return false, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
+	}
 
 	// Offset the nextWindow time to consider the timeZone of the sync window
 	timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
 	nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
 
-	return nextWindow.Before(currentTime.Add(timeZoneOffsetDuration))
+	return nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)), nil
 }
 
 // Update updates a sync window's settings with the given parameter
@@ -3081,6 +3109,9 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 		DisableCompression:  config.DisableCompression,
 		IdleConnTimeout:     K8sTCPIdleConnTimeout,
 	})
+	if config.Proxy != nil {
+		transport.Proxy = config.Proxy
+	}
 	tr, err := rest.HTTPWrappersForConfig(config, transport)
 	if err != nil {
 		return err
@@ -3102,6 +3133,20 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 		config.WrapTransport = utilhttp.WithRetry(maxRetries, backoffDuration)
 	}
 	return nil
+}
+
+// ParseProxyUrl returns a parsed url and verifies that schema is correct
+func ParseProxyUrl(proxyUrl string) (*url.URL, error) {
+	u, err := url.Parse(proxyUrl)
+	if err != nil {
+		return nil, err
+	}
+	switch u.Scheme {
+	case "http", "https", "socks5":
+	default:
+		return nil, fmt.Errorf("Failed to parse proxy url, unsupported scheme %q, must be http, https, or socks5", u.Scheme)
+	}
+	return u, nil
 }
 
 // RawRestConfig returns a go-client REST config from cluster that might be serialized into the file using kube.WriteKubeConfig method.
@@ -3190,6 +3235,13 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 	}
 	if err != nil {
 		return nil, fmt.Errorf("Unable to create K8s REST config: %w", err)
+	}
+	if c.Config.ProxyUrl != "" {
+		u, err := ParseProxyUrl(c.Config.ProxyUrl)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to create K8s REST config, can`t parse proxy url: %w", err)
+		}
+		config.Proxy = http.ProxyURL(u)
 	}
 	config.DisableCompression = c.Config.DisableCompression
 	config.Timeout = K8sServerSideTimeout

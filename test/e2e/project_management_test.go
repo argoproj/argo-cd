@@ -22,6 +22,7 @@ import (
 )
 
 func assertProjHasEvent(t *testing.T, a *v1alpha1.AppProject, message string, reason string) {
+	t.Helper()
 	list, err := fixture.KubeClientset.CoreV1().Events(fixture.TestNamespace()).List(context.Background(), metav1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(map[string]string{
 			"involvedObject.name":      a.Name,

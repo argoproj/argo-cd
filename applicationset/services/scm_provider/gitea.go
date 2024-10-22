@@ -128,7 +128,7 @@ func (g *GiteaProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]
 
 func (g *GiteaProvider) RepoHasPath(ctx context.Context, repo *Repository, path string) (bool, error) {
 	_, resp, err := g.client.GetContents(repo.Organization, repo.Repository, repo.Branch, path)
-	if resp != nil && resp.StatusCode == 404 {
+	if resp != nil && resp.StatusCode == http.StatusNotFound {
 		return false, nil
 	}
 	if fmt.Sprint(err) == "expect file, got directory" {

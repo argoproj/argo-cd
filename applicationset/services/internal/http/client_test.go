@@ -77,7 +77,7 @@ func TestClientDo(t *testing.T) {
 					"key3": float64(123),
 				},
 			},
-			expectedCode:  200,
+			expectedCode:  http.StatusOK,
 			expectedError: nil,
 		},
 		{
@@ -109,7 +109,7 @@ func TestClientDo(t *testing.T) {
 			})),
 			clientOptionFns: nil,
 			expected:        []map[string]interface{}(nil),
-			expectedCode:    401,
+			expectedCode:    http.StatusUnauthorized,
 			expectedError:   fmt.Errorf("API error with status code 401: "),
 		},
 	} {

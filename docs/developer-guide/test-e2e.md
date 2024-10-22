@@ -1,21 +1,21 @@
 # E2E Tests
 
-The directory contains E2E tests and test applications. The test assume that Argo CD services are installed into `argocd-e2e` namespace or cluster in current context. One throw-away
-namespace `argocd-e2e***` is created prior to tests execute. The throw-away namespace is used as a target namespace for test applications.
+The test [directory](https://github.com/argoproj/argo-cd/tree/master/test) contains E2E tests and test applications. The tests assume that Argo CD services are installed into `argocd-e2e` namespace or cluster in current context. A throw-away
+namespace `argocd-e2e***` is created prior to the execution of the tests. The throw-away namespace is used as a target namespace for test applications.
 
-The `test/e2e/testdata` directory contains various Argo CD applications. Before test execution directory is copies into `/tmp/argocd-e2e***` temp directory and used in tests as a
+The [/test/e2e/testdata](https://github.com/argoproj/argo-cd/tree/master/test/e2e/testdata) directory contains various Argo CD applications. Before test execution directory is copies into `/tmp/argocd-e2e***` temp directory and used in tests as a
 Git repository via file url: `file:///tmp/argocd-e2e***`.
 
 ## Running Tests Locally
 
-1. Start the e2e version `make start-e2e` 
-1. Run the tests: `make test-e2e`
+1. Start the e2e version `make start-e2e`
+2. Run the tests: `make test-e2e`
 
 You can observe the tests by using the UI [http://localhost:8080/applications](http://localhost:8080/applications) with username `"admin"` and password `"password"`.
 
 ## Configuration of E2E Tests execution
 
-The Makefile's `start-e2e` target starts instances of ArgoCD on your local machine, of which the most will require a network listener. If for whatever reason you already have network services on your machine listening on the same ports, the e2e tests will not be able to run. You can derive from the defaults by setting the following environment variables before you run `make start-e2e`:
+The Makefile's `start-e2e` target starts instances of ArgoCD on your local machine, of which the most will require a network listener. If, for any reason, your machine already has network services listening on the same ports, then the e2e tests will not run. You can derive from the defaults by setting the following environment variables before you run `make start-e2e`:
 
 * `ARGOCD_E2E_APISERVER_PORT`: Listener port for `argocd-server` (default: `8080`)
 * `ARGOCD_E2E_REPOSERVER_PORT`: Listener port for `argocd-reposerver` (default: `8081`)

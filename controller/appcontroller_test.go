@@ -2196,6 +2196,7 @@ func TestAlreadyAttemptSync(t *testing.T) {
 }
 
 func assertDurationAround(t *testing.T, expected time.Duration, actual time.Duration) {
+	t.Helper()
 	delta := time.Second / 2
 	assert.GreaterOrEqual(t, expected, actual-delta)
 	assert.LessOrEqual(t, expected, actual+delta)

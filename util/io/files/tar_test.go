@@ -251,11 +251,13 @@ func read(tgz *os.File) (map[string]string, error) {
 // getTestAppDir will return the full path of the app dir under
 // the 'testdata' folder.
 func getTestAppDir(t *testing.T) string {
+	t.Helper()
 	return filepath.Join(getTestDataDir(t), "app")
 }
 
 // getTestDataDir will return the full path of the testdata dir
 // under the running test folder.
 func getTestDataDir(t *testing.T) string {
+	t.Helper()
 	return filepath.Join(test.GetTestDir(t), "testdata")
 }

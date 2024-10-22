@@ -27,7 +27,7 @@ func shouldRetry(counter int, r *http.Request, response *http.Response, err erro
 			return true
 		}
 	}
-	if response != nil && (response.StatusCode == 504 || response.StatusCode == 503) {
+	if response != nil && (response.StatusCode == http.StatusGatewayTimeout || response.StatusCode == http.StatusServiceUnavailable) {
 		return true
 	}
 

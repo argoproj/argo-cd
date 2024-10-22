@@ -1,6 +1,8 @@
 # ApplicationSet in any namespace
 
-**Current feature state**: Beta
+!!! warning "Beta Feature (Since v2.8.0)"
+    This feature is in the [Beta](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta) stage. 
+    It is generally considered stable, but there may be unhandled edge cases.
 
 !!! warning
     Please read this documentation carefully before you enable this feature. Misconfiguration could lead to potential security issues.
@@ -76,6 +78,29 @@ data:
     generator does not accept a custom API URL, the provider is implicitly allowed.
 
 If you do not intend to allow users to use the SCM or PR generators, you can disable them entirely by setting the environment variable `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS` to argocd-cmd-params-cm `applicationsetcontroller.enable.scm.providers` to `false`.
+
+#### `tokenRef` Restrictions
+
+It is **highly recommended** to enable SCM Providers secrets restrictions to avoid any secrets exfiltration. This
+recommendation applies even when AppSets-in-any-namespace is disabled, but is especially important when it is enabled,
+since non-Argo-admins may attempt to reference out-of-bounds secrets in the `argocd` namespace from an AppSet
+`tokenRef`.
+
+When this mode is enabled, the referenced secret must have a label `argocd.argoproj.io/secret-type` with value
+`scm-creds`.
+
+To enable this mode, set the `ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE` environment variable to `true` in the
+`argocd-application-controller` deployment. You can do this by adding the following to your `argocd-cmd-paramscm`
+ConfigMap:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+    applicationsetcontroller.tokenref.strict.mode: "true"
+```
 
 ### Overview
 

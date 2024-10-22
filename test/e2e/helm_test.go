@@ -501,6 +501,7 @@ func TestHelmWithDependenciesLegacyRepo(t *testing.T) {
 }
 
 func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
+	t.Helper()
 	ctx := Given(t).
 		CustomCACertAdded().
 		// these are slow tests

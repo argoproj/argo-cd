@@ -757,6 +757,7 @@ func TestManipulateApplicationResources(t *testing.T) {
 }
 
 func assetSecretDataHidden(t *testing.T, manifest string) {
+	t.Helper()
 	secret, err := UnmarshalToUnstructured(manifest)
 	require.NoError(t, err)
 
@@ -1020,6 +1021,7 @@ func TestConfigMap(t *testing.T) {
 }
 
 func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode health.HealthStatusCode, message ...string) {
+	t.Helper()
 	expect := Given(t).
 		Path(appPath).
 		When().
@@ -1442,6 +1444,7 @@ func TestSyncAsync(t *testing.T) {
 
 // assertResourceActions verifies if view/modify resource actions are successful/failing for given application
 func assertResourceActions(t *testing.T, appName string, successful bool) {
+	t.Helper()
 	assertError := func(err error, message string) {
 		if successful {
 			require.NoError(t, err)

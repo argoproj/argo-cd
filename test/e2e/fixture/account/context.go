@@ -18,6 +18,7 @@ type Context struct {
 }
 
 func Given(t *testing.T) *Context {
+	t.Helper()
 	fixture.EnsureCleanState(t)
 	// ARGOCE_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
 	// for any context.
