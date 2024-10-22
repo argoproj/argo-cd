@@ -1,7 +1,6 @@
 package commands
 
 import (
-	pluginError "errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -41,8 +40,9 @@ func NewDefaultPluginHandler(validPrefixes []string) *DefaultPluginHandler {
 }
 
 // HandlePluginCommand is  responsible for finding and executing a plugin when a command isn't recognized as a built-in command
-func HandlePluginCommand(pluginHandler PluginHandler, cmdArgs []string, minArgs int) error {
+func HandlePluginCommand(pluginHandler PluginHandler, cmdArgs []string, minArgs int) (string, error) {
 	var remainingArgs []string // this will contain all "non-flag" arguments
+	foundPluginPath := ""
 	for _, arg := range cmdArgs {
 		// if you encounter a flag, break the loop
 		// For eg. If cmdArgs is ["argocd", "foo", "-v"],
@@ -56,10 +56,8 @@ func HandlePluginCommand(pluginHandler PluginHandler, cmdArgs []string, minArgs 
 
 	if len(remainingArgs) == 0 {
 		// the length of cmdArgs is at least 1
-		return fmt.Errorf("flags cannot be placed before plugin name: %s", cmdArgs[0])
+		return foundPluginPath, fmt.Errorf("flags cannot be placed before plugin name: %s", cmdArgs[0])
 	}
-
-	foundPluginPath := ""
 
 	// try to find the binary, starting at longest possible name with given cmdArgs
 	for len(remainingArgs) > 0 {
@@ -78,25 +76,24 @@ func HandlePluginCommand(pluginHandler PluginHandler, cmdArgs []string, minArgs 
 	}
 
 	if len(foundPluginPath) == 0 {
-		return nil
+		return foundPluginPath, nil
 	}
 
 	// Execute the plugin that is found
 	if err := pluginHandler.ExecutePlugin(foundPluginPath, cmdArgs[len(remainingArgs):], os.Environ()); err != nil {
-		return err
+		return foundPluginPath, err
 	}
 
-	return nil
+	return foundPluginPath, nil
 }
 
 // LookForPlugin implements PluginHandler
 func (h *DefaultPluginHandler) LookForPlugin(filename string) (string, bool) {
 	for _, prefix := range h.ValidPrefixes {
 		path, err := exec.LookPath(fmt.Sprintf("%s-%s", prefix, filename))
-		if shouldSkipOnLookPathErr(err) || len(path) == 0 {
-			continue
+		if err == nil {
+			return path, true
 		}
-		return path, true
 	}
 	return "", false
 }
@@ -115,7 +112,6 @@ func (h *DefaultPluginHandler) ExecutePlugin(executablePath string, cmdArgs, env
 	}
 
 	// Exit with status 0 if successful, though in most use cases this won't be reached
-	os.Exit(0)
 	return nil
 }
 
@@ -127,7 +123,7 @@ func Command(name string, arg ...string) *exec.Cmd {
 	}
 	if filepath.Base(name) == name {
 		lp, err := exec.LookPath(name)
-		if lp != "" && !shouldSkipOnLookPathErr(err) {
+		if lp != "" && err != nil {
 			// Update cmd.Path even if err is non-nil.
 			// If err is ErrDot (especially on Windows), lp may include a resolved
 			// extension (like .exe or .bat) that should be preserved.
@@ -135,9 +131,4 @@ func Command(name string, arg ...string) *exec.Cmd {
 		}
 	}
 	return cmd
-}
-
-// shouldSkipOnLookPathErr checks if the error is nil and it is of type ErrDot
-func shouldSkipOnLookPathErr(err error) bool {
-	return err != nil && !pluginError.Is(err, exec.ErrDot)
 }

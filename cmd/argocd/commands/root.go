@@ -98,22 +98,24 @@ func NewCommand() *cobra.Command {
 // It handles both standard Argo CD commands and plugin commands.
 func HandleCommandExecutionError(err error, isArgocdCLI bool, o ArgoCDCLIOptions) {
 	if err != nil {
+		// If it's an unknown command error, attempt to handle it as a plugin.
+		// Unfortunately, cobra doesn't handle this error, so we need to assume
+		// that error consists of substring "unknown command".
+		// https://github.com/spf13/cobra/pull/2167
 		if isArgocdCLI && strings.Contains(err.Error(), "unknown command") {
-			// If it's an unknown command error, attempt to handle it as a plugin.
-			// Unfortunately, cobra doesn't handle this error, so we need to assume
-			// that error consists of substring "unknown command".
-			// If the Plugin gets executed successfully, it'll call os.Exit(0)
-			// and the program stops there itself. However, if the plugin gives
-			// an error, return it. Furthermore, if a command doesn't even exist as a plugin
-			// the else block will get executed.
-			pluginErr := HandlePluginCommand(o.PluginHandler, o.Arguments[1:], 1)
-			if pluginErr != nil {
+			// The PluginPath is important to be returned since it
+			// helps us understanding the logic for handling errors.
+			PluginPath, pluginErr := HandlePluginCommand(o.PluginHandler, o.Arguments[1:], 1)
+			// IMP: If a plugin doesn't exist, the returned path will be empty along with nil error
+			// This means the command is neither a normal Argo CD Command nor a plugin.
+			if pluginErr == nil {
+				if PluginPath == "" {
+					fmt.Fprintf(os.Stderr, "Error: %v\nRun 'argocd --help' for usage.\n", err)
+					os.Exit(1)
+				}
+			} else {
 				// If plugin handling fails, report the plugin error and exit
 				fmt.Fprintf(os.Stderr, "Error: %v\n", pluginErr)
-				os.Exit(1)
-			} else {
-				// If the command is neither a normal Argo CD command nor plugin
-				fmt.Fprintf(os.Stderr, "Error: %v\nRun 'argocd --help' for usage.\n", err)
 				os.Exit(1)
 			}
 		} else {
