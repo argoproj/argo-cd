@@ -469,6 +469,11 @@ func (a *Actions) SetTrackingMethod(trackingMethod string) *Actions {
 	return a
 }
 
+func (a *Actions) SetInstallationID(installationID string) *Actions {
+	fixture.SetInstallationID(installationID)
+	return a
+}
+
 func (a *Actions) SetTrackingLabel(trackingLabel string) *Actions {
 	fixture.SetTrackingLabel(trackingLabel)
 	return a

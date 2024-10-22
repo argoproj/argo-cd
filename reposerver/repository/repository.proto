@@ -36,6 +36,8 @@ message ManifestRequest {
     repeated string projectSourceRepos = 24;
     // This is used to surface "source not permitted" errors for Helm repositories
     string projectName = 25;
+    // Holds instance installation id
+    string installationID = 27;
 }
 
 message ManifestRequestWithFiles {
@@ -275,6 +277,7 @@ message UpdateRevisionForPathsRequest {
     string syncedRevision = 11;
     string revision = 12;
     repeated string paths = 13;
+    string installationID = 15;
 }
 
 message UpdateRevisionForPathsResponse {
