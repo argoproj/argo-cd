@@ -75,7 +75,7 @@ metadata:
   name: argocd-cm
   namespace: argocd
 data:
-  extension.config.httpbing: |
+  extension.config.httpbin: |
     connectionTimeout: 2s
     keepAlive: 15s
     idleConnectionTimeout: 60s
