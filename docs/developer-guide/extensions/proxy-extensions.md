@@ -90,6 +90,10 @@ data:
         server: https://some-cluster
 ```
 
+Attention: Extension names must unique in Argo CD configmap. If
+duplicated keys are found, Argo CD API server will log an error
+message and no proxy extension will be registered.
+
 Note: There is no need to restart Argo CD Server after modifying the
 `extension.config` entry in Argo CD configmap. Changes will be
 automatically applied. A new proxy registry will be built making
