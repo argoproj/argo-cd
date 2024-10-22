@@ -362,6 +362,11 @@ func (c *Context) SetTrackingMethod(trackingMethod string) *Context {
 	return c
 }
 
+func (c *Context) SetInstallationID(installationID string) *Context {
+	fixture.SetTrackingMethod(installationID)
+	return c
+}
+
 func (c *Context) GetTrackingMethod() v1alpha1.TrackingMethod {
 	return c.trackingMethod
 }

@@ -4558,6 +4558,9 @@
         "help": {
           "$ref": "#/definitions/clusterHelp"
         },
+        "installationID": {
+          "type": "string"
+        },
         "kustomizeOptions": {
           "$ref": "#/definitions/v1alpha1KustomizeOptions"
         },
