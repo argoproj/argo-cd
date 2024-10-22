@@ -222,7 +222,7 @@ func getGitGeneratorInfo(payload interface{}) *gitGeneratorInfo {
 		log.Errorf("Failed to parse repoURL '%s'", webURL)
 		return nil
 	}
-	regexpStr := `(?i)(http://|https://|\w+@|ssh://(\w+@)?)` + urlObj.Hostname() + "(:[0-9]+|)[:/]" + urlObj.Path[1:] + "(\\.git)?"
+	regexpStr := `(?i)(http://|https://|\w+@|ssh://(\w+@)?)` + urlObj.Hostname() + "(:[0-9]+|)[:/]" + urlObj.Path[1:] + "(\\.git)?$"
 	repoRegexp, err := regexp.Compile(regexpStr)
 	if err != nil {
 		log.Errorf("Failed to compile regexp for repoURL '%s'", webURL)
