@@ -706,7 +706,7 @@ func (a *ArgoCDServer) watchSettings() {
 			log.Infof("gogs secret modified. restarting")
 			break
 		}
-		if !equalExtConfig(prevExtConfig, a.settings.ExtensionConfig) {
+		if !reflect.DeepEqual(prevExtConfig, a.settings.ExtensionConfig) {
 			prevExtConfig = a.settings.ExtensionConfig
 			log.Infof("extensions configs modified. Updating proxy registry...")
 			err := a.extensionManager.UpdateExtensionRegistry(a.settings)
@@ -731,19 +731,6 @@ func (a *ArgoCDServer) watchSettings() {
 	a.Shutdown()
 	a.settingsMgr.Unsubscribe(updateCh)
 	close(updateCh)
-}
-
-func equalExtConfig(config1, config2 map[string]string) bool {
-	if len(config1) != len(config2) {
-		return false
-	}
-
-	for key, value := range config1 {
-		if config2[key] != value {
-			return false
-		}
-	}
-	return true
 }
 
 func (a *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
