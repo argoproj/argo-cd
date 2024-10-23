@@ -60,7 +60,38 @@ data:
             server: https://some-cluster
 ```
 
-Note: There is no need to restart Argo CD Server after modifiying the
+Proxy extensions can also be provided individually using dedicated
+Argo CD configmap keys for better GitOps operations. The example below
+demonstrates how to configure the same hypothetical httpbin config
+above using a dedicated key:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  extension.config.httpbin: |
+    connectionTimeout: 2s
+    keepAlive: 15s
+    idleConnectionTimeout: 60s
+    maxIdleConnections: 30
+    services:
+    - url: http://httpbin.org
+      headers:
+      - name: some-header
+        value: '$some.argocd.secret.key'
+      cluster:
+        name: some-cluster
+        server: https://some-cluster
+```
+
+Attention: Extension names must be unique in the Argo CD configmap. If
+duplicated keys are found, the Argo CD API server will log an error
+message and no proxy extension will be registered.
+
+Note: There is no need to restart Argo CD Server after modifying the
 `extension.config` entry in Argo CD configmap. Changes will be
 automatically applied. A new proxy registry will be built making
 all new incoming extensions requests (`<argocd-host>/extensions/*`) to

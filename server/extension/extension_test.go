@@ -162,12 +162,16 @@ func TestRegisterExtensions(t *testing.T) {
 		t.Parallel()
 		f := setup()
 		settings := &settings.ArgoCDSettings{
-			ExtensionConfig: getExtensionConfigString(),
+			ExtensionConfig: map[string]string{
+				"":            getExtensionConfigString(),
+				"another-ext": getSingleExtensionConfigString(),
+			},
 		}
 		f.settingsGetterMock.On("Get", mock.Anything).Return(settings, nil)
 		expectedProxyRegistries := []string{
 			"external-backend",
 			"some-backend",
+			"another-ext",
 		}
 
 		// when
@@ -223,7 +227,9 @@ func TestRegisterExtensions(t *testing.T) {
 				t.Parallel()
 				f := setup()
 				settings := &settings.ArgoCDSettings{
-					ExtensionConfig: tc.configYaml,
+					ExtensionConfig: map[string]string{
+						"": tc.configYaml,
+					},
 				}
 				f.settingsGetterMock.On("Get", mock.Anything).Return(settings, nil)
 
@@ -362,8 +368,10 @@ func TestCallExtension(t *testing.T) {
 		secrets["extension.auth.header2"] = "Bearer another-bearer-token"
 
 		settings := &settings.ArgoCDSettings{
-			ExtensionConfig: configYaml,
-			Secrets:         secrets,
+			ExtensionConfig: map[string]string{
+				"": configYaml,
+			},
+			Secrets: secrets,
 		}
 		f.settingsGetterMock.On("Get", mock.Anything).Return(settings, nil)
 	}
@@ -793,6 +801,17 @@ extensions:
   backend:
     services:
     - url: http://localhost:7777
+`
+}
+
+func getSingleExtensionConfigString() string {
+	return `
+connectionTimeout: 10s
+keepAlive: 11s
+idleConnectionTimeout: 12s
+maxIdleConnections: 30
+services:
+- url: http://localhost:7777
 `
 }
 
