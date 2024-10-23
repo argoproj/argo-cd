@@ -509,6 +509,31 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 	assertMetricsPrinted(t, appReconcileMetrics, body)
 }
 
+func TestOrphanedResourcesMetric(t *testing.T) {
+	cancel, appLister := newFakeLister()
+	defer cancel()
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	require.NoError(t, err)
+
+	expectedMetrics := `
+# HELP argocd_app_orphaned_resources_count Number of orphaned resources per application
+# TYPE argocd_app_orphaned_resources_count gauge
+argocd_app_orphaned_resources_count{name="my-app-4",namespace="argocd",project="important-project"} 1
+`
+	app := newFakeApp(fakeApp4)
+	numOrphanedResources := 1
+	metricsServ.SetOrphanedResourcesMetric(app, numOrphanedResources)
+
+	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	metricsServ.Handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	log.Println(body)
+	assertMetricsPrinted(t, expectedMetrics, body)
+}
+
 func TestMetricsReset(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
