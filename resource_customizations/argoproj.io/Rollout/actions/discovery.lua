@@ -8,6 +8,7 @@ elseif obj.spec.paused ~= nil then
     paused = obj.spec.paused
 end
 actions["resume"] = {["disabled"] = not(paused)}
+actions["pause"] = {["disabled"] = fullyPromoted or obj.status.abort or paused}
 
 local fullyPromoted = obj.status.currentPodHash == obj.status.stableRS
 actions["abort"] = {["disabled"] = fullyPromoted or obj.status.abort}
