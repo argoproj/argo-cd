@@ -1,0 +1,3 @@
+resources:
+  - ../core-install
+  - ../base/commit-server

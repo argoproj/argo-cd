@@ -477,6 +477,7 @@ func TestRepositoryServer(t *testing.T) {
 		})
 
 		require.NoError(t, err)
+		require.NotNil(t, repo)
 		assert.Equal(t, "test", repo.Repo)
 	})
 
@@ -551,7 +552,7 @@ func TestRepositoryServerListApps(t *testing.T) {
 			AppProject: "default",
 		})
 		require.NoError(t, err)
-		assert.Len(t, resp.Items, 1)
+		require.Len(t, resp.Items, 1)
 		assert.Equal(t, "path/to/dir", resp.Items[0].Path)
 		assert.Equal(t, "Kustomize", resp.Items[0].Type)
 	})

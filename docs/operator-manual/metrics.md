@@ -128,6 +128,20 @@ Scraped at the `argocd-repo-server:8084/metrics` endpoint.
 | `argocd_redis_request_total` | counter | Number of Kubernetes requests executed during application reconciliation. |
 | `argocd_repo_pending_request_total` | gauge | Number of pending requests requiring repository lock |
 
+## Commit Server Metrics
+
+Metrics about the Commit Server.
+Scraped at the `argocd-commit-server:8087/metrics` endpoint.
+
+| Metric                                                  |   Type    | Description                                          |
+|---------------------------------------------------------|:---------:|------------------------------------------------------|
+| `argocd_commitserver_commit_pending_request_total`      |   guage   | Number of pending commit requests.                   |
+| `argocd_commitserver_git_request_duration_seconds`      | histogram | Git requests duration seconds.                       |
+| `argocd_commitserver_git_request_total`                 |  counter  | Number of git requests performed by commit server    |
+| `argocd_commitserver_commit_request_duration_seconds`   | histogram | Commit requests duration seconds.                    |
+| `argocd_commitserver_userinfo_request_duration_seconds` | histogram | Userinfo requests duration seconds.                  |
+| `argocd_commitserver_commit_request_total`              |  counter  | Number of commit requests performed by commit server |
+
 ## Prometheus Operator
 
 If using Prometheus Operator, the following ServiceMonitor example manifests can be used.

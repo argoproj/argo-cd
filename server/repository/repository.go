@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -16,7 +15,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -72,6 +70,14 @@ var errPermissionDenied = status.Error(codes.PermissionDenied, "permission denie
 
 func (s *Server) getRepo(ctx context.Context, url, project string) (*appsv1.Repository, error) {
 	repo, err := s.db.GetRepository(ctx, url, project)
+	if err != nil {
+		return nil, errPermissionDenied
+	}
+	return repo, nil
+}
+
+func (s *Server) getWriteRepo(ctx context.Context, url, project string) (*appsv1.Repository, error) {
+	repo, err := s.db.GetWriteRepository(ctx, url, project)
 	if err != nil {
 		return nil, errPermissionDenied
 	}
@@ -138,7 +144,6 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 		return nil, err
 	}
 
-	// getRepo does not return an error for unconfigured repositories, so we are checking here
 	exists, err := s.db.RepositoryExists(ctx, q.Repo, repo.Project)
 	if err != nil {
 		return nil, err
@@ -150,39 +155,67 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.R
 	return repo, nil
 }
 
+func (s *Server) GetWrite(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.Repository, error) {
+	repo, err := getRepository(ctx, s.ListWriteRepositories, q)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceWriteRepositories, rbacpolicy.ActionGet, createRBACObject(repo.Project, repo.Repo)); err != nil {
+		return nil, err
+	}
+
+	exists, err := s.db.WriteRepositoryExists(ctx, q.Repo, repo.Project)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, status.Errorf(codes.NotFound, "write repo '%s' not found", q.Repo)
+	}
+
+	return repo, nil
+}
+
 // ListRepositories returns a list of all configured repositories and the state of their connections
 func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.RepositoryList, error) {
 	repos, err := s.db.ListRepositories(ctx)
 	if err != nil {
 		return nil, err
 	}
+	items, err := s.prepareRepoList(ctx, rbacpolicy.ResourceRepositories, repos, q.ForceRefresh)
+	if err != nil {
+		return nil, err
+	}
+	return &appsv1.RepositoryList{Items: items}, nil
+}
+
+// ListWriteRepositories returns a list of all configured repositories where the user has write access and the state of
+// their connections
+func (s *Server) ListWriteRepositories(ctx context.Context, q *repositorypkg.RepoQuery) (*appsv1.RepositoryList, error) {
+	repos, err := s.db.ListWriteRepositories(ctx)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.prepareRepoList(ctx, rbacpolicy.ResourceWriteRepositories, repos, q.ForceRefresh)
+	if err != nil {
+		return nil, err
+	}
+	return &appsv1.RepositoryList{Items: items}, nil
+}
+
+// ListRepositoriesByAppProject returns a list of all configured repositories and the state of their connections. It
+// normalizes, sanitizes, and filters out repositories that the user does not have access to in the specified project.
+// It also sorts the repositories by project and repo name.
+func (s *Server) prepareRepoList(ctx context.Context, resourceType string, repos []*appsv1.Repository, forceRefresh bool) (appsv1.Repositories, error) {
 	items := appsv1.Repositories{}
 	for _, repo := range repos {
-		if s.enf.Enforce(ctx.Value("claims"), rbacpolicy.ResourceRepositories, rbacpolicy.ActionGet, createRBACObject(repo.Project, repo.Repo)) {
-			// For backwards compatibility, if we have no repo type set assume a default
-			rType := repo.Type
-			if rType == "" {
-				rType = common.DefaultRepoType
-			}
-			// remove secrets
-			items = append(items, &appsv1.Repository{
-				Repo:               repo.Repo,
-				Type:               rType,
-				Name:               repo.Name,
-				Username:           repo.Username,
-				Insecure:           repo.IsInsecure(),
-				EnableLFS:          repo.EnableLFS,
-				EnableOCI:          repo.EnableOCI,
-				Proxy:              repo.Proxy,
-				NoProxy:            repo.NoProxy,
-				Project:            repo.Project,
-				ForceHttpBasicAuth: repo.ForceHttpBasicAuth,
-				InheritedCreds:     repo.InheritedCreds,
-			})
-		}
+		items = append(items, repo.Normalize().Sanitized())
 	}
-	err = kube.RunAllAsync(len(items), func(i int) error {
-		items[i].ConnectionState = s.getConnectionState(ctx, items[i].Repo, items[i].Project, q.ForceRefresh)
+	items = items.Filter(func(r *appsv1.Repository) bool {
+		return s.enf.Enforce(ctx.Value("claims"), resourceType, rbacpolicy.ActionGet, createRBACObject(r.Project, r.Repo))
+	})
+	err := kube.RunAllAsync(len(items), func(i int) error {
+		items[i].ConnectionState = s.getConnectionState(ctx, items[i].Repo, items[i].Project, forceRefresh)
 		return nil
 	})
 	if err != nil {
@@ -193,7 +226,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 		second := items[j]
 		return strings.Compare(fmt.Sprintf("%s/%s", first.Project, first.Repo), fmt.Sprintf("%s/%s", second.Project, second.Repo)) < 0
 	})
-	return &appsv1.RepositoryList{Items: items}, nil
+	return items, nil
 }
 
 func (s *Server) ListRefs(ctx context.Context, q *repositorypkg.RepoQuery) (*apiclient.Refs, error) {
@@ -412,16 +445,55 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 			return nil, status.Errorf(codes.Internal, "unable to check existing repository details: %v", getErr)
 		}
 
-		existing.Type = text.FirstNonEmpty(existing.Type, "git")
 		// repository ConnectionState may differ, so make consistent before testing
 		existing.ConnectionState = r.ConnectionState
 		if reflect.DeepEqual(existing, r) {
 			repo, err = existing, nil
 		} else if q.Upsert {
 			r.Project = q.Repo.Project
-			return s.UpdateRepository(ctx, &repositorypkg.RepoUpdateRequest{Repo: r})
+			return s.db.UpdateRepository(ctx, r)
 		} else {
 			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("repository", existing, r))
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &appsv1.Repository{Repo: repo.Repo, Type: repo.Type, Name: repo.Name}, nil
+}
+
+// CreateWriteRepository creates a repository configuration with write credentials
+func (s *Server) CreateWriteRepository(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*appsv1.Repository, error) {
+	if q.Repo == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceWriteRepositories, rbacpolicy.ActionCreate, createRBACObject(q.Repo.Project, q.Repo.Repo)); err != nil {
+		return nil, err
+	}
+
+	if !q.Repo.HasCredentials() {
+		return nil, status.Errorf(codes.InvalidArgument, "missing credentials in request")
+	}
+
+	err := s.testRepo(ctx, q.Repo)
+	if err != nil {
+		return nil, err
+	}
+
+	repo, err := s.db.CreateWriteRepository(ctx, q.Repo)
+	if status.Convert(err).Code() == codes.AlreadyExists {
+		// act idempotent if existing spec matches new spec
+		existing, getErr := s.db.GetWriteRepository(ctx, q.Repo.Repo, q.Repo.Project)
+		if getErr != nil {
+			return nil, status.Errorf(codes.Internal, "unable to check existing repository details: %v", getErr)
+		}
+		if reflect.DeepEqual(existing, q.Repo) {
+			repo, err = existing, nil
+		} else if q.Upsert {
+			return s.db.UpdateWriteRepository(ctx, q.Repo)
+		} else {
+			return nil, status.Error(codes.InvalidArgument, argo.GenerateSpecIsDifferentErrorMessage("write repository", existing, q.Repo))
 		}
 	}
 	if err != nil {
@@ -459,6 +531,29 @@ func (s *Server) UpdateRepository(ctx context.Context, q *repositorypkg.RepoUpda
 	return &appsv1.Repository{Repo: q.Repo.Repo, Type: q.Repo.Type, Name: q.Repo.Name}, err
 }
 
+// UpdateWriteRepository updates a repository configuration with write credentials
+func (s *Server) UpdateWriteRepository(ctx context.Context, q *repositorypkg.RepoUpdateRequest) (*appsv1.Repository, error) {
+	if q.Repo == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
+	}
+
+	repo, err := s.getWriteRepo(ctx, q.Repo.Repo, q.Repo.Project)
+	if err != nil {
+		return nil, err
+	}
+
+	// verify that user can do update inside project where repository is located
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceWriteRepositories, rbacpolicy.ActionUpdate, createRBACObject(repo.Project, repo.Repo)); err != nil {
+		return nil, err
+	}
+	// verify that user can do update inside project where repository will be located
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceWriteRepositories, rbacpolicy.ActionUpdate, createRBACObject(q.Repo.Project, q.Repo.Repo)); err != nil {
+		return nil, err
+	}
+	_, err = s.db.UpdateWriteRepository(ctx, q.Repo)
+	return &appsv1.Repository{Repo: q.Repo.Repo, Type: q.Repo.Type, Name: q.Repo.Name}, err
+}
+
 // Delete removes a repository from the configuration
 // Deprecated: Use DeleteRepository() instead
 func (s *Server) Delete(ctx context.Context, q *repositorypkg.RepoQuery) (*repositorypkg.RepoResponse, error) {
@@ -482,6 +577,21 @@ func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuer
 	}
 
 	err = s.db.DeleteRepository(ctx, repo.Repo, repo.Project)
+	return &repositorypkg.RepoResponse{}, err
+}
+
+// DeleteWriteRepository removes a repository from the configuration
+func (s *Server) DeleteWriteRepository(ctx context.Context, q *repositorypkg.RepoQuery) (*repositorypkg.RepoResponse, error) {
+	repo, err := getRepository(ctx, s.ListWriteRepositories, q)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceWriteRepositories, rbacpolicy.ActionDelete, createRBACObject(repo.Project, repo.Repo)); err != nil {
+		return nil, err
+	}
+
+	err = s.db.DeleteWriteRepository(ctx, repo.Repo, repo.Project)
 	return &repositorypkg.RepoResponse{}, err
 }
 
@@ -561,6 +671,39 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 			repo.CopyCredentialsFrom(repoCreds)
 		}
 	}
+	err := s.testRepo(ctx, repo)
+	if err != nil {
+		return nil, err
+	}
+	return &repositorypkg.RepoResponse{}, nil
+}
+
+// ValidateWriteAccess checks whether write access to a repository is possible with the
+// given URL and credentials.
+func (s *Server) ValidateWriteAccess(ctx context.Context, q *repositorypkg.RepoAccessQuery) (*repositorypkg.RepoResponse, error) {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceWriteRepositories, rbacpolicy.ActionCreate, createRBACObject(q.Project, q.Repo)); err != nil {
+		return nil, err
+	}
+
+	repo := &appsv1.Repository{
+		Repo:                       q.Repo,
+		Type:                       q.Type,
+		Name:                       q.Name,
+		Username:                   q.Username,
+		Password:                   q.Password,
+		SSHPrivateKey:              q.SshPrivateKey,
+		Insecure:                   q.Insecure,
+		TLSClientCertData:          q.TlsClientCertData,
+		TLSClientCertKey:           q.TlsClientCertKey,
+		EnableOCI:                  q.EnableOci,
+		GithubAppPrivateKey:        q.GithubAppPrivateKey,
+		GithubAppId:                q.GithubAppID,
+		GithubAppInstallationId:    q.GithubAppInstallationID,
+		GitHubAppEnterpriseBaseURL: q.GithubAppEnterpriseBaseUrl,
+		Proxy:                      q.Proxy,
+		GCPServiceAccountKey:       q.GcpServiceAccountKey,
+	}
+
 	err := s.testRepo(ctx, repo)
 	if err != nil {
 		return nil, err
