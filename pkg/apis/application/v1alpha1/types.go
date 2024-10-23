@@ -2869,6 +2869,11 @@ func (condition *ApplicationCondition) IsError() bool {
 	return strings.HasSuffix(condition.Type, "Error")
 }
 
+// IsWarning returns true if a condition indicates an warning condition
+func (condition *ApplicationCondition) IsWarning() bool {
+	return strings.HasSuffix(condition.Type, "Warning")
+}
+
 // Equals compares two instances of ApplicationSource and return true if instances are equal.
 func (source *ApplicationSource) Equals(other *ApplicationSource) bool {
 	if source == nil && other == nil {

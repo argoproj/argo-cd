@@ -1,2 +1,2 @@
 ### Features
--  feat: manage clusters via proxy
+-  feat(event-reporter): added warning conditions reporting

@@ -137,12 +137,41 @@ func TestParseResourceSyncResultErrors(t *testing.T) {
 	})
 }
 
+func TestGetConditionLevel(t *testing.T) {
+	errorsTypes := []v1alpha1.ApplicationCondition{
+		{Type: v1alpha1.ApplicationConditionDeletionError},
+		{Type: v1alpha1.ApplicationConditionInvalidSpecError},
+		{Type: v1alpha1.ApplicationConditionComparisonError},
+		{Type: v1alpha1.ApplicationConditionSyncError},
+		{Type: v1alpha1.ApplicationConditionUnknownError},
+	}
+	for _, errorAppCondition := range errorsTypes {
+		t.Run("parses as error "+errorAppCondition.Type, func(t *testing.T) {
+			level := getConditionLevel(errorAppCondition)
+			assert.Equal(t, "error", level)
+		})
+	}
+
+	warningTypes := []v1alpha1.ApplicationCondition{
+		{Type: v1alpha1.ApplicationConditionSharedResourceWarning},
+		{Type: v1alpha1.ApplicationConditionRepeatedResourceWarning},
+		{Type: v1alpha1.ApplicationConditionExcludedResourceWarning},
+		{Type: v1alpha1.ApplicationConditionOrphanedResourceWarning},
+	}
+	for _, warningAppCondition := range warningTypes {
+		t.Run("parses as warning "+warningAppCondition.Type, func(t *testing.T) {
+			level := getConditionLevel(warningAppCondition)
+			assert.Equal(t, "warning", level)
+		})
+	}
+}
+
 func TestParseApplicationSyncResultErrorsFromConditions(t *testing.T) {
 	t.Run("conditions exists", func(t *testing.T) {
 		errors := parseApplicationSyncResultErrorsFromConditions(v1alpha1.ApplicationStatus{
 			Conditions: []v1alpha1.ApplicationCondition{
 				{
-					Type:    "error",
+					Type:    v1alpha1.ApplicationConditionSyncError,
 					Message: "error message",
 				},
 			},
@@ -154,11 +183,27 @@ func TestParseApplicationSyncResultErrorsFromConditions(t *testing.T) {
 		assert.Equal(t, "error", errors[0].Level)
 	})
 
+	t.Run("warning exists", func(t *testing.T) {
+		errors := parseApplicationSyncResultErrorsFromConditions(v1alpha1.ApplicationStatus{
+			Conditions: []v1alpha1.ApplicationCondition{
+				{
+					Type:    v1alpha1.ApplicationConditionOrphanedResourceWarning,
+					Message: "Application has 8 orphaned resources",
+				},
+			},
+		})
+
+		assert.Len(t, errors, 1)
+		assert.Equal(t, "Application has 8 orphaned resources", errors[0].Message)
+		assert.Equal(t, "sync", errors[0].Type)
+		assert.Equal(t, "warning", errors[0].Level)
+	})
+
 	t.Run("conditions erorr replaced with sync result errors", func(t *testing.T) {
 		errors := parseApplicationSyncResultErrorsFromConditions(v1alpha1.ApplicationStatus{
 			Conditions: []v1alpha1.ApplicationCondition{
 				{
-					Type:    "error",
+					Type:    v1alpha1.ApplicationConditionSyncError,
 					Message: syncTaskUnsuccessfullErrorMessage,
 				},
 			},
