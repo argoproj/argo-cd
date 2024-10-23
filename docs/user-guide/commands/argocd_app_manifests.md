@@ -18,6 +18,9 @@ argocd app manifests APPNAME [flags]
   argocd app manifests my-app --revision 0.0.1
   
   # Get manifests for a multi-source application at specific revisions for specific sources
+  argocd app manifests my-app --revisions 0.0.1 --source-names src-base --revisions 0.0.2 --source-names src-values
+  
+  # Get manifests for a multi-source application at specific revisions for specific sources
   argocd app manifests my-app --revisions 0.0.1 --source-positions 1 --revisions 0.0.2 --source-positions 2
 ```
 
@@ -30,6 +33,7 @@ argocd app manifests APPNAME [flags]
       --revision string               Show manifests at a specific revision
       --revisions stringArray         Show manifests at specific revisions for the source at position in source-positions
       --source string                 Source of manifests. One of: live|git (default "git")
+      --source-names stringArray      List of source names. Default is an empty array.
       --source-positions int64Slice   List of source positions. Default is empty array. Counting start at 1. (default [])
 ```
 

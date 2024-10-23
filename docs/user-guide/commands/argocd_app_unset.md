@@ -20,6 +20,9 @@ argocd app unset APPNAME parameters [flags]
   # Unset kustomize override suffix for source at position 1 under spec.sources of app my-app. source-position starts at 1.
   argocd app unset my-app --source-position 1 --namesuffix
 
+  # Unset kustomize override suffix for source named "test" under spec.sources of app my-app.
+  argocd app unset my-app --source-name test --namesuffix
+
   # Unset parameter override
   argocd app unset my-app -p COMPONENT=PARAM
 ```
@@ -40,6 +43,7 @@ argocd app unset APPNAME parameters [flags]
       --pass-credentials                Unset passCredentials
       --plugin-env stringArray          Unset plugin env variables (e.g --plugin-env name)
       --ref                             Unset ref on the source
+      --source-name string              Name of the source from the list of sources of the app.
       --source-position int             Position of the source from the list of sources of the app. Counting starts at 1. (default -1)
       --values stringArray              Unset one or more Helm values files
       --values-literal                  Unset literal Helm values block
