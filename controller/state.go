@@ -299,7 +299,8 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 	logCtx.Info("GetRepoObjs stats")
 
-	// in case if annotation not exists, we should always execute selfheal if manifests changed
+	// If a revision in any of the sources cannot be updated,
+	// we should trigger self-healing whenever there are changes to the manifests.
 	if atLeastOneRevisionIsNotPossibleToBeUpdated {
 		revisionUpdated = true
 	}
