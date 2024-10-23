@@ -30,12 +30,13 @@ requests.setBaseHRef(base);
 type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}};
 
 const routes: Routes = {
-    '/login': {component: login.component as any, noLayout: true},
-    '/applications': {component: applications.component},
-    '/settings': {component: settings.component},
-    '/user-info': {component: userInfo.component},
-    '/help': {component: help.component},
-    '/pkce/verify': {component: PKCEVerification, noLayout: true}
+    // for removing trailing slash, use regex (/*)? end of the path.
+    '/login(/*)?': {component: login.component as any, noLayout: true},
+    '/applications(/*)?': {component: applications.component},
+    '/settings(/*)?': {component: settings.component},
+    '/user-info(/*)?': {component: userInfo.component},
+    '/help(/*)?': {component: help.component},
+    '/pkce/verify(/*)?': {component: PKCEVerification, noLayout: true}
 };
 
 interface NavItem {
