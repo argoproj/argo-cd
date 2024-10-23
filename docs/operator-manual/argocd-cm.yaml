@@ -436,8 +436,3 @@ data:
 
   # application.sync.impersonation.enabled enables application sync to use a custom service account, via impersonation. This allows decoupling sync from control-plane service account.
   application.sync.impersonation.enabled: "false"
-
-  # An optional list of annotation keys to hide in UI on secret resources
-  hide.secret.annotations: |
-    - openshift.io/token-secret.value
-    - api-key
