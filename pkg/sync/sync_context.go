@@ -116,6 +116,13 @@ func WithPrune(prune bool) SyncOpt {
 	}
 }
 
+// WithPruneConfirmed specifies if prune is confirmed for resources that require confirmation
+func WithPruneConfirmed(confirmed bool) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.pruneConfirmed = confirmed
+	}
+}
+
 // WithOperationSettings allows to set sync operation settings
 func WithOperationSettings(dryRun bool, prune bool, force bool, skipHooks bool) SyncOpt {
 	return func(ctx *syncContext) {
@@ -339,6 +346,7 @@ type syncContext struct {
 	serverSideApplyManager string
 	pruneLast              bool
 	prunePropagationPolicy *metav1.DeletionPropagation
+	pruneConfirmed         bool
 
 	syncRes   map[string]common.ResourceSyncResult
 	startedAt time.Time
@@ -1149,6 +1157,24 @@ func (sc *syncContext) runTasks(tasks syncTasks, dryRun bool) runState {
 	}
 	// prune first
 	{
+		if !sc.pruneConfirmed {
+			var resources []string
+			for _, task := range pruneTasks {
+				if resourceutil.HasAnnotationOption(task.liveObj, common.AnnotationSyncOptions, common.SyncOptionPruneRequireConfirm) {
+					resources = append(resources, fmt.Sprintf("%s/%s/%s", task.obj().GetAPIVersion(), task.obj().GetKind(), task.name()))
+				}
+			}
+			if len(resources) > 0 {
+				sc.log.WithValues("resources", resources).Info("Prune requires confirmation")
+				andMessage := ""
+				if len(resources) > 1 {
+					andMessage = fmt.Sprintf(" and %d more resources", len(resources)-1)
+				}
+				sc.message = fmt.Sprintf("Waiting for pruning confirmation of %s%s", resources[0], andMessage)
+				return pending
+			}
+		}
+
 		ss := newStateSync(state)
 		for _, task := range pruneTasks {
 			t := task
