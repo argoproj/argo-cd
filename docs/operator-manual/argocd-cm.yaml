@@ -222,6 +222,9 @@ data:
       clusters:
       - "*.local"
 
+  # An optional comma-separated list of annotation keys to mask in UI/CLI on secrets
+  resource.sensitive.mask.annotations: openshift.io/token-secret.value,api-key
+
   # An optional comma-separated list of metadata.labels to observe in the UI.
   resource.customLabels: tier
 
