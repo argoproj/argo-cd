@@ -17,6 +17,7 @@ argocd cluster add CONTEXT [flags]
       --aws-role-arn string                Optional AWS role arn. If set then AWS IAM Authenticator assumes a role to perform cluster operations instead of the default AWS credential provider chain.
       --cluster-endpoint string            Cluster endpoint to use. Can be one of the following: 'kubeconfig', 'kube-public', or 'internal'.
       --cluster-resources                  Indicates if cluster level resources should be managed. The setting is used only if list of managed namespaces is not empty.
+      --disable-compression                Bypasses automatic GZip compression requests to the server
       --exec-command string                Command to run to provide client credentials to the cluster. You may need to build a custom ArgoCD image to ensure the command is available at runtime.
       --exec-command-api-version string    Preferred input version of the ExecInfo for the --exec-command executable
       --exec-command-args stringArray      Arguments to supply to the --exec-command executable
@@ -29,6 +30,7 @@ argocd cluster add CONTEXT [flags]
       --name string                        Overwrite the cluster name
       --namespace stringArray              List of namespaces which are allowed to manage
       --project string                     project of the cluster
+      --proxy-url string                   use proxy to connect cluster
       --service-account string             System namespace service account to use for kubernetes resource management. If not set then default "argocd-manager" SA will be created
       --shard int                          Cluster shard number; inferred from hostname if not set (default -1)
       --system-namespace string            Use different system namespace (default "kube-system")
@@ -39,7 +41,8 @@ argocd cluster add CONTEXT [flags]
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token
+      --argocd-context string           The name of the Argo-CD server context to use
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")

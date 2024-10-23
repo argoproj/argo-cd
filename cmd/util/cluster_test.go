@@ -1,7 +1,6 @@
 package util
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -38,6 +37,7 @@ func Test_newCluster(t *testing.T) {
 	assert.Equal(t, "", clusterWithData.Config.BearerToken)
 	assert.Equal(t, labels, clusterWithData.Labels)
 	assert.Equal(t, annotations, clusterWithData.Annotations)
+	assert.False(t, clusterWithData.Config.DisableCompression)
 
 	clusterWithFiles := NewCluster("test-cluster", []string{"test-namespace"}, false, &rest.Config{
 		TLSClientConfig: rest.TLSClientConfig{
@@ -53,8 +53,8 @@ func Test_newCluster(t *testing.T) {
 		&v1alpha1.AWSAuthConfig{},
 		&v1alpha1.ExecProviderConfig{}, labels, nil)
 
-	assert.True(t, strings.Contains(string(clusterWithFiles.Config.CertData), "test-cert-data"))
-	assert.True(t, strings.Contains(string(clusterWithFiles.Config.KeyData), "test-key-data"))
+	assert.Contains(t, string(clusterWithFiles.Config.CertData), "test-cert-data")
+	assert.Contains(t, string(clusterWithFiles.Config.KeyData), "test-key-data")
 	assert.Equal(t, "", clusterWithFiles.Config.BearerToken)
 	assert.Equal(t, labels, clusterWithFiles.Labels)
 	assert.Nil(t, clusterWithFiles.Annotations)
@@ -74,6 +74,20 @@ func Test_newCluster(t *testing.T) {
 	assert.Equal(t, "test-bearer-token", clusterWithBearerToken.Config.BearerToken)
 	assert.Nil(t, clusterWithBearerToken.Labels)
 	assert.Nil(t, clusterWithBearerToken.Annotations)
+
+	clusterWithDisableCompression := NewCluster("test-cluster", []string{"test-namespace"}, false, &rest.Config{
+		TLSClientConfig: rest.TLSClientConfig{
+			Insecure:   false,
+			ServerName: "test-endpoint.example.com",
+			CAData:     []byte("test-ca-data"),
+		},
+		DisableCompression: true,
+		Host:               "test-endpoint.example.com",
+	}, "test-bearer-token",
+		&v1alpha1.AWSAuthConfig{},
+		&v1alpha1.ExecProviderConfig{}, labels, annotations)
+
+	assert.True(t, clusterWithDisableCompression.Config.DisableCompression)
 }
 
 func TestGetKubePublicEndpoint(t *testing.T) {
@@ -160,7 +174,6 @@ func TestGetKubePublicEndpoint(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func kubeconfigFixture(endpoint string) string {

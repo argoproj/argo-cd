@@ -4,17 +4,27 @@ By default, an Argo CD Application is refreshed every time a resource that belon
 
 Kubernetes controllers often update the resources they watch periodically, causing continuous reconcile operation on the Application
 and a high CPU usage on the `argocd-application-controller`. Argo CD allows you to optionally ignore resource updates on specific fields
-for [tracked resources](../user-guide/resource_tracking.md).
+for [tracked resources](../user-guide/resource_tracking.md). 
+For untracked resources, you can [use the argocd.argoproj.io/ignore-resource-updates annotations](#ignoring-updates-for-untracked-resources)
 
 When a resource update is ignored, if the resource's [health status](./health.md) does not change, the Application that this resource belongs to will not be reconciled.
 
 ## System-Level Configuration
 
+By default, `resource.ignoreResourceUpdatesEnabled` is set to `true`, enabling Argo CD to ignore resource updates. This default setting ensures that Argo CD maintains sustainable performance by reducing unnecessary reconcile operations. If you need to alter this behavior, you can explicitly set `resource.ignoreResourceUpdatesEnabled` to `false` in the `argocd-cm` ConfigMap:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  resource.ignoreResourceUpdatesEnabled: "false"
+```
+
 Argo CD allows ignoring resource updates at a specific JSON path, using [RFC6902 JSON patches](https://tools.ietf.org/html/rfc6902) and [JQ path expressions](https://stedolan.github.io/jq/manual/#path(path_expression)). It can be configured for a specified group and kind
 in `resource.customizations` key of the `argocd-cm` ConfigMap.
-
-!!!important "Enabling the feature"
-    The feature is behind a flag. To enable it, set `resource.ignoreResourceUpdatesEnabled` to `"true"` in the `argocd-cm` ConfigMap.
 
 Following is an example of a customization which ignores the `refreshTime` status field of an [`ExternalSecret`](https://external-secrets.io/main/api/externalsecret/) resource:
 
@@ -109,5 +119,57 @@ data:
     jqPathExpressions:
     # Ignore lastTransitionTime for conditions; helpful when SharedResourceWarnings are being regularly updated but not
     # actually changing in content.
-    - .status.conditions[].lastTransitionTime
+    - .status?.conditions[]?.lastTransitionTime
+```
+
+## Ignoring updates for untracked resources
+
+ArgoCD will only apply `ignoreResourceUpdates` configuration to tracked resources of an application. This means dependant resources, such as a `ReplicaSet` and `Pod` created by a `Deployment`, will not ignore any updates and trigger a reconcile of the application for any changes.
+
+If you want to apply the `ignoreResourceUpdates` configuration to an untracked resource, you can add the
+`argocd.argoproj.io/ignore-resource-updates=true` annotation in the dependent resources manifest.
+
+## Example
+
+### CronJob
+
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hello
+  namespace: test-cronjob
+spec:
+  schedule: "* * * * *"
+  jobTemplate:
+    metadata:
+      annotations:
+        argocd.argoproj.io/ignore-resource-updates: "true"
+    spec:
+      template:
+        metadata:
+          annotations:
+            argocd.argoproj.io/ignore-resource-updates: "true"
+        spec:
+          containers:
+          - name: hello
+            image: busybox:1.28
+            imagePullPolicy: IfNotPresent
+            command:
+            - /bin/sh
+            - -c
+            - date; echo Hello from the Kubernetes cluster
+          restartPolicy: OnFailure
+```
+
+The resource updates will be ignored based on your the `ignoreResourceUpdates` configuration in the `argocd-cm` configMap:
+
+`argocd-cm`:
+```yaml
+resource.customizations.ignoreResourceUpdates.batch_Job: |
+    jsonPointers:
+      - /status
+resource.customizations.ignoreResourceUpdates.Pod: |
+    jsonPointers:
+      - /status      
 ```

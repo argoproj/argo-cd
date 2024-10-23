@@ -1,0 +1,47 @@
+issues:
+  exclude:
+    - SA5011
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    - path: '(.+)_test\.go'
+      linters:
+        - unparam
+linters:
+  enable:
+    - errcheck
+    - errorlint
+    - gocritic
+    - gofumpt
+    - goimports
+    - gosimple
+    - govet
+    - ineffassign
+    - misspell
+    - staticcheck
+    - testifylint
+    - thelper
+    - unparam
+    - unused
+    - usestdlibvars
+    - whitespace 
+linters-settings:
+  gocritic:
+    disabled-checks:
+      - appendAssign
+      - assignOp  # Keep it disabled for readability
+      - badCond
+      - commentFormatting
+      - exitAfterDefer
+      - ifElseChain
+      - mapKey
+      - singleCaseSwitch
+      - typeSwitchVar
+  goimports:
+    local-prefixes: github.com/argoproj/argo-cd/v2
+  testifylint:
+    enable-all: true
+    disable:
+      - go-require
+run:
+  timeout: 50m

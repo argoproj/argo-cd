@@ -1,0 +1,13 @@
+actionTests:
+- action: pause
+  inputPath: testdata/rollout.yaml
+  expectedOutputPath: testdata/rollout-paused.yaml
+- action: unpause
+  inputPath: testdata/rollout-paused.yaml
+  expectedOutputPath: testdata/rollout-running.yaml
+- action: allow-data-loss
+  inputPath: testdata/rollout-in-ppnd.yaml
+  expectedOutputPath: testdata/rollout-allowing-data-loss.yaml
+- action: disallow-data-loss
+  inputPath: testdata/rollout-allowing-data-loss.yaml
+  expectedOutputPath: testdata/rollout-disallowing-data-loss.yaml

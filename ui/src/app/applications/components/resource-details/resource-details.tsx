@@ -4,8 +4,8 @@ import {useState} from 'react';
 import {EventsList, YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
-import {Context} from '../../../shared/context';
-import {Application, ApplicationTree, AppSourceType, Event, RepoAppDetails, ResourceNode, State, SyncStatuses} from '../../../shared/models';
+import {AppContext, Context} from '../../../shared/context';
+import {Application, ApplicationTree, Event, ResourceNode, State, SyncStatuses} from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceTabExtension} from '../../../shared/services/extensions-service';
 import {NodeInfo, SelectNode} from '../application-details/application-details';
@@ -31,6 +31,7 @@ interface ResourceDetailsProps {
     isAppSelected: boolean;
     tree: ApplicationTree;
     tab?: string;
+    appCxt: AppContext;
 }
 
 export const ResourceDetails = (props: ResourceDetailsProps) => {
@@ -41,6 +42,12 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
     const selectedNodeKey = selectedNodeInfo.key;
     const [pageNumber, setPageNumber] = React.useState(0);
+    const [collapsedSources, setCollapsedSources] = React.useState(new Array<boolean>()); // For Sources tab to save collapse states
+    const handleCollapse = (i: number, isCollapsed: boolean) => {
+        const v = collapsedSources.slice();
+        v[i] = isCollapsed;
+        setCollapsedSources(v);
+    };
 
     const getResourceTabs = (
         node: ResourceNode,
@@ -143,7 +150,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                     title: tabExtensions.title,
                     key: `extension-${i}`,
                     content: (
-                        <ErrorBoundary message={`Something went wrong with Extension for ${state.kind}`}>
+                        <ErrorBoundary message={`Something went wrong with Extension for ${state?.kind || 'resource of unknown kind'}`}>
                             <tabExtensions.component tree={tree} resource={state} application={application} />
                         </ErrorBoundary>
                     ),
@@ -162,21 +169,18 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 content: <ApplicationSummary app={application} updateApp={(app, query: {validate?: boolean}) => updateApp(app, query)} />
             },
             {
-                title: 'SOURCES',
-                key: 'sources',
+                title: application.spec.sources === undefined ? 'PARAMETERS' : 'SOURCES',
+                key: 'parameters',
                 content: (
-                    <DataLoader key='appDetails' input={application} load={app => getSources(app)}>
-                        {(details: RepoAppDetails[]) => (
-                            <ApplicationParameters
-                                save={(app: models.Application, query: {validate?: boolean}) => updateApp(app, query)}
-                                application={application}
-                                details={details[0]}
-                                detailsList={details}
-                                pageNumber={pageNumber}
-                                setPageNumber={setPageNumber}
-                            />
-                        )}
-                    </DataLoader>
+                    <ApplicationParameters
+                        save={(app: models.Application, query: {validate?: boolean}) => updateApp(app, query)}
+                        application={application}
+                        pageNumber={pageNumber}
+                        setPageNumber={setPageNumber}
+                        collapsedSources={collapsedSources}
+                        handleCollapse={handleCollapse}
+                        appContext={props.appCxt}
+                    />
                 )
             },
             {
@@ -264,6 +268,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 }))) ||
                             [];
                         let podState: State;
+                        let childResources: models.ResourceNode[] = [];
                         if (selectedNode.kind === 'Pod') {
                             podState = liveState;
                         } else {
@@ -271,6 +276,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             if (childPod) {
                                 podState = await services.applications.getResource(application.metadata.name, application.metadata.namespace, childPod).catch(() => null);
                             }
+                            childResources = AppUtils.findChildResources(selectedNode, tree);
                         }
 
                         const settings = await services.authService.settings();
@@ -278,7 +284,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         const logsAllowed = await services.accounts.canI('logs', 'get', application.spec.project + '/' + application.metadata.name);
                         const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', application.spec.project + '/' + application.metadata.name));
                         const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch(() => null);
-                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links};
+                        const resourceActionsMenuItems = await AppUtils.getResourceActionsMenuItems(selectedNode, application.metadata, appContext);
+                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links, childResources, resourceActionsMenuItems};
                     }}>
                     {data => (
                         <React.Fragment>
@@ -303,20 +310,22 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
                                 </button>
                                 <button
-                                    onClick={() => AppUtils.deletePopup(appContext, selectedNode, application)}
+                                    onClick={() => AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources)}
                                     style={{marginRight: '5px'}}
                                     className='argo-button argo-button--base'>
                                     <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
                                 </button>
-                                <DropDown
-                                    isMenu={true}
-                                    anchor={() => (
-                                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                            <i className='fa fa-ellipsis-v' />
-                                        </button>
-                                    )}>
-                                    {() => AppUtils.renderResourceActionMenu(selectedNode, application, appContext)}
-                                </DropDown>
+                                {data.resourceActionsMenuItems?.length > 0 && (
+                                    <DropDown
+                                        isMenu={true}
+                                        anchor={() => (
+                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                <i className='fa fa-ellipsis-v' />
+                                            </button>
+                                        )}>
+                                        {() => AppUtils.renderResourceActionMenu(data.resourceActionsMenuItems)}
+                                    </DropDown>
+                                )}
                             </div>
                             <Tabs
                                 navTransparent={true}
@@ -364,32 +373,3 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         </div>
     );
 };
-
-// Maintain compatibility with single source field. Remove else block when source field is removed
-async function getSources(app: models.Application) {
-    const listOfDetails = new Array<RepoAppDetails & {type: AppSourceType; path: string}>();
-    const sources: models.ApplicationSource[] = app.spec.sources;
-    if (sources) {
-        const length = sources.length;
-        for (let i = 0; i < length; i++) {
-            const aSource = sources[i];
-            const repoDetail = await services.repos.appDetails(aSource, app.metadata.name, app.spec.project).catch(e => ({
-                type: 'Directory' as AppSourceType,
-                path: aSource.path
-            }));
-            if (repoDetail) {
-                listOfDetails.push(repoDetail);
-            }
-        }
-        return listOfDetails;
-    } else {
-        const repoDetail = await services.repos.appDetails(AppUtils.getAppDefaultSource(app), app.metadata.name, app.spec.project).catch(() => ({
-            type: 'Directory' as AppSourceType,
-            path: AppUtils.getAppDefaultSource(app).path
-        }));
-        if (repoDetail) {
-            listOfDetails.push(repoDetail);
-        }
-        return listOfDetails;
-    }
-}

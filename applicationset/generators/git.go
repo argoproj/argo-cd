@@ -11,23 +11,29 @@ import (
 
 	"github.com/jeremywohl/flatten"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/gpg"
 )
 
 var _ Generator = (*GitGenerator)(nil)
 
 type GitGenerator struct {
-	repos services.Repos
+	repos     services.Repos
+	namespace string
 }
 
-func NewGitGenerator(repos services.Repos) Generator {
+func NewGitGenerator(repos services.Repos, namespace string) Generator {
 	g := &GitGenerator{
-		repos: repos,
+		repos:     repos,
+		namespace: namespace,
 	}
+
 	return g
 }
 
@@ -36,18 +42,16 @@ func (g *GitGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.Applicati
 }
 
 func (g *GitGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) time.Duration {
-
 	// Return a requeue default of 3 minutes, if no default is specified.
 
 	if appSetGenerator.Git.RequeueAfterSeconds != nil {
 		return time.Duration(*appSetGenerator.Git.RequeueAfterSeconds) * time.Second
 	}
 
-	return DefaultRequeueAfterSeconds
+	return getDefaultRequeueAfter()
 }
 
-func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
-
+func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) ([]map[string]interface{}, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -58,12 +62,31 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 
 	noRevisionCache := appSet.RefreshRequired()
 
+	verifyCommit := false
+
+	// When the project field is templated, the contents of the git repo are required to run the git generator and get the templated value,
+	// but git generator cannot be called without verifying the commit signature.
+	// In this case, we skip the signature verification.
+	if !strings.Contains(appSet.Spec.Template.Spec.Project, "{{") {
+		project := appSet.Spec.Template.Spec.Project
+		appProject := &argoprojiov1alpha1.AppProject{}
+		namespace := g.namespace
+		if namespace == "" {
+			namespace = appSet.Namespace
+		}
+		if err := client.Get(context.TODO(), types.NamespacedName{Name: project, Namespace: namespace}, appProject); err != nil {
+			return nil, fmt.Errorf("error getting project %s: %w", project, err)
+		}
+		// we need to verify the signature on the Git revision if GPG is enabled
+		verifyCommit = len(appProject.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled()
+	}
+
 	var err error
 	var res []map[string]interface{}
 	if len(appSetGenerator.Git.Directories) != 0 {
-		res, err = g.generateParamsForGitDirectories(appSetGenerator, noRevisionCache, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
+		res, err = g.generateParamsForGitDirectories(appSetGenerator, noRevisionCache, verifyCommit, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 	} else if len(appSetGenerator.Git.Files) != 0 {
-		res, err = g.generateParamsForGitFiles(appSetGenerator, noRevisionCache, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
+		res, err = g.generateParamsForGitFiles(appSetGenerator, noRevisionCache, verifyCommit, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
 	} else {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -74,10 +97,9 @@ func (g *GitGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Applic
 	return res, nil
 }
 
-func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, noRevisionCache bool, useGoTemplate bool, goTemplateOptions []string) ([]map[string]interface{}, error) {
-
+func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, noRevisionCache, verifyCommit bool, useGoTemplate bool, goTemplateOptions []string) ([]map[string]interface{}, error) {
 	// Directories, not files
-	allPaths, err := g.repos.GetDirectories(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, noRevisionCache)
+	allPaths, err := g.repos.GetDirectories(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, noRevisionCache, verifyCommit)
 	if err != nil {
 		return nil, fmt.Errorf("error getting directories from repo: %w", err)
 	}
@@ -100,12 +122,11 @@ func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoproj
 	return res, nil
 }
 
-func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, noRevisionCache bool, useGoTemplate bool, goTemplateOptions []string) ([]map[string]interface{}, error) {
-
+func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, noRevisionCache, verifyCommit bool, useGoTemplate bool, goTemplateOptions []string) ([]map[string]interface{}, error) {
 	// Get all files that match the requested path string, removing duplicates
 	allFiles := make(map[string][]byte)
 	for _, requestedPath := range appSetGenerator.Git.Files {
-		files, err := g.repos.GetFiles(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, requestedPath.Path, noRevisionCache)
+		files, err := g.repos.GetFiles(context.TODO(), appSetGenerator.Git.RepoURL, appSetGenerator.Git.Revision, requestedPath.Path, noRevisionCache, verifyCommit)
 		if err != nil {
 			return nil, err
 		}
@@ -125,11 +146,10 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	// Generate params from each path, and return
 	res := []map[string]interface{}{}
 	for _, path := range allPaths {
-
 		// A JSON / YAML file path can contain multiple sets of parameters (ie it is an array)
 		paramsArray, err := g.generateParamsFromGitFile(path, allFiles[path], appSetGenerator.Git.Values, useGoTemplate, goTemplateOptions, appSetGenerator.Git.PathParamPrefix)
 		if err != nil {
-			return nil, fmt.Errorf("unable to process file '%s': %v", path, err)
+			return nil, fmt.Errorf("unable to process file '%s': %w", path, err)
 		}
 
 		res = append(res, paramsArray...)
@@ -147,7 +167,7 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 		singleObj := make(map[string]interface{})
 		err = yaml.Unmarshal(fileContent, &singleObj)
 		if err != nil {
-			return nil, fmt.Errorf("unable to parse file: %v", err)
+			return nil, fmt.Errorf("unable to parse file: %w", err)
 		}
 		objectsFound = append(objectsFound, singleObj)
 	} else if len(objectsFound) == 0 {
@@ -158,7 +178,6 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 	res := []map[string]interface{}{}
 
 	for _, objectFound := range objectsFound {
-
 		params := map[string]interface{}{}
 
 		if useGoTemplate {
@@ -214,13 +233,13 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 	return res, nil
 }
 
-func (g *GitGenerator) filterApps(Directories []argoprojiov1alpha1.GitDirectoryGeneratorItem, allPaths []string) []string {
+func (g *GitGenerator) filterApps(directories []argoprojiov1alpha1.GitDirectoryGeneratorItem, allPaths []string) []string {
 	res := []string{}
 	for _, appPath := range allPaths {
 		appInclude := false
 		appExclude := false
 		// Iterating over each appPath and check whether directories object has requestedPath that matches the appPath
-		for _, requestedPath := range Directories {
+		for _, requestedPath := range directories {
 			match, err := path.Match(requestedPath.Path, appPath)
 			if err != nil {
 				log.WithError(err).WithField("requestedPath", requestedPath).
@@ -245,7 +264,6 @@ func (g *GitGenerator) filterApps(Directories []argoprojiov1alpha1.GitDirectoryG
 func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, useGoTemplate bool, goTemplateOptions []string) ([]map[string]interface{}, error) {
 	res := make([]map[string]interface{}, len(requestedApps))
 	for i, a := range requestedApps {
-
 		params := make(map[string]interface{}, 5)
 
 		if useGoTemplate {

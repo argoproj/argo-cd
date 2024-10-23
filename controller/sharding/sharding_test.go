@@ -10,18 +10,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 func TestGetShardByID_NotEmptyID(t *testing.T) {
@@ -74,7 +76,7 @@ func TestGetShardByID_NoReplicasUsingHashDistributionFunctionWithClusters(t *tes
 }
 
 func TestGetClusterFilterDefault(t *testing.T) {
-	//shardIndex := 1 // ensuring that a shard with index 1 will process all the clusters with an "even" id (2,4,6,...)
+	// shardIndex := 1 // ensuring that a shard with index 1 will process all the clusters with an "even" id (2,4,6,...)
 	clusterAccessor, _, cluster1, cluster2, cluster3, cluster4, _ := createTestClusters()
 	os.Unsetenv(common.EnvControllerShardingAlgorithm)
 	replicasCount := 2
@@ -87,7 +89,7 @@ func TestGetClusterFilterDefault(t *testing.T) {
 }
 
 func TestGetClusterFilterLegacy(t *testing.T) {
-	//shardIndex := 1 // ensuring that a shard with index 1 will process all the clusters with an "even" id (2,4,6,...)
+	// shardIndex := 1 // ensuring that a shard with index 1 will process all the clusters with an "even" id (2,4,6,...)
 	clusterAccessor, db, cluster1, cluster2, cluster3, cluster4, _ := createTestClusters()
 	replicasCount := 2
 	db.On("GetApplicationControllerReplicas").Return(replicasCount)
@@ -118,7 +120,7 @@ func TestGetClusterFilterUnknown(t *testing.T) {
 }
 
 func TestLegacyGetClusterFilterWithFixedShard(t *testing.T) {
-	//shardIndex := 1 // ensuring that a shard with index 1 will process all the clusters with an "even" id (2,4,6,...)
+	// shardIndex := 1 // ensuring that a shard with index 1 will process all the clusters with an "even" id (2,4,6,...)
 	t.Setenv(common.EnvControllerReplicas, "5")
 	clusterAccessor, db, cluster1, cluster2, cluster3, cluster4, _ := createTestClusters()
 	appAccessor, _, _, _, _, _ := createTestApps()
@@ -145,7 +147,7 @@ func TestLegacyGetClusterFilterWithFixedShard(t *testing.T) {
 }
 
 func TestRoundRobinGetClusterFilterWithFixedShard(t *testing.T) {
-	//shardIndex := 1 // ensuring that a shard with index 1 will process all the clusters with an "even" id (2,4,6,...)
+	// shardIndex := 1 // ensuring that a shard with index 1 will process all the clusters with an "even" id (2,4,6,...)
 	t.Setenv(common.EnvControllerReplicas, "4")
 	clusterAccessor, db, cluster1, cluster2, cluster3, cluster4, _ := createTestClusters()
 	appAccessor, _, _, _, _, _ := createTestApps()
@@ -153,11 +155,11 @@ func TestRoundRobinGetClusterFilterWithFixedShard(t *testing.T) {
 	db.On("GetApplicationControllerReplicas").Return(replicasCount)
 
 	filter := GetDistributionFunction(clusterAccessor, appAccessor, common.RoundRobinShardingAlgorithm, replicasCount)
-	assert.Equal(t, filter(nil), 0)
-	assert.Equal(t, filter(&cluster1), 0)
-	assert.Equal(t, filter(&cluster2), 1)
-	assert.Equal(t, filter(&cluster3), 2)
-	assert.Equal(t, filter(&cluster4), 3)
+	assert.Equal(t, 0, filter(nil))
+	assert.Equal(t, 0, filter(&cluster1))
+	assert.Equal(t, 1, filter(&cluster2))
+	assert.Equal(t, 2, filter(&cluster3))
+	assert.Equal(t, 3, filter(&cluster4))
 
 	// a cluster with a fixed shard should be processed by the specified exact
 	// same shard unless the specified shard index is greater than the number of replicas.
@@ -275,6 +277,108 @@ func TestGetShardByIndexModuloReplicasCountDistributionFunctionWhenClusterIsAdde
 	assert.Equal(t, -1, distributionFunction(&cluster6))
 }
 
+func TestConsistentHashingWhenClusterIsAddedAndRemoved(t *testing.T) {
+	db := dbmocks.ArgoDB{}
+	clusterCount := 133
+	prefix := "cluster"
+
+	clusters := []v1alpha1.Cluster{}
+	for i := 0; i < clusterCount; i++ {
+		id := fmt.Sprintf("%06d", i)
+		cluster := fmt.Sprintf("%s-%s", prefix, id)
+		clusters = append(clusters, createCluster(cluster, id))
+	}
+	clusterAccessor := getClusterAccessor(clusters)
+	appAccessor, _, _, _, _, _ := createTestApps()
+	clusterList := &v1alpha1.ClusterList{Items: clusters}
+	db.On("ListClusters", mock.Anything).Return(clusterList, nil)
+	// Test with replicas set to 3
+	replicasCount := 3
+	db.On("GetApplicationControllerReplicas").Return(replicasCount)
+	distributionFunction := ConsistentHashingWithBoundedLoadsDistributionFunction(clusterAccessor, appAccessor, replicasCount)
+	assert.Equal(t, 0, distributionFunction(nil))
+	distributionMap := map[int]int{}
+	assignementMap := map[string]int{}
+	for i := 0; i < clusterCount; i++ {
+		assignedShard := distributionFunction(&clusters[i])
+		assignementMap[clusters[i].ID] = assignedShard
+		distributionMap[assignedShard]++
+	}
+
+	// We check that the distribution does not differ for more than 20%
+	var sum float64
+	sum = 0
+	for shard, count := range distributionMap {
+		if shard != -1 {
+			sum = (sum + float64(count))
+		}
+	}
+	average := sum / float64(replicasCount)
+	failedTests := false
+	for shard, count := range distributionMap {
+		if shard != -1 {
+			if float64(count) > average*float64(1.1) || float64(count) < average*float64(0.9) {
+				fmt.Printf("Cluster distribution differs for more than 20%%: %d for shard %d (average: %f)\n", count, shard, average)
+				failedTests = true
+			}
+			if failedTests {
+				t.Fail()
+			}
+		}
+	}
+
+	// Now we will decrease the number of replicas to 2, and we should see only clusters that were attached to shard 2 to be reassigned
+	replicasCount = 2
+	distributionFunction = ConsistentHashingWithBoundedLoadsDistributionFunction(getClusterAccessor(clusterList.Items), appAccessor, replicasCount)
+	removedCluster := clusterList.Items[len(clusterList.Items)-1]
+	for i := 0; i < clusterCount; i++ {
+		c := &clusters[i]
+		assignedShard := distributionFunction(c)
+		prevıouslyAssignedShard := assignementMap[clusters[i].ID]
+		if prevıouslyAssignedShard != 2 && prevıouslyAssignedShard != assignedShard {
+			fmt.Printf("Previously assigned %s cluster has moved from replica %d to %d", c.ID, prevıouslyAssignedShard, assignedShard)
+			t.Fail()
+		}
+	}
+	// Now, we remove the last added cluster, it should be unassigned
+	removedCluster = clusterList.Items[len(clusterList.Items)-1]
+	clusterList.Items = clusterList.Items[:len(clusterList.Items)-1]
+	distributionFunction = ConsistentHashingWithBoundedLoadsDistributionFunction(getClusterAccessor(clusterList.Items), appAccessor, replicasCount)
+	assert.Equal(t, -1, distributionFunction(&removedCluster))
+}
+
+func TestConsistentHashingWhenClusterWithZeroReplicas(t *testing.T) {
+	db := dbmocks.ArgoDB{}
+	clusters := []v1alpha1.Cluster{createCluster("cluster-01", "01")}
+	clusterAccessor := getClusterAccessor(clusters)
+	clusterList := &v1alpha1.ClusterList{Items: clusters}
+	db.On("ListClusters", mock.Anything).Return(clusterList, nil)
+	appAccessor, _, _, _, _, _ := createTestApps()
+	// Test with replicas set to 0
+	replicasCount := 0
+	db.On("GetApplicationControllerReplicas").Return(replicasCount)
+	distributionFunction := ConsistentHashingWithBoundedLoadsDistributionFunction(clusterAccessor, appAccessor, replicasCount)
+	assert.Equal(t, -1, distributionFunction(nil))
+}
+
+func TestConsistentHashingWhenClusterWithFixedShard(t *testing.T) {
+	db := dbmocks.ArgoDB{}
+	var fixedShard int64 = 1
+	cluster := &v1alpha1.Cluster{ID: "1", Shard: &fixedShard}
+	clusters := []v1alpha1.Cluster{*cluster}
+
+	clusterAccessor := getClusterAccessor(clusters)
+	clusterList := &v1alpha1.ClusterList{Items: clusters}
+	db.On("ListClusters", mock.Anything).Return(clusterList, nil)
+
+	// Test with replicas set to 5
+	replicasCount := 5
+	db.On("GetApplicationControllerReplicas").Return(replicasCount)
+	appAccessor, _, _, _, _, _ := createTestApps()
+	distributionFunction := ConsistentHashingWithBoundedLoadsDistributionFunction(clusterAccessor, appAccessor, replicasCount)
+	assert.Equal(t, fixedShard, int64(distributionFunction(cluster)))
+}
+
 func TestGetShardByIndexModuloReplicasCountDistributionFunction(t *testing.T) {
 	clusters, db, cluster1, cluster2, _, _, _ := createTestClusters()
 	replicasCount := 2
@@ -307,16 +411,16 @@ func TestInferShard(t *testing.T) {
 	osHostnameError := errors.New("cannot resolve hostname")
 	osHostnameFunction = func() (string, error) { return "exampleshard", osHostnameError }
 	_, err := InferShard()
-	assert.NotNil(t, err)
+	require.Error(t, err)
 	assert.Equal(t, err, osHostnameError)
 
 	osHostnameFunction = func() (string, error) { return "exampleshard", nil }
 	_, err = InferShard()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	osHostnameFunction = func() (string, error) { return "example-shard", nil }
 	_, err = InferShard()
-	assert.Nil(t, err)
+	require.NoError(t, err)
 }
 
 func createTestClusters() (clusterAccessor, *dbmocks.ArgoDB, v1alpha1.Cluster, v1alpha1.Cluster, v1alpha1.Cluster, v1alpha1.Cluster, v1alpha1.Cluster) {
@@ -391,7 +495,7 @@ func Test_generateDefaultShardMappingCM_NoPredefinedShard(t *testing.T) {
 	}
 
 	expectedMappingCM, err := json.Marshal(expectedMapping)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	expectedShadingCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -405,9 +509,8 @@ func Test_generateDefaultShardMappingCM_NoPredefinedShard(t *testing.T) {
 	heartbeatCurrentTime = func() metav1.Time { return expectedTime }
 	osHostnameFunction = func() (string, error) { return "test-example", nil }
 	shardingCM, err := generateDefaultShardMappingCM("test", "test-example", replicas, -1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, expectedShadingCM, shardingCM)
-
 }
 
 func Test_generateDefaultShardMappingCM_PredefinedShard(t *testing.T) {
@@ -427,7 +530,7 @@ func Test_generateDefaultShardMappingCM_PredefinedShard(t *testing.T) {
 	}
 
 	expectedMappingCM, err := json.Marshal(expectedMapping)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	expectedShadingCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -441,9 +544,8 @@ func Test_generateDefaultShardMappingCM_PredefinedShard(t *testing.T) {
 	heartbeatCurrentTime = func() metav1.Time { return expectedTime }
 	osHostnameFunction = func() (string, error) { return "test-example", nil }
 	shardingCM, err := generateDefaultShardMappingCM("test", "test-example", replicas, 1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, expectedShadingCM, shardingCM)
-
 }
 
 func Test_getOrUpdateShardNumberForController(t *testing.T) {
@@ -734,6 +836,7 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Default sharding with statefulset",
 			envsSetter: func(t *testing.T) {
+				t.Helper()
 				t.Setenv(common.EnvControllerReplicas, "1")
 			},
 			cleanup:            func() {},
@@ -745,6 +848,7 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Default sharding with deployment",
 			envsSetter: func(t *testing.T) {
+				t.Helper()
 				t.Setenv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
 			},
 			cleanup:            func() {},
@@ -756,6 +860,7 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Default sharding with deployment and multiple replicas",
 			envsSetter: func(t *testing.T) {
+				t.Helper()
 				t.Setenv(common.EnvAppControllerName, "argocd-application-controller-multi-replicas")
 			},
 			cleanup:            func() {},
@@ -767,6 +872,7 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Statefulset multiple replicas",
 			envsSetter: func(t *testing.T) {
+				t.Helper()
 				t.Setenv(common.EnvControllerReplicas, "3")
 				osHostnameFunction = func() (string, error) { return "example-shard-3", nil }
 			},
@@ -781,6 +887,7 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Explicit shard with statefulset and 1 replica",
 			envsSetter: func(t *testing.T) {
+				t.Helper()
 				t.Setenv(common.EnvControllerReplicas, "1")
 				t.Setenv(common.EnvControllerShard, "3")
 			},
@@ -793,6 +900,7 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Explicit shard with statefulset and 2 replica - and to high shard",
 			envsSetter: func(t *testing.T) {
+				t.Helper()
 				t.Setenv(common.EnvControllerReplicas, "2")
 				t.Setenv(common.EnvControllerShard, "3")
 			},
@@ -805,6 +913,7 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Explicit shard with statefulset and 2 replica",
 			envsSetter: func(t *testing.T) {
+				t.Helper()
 				t.Setenv(common.EnvControllerReplicas, "2")
 				t.Setenv(common.EnvControllerShard, "1")
 			},
@@ -817,6 +926,7 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Explicit shard with deployment",
 			envsSetter: func(t *testing.T) {
+				t.Helper()
 				t.Setenv(common.EnvControllerShard, "3")
 			},
 			cleanup:            func() {},
@@ -828,6 +938,7 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Explicit shard with deployment and multiple replicas will read from configmap",
 			envsSetter: func(t *testing.T) {
+				t.Helper()
 				t.Setenv(common.EnvAppControllerName, "argocd-application-controller-multi-replicas")
 				t.Setenv(common.EnvControllerShard, "3")
 			},
@@ -840,6 +951,7 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Dynamic sharding but missing deployment",
 			envsSetter: func(t *testing.T) {
+				t.Helper()
 				t.Setenv(common.EnvAppControllerName, "missing-deployment")
 			},
 			cleanup:            func() {},
@@ -869,7 +981,7 @@ func TestGetClusterSharding(t *testing.T) {
 					t.Errorf("Expected error %v but got nil", tc.expectedErr)
 				}
 			} else {
-				assert.Nil(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -935,7 +1047,7 @@ func getAppPointers(apps []v1alpha1.Application) []*v1alpha1.Application {
 }
 
 func createApp(name string, server string) v1alpha1.Application {
-	var testApp = `
+	testApp := `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

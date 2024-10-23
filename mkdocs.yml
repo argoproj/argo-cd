@@ -23,6 +23,7 @@ nav:
   - operator-manual/index.md
   - operator-manual/architecture.md
   - operator-manual/installation.md
+  - operator-manual/feature-maturity.md
   - operator-manual/core.md
   - operator-manual/declarative-setup.md
   - operator-manual/app-any-namespace.md
@@ -47,6 +48,7 @@ nav:
     - snyk/index.md
     - operator-manual/signed-release-assets.md
   - operator-manual/tls.md
+  - operator-manual/cluster-management.md
   - operator-manual/cluster-bootstrapping.md
   - operator-manual/secret-management.md
   - operator-manual/disaster_recovery.md
@@ -128,6 +130,8 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/2.12-2.13.md
+    - operator-manual/upgrading/2.11-2.12.md
     - operator-manual/upgrading/2.10-2.11.md
     - operator-manual/upgrading/2.9-2.10.md
     - operator-manual/upgrading/2.8-2.9.md
@@ -208,7 +212,7 @@ nav:
   - developer-guide/dependencies.md
   - developer-guide/ci.md
   - developer-guide/releasing.md
-  - developer-guide/site.md
+  - developer-guide/docs-site.md
   - developer-guide/static-code-analysis.md
   - Extensions:
     - developer-guide/extensions/ui-extensions.md
@@ -222,6 +226,7 @@ nav:
 - Blog ⧉: https://blog.argoproj.io/
 repo_url: https://github.com/argoproj/argo-cd
 site_name: Argo CD - Declarative GitOps CD for Kubernetes
+site_url: !ENV READTHEDOCS_CANONICAL_URL
 strict: true
 theme:
   custom_dir: overrides

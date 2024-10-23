@@ -72,6 +72,22 @@ source:
     - values-production.yaml
 ```
 
+If Helm is passed a non-existing value file during template expansion, it will error out. Missing
+values files can be ignored (meaning, not passed to Helm) using the `--ignore-missing-value-files`. This can be
+particularly helpful to implement a [default/override
+pattern](https://github.com/argoproj/argo-cd/issues/7767#issue-1060611415) with [Application
+Sets](./application-set.md).
+
+In the declarative syntax:
+```yaml
+source:
+  helm:
+    valueFiles:
+    - values-common.yaml
+    - values-optional-override.yaml
+    ignoreMissingValueFiles: true
+```
+
 ## Values
 
 Argo CD supports the equivalent of a values file directly in the Application manifest using the `source.helm.valuesObject` key.
@@ -217,11 +233,8 @@ source:
   helm:
     fileParameters:
       - name: some.key
-        value: path/to/file.ext
+        path: path/to/file.ext
 ```
-
-!!! warning "Reference in multiple sources not supported"
-    Please note that using a multiple sources application will not let you load the file by reference. See [argoproj/argo-cd#13220](https://github.com/argoproj/argo-cd/issues/13220)
 
 ## Helm Release Name
 
@@ -405,7 +418,7 @@ repoServer:
       value: /helm-working-dir
   initContainers:
     - name: helm-gcp-authentication
-      image: alpine/helm:3.8.1
+      image: alpine/helm:3.16.1
       volumeMounts:
         - name: helm-working-dir
           mountPath: /helm-working-dir
@@ -484,4 +497,24 @@ spec:
   source:
     helm:
       skipCrds: true
+```
+
+
+## Helm `--skip-tests`
+
+By default, Helm includes test manifests when rendering templates. Argo CD currently skips manifests that include hooks not supported by Argo CD, including [Helm test hooks](https://helm.sh/docs/topics/chart_tests/). While this feature covers many testing use cases, it is not totally congruent with --skip-tests, so the --skip-tests option can be used.
+
+If needed, it is possible to skip the test manifests installation step with the `helm-skip-tests` flag on the cli:
+
+```bash
+argocd app set helm-guestbook --helm-skip-tests
+```
+
+Or using declarative syntax:
+
+```yaml
+spec:
+  source:
+    helm:
+      skipTests: true # or false
 ```

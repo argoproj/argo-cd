@@ -6,9 +6,11 @@ import (
 	"time"
 )
 
-var ErrCacheMiss = errors.New("cache: key is missing")
-var ErrCacheKeyLocked = errors.New("cache: key is locked")
-var CacheLockedValue = "locked"
+var (
+	ErrCacheMiss      = errors.New("cache: key is missing")
+	ErrCacheKeyLocked = errors.New("cache: key is locked")
+	CacheLockedValue  = "locked"
+)
 
 type Item struct {
 	Key             string

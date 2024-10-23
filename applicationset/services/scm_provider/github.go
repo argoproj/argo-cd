@@ -2,12 +2,11 @@ package scm_provider
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
 
-	"github.com/google/go-github/v35/github"
+	"github.com/google/go-github/v63/github"
 	"golang.org/x/oauth2"
 )
 
@@ -36,7 +35,7 @@ func NewGithubProvider(ctx context.Context, organization string, token string, u
 		client = github.NewClient(httpClient)
 	} else {
 		var err error
-		client, err = github.NewEnterpriseClient(url, url, httpClient)
+		client, err = github.NewClient(httpClient).WithEnterpriseURLs(url, url)
 		if err != nil {
 			return nil, err
 		}
@@ -108,7 +107,7 @@ func (g *GithubProvider) RepoHasPath(ctx context.Context, repo *Repository, path
 		Ref: repo.Branch,
 	})
 	// 404s are not an error here, just a normal false.
-	if resp != nil && resp.StatusCode == 404 {
+	if resp != nil && resp.StatusCode == http.StatusNotFound {
 		return false, nil
 	}
 	if err != nil {
@@ -120,14 +119,11 @@ func (g *GithubProvider) RepoHasPath(ctx context.Context, repo *Repository, path
 func (g *GithubProvider) listBranches(ctx context.Context, repo *Repository) ([]github.Branch, error) {
 	// If we don't specifically want to query for all branches, just use the default branch and call it a day.
 	if !g.allBranches {
-		defaultBranch, _, err := g.client.Repositories.GetBranch(ctx, repo.Organization, repo.Repository, repo.Branch)
+		defaultBranch, resp, err := g.client.Repositories.GetBranch(ctx, repo.Organization, repo.Repository, repo.Branch, 0)
 		if err != nil {
-			var githubErrorResponse *github.ErrorResponse
-			if errors.As(err, &githubErrorResponse) {
-				if githubErrorResponse.Response.StatusCode == http.StatusNotFound {
-					// Default branch doesn't exist, so the repo is empty.
-					return []github.Branch{}, nil
-				}
+			if resp.StatusCode == http.StatusNotFound {
+				// Default branch doesn't exist, so the repo is empty.
+				return []github.Branch{}, nil
 			}
 			return nil, err
 		}

@@ -64,6 +64,7 @@ argocd repo add REPOURL [flags]
       --insecure-ignore-host-key                disables SSH strict host key checking (deprecated, use --insecure-skip-server-verification instead)
       --insecure-skip-server-verification       disables server certificate and host key checks
       --name string                             name of the repository, mandatory for repositories of type helm
+      --no-proxy string                         don't access these targets via proxy
       --password string                         password to the repository
       --project string                          project of the repository
       --proxy string                            use proxy to access repository
@@ -78,7 +79,8 @@ argocd repo add REPOURL [flags]
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token
+      --argocd-context string           The name of the Argo-CD server context to use
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")

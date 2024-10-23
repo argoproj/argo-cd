@@ -5,9 +5,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func TestPrintApplicationSetNames(t *testing.T) {
@@ -106,7 +108,7 @@ func TestPrintApplicationSetTable(t *testing.T) {
 		printApplicationSetTable([]v1alpha1.ApplicationSet{*app, *app2}, &output)
 		return nil
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	expectation := "NAME               PROJECT  SYNCPOLICY  CONDITIONS\napp-name           default  nil         [{ResourcesUpToDate  <nil> True }]\nteam-two/app-name  default  nil         [{ResourcesUpToDate  <nil> True }]\n"
 	assert.Equal(t, expectation, output)
 }
@@ -226,7 +228,7 @@ SyncPolicy:         Automated
 			w.Close()
 
 			out, err := io.ReadAll(r)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.expectedOutput, string(out))
 		})
 	}

@@ -19,8 +19,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/yaml"
+
+	dynfake "k8s.io/client-go/dynamic/fake"
+	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -47,15 +51,18 @@ type FakeArgoCDServer struct {
 }
 
 func fakeServer(t *testing.T) (*FakeArgoCDServer, func()) {
+	t.Helper()
 	cm := test.NewFakeConfigMap()
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewSimpleClientset(cm, secret)
 	appClientSet := apps.NewSimpleClientset()
 	redis, closer := test.NewInMemoryRedis()
-	port, err := test.GetFreePort()
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
 	tmpAssetsDir := t.TempDir()
+	dynamicClient := dynfake.NewSimpleDynamicClient(runtime.NewScheme())
+	fakeClient := clientfake.NewClientBuilder().Build()
 
+	port, err := test.GetFreePort()
 	if err != nil {
 		panic(err)
 	}
@@ -78,11 +85,13 @@ func fakeServer(t *testing.T) (*FakeArgoCDServer, func()) {
 			1*time.Minute,
 			1*time.Minute,
 		),
-		RedisClient:     redis,
-		RepoClientset:   mockRepoClient,
-		StaticAssetsDir: tmpAssetsDir,
+		RedisClient:             redis,
+		RepoClientset:           mockRepoClient,
+		StaticAssetsDir:         tmpAssetsDir,
+		DynamicClientset:        dynamicClient,
+		KubeControllerClientset: fakeClient,
 	}
-	srv := NewServer(context.Background(), argoCDOpts)
+	srv := NewServer(context.Background(), argoCDOpts, ApplicationSetOpts{})
 	fakeSrv := &FakeArgoCDServer{srv, tmpAssetsDir}
 	return fakeSrv, closer
 }
@@ -118,7 +127,7 @@ func TestEnforceProjectToken(t *testing.T) {
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
 
 	t.Run("TestEnforceProjectTokenSuccessful", func(t *testing.T) {
-		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient})
+		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient}, ApplicationSetOpts{})
 		cancel := test.StartInformer(s.projInformer)
 		defer cancel()
 		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
@@ -127,21 +136,21 @@ func TestEnforceProjectToken(t *testing.T) {
 	})
 
 	t.Run("TestEnforceProjectTokenWithDiffCreateAtFailure", func(t *testing.T) {
-		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient})
+		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient}, ApplicationSetOpts{})
 		diffCreateAt := defaultIssuedAt + 1
 		claims := jwt.MapClaims{"sub": defaultSub, "iat": diffCreateAt}
 		assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	})
 
 	t.Run("TestEnforceProjectTokenIncorrectSubFormatFailure", func(t *testing.T) {
-		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient})
+		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient}, ApplicationSetOpts{})
 		invalidSub := "proj:test"
 		claims := jwt.MapClaims{"sub": invalidSub, "iat": defaultIssuedAt}
 		assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	})
 
 	t.Run("TestEnforceProjectTokenNoTokenFailure", func(t *testing.T) {
-		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient})
+		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient}, ApplicationSetOpts{})
 		nonExistentToken := "fake-token"
 		invalidSub := fmt.Sprintf(subFormat, projectName, nonExistentToken)
 		claims := jwt.MapClaims{"sub": invalidSub, "iat": defaultIssuedAt}
@@ -151,7 +160,7 @@ func TestEnforceProjectToken(t *testing.T) {
 	t.Run("TestEnforceProjectTokenNotJWTTokenFailure", func(t *testing.T) {
 		proj := existingProj.DeepCopy()
 		proj.Spec.Roles[0].JWTTokens = nil
-		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(proj), RepoClientset: mockRepoClient})
+		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(proj), RepoClientset: mockRepoClient}, ApplicationSetOpts{})
 		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
 		assert.False(t, s.enf.Enforce(claims, "applications", "get", defaultTestObject))
 	})
@@ -164,7 +173,7 @@ func TestEnforceProjectToken(t *testing.T) {
 		proj := existingProj.DeepCopy()
 		proj.Spec.Roles[0] = role
 
-		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(proj), RepoClientset: mockRepoClient})
+		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(proj), RepoClientset: mockRepoClient}, ApplicationSetOpts{})
 		cancel := test.StartInformer(s.projInformer)
 		defer cancel()
 		claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
@@ -175,7 +184,7 @@ func TestEnforceProjectToken(t *testing.T) {
 	})
 
 	t.Run("TestEnforceProjectTokenWithIdSuccessful", func(t *testing.T) {
-		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient})
+		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient}, ApplicationSetOpts{})
 		cancel := test.StartInformer(s.projInformer)
 		defer cancel()
 		claims := jwt.MapClaims{"sub": defaultSub, "jti": defaultId}
@@ -184,13 +193,12 @@ func TestEnforceProjectToken(t *testing.T) {
 	})
 
 	t.Run("TestEnforceProjectTokenWithInvalidIdFailure", func(t *testing.T) {
-		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient})
+		s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient}, ApplicationSetOpts{})
 		invalidId := "invalidId"
 		claims := jwt.MapClaims{"sub": defaultSub, "jti": defaultId}
 		res := s.enf.Enforce(claims, "applications", "get", invalidId)
 		assert.False(t, res)
 	})
-
 }
 
 func TestEnforceClaims(t *testing.T) {
@@ -269,13 +277,13 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 		RepoClientset: mockRepoClient,
 	}
 
-	argocd := NewServer(context.Background(), argoCDOpts)
+	argocd := NewServer(context.Background(), argoCDOpts, ApplicationSetOpts{})
 	assert.NotNil(t, argocd)
 
 	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, proj)
-	assert.Equal(t, proj.Name, v1alpha1.DefaultAppProjectName)
+	assert.Equal(t, v1alpha1.DefaultAppProjectName, proj.Name)
 }
 
 func TestInitializingNotExistingDefaultProject(t *testing.T) {
@@ -292,13 +300,13 @@ func TestInitializingNotExistingDefaultProject(t *testing.T) {
 		RepoClientset: mockRepoClient,
 	}
 
-	argocd := NewServer(context.Background(), argoCDOpts)
+	argocd := NewServer(context.Background(), argoCDOpts, ApplicationSetOpts{})
 	assert.NotNil(t, argocd)
 
 	proj, err := appClientSet.ArgoprojV1alpha1().AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, proj)
-	assert.Equal(t, proj.Name, v1alpha1.DefaultAppProjectName)
+	assert.Equal(t, v1alpha1.DefaultAppProjectName, proj.Name)
 }
 
 func TestEnforceProjectGroups(t *testing.T) {
@@ -334,7 +342,7 @@ func TestEnforceProjectGroups(t *testing.T) {
 	}
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
 	kubeclientset := fake.NewSimpleClientset(test.NewFakeConfigMap(), test.NewFakeSecret())
-	s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient})
+	s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient}, ApplicationSetOpts{})
 	cancel := test.StartInformer(s.projInformer)
 	defer cancel()
 	claims := jwt.MapClaims{
@@ -396,7 +404,7 @@ func TestRevokedToken(t *testing.T) {
 		},
 	}
 
-	s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient})
+	s := NewServer(context.Background(), ArgoCDServerOpts{Namespace: test.FakeArgoCDNamespace, KubeClientset: kubeclientset, AppClientset: apps.NewSimpleClientset(&existingProj), RepoClientset: mockRepoClient}, ApplicationSetOpts{})
 	cancel := test.StartInformer(s.projInformer)
 	defer cancel()
 	claims := jwt.MapClaims{"sub": defaultSub, "iat": defaultIssuedAt}
@@ -418,7 +426,7 @@ func TestAuthenticate(t *testing.T) {
 		errorMsg         string
 		anonymousEnabled bool
 	}
-	var tests = []testData{
+	tests := []testData{
 		{
 			test:             "TestNoSessionAnonymousDisabled",
 			errorMsg:         "no session information",
@@ -451,11 +459,11 @@ func TestAuthenticate(t *testing.T) {
 				AppClientset:  appClientSet,
 				RepoClientset: mockRepoClient,
 			}
-			argocd := NewServer(context.Background(), argoCDOpts)
+			argocd := NewServer(context.Background(), argoCDOpts, ApplicationSetOpts{})
 			ctx := context.Background()
 			if testData.user != "" {
 				token, err := argocd.sessionMgr.Create(testData.user, 0, "abc")
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				ctx = metadata.NewIncomingContext(context.Background(), metadata.Pairs(apiclient.MetaDataTokenKey, token))
 			}
 
@@ -463,14 +471,14 @@ func TestAuthenticate(t *testing.T) {
 			if testData.errorMsg != "" {
 				assert.Errorf(t, err, testData.errorMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
-
 		})
 	}
 }
 
 func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
@@ -536,6 +544,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 }
 
 func getTestServer(t *testing.T, anonymousEnabled bool, withFakeSSO bool, useDexForSSO bool, additionalOIDCConfig settings_util.OIDCConfig) (argocd *ArgoCDServer, oidcURL string) {
+	t.Helper()
 	cm := test.NewFakeConfigMap()
 	if anonymousEnabled {
 		cm.Data["users.anonymous.enabled"] = "true"
@@ -589,7 +598,7 @@ connectors:
 	if withFakeSSO && useDexForSSO {
 		argoCDOpts.DexServerAddr = ts.URL
 	}
-	argocd = NewServer(context.Background(), argoCDOpts)
+	argocd = NewServer(context.Background(), argoCDOpts, ApplicationSetOpts{})
 	var err error
 	argocd.ssoClientApp, err = oidc.NewClientApp(argocd.settings, argocd.DexServerAddr, argocd.DexTLSConfig, argocd.BaseHRef, cache.NewInMemoryCache(24*time.Hour))
 	require.NoError(t, err)
@@ -597,7 +606,6 @@ connectors:
 }
 
 func TestGetClaims(t *testing.T) {
-
 	defaultExpiry := jwt.NewNumericDate(time.Now().Add(time.Hour * 24))
 	defaultExpiryUnix := float64(defaultExpiry.Unix())
 
@@ -609,7 +617,7 @@ func TestGetClaims(t *testing.T) {
 		expectNewToken        bool
 		additionalOIDCConfig  settings_util.OIDCConfig
 	}
-	var tests = []testData{
+	tests := []testData{
 		{
 			test: "GetClaims",
 			claims: jwt.MapClaims{
@@ -687,7 +695,7 @@ func TestGetClaims(t *testing.T) {
 			if testDataCopy.expectedErrorContains != "" {
 				assert.ErrorContains(t, err, testDataCopy.expectedErrorContains, "getClaims should have thrown an error and return an error")
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -705,7 +713,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 		expectedClaims        interface{}
 		useDex                bool
 	}
-	var tests = []testData{
+	tests := []testData{
 		// Dex
 		{
 			test:                  "anonymous disabled, no audience",
@@ -846,7 +854,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			if testDataCopy.expectedErrorContains != "" {
 				assert.ErrorContains(t, err, testDataCopy.expectedErrorContains, "Authenticate should have thrown an error and blocked the request")
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -859,7 +867,7 @@ func TestAuthenticate_no_request_metadata(t *testing.T) {
 		expectedErrorContains string
 		expectedClaims        interface{}
 	}
-	var tests = []testData{
+	tests := []testData{
 		{
 			test:                  "anonymous disabled",
 			anonymousEnabled:      false,
@@ -889,7 +897,7 @@ func TestAuthenticate_no_request_metadata(t *testing.T) {
 			if testDataCopy.expectedErrorContains != "" {
 				assert.ErrorContains(t, err, testDataCopy.expectedErrorContains, "Authenticate should have thrown an error and blocked the request")
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -902,7 +910,7 @@ func TestAuthenticate_no_SSO(t *testing.T) {
 		expectedErrorMessage string
 		expectedClaims       interface{}
 	}
-	var tests = []testData{
+	tests := []testData{
 		{
 			test:                 "anonymous disabled",
 			anonymousEnabled:     false,
@@ -938,7 +946,7 @@ func TestAuthenticate_no_SSO(t *testing.T) {
 			if testDataCopy.expectedErrorMessage != "" {
 				assert.ErrorContains(t, err, testDataCopy.expectedErrorMessage, "Authenticate should have thrown an error and blocked the request")
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -952,7 +960,7 @@ func TestAuthenticate_bad_request_metadata(t *testing.T) {
 		expectedErrorMessage string
 		expectedClaims       interface{}
 	}
-	var tests = []testData{
+	tests := []testData{
 		{
 			test:                 "anonymous disabled, empty metadata",
 			anonymousEnabled:     false,
@@ -1043,7 +1051,7 @@ func TestAuthenticate_bad_request_metadata(t *testing.T) {
 			if testDataCopy.expectedErrorMessage != "" {
 				assert.ErrorContains(t, err, testDataCopy.expectedErrorMessage, "Authenticate should have thrown an error and blocked the request")
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -1074,16 +1082,16 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 		AppClientset:  apps.NewSimpleClientset(),
 		RepoClientset: &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}},
 	}
-	argocd := NewServer(context.Background(), argoCDOpts)
+	argocd := NewServer(context.Background(), argoCDOpts, ApplicationSetOpts{})
 
 	t.Run("TokenIsNotEmpty", func(t *testing.T) {
 		recorder := httptest.NewRecorder()
 		err := argocd.translateGrpcCookieHeader(context.Background(), recorder, &session.SessionResponse{
 			Token: "xyz",
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "argocd.token=xyz; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
-		assert.Equal(t, 1, len(recorder.Result().Cookies()))
+		assert.Len(t, recorder.Result().Cookies(), 1)
 	})
 
 	t.Run("TokenIsLongerThan4093", func(t *testing.T) {
@@ -1091,9 +1099,9 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 		err := argocd.translateGrpcCookieHeader(context.Background(), recorder, &session.SessionResponse{
 			Token: "abc.xyz." + strings.Repeat("x", 4093),
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Regexp(t, "argocd.token=.*; path=/; SameSite=lax; httpOnly; Secure", recorder.Result().Header.Get("Set-Cookie"))
-		assert.Equal(t, 2, len(recorder.Result().Cookies()))
+		assert.Len(t, recorder.Result().Cookies(), 2)
 	})
 
 	t.Run("TokenIsEmpty", func(t *testing.T) {
@@ -1101,10 +1109,9 @@ func TestTranslateGrpcCookieHeader(t *testing.T) {
 		err := argocd.translateGrpcCookieHeader(context.Background(), recorder, &session.SessionResponse{
 			Token: "",
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "", recorder.Result().Header.Get("Set-Cookie"))
 	})
-
 }
 
 func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
@@ -1116,22 +1123,18 @@ func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
 	}
 
 	err := initializeDefaultProject(argoCDOpts)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	proj, err := argoCDOpts.AppClientset.ArgoprojV1alpha1().
 		AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
 
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
-	assert.Equal(t, proj.Spec, v1alpha1.AppProjectSpec{
+	assert.Equal(t, v1alpha1.AppProjectSpec{
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
-	})
+	}, proj.Spec)
 }
 
 func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
@@ -1154,26 +1157,23 @@ func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
 	}
 
 	err := initializeDefaultProject(argoCDOpts)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	proj, err := argoCDOpts.AppClientset.ArgoprojV1alpha1().
 		AppProjects(test.FakeArgoCDNamespace).Get(context.Background(), v1alpha1.DefaultAppProjectName, metav1.GetOptions{})
 
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	assert.Equal(t, proj.Spec, existingDefaultProject.Spec)
 }
 
 func TestOIDCConfigChangeDetection_SecretsChanged(t *testing.T) {
-	//Given
+	// Given
 	rawOIDCConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
 		ClientID:     "$k8ssecret:clientid",
-		ClientSecret: "$k8ssecret:clientsecret"})
-	assert.NoError(t, err, "no error expected when marshalling OIDC config")
+		ClientSecret: "$k8ssecret:clientsecret",
+	})
+	require.NoError(t, err, "no error expected when marshalling OIDC config")
 
 	originalSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "sharedargooauthsecret"}
 
@@ -1184,23 +1184,24 @@ func TestOIDCConfigChangeDetection_SecretsChanged(t *testing.T) {
 	assert.Equal(t, originalOIDCConfig.ClientID, originalSecrets["k8ssecret:clientid"], "expected ClientID be replaced by secret value")
 	assert.Equal(t, originalOIDCConfig.ClientSecret, originalSecrets["k8ssecret:clientsecret"], "expected ClientSecret be replaced by secret value")
 
-	//When
+	// When
 	newSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "a!Better!Secret"}
 	argoSettings.Secrets = newSecrets
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
-	//Then
-	assert.Equal(t, result, true, "secrets have changed, expect interpolated OIDCConfig to change")
+	// Then
+	assert.True(t, result, "secrets have changed, expect interpolated OIDCConfig to change")
 }
 
 func TestOIDCConfigChangeDetection_ConfigChanged(t *testing.T) {
-	//Given
+	// Given
 	rawOIDCConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
 		Name:         "argocd",
 		ClientID:     "$k8ssecret:clientid",
-		ClientSecret: "$k8ssecret:clientsecret"})
+		ClientSecret: "$k8ssecret:clientsecret",
+	})
 
-	assert.NoError(t, err, "no error expected when marshalling OIDC config")
+	require.NoError(t, err, "no error expected when marshalling OIDC config")
 
 	originalSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "sharedargooauthsecret"}
 
@@ -1211,46 +1212,49 @@ func TestOIDCConfigChangeDetection_ConfigChanged(t *testing.T) {
 	assert.Equal(t, originalOIDCConfig.ClientID, originalSecrets["k8ssecret:clientid"], "expected ClientID be replaced by secret value")
 	assert.Equal(t, originalOIDCConfig.ClientSecret, originalSecrets["k8ssecret:clientsecret"], "expected ClientSecret be replaced by secret value")
 
-	//When
+	// When
 	newRawOICDConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
 		Name:         "cat",
 		ClientID:     "$k8ssecret:clientid",
-		ClientSecret: "$k8ssecret:clientsecret"})
+		ClientSecret: "$k8ssecret:clientsecret",
+	})
 
-	assert.NoError(t, err, "no error expected when marshalling OIDC config")
+	require.NoError(t, err, "no error expected when marshalling OIDC config")
 	argoSettings.OIDCConfigRAW = string(newRawOICDConfig)
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
-	//Then
-	assert.Equal(t, result, true, "no error expected since OICD config created")
+	// Then
+	assert.True(t, result, "no error expected since OICD config created")
 }
 
 func TestOIDCConfigChangeDetection_ConfigCreated(t *testing.T) {
-	//Given
+	// Given
 	argoSettings := settings_util.ArgoCDSettings{OIDCConfigRAW: ""}
 	originalOIDCConfig := argoSettings.OIDCConfig()
 
-	//When
+	// When
 	newRawOICDConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
 		Name:         "cat",
 		ClientID:     "$k8ssecret:clientid",
-		ClientSecret: "$k8ssecret:clientsecret"})
-	assert.NoError(t, err, "no error expected when marshalling OIDC config")
+		ClientSecret: "$k8ssecret:clientsecret",
+	})
+	require.NoError(t, err, "no error expected when marshalling OIDC config")
 	newSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "sharedargooauthsecret"}
 	argoSettings.OIDCConfigRAW = string(newRawOICDConfig)
 	argoSettings.Secrets = newSecrets
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
-	//Then
-	assert.Equal(t, result, true, "no error expected since new OICD config created")
+	// Then
+	assert.True(t, result, "no error expected since new OICD config created")
 }
 
 func TestOIDCConfigChangeDetection_ConfigDeleted(t *testing.T) {
-	//Given
+	// Given
 	rawOIDCConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
 		ClientID:     "$k8ssecret:clientid",
-		ClientSecret: "$k8ssecret:clientsecret"})
-	assert.NoError(t, err, "no error expected when marshalling OIDC config")
+		ClientSecret: "$k8ssecret:clientsecret",
+	})
+	require.NoError(t, err, "no error expected when marshalling OIDC config")
 
 	originalSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "sharedargooauthsecret"}
 
@@ -1261,21 +1265,22 @@ func TestOIDCConfigChangeDetection_ConfigDeleted(t *testing.T) {
 	assert.Equal(t, originalOIDCConfig.ClientID, originalSecrets["k8ssecret:clientid"], "expected ClientID be replaced by secret value")
 	assert.Equal(t, originalOIDCConfig.ClientSecret, originalSecrets["k8ssecret:clientsecret"], "expected ClientSecret be replaced by secret value")
 
-	//When
+	// When
 	argoSettings.OIDCConfigRAW = ""
 	argoSettings.Secrets = make(map[string]string)
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
-	//Then
-	assert.Equal(t, result, true, "no error expected since OICD config deleted")
+	// Then
+	assert.True(t, result, "no error expected since OICD config deleted")
 }
 
 func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
-	//Given
+	// Given
 	rawOIDCConfig, err := yaml.Marshal(&settings_util.OIDCConfig{
 		ClientID:     "$k8ssecret:clientid",
-		ClientSecret: "$k8ssecret:clientsecret"})
-	assert.NoError(t, err, "no error expected when marshalling OIDC config")
+		ClientSecret: "$k8ssecret:clientsecret",
+	})
+	require.NoError(t, err, "no error expected when marshalling OIDC config")
 
 	originalSecrets := map[string]string{"k8ssecret:clientid": "argocd", "k8ssecret:clientsecret": "sharedargooauthsecret"}
 
@@ -1286,11 +1291,11 @@ func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
 	assert.Equal(t, originalOIDCConfig.ClientID, originalSecrets["k8ssecret:clientid"], "expected ClientID be replaced by secret value")
 	assert.Equal(t, originalOIDCConfig.ClientSecret, originalSecrets["k8ssecret:clientsecret"], "expected ClientSecret be replaced by secret value")
 
-	//When
+	// When
 	result := checkOIDCConfigChange(originalOIDCConfig, &argoSettings)
 
-	//Then
-	assert.Equal(t, result, false, "no error since no config change")
+	// Then
+	assert.False(t, result, "no error since no config change")
 }
 
 func TestIsMainJsBundle(t *testing.T) {
@@ -1353,7 +1358,7 @@ func TestCacheControlHeaders(t *testing.T) {
 			name:                        "file exists",
 			filename:                    "exists.html",
 			createFile:                  true,
-			expectedStatus:              200,
+			expectedStatus:              http.StatusOK,
 			expectedCacheControlHeaders: nil,
 		},
 		{
@@ -1367,7 +1372,7 @@ func TestCacheControlHeaders(t *testing.T) {
 			name:                        "main js bundle exists",
 			filename:                    "main.e4188e5adc97bbfc00c3.js",
 			createFile:                  true,
-			expectedStatus:              200,
+			expectedStatus:              http.StatusOK,
 			expectedCacheControlHeaders: []string{"public, max-age=31536000, immutable"},
 		},
 		{
@@ -1393,9 +1398,9 @@ func TestCacheControlHeaders(t *testing.T) {
 
 			if testCase.createFile {
 				tmpFile, err := os.Create(fp)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				err = tmpFile.Close()
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 
 			handler(rr, req)
@@ -1407,6 +1412,7 @@ func TestCacheControlHeaders(t *testing.T) {
 		})
 	}
 }
+
 func TestReplaceBaseHRef(t *testing.T) {
 	testCases := []struct {
 		name        string
@@ -1529,9 +1535,10 @@ func TestReplaceBaseHRef(t *testing.T) {
 
 func Test_enforceContentTypes(t *testing.T) {
 	getBaseHandler := func(t *testing.T, allow bool) http.Handler {
+		t.Helper()
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			assert.True(t, allow, "http handler was hit when it should have been blocked by content type enforcement")
-			writer.WriteHeader(200)
+			writer.WriteHeader(http.StatusOK)
 		})
 	}
 
@@ -1539,33 +1546,33 @@ func Test_enforceContentTypes(t *testing.T) {
 
 	t.Run("GET - not providing a content type, should still succeed", func(t *testing.T) {
 		handler := enforceContentTypes(getBaseHandler(t, true), []string{"application/json"}).(http.HandlerFunc)
-		req := httptest.NewRequest("GET", "/", nil)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		w := httptest.NewRecorder()
 		handler(w, req)
 		resp := w.Result()
-		assert.Equal(t, 200, resp.StatusCode)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 
 	t.Run("POST", func(t *testing.T) {
 		handler := enforceContentTypes(getBaseHandler(t, true), []string{"application/json"}).(http.HandlerFunc)
-		req := httptest.NewRequest("POST", "/", nil)
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
 		w := httptest.NewRecorder()
 		handler(w, req)
 		resp := w.Result()
-		assert.Equal(t, 415, resp.StatusCode, "didn't provide a content type, should have gotten an error")
+		assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode, "didn't provide a content type, should have gotten an error")
 
-		req = httptest.NewRequest("POST", "/", nil)
+		req = httptest.NewRequest(http.MethodPost, "/", nil)
 		req.Header = map[string][]string{"Content-Type": {"application/json"}}
 		w = httptest.NewRecorder()
 		handler(w, req)
 		resp = w.Result()
-		assert.Equal(t, 200, resp.StatusCode, "should have passed, since an allowed content type was provided")
+		assert.Equal(t, http.StatusOK, resp.StatusCode, "should have passed, since an allowed content type was provided")
 
-		req = httptest.NewRequest("POST", "/", nil)
+		req = httptest.NewRequest(http.MethodPost, "/", nil)
 		req.Header = map[string][]string{"Content-Type": {"not-allowed"}}
 		w = httptest.NewRecorder()
 		handler(w, req)
 		resp = w.Result()
-		assert.Equal(t, 415, resp.StatusCode, "should not have passed, since a disallowed content type was provided")
+		assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode, "should not have passed, since a disallowed content type was provided")
 	})
 }

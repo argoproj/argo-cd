@@ -34,7 +34,8 @@ argocd repocreds list [flags]
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token
+      --argocd-context string           The name of the Argo-CD server context to use
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")

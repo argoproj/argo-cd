@@ -43,6 +43,7 @@ argocd repocreds add REPOURL [flags]
       --github-app-private-key-path string      private key of the GitHub Application
   -h, --help                                    help for add
       --password string                         password to the repository
+      --proxy-url string                        If provided, this URL will be used to connect via proxy
       --ssh-private-key-path string             path to the private ssh key (e.g. ~/.ssh/id_rsa)
       --tls-client-cert-key-path string         path to the TLS client cert's key path (must be PEM format)
       --tls-client-cert-path string             path to the TLS client cert (must be PEM format)
@@ -54,7 +55,8 @@ argocd repocreds add REPOURL [flags]
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token
+      --argocd-context string           The name of the Argo-CD server context to use
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")

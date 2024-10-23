@@ -30,7 +30,8 @@ $ argocd admin initial-password reset
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token
+      --argocd-context string           The name of the Argo-CD server context to use
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
@@ -64,6 +65,7 @@ $ argocd admin initial-password reset
 * [argocd admin initial-password](argocd_admin_initial-password.md)	 - Prints initial password to log in to Argo CD for the first time
 * [argocd admin notifications](argocd_admin_notifications.md)	 - Set of CLI commands that helps manage notifications settings
 * [argocd admin proj](argocd_admin_proj.md)	 - Manage projects configuration
+* [argocd admin redis-initial-password](argocd_admin_redis-initial-password.md)	 - Ensure the Redis password exists, creating a new one if necessary.
 * [argocd admin repo](argocd_admin_repo.md)	 - Manage repositories configuration
 * [argocd admin settings](argocd_admin_settings.md)	 - Provides set of commands for settings validation and troubleshooting
 

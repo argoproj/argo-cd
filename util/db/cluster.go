@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 	"sync"
@@ -16,11 +17,10 @@ import (
 	apierr "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/collections"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -37,9 +37,12 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 	initLocalCluster.Do(func() {
 		info, err := db.kubeclientset.Discovery().ServerVersion()
 		if err == nil {
+			// nolint:staticcheck
 			localCluster.ServerVersion = fmt.Sprintf("%s.%s", info.Major, info.Minor)
+			// nolint:staticcheck
 			localCluster.ConnectionState = appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful}
 		} else {
+			// nolint:staticcheck
 			localCluster.ConnectionState = appv1.ConnectionState{
 				Status:  appv1.ConnectionStatusFailed,
 				Message: err.Error(),
@@ -48,6 +51,7 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 	})
 	cluster := localCluster.DeepCopy()
 	now := metav1.Now()
+	// nolint:staticcheck
 	cluster.ConnectionState.ModifiedAt = &now
 	return cluster
 }
@@ -136,7 +140,8 @@ type ClusterEvent struct {
 func (db *db) WatchClusters(ctx context.Context,
 	handleAddEvent func(cluster *appv1.Cluster),
 	handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
-	handleDeleteEvent func(clusterServer string)) error {
+	handleDeleteEvent func(clusterServer string),
+) error {
 	localCls, err := db.GetCluster(ctx, appv1.KubernetesInternalAPIServerAddr)
 	if err != nil {
 		return err
@@ -393,19 +398,19 @@ func SecretToCluster(s *apiv1.Secret) (*appv1.Cluster, error) {
 		if val, err := strconv.Atoi(string(shardStr)); err != nil {
 			log.Warnf("Error while parsing shard in cluster secret '%s': %v", s.Name, err)
 		} else {
-			shard = pointer.Int64(int64(val))
+			shard = ptr.To(int64(val))
 		}
 	}
 
 	// copy labels and annotations excluding system ones
 	labels := map[string]string{}
 	if s.Labels != nil {
-		labels = collections.CopyStringMap(s.Labels)
+		labels = maps.Clone(s.Labels)
 		delete(labels, common.LabelKeySecretType)
 	}
 	annotations := map[string]string{}
 	if s.Annotations != nil {
-		annotations = collections.CopyStringMap(s.Annotations)
+		annotations = maps.Clone(s.Annotations)
 		// delete system annotations
 		delete(annotations, apiv1.LastAppliedConfigAnnotation)
 		delete(annotations, common.AnnotationKeyManagedBy)

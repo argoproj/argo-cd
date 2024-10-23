@@ -22,7 +22,7 @@ import (
 
 // NewRepoCredsCommand returns a new instance of an `argocd repocreds` command
 func NewRepoCredsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "repocreds",
 		Short: "Manage repository connection parameters",
 		Example: templates.Examples(`
@@ -60,7 +60,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	)
 
 	// For better readability and easier formatting
-	var repocredsAddExamples = `  # Add credentials with user/pass authentication to use for all repositories under https://git.example.com/repos
+	repocredsAddExamples := `  # Add credentials with user/pass authentication to use for all repositories under https://git.example.com/repos
   argocd repocreds add https://git.example.com/repos/ --username git --password secret
 
   # Add credentials with SSH private key authentication to use for all repositories under ssh://git@git.example.com/repos
@@ -79,7 +79,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
   argocd repocreds add https://source.developers.google.com/p/my-google-cloud-project/r/ --gcp-service-account-key-path service-account-key.json
 `
 
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:     "add REPOURL",
 		Short:   "Add git repository connection parameters",
 		Example: repocredsAddExamples,
@@ -187,12 +187,13 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	command.Flags().StringVar(&repo.Type, "type", common.DefaultRepoType, "type of the repository, \"git\" or \"helm\"")
 	command.Flags().StringVar(&gcpServiceAccountKeyPath, "gcp-service-account-key-path", "", "service account key for the Google Cloud Platform")
 	command.Flags().BoolVar(&repo.ForceHttpBasicAuth, "force-http-basic-auth", false, "whether to force basic auth when connecting via HTTP")
+	command.Flags().StringVar(&repo.Proxy, "proxy-url", "", "If provided, this URL will be used to connect via proxy")
 	return command
 }
 
 // NewRepoCredsRemoveCommand returns a new instance of an `argocd repocreds rm` command
 func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "rm CREDSURL",
 		Short: "Remove repository credentials",
 		Example: templates.Examples(`
@@ -240,10 +241,8 @@ func printRepoCredsUrls(repos []appsv1.RepoCreds) {
 
 // NewRepoCredsListCommand returns a new instance of an `argocd repo list` command
 func NewRepoCredsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		output string
-	)
-	var command = &cobra.Command{
+	var output string
+	command := &cobra.Command{
 		Use:   "list",
 		Short: "List configured repository credentials",
 		Example: templates.Examples(`

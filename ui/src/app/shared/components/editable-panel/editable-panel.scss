@@ -13,6 +13,21 @@
         right: 3em;
     }
 
+    &__divider {
+        position: relative;
+        border-top: 2px solid lightgray;
+        padding-top: 8px;
+    }
+
+    &__buttons-relative {
+        position: relative;
+        justify-content: right;        
+    }
+
+    &__buttons-relative-button {
+        margin-left: 8px;
+    }
+
     &__collapsible-button {
         position: absolute;
         top: 30px;

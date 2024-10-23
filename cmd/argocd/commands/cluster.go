@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"regexp"
 	"strings"
@@ -34,13 +35,17 @@ const (
 	clusterFieldName = "name"
 	// cluster field is 'namespaces'
 	clusterFieldNamespaces = "namespaces"
+	// cluster field is 'labels'
+	clusterFieldLabel = "labels"
+	// cluster field is 'annotations'
+	clusterFieldAnnotation = "annotations"
 	// indicates managing all namespaces
 	allNamespaces = "*"
 )
 
 // NewClusterCommand returns a new instance of an `argocd cluster` command
 func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "cluster",
 		Short: "Manage cluster credentials",
 		Run: func(c *cobra.Command, args []string) {
@@ -81,7 +86,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 		labels           []string
 		annotations      []string
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "add CONTEXT",
 		Short: fmt.Sprintf("%s cluster add CONTEXT", cliName),
 		Run: func(c *cobra.Command, args []string) {
@@ -102,6 +107,11 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			contextName := args[0]
 			conf, err := getRestConfig(pathOpts, contextName)
 			errors.CheckError(err)
+			if clusterOpts.ProxyUrl != "" {
+				u, err := argoappv1.ParseProxyUrl(clusterOpts.ProxyUrl)
+				errors.CheckError(err)
+				conf.Proxy = http.ProxyURL(u)
+			}
 			clientset, err := kubernetes.NewForConfig(conf)
 			errors.CheckError(err)
 			managerBearerToken := ""
@@ -187,6 +197,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command.Flags().BoolVarP(&skipConfirmation, "yes", "y", false, "Skip explicit confirmation")
 	command.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value)")
 	command.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value)")
+	command.Flags().StringVar(&clusterOpts.ProxyUrl, "proxy-url", "", "use proxy to connect cluster")
 	cmdutil.AddClusterFlags(command, &clusterOpts)
 	return command
 }
@@ -220,8 +231,10 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	var (
 		clusterOptions cmdutil.ClusterOptions
 		clusterName    string
+		labels         []string
+		annotations    []string
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "set NAME",
 		Short: "Set cluster information",
 		Example: `  # Set cluster information
@@ -238,17 +251,25 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer io.Close(conn)
 			// checks the fields that needs to be updated
-			updatedFields := checkFieldsToUpdate(clusterOptions)
+			updatedFields := checkFieldsToUpdate(clusterOptions, labels, annotations)
 			namespaces := clusterOptions.Namespaces
 			// check if all namespaces have to be considered
 			if len(namespaces) == 1 && strings.EqualFold(namespaces[0], allNamespaces) {
 				namespaces[0] = ""
 			}
+			// parse the labels you're receiving from the label flag
+			labelsMap, err := label.Parse(labels)
+			errors.CheckError(err)
+			// parse the annotations you're receiving from the annotation flag
+			annotationsMap, err := label.Parse(annotations)
+			errors.CheckError(err)
 			if updatedFields != nil {
 				clusterUpdateRequest := clusterpkg.ClusterUpdateRequest{
 					Cluster: &argoappv1.Cluster{
-						Name:       clusterOptions.Name,
-						Namespaces: namespaces,
+						Name:        clusterOptions.Name,
+						Namespaces:  namespaces,
+						Labels:      labelsMap,
+						Annotations: annotationsMap,
 					},
 					UpdatedFields: updatedFields,
 					Id: &clusterpkg.ClusterID{
@@ -266,11 +287,13 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	}
 	command.Flags().StringVar(&clusterOptions.Name, "name", "", "Overwrite the cluster name")
 	command.Flags().StringArrayVar(&clusterOptions.Namespaces, "namespace", nil, "List of namespaces which are allowed to manage. Specify '*' to manage all namespaces")
+	command.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value)")
+	command.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value)")
 	return command
 }
 
 // checkFieldsToUpdate returns the fields that needs to be updated
-func checkFieldsToUpdate(clusterOptions cmdutil.ClusterOptions) []string {
+func checkFieldsToUpdate(clusterOptions cmdutil.ClusterOptions, labels []string, annotations []string) []string {
 	var updatedFields []string
 	if clusterOptions.Name != "" {
 		updatedFields = append(updatedFields, clusterFieldName)
@@ -278,15 +301,19 @@ func checkFieldsToUpdate(clusterOptions cmdutil.ClusterOptions) []string {
 	if clusterOptions.Namespaces != nil {
 		updatedFields = append(updatedFields, clusterFieldNamespaces)
 	}
+	if labels != nil {
+		updatedFields = append(updatedFields, clusterFieldLabel)
+	}
+	if annotations != nil {
+		updatedFields = append(updatedFields, clusterFieldAnnotation)
+	}
 	return updatedFields
 }
 
 // NewClusterGetCommand returns a new instance of an `argocd cluster get` command
 func NewClusterGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		output string
-	)
-	var command = &cobra.Command{
+	var output string
+	command := &cobra.Command{
 		Use:   "get SERVER/NAME",
 		Short: "Get cluster information",
 		Example: `argocd cluster get https://12.34.567.89
@@ -343,6 +370,7 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 		fmt.Printf("Cluster information\n\n")
 		fmt.Printf("  Server URL:            %s\n", cluster.Server)
 		fmt.Printf("  Server Name:           %s\n", strWithDefault(cluster.Name, "-"))
+		// nolint:staticcheck
 		fmt.Printf("  Server Version:        %s\n", cluster.ServerVersion)
 		fmt.Printf("  Namespaces:        	 %s\n", formatNamespaces(cluster))
 		fmt.Printf("\nTLS configuration\n\n")
@@ -352,6 +380,8 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 		fmt.Printf("  Basic authentication:  %v\n", cluster.Config.Username != "")
 		fmt.Printf("  oAuth authentication:  %v\n", cluster.Config.BearerToken != "")
 		fmt.Printf("  AWS authentication:    %v\n", cluster.Config.AWSAuthConfig != nil)
+		fmt.Printf("\nDisable compression: %v\n", cluster.Config.DisableCompression)
+		fmt.Printf("\nUse proxy: %v\n", cluster.Config.ProxyUrl != "")
 		fmt.Println()
 	}
 }
@@ -359,7 +389,7 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 // NewClusterRemoveCommand returns a new instance of an `argocd cluster rm` command
 func NewClusterRemoveCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var noPrompt bool
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "rm SERVER/NAME",
 		Short: "Remove cluster credentials",
 		Example: `argocd cluster rm https://12.34.567.89
@@ -373,7 +403,7 @@ argocd cluster rm cluster-name`,
 			}
 			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
 			defer io.Close(conn)
-			var numOfClusters = len(args)
+			numOfClusters := len(args)
 			var isConfirmAll bool = false
 
 			for _, clusterSelector := range args {
@@ -435,6 +465,7 @@ func printClusterTable(clusters []argoappv1.Cluster) {
 		if len(c.Namespaces) > 0 {
 			server = fmt.Sprintf("%s (%d namespaces)", c.Server, len(c.Namespaces))
 		}
+		// nolint:staticcheck
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n", server, c.Name, c.ServerVersion, c.ConnectionState.Status, c.ConnectionState.Message, c.Project)
 	}
 	_ = w.Flush()
@@ -461,10 +492,8 @@ func printClusterServers(clusters []argoappv1.Cluster) {
 
 // NewClusterListCommand returns a new instance of an `argocd cluster rm` command
 func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		output string
-	)
-	var command = &cobra.Command{
+	var output string
+	command := &cobra.Command{
 		Use:   "list",
 		Short: "List configured clusters",
 		Run: func(c *cobra.Command, args []string) {
@@ -490,7 +519,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 # List Clusters in Default "Wide" Format
 argocd cluster list
 
-# List Cluster via specifing the server
+# List Cluster via specifying the server
 argocd cluster list --server <ARGOCD_SERVER_ADDRESS>
 
 # List Clusters in JSON Format
@@ -510,7 +539,7 @@ argocd cluster list -o server <ARGOCD_SERVER_ADDRESS>
 
 // NewClusterRotateAuthCommand returns a new instance of an `argocd cluster rotate-auth` command
 func NewClusterRotateAuthCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "rotate-auth SERVER/NAME",
 		Short: fmt.Sprintf("%s cluster rotate-auth SERVER/NAME", cliName),
 		Example: `argocd cluster rotate-auth https://12.34.567.89

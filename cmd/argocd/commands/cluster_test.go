@@ -3,26 +3,27 @@ package commands
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func Test_getQueryBySelector(t *testing.T) {
 	query := getQueryBySelector("my-cluster")
-	assert.Equal(t, query.Name, "my-cluster")
-	assert.Equal(t, query.Server, "")
+	assert.Equal(t, "my-cluster", query.Name)
+	assert.Equal(t, "", query.Server)
 
 	query = getQueryBySelector("http://my-server")
-	assert.Equal(t, query.Name, "")
-	assert.Equal(t, query.Server, "http://my-server")
+	assert.Equal(t, "", query.Name)
+	assert.Equal(t, "http://my-server", query.Server)
 
 	query = getQueryBySelector("https://my-server")
-	assert.Equal(t, query.Name, "")
-	assert.Equal(t, query.Server, "https://my-server")
+	assert.Equal(t, "", query.Name)
+	assert.Equal(t, "https://my-server", query.Server)
 }
 
 func Test_printClusterTable(t *testing.T) {
@@ -31,11 +32,12 @@ func Test_printClusterTable(t *testing.T) {
 			Server: "my-server",
 			Name:   "my-name",
 			Config: v1alpha1.ClusterConfig{
-				Username:        "my-username",
-				Password:        "my-password",
-				BearerToken:     "my-bearer-token",
-				TLSClientConfig: v1alpha1.TLSClientConfig{},
-				AWSAuthConfig:   nil,
+				Username:           "my-username",
+				Password:           "my-password",
+				BearerToken:        "my-bearer-token",
+				TLSClientConfig:    v1alpha1.TLSClientConfig{},
+				AWSAuthConfig:      nil,
+				DisableCompression: false,
 			},
 			ConnectionState: v1alpha1.ConnectionState{
 				Status:     "my-status",
@@ -97,9 +99,9 @@ func Test_getRestConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got, err := getRestConfig(tt.args.pathOpts, tt.args.ctxName); err == nil {
-				require.Equal(t, got, tt.expected)
+				require.Equal(t, tt.expected, got)
 			} else if tt.wantErr {
-				require.Equal(t, err.Error(), tt.expectedErr)
+				require.Equal(t, tt.expectedErr, err.Error())
 			} else {
 				t.Errorf("An unexpected error occurred during test %s:\n%s", tt.name, err.Error())
 			}

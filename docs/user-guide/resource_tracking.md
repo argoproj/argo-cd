@@ -65,6 +65,14 @@ metadata:
 The advantages of using the tracking id annotation is that there are no clashes any
 more with other Kubernetes tools and Argo CD is never confused about the owner of a resource. The `annotation+label` can also be used if you want other tools to understand resources managed by Argo CD.
 
+### Installation ID
+
+If you are managing one cluster using multiple Argo CD instances, you will need to set `installationID` in the Argo CD ConfigMap. This will prevent conflicts between
+the different Argo CD instances:
+
+* Each managed resource will have the annotation `argocd.argoproj.io/tracking-id: <installation-id>`
+* It is possible to have applications with the same name in Argo CD instances without causing conflicts.
+
 ### Non self-referencing annotations
 When using the tracking method `annotation` or `annotation+label`, Argo CD will consider the resource properties in the annotation (name, namespace, group and kind) to determine whether the resource should be compared against the desired state. If the tracking annotation does not reference the resource it is applied to, the resource will neither affect the application's sync status nor be marked for pruning. 
 

@@ -50,7 +50,7 @@ argocd proj windows list <project-name>`,
 
 // NewProjectWindowsDisableManualSyncCommand returns a new instance of an `argocd proj windows disable-manual-sync` command
 func NewProjectWindowsDisableManualSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "disable-manual-sync PROJECT ID",
 		Short: "Disable manual sync for a sync window",
 		Long:  "Disable manual sync for a sync window. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
@@ -58,7 +58,7 @@ func NewProjectWindowsDisableManualSyncCommand(clientOpts *argocdclient.ClientOp
 #Disable manual sync for a sync window for the Project 
 argocd proj windows disable-manual-sync PROJECT ID 
 
-#Disbaling manual sync for a windows set on the default project with Id 0
+#Disabling manual sync for a windows set on the default project with Id 0
 argocd proj windows disable-manual-sync default 0`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
@@ -93,7 +93,7 @@ argocd proj windows disable-manual-sync default 0`,
 
 // NewProjectWindowsEnableManualSyncCommand returns a new instance of an `argocd proj windows enable-manual-sync` command
 func NewProjectWindowsEnableManualSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "enable-manual-sync PROJECT ID",
 		Short: "Enable manual sync for a sync window",
 		Long:  "Enable manual sync for a sync window. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
@@ -149,7 +149,7 @@ func NewProjectWindowsAddWindowCommand(clientOpts *argocdclient.ClientOptions) *
 		manualSync   bool
 		timeZone     string
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "add PROJECT",
 		Short: "Add a sync window to a project",
 		Example: `
@@ -205,7 +205,7 @@ argocd proj windows add PROJECT \
 
 // NewProjectWindowsDeleteCommand returns a new instance of an `argocd proj windows delete` command
 func NewProjectWindowsDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "delete PROJECT ID",
 		Short: "Delete a sync window from a project. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
 		Example: `
@@ -252,7 +252,7 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 		clusters     []string
 		timeZone     string
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "update PROJECT ID",
 		Short: "Update a project sync window",
 		Long:  "Update a project sync window. Requires ID which can be found by running \"argocd proj windows list PROJECT\"",
@@ -302,10 +302,8 @@ argocd proj windows update PROJECT ID \
 
 // NewProjectWindowsListCommand returns a new instance of an `argocd proj windows list` command
 func NewProjectWindowsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		output string
-	)
-	var command = &cobra.Command{
+	var output string
+	command := &cobra.Command{
 		Use:   "list PROJECT",
 		Short: "List project sync windows",
 		Example: `
@@ -354,9 +352,10 @@ func printSyncWindows(proj *v1alpha1.AppProject) {
 	fmt.Fprintf(w, fmtStr, headers...)
 	if proj.Spec.SyncWindows.HasWindows() {
 		for i, window := range proj.Spec.SyncWindows {
+			isActive, _ := window.Active()
 			vals := []interface{}{
 				strconv.Itoa(i),
-				formatBoolOutput(window.Active()),
+				formatBoolOutput(isActive),
 				window.Kind,
 				window.Schedule,
 				window.Duration,
@@ -381,6 +380,7 @@ func formatListOutput(list []string) string {
 	}
 	return o
 }
+
 func formatBoolOutput(active bool) string {
 	var o string
 	if active {
@@ -390,6 +390,7 @@ func formatBoolOutput(active bool) string {
 	}
 	return o
 }
+
 func formatManualOutput(active bool) string {
 	var o string
 	if active {

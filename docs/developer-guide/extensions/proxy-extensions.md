@@ -1,5 +1,8 @@
 # Proxy Extensions
-*Current Status: [Alpha][1] (Since v2.7.0)*
+
+!!! warning "Alpha Feature (Since 2.7.0)"
+    This is an experimental, [alpha-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#alpha)
+    feature. It may be removed in future releases or modified in backwards-incompatible ways.
 
 ## Overview
 
@@ -60,7 +63,38 @@ data:
             server: https://some-cluster
 ```
 
-Note: There is no need to restart Argo CD Server after modifiying the
+Proxy extensions can also be provided individually using dedicated
+Argo CD configmap keys for better GitOps operations. The example below
+demonstrates how to configure the same hypothetical httpbin config
+above using a dedicated key:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  extension.config.httpbin: |
+    connectionTimeout: 2s
+    keepAlive: 15s
+    idleConnectionTimeout: 60s
+    maxIdleConnections: 30
+    services:
+    - url: http://httpbin.org
+      headers:
+      - name: some-header
+        value: '$some.argocd.secret.key'
+      cluster:
+        name: some-cluster
+        server: https://some-cluster
+```
+
+Attention: Extension names must be unique in the Argo CD configmap. If
+duplicated keys are found, the Argo CD API server will log an error
+message and no proxy extension will be registered.
+
+Note: There is no need to restart Argo CD Server after modifying the
 `extension.config` entry in Argo CD configmap. Changes will be
 automatically applied. A new proxy registry will be built making
 all new incoming extensions requests (`<argocd-host>/extensions/*`) to
@@ -120,7 +154,7 @@ Is the address where the extension backend must be available.
 
 If provided, the headers list will be added on all outgoing requests
 for this service config. Existing headers in the incoming request with
-the same name will be overriden by the one in this list. Reserved header
+the same name will be overridden by the one in this list. Reserved header
 names will be ignored (see the [headers](#incoming-request-headers) below).
 
 #### `extensions.backend.services.headers.name` (*string*)
@@ -263,6 +297,14 @@ it is not empty string is the Application resource.
 Note that additional pre-configured headers can be added to outgoing
 request. See [backend service headers](#extensionsbackendservicesheaders-list)
 section for more details.
+
+#### `Argocd-Username`
+
+Will be populated with the username logged in Argo CD.
+
+#### `Argocd-User-Groups`
+
+Will be populated with the 'groups' claim from the user logged in Argo CD.
 
 ### Multi Backend Use-Case
 
