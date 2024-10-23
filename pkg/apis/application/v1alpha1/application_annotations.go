@@ -10,4 +10,12 @@ const (
 	// absolute path means an absolute path within the repository and the relative path is relative to the application
 	// source path within the repository.
 	AnnotationKeyManifestGeneratePaths = "argocd.argoproj.io/manifest-generate-paths"
+
+	// AnnotationAppRefreshTimeout is an optional annotation for applications to override the default refresh timeout
+	// the provided value is evaluated as seconds and after the timeout is reached the app gets soft refreshed
+	AnnotationAppRefreshTimeout string = "argocd.argoproj.io/refresh-timeout"
+
+	// AnnotationAppRefreshTimeout is an optional annotation for applications to override the default hard refresh timeout
+	// the provided value is evaluated as seconds and after the timeout is reached the app gets hard refreshed
+	AnnotationAppHardRefreshTimeout string = "argocd.argoproj.io/hard-refresh-timeout"
 )
