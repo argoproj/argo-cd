@@ -116,12 +116,12 @@ func release() error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Commit changes")
+	fmt.Println("Commit changes")
 	err = commitChanges(version)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("Create tag")
+	fmt.Println("Create tag")
 	// git tag -a v2.9.3-2021.07.07-3a4b7f4 -m "Codefresh version for synced 2.9.3"
 	_ = exec.Command("git", "tag", "-d", release).Run()
 	cmd := exec.Command("git", "tag", "-a", release, "-m", changelog)
@@ -130,9 +130,10 @@ func release() error {
 		return fmt.Errorf("failed to tag: %w", err)
 	}
 
-	fmt.Printf("Delete tag")
+	fmt.Println("Delete tag")
 	// git push remote-name --delete tag-name
 	_ = exec.Command("git", "push", "origin", "--delete", release).Run()
+	fmt.Println("Push new tag to remote")
 	// git push origin tags/version
 	cmd = exec.Command("git", "push", "origin", "tags/"+release)
 	if output, err := cmd.CombinedOutput(); err != nil {
@@ -140,6 +141,7 @@ func release() error {
 		return fmt.Errorf("failed to push tag: %w", err)
 	}
 
+	fmt.Println("Delete tag from remote")
 	return exec.Command("git", "push", "origin", "--delete", release).Run()
 }
 
