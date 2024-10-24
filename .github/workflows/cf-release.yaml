@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694  # v4.0.0
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.RELEASE_GITHUB_TOKEN }}
           ref: ${{ inputs.TARGET_BRANCH }}
 
       - name: Check if TARGET_VERSION is well formed.
