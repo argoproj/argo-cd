@@ -12,7 +12,7 @@ discoveryTests:
     - name: promote-full
       disabled: true
     - name: pause
-      disabled: true
+      disabled: false
 - inputPath: testdata/pre_v0.6_not_paused_rollout.yaml
   result:
     - name: restart
@@ -54,7 +54,7 @@ discoveryTests:
     - name: promote-full
       disabled: false
     - name: pause
-      disabled: true
+      disabled: false
 - inputPath: testdata/no_pause_condition_rollout.yaml
   result:
     - name: restart
