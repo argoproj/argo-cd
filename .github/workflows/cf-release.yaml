@@ -34,6 +34,8 @@ jobs:
 
       - name: Create release
         run: |
+          git config --global user.name "John Doe"
+          git config --global user.email "john.doe@example.com"
           make cf-release
 
 
