@@ -1171,6 +1171,8 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, clusterRESTConfig)
 
 	if app.CascadedDeletion() {
+		deletionApproved := app.IsDeletionConfirmed(app.DeletionTimestamp.Time)
+
 		logCtx.Infof("Deleting resources")
 		// ApplicationDestination points to a valid cluster, so we may clean up the live objects
 		objs := make([]*unstructured.Unstructured, 0)
@@ -1188,6 +1190,10 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 			if ctrl.shouldBeDeleted(app, objsMap[k]) {
 				objs = append(objs, objsMap[k])
+				if res, ok := app.Status.FindResource(k); ok && res.RequiresDeletionConfirmation && !deletionApproved {
+					logCtx.Infof("Resource %v requires manual confirmation to delete", k)
+					return nil
+				}
 			}
 		}
 
