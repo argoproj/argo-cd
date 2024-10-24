@@ -122,6 +122,5 @@ func TestManifestStream(t *testing.T) {
 }
 
 func getTestDataDir(t *testing.T) string {
-	t.Helper()
 	return filepath.Join(test.GetTestDir(t), "testdata")
 }

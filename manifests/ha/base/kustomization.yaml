@@ -12,7 +12,7 @@ patches:
 images:
 - name: quay.io/argoproj/argocd
   newName: quay.io/argoproj/argocd
-  newTag: latest
+  newTag: v2.13.0-rc5
 resources:
 - ../../base/application-controller
 - ../../base/applicationset-controller

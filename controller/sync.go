@@ -80,12 +80,7 @@ func (m *appStateManager) getResourceOperations(server string) (kube.ResourceOpe
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting cluster: %w", err)
 	}
-
-	rawConfig, err := cluster.RawRestConfig()
-	if err != nil {
-		return nil, nil, fmt.Errorf("error getting cluster REST config: %w", err)
-	}
-	ops, cleanup, err := m.kubectl.ManageResources(rawConfig, clusterCache.GetOpenAPISchema())
+	ops, cleanup, err := m.kubectl.ManageResources(cluster.RawRestConfig(), clusterCache.GetOpenAPISchema())
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating kubectl ResourceOperations: %w", err)
 	}
@@ -228,20 +223,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	rawConfig, err := clst.RawRestConfig()
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = err.Error()
-		return
-	}
-
-	clusterRESTConfig, err := clst.RESTConfig()
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = err.Error()
-		return
-	}
-	restConfig := metrics.AddMetricsTransportWrapper(m.metricsServer, app, clusterRESTConfig)
+	rawConfig := clst.RawRestConfig()
+	restConfig := metrics.AddMetricsTransportWrapper(m.metricsServer, app, clst.RESTConfig())
 
 	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
 	if err != nil {

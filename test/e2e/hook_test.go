@@ -36,7 +36,6 @@ func TestPostSyncHookSuccessful(t *testing.T) {
 
 // make sure we can run a standard sync hook
 func testHookSuccessful(t *testing.T, hookType HookType) {
-	t.Helper()
 	Given(t).
 		Path("hook").
 		When().

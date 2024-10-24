@@ -2997,13 +2997,6 @@ func schema_pkg_apis_application_v1alpha1_ClusterGenerator(ref common.ReferenceC
 							},
 						},
 					},
-					"flatList": {
-						SchemaProps: spec.SchemaProps{
-							Description: "returns the clusters a single 'clusters' value in the template",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
 				},
 			},
 		},

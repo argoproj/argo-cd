@@ -28,6 +28,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	mockrepoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 )
@@ -547,7 +548,6 @@ func TestAppRevisionsMultiSource(t *testing.T) {
 }
 
 func toJSON(t *testing.T, obj *unstructured.Unstructured) string {
-	t.Helper()
 	data, err := json.Marshal(obj)
 	require.NoError(t, err)
 	return string(data)
@@ -680,6 +680,7 @@ func TestCompareAppStateWithManifestGeneratePath(t *testing.T) {
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, "abc123", compRes.syncStatus.Revision)
+	ctrl.repoClientset.(*mockrepoclient.Clientset).RepoServerServiceClient.(*mockrepoclient.RepoServerServiceClient).AssertNumberOfCalls(t, "UpdateRevisionForPaths", 1)
 }
 
 func TestSetHealth(t *testing.T) {

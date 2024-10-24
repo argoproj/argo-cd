@@ -308,10 +308,6 @@ spec:
                             description: SkipCrds skips custom resource definition
                               installation step (Helm's --skip-crds)
                             type: boolean
-                          skipTests:
-                            description: SkipTests skips test manifest installation
-                              step (Helm's --skip-tests).
-                            type: boolean
                           valueFiles:
                             description: ValuesFiles is a list of Helm value files
                               to use when generating a template
@@ -677,10 +673,6 @@ spec:
                             skipCrds:
                               description: SkipCrds skips custom resource definition
                                 installation step (Helm's --skip-crds)
-                              type: boolean
-                            skipTests:
-                              description: SkipTests skips test manifest installation
-                                step (Helm's --skip-tests).
                               type: boolean
                             valueFiles:
                               description: ValuesFiles is a list of Helm value files
@@ -1163,10 +1155,6 @@ spec:
                         description: SkipCrds skips custom resource definition installation
                           step (Helm's --skip-crds)
                         type: boolean
-                      skipTests:
-                        description: SkipTests skips test manifest installation step
-                          (Helm's --skip-tests).
-                        type: boolean
                       valueFiles:
                         description: ValuesFiles is a list of Helm value files to
                           use when generating a template
@@ -1523,10 +1511,6 @@ spec:
                         skipCrds:
                           description: SkipCrds skips custom resource definition installation
                             step (Helm's --skip-crds)
-                          type: boolean
-                        skipTests:
-                          description: SkipTests skips test manifest installation
-                            step (Helm's --skip-tests).
                           type: boolean
                         valueFiles:
                           description: ValuesFiles is a list of Helm value files to
@@ -2050,10 +2034,6 @@ spec:
                               description: SkipCrds skips custom resource definition
                                 installation step (Helm's --skip-crds)
                               type: boolean
-                            skipTests:
-                              description: SkipTests skips test manifest installation
-                                step (Helm's --skip-tests).
-                              type: boolean
                             valueFiles:
                               description: ValuesFiles is a list of Helm value files
                                 to use when generating a template
@@ -2422,10 +2402,6 @@ spec:
                               skipCrds:
                                 description: SkipCrds skips custom resource definition
                                   installation step (Helm's --skip-crds)
-                                type: boolean
-                              skipTests:
-                                description: SkipTests skips test manifest installation
-                                  step (Helm's --skip-tests).
                                 type: boolean
                               valueFiles:
                                 description: ValuesFiles is a list of Helm value files
@@ -2946,10 +2922,6 @@ spec:
                                     description: SkipCrds skips custom resource definition
                                       installation step (Helm's --skip-crds)
                                     type: boolean
-                                  skipTests:
-                                    description: SkipTests skips test manifest installation
-                                      step (Helm's --skip-tests).
-                                    type: boolean
                                   valueFiles:
                                     description: ValuesFiles is a list of Helm value
                                       files to use when generating a template
@@ -3336,10 +3308,6 @@ spec:
                                     skipCrds:
                                       description: SkipCrds skips custom resource
                                         definition installation step (Helm's --skip-crds)
-                                      type: boolean
-                                    skipTests:
-                                      description: SkipTests skips test manifest installation
-                                        step (Helm's --skip-tests).
                                       type: boolean
                                     valueFiles:
                                       description: ValuesFiles is a list of Helm value
@@ -3845,10 +3813,6 @@ spec:
                                 description: SkipCrds skips custom resource definition
                                   installation step (Helm's --skip-crds)
                                 type: boolean
-                              skipTests:
-                                description: SkipTests skips test manifest installation
-                                  step (Helm's --skip-tests).
-                                type: boolean
                               valueFiles:
                                 description: ValuesFiles is a list of Helm value files
                                   to use when generating a template
@@ -4229,10 +4193,6 @@ spec:
                                 skipCrds:
                                   description: SkipCrds skips custom resource definition
                                     installation step (Helm's --skip-crds)
-                                  type: boolean
-                                skipTests:
-                                  description: SkipTests skips test manifest installation
-                                    step (Helm's --skip-tests).
                                   type: boolean
                                 valueFiles:
                                   description: ValuesFiles is a list of Helm value
@@ -4759,10 +4719,6 @@ spec:
                                 description: SkipCrds skips custom resource definition
                                   installation step (Helm's --skip-crds)
                                 type: boolean
-                              skipTests:
-                                description: SkipTests skips test manifest installation
-                                  step (Helm's --skip-tests).
-                                type: boolean
                               valueFiles:
                                 description: ValuesFiles is a list of Helm value files
                                   to use when generating a template
@@ -5143,10 +5099,6 @@ spec:
                                 skipCrds:
                                   description: SkipCrds skips custom resource definition
                                     installation step (Helm's --skip-crds)
-                                  type: boolean
-                                skipTests:
-                                  description: SkipTests skips test manifest installation
-                                    step (Helm's --skip-tests).
                                   type: boolean
                                 valueFiles:
                                   description: ValuesFiles is a list of Helm value

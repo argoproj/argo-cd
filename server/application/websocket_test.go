@@ -86,7 +86,6 @@ func TestReconnect(t *testing.T) {
 }
 
 func testServerConnection(t *testing.T, testFunc func(w http.ResponseWriter, r *http.Request), expectPermissionDenied bool) {
-	t.Helper()
 	s := httptest.NewServer(http.HandlerFunc(testFunc))
 	defer s.Close()
 
