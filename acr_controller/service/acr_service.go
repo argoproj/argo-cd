@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -25,12 +24,14 @@ type acrService struct {
 	applicationClientset     appclientset.Interface
 	applicationServiceClient argoclient.ApplicationClient
 	lock                     sync.Mutex
+	logger                   *log.Logger
 }
 
 func NewACRService(applicationClientset appclientset.Interface, applicationServiceClient argoclient.ApplicationClient) ACRService {
 	return &acrService{
 		applicationClientset:     applicationClientset,
 		applicationServiceClient: applicationServiceClient,
+		logger:                   log.New(),
 	}
 }
 
@@ -68,8 +69,8 @@ func (c *acrService) ChangeRevision(ctx context.Context, a *application.Applicat
 	}
 
 	if getChangeRevision(app) != "" {
-		log.Infof("Change revision already calculated for application %s", app.Name)
-		return errors.New("change revision already calculated")
+		c.logger.Infof("Change revision already calculated for application %s", app.Name)
+		return nil
 	}
 
 	revision, err := c.calculateRevision(ctx, app)
@@ -78,11 +79,11 @@ func (c *acrService) ChangeRevision(ctx context.Context, a *application.Applicat
 	}
 
 	if revision == nil || *revision == "" {
-		log.Infof("Revision for application %s is empty", app.Name)
+		c.logger.Infof("Revision for application %s is empty", app.Name)
 		return nil
 	}
 
-	log.Infof("Change revision for application %s is %s", app.Name, *revision)
+	c.logger.Infof("Change revision for application %s is %s", app.Name, *revision)
 
 	app, err = c.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{})
 	if err != nil {
@@ -92,17 +93,17 @@ func (c *acrService) ChangeRevision(ctx context.Context, a *application.Applicat
 	revisions := []string{*revision}
 
 	if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
-		log.Infof("Patch operation sync result for application %s", app.Name)
+		c.logger.Infof("Patch operation sync result for application %s", app.Name)
 		return c.patchOperationSyncResultWithChangeRevision(ctx, app, revisions)
 	}
 
-	log.Infof("Patch operation for application %s", app.Name)
+	c.logger.Infof("Patch operation for application %s", app.Name)
 	return c.patchOperationWithChangeRevision(ctx, app, revisions)
 }
 
 func (c *acrService) calculateRevision(ctx context.Context, a *application.Application) (*string, error) {
 	currentRevision, previousRevision := c.getRevisions(ctx, a)
-	log.Infof("Calculate revision for application '%s', current revision '%s', previous revision '%s'", a.Name, currentRevision, previousRevision)
+	c.logger.Infof("Calculate revision for application '%s', current revision '%s', previous revision '%s'", a.Name, currentRevision, previousRevision)
 	changeRevisionResult, err := c.applicationServiceClient.GetChangeRevision(ctx, &appclient.ChangeRevisionRequest{
 		AppName:          pointer.String(a.GetName()),
 		Namespace:        pointer.String(a.GetNamespace()),

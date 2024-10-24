@@ -4,6 +4,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/sirupsen/logrus"
+	test2 "github.com/sirupsen/logrus/hooks/test"
+
 	"github.com/argoproj/argo-cd/v2/acr_controller/application/mocks"
 	appclient "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -207,6 +210,7 @@ func newTestACRService(client *mocks.ApplicationClient) *acrService {
 	return &acrService{
 		applicationClientset:     fakeAppsClientset,
 		applicationServiceClient: client,
+		logger:                   logrus.New(),
 	}
 }
 
@@ -285,7 +289,12 @@ func Test_ChangeRevision(r *testing.T) {
 		client.On("GetChangeRevision", mock.Anything, mock.Anything).Return(&appclient.ChangeRevisionResponse{
 			Revision: pointer.String("new-revision"),
 		}, nil)
+
+		logger, logHook := test2.NewNullLogger()
+
 		acrService := newTestACRService(client)
+		acrService.logger = logger
+
 		app := createTestApp(syncedAppWithHistory)
 
 		err := acrService.ChangeRevision(context.TODO(), app)
@@ -297,6 +306,14 @@ func Test_ChangeRevision(r *testing.T) {
 		assert.Equal(t, "new-revision", app.Status.OperationState.Operation.Sync.ChangeRevision)
 
 		err = acrService.ChangeRevision(context.TODO(), app)
-		require.Error(t, err, "change revision already calculated")
+
+		require.NoError(t, err)
+
+		lastLogEntry := logHook.LastEntry()
+		if lastLogEntry == nil {
+			t.Fatal("No log entry")
+		}
+
+		require.Equal(t, "Change revision already calculated for application guestbook", lastLogEntry.Message)
 	})
 }
