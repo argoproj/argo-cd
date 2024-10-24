@@ -2,7 +2,7 @@
 
 ## argocd app remove-source
 
-Remove a source from multiple sources application. Index starts with 0.
+Remove a source from multiple sources application. Counting starts with 1. Default value is -1.
 
 ```
 argocd app remove-source APPNAME [flags]
@@ -11,8 +11,8 @@ argocd app remove-source APPNAME [flags]
 ### Examples
 
 ```
-  # Remove the source at index 1 from application's sources
-  argocd app remove-source myapplication --source-index 1
+  # Remove the source at position 1 from application's sources. Counting starts at 1.
+  argocd app remove-source myapplication --source-position 1
 ```
 
 ### Options
@@ -20,13 +20,14 @@ argocd app remove-source APPNAME [flags]
 ```
   -N, --app-namespace string   Namespace of the target application where the source will be appended
   -h, --help                   help for remove-source
-      --source-index int       Index of the source from the list of sources of the app. Index starts from 0. (default -1)
+      --source-position int    Position of the source from the list of sources of the app. Counting starts at 1. (default -1)
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token
+      --argocd-context string           The name of the Argo-CD server context to use
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")

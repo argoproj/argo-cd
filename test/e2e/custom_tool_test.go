@@ -67,12 +67,12 @@ func TestCustomToolWithGitCredsTemplate(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitUsername}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Empty(t, output)
 		}).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitPassword}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Empty(t, output)
 		})
 }
@@ -107,18 +107,18 @@ func TestCustomToolWithEnv(t *testing.T) {
 		}).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.Bar}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, "baz", output)
 		}).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.Foo}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, "bar", output)
 		}).
 		And(func(app *Application) {
 			expectedKubeVersion := GetVersions().ServerVersion.Format("%s.%s")
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, expectedKubeVersion, output)
 		}).
 		And(func(app *Application) {
@@ -127,7 +127,7 @@ func TestCustomToolWithEnv(t *testing.T) {
 			sort.Strings(expectedApiVersionSlice)
 
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeApiVersion}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			outputSlice := strings.Split(output, ",")
 			sort.Strings(outputSlice)
 
@@ -168,13 +168,14 @@ func TestCustomToolSyncAndDiffLocal(t *testing.T) {
 }
 
 func startCMPServer(t *testing.T, configFile string) {
+	t.Helper()
 	pluginSockFilePath := TmpDir + PluginSockFilePath
 	t.Setenv("ARGOCD_BINARY_NAME", "argocd-cmp-server")
 	// ARGOCD_PLUGINSOCKFILEPATH should be set as the same value as repo server env var
 	t.Setenv("ARGOCD_PLUGINSOCKFILEPATH", pluginSockFilePath)
 	if _, err := os.Stat(pluginSockFilePath); os.IsNotExist(err) {
 		// path/to/whatever does not exist
-		err := os.Mkdir(pluginSockFilePath, 0700)
+		err := os.Mkdir(pluginSockFilePath, 0o700)
 		require.NoError(t, err)
 	}
 	FailOnErr(RunWithStdin("", "", "../../dist/argocd", "--config-dir-path", configFile))
@@ -261,13 +262,13 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 		}).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.Bar}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, "baz", output)
 		}).
 		And(func(app *Application) {
 			expectedKubeVersion := GetVersions().ServerVersion.Format("%s.%s")
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, expectedKubeVersion, output)
 		}).
 		And(func(app *Application) {
@@ -276,7 +277,7 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 			sort.Strings(expectedApiVersionSlice)
 
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeApiVersion}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			outputSlice := strings.Split(output, ",")
 			sort.Strings(outputSlice)
 
@@ -303,7 +304,7 @@ func TestPruneResourceFromCMP(t *testing.T) {
 		Expect(DoesNotExist()).
 		AndAction(func() {
 			_, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "deployment", "guestbook-ui")
-			assert.Error(t, err)
+			require.Error(t, err)
 		})
 }
 

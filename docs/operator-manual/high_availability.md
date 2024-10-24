@@ -82,10 +82,16 @@ spec:
 ```
 * In order to manually set the cluster's shard number, specify the optional `shard` property when creating a cluster. If not specified, it will be calculated on the fly by the application controller.
 
-* The shard distribution algorithm of the `argocd-application-controller` can be set by using the `--sharding-method` parameter. Supported sharding methods are : [legacy (default), round-robin]. `legacy` mode uses an `uid` based distribution (non-uniform). `round-robin` uses an equal distribution across all shards. The `--sharding-method` parameter can also be overriden by setting the key `controller.sharding.algorithm` in the `argocd-cmd-params-cm` `configMap` (preferably) or by setting the `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` environment variable and by specifiying the same possible values.
+* The shard distribution algorithm of the `argocd-application-controller` can be set by using the `--sharding-method` parameter. Supported sharding methods are : [legacy (default), round-robin, consistent-hashing]:
+- `legacy` mode uses an `uid` based distribution (non-uniform).
+- `round-robin` uses an equal distribution across all shards.
+- `consistent-hashing` uses the consistent hashing with bounded loads algorithm which tends to equal distribution and also reduces cluster or application reshuffling in case of additions or removals of shards or clusters. 
 
-!!! warning "Alpha Feature"
-    The `round-robin` shard distribution algorithm  is an experimental feature. Reshuffling is known to occur in certain scenarios with cluster removal. If the cluster at rank-0 is removed, reshuffling all clusters across shards will occur and may temporarily have negative performance impacts.
+The `--sharding-method` parameter can also be overridden by setting the key `controller.sharding.algorithm` in the `argocd-cmd-params-cm` `configMap` (preferably) or by setting the `ARGOCD_CONTROLLER_SHARDING_ALGORITHM` environment variable and by specifiying the same possible values.
+
+!!! warning "Alpha Features"
+    The `round-robin` shard distribution algorithm is an experimental feature. Reshuffling is known to occur in certain scenarios with cluster removal. If the cluster at rank-0 is removed, reshuffling all clusters across shards will occur and may temporarily have negative performance impacts.
+    The `consistent-hashing` shard distribution algorithm is an experimental feature. Extensive benchmark have been documented on the [CNOE blog](https://cnoe.io/blog/argo-cd-application-scalability) with encouraging results. Community feedback is highly appreciated before moving this feature to a production ready state.
 
 * A cluster can be manually assigned and forced to a `shard` by patching the `shard` field in the cluster secret to contain the shard number, e.g.
 ```yaml
@@ -124,9 +130,13 @@ stringData:
   count (grouped by k8s api version, the granule of parallelism for list operations). In this case, all resources will
   be buffered in memory -- no api server request will be blocked by processing.
 
+* `ARGOCD_APPLICATION_TREE_SHARD_SIZE` - environment variable controlling the max number of resources stored in one Redis
+  key. Splitting application tree into multiple keys helps to reduce the amount of traffic between the controller and Redis.
+  The default value is 0, which means that the application tree is stored in a single Redis key. The reasonable value is 100.
+
 **metrics**
 
-* `argocd_app_reconcile` - reports application reconciliation duration. Can be used to build reconciliation duration heat map to get a high-level reconciliation performance picture.
+* `argocd_app_reconcile` - reports application reconciliation duration in seconds. Can be used to build reconciliation duration heat map to get a high-level reconciliation performance picture.
 * `argocd_app_k8s_request_total` - number of k8s requests per application. The number of fallback Kubernetes API queries - useful to identify which application has a resource with
 non-preferred version and causes performance issues.
 
@@ -170,25 +180,29 @@ Argo CD repo server maintains one repository clone locally and uses it for appli
 Argo CD determines if manifest generation might change local files in the local repository clone based on the config management tool and application settings.
 If the manifest generation has no side effects then requests are processed in parallel without a performance penalty. The following are known cases that might cause slowness and their workarounds:
 
-  * **Multiple Helm based applications pointing to the same directory in one Git repository:** ensure that your Helm chart doesn't have conditional
-[dependencies](https://helm.sh/docs/chart_best_practices/dependencies/#conditions-and-tags) and create `.argocd-allow-concurrency` file in the chart directory.
+  * **Multiple Helm based applications pointing to the same directory in one Git repository:** for historical reasons Argo CD generates Helm manifests sequentially.  To enable parallel generation set `ARGOCD_HELM_ALLOW_CONCURRENCY=true` to `argocd-repo-server` deployment or create `.argocd-allow-concurrency` file.
+    Future versions of Argo CD will enable this by default.
 
   * **Multiple Custom plugin based applications:** avoid creating temporal files during manifest generation and create `.argocd-allow-concurrency` file in the app directory, or use the sidecar plugin option, which processes each application using a temporary copy of the repository.
 
   * **Multiple Kustomize applications in same repository with [parameter overrides](../user-guide/parameters.md):** sorry, no workaround for now.
 
 
-### Webhook and Manifest Paths Annotation
+### Manifest Paths Annotation
 
 Argo CD aggressively caches generated manifests and uses the repository commit SHA as a cache key. A new commit to the Git repository invalidates the cache for all applications configured in the repository.
 This can negatively affect repositories with multiple applications. You can use [webhooks](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/webhook.md) and the `argocd.argoproj.io/manifest-generate-paths` Application CRD annotation to solve this problem and improve performance.
 
-The `argocd.argoproj.io/manifest-generate-paths` annotation contains a semicolon-separated list of paths within the Git repository that are used during manifest generation. The webhook compares paths specified in the annotation with the changed files specified in the webhook payload. If no modified files match the paths specified in `argocd.argoproj.io/manifest-generate-paths`, then the webhook will not trigger application reconciliation and the existing cache will be considered valid for the new commit.
+The `argocd.argoproj.io/manifest-generate-paths` annotation contains a semicolon-separated list of paths within the Git repository that are used during manifest generation. It will use the paths specified in the annotation to compare the last cached revision to the latest commit. If no modified files match the paths specified in `argocd.argoproj.io/manifest-generate-paths`, then it will not trigger application reconciliation and the existing cache will be considered valid for the new commit.
 
 Installations that use a different repository for each application are **not** subject to this behavior and will likely get no benefit from using these annotations.
 
+Similarly, applications referencing an external Helm values file will not get the benefits of this feature when an unrelated change happens in the external source.
+
+For webhooks, the comparison is done using the files specified in the webhook event payload instead.
+
 !!! note
-    Application manifest paths annotation support depends on the git provider used for the Application. It is currently only supported for GitHub, GitLab, and Gogs based repos.
+    Application manifest paths annotation support for webhooks depends on the git provider used for the Application. It is currently only supported for GitHub, GitLab, and Gogs based repos.
 
 * **Relative path** The annotation might contain a relative path. In this case the path is considered relative to the path specified in the application source:
 
@@ -243,6 +257,28 @@ spec:
     path: my-application
 # ...
 ```
+
+* **Glob paths** The annotation might contain a glob pattern path, which can be any pattern supported by the [Go filepath Match function](https://pkg.go.dev/path/filepath#Match):
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+  annotations:
+    # resolves to any file matching the pattern of *-secret.yaml in the top level shared folder
+    argocd.argoproj.io/manifest-generate-paths: "/shared/*-secret.yaml"
+spec:
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+# ...
+```
+
+!!! note
+    If application manifest generation using the `argocd.argoproj.io/manifest-generate-paths` annotation feature is enabled, only the resources specified by this annotation will be sent to the CMP server for manifest generation, rather than the entire repository. To determine the appropriate resources, a common root path is calculated based on the paths provided in the annotation. The application path serves as the deepest path that can be selected as the root.
 
 ### Application Sync Timeout & Jitter
 
@@ -342,3 +378,17 @@ Not all HTTP responses are eligible for retries. The following conditions will n
 
 * Responses with a status code indicating client errors (4xx) except for 429 Too Many Requests.
 * Responses with the status code 501 Not Implemented.
+
+
+## CPU/Memory Profiling
+
+Argo CD optionally exposes a profiling endpoint that can be used to profile the CPU and memory usage of the Argo CD component.
+The profiling endpoint is available on metrics port of each component. See [metrics](./metrics.md) for more information about the port.
+For security reasons the profiling endpoint is disabled by default. The endpoint can be enabled by setting the `server.profile.enabled`
+or `controller.profile.enabled` key of [argocd-cmd-params-cm](argocd-cmd-params-cm.yaml) ConfigMap to `true`.
+Once the endpoint is enabled you can use go profile tool to collect the CPU and memory profiles. Example:
+
+```bash
+$ kubectl port-forward svc/argocd-metrics 8082:8082
+$ go tool pprof http://localhost:8082/debug/pprof/heap
+```

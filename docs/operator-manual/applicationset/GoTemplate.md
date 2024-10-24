@@ -13,6 +13,7 @@ with hyphens and truncating at 253 characters. This is useful when making parame
 names.
 
 Another `slugify` function has been added which, by default, sanitizes and smart truncates (it doesn't cut a word into 2). This function accepts a couple of arguments:
+
 - The first argument (if provided) is an integer specifying the maximum length of the slug.
 - The second argument (if provided) is a boolean indicating whether smart truncation is enabled.
 - The last argument (if provided) is the input name that needs to be slugified.
@@ -98,6 +99,17 @@ possible with Go text templates:
                     value: "{{.value}}"
                   - name: throw-away
                     value: "{{end}}"
+
+- Signature verification is not supported for the templated `project` field when using the Git generator.
+
+        ::yaml
+        apiVersion: argoproj.io/v1alpha1
+        kind: ApplicationSet
+        spec:
+          goTemplate: true
+          template:
+            spec:
+              project: {{.project}}
 
 
 ## Migration guide
@@ -203,9 +215,9 @@ ApplicationSet controller provides:
 
 - all [sprig](http://masterminds.github.io/sprig/) Go templates function except `env`, `expandenv` and `getHostByName`
 - `normalize`: sanitizes the input so that it complies with the following rules:
-  1. contains no more than 253 characters
-  2. contains only lowercase alphanumeric characters, '-' or '.'
-  3. starts and ends with an alphanumeric character
+    1. contains no more than 253 characters
+    2. contains only lowercase alphanumeric characters, '-' or '.'
+    3. starts and ends with an alphanumeric character
 
 - `slugify`: sanitizes like `normalize` and smart truncates (it doesn't cut a word into 2) like described in the [introduction](#introduction) section.
 - `toYaml` / `fromYaml` / `fromYamlArray` helm like functions

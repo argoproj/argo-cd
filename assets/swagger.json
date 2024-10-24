@@ -384,7 +384,7 @@
         "parameters": [
           {
             "type": "string",
-            "description": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional",
+            "description": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names\n+optional",
             "name": "application.metadata.name",
             "in": "path",
             "required": true
@@ -974,6 +974,25 @@
           {
             "type": "string",
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "int64"
+            },
+            "collectionFormat": "multi",
+            "name": "sourcePositions",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "name": "revisions",
             "in": "query"
           }
         ],
@@ -1614,6 +1633,20 @@
             "type": "string",
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "source index (for multi source apps).",
+            "name": "sourceIndex",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "versionId from historical data (for multi source apps).",
+            "name": "versionId",
+            "in": "query"
           }
         ],
         "responses": {
@@ -1663,6 +1696,20 @@
           {
             "type": "string",
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "source index (for multi source apps).",
+            "name": "sourceIndex",
+            "in": "query"
+          },
+          {
+            "type": "integer",
+            "format": "int32",
+            "description": "versionId from historical data (for multi source apps).",
+            "name": "versionId",
             "in": "query"
           }
         ],
@@ -1920,6 +1967,11 @@
             "type": "boolean",
             "name": "upsert",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "name": "dryRun",
+            "in": "query"
           }
         ],
         "responses": {
@@ -2000,6 +2052,43 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/applicationsetApplicationSetResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applicationsets/{name}/resource-tree": {
+      "get": {
+        "tags": [
+          "ApplicationSetService"
+        ],
+        "summary": "ResourceTree returns resource tree",
+        "operationId": "ApplicationSetService_ResourceTree",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "The application set namespace. Default empty is argocd control plane namespace.",
+            "name": "appsetNamespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1ApplicationSetTree"
             }
           },
           "default": {
@@ -2912,7 +3001,7 @@
         "parameters": [
           {
             "type": "string",
-            "description": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional",
+            "description": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names\n+optional",
             "name": "project.metadata.name",
             "in": "path",
             "required": true
@@ -3115,7 +3204,7 @@
         "parameters": [
           {
             "type": "string",
-            "description": "URL is the URL that this credentials matches to",
+            "description": "URL is the URL to which these credentials match",
             "name": "creds.url",
             "in": "path",
             "required": true
@@ -3194,6 +3283,12 @@
             "type": "boolean",
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
             "in": "query"
           }
         ],
@@ -3317,6 +3412,12 @@
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3352,6 +3453,12 @@
             "type": "boolean",
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
             "in": "query"
           }
         ],
@@ -3437,6 +3544,12 @@
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
             "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
+            "in": "query"
           }
         ],
         "responses": {
@@ -3473,6 +3586,12 @@
             "type": "boolean",
             "description": "Whether to force a cache refresh on repo's connection state.",
             "name": "forceRefresh",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "App project for query.",
+            "name": "appProject",
             "in": "query"
           }
         ],
@@ -4219,6 +4338,19 @@
         "revision": {
           "type": "string"
         },
+        "revisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sourcePositions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "int64"
+          }
+        },
         "strategy": {
           "$ref": "#/definitions/v1alpha1SyncStrategy"
         },
@@ -4357,6 +4489,27 @@
         }
       }
     },
+    "applicationsetApplicationSetGenerateRequest": {
+      "type": "object",
+      "title": "ApplicationSetGetQuery is a query for applicationset resources",
+      "properties": {
+        "applicationSet": {
+          "$ref": "#/definitions/v1alpha1ApplicationSet"
+        }
+      }
+    },
+    "applicationsetApplicationSetGenerateResponse": {
+      "type": "object",
+      "title": "ApplicationSetGenerateResponse is a response for applicationset generate request",
+      "properties": {
+        "applications": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1Application"
+          }
+        }
+      }
+    },
     "applicationsetApplicationSetResponse": {
       "type": "object",
       "properties": {
@@ -4379,6 +4532,46 @@
         "value": {
           "type": "string",
           "title": "Value is the value of the variable"
+        }
+      }
+    },
+    "applicationv1alpha1ResourceStatus": {
+      "type": "object",
+      "title": "ResourceStatus holds the current sync and health status of a resource\nTODO: describe members of this type",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "health": {
+          "$ref": "#/definitions/v1alpha1HealthStatus"
+        },
+        "hook": {
+          "type": "boolean"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "requiresDeletionConfirmation": {
+          "type": "boolean"
+        },
+        "requiresPruning": {
+          "type": "boolean"
+        },
+        "status": {
+          "type": "string"
+        },
+        "syncWave": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "version": {
+          "type": "string"
         }
       }
     },
@@ -4525,6 +4718,12 @@
         },
         "help": {
           "$ref": "#/definitions/clusterHelp"
+        },
+        "impersonationEnabled": {
+          "type": "boolean"
+        },
+        "installationID": {
+          "type": "string"
         },
         "kustomizeOptions": {
           "$ref": "#/definitions/v1alpha1KustomizeOptions"
@@ -4917,6 +5116,13 @@
     "repositoryManifestResponse": {
       "type": "object",
       "properties": {
+        "commands": {
+          "type": "array",
+          "title": "Commands is the list of commands used to hydrate the manifests",
+          "items": {
+            "type": "string"
+          }
+        },
         "manifests": {
           "type": "array",
           "items": {
@@ -5031,6 +5237,16 @@
         },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
+        },
+        "sourceIndex": {
+          "type": "integer",
+          "format": "int32",
+          "title": "source index (for multi source apps)"
+        },
+        "versionId": {
+          "type": "integer",
+          "format": "int32",
+          "title": "versionId from historical data (for multi source apps)"
         }
       }
     },
@@ -5315,7 +5531,7 @@
       "properties": {
         "matchExpressions": {
           "type": "array",
-          "title": "matchExpressions is a list of label selector requirements. The requirements are ANDed.\n+optional",
+          "title": "matchExpressions is a list of label selector requirements. The requirements are ANDed.\n+optional\n+listType=atomic",
           "items": {
             "$ref": "#/definitions/v1LabelSelectorRequirement"
           }
@@ -5334,8 +5550,8 @@
       "type": "object",
       "properties": {
         "key": {
-          "type": "string",
-          "title": "key is the label key that the selector applies to.\n+patchMergeKey=key\n+patchStrategy=merge"
+          "description": "key is the label key that the selector applies to.",
+          "type": "string"
         },
         "operator": {
           "description": "operator represents a key's relationship to a set of values.\nValid operators are In, NotIn, Exists and DoesNotExist.",
@@ -5343,7 +5559,7 @@
         },
         "values": {
           "type": "array",
-          "title": "values is an array of string values. If the operator is In or NotIn,\nthe values array must be non-empty. If the operator is Exists or DoesNotExist,\nthe values array must be empty. This array is replaced during a strategic\nmerge patch.\n+optional",
+          "title": "values is an array of string values. If the operator is In or NotIn,\nthe values array must be non-empty. If the operator is Exists or DoesNotExist,\nthe values array must be empty. This array is replaced during a strategic\nmerge patch.\n+optional\n+listType=atomic",
           "items": {
             "type": "string"
           }
@@ -5384,6 +5600,10 @@
         "ip": {
           "type": "string",
           "title": "IP is set for load-balancer ingress points that are IP based\n(typically GCE or OpenStack load-balancers)\n+optional"
+        },
+        "ipMode": {
+          "type": "string",
+          "title": "IPMode specifies how the load-balancer IP behaves, and may only be specified when the ip field is specified.\nSetting this to \"VIP\" indicates that traffic is delivered to the node with\nthe destination set to the load-balancer's IP and port.\nSetting this to \"Proxy\" indicates that traffic is delivered to the node or pod with\nthe destination set to the node's IP and node port or the pod's IP and port.\nService implementations may use this information to adjust traffic routing.\n+optional"
         },
         "ports": {
           "type": "array",
@@ -5463,7 +5683,7 @@
           "type": "string"
         },
         "kubeProxyVersion": {
-          "description": "KubeProxy Version reported by the node.",
+          "description": "Deprecated: KubeProxy Version reported by the node.",
           "type": "string"
         },
         "kubeletVersion": {
@@ -5494,7 +5714,7 @@
       "properties": {
         "annotations": {
           "type": "object",
-          "title": "Annotations is an unstructured key value map stored with a resource that may be\nset by external tools to store and retrieve arbitrary metadata. They are not\nqueryable and should be preserved when modifying objects.\nMore info: http://kubernetes.io/docs/user-guide/annotations\n+optional",
+          "title": "Annotations is an unstructured key value map stored with a resource that may be\nset by external tools to store and retrieve arbitrary metadata. They are not\nqueryable and should be preserved when modifying objects.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations\n+optional",
           "additionalProperties": {
             "type": "string"
           }
@@ -5512,7 +5732,7 @@
         },
         "finalizers": {
           "type": "array",
-          "title": "Must be empty before the object is deleted from the registry. Each entry\nis an identifier for the responsible component that will remove the entry\nfrom the list. If the deletionTimestamp of the object is non-nil, entries\nin this list can only be removed.\nFinalizers may be processed and removed in any order.  Order is NOT enforced\nbecause it introduces significant risk of stuck finalizers.\nfinalizers is a shared field, any actor with permission can reorder it.\nIf the finalizer list is processed in order, then this can lead to a situation\nin which the component responsible for the first finalizer in the list is\nwaiting for a signal (field value, external system, or other) produced by a\ncomponent responsible for a finalizer later in the list, resulting in a deadlock.\nWithout enforced ordering finalizers are free to order amongst themselves and\nare not vulnerable to ordering changes in the list.\n+optional\n+patchStrategy=merge",
+          "title": "Must be empty before the object is deleted from the registry. Each entry\nis an identifier for the responsible component that will remove the entry\nfrom the list. If the deletionTimestamp of the object is non-nil, entries\nin this list can only be removed.\nFinalizers may be processed and removed in any order.  Order is NOT enforced\nbecause it introduces significant risk of stuck finalizers.\nfinalizers is a shared field, any actor with permission can reorder it.\nIf the finalizer list is processed in order, then this can lead to a situation\nin which the component responsible for the first finalizer in the list is\nwaiting for a signal (field value, external system, or other) produced by a\ncomponent responsible for a finalizer later in the list, resulting in a deadlock.\nWithout enforced ordering finalizers are free to order amongst themselves and\nare not vulnerable to ordering changes in the list.\n+optional\n+patchStrategy=merge\n+listType=set",
           "items": {
             "type": "string"
           }
@@ -5528,13 +5748,13 @@
         },
         "labels": {
           "type": "object",
-          "title": "Map of string keys and values that can be used to organize and categorize\n(scope and select) objects. May match selectors of replication controllers\nand services.\nMore info: http://kubernetes.io/docs/user-guide/labels\n+optional",
+          "title": "Map of string keys and values that can be used to organize and categorize\n(scope and select) objects. May match selectors of replication controllers\nand services.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels\n+optional",
           "additionalProperties": {
             "type": "string"
           }
         },
         "managedFields": {
-          "description": "ManagedFields maps workflow-id and version to the set of fields\nthat are managed by that workflow. This is mostly for internal\nhousekeeping, and users typically shouldn't need to set or\nunderstand this field. A workflow can be the user's name, a\ncontroller's name, or the name of a specific apply path like\n\"ci-cd\". The set of fields is always in the version that the\nworkflow used when modifying the object.\n\n+optional",
+          "description": "ManagedFields maps workflow-id and version to the set of fields\nthat are managed by that workflow. This is mostly for internal\nhousekeeping, and users typically shouldn't need to set or\nunderstand this field. A workflow can be the user's name, a\ncontroller's name, or the name of a specific apply path like\n\"ci-cd\". The set of fields is always in the version that the\nworkflow used when modifying the object.\n\n+optional\n+listType=atomic",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1ManagedFieldsEntry"
@@ -5542,15 +5762,15 @@
         },
         "name": {
           "type": "string",
-          "title": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names\n+optional"
+          "title": "Name must be unique within a namespace. Is required when creating resources, although\nsome resources may allow a client to request the generation of an appropriate name\nautomatically. Name is primarily intended for creation idempotence and configuration\ndefinition.\nCannot be updated.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names\n+optional"
         },
         "namespace": {
-          "description": "Namespace defines the space within which each name must be unique. An empty namespace is\nequivalent to the \"default\" namespace, but \"default\" is the canonical representation.\nNot all objects are required to be scoped to a namespace - the value of this field for\nthose objects will be empty.\n\nMust be a DNS_LABEL.\nCannot be updated.\nMore info: http://kubernetes.io/docs/user-guide/namespaces\n+optional",
+          "description": "Namespace defines the space within which each name must be unique. An empty namespace is\nequivalent to the \"default\" namespace, but \"default\" is the canonical representation.\nNot all objects are required to be scoped to a namespace - the value of this field for\nthose objects will be empty.\n\nMust be a DNS_LABEL.\nCannot be updated.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces\n+optional",
           "type": "string"
         },
         "ownerReferences": {
           "type": "array",
-          "title": "List of objects depended by this object. If ALL objects in the list have\nbeen deleted, this object will be garbage collected. If this object is managed by a controller,\nthen an entry in this list will point to this controller, with the controller field set to true.\nThere cannot be more than one managing controller.\n+optional\n+patchMergeKey=uid\n+patchStrategy=merge",
+          "title": "List of objects depended by this object. If ALL objects in the list have\nbeen deleted, this object will be garbage collected. If this object is managed by a controller,\nthen an entry in this list will point to this controller, with the controller field set to true.\nThere cannot be more than one managing controller.\n+optional\n+patchMergeKey=uid\n+patchStrategy=merge\n+listType=map\n+listMapKey=uid",
           "items": {
             "$ref": "#/definitions/v1OwnerReference"
           }
@@ -5564,7 +5784,7 @@
           "title": "Deprecated: selfLink is a legacy read-only field that is no longer populated by the system.\n+optional"
         },
         "uid": {
-          "description": "UID is the unique in time and space value for this object. It is typically generated by\nthe server on successful creation of a resource and is not allowed to change on PUT\noperations.\n\nPopulated by the system.\nRead-only.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids\n+optional",
+          "description": "UID is the unique in time and space value for this object. It is typically generated by\nthe server on successful creation of a resource and is not allowed to change on PUT\noperations.\n\nPopulated by the system.\nRead-only.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids\n+optional",
           "type": "string"
         }
       }
@@ -5625,11 +5845,11 @@
         },
         "name": {
           "type": "string",
-          "title": "Name of the referent.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#names"
+          "title": "Name of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#names"
         },
         "uid": {
           "type": "string",
-          "title": "UID of the referent.\nMore info: http://kubernetes.io/docs/user-guide/identifiers#uids"
+          "title": "UID of the referent.\nMore info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names#uids"
         }
       }
     },
@@ -5726,6 +5946,13 @@
           "type": "string",
           "title": "Description contains optional project description"
         },
+        "destinationServiceAccounts": {
+          "description": "DestinationServiceAccounts holds information about the service accounts to be impersonated for the application sync operation for each destination.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationDestinationServiceAccount"
+          }
+        },
         "destinations": {
           "type": "array",
           "title": "Destinations contains list of destinations available for deployment",
@@ -5806,7 +6033,7 @@
     },
     "v1alpha1Application": {
       "type": "object",
-      "title": "Application is a definition of Application resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applications,shortName=app;apps\n+kubebuilder:printcolumn:name=\"Sync Status\",type=string,JSONPath=`.status.sync.status`\n+kubebuilder:printcolumn:name=\"Health Status\",type=string,JSONPath=`.status.health.status`\n+kubebuilder:printcolumn:name=\"Revision\",type=string,JSONPath=`.status.sync.revision`,priority=10",
+      "title": "Application is a definition of Application resource.\n+genclient\n+genclient:noStatus\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object\n+kubebuilder:resource:path=applications,shortName=app;apps\n+kubebuilder:printcolumn:name=\"Sync Status\",type=string,JSONPath=`.status.sync.status`\n+kubebuilder:printcolumn:name=\"Health Status\",type=string,JSONPath=`.status.health.status`\n+kubebuilder:printcolumn:name=\"Revision\",type=string,JSONPath=`.status.sync.revision`,priority=10\n+kubebuilder:printcolumn:name=\"Project\",type=string,JSONPath=`.spec.project`,priority=10",
       "properties": {
         "metadata": {
           "$ref": "#/definitions/v1ObjectMeta"
@@ -5853,6 +6080,24 @@
         },
         "server": {
           "description": "Server specifies the URL of the target cluster's Kubernetes control plane API. This must be set if Name is not set.",
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ApplicationDestinationServiceAccount": {
+      "description": "ApplicationDestinationServiceAccount holds information about the service account to be impersonated for the application sync operation.",
+      "type": "object",
+      "properties": {
+        "defaultServiceAccount": {
+          "type": "string",
+          "title": "DefaultServiceAccount to be used for impersonation during the sync operation"
+        },
+        "namespace": {
+          "description": "Namespace specifies the target namespace for the application's resources.",
+          "type": "string"
+        },
+        "server": {
+          "description": "Server specifies the URL of the target cluster's Kubernetes control plane API.",
           "type": "string"
         }
       }
@@ -5943,12 +6188,19 @@
         "step": {
           "type": "string",
           "title": "Step tracks which step this Application should be updated in"
+        },
+        "targetrevisions": {
+          "description": "TargetRevision tracks the desired revisions the Application should be synced to.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },
     "v1alpha1ApplicationSetCondition": {
       "type": "object",
-      "title": "ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning",
+      "title": "ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning",
       "properties": {
         "lastTransitionTime": {
           "$ref": "#/definitions/v1Time"
@@ -6169,6 +6421,13 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ApplicationSetCondition"
           }
+        },
+        "resources": {
+          "description": "Resources is a list of Applications resources managed by this application set.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationv1alpha1ResourceStatus"
+          }
         }
       }
     },
@@ -6240,6 +6499,19 @@
         }
       }
     },
+    "v1alpha1ApplicationSetTree": {
+      "type": "object",
+      "title": "ApplicationSetTree holds nodes which belongs to the application\nUsed to build a tree of an ApplicationSet and its children",
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "title": "Nodes contains list of nodes which are directly managed by the applicationset",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceNode"
+          }
+        }
+      }
+    },
     "v1alpha1ApplicationSource": {
       "type": "object",
       "title": "ApplicationSource contains all required information about the source of an application",
@@ -6303,6 +6575,13 @@
       "type": "object",
       "title": "ApplicationSourceHelm holds helm specific options",
       "properties": {
+        "apiVersions": {
+          "description": "APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,\nArgo CD uses the API versions of the target cluster. The format is [group/]version/kind.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "fileParameters": {
           "type": "array",
           "title": "FileParameters are file parameters to the helm template",
@@ -6313,6 +6592,14 @@
         "ignoreMissingValueFiles": {
           "type": "boolean",
           "title": "IgnoreMissingValueFiles prevents helm template from failing when valueFiles do not exist locally by not appending them to helm template --values"
+        },
+        "kubeVersion": {
+          "description": "KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD\nuses the Kubernetes version of the target cluster.",
+          "type": "string"
+        },
+        "namespace": {
+          "description": "Namespace is an optional namespace to template with. If left empty, defaults to the app's destination namespace.",
+          "type": "string"
         },
         "parameters": {
           "type": "array",
@@ -6332,6 +6619,10 @@
         "skipCrds": {
           "type": "boolean",
           "title": "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)"
+        },
+        "skipTests": {
+          "description": "SkipTests skips test manifest installation step (Helm's --skip-tests).",
+          "type": "boolean"
         },
         "valueFiles": {
           "type": "array",
@@ -6384,6 +6675,13 @@
       "type": "object",
       "title": "ApplicationSourceKustomize holds options specific to an Application source specific to Kustomize",
       "properties": {
+        "apiVersions": {
+          "description": "APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,\nArgo CD uses the API versions of the target cluster. The format is [group/]version/kind.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "commonAnnotations": {
           "type": "object",
           "title": "CommonAnnotations is a list of additional annotations to add to rendered manifests",
@@ -6423,6 +6721,10 @@
           "items": {
             "type": "string"
           }
+        },
+        "kubeVersion": {
+          "description": "KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD\nuses the Kubernetes version of the target cluster.",
+          "type": "string"
         },
         "labelWithoutSelector": {
           "type": "boolean",
@@ -6595,7 +6897,7 @@
           "type": "array",
           "title": "Resources is a list of Kubernetes resources managed by this application",
           "items": {
-            "$ref": "#/definitions/v1alpha1ResourceStatus"
+            "$ref": "#/definitions/applicationv1alpha1ResourceStatus"
           }
         },
         "sourceType": {
@@ -6661,6 +6963,11 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceNode"
           }
+        },
+        "shardsCount": {
+          "type": "integer",
+          "format": "int64",
+          "title": "ShardsCount contains total number of shards the application tree is split into"
         }
       }
     },
@@ -6705,6 +7012,15 @@
         "username": {
           "type": "string",
           "title": "Username for Basic auth"
+        }
+      }
+    },
+    "v1alpha1BearerTokenBitbucket": {
+      "description": "BearerTokenBitbucket defines the Bearer token for BitBucket AppToken auth.",
+      "type": "object",
+      "properties": {
+        "tokenRef": {
+          "$ref": "#/definitions/v1alpha1SecretRef"
         }
       }
     },
@@ -6792,7 +7108,7 @@
         },
         "serverVersion": {
           "type": "string",
-          "title": "DEPRECATED: use Info.ServerVersion field instead.\nThe server version"
+          "title": "Deprecated: use Info.ServerVersion field instead.\nThe server version"
         },
         "shard": {
           "description": "Shard contains optional shard number. Calculated on the fly by the application controller if not specified.",
@@ -6831,11 +7147,19 @@
           "description": "Server requires Bearer authentication. This client will not attempt to use\nrefresh tokens for an OAuth2 flow.\nTODO: demonstrate an OAuth2 compatible client.",
           "type": "string"
         },
+        "disableCompression": {
+          "description": "DisableCompression bypasses automatic GZip compression requests to the server.",
+          "type": "boolean"
+        },
         "execProviderConfig": {
           "$ref": "#/definitions/v1alpha1ExecProviderConfig"
         },
         "password": {
           "type": "string"
+        },
+        "proxyUrl": {
+          "type": "string",
+          "title": "ProxyURL is the URL to the proxy to be used for all requests send to the server"
         },
         "tlsClientConfig": {
           "$ref": "#/definitions/v1alpha1TLSClientConfig"
@@ -6850,6 +7174,10 @@
       "description": "ClusterGenerator defines a generator to match against clusters registered with ArgoCD.",
       "type": "object",
       "properties": {
+        "flatList": {
+          "type": "boolean",
+          "title": "returns the clusters a single 'clusters' value in the template"
+        },
         "selector": {
           "$ref": "#/definitions/v1LabelSelector"
         },
@@ -6966,6 +7294,18 @@
           "type": "boolean"
         },
         "name": {
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1ConfigMapKeyRef": {
+      "description": "Utility struct for a reference to a configmap key.",
+      "type": "object",
+      "properties": {
+        "configMapName": {
+          "type": "string"
+        },
+        "key": {
           "type": "string"
         }
       }
@@ -7413,6 +7753,7 @@
       "properties": {
         "elements": {
           "type": "array",
+          "title": "+kubebuilder:validation:Optional",
           "items": {
             "$ref": "#/definitions/v1JSON"
           }
@@ -7793,6 +8134,16 @@
         "basicAuth": {
           "$ref": "#/definitions/v1alpha1BasicAuthBitbucketServer"
         },
+        "bearerToken": {
+          "$ref": "#/definitions/v1alpha1BearerTokenBitbucket"
+        },
+        "caRef": {
+          "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
+        },
+        "insecure": {
+          "type": "boolean",
+          "title": "Allow self-signed TLS / Certificates; default: false"
+        },
         "project": {
           "description": "Project to scan. Required.",
           "type": "string"
@@ -7822,6 +8173,9 @@
         "api": {
           "description": "The GitLab API URL to talk to. If blank, uses https://gitlab.com/.",
           "type": "string"
+        },
+        "caRef": {
+          "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
         },
         "insecure": {
           "type": "boolean",
@@ -7938,6 +8292,10 @@
           "type": "string",
           "title": "GithubAppPrivateKey specifies the private key PEM data for authentication via GitHub app"
         },
+        "noProxy": {
+          "type": "string",
+          "title": "NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied"
+        },
         "password": {
           "type": "string",
           "title": "Password for authenticating at the repo server"
@@ -7964,7 +8322,7 @@
         },
         "url": {
           "type": "string",
-          "title": "URL is the URL that this credentials matches to"
+          "title": "URL is the URL to which these credentials match"
         },
         "username": {
           "type": "string",
@@ -8044,13 +8402,17 @@
           "type": "string",
           "title": "Name specifies a name to be used for this repo. Only used with Helm repos"
         },
+        "noProxy": {
+          "type": "string",
+          "title": "NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied"
+        },
         "password": {
           "type": "string",
           "title": "Password contains the password or PAT used for authenticating at the remote repository"
         },
         "project": {
           "type": "string",
-          "title": "Reference between project and repository that allow you automatically to be added as item inside SourceRepos project entity"
+          "title": "Reference between project and repository that allows it to be automatically added as an item inside SourceRepos project entity"
         },
         "proxy": {
           "type": "string",
@@ -8441,43 +8803,6 @@
         }
       }
     },
-    "v1alpha1ResourceStatus": {
-      "type": "object",
-      "title": "ResourceStatus holds the current sync and health status of a resource\nTODO: describe members of this type",
-      "properties": {
-        "group": {
-          "type": "string"
-        },
-        "health": {
-          "$ref": "#/definitions/v1alpha1HealthStatus"
-        },
-        "hook": {
-          "type": "boolean"
-        },
-        "kind": {
-          "type": "string"
-        },
-        "name": {
-          "type": "string"
-        },
-        "namespace": {
-          "type": "string"
-        },
-        "requiresPruning": {
-          "type": "boolean"
-        },
-        "status": {
-          "type": "string"
-        },
-        "syncWave": {
-          "type": "integer",
-          "format": "int64"
-        },
-        "version": {
-          "type": "string"
-        }
-      }
-    },
     "v1alpha1RetryStrategy": {
       "type": "object",
       "title": "RetryStrategy contains information about the strategy to apply when a sync failed",
@@ -8700,6 +9025,16 @@
         "basicAuth": {
           "$ref": "#/definitions/v1alpha1BasicAuthBitbucketServer"
         },
+        "bearerToken": {
+          "$ref": "#/definitions/v1alpha1BearerTokenBitbucket"
+        },
+        "caRef": {
+          "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
+        },
+        "insecure": {
+          "type": "boolean",
+          "title": "Allow self-signed TLS / Certificates; default: false"
+        },
         "project": {
           "description": "Project to scan. Required.",
           "type": "string"
@@ -8800,6 +9135,9 @@
           "description": "The Gitlab API URL to talk to.",
           "type": "string"
         },
+        "caRef": {
+          "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
+        },
         "group": {
           "description": "Gitlab group to scan. Required.  You can use either the project id (recommended) or the full namespaced path.",
           "type": "string"
@@ -8851,6 +9189,11 @@
       "description": "SyncOperation contains details about a sync operation.",
       "type": "object",
       "properties": {
+        "autoHealAttemptsCount": {
+          "type": "integer",
+          "format": "int64",
+          "title": "SelfHealAttemptsCount contains the number of auto-heal attempts"
+        },
         "dryRun": {
           "type": "boolean",
           "title": "DryRun specifies to perform a `kubectl apply --dry-run` without actually performing the sync"

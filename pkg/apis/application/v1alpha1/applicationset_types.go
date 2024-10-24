@@ -35,6 +35,12 @@ type SecretRef struct {
 	Key        string `json:"key" protobuf:"bytes,2,opt,name=key"`
 }
 
+// Utility struct for a reference to a configmap key.
+type ConfigMapKeyRef struct {
+	ConfigMapName string `json:"configMapName" protobuf:"bytes,1,opt,name=configMapName"`
+	Key           string `json:"key" protobuf:"bytes,2,opt,name=key"`
+}
+
 // ApplicationSet is a set of Application resources
 // +genclient
 // +genclient:noStatus
@@ -260,6 +266,7 @@ func (g ApplicationSetTerminalGenerators) toApplicationSetNestedGenerators() []A
 
 // ListGenerator include items info
 type ListGenerator struct {
+	// +kubebuilder:validation:Optional
 	Elements     []apiextensionsv1.JSON `json:"elements" protobuf:"bytes,1,name=elements"`
 	Template     ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
 	ElementsYaml string                 `json:"elementsYaml,omitempty" protobuf:"bytes,3,opt,name=elementsYaml"`
@@ -372,6 +379,9 @@ type ClusterGenerator struct {
 
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values map[string]string `json:"values,omitempty" protobuf:"bytes,3,name=values"`
+
+	// returns the clusters a single 'clusters' value in the template
+	FlatList bool `json:"flatList,omitempty" protobuf:"bytes,4,name=flatList"`
 }
 
 // DuckType defines a generator to match against clusters registered with ArgoCD.
@@ -497,6 +507,8 @@ type SCMProviderGeneratorGitlab struct {
 	IncludeSharedProjects *bool `json:"includeSharedProjects,omitempty" protobuf:"varint,7,opt,name=includeSharedProjects"`
 	// Filter repos list based on Gitlab Topic.
 	Topic string `json:"topic,omitempty" protobuf:"bytes,8,opt,name=topic"`
+	// ConfigMap key holding the trusted certificates
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,9,opt,name=caRef"`
 }
 
 func (s *SCMProviderGeneratorGitlab) WillIncludeSharedProjects() bool {
@@ -525,6 +537,12 @@ type SCMProviderGeneratorBitbucketServer struct {
 	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,3,opt,name=basicAuth"`
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,4,opt,name=allBranches"`
+	// Credentials for AccessToken (Bearer auth)
+	BearerToken *BearerTokenBitbucket `json:"bearerToken,omitempty" protobuf:"bytes,5,opt,name=bearerToken"`
+	// Allow self-signed TLS / Certificates; default: false
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
+	// ConfigMap key holding the trusted certificates
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,7,opt,name=caRef"`
 }
 
 // SCMProviderGeneratorAzureDevOps defines connection info specific to Azure DevOps.
@@ -676,6 +694,8 @@ type PullRequestGeneratorGitLab struct {
 	PullRequestState string `json:"pullRequestState,omitempty" protobuf:"bytes,5,rep,name=pullRequestState"`
 	// Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
+	// ConfigMap key holding the trusted certificates
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,7,opt,name=caRef"`
 }
 
 // PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.
@@ -688,6 +708,12 @@ type PullRequestGeneratorBitbucketServer struct {
 	API string `json:"api" protobuf:"bytes,3,opt,name=api"`
 	// Credentials for Basic auth
 	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,4,opt,name=basicAuth"`
+	// Credentials for AccessToken (Bearer auth)
+	BearerToken *BearerTokenBitbucket `json:"bearerToken,omitempty" protobuf:"bytes,5,opt,name=bearerToken"`
+	// Allow self-signed TLS / Certificates; default: false
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
+	// ConfigMap key holding the trusted certificates
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,7,opt,name=caRef"`
 }
 
 // PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.
@@ -702,6 +728,12 @@ type PullRequestGeneratorBitbucket struct {
 	BasicAuth *BasicAuthBitbucketServer `json:"basicAuth,omitempty" protobuf:"bytes,4,opt,name=basicAuth"`
 	// Credentials for AppToken (Bearer auth)
 	BearerToken *BearerTokenBitbucketCloud `json:"bearerToken,omitempty" protobuf:"bytes,5,opt,name=bearerToken"`
+}
+
+// BearerTokenBitbucket defines the Bearer token for BitBucket AppToken auth.
+type BearerTokenBitbucket struct {
+	// Password (or personal access token) reference.
+	TokenRef *SecretRef `json:"tokenRef" protobuf:"bytes,1,opt,name=tokenRef"`
 }
 
 // BearerTokenBitbucketCloud defines the Bearer token for BitBucket AppToken auth.
@@ -758,9 +790,11 @@ type ApplicationSetStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 	Conditions        []ApplicationSetCondition         `json:"conditions,omitempty" protobuf:"bytes,1,name=conditions"`
 	ApplicationStatus []ApplicationSetApplicationStatus `json:"applicationStatus,omitempty" protobuf:"bytes,2,name=applicationStatus"`
+	// Resources is a list of Applications resources managed by this application set.
+	Resources []ResourceStatus `json:"resources,omitempty" protobuf:"bytes,3,opt,name=resources"`
 }
 
-// ApplicationSetCondition contains details about an applicationset condition, which is usally an error or warning
+// ApplicationSetCondition contains details about an applicationset condition, which is usually an error or warning
 type ApplicationSetCondition struct {
 	// Type is an applicationset condition type
 	Type ApplicationSetConditionType `json:"type" protobuf:"bytes,1,opt,name=type"`
@@ -770,7 +804,7 @@ type ApplicationSetCondition struct {
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
 	// True/False/Unknown
 	Status ApplicationSetConditionStatus `json:"status" protobuf:"bytes,4,opt,name=status"`
-	//Single word camelcase representing the reason for the status eg ErrorOccurred
+	// Single word camelcase representing the reason for the status eg ErrorOccurred
 	Reason string `json:"reason" protobuf:"bytes,5,opt,name=reason"`
 }
 
@@ -832,6 +866,8 @@ type ApplicationSetApplicationStatus struct {
 	Status string `json:"status" protobuf:"bytes,4,opt,name=status"`
 	// Step tracks which step this Application should be updated in
 	Step string `json:"step" protobuf:"bytes,5,opt,name=step"`
+	// TargetRevision tracks the desired revisions the Application should be synced to.
+	TargetRevisions []string `json:"targetRevisions" protobuf:"bytes,6,opt,name=targetrevisions"`
 }
 
 // ApplicationSetList contains a list of ApplicationSet
@@ -841,6 +877,21 @@ type ApplicationSetList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []ApplicationSet `json:"items" protobuf:"bytes,2,rep,name=items"`
+}
+
+// ApplicationSetTree holds nodes which belongs to the application
+// Used to build a tree of an ApplicationSet and its children
+type ApplicationSetTree struct {
+	// Nodes contains list of nodes which are directly managed by the applicationset
+	Nodes []ResourceNode `json:"nodes,omitempty" protobuf:"bytes,1,rep,name=nodes"`
+}
+
+// Normalize sorts applicationset tree nodes. The persistent order allows to
+// effectively compare previously cached app tree and allows to unnecessary Redis requests.
+func (t *ApplicationSetTree) Normalize() {
+	sort.Slice(t.Nodes, func(i, j int) bool {
+		return t.Nodes[i].FullName() < t.Nodes[j].FullName()
+	})
 }
 
 // func init() {

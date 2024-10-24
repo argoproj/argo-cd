@@ -100,11 +100,18 @@ func NewCluster(name string, namespaces []string, clusterResources bool, conf *r
 			TLSClientConfig:    tlsClientConfig,
 			AWSAuthConfig:      awsAuthConf,
 			ExecProviderConfig: execProviderConf,
+			DisableCompression: conf.DisableCompression,
 		},
 		Labels:      labels,
 		Annotations: annotations,
 	}
-
+	// it's a tradeoff to get proxy url from rest config
+	// more detail: https://github.com/kubernetes/kubernetes/pull/81443
+	if conf.Proxy != nil {
+		if url, err := conf.Proxy(nil); err == nil {
+			clst.Config.ProxyUrl = url.String()
+		}
+	}
 	// Bearer token will preferentially be used for auth if present,
 	// Even in presence of key/cert credentials
 	// So set bearer token only if the key/cert data is absent
@@ -130,7 +137,7 @@ func GetKubePublicEndpoint(client kubernetes.Interface) (string, error) {
 	config := &clientcmdapiv1.Config{}
 	err = yaml.Unmarshal([]byte(kubeconfig), config)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse cluster-info kubeconfig: %v", err)
+		return "", fmt.Errorf("failed to parse cluster-info kubeconfig: %w", err)
 	}
 	if len(config.Clusters) == 0 {
 		return "", fmt.Errorf("cluster-info kubeconfig does not have any clusters")
@@ -158,6 +165,8 @@ type ClusterOptions struct {
 	ExecProviderAPIVersion  string
 	ExecProviderInstallHint string
 	ClusterEndpoint         string
+	DisableCompression      bool
+	ProxyUrl                string
 }
 
 // InClusterEndpoint returns true if ArgoCD should reference the in-cluster
@@ -182,4 +191,5 @@ func AddClusterFlags(command *cobra.Command, opts *ClusterOptions) {
 	command.Flags().StringVar(&opts.ExecProviderAPIVersion, "exec-command-api-version", "", "Preferred input version of the ExecInfo for the --exec-command executable")
 	command.Flags().StringVar(&opts.ExecProviderInstallHint, "exec-command-install-hint", "", "Text shown to the user when the --exec-command executable doesn't seem to be present")
 	command.Flags().StringVar(&opts.ClusterEndpoint, "cluster-endpoint", "", "Cluster endpoint to use. Can be one of the following: 'kubeconfig', 'kube-public', or 'internal'.")
+	command.Flags().BoolVar(&opts.DisableCompression, "disable-compression", false, "Bypasses automatic GZip compression requests to the server")
 }

@@ -178,7 +178,7 @@ entrypoint. You can use either off-the-shelf or custom-built plugin image as sid
 containers:
 - name: my-plugin
   command: [/var/run/argocd/argocd-cmp-server] # Entrypoint should be Argo CD lightweight CMP server i.e. argocd-cmp-server
-  image: busybox # This can be off-the-shelf or custom-built image
+  image: ubuntu # This can be off-the-shelf or custom-built image
   securityContext:
     runAsNonRoot: true
     runAsUser: 999
@@ -359,6 +359,16 @@ You can set it one of three ways:
 For option 1, the flag can be repeated multiple times. For option 2 and 3, you can specify multiple globs by separating
 them with semicolons.
 
+## Application manifests generation using argocd.argoproj.io/manifest-generate-paths
+
+To enhance the application manifests generation process, you can enable the use of the `argocd.argoproj.io/manifest-generate-paths` annotation. When this flag is enabled, the resources specified by this annotation will be passed to the CMP server for generating application manifests, rather than sending the entire repository. This can be particularly useful for monorepos.
+
+You can set it one of three ways:
+
+1. The `--plugin-use-manifest-generate-paths` argument on the repo server.
+2. The `reposerver.plugin.use.manifest.generate.paths` key if you are using `argocd-cmd-params-cm`
+3. Directly setting `ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS` environment variable on the repo server to `true`.
+
 ## Migrating from argocd-cm plugins
 
 Installing plugins by modifying the argocd-cm ConfigMap is deprecated as of v2.4 and has been completely removed starting in v2.8.
@@ -458,7 +468,7 @@ Plugins configured with argocd-cm ran on the Argo CD image. This gave it access 
 image by default (see the [Dockerfile](https://github.com/argoproj/argo-cd/blob/master/Dockerfile) for base image and
 installed tools).
 
-You can either use a stock image (like busybox, or alpine/k8s) or design your own base image with the tools your plugin needs. For
+You can either use a stock image (like ubuntu, busybox, or alpine/k8s) or design your own base image with the tools your plugin needs. For
 security, avoid using images with more binaries installed than what your plugin actually needs.
 
 ### Test the plugin

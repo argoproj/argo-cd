@@ -19,7 +19,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/common"
@@ -41,7 +41,7 @@ import (
 )
 
 func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "cluster",
 		Short: "Manage clusters configuration",
 		Example: `
@@ -104,7 +104,12 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 		if err != nil {
 			return nil, err
 		}
-		client := redis.NewClient(&redis.Options{Addr: fmt.Sprintf("localhost:%d", port)})
+
+		redisOptions := &redis.Options{Addr: fmt.Sprintf("localhost:%d", port)}
+		if err = common.SetOptionalRedisPasswordFromKubeConfig(ctx, kubeClient, namespace, redisOptions); err != nil {
+			log.Warnf("Failed to fetch & set redis password for namespace %s: %v", namespace, err)
+		}
+		client := redis.NewClient(redisOptions)
 		compressionType, err := cacheutil.CompressionTypeFromString(redisCompressionStr)
 		if err != nil {
 			return nil, err
@@ -141,7 +146,7 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 			cluster := batch[i]
 			if replicas > 0 {
 				clusterShard = clusterShards[cluster.Server]
-				cluster.Shard = pointer.Int64(int64(clusterShard))
+				cluster.Shard = ptr.To(int64(clusterShard))
 				log.Infof("Cluster with uid: %s will be processed by shard %d", cluster.ID, clusterShard)
 			}
 			if shard != -1 && clusterShard != shard {
@@ -168,7 +173,8 @@ func loadClusters(ctx context.Context, kubeClient *kubernetes.Clientset, appClie
 func getControllerReplicas(ctx context.Context, kubeClient *kubernetes.Clientset, namespace string, appControllerName string) (int, error) {
 	appControllerPodLabelSelector := common.LabelKeyAppName + "=" + appControllerName
 	controllerPods, err := kubeClient.CoreV1().Pods(namespace).List(ctx, v1.ListOptions{
-		LabelSelector: appControllerPodLabelSelector})
+		LabelSelector: appControllerPodLabelSelector,
+	})
 	if err != nil {
 		return 0, err
 	}
@@ -185,7 +191,7 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 		portForwardRedis    bool
 		redisCompressionStr string
 	)
-	var command = cobra.Command{
+	command := cobra.Command{
 		Use:   "shards",
 		Short: "Print information about each controller shard and the estimated portion of Kubernetes resources it is responsible for.",
 		Run: func(cmd *cobra.Command, args []string) {
@@ -219,7 +225,7 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().IntVar(&shard, "shard", -1, "Cluster shard filter")
 	command.Flags().IntVar(&replicas, "replicas", 0, "Application controller replicas count. Inferred from number of running controller pods if not specified")
-	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", common.DefaultShardingAlgorithm, "Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin] ")
+	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", common.DefaultShardingAlgorithm, "Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin, consistent-hashing] ")
 	command.Flags().BoolVar(&portForwardRedis, "port-forward-redis", true, "Automatically port-forward ha proxy redis from current namespace?")
 
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command)
@@ -311,10 +317,8 @@ func runClusterNamespacesCommand(ctx context.Context, clientConfig clientcmd.Cli
 }
 
 func NewClusterNamespacesCommand() *cobra.Command {
-	var (
-		clientConfig clientcmd.ClientConfig
-	)
-	var command = cobra.Command{
+	var clientConfig clientcmd.ClientConfig
+	command := cobra.Command{
 		Use:   "namespaces",
 		Short: "Print information namespaces which Argo CD manages in each cluster.",
 		Run: func(cmd *cobra.Command, args []string) {
@@ -357,7 +361,7 @@ func NewClusterEnableNamespacedMode() *cobra.Command {
 		clusterResources bool
 		namespacesCount  int
 	)
-	var command = cobra.Command{
+	command := cobra.Command{
 		Use:   "enable-namespaced-mode PATTERN",
 		Short: "Enable namespaced mode for clusters which name matches to the specified pattern.",
 		Run: func(cmd *cobra.Command, args []string) {
@@ -392,7 +396,6 @@ func NewClusterEnableNamespacedMode() *cobra.Command {
 					} else {
 						fmt.Println("done (dry run)")
 					}
-
 				}
 				return nil
 			}))
@@ -411,7 +414,7 @@ func NewClusterDisableNamespacedMode() *cobra.Command {
 		clientConfig clientcmd.ClientConfig
 		dryRun       bool
 	)
-	var command = cobra.Command{
+	command := cobra.Command{
 		Use:   "disable-namespaced-mode PATTERN",
 		Short: "Disable namespaced mode for clusters which name matches to the specified pattern.",
 		Run: func(cmd *cobra.Command, args []string) {
@@ -451,7 +454,6 @@ func NewClusterDisableNamespacedMode() *cobra.Command {
 					} else {
 						fmt.Println("done (dry run)")
 					}
-
 				}
 				return nil
 			}))
@@ -472,7 +474,7 @@ func NewClusterStatsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 		portForwardRedis    bool
 		redisCompressionStr string
 	)
-	var command = cobra.Command{
+	command := cobra.Command{
 		Use:   "stats",
 		Short: "Prints information cluster statistics and inferred shard number",
 		Example: `
@@ -514,7 +516,7 @@ argocd admin cluster stats target-cluster`,
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().IntVar(&shard, "shard", -1, "Cluster shard filter")
 	command.Flags().IntVar(&replicas, "replicas", 0, "Application controller replicas count. Inferred from number of running controller pods if not specified")
-	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", common.DefaultShardingAlgorithm, "Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin] ")
+	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", common.DefaultShardingAlgorithm, "Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin, consistent-hashing] ")
 	command.Flags().BoolVar(&portForwardRedis, "port-forward-redis", true, "Automatically port-forward ha proxy redis from current namespace?")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command)
 
@@ -528,10 +530,8 @@ argocd admin cluster stats target-cluster`,
 
 // NewClusterConfig returns a new instance of `argocd admin kubeconfig` command
 func NewClusterConfig() *cobra.Command {
-	var (
-		clientConfig clientcmd.ClientConfig
-	)
-	var command = &cobra.Command{
+	var clientConfig clientcmd.ClientConfig
+	command := &cobra.Command{
 		Use:               "kubeconfig CLUSTER_URL OUTPUT_PATH",
 		Short:             "Generates kubeconfig for the specified cluster",
 		DisableAutoGenTag: true,
@@ -565,7 +565,9 @@ argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kub
 
 			cluster, err := db.NewDB(namespace, settings.NewSettingsManager(ctx, kubeclientset, namespace), kubeclientset).GetCluster(ctx, serverUrl)
 			errors.CheckError(err)
-			err = kube.WriteKubeConfig(cluster.RawRestConfig(), namespace, output)
+			rawConfig, err := cluster.RawRestConfig()
+			errors.CheckError(err)
+			err = kube.WriteKubeConfig(rawConfig, namespace, output)
 			errors.CheckError(err)
 		},
 	}
@@ -582,7 +584,7 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 		labels        []string
 		annotations   []string
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "generate-spec CONTEXT",
 		Short: "Generate declarative config for a cluster",
 		Run: func(c *cobra.Command, args []string) {

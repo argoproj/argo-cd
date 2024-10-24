@@ -10,7 +10,8 @@ on:
 permissions: {}
 
 env:
-  GOLANG_VERSION: '1.21' # Note: go-version must also be set in job argocd-image.with.go-version
+  # renovate: datasource=golang-version packageName=golang
+  GOLANG_VERSION: '1.23.2' # Note: go-version must also be set in job argocd-image.with.go-version
 
 jobs:
   argocd-image:
@@ -23,7 +24,8 @@ jobs:
     with:
       quay_image_name: quay.io/argoproj/argocd:${{ github.ref_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
-      go-version: 1.21
+      # renovate: datasource=golang-version packageName=golang
+      go-version: 1.23.2
       platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
       push: true
     secrets:
@@ -38,7 +40,7 @@ jobs:
         packages: write # for uploading attestations. (https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#known-issues)
       # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
       if: github.repository == 'argoproj/argo-cd'
-      uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v1.9.0
+      uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.0.0
       with:
         image: quay.io/argoproj/argocd
         digest: ${{ needs.argocd-image.outputs.image-digest }}
@@ -59,7 +61,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -67,19 +69,15 @@ jobs:
       - name: Fetch all tags
         run: git fetch --force --tags
 
-      - name: Set GORELEASER_PREVIOUS_TAG # Workaround, GoReleaser uses 'git-describe' to determine a previous tag. Our tags are created in realease branches.
-        run: |
-          set -xue
-          if echo ${{ github.ref_name }} | grep -E -- '-rc1+$';then
-            echo "GORELEASER_PREVIOUS_TAG=$(git -c 'versionsort.suffix=-rc' tag --list --sort=version:refname | tail -n 2 | head -n 1)" >> $GITHUB_ENV
-          else
-            echo "This is not the first release on the branch, Using GoReleaser defaults"
-          fi
-
       - name: Setup Golang
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.0.0
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
           go-version: ${{ env.GOLANG_VERSION }}
+
+      - name: Set GORELEASER_PREVIOUS_TAG # Workaround, GoReleaser uses 'git-describe' to determine a previous tag. Our tags are created in release branches.
+        run: |
+          set -xue
+          echo "GORELEASER_PREVIOUS_TAG=$(go run hack/get-previous-release/get-previous-version-for-release-notes.go ${{ github.ref_name }})" >> $GITHUB_ENV
 
       - name: Set environment variables for ldflags
         id: set_ldflag
@@ -88,7 +86,7 @@ jobs:
           echo "GIT_TREE_STATE=$(if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)" >> $GITHUB_ENV
 
       - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@4d9e71b726748f254fe64fa44d273194bd18ec91
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
         with:
           large-packages: false
           docker-images: false
@@ -96,14 +94,14 @@ jobs:
           tool-cache: false
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@7ec5c2b0c6cdda6e8bbb49444bc797dd33d74dd8 # v5.0.0
+        uses: goreleaser/goreleaser-action@286f3b13b1b49da4ac219696163fb8c1c93e1200 # v6.0.0
         id: run-goreleaser
         with:
           version: latest
           args: release --clean --timeout 55m
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          KUBECTL_VERSION: ${{ env.KUBECTL_VERSION }} 
+          KUBECTL_VERSION: ${{ env.KUBECTL_VERSION }}
           GIT_TREE_STATE: ${{ env.GIT_TREE_STATE }}
 
       - name: Generate subject for provenance
@@ -128,7 +126,7 @@ jobs:
       contents: write #  Needed for release uploads
     if: github.repository == 'argoproj/argo-cd'
     # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.9.0
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
     with:
       base64-subjects: "${{ needs.goreleaser.outputs.hashes }}"
       provenance-name: "argocd-cli.intoto.jsonl"
@@ -147,13 +145,13 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Golang
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
           go-version: ${{ env.GOLANG_VERSION }}
 
@@ -186,7 +184,7 @@ jobs:
           fi
 
           cd /tmp && tar -zcf sbom.tar.gz *.spdx
-          
+
       - name: Generate SBOM hash
         shell: bash
         id: sbom-hash
@@ -195,15 +193,15 @@ jobs:
           # base64 -w0 encodes to base64 and outputs on a single line.
           # sha256sum /tmp/sbom.tar.gz ... | base64 -w0
           echo "hashes=$(sha256sum /tmp/sbom.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
-      
+
       - name: Upload SBOM
-        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v0.1.15
+        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2.0.8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: |
             /tmp/sbom.tar.gz
-  
+
   sbom-provenance:
     needs: [generate-sbom]
     permissions:
@@ -211,13 +209,13 @@ jobs:
       id-token: write # Needed for provenance signing and ID
       contents: write #  Needed for release uploads
     if: github.repository == 'argoproj/argo-cd'
-    # Must be refernced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v1.9.0
+    # Must be referenced by a tag. https://github.com/slsa-framework/slsa-github-generator/blob/main/internal/builders/container/README.md#referencing-the-slsa-generator
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
     with:
       base64-subjects: "${{ needs.generate-sbom.outputs.hashes }}"
       provenance-name: "argocd-sbom.intoto.jsonl"
       upload-assets: true
-      
+
   post-release:
     needs:
       - argocd-image
@@ -230,7 +228,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout code
-        uses: actions/checkout@3df4ab11eba7bda6032a0b82a6bb43b11571feac # v4.0.0
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -291,11 +289,11 @@ jobs:
           # Replace the 'project-release: vX.X.X-rcX' line in SECURITY-INSIGHTS.yml
           sed -i "s/project-release: v.*$/project-release: v${{ env.NEW_VERSION }}/" SECURITY-INSIGHTS.yml
           # Update the 'commit-hash: XXXXXXX' line in SECURITY-INSIGHTS.yml
-          sed -i "s/commit-hash: .*/commit-hash: ${{ env.NEW_VERSION }}/" SECURITY-INSIGHTS.yml
+          sed -i "s/commit-hash: .*/commit-hash: ${{ env.COMMIT_HASH }}/" SECURITY-INSIGHTS.yml
         if: ${{ env.UPDATE_VERSION == 'true' }}
 
       - name: Create PR to update VERSION on master branch
-        uses: peter-evans/create-pull-request@153407881ec5c347639a548ade7d8ad1d6740e38 # v5.0.2
+        uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f # v7.0.5
         with:
           commit-message: Bump version in master
           title: "chore: Bump version in master"

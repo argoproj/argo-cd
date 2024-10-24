@@ -26,6 +26,9 @@ argocd app get APPNAME [flags]
   # Show application parameters and overrides
   argocd app get my-app --show-params
   
+  # Show application parameters and overrides for a source at position 1 under spec.sources of app my-app
+  argocd app get my-app --show-params --source-position 1
+  
   # Refresh application data when retrieving
   argocd app get my-app --refresh
   
@@ -49,12 +52,14 @@ argocd app get APPNAME [flags]
       --refresh                Refresh application data when retrieving
       --show-operation         Show application operation
       --show-params            Show application parameters and overrides
+      --source-position int    Position of the source from the list of sources of the app. Counting starts at 1. (default -1)
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token
+      --argocd-context string           The name of the Argo-CD server context to use
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")

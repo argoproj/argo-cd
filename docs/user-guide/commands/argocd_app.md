@@ -49,7 +49,8 @@ argocd app [flags]
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token
+      --argocd-context string           The name of the Argo-CD server context to use
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
@@ -79,6 +80,7 @@ argocd app [flags]
 * [argocd](argocd.md)	 - argocd controls a Argo CD server
 * [argocd app actions](argocd_app_actions.md)	 - Manage Resource actions
 * [argocd app add-source](argocd_app_add-source.md)	 - Adds a source to the list of sources in the application
+* [argocd app confirm-deletion](argocd_app_confirm-deletion.md)	 - Confirms deletion/pruning of an application resources
 * [argocd app create](argocd_app_create.md)	 - Create an application
 * [argocd app delete](argocd_app_delete.md)	 - Delete an application
 * [argocd app delete-resource](argocd_app_delete-resource.md)	 - Delete resource in an application
@@ -91,7 +93,7 @@ argocd app [flags]
 * [argocd app manifests](argocd_app_manifests.md)	 - Print manifests of an application
 * [argocd app patch](argocd_app_patch.md)	 - Patch application
 * [argocd app patch-resource](argocd_app_patch-resource.md)	 - Patch resource in an application
-* [argocd app remove-source](argocd_app_remove-source.md)	 - Remove a source from multiple sources application. Index starts with 0.
+* [argocd app remove-source](argocd_app_remove-source.md)	 - Remove a source from multiple sources application. Counting starts with 1. Default value is -1.
 * [argocd app resources](argocd_app_resources.md)	 - List resource of application
 * [argocd app rollback](argocd_app_rollback.md)	 - Rollback application to a previous deployed version by History ID, omitted will Rollback to the previous version
 * [argocd app set](argocd_app_set.md)	 - Set application parameters

@@ -21,8 +21,8 @@ argocd account can-i update projects 'default'
 # Can I create a cluster?
 argocd account can-i create clusters '*'
 
-Actions: [get create update delete sync override]
-Resources: [clusters projects applications applicationsets repositories certificates logs exec]
+Actions: [get create update delete sync override action invoke]
+Resources: [clusters projects applications applicationsets repositories certificates accounts gpgkeys logs exec extensions]
 
 ```
 
@@ -35,7 +35,8 @@ Resources: [clusters projects applications applicationsets repositories certific
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token
+      --argocd-context string           The name of the Argo-CD server context to use
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")

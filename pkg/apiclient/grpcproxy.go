@@ -3,6 +3,7 @@ package apiclient
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -65,7 +66,6 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 		requestURL = fmt.Sprintf("%s://%s%s", schema, c.ServerAddr, fullMethodName)
 	}
 	req, err := http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(toFrame(msg)))
-
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +108,6 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 	}
 	serverAddr := fmt.Sprintf("%s/argocd-%s.sock", os.TempDir(), randSuffix)
 	ln, err := net.Listen("unix", serverAddr)
-
 	if err != nil {
 		return nil, nil, err
 	}
@@ -132,7 +131,6 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 
 			md, _ := metadata.FromIncomingContext(stream.Context())
 			headersMD, err := parseGRPCHeaders(c.Headers)
-
 			if err != nil {
 				return err
 			}
@@ -154,7 +152,7 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 			for {
 				header := make([]byte, frameHeaderLength)
 				if _, err := io.ReadAtLeast(resp.Body, header, frameHeaderLength); err != nil {
-					if err == io.EOF {
+					if errors.Is(err, io.EOF) {
 						err = io.ErrUnexpectedEOF
 					}
 					return err
@@ -167,7 +165,7 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 				data := make([]byte, length)
 
 				if read, err := io.ReadAtLeast(resp.Body, data, length); err != nil {
-					if err != io.EOF {
+					if !errors.Is(err, io.EOF) {
 						return err
 					} else if read < length {
 						return io.ErrUnexpectedEOF
@@ -179,7 +177,6 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 				if err := stream.SendMsg(data); err != nil {
 					return err
 				}
-
 			}
 		}))
 	go func() {

@@ -137,8 +137,10 @@ func AddHelmHTTPSCredentialsTLSClientCert() {
 
 // AddHelmoOCICredentialsWithoutUserPass adds credentials for Helm OIC repo to context
 func AddHelmoOCICredentialsWithoutUserPass() {
-	args := []string{"repocreds", "add", fixture.RepoURL(fixture.RepoURLTypeHelmOCI),
-		"--enable-oci", "--type", "helm"}
+	args := []string{
+		"repocreds", "add", fixture.RepoURL(fixture.RepoURLTypeHelmOCI),
+		"--enable-oci", "--type", "helm",
+	}
 	errors.FailOnErr(fixture.RunCli(args...))
 }
 
@@ -172,5 +174,4 @@ func PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) {
 		fmt.Sprintf("%s/%s-%s.tgz", tempDest, chartName, chartVersion),
 		fmt.Sprintf("oci://%s", fixture.HelmOCIRegistryURL),
 	))
-
 }

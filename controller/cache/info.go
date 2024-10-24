@@ -66,6 +66,8 @@ func populateNodeInfo(un *unstructured.Unstructured, res *ResourceInfo, customLa
 		switch gvk.Kind {
 		case "VirtualService":
 			populateIstioVirtualServiceInfo(un, res)
+		case "ServiceEntry":
+			populateIstioServiceEntryInfo(un, res)
 		}
 	}
 }
@@ -278,6 +280,48 @@ func populateIstioVirtualServiceInfo(un *unstructured.Unstructured, res *Resourc
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{TargetRefs: targets, ExternalURLs: urls}
 }
 
+func populateIstioServiceEntryInfo(un *unstructured.Unstructured, res *ResourceInfo) {
+	targetLabels, ok, err := unstructured.NestedStringMap(un.Object, "spec", "workloadSelector", "labels")
+	if err != nil {
+		return
+	}
+	if !ok {
+		return
+	}
+	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{
+		TargetLabels: targetLabels,
+		TargetRefs: []v1alpha1.ResourceRef{{
+			Kind: kube.PodKind,
+		}},
+	}
+}
+
+func isPodInitializedConditionTrue(status *v1.PodStatus) bool {
+	for _, condition := range status.Conditions {
+		if condition.Type != v1.PodInitialized {
+			continue
+		}
+
+		return condition.Status == v1.ConditionTrue
+	}
+	return false
+}
+
+func isRestartableInitContainer(initContainer *v1.Container) bool {
+	if initContainer == nil {
+		return false
+	}
+	if initContainer.RestartPolicy == nil {
+		return false
+	}
+
+	return *initContainer.RestartPolicy == v1.ContainerRestartPolicyAlways
+}
+
+func isPodPhaseTerminal(phase v1.PodPhase) bool {
+	return phase == v1.PodFailed || phase == v1.PodSucceeded
+}
+
 func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	pod := v1.Pod{}
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &pod)
@@ -288,7 +332,8 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	totalContainers := len(pod.Spec.Containers)
 	readyContainers := 0
 
-	reason := string(pod.Status.Phase)
+	podPhase := pod.Status.Phase
+	reason := string(podPhase)
 	if pod.Status.Reason != "" {
 		reason = pod.Status.Reason
 	}
@@ -306,12 +351,33 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		res.Images = append(res.Images, image)
 	}
 
+	// If the Pod carries {type:PodScheduled, reason:SchedulingGated}, set reason to 'SchedulingGated'.
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == v1.PodScheduled && condition.Reason == v1.PodReasonSchedulingGated {
+			reason = v1.PodReasonSchedulingGated
+		}
+	}
+
+	initContainers := make(map[string]*v1.Container)
+	for i := range pod.Spec.InitContainers {
+		initContainers[pod.Spec.InitContainers[i].Name] = &pod.Spec.InitContainers[i]
+		if isRestartableInitContainer(&pod.Spec.InitContainers[i]) {
+			totalContainers++
+		}
+	}
+
 	initializing := false
 	for i := range pod.Status.InitContainerStatuses {
 		container := pod.Status.InitContainerStatuses[i]
 		restarts += int(container.RestartCount)
 		switch {
 		case container.State.Terminated != nil && container.State.Terminated.ExitCode == 0:
+			continue
+		case isRestartableInitContainer(initContainers[container.Name]) &&
+			container.Started != nil && *container.Started:
+			if container.Ready {
+				readyContainers++
+			}
 			continue
 		case container.State.Terminated != nil:
 			// initialization is failed
@@ -334,8 +400,7 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 		}
 		break
 	}
-	if !initializing {
-		restarts = 0
+	if !initializing || isPodInitializedConditionTrue(&pod.Status) {
 		hasRunning := false
 		for i := len(pod.Status.ContainerStatuses) - 1; i >= 0; i-- {
 			container := pod.Status.ContainerStatuses[i]
@@ -370,7 +435,9 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	// and https://github.com/kubernetes/kubernetes/issues/90358#issuecomment-617859364
 	if pod.DeletionTimestamp != nil && pod.Status.Reason == "NodeLost" {
 		reason = "Unknown"
-	} else if pod.DeletionTimestamp != nil {
+		// If the pod is being deleted and the pod phase is not succeeded or failed, set the reason to "Terminating".
+		// See https://github.com/kubernetes/kubectl/issues/1595#issuecomment-2080001023
+	} else if pod.DeletionTimestamp != nil && !isPodPhaseTerminal(podPhase) {
 		reason = "Terminating"
 	}
 
@@ -408,8 +475,8 @@ func populateHostNodeInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	}
 }
 
-func generateManifestHash(un *unstructured.Unstructured, ignores []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride) (string, error) {
-	normalizer, err := normalizers.NewIgnoreNormalizer(ignores, overrides)
+func generateManifestHash(un *unstructured.Unstructured, ignores []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride, opts normalizers.IgnoreNormalizerOpts) (string, error) {
+	normalizer, err := normalizers.NewIgnoreNormalizer(ignores, overrides, opts)
 	if err != nil {
 		return "", fmt.Errorf("error creating normalizer: %w", err)
 	}

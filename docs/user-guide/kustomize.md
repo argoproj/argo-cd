@@ -1,5 +1,27 @@
 # Kustomize
 
+## Declarative
+
+You can define a Kustomize application manifest in the declarative GitOps way. Here is an example:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kustomize-example
+spec:
+  project: default
+  source:
+    path: examples/helloWorld
+    repoURL: 'https://github.com/kubernetes-sigs/kustomize'
+    targetRevision: HEAD
+  destination:
+    namespace: default
+    server: 'https://kubernetes.default.svc'
+```
+
+If the `kustomization.yaml` file exists at the location pointed to by `repoURL` and `path`, Argo CD will render the manifests using Kustomize.
+
 The following configuration options are available for Kustomize:
 
 * `namePrefix` is a prefix appended to resources for Kustomize apps
@@ -32,7 +54,7 @@ metadata:
   name: kustomize-inline-example
 namespace: test1
 resources:
-  - https://raw.githubusercontent.com/argoproj/argocd-example-apps/master/kustomize-guestbook/
+  - https://github.com/argoproj/argocd-example-apps//kustomize-guestbook/
 patches:
   - target:
       kind: Deployment
@@ -212,7 +234,7 @@ argocd app set <appName> --kustomize-version v3.5.4
 
 ## Build Environment
 
-Kustomize apps have access to the [standard build environment](build-environment.md) which can be used in combination with a [config managment plugin](../operator-manual/config-management-plugins.md) to alter the rendered manifests.
+Kustomize apps have access to the [standard build environment](build-environment.md) which can be used in combination with a [config management plugin](../operator-manual/config-management-plugins.md) to alter the rendered manifests.
 
 You can use these build environment variables in your Argo CD Application manifests. You can enable this by setting `.spec.source.kustomize.commonAnnotationsEnvsubst` to `true` in your Application manifest.
 

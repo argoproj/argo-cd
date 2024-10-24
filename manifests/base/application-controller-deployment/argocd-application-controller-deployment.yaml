@@ -20,6 +20,11 @@ spec:
       - args:
         - /usr/local/bin/argocd-application-controller
         env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: auth
+              name: argocd-redis
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
             configMapKeyRef:
@@ -91,6 +96,24 @@ spec:
             configMapKeyRef:
               name: argocd-cmd-params-cm
               key: controller.self.heal.timeout.seconds
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_TIMEOUT_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.self.heal.backoff.timeout.seconds
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_FACTOR
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.self.heal.backoff.factor
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_CAP_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.self.heal.backoff.cap.seconds
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT
           valueFrom:
@@ -220,6 +243,8 @@ spec:
           mountPath: /app/config/controller/tls
         - name: argocd-home
           mountPath: /home/argocd
+        - name: argocd-cmd-params-cm
+          mountPath: /home/argocd/params
       serviceAccountName: argocd-application-controller
       affinity:
         podAntiAffinity:
@@ -250,3 +275,12 @@ spec:
             path: tls.key
           - key: ca.crt
             path: ca.crt
+      - name: argocd-cmd-params-cm
+        configMap:
+          optional: true
+          name: argocd-cmd-params-cm
+          items:
+          - key: controller.profile.enabled
+            path: profiler.enabled
+      nodeSelector:
+        kubernetes.io/os: linux

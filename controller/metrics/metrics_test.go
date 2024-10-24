@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +12,7 @@ import (
 	gitopsCache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
@@ -116,6 +116,41 @@ status:
     status: Degraded
 `
 
+const fakeApp4 = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app-4
+  namespace: argocd
+  labels:
+    team-name: my-team
+    team-bu: bu-id
+    argoproj.io/cluster: test-cluster
+spec:
+  destination:
+    namespace: dummy-namespace
+    server: https://localhost:6443
+  project: important-project
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+status:
+  sync:
+    status: OutOfSync
+  health:
+    status: Degraded
+  conditions:
+  - lastTransitionTime: "2024-08-07T12:25:40Z"
+    message: Application has 1 orphaned resources
+    type: OrphanedResourceWarning
+  - lastTransitionTime: "2024-08-07T12:25:40Z"
+    message: Resource Pod standalone-pod is excluded in the settings
+    type: ExcludedResourceWarning
+  - lastTransitionTime: "2024-08-07T12:25:40Z"
+    message: Resource Endpoint raw-endpoint is excluded in the settings
+    type: ExcludedResourceWarning
+`
+
 const fakeDefaultApp = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -179,7 +214,7 @@ func newFakeLister(fakeAppYAMLs ...string) (context.CancelFunc, applister.Applic
 
 func testApp(t *testing.T, fakeAppYAMLs []string, expectedResponse string) {
 	t.Helper()
-	testMetricServer(t, fakeAppYAMLs, expectedResponse, []string{})
+	testMetricServer(t, fakeAppYAMLs, expectedResponse, []string{}, []string{})
 }
 
 type fakeClusterInfo struct {
@@ -194,15 +229,17 @@ type TestMetricServerConfig struct {
 	FakeAppYAMLs     []string
 	ExpectedResponse string
 	AppLabels        []string
+	AppConditions    []string
 	ClustersInfo     []gitopsCache.ClusterInfo
 }
 
-func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse string, appLabels []string) {
+func testMetricServer(t *testing.T, fakeAppYAMLs []string, expectedResponse string, appLabels []string, appConditions []string) {
 	t.Helper()
 	cfg := TestMetricServerConfig{
 		FakeAppYAMLs:     fakeAppYAMLs,
 		ExpectedResponse: expectedResponse,
 		AppLabels:        appLabels,
+		AppConditions:    appConditions,
 		ClustersInfo:     []gitopsCache.ClusterInfo{},
 	}
 	runTest(t, cfg)
@@ -212,8 +249,8 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 	t.Helper()
 	cancel, appLister := newFakeLister(cfg.FakeAppYAMLs...)
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels)
-	assert.NoError(t, err)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, cfg.AppLabels, cfg.AppConditions)
+	require.NoError(t, err)
 
 	if len(cfg.ClustersInfo) > 0 {
 		ci := &fakeClusterInfo{clustersInfo: cfg.ClustersInfo}
@@ -225,10 +262,10 @@ func runTest(t *testing.T, cfg TestMetricServerConfig) {
 	}
 
 	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, rr.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
 	assertMetricsPrinted(t, cfg.ExpectedResponse, body)
 }
@@ -303,7 +340,61 @@ argocd_app_labels{label_non_existing="",name="my-app-3",namespace="argocd",proje
 	for _, c := range cases {
 		c := c
 		t.Run(c.description, func(t *testing.T) {
-			testMetricServer(t, c.applications, c.responseContains, c.metricLabels)
+			testMetricServer(t, c.applications, c.responseContains, c.metricLabels, []string{})
+		})
+	}
+}
+
+func TestMetricConditions(t *testing.T) {
+	type testCases struct {
+		testCombination
+		description      string
+		metricConditions []string
+	}
+	cases := []testCases{
+		{
+			description:      "metric will only output OrphanedResourceWarning",
+			metricConditions: []string{"OrphanedResourceWarning"},
+			testCombination: testCombination{
+				applications: []string{fakeApp4},
+				responseContains: `
+# HELP argocd_app_condition Report application conditions.
+# TYPE argocd_app_condition gauge
+argocd_app_condition{condition="OrphanedResourceWarning",name="my-app-4",namespace="argocd",project="important-project"} 1
+`,
+			},
+		},
+		{
+			description:      "metric will only output ExcludedResourceWarning",
+			metricConditions: []string{"ExcludedResourceWarning"},
+			testCombination: testCombination{
+				applications: []string{fakeApp4},
+				responseContains: `
+# HELP argocd_app_condition Report application conditions.
+# TYPE argocd_app_condition gauge
+argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespace="argocd",project="important-project"} 2
+`,
+			},
+		},
+		{
+			description:      "metric will only output both OrphanedResourceWarning and ExcludedResourceWarning",
+			metricConditions: []string{"ExcludedResourceWarning", "OrphanedResourceWarning"},
+			testCombination: testCombination{
+				applications: []string{fakeApp4},
+				responseContains: `
+# HELP argocd_app_condition Report application conditions.
+# TYPE argocd_app_condition gauge
+argocd_app_condition{condition="OrphanedResourceWarning",name="my-app-4",namespace="argocd",project="important-project"} 1
+argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespace="argocd",project="important-project"} 2
+`,
+			},
+		},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run(c.description, func(t *testing.T) {
+			testMetricServer(t, c.applications, c.responseContains, []string{}, c.metricConditions)
 		})
 	}
 }
@@ -335,8 +426,8 @@ argocd_app_sync_status{name="my-app",namespace="argocd",project="important-proje
 func TestMetricsSyncCounter(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
-	assert.NoError(t, err)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	require.NoError(t, err)
 
 	appSyncTotal := `
 # HELP argocd_app_sync_total Number of application syncs.
@@ -354,10 +445,10 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 	metricsServ.IncSync(fakeApp, &argoappv1.OperationState{Phase: common.OperationSucceeded})
 
 	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, rr.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
 	log.Println(body)
 	assertMetricsPrinted(t, appSyncTotal, body)
@@ -370,28 +461,29 @@ func assertMetricsPrinted(t *testing.T, expectedLines, body string) {
 		if line == "" {
 			continue
 		}
-		assert.Contains(t, body, line, fmt.Sprintf("expected metrics mismatch for line: %s", line))
+		assert.Contains(t, body, line, "expected metrics mismatch for line: %s", line)
 	}
 }
 
-// assertMetricNotPrinted
+// assertMetricsNotPrinted
 func assertMetricsNotPrinted(t *testing.T, expectedLines, body string) {
+	t.Helper()
 	for _, line := range strings.Split(expectedLines, "\n") {
 		if line == "" {
 			continue
 		}
-		assert.False(t, strings.Contains(body, expectedLines))
+		assert.NotContains(t, body, expectedLines)
 	}
 }
 
 func TestReconcileMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
-	assert.NoError(t, err)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	require.NoError(t, err)
 
 	appReconcileMetrics := `
-# HELP argocd_app_reconcile Application reconciliation performance.
+# HELP argocd_app_reconcile Application reconciliation performance in seconds.
 # TYPE argocd_app_reconcile histogram
 argocd_app_reconcile_bucket{dest_server="https://localhost:6443",namespace="argocd",le="0.25"} 0
 argocd_app_reconcile_bucket{dest_server="https://localhost:6443",namespace="argocd",le="0.5"} 0
@@ -408,10 +500,10 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 	metricsServ.IncReconcile(fakeApp, 5*time.Second)
 
 	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, rr.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
 	log.Println(body)
 	assertMetricsPrinted(t, appReconcileMetrics, body)
@@ -420,8 +512,8 @@ argocd_app_reconcile_count{dest_server="https://localhost:6443",namespace="argoc
 func TestMetricsReset(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
-	assert.NoError(t, err)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	require.NoError(t, err)
 
 	appSyncTotal := `
 # HELP argocd_app_sync_total Number of application syncs.
@@ -432,58 +524,58 @@ argocd_app_sync_total{dest_server="https://localhost:6443",name="my-app",namespa
 `
 
 	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, rr.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
 	assertMetricsPrinted(t, appSyncTotal, body)
 
 	err = metricsServ.SetExpiration(time.Second)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	time.Sleep(2 * time.Second)
 	req, err = http.NewRequest(http.MethodGet, "/metrics", nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	rr = httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, rr.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, rr.Code)
 	body = rr.Body.String()
 	log.Println(body)
 	assertMetricsNotPrinted(t, appSyncTotal, body)
 	err = metricsServ.SetExpiration(time.Second)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestWorkqueueMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
-	assert.NoError(t, err)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	require.NoError(t, err)
 
 	expectedMetrics := `
 # TYPE workqueue_adds_total counter
-workqueue_adds_total{name="test"}
+workqueue_adds_total{controller="test",name="test"}
 
 # TYPE workqueue_depth gauge
-workqueue_depth{name="test"}
+workqueue_depth{controller="test",name="test"}
 
 # TYPE workqueue_longest_running_processor_seconds gauge
-workqueue_longest_running_processor_seconds{name="test"}
+workqueue_longest_running_processor_seconds{controller="test",name="test"}
 
 # TYPE workqueue_queue_duration_seconds histogram
 
 # TYPE workqueue_unfinished_work_seconds gauge
-workqueue_unfinished_work_seconds{name="test"}
+workqueue_unfinished_work_seconds{controller="test",name="test"}
 
 # TYPE workqueue_work_duration_seconds histogram
 `
 	workqueue.NewNamed("test")
 
 	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, rr.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
 	log.Println(body)
 	assertMetricsPrinted(t, expectedMetrics, body)
@@ -492,8 +584,8 @@ workqueue_unfinished_work_seconds{name="test"}
 func TestGoMetrics(t *testing.T) {
 	cancel, appLister := newFakeLister()
 	defer cancel()
-	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{})
-	assert.NoError(t, err)
+	metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{})
+	require.NoError(t, err)
 
 	expectedMetrics := `
 # TYPE go_gc_duration_seconds summary
@@ -512,10 +604,10 @@ go_threads
 `
 
 	req, err := http.NewRequest(http.MethodGet, "/metrics", nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	rr := httptest.NewRecorder()
 	metricsServ.Handler.ServeHTTP(rr, req)
-	assert.Equal(t, rr.Code, http.StatusOK)
+	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
 	log.Println(body)
 	assertMetricsPrinted(t, expectedMetrics, body)

@@ -5,8 +5,9 @@ import (
 	"testing"
 	"text/tabwriter"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func TestTreeViewAppGet(t *testing.T) {

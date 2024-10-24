@@ -138,6 +138,14 @@ The following steps are required no matter whether you chose to use a virtualize
     export SUDO=sudo
     ```
 
+    If you have podman installed, you can also leverage its rootless mode. In
+    order to use podman for running and testing Argo CD locally, set the
+    `DOCKER` environment variable to `podman` before you run `make`, e.g.
+
+    ```
+    DOCKER=podman make start
+    ```
+
 ### Clone the Argo CD repository from your personal fork on GitHub
 
 * `mkdir -p ~/go/src/github.com/argoproj`

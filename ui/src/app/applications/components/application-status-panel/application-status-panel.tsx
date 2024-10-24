@@ -5,9 +5,10 @@ import {Revision} from '../../../shared/components/revision';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppDefaultSource, getAppOperationState} from '../utils';
-import {getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage, helpTip} from '../utils';
+import {ApplicationSyncWindowStatusIcon, ComparisonStatusIcon, getAppDefaultSource, getAppDefaultSyncRevisionExtra, getAppOperationState} from '../utils';
+import {getConditionCategory, HealthStatusIcon, OperationState, syncStatusMessage, getAppDefaultSyncRevision, getAppDefaultOperationSyncRevision} from '../utils';
 import {RevisionMetadataPanel} from './revision-metadata-panel';
+import * as utils from '../utils';
 
 import './application-status-panel.scss';
 
@@ -32,13 +33,12 @@ const sectionLabel = (info: SectionInfo) => (
     </label>
 );
 
-const sectionHeader = (info: SectionInfo, hasMultipleSources: boolean, onClick?: () => any) => {
+const sectionHeader = (info: SectionInfo, onClick?: () => any) => {
     return (
         <div style={{display: 'flex', alignItems: 'center', marginBottom: '0.5em'}}>
             {sectionLabel(info)}
             {onClick && (
-                <button className='application-status-panel__more-button' onClick={onClick} disabled={hasMultipleSources}>
-                    {hasMultipleSources && helpTip('More details are not supported for apps with multiple sources')}
+                <button className='application-status-panel__more-button' onClick={onClick}>
                     <i className='fa fa-ellipsis-h' />
                 </button>
             )}
@@ -66,11 +66,13 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
 
     const statusExtensions = services.extensions.getStatusPanelExtensions();
 
+    const revision = getAppDefaultSyncRevision(application);
+    const operationStateRevision = getAppDefaultOperationSyncRevision(application);
     const infos = cntByCategory.get('info');
     const warnings = cntByCategory.get('warning');
     const errors = cntByCategory.get('error');
     const source = getAppDefaultSource(application);
-    const hasMultipleSources = application.spec.sources && application.spec.sources.length > 0;
+    const hasMultipleSources = application.spec.sources?.length > 0;
     return (
         <div className='application-status-panel row'>
             <div className='application-status-panel__item'>
@@ -89,8 +91,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                             title: 'SYNC STATUS',
                             helpContent: 'Whether or not the version of your app is up to date with your repo. You may wish to sync your app if it is out-of-sync.'
                         },
-                        hasMultipleSources,
-                        () => showMetadataInfo(application.status.sync ? application.status.sync.revision : '')
+                        () => showMetadataInfo(application.status.sync ? 'SYNC_STATUS_REVISION' : null)
                     )}
                     <div className={`application-status-panel__item-value${appOperationState?.phase ? ` application-status-panel__item-value--${appOperationState.phase}` : ''}`}>
                         <div>
@@ -107,16 +108,21 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                     <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                         {application.spec.syncPolicy?.automated ? 'Auto sync is enabled.' : 'Auto sync is not enabled.'}
                     </div>
-                    {application.status && application.status.sync && application.status.sync.revision && !application.spec.source.chart && (
-                        <div className='application-status-panel__item-name'>
-                            <RevisionMetadataPanel
-                                appName={application.metadata.name}
-                                appNamespace={application.metadata.namespace}
-                                type={source.chart && 'helm'}
-                                revision={application.status.sync.revision}
-                            />
-                        </div>
-                    )}
+                    {application.status &&
+                        application.status.sync &&
+                        (hasMultipleSources
+                            ? application.status.sync.revisions && application.status.sync.revisions[0] && application.spec.sources && !application.spec.sources[0].chart
+                            : application.status.sync.revision && !application.spec?.source?.chart) && (
+                            <div className='application-status-panel__item-name'>
+                                <RevisionMetadataPanel
+                                    appName={application.metadata.name}
+                                    appNamespace={application.metadata.namespace}
+                                    type={source.chart && 'helm'}
+                                    revision={revision}
+                                    versionId={utils.getAppCurrentVersion(application)}
+                                />
+                            </div>
+                        )}
                 </React.Fragment>
             </div>
             {appOperationState && (
@@ -130,29 +136,33 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                                     daysSinceLastSynchronized +
                                     ' days since last sync. Click for the status of that sync.'
                             },
-                            hasMultipleSources,
-                            () => showMetadataInfo(appOperationState.syncResult ? appOperationState.syncResult.revision : '')
+                            () =>
+                                showMetadataInfo(
+                                    appOperationState.syncResult && (appOperationState.syncResult.revisions || appOperationState.syncResult.revision)
+                                        ? 'OPERATION_STATE_REVISION'
+                                        : null
+                                )
                         )}
                         <div className={`application-status-panel__item-value application-status-panel__item-value--${appOperationState.phase}`}>
                             <a onClick={() => showOperation && showOperation()}>
                                 <OperationState app={application} />{' '}
                             </a>
-                            {appOperationState.syncResult && appOperationState.syncResult.revision && (
+                            {appOperationState.syncResult && (appOperationState.syncResult.revision || appOperationState.syncResult.revisions) && (
                                 <div className='application-status-panel__item-value__revision show-for-large'>
-                                    to <Revision repoUrl={source.repoURL} revision={appOperationState.syncResult.revision} />
+                                    to <Revision repoUrl={source.repoURL} revision={operationStateRevision} /> {getAppDefaultSyncRevisionExtra(application)}
                                 </div>
                             )}
                         </div>
-
                         <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                             {appOperationState.phase} <Timestamp date={appOperationState.finishedAt || appOperationState.startedAt} />
                         </div>
-                        {(appOperationState.syncResult && appOperationState.syncResult.revision && (
+                        {(appOperationState.syncResult && operationStateRevision && (
                             <RevisionMetadataPanel
                                 appName={application.metadata.name}
                                 appNamespace={application.metadata.namespace}
-                                type={source.chart && 'helm'}
-                                revision={appOperationState.syncResult.revision}
+                                type={source?.chart && 'helm'}
+                                revision={operationStateRevision}
+                                versionId={utils.getAppCurrentVersion(application)}
                             />
                         )) || <div className='application-status-panel__item-name'>{appOperationState.message}</div>}
                     </React.Fragment>

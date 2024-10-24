@@ -7,7 +7,7 @@ enforced.
 
 ## Logical layers
 
-The diagram bellow suggests 4 different logical layers (represented by
+The diagram below suggests 4 different logical layers (represented by
 4 boxes: HTTP, gRPC, AuthN and AuthZ) inside Argo CD API server that
 collaborate to provide authentication and authorization. 
 

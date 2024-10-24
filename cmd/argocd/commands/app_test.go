@@ -2,12 +2,24 @@ package commands
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"slices"
+	"strings"
 	"testing"
 	"time"
+
+	"google.golang.org/grpc"
+	"k8s.io/apimachinery/pkg/watch"
+
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+
+	v1 "k8s.io/api/core/v1"
+
+	"sigs.k8s.io/yaml"
 
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
@@ -32,6 +44,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -99,7 +112,6 @@ func Test_getRefreshType(t *testing.T) {
 }
 
 func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
-
 	histories := v1alpha1.RevisionHistories{}
 
 	histories = append(histories, v1alpha1.RevisionHistory{ID: 1})
@@ -124,7 +136,6 @@ func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
 	}
 
 	history, err := findRevisionHistory(&application, -1)
-
 	if err != nil {
 		t.Fatal("Find revision history should fail without errors")
 	}
@@ -132,7 +143,6 @@ func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
 	if history == nil {
 		t.Fatal("History should be found")
 	}
-
 }
 
 func TestPrintTreeViewAppGet(t *testing.T) {
@@ -143,9 +153,9 @@ func TestPrintTreeViewAppGet(t *testing.T) {
 	nodes[1].ParentRefs = []v1alpha1.ResourceRef{{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}}
 	nodes[2].ResourceRef = v1alpha1.ResourceRef{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}
 
-	var nodeMapping = make(map[string]v1alpha1.ResourceNode)
-	var mapParentToChild = make(map[string][]string)
-	var parentNode = make(map[string]struct{})
+	nodeMapping := make(map[string]v1alpha1.ResourceNode)
+	mapParentToChild := make(map[string][]string)
+	parentNode := make(map[string]struct{})
 
 	for _, node := range nodes {
 		nodeMapping[node.UID] = node
@@ -182,9 +192,9 @@ func TestPrintTreeViewDetailedAppGet(t *testing.T) {
 	nodes[1].ParentRefs = []v1alpha1.ResourceRef{{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}}
 	nodes[2].ResourceRef = v1alpha1.ResourceRef{Group: "argoproj.io", Version: "", Kind: "Rollout", Namespace: "sandbox-rollout-numalogic-demo", Name: "numalogic-rollout-demo", UID: "87f3aab0-f634-4b2c-959a-7ddd30675ed0"}
 
-	var nodeMapping = make(map[string]v1alpha1.ResourceNode)
-	var mapParentToChild = make(map[string][]string)
-	var parentNode = make(map[string]struct{})
+	nodeMapping := make(map[string]v1alpha1.ResourceNode)
+	mapParentToChild := make(map[string][]string)
+	parentNode := make(map[string]struct{})
 
 	for _, node := range nodes {
 		nodeMapping[node.UID] = node
@@ -212,7 +222,40 @@ func TestPrintTreeViewDetailedAppGet(t *testing.T) {
 	assert.Contains(t, output, "numalogic-rollout-demo-5dcd5457d5-6trpt")
 	assert.Contains(t, output, "Degraded")
 	assert.Contains(t, output, "Readiness Gate failed")
+}
 
+func TestFindRevisionHistoryWithoutPassedIdWithMultipleSources(t *testing.T) {
+	histories := v1alpha1.RevisionHistories{}
+
+	histories = append(histories, v1alpha1.RevisionHistory{ID: 1})
+	histories = append(histories, v1alpha1.RevisionHistory{ID: 2})
+	histories = append(histories, v1alpha1.RevisionHistory{ID: 3})
+
+	status := v1alpha1.ApplicationStatus{
+		Resources:      nil,
+		Sync:           v1alpha1.SyncStatus{},
+		Health:         v1alpha1.HealthStatus{},
+		History:        histories,
+		Conditions:     nil,
+		ReconciledAt:   nil,
+		OperationState: nil,
+		ObservedAt:     nil,
+		SourceType:     "",
+		Summary:        v1alpha1.ApplicationSummary{},
+	}
+
+	application := v1alpha1.Application{
+		Status: status,
+	}
+
+	history, err := findRevisionHistory(&application, -1)
+	if err != nil {
+		t.Fatal("Find revision history should fail without errors")
+	}
+
+	if history == nil {
+		t.Fatal("History should be found")
+	}
 }
 
 func TestDefaultWaitOptions(t *testing.T) {
@@ -223,10 +266,10 @@ func TestDefaultWaitOptions(t *testing.T) {
 		suspended: false,
 	}
 	opts := getWatchOpts(watch)
-	assert.Equal(t, true, opts.sync)
-	assert.Equal(t, true, opts.health)
-	assert.Equal(t, true, opts.operation)
-	assert.Equal(t, false, opts.suspended)
+	assert.True(t, opts.sync)
+	assert.True(t, opts.health)
+	assert.True(t, opts.operation)
+	assert.False(t, opts.suspended)
 }
 
 func TestOverrideWaitOptions(t *testing.T) {
@@ -237,14 +280,13 @@ func TestOverrideWaitOptions(t *testing.T) {
 		suspended: false,
 	}
 	opts := getWatchOpts(watch)
-	assert.Equal(t, true, opts.sync)
-	assert.Equal(t, false, opts.health)
-	assert.Equal(t, false, opts.operation)
-	assert.Equal(t, false, opts.suspended)
+	assert.True(t, opts.sync)
+	assert.False(t, opts.health)
+	assert.False(t, opts.operation)
+	assert.False(t, opts.suspended)
 }
 
 func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
-
 	histories := v1alpha1.RevisionHistories{}
 
 	status := v1alpha1.ApplicationStatus{
@@ -277,11 +319,9 @@ func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
 	if err.Error() != "Application '' should have at least two successful deployments" {
 		t.Fatal("Find revision history should fail with correct error message")
 	}
-
 }
 
 func TestFindRevisionHistoryWithPassedId(t *testing.T) {
-
 	histories := v1alpha1.RevisionHistories{}
 
 	histories = append(histories, v1alpha1.RevisionHistory{ID: 1})
@@ -306,7 +346,6 @@ func TestFindRevisionHistoryWithPassedId(t *testing.T) {
 	}
 
 	history, err := findRevisionHistory(&application, 3)
-
 	if err != nil {
 		t.Fatal("Find revision history should fail without errors")
 	}
@@ -318,11 +357,9 @@ func TestFindRevisionHistoryWithPassedId(t *testing.T) {
 	if history.Revision != "123" {
 		t.Fatal("Failed to find correct history with correct revision")
 	}
-
 }
 
 func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
-
 	histories := v1alpha1.RevisionHistories{}
 
 	histories = append(histories, v1alpha1.RevisionHistory{ID: 1})
@@ -359,7 +396,6 @@ func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 	if err.Error() != "Application '' does not have deployment id '4' in history\n" {
 		t.Fatal("Find revision history should fail with correct error message")
 	}
-
 }
 
 func Test_groupObjsByKey(t *testing.T) {
@@ -416,14 +452,13 @@ func Test_groupObjsByKey(t *testing.T) {
 }
 
 func TestFormatSyncPolicy(t *testing.T) {
-
 	t.Run("Policy not defined", func(t *testing.T) {
 		app := v1alpha1.Application{}
 
 		policy := formatSyncPolicy(app)
 
-		if policy != "<none>" {
-			t.Fatalf("Incorrect policy %q, should be <none>", policy)
+		if policy != "Manual" {
+			t.Fatalf("Incorrect policy %q, should be Manual", policy)
 		}
 	})
 
@@ -460,7 +495,6 @@ func TestFormatSyncPolicy(t *testing.T) {
 			t.Fatalf("Incorrect policy %q, should be Auto-Prune", policy)
 		}
 	})
-
 }
 
 func TestFormatConditionSummary(t *testing.T) {
@@ -557,18 +591,21 @@ func TestPrintApplicationHistoryTable(t *testing.T) {
 			ID: 1,
 			Source: v1alpha1.ApplicationSource{
 				TargetRevision: "1",
+				RepoURL:        "test",
 			},
 		},
 		{
 			ID: 2,
 			Source: v1alpha1.ApplicationSource{
 				TargetRevision: "2",
+				RepoURL:        "test",
 			},
 		},
 		{
 			ID: 3,
 			Source: v1alpha1.ApplicationSource{
 				TargetRevision: "3",
+				RepoURL:        "test",
 			},
 		},
 	}
@@ -578,7 +615,86 @@ func TestPrintApplicationHistoryTable(t *testing.T) {
 		return nil
 	})
 
-	expectation := "ID  DATE                           REVISION\n1   0001-01-01 00:00:00 +0000 UTC  1\n2   0001-01-01 00:00:00 +0000 UTC  2\n3   0001-01-01 00:00:00 +0000 UTC  3\n"
+	expectation := "SOURCE  test\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1\n2       0001-01-01 00:00:00 +0000 UTC  2\n3       0001-01-01 00:00:00 +0000 UTC  3\n"
+
+	if output != expectation {
+		t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
+	}
+}
+
+func TestPrintApplicationHistoryTableWithMultipleSources(t *testing.T) {
+	histories := []v1alpha1.RevisionHistory{
+		{
+			ID: 0,
+			Source: v1alpha1.ApplicationSource{
+				TargetRevision: "0",
+				RepoURL:        "test",
+			},
+		},
+		{
+			ID: 1,
+			Revisions: []string{
+				"1a",
+				"1b",
+			},
+			// added Source just for testing the fuction
+			Source: v1alpha1.ApplicationSource{
+				TargetRevision: "-1",
+				RepoURL:        "ignore",
+			},
+			Sources: v1alpha1.ApplicationSources{
+				v1alpha1.ApplicationSource{
+					RepoURL:        "test-1",
+					TargetRevision: "1a",
+				},
+				v1alpha1.ApplicationSource{
+					RepoURL:        "test-2",
+					TargetRevision: "1b",
+				},
+			},
+		},
+		{
+			ID: 2,
+			Revisions: []string{
+				"2a",
+				"2b",
+			},
+			Sources: v1alpha1.ApplicationSources{
+				v1alpha1.ApplicationSource{
+					RepoURL:        "test-1",
+					TargetRevision: "2a",
+				},
+				v1alpha1.ApplicationSource{
+					RepoURL:        "test-2",
+					TargetRevision: "2b",
+				},
+			},
+		},
+		{
+			ID: 3,
+			Revisions: []string{
+				"3a",
+				"3b",
+			},
+			Sources: v1alpha1.ApplicationSources{
+				v1alpha1.ApplicationSource{
+					RepoURL:        "test-1",
+					TargetRevision: "3a",
+				},
+				v1alpha1.ApplicationSource{
+					RepoURL:        "test-2",
+					TargetRevision: "3b",
+				},
+			},
+		},
+	}
+
+	output, _ := captureOutput(func() error {
+		printApplicationHistoryTable(histories)
+		return nil
+	})
+
+	expectation := "SOURCE  test\nID      DATE                           REVISION\n0       0001-01-01 00:00:00 +0000 UTC  0\n\nSOURCE  test-1\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1a\n2       0001-01-01 00:00:00 +0000 UTC  2a\n3       0001-01-01 00:00:00 +0000 UTC  3a\n\nSOURCE  test-2\nID      DATE                           REVISION\n1       0001-01-01 00:00:00 +0000 UTC  1b\n2       0001-01-01 00:00:00 +0000 UTC  2b\n3       0001-01-01 00:00:00 +0000 UTC  3b\n"
 
 	if output != expectation {
 		t.Fatalf("Incorrect print operation output %q, should be %q", output, expectation)
@@ -802,35 +918,83 @@ func TestPrintAppConditions(t *testing.T) {
 }
 
 func TestPrintParams(t *testing.T) {
-	output, _ := captureOutput(func() error {
-		app := &v1alpha1.Application{
-			Spec: v1alpha1.ApplicationSpec{
-				Source: &v1alpha1.ApplicationSource{
-					Helm: &v1alpha1.ApplicationSourceHelm{
-						Parameters: []v1alpha1.HelmParameter{
-							{
-								Name:  "name1",
-								Value: "value1",
-							},
-							{
-								Name:  "name2",
-								Value: "value2",
-							},
-							{
-								Name:  "name3",
-								Value: "value3",
+	testCases := []struct {
+		name           string
+		app            *v1alpha1.Application
+		sourcePosition int
+		expectedOutput string
+	}{
+		{
+			name: "Single Source application with valid helm parameters",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Source: &v1alpha1.ApplicationSource{
+						Helm: &v1alpha1.ApplicationSourceHelm{
+							Parameters: []v1alpha1.HelmParameter{
+								{
+									Name:  "name1",
+									Value: "value1",
+								},
+								{
+									Name:  "name2",
+									Value: "value2",
+								},
+								{
+									Name:  "name3",
+									Value: "value3",
+								},
 							},
 						},
 					},
 				},
 			},
-		}
-		printParams(app)
-		return nil
-	})
-	expectation := "\n\nNAME   VALUE\nname1  value1\nname2  value2\nname3  value3\n"
-	if output != expectation {
-		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
+			sourcePosition: -1,
+			expectedOutput: "\n\nNAME   VALUE\nname1  value1\nname2  value2\nname3  value3\n",
+		},
+		{
+			name: "Multi-source application with a valid Source Position",
+			app: &v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: []v1alpha1.ApplicationSource{
+						{
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								Parameters: []v1alpha1.HelmParameter{
+									{
+										Name:  "nameA",
+										Value: "valueA",
+									},
+								},
+							},
+						},
+						{
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								Parameters: []v1alpha1.HelmParameter{
+									{
+										Name:  "nameB",
+										Value: "valueB",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			sourcePosition: 1,
+			expectedOutput: "\n\nNAME   VALUE\nnameA  valueA\n",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			output, _ := captureOutput(func() error {
+				printParams(tc.app, tc.sourcePosition)
+				return nil
+			})
+
+			if output != tc.expectedOutput {
+				t.Fatalf("Incorrect print params output %q, should be %q\n", output, tc.expectedOutput)
+			}
+		})
 	}
 }
 
@@ -926,7 +1090,6 @@ func TestTargetObjects_invalid(t *testing.T) {
 }
 
 func TestCheckForDeleteEvent(t *testing.T) {
-
 	ctx := context.Background()
 	fakeClient := new(fakeAcdClient)
 
@@ -1036,36 +1199,36 @@ func Test_unset(t *testing.T) {
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, 2, len(kustomizeSource.Kustomize.Images))
+	assert.Len(t, kustomizeSource.Kustomize.Images, 2)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeImages: []string{"old1=new:tag"}})
-	assert.Equal(t, 1, len(kustomizeSource.Kustomize.Images))
+	assert.Len(t, kustomizeSource.Kustomize.Images, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeImages: []string{"old1=new:tag"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, 2, len(kustomizeSource.Kustomize.Replicas))
+	assert.Len(t, kustomizeSource.Kustomize.Replicas, 2)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
-	assert.Equal(t, 1, len(kustomizeSource.Kustomize.Replicas))
+	assert.Len(t, kustomizeSource.Kustomize.Replicas, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(kustomizeSource, unsetOpts{kustomizeReplicas: []string{"my-deployment"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, 2, len(helmSource.Helm.Parameters))
+	assert.Len(t, helmSource.Helm.Parameters, 2)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{parameters: []string{"name-1"}})
-	assert.Equal(t, 1, len(helmSource.Helm.Parameters))
+	assert.Len(t, helmSource.Helm.Parameters, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{parameters: []string{"name-1"}})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, 2, len(helmSource.Helm.ValueFiles))
+	assert.Len(t, helmSource.Helm.ValueFiles, 2)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesFiles: []string{"values-1.yaml"}})
-	assert.Equal(t, 1, len(helmSource.Helm.ValueFiles))
+	assert.Len(t, helmSource.Helm.ValueFiles, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{valuesFiles: []string{"values-1.yaml"}})
@@ -1081,27 +1244,27 @@ func Test_unset(t *testing.T) {
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, true, helmSource.Helm.IgnoreMissingValueFiles)
+	assert.True(t, helmSource.Helm.IgnoreMissingValueFiles)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
-	assert.Equal(t, false, helmSource.Helm.IgnoreMissingValueFiles)
+	assert.False(t, helmSource.Helm.IgnoreMissingValueFiles)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{ignoreMissingValueFiles: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, true, helmSource.Helm.PassCredentials)
+	assert.True(t, helmSource.Helm.PassCredentials)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{passCredentials: true})
-	assert.Equal(t, false, helmSource.Helm.PassCredentials)
+	assert.False(t, helmSource.Helm.PassCredentials)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(helmSource, unsetOpts{passCredentials: true})
 	assert.False(t, updated)
 	assert.False(t, nothingToUnset)
 
-	assert.Equal(t, 2, len(pluginSource.Plugin.Env))
+	assert.Len(t, pluginSource.Plugin.Env, 2)
 	updated, nothingToUnset = unset(pluginSource, unsetOpts{pluginEnvs: []string{"env-1"}})
-	assert.Equal(t, 1, len(pluginSource.Plugin.Env))
+	assert.Len(t, pluginSource.Plugin.Env, 1)
 	assert.True(t, updated)
 	assert.False(t, nothingToUnset)
 	updated, nothingToUnset = unset(pluginSource, unsetOpts{pluginEnvs: []string{"env-1"}})
@@ -1175,7 +1338,8 @@ func TestFilterAppResources(t *testing.T) {
 	app := v1alpha1.Application{
 		Status: v1alpha1.ApplicationStatus{
 			Resources: []v1alpha1.ResourceStatus{
-				appReplicaSet1, appReplicaSet2, appJob, appService1, appService2, appDeployment},
+				appReplicaSet1, appReplicaSet2, appJob, appService1, appService2, appDeployment,
+			},
 		},
 	}
 	// Resource filters
@@ -1185,49 +1349,64 @@ func TestFilterAppResources(t *testing.T) {
 			Kind:      "",
 			Name:      "",
 			Namespace: "",
-			Exclude:   false}
+			Exclude:   false,
+		}
 		// *:*:*
 		includeAllResources = v1alpha1.SyncOperationResource{
 			Group:     "*",
 			Kind:      "*",
 			Name:      "*",
 			Namespace: "",
-			Exclude:   false}
+			Exclude:   false,
+		}
 		// !*:*:*
 		excludeAllResources = v1alpha1.SyncOperationResource{
 			Group:     "*",
 			Kind:      "*",
 			Name:      "*",
 			Namespace: "",
-			Exclude:   true}
+			Exclude:   true,
+		}
 		// *:Service:*
 		includeAllServiceResources = v1alpha1.SyncOperationResource{
 			Group:     "*",
 			Kind:      "Service",
 			Name:      "*",
 			Namespace: "",
-			Exclude:   false}
+			Exclude:   false,
+		}
 		// !*:Service:*
 		excludeAllServiceResources = v1alpha1.SyncOperationResource{
 			Group:     "*",
 			Kind:      "Service",
 			Name:      "*",
 			Namespace: "",
-			Exclude:   true}
+			Exclude:   true,
+		}
+		// apps:ReplicaSet:*
+		includeAllReplicaSetResource = v1alpha1.SyncOperationResource{
+			Group:     "apps",
+			Kind:      "ReplicaSet",
+			Name:      "*",
+			Namespace: "",
+			Exclude:   false,
+		}
 		// apps:ReplicaSet:replicaSet-name1
 		includeReplicaSet1Resource = v1alpha1.SyncOperationResource{
 			Group:     "apps",
 			Kind:      "ReplicaSet",
 			Name:      "replicaSet-name1",
 			Namespace: "",
-			Exclude:   false}
+			Exclude:   false,
+		}
 		// !apps:ReplicaSet:replicaSet-name2
 		excludeReplicaSet2Resource = v1alpha1.SyncOperationResource{
 			Group:     "apps",
 			Kind:      "ReplicaSet",
 			Name:      "replicaSet-name2",
 			Namespace: "",
-			Exclude:   true}
+			Exclude:   true,
+		}
 	)
 
 	// Filtered resources
@@ -1275,55 +1454,72 @@ func TestFilterAppResources(t *testing.T) {
 		expectedResult    []*v1alpha1.SyncOperationResource
 	}{
 		// --resource apps:ReplicaSet:replicaSet-name1 --resource *:Service:*
-		{testName: "Include ReplicaSet replicaSet-name1 resouce and all service resources",
+		{
+			testName:          "Include ReplicaSet replicaSet-name1 resource and all service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllServiceResources, &includeReplicaSet1Resource},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &service1, &service2},
 		},
 		// --resource apps:ReplicaSet:replicaSet-name1 --resource !*:Service:*
-		{testName: "Include ReplicaSet replicaSet-name1 resouce and exclude all service resources",
+		{
+			testName:          "Include ReplicaSet replicaSet-name1 resource and exclude all service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllServiceResources, &includeReplicaSet1Resource},
-			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
+			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1},
 		},
 		// --resource !apps:ReplicaSet:replicaSet-name2 --resource !*:Service:*
-		{testName: "Exclude ReplicaSet replicaSet-name2 resouce and all service resources",
+		{
+			testName:          "Exclude ReplicaSet replicaSet-name2 resource and all service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeReplicaSet2Resource, &excludeAllServiceResources},
-			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &service1, &service2, &deployment},
+			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &job, &deployment},
 		},
 		// --resource !apps:ReplicaSet:replicaSet-name2
-		{testName: "Exclude ReplicaSet replicaSet-name2 resouce",
+		{
+			testName:          "Exclude ReplicaSet replicaSet-name2 resource",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeReplicaSet2Resource},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &job, &service1, &service2, &deployment},
 		},
 		// --resource apps:ReplicaSet:replicaSet-name1
-		{testName: "Include ReplicaSet replicaSet-name1 resouce",
+		{
+			testName:          "Include ReplicaSet replicaSet-name1 resource",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeReplicaSet1Resource},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1},
 		},
+		// --resource apps:ReplicaSet:* --resource !apps:ReplicaSet:replicaSet-name2
+		{
+			testName:          "Include All ReplicaSet resource and exclude replicaSet-name1 resource",
+			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllReplicaSetResource, &excludeReplicaSet2Resource},
+			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1},
+		},
 		// --resource !*:Service:*
-		{testName: "Exclude Service resouces",
+		{
+			testName:          "Exclude Service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllServiceResources},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &deployment},
 		},
 		// --resource *:Service:*
-		{testName: "Include Service resouces",
+		{
+			testName:          "Include Service resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllServiceResources},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&service1, &service2},
 		},
 		// --resource !*:*:*
-		{testName: "Exclude all resouces",
+		{
+			testName:          "Exclude all resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&excludeAllResources},
 			expectedResult:    nil,
 		},
 		// --resource *:*:*
-		{testName: "Include all resouces",
+		{
+			testName:          "Include all resources",
 			selectedResources: []*v1alpha1.SyncOperationResource{&includeAllResources},
 			expectedResult:    []*v1alpha1.SyncOperationResource{&replicaSet1, &replicaSet2, &job, &service1, &service2, &deployment},
 		},
-		{testName: "No Filters",
+		{
+			testName:          "No Filters",
 			selectedResources: []*v1alpha1.SyncOperationResource{&blankValues},
 			expectedResult:    nil,
 		},
-		{testName: "Empty Filter",
+		{
+			testName:          "Empty Filter",
 			selectedResources: []*v1alpha1.SyncOperationResource{},
 			expectedResult:    nil,
 		},
@@ -1338,47 +1534,49 @@ func TestFilterAppResources(t *testing.T) {
 }
 
 func TestParseSelectedResources(t *testing.T) {
-	resources := []string{"v1alpha:Application:test",
+	resources := []string{
+		"v1alpha:Application:test",
 		"v1alpha:Application:namespace/test",
 		"!v1alpha:Application:test",
 		"apps:Deployment:default/test",
-		"!*:*:*"}
+		"!*:*:*",
+	}
 	operationResources, err := parseSelectedResources(resources)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, operationResources, 5)
-	assert.Equal(t, *operationResources[0], v1alpha1.SyncOperationResource{
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "",
 		Name:      "test",
 		Kind:      application.ApplicationKind,
 		Group:     "v1alpha",
-	})
-	assert.Equal(t, *operationResources[1], v1alpha1.SyncOperationResource{
+	}, *operationResources[0])
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "namespace",
 		Name:      "test",
 		Kind:      application.ApplicationKind,
 		Group:     "v1alpha",
-	})
-	assert.Equal(t, *operationResources[2], v1alpha1.SyncOperationResource{
+	}, *operationResources[1])
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "",
 		Name:      "test",
 		Kind:      "Application",
 		Group:     "v1alpha",
 		Exclude:   true,
-	})
-	assert.Equal(t, *operationResources[3], v1alpha1.SyncOperationResource{
+	}, *operationResources[2])
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "default",
 		Name:      "test",
 		Kind:      "Deployment",
 		Group:     "apps",
 		Exclude:   false,
-	})
-	assert.Equal(t, *operationResources[4], v1alpha1.SyncOperationResource{
+	}, *operationResources[3])
+	assert.Equal(t, v1alpha1.SyncOperationResource{
 		Namespace: "",
 		Name:      "*",
 		Kind:      "*",
 		Group:     "*",
 		Exclude:   true,
-	})
+	}, *operationResources[4])
 }
 
 func TestParseSelectedResourcesIncorrect(t *testing.T) {
@@ -1391,14 +1589,13 @@ func TestParseSelectedResourcesIncorrectNamespace(t *testing.T) {
 	resources := []string{"v1alpha:Application:namespace/test/unknown"}
 	_, err := parseSelectedResources(resources)
 	assert.ErrorContains(t, err, "v1alpha:Application:namespace/test/unknown")
-
 }
 
 func TestParseSelectedResourcesEmptyList(t *testing.T) {
 	var resources []string
 	operationResources, err := parseSelectedResources(resources)
-	assert.NoError(t, err)
-	assert.Len(t, operationResources, 0)
+	require.NoError(t, err)
+	assert.Empty(t, operationResources)
 }
 
 func TestPrintApplicationTableNotWide(t *testing.T) {
@@ -1427,8 +1624,8 @@ func TestPrintApplicationTableNotWide(t *testing.T) {
 		printApplicationTable([]v1alpha1.Application{*app, *app}, &output)
 		return nil
 	})
-	assert.NoError(t, err)
-	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>\n"
+	require.NoError(t, err)
+	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>\n"
 	assert.Equal(t, output, expectation)
 }
 
@@ -1463,8 +1660,8 @@ func TestPrintApplicationTableWide(t *testing.T) {
 		printApplicationTable([]v1alpha1.Application{*app, *app}, &output)
 		return nil
 	})
-	assert.NoError(t, err)
-	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS  REPO                                             PATH       TARGET\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  <none>      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\n"
+	require.NoError(t, err)
+	expectation := "NAME      CLUSTER                NAMESPACE  PROJECT  STATUS     HEALTH   SYNCPOLICY  CONDITIONS  REPO                                             PATH       TARGET\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\napp-name  http://localhost:8080  default    prj      OutOfSync  Healthy  Manual      <none>      https://github.com/argoproj/argocd-example-apps  guestbook  123\n"
 	assert.Equal(t, output, expectation)
 }
 
@@ -1500,7 +1697,6 @@ func TestFormatItems(t *testing.T) {
 	assert.Equal(t, "health", items[6])
 	assert.Equal(t, "hook", items[7])
 	assert.Equal(t, "message", items[8])
-
 }
 
 func TestMerge(t *testing.T) {
@@ -1727,6 +1923,316 @@ func testApp(name, project string, labels map[string]string, annotations map[str
 	}
 }
 
+func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
+	acdClient := &customAcdClient{&fakeAcdClient{}}
+	ctx := context.Background()
+	var selectResource []*v1alpha1.SyncOperationResource
+	watch := watchOpts{
+		sync:      false,
+		health:    false,
+		operation: true,
+		suspended: false,
+	}
+	watch = getWatchOpts(watch)
+
+	output, err := captureOutput(func() error {
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
+		return nil
+	},
+	)
+	require.NoError(t, err)
+	assert.True(t, json.Valid([]byte(output)))
+
+	output, err = captureOutput(func() error {
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "yaml")
+		return nil
+	})
+
+	require.NoError(t, err)
+	err = yaml.Unmarshal([]byte(output), &v1alpha1.Application{})
+	require.NoError(t, err)
+
+	output, _ = captureOutput(func() error {
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "")
+		return nil
+	})
+	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
+
+	expectation := `TIMESTAMP                  GROUP        KIND   NAMESPACE                  NAME    STATUS   HEALTH        HOOK  MESSAGE
+%s            Service     default         service-name1    Synced  Healthy              
+%s   apps  Deployment     default                  test    Synced  Healthy              
+
+Name:               argocd/test
+Project:            default
+Server:             local
+Namespace:          argocd
+URL:                http://localhost:8080/applications/app-name
+Source:
+- Repo:             test
+  Target:           master
+  Path:             /test
+  Helm Values:      path1,path2
+  Name Prefix:      prefix
+SyncWindow:         Sync Allowed
+Sync Policy:        Automated (Prune)
+Sync Status:        OutOfSync from master
+Health Status:      Progressing (health-message)
+
+Operation:          Sync
+Sync Revision:      revision
+Phase:              
+Start:              0001-01-01 00:00:00 +0000 UTC
+Finished:           2020-11-10 23:00:00 +0000 UTC
+Duration:           2333448h16m18.871345152s
+Message:            test
+
+GROUP  KIND        NAMESPACE  NAME           STATUS  HEALTH   HOOK  MESSAGE
+       Service     default    service-name1  Synced  Healthy        
+apps   Deployment  default    test           Synced  Healthy        
+`
+	expectation = fmt.Sprintf(expectation, timeStr, timeStr)
+	expectationParts := strings.Split(expectation, "\n")
+	slices.Sort(expectationParts)
+	expectationSorted := strings.Join(expectationParts, "\n")
+	outputParts := strings.Split(output, "\n")
+	slices.Sort(outputParts)
+	outputSorted := strings.Join(outputParts, "\n")
+	// Need to compare sorted since map entries may not keep a specific order during serialization, leading to flakiness.
+	assert.Equalf(t, expectationSorted, outputSorted, "Incorrect output %q, should be %q (items order doesn't matter)", output, expectation)
+}
+
+type customAcdClient struct {
+	*fakeAcdClient
+}
+
+func (c *customAcdClient) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent {
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
+	_, appClient := c.NewApplicationClientOrDie()
+	app, _ := appClient.Get(ctx, &applicationpkg.ApplicationQuery{})
+
+	newApp := v1alpha1.Application{
+		TypeMeta:   app.TypeMeta,
+		ObjectMeta: app.ObjectMeta,
+		Spec:       app.Spec,
+		Status:     app.Status,
+		Operation:  app.Operation,
+	}
+
+	go func() {
+		appEventsCh <- &v1alpha1.ApplicationWatchEvent{
+			Type:        watch.Bookmark,
+			Application: newApp,
+		}
+		close(appEventsCh)
+	}()
+
+	return appEventsCh
+}
+
+func (c *customAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return &fakeConnection{}, &fakeAppServiceClient{}
+}
+
+func (c *customAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+type fakeConnection struct{}
+
+func (c *fakeConnection) Close() error {
+	return nil
+}
+
+type fakeSettingsServiceClient struct{}
+
+func (f fakeSettingsServiceClient) Get(ctx context.Context, in *settingspkg.SettingsQuery, opts ...grpc.CallOption) (*settingspkg.Settings, error) {
+	return &settingspkg.Settings{
+		URL: "http://localhost:8080",
+	}, nil
+}
+
+func (f fakeSettingsServiceClient) GetPlugins(ctx context.Context, in *settingspkg.SettingsQuery, opts ...grpc.CallOption) (*settingspkg.SettingsPluginsResponse, error) {
+	return nil, nil
+}
+
+type fakeAppServiceClient struct{}
+
+func (c *fakeAppServiceClient) Get(ctx context.Context, in *applicationpkg.ApplicationQuery, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+	time := metav1.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC)
+	return &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			SyncPolicy: &v1alpha1.SyncPolicy{
+				Automated: &v1alpha1.SyncPolicyAutomated{
+					Prune: true,
+				},
+			},
+			Project:     "default",
+			Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        "test",
+				TargetRevision: "master",
+				Path:           "/test",
+				Helm: &v1alpha1.ApplicationSourceHelm{
+					ValueFiles: []string{"path1", "path2"},
+				},
+				Kustomize: &v1alpha1.ApplicationSourceKustomize{NamePrefix: "prefix"},
+			},
+		},
+		Status: v1alpha1.ApplicationStatus{
+			Resources: []v1alpha1.ResourceStatus{
+				{
+					Group:     "",
+					Kind:      "Service",
+					Namespace: "default",
+					Name:      "service-name1",
+					Status:    "Synced",
+					Health: &v1alpha1.HealthStatus{
+						Status:  health.HealthStatusHealthy,
+						Message: "health-message",
+					},
+				},
+				{
+					Group:     "apps",
+					Kind:      "Deployment",
+					Namespace: "default",
+					Name:      "test",
+					Status:    "Synced",
+					Health: &v1alpha1.HealthStatus{
+						Status:  health.HealthStatusHealthy,
+						Message: "health-message",
+					},
+				},
+			},
+			OperationState: &v1alpha1.OperationState{
+				SyncResult: &v1alpha1.SyncOperationResult{
+					Revision: "revision",
+				},
+				FinishedAt: &time,
+				Message:    "test",
+			},
+			Sync: v1alpha1.SyncStatus{
+				Status: v1alpha1.SyncStatusCodeOutOfSync,
+			},
+			Health: v1alpha1.HealthStatus{
+				Status:  health.HealthStatusProgressing,
+				Message: "health-message",
+			},
+		},
+	}, nil
+}
+
+func (c *fakeAppServiceClient) List(ctx context.Context, in *applicationpkg.ApplicationQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationList, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ListResourceEvents(ctx context.Context, in *applicationpkg.ApplicationResourceEventsQuery, opts ...grpc.CallOption) (*v1.EventList, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Watch(ctx context.Context, in *applicationpkg.ApplicationQuery, opts ...grpc.CallOption) (applicationpkg.ApplicationService_WatchClient, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Create(ctx context.Context, in *applicationpkg.ApplicationCreateRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetApplicationSyncWindows(ctx context.Context, in *applicationpkg.ApplicationSyncWindowsQuery, opts ...grpc.CallOption) (*applicationpkg.ApplicationSyncWindowsResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) RevisionMetadata(ctx context.Context, in *applicationpkg.RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.RevisionMetadata, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) RevisionChartDetails(ctx context.Context, in *applicationpkg.RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.ChartDetails, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetManifests(ctx context.Context, in *applicationpkg.ApplicationManifestQuery, opts ...grpc.CallOption) (*apiclient.ManifestResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetManifestsWithFiles(ctx context.Context, opts ...grpc.CallOption) (applicationpkg.ApplicationService_GetManifestsWithFilesClient, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Update(ctx context.Context, in *applicationpkg.ApplicationUpdateRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) UpdateSpec(ctx context.Context, in *applicationpkg.ApplicationUpdateSpecRequest, opts ...grpc.CallOption) (*v1alpha1.ApplicationSpec, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Patch(ctx context.Context, in *applicationpkg.ApplicationPatchRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Delete(ctx context.Context, in *applicationpkg.ApplicationDeleteRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Sync(ctx context.Context, in *applicationpkg.ApplicationSyncRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ManagedResources(ctx context.Context, in *applicationpkg.ResourcesQuery, opts ...grpc.CallOption) (*applicationpkg.ManagedResourcesResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ResourceTree(ctx context.Context, in *applicationpkg.ResourcesQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationTree, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) WatchResourceTree(ctx context.Context, in *applicationpkg.ResourcesQuery, opts ...grpc.CallOption) (applicationpkg.ApplicationService_WatchResourceTreeClient, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) Rollback(ctx context.Context, in *applicationpkg.ApplicationRollbackRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) TerminateOperation(ctx context.Context, in *applicationpkg.OperationTerminateRequest, opts ...grpc.CallOption) (*applicationpkg.OperationTerminateResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) GetResource(ctx context.Context, in *applicationpkg.ApplicationResourceRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResourceResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) PatchResource(ctx context.Context, in *applicationpkg.ApplicationResourcePatchRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResourceResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ListResourceActions(ctx context.Context, in *applicationpkg.ApplicationResourceRequest, opts ...grpc.CallOption) (*applicationpkg.ResourceActionsListResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) RunResourceAction(ctx context.Context, in *applicationpkg.ResourceActionRunRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) DeleteResource(ctx context.Context, in *applicationpkg.ApplicationResourceDeleteRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) PodLogs(ctx context.Context, in *applicationpkg.ApplicationPodLogsQuery, opts ...grpc.CallOption) (applicationpkg.ApplicationService_PodLogsClient, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ListLinks(ctx context.Context, in *applicationpkg.ListAppLinksRequest, opts ...grpc.CallOption) (*applicationpkg.LinksResponse, error) {
+	return nil, nil
+}
+
+func (c *fakeAppServiceClient) ListResourceLinks(ctx context.Context, in *applicationpkg.ApplicationResourceRequest, opts ...grpc.CallOption) (*applicationpkg.LinksResponse, error) {
+	return nil, nil
+}
+
 type fakeAcdClient struct{}
 
 func (c *fakeAcdClient) ClientOptions() argocdclient.ClientOptions {
@@ -1736,84 +2242,111 @@ func (c *fakeAcdClient) HTTPClient() (*http.Client, error) { return nil, nil }
 func (c *fakeAcdClient) OIDCConfig(context.Context, *settingspkg.Settings) (*oauth2.Config, *oidc.Provider, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewRepoClient() (io.Closer, repositorypkg.RepositoryServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewRepoClientOrDie() (io.Closer, repositorypkg.RepositoryServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewRepoCredsClient() (io.Closer, repocredspkg.RepoCredsServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewRepoCredsClientOrDie() (io.Closer, repocredspkg.RepoCredsServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewCertClient() (io.Closer, certificatepkg.CertificateServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewCertClientOrDie() (io.Closer, certificatepkg.CertificateServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewClusterClient() (io.Closer, clusterpkg.ClusterServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewClusterClientOrDie() (io.Closer, clusterpkg.ClusterServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewGPGKeyClient() (io.Closer, gpgkeypkg.GPGKeyServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewGPGKeyClientOrDie() (io.Closer, gpgkeypkg.GPGKeyServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewApplicationClient() (io.Closer, applicationpkg.ApplicationServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewApplicationSetClient() (io.Closer, applicationsetpkg.ApplicationSetServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewApplicationSetClientOrDie() (io.Closer, applicationsetpkg.ApplicationSetServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewNotificationClient() (io.Closer, notificationpkg.NotificationServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewNotificationClientOrDie() (io.Closer, notificationpkg.NotificationServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewSessionClient() (io.Closer, sessionpkg.SessionServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewSessionClientOrDie() (io.Closer, sessionpkg.SessionServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewSettingsClient() (io.Closer, settingspkg.SettingsServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewVersionClient() (io.Closer, versionpkg.VersionServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewVersionClientOrDie() (io.Closer, versionpkg.VersionServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewProjectClient() (io.Closer, projectpkg.ProjectServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewProjectClientOrDie() (io.Closer, projectpkg.ProjectServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) NewAccountClient() (io.Closer, accountpkg.AccountServiceClient, error) {
 	return nil, nil, nil
 }
+
 func (c *fakeAcdClient) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient) {
 	return nil, nil
 }
+
 func (c *fakeAcdClient) WatchApplicationWithRetry(ctx context.Context, appName string, revision string) chan *v1alpha1.ApplicationWatchEvent {
 	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
 

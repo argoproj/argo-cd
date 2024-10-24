@@ -7,8 +7,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"math/big"
+	"net/http"
 	"net/url"
 	"path"
 	"reflect"
@@ -48,6 +50,9 @@ type ArgoCDSettings struct {
 	// URL is the externally facing URL users will visit to reach Argo CD.
 	// The value here is used when configuring SSO. Omitting this value will disable SSO.
 	URL string `json:"url,omitempty"`
+	// URLs is a list of externally facing URLs users will visit to reach Argo CD.
+	// The value here is used when configuring SSO reachable from multiple domains.
+	AdditionalURLs []string `json:"additionalUrls,omitempty"`
 	// Indicates if status badge is enabled or not.
 	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
 	// Indicates if status badge custom root URL should be used.
@@ -103,6 +108,8 @@ type ArgoCDSettings struct {
 	InClusterEnabled bool `json:"inClusterEnabled"`
 	// ServerRBACLogEnforceEnable temporary var indicates whether rbac will be enforced on logs
 	ServerRBACLogEnforceEnable bool `json:"serverRBACLogEnforceEnable"`
+	// MaxPodLogsToRender the maximum number of pod logs to render
+	MaxPodLogsToRender int64 `json:"maxPodLogsToRender"`
 	// ExecEnabled indicates whether the UI exec feature is enabled
 	ExecEnabled bool `json:"execEnabled"`
 	// ExecShells restricts which shells are allowed for `exec` and in which order they are tried
@@ -116,9 +123,12 @@ type ArgoCDSettings struct {
 	OIDCTLSInsecureSkipVerify bool `json:"oidcTLSInsecureSkipVerify"`
 	// AppsInAnyNamespaceEnabled indicates whether applications are allowed to be created in any namespace
 	AppsInAnyNamespaceEnabled bool `json:"appsInAnyNamespaceEnabled"`
-	// ExtensionConfig configurations related to ArgoCD proxy extensions. The value
-	// is a yaml string defined in extension.ExtensionConfigs struct.
-	ExtensionConfig string `json:"extensionConfig,omitempty"`
+	// ExtensionConfig configurations related to ArgoCD proxy extensions. The keys are the extension name.
+	// The value is a yaml string defined in extension.ExtensionConfigs struct.
+	ExtensionConfig map[string]string `json:"extensionConfig,omitempty"`
+	// ImpersonationEnabled indicates whether Application sync privileges can be decoupled from control plane
+	// privileges using impersonation
+	ImpersonationEnabled bool `json:"impersonationEnabled"`
 }
 
 type GoogleAnalytics struct {
@@ -169,6 +179,7 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		LogoutURL:                o.LogoutURL,
 		RootCA:                   o.RootCA,
 		EnablePKCEAuthentication: o.EnablePKCEAuthentication,
+		DomainHint:               o.DomainHint,
 	}
 }
 
@@ -186,6 +197,7 @@ type OIDCConfig struct {
 	LogoutURL                string                 `json:"logoutURL,omitempty"`
 	RootCA                   string                 `json:"rootCA,omitempty"`
 	EnablePKCEAuthentication bool                   `json:"enablePKCEAuthentication,omitempty"`
+	DomainHint               string                 `json:"domainHint,omitempty"`
 }
 
 // DEPRECATED. Helm repository credentials are now managed using RepoCredentials
@@ -332,6 +344,8 @@ type Repository struct {
 	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
 	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
 	Proxy string `json:"proxy,omitempty"`
+	// NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
+	NoProxy string `json:"noProxy,omitempty"`
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
 	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
 	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
@@ -401,6 +415,8 @@ const (
 	settingServerPrivateKey = "tls.key"
 	// settingURLKey designates the key where Argo CD's external URL is set
 	settingURLKey = "url"
+	// settingAdditionalUrlsKey designates the key where Argo CD's additional external URLs are set
+	settingAdditionalUrlsKey = "additionalUrls"
 	// repositoriesKey designates the key where ArgoCDs repositories list is set
 	repositoriesKey = "repositories"
 	// repositoryCredentialsKey designates the key where ArgoCDs repositories credentials list is set
@@ -429,10 +445,14 @@ const (
 	settingsWebhookAzureDevOpsUsernameKey = "webhook.azuredevops.username"
 	// settingsWebhookAzureDevOpsPasswordKey is the key for Azure DevOps webhook password
 	settingsWebhookAzureDevOpsPasswordKey = "webhook.azuredevops.password"
+	// settingsWebhookMaxPayloadSize is the key for the maximum payload size for webhooks in MB
+	settingsWebhookMaxPayloadSizeMB = "webhook.maxPayloadSizeMB"
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
 	// settingsResourceTrackingMethodKey is the key to configure tracking method for application resources
 	settingsResourceTrackingMethodKey = "application.resourceTrackingMethod"
+	// settingsInstallationID holds the key for the instance installation ID
+	settingsInstallationID = "installationID"
 	// resourcesCustomizationsKey is the key to the map of resource overrides
 	resourceCustomizationsKey = "resource.customizations"
 	// resourceExclusions is the key to the list of excluded resources
@@ -443,6 +463,10 @@ const (
 	resourceIgnoreResourceUpdatesEnabledKey = "resource.ignoreResourceUpdatesEnabled"
 	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
 	resourceCustomLabelsKey = "resource.customLabels"
+	// resourceIncludeEventLabelKeys is the key to labels to be added onto Application k8s events if present on an Application or it's AppProject. Supports wildcard.
+	resourceIncludeEventLabelKeys = "resource.includeEventLabelKeys"
+	// resourceExcludeEventLabelKeys is the key to labels to be excluded from adding onto Application's k8s events. Supports wildcard.
+	resourceExcludeEventLabelKeys = "resource.excludeEventLabelKeys"
 	// kustomizeBuildOptionsKey is a string of kustomize build parameters
 	kustomizeBuildOptionsKey = "kustomize.buildOptions"
 	// kustomizeVersionKeyPrefix is a kustomize version key prefix
@@ -485,6 +509,8 @@ const (
 	inClusterEnabledKey = "cluster.inClusterEnabled"
 	// settingsServerRBACLogEnforceEnable is the key to configure whether logs RBAC enforcement is enabled
 	settingsServerRBACLogEnforceEnableKey = "server.rbac.log.enforce.enable"
+	// MaxPodLogsToRender the maximum number of pod logs to render
+	settingsMaxPodLogsToRender = "server.maxPodLogsToRender"
 	// helmValuesFileSchemesKey is the key to configure the list of supported helm values file schemas
 	helmValuesFileSchemesKey = "helm.valuesFileSchemes"
 	// execEnabledKey is the key to configure whether the UI exec feature is enabled
@@ -504,15 +530,23 @@ const (
 	RespectRBAC            = "resource.respectRBAC"
 	RespectRBACValueStrict = "strict"
 	RespectRBACValueNormal = "normal"
+	// impersonationEnabledKey is the key to configure whether the application sync decoupling through impersonation feature is enabled
+	impersonationEnabledKey = "application.sync.impersonation.enabled"
 )
 
-var (
-	sourceTypeToEnableGenerationKey = map[v1alpha1.ApplicationSourceType]string{
-		v1alpha1.ApplicationSourceTypeKustomize: "kustomize.enable",
-		v1alpha1.ApplicationSourceTypeHelm:      "helm.enable",
-		v1alpha1.ApplicationSourceTypeDirectory: "jsonnet.enable",
-	}
+const (
+	// default max webhook payload size is 1GB
+	defaultMaxWebhookPayloadSize = int64(1) * 1024 * 1024 * 1024
+
+	// application sync with impersonation feature is disabled by default.
+	defaultImpersonationEnabledFlag = false
 )
+
+var sourceTypeToEnableGenerationKey = map[v1alpha1.ApplicationSourceType]string{
+	v1alpha1.ApplicationSourceTypeKustomize: "kustomize.enable",
+	v1alpha1.ApplicationSourceTypeHelm:      "helm.enable",
+	v1alpha1.ApplicationSourceTypeDirectory: "jsonnet.enable",
+}
 
 // SettingsManager holds config info for a new manager with which to access Kubernetes ConfigMaps.
 type SettingsManager struct {
@@ -763,6 +797,14 @@ func (mgr *SettingsManager) GetTrackingMethod() (string, error) {
 	return argoCDCM.Data[settingsResourceTrackingMethodKey], nil
 }
 
+func (mgr *SettingsManager) GetInstallationID() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	return argoCDCM.Data[settingsInstallationID], nil
+}
+
 func (mgr *SettingsManager) GetPasswordPattern() (string, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -786,6 +828,19 @@ func (mgr *SettingsManager) GetServerRBACLogEnforceEnable() (bool, error) {
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACLogEnforceEnableKey])
+}
+
+func (mgr *SettingsManager) GetMaxPodLogsToRender() (int64, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return 10, err
+	}
+
+	if argoCDCM.Data[settingsMaxPodLogsToRender] == "" {
+		return 10, nil
+	}
+
+	return strconv.ParseInt(argoCDCM.Data[settingsMaxPodLogsToRender], 10, 64)
 }
 
 func (mgr *SettingsManager) GetDeepLinks(deeplinkType string) ([]DeepLink, error) {
@@ -864,7 +919,7 @@ func (mgr *SettingsManager) GetIsIgnoreResourceUpdatesEnabled() (bool, error) {
 	}
 
 	if argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey] == "" {
-		return false, nil
+		return true, nil
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey])
@@ -1049,7 +1104,7 @@ func (mgr *SettingsManager) GetResourceCompareOptions() (ArgoCDDiffOptions, erro
 func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get argo-cd config map: %v", err)
+		return nil, fmt.Errorf("failed to get argo-cd config map: %w", err)
 	}
 	helmOptions := &v1alpha1.HelmOptions{}
 	if value, ok := argoCDCM.Data[helmValuesFileSchemesKey]; ok {
@@ -1142,7 +1197,6 @@ func (mgr *SettingsManager) GetHelmRepositories() ([]HelmRepoCredentials, error)
 }
 
 func (mgr *SettingsManager) GetRepositories() ([]Repository, error) {
-
 	mgr.mutex.Lock()
 	reposCache := mgr.reposCache
 	mgr.mutex.Unlock()
@@ -1202,7 +1256,6 @@ func (mgr *SettingsManager) SaveRepositoryCredentials(creds []RepositoryCredenti
 }
 
 func (mgr *SettingsManager) GetRepositoryCredentials() ([]RepositoryCredentials, error) {
-
 	mgr.mutex.Lock()
 	repoCredsCache := mgr.repoCredsCache
 	mgr.mutex.Unlock()
@@ -1374,7 +1427,6 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 					tryNotify()
 				}
 			}
-
 		},
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			oldMeta, oldOk := oldObj.(metav1.Common)
@@ -1444,6 +1496,16 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	if err := validateExternalURL(argoCDCM.Data[settingUiBannerURLKey]); err != nil {
 		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
 	}
+	if argoCDCM.Data[settingAdditionalUrlsKey] != "" {
+		if err := yaml.Unmarshal([]byte(argoCDCM.Data[settingAdditionalUrlsKey]), &settings.AdditionalURLs); err != nil {
+			log.Warnf("Failed to decode all additional URLs in configmap: %v", err)
+		}
+	}
+	for _, url := range settings.AdditionalURLs {
+		if err := validateExternalURL(url); err != nil {
+			log.Warnf("Failed to validate external URL in configmap: %v", err)
+		}
+	}
 	settings.UiBannerURL = argoCDCM.Data[settingUiBannerURLKey]
 	settings.UserSessionDuration = time.Hour * 24
 	if userSessionDurationStr, ok := argoCDCM.Data[userSessionDurationKey]; ok {
@@ -1457,6 +1519,13 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	if settings.PasswordPattern == "" {
 		settings.PasswordPattern = common.PasswordPatten
 	}
+	if maxPodLogsToRenderStr, ok := argoCDCM.Data[settingsMaxPodLogsToRender]; ok {
+		if val, err := strconv.ParseInt(maxPodLogsToRenderStr, 10, 64); err != nil {
+			log.Warnf("Failed to parse '%s' key: %v", settingsMaxPodLogsToRender, err)
+		} else {
+			settings.MaxPodLogsToRender = val
+		}
+	}
 	settings.InClusterEnabled = argoCDCM.Data[inClusterEnabledKey] != "false"
 	settings.ExecEnabled = argoCDCM.Data[execEnabledKey] == "true"
 	execShells := argoCDCM.Data[execShellsKey]
@@ -1468,7 +1537,19 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	}
 	settings.TrackingMethod = argoCDCM.Data[settingsResourceTrackingMethodKey]
 	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"
-	settings.ExtensionConfig = argoCDCM.Data[extensionConfig]
+	settings.ExtensionConfig = getExtensionConfigs(argoCDCM.Data)
+	settings.ImpersonationEnabled = argoCDCM.Data[impersonationEnabledKey] == "true"
+}
+
+func getExtensionConfigs(cmData map[string]string) map[string]string {
+	result := make(map[string]string)
+	for k, v := range cmData {
+		if strings.HasPrefix(k, extensionConfig) {
+			extName := strings.TrimPrefix(strings.TrimPrefix(k, extensionConfig), ".")
+			result[extName] = v
+		}
+	}
+	return result
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid
@@ -1478,7 +1559,7 @@ func validateExternalURL(u string) error {
 	}
 	URL, err := url.Parse(u)
 	if err != nil {
-		return fmt.Errorf("Failed to parse URL: %v", err)
+		return fmt.Errorf("Failed to parse URL: %w", err)
 	}
 	if URL.Scheme != "http" && URL.Scheme != "https" {
 		return fmt.Errorf("URL must include http or https protocol")
@@ -1601,7 +1682,6 @@ func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
 		}
 		return nil
 	})
-
 	if err != nil {
 		return err
 	}
@@ -1707,7 +1787,6 @@ func (mgr *SettingsManager) SaveGPGPublicKeyData(ctx context.Context, gpgPublicK
 	}
 
 	return mgr.ResyncInformers()
-
 }
 
 type SettingsManagerOpts func(mgs *SettingsManager)
@@ -1720,7 +1799,6 @@ func WithRepoOrClusterChangedHandler(handler func()) SettingsManagerOpts {
 
 // NewSettingsManager generates a new SettingsManager pointer and returns it
 func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string, opts ...SettingsManagerOpts) *SettingsManager {
-
 	mgr := &SettingsManager{
 		ctx:       ctx,
 		clientset: clientset,
@@ -1963,6 +2041,39 @@ func (a *ArgoCDSettings) RedirectURL() (string, error) {
 	return appendURLPath(a.URL, common.CallbackEndpoint)
 }
 
+func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
+	for _, candidateURL := range append([]string{a.URL}, a.AdditionalURLs...) {
+		u, err := url.Parse(candidateURL)
+		if err != nil {
+			return "", err
+		}
+		if u.Host == r.Host && strings.HasPrefix(r.URL.RequestURI(), u.RequestURI()) {
+			return candidateURL, nil
+		}
+	}
+	return a.URL, nil
+}
+
+func (a *ArgoCDSettings) RedirectURLForRequest(r *http.Request) (string, error) {
+	base, err := a.ArgoURLForRequest(r)
+	if err != nil {
+		return "", err
+	}
+	return appendURLPath(base, common.CallbackEndpoint)
+}
+
+func (a *ArgoCDSettings) RedirectAdditionalURLs() ([]string, error) {
+	RedirectAdditionalURLs := []string{}
+	for _, url := range a.AdditionalURLs {
+		redirectURL, err := appendURLPath(url, common.CallbackEndpoint)
+		if err != nil {
+			return []string{}, err
+		}
+		RedirectAdditionalURLs = append(RedirectAdditionalURLs, redirectURL)
+	}
+	return RedirectAdditionalURLs, nil
+}
+
 func (a *ArgoCDSettings) DexRedirectURL() (string, error) {
 	return appendURLPath(a.URL, common.DexCallbackEndpoint)
 }
@@ -2019,8 +2130,8 @@ func (mgr *SettingsManager) notifySubscribers(newSettings *ArgoCDSettings) {
 }
 
 func isIncompleteSettingsError(err error) bool {
-	_, ok := err.(*incompleteSettingsError)
-	return ok
+	var incompleteSettingsErr *incompleteSettingsError
+	return errors.As(err, &incompleteSettingsErr)
 }
 
 // InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
@@ -2189,11 +2300,71 @@ func (mgr *SettingsManager) GetNamespace() string {
 func (mgr *SettingsManager) GetResourceCustomLabels() ([]string, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
-		return []string{}, fmt.Errorf("failed getting configmap: %v", err)
+		return []string{}, fmt.Errorf("failed getting configmap: %w", err)
 	}
 	labels := argoCDCM.Data[resourceCustomLabelsKey]
 	if labels != "" {
 		return strings.Split(labels, ","), nil
 	}
 	return []string{}, nil
+}
+
+func (mgr *SettingsManager) GetIncludeEventLabelKeys() []string {
+	labelKeys := []string{}
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		log.Error(fmt.Errorf("failed getting configmap: %w", err))
+		return labelKeys
+	}
+	if value, ok := argoCDCM.Data[resourceIncludeEventLabelKeys]; ok {
+		if value != "" {
+			value = strings.ReplaceAll(value, " ", "")
+			labelKeys = strings.Split(value, ",")
+		}
+	}
+	return labelKeys
+}
+
+func (mgr *SettingsManager) GetExcludeEventLabelKeys() []string {
+	labelKeys := []string{}
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		log.Error(fmt.Errorf("failed getting configmap: %w", err))
+		return labelKeys
+	}
+	if value, ok := argoCDCM.Data[resourceExcludeEventLabelKeys]; ok {
+		if value != "" {
+			value = strings.ReplaceAll(value, " ", "")
+			labelKeys = strings.Split(value, ",")
+		}
+	}
+	return labelKeys
+}
+
+func (mgr *SettingsManager) GetMaxWebhookPayloadSize() int64 {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return defaultMaxWebhookPayloadSize
+	}
+
+	if argoCDCM.Data[settingsWebhookMaxPayloadSizeMB] == "" {
+		return defaultMaxWebhookPayloadSize
+	}
+
+	maxPayloadSizeMB, err := strconv.ParseInt(argoCDCM.Data[settingsWebhookMaxPayloadSizeMB], 10, 64)
+	if err != nil {
+		log.Warnf("Failed to parse '%s' key: %v", settingsWebhookMaxPayloadSizeMB, err)
+		return defaultMaxWebhookPayloadSize
+	}
+
+	return maxPayloadSizeMB * 1024 * 1024
+}
+
+// IsImpersonationEnabled returns true if application sync with impersonation feature is enabled in argocd-cm configmap
+func (mgr *SettingsManager) IsImpersonationEnabled() (bool, error) {
+	cm, err := mgr.getConfigMap()
+	if err != nil {
+		return defaultImpersonationEnabledFlag, fmt.Errorf("error checking %s property in configmap: %w", impersonationEnabledKey, err)
+	}
+	return cm.Data[impersonationEnabledKey] == "true", nil
 }

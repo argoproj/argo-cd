@@ -30,6 +30,7 @@ argocd admin proj generate-spec PROJECT [flags]
       --deny-namespaced-resource stringArray    List of denied namespaced resources
       --description string                      Project description
   -d, --dest stringArray                        Permitted destination server and namespace (e.g. https://192.168.99.100:8443,default)
+      --dest-service-accounts stringArray       Destination server, namespace and target service account (e.g. https://192.168.99.100:8443,default,default-sa)
   -f, --file string                             Filename or URL to Kubernetes manifests for the project
   -h, --help                                    help for generate-spec
   -i, --inline                                  If set then generated resource is written back to the file specified in --file flag
@@ -44,7 +45,8 @@ argocd admin proj generate-spec PROJECT [flags]
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token
+      --argocd-context string           The name of the Argo-CD server context to use
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")

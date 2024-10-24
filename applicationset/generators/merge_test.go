@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -49,7 +50,6 @@ func listOfMapsToSet(maps []map[string]interface{}) (map[string]bool, error) {
 }
 
 func TestMergeGenerate(t *testing.T) {
-
 	testCases := []struct {
 		name           string
 		baseGenerators []argoprojiov1alpha1.ApplicationSetNestedGenerator
@@ -156,7 +156,7 @@ func TestMergeGenerate(t *testing.T) {
 
 			appSet := &argoprojiov1alpha1.ApplicationSet{}
 
-			var mergeGenerator = NewMergeGenerator(
+			mergeGenerator := NewMergeGenerator(
 				map[string]Generator{
 					"List": &ListGenerator{},
 					"Matrix": &MatrixGenerator{
@@ -178,18 +178,18 @@ func TestMergeGenerate(t *testing.T) {
 					MergeKeys:  testCaseCopy.mergeKeys,
 					Template:   argoprojiov1alpha1.ApplicationSetTemplate{},
 				},
-			}, appSet)
+			}, appSet, nil)
 
 			if testCaseCopy.expectedErr != nil {
-				assert.EqualError(t, err, testCaseCopy.expectedErr.Error())
+				require.EqualError(t, err, testCaseCopy.expectedErr.Error())
 			} else {
 				expectedSet, err := listOfMapsToSet(testCaseCopy.expected)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 
 				actualSet, err := listOfMapsToSet(got)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, expectedSet, actualSet)
 			}
 		})
@@ -197,7 +197,7 @@ func TestMergeGenerate(t *testing.T) {
 }
 
 func toAPIExtensionsJSON(t *testing.T, g interface{}) *apiextensionsv1.JSON {
-
+	t.Helper()
 	resVal, err := json.Marshal(g)
 	if err != nil {
 		t.Error("unable to unmarshal json", g)
@@ -339,13 +339,11 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 			got, err := getParamSetsByMergeKey(testCaseCopy.mergeKeys, testCaseCopy.paramSets)
 
 			if testCaseCopy.expectedErr != nil {
-				assert.EqualError(t, err, testCaseCopy.expectedErr.Error())
+				require.EqualError(t, err, testCaseCopy.expectedErr.Error())
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
-
 		})
-
 	}
 }

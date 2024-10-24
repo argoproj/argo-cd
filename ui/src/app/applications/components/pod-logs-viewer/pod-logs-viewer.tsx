@@ -39,6 +39,11 @@ export interface PodLogsProps {
     timestamp?: string;
     containerGroups?: any[];
     onClickContainer?: (group: any, i: number, tab: string) => void;
+    fullscreen?: boolean;
+    viewPodNames?: boolean;
+    viewTimestamps?: boolean;
+    follow?: boolean;
+    showPreviousLogs?: boolean;
 }
 
 // ansi colors, see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
@@ -64,7 +69,7 @@ function stringHashCode(str: string) {
 
 // ansi color for pod name
 function podColor(podName: string) {
-    return colors[stringHashCode(podName) % colors.length];
+    return colors[Math.abs(stringHashCode(podName) % colors.length)];
 }
 
 // https://2ality.com/2012/09/empty-regexp.html
@@ -85,15 +90,32 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const logsContainerRef = useRef(null);
 
-    useEffect(() => {
-        if (viewPodNames) {
-            setViewTimestamps(false);
+    const setWithQueryParams = <T extends (val: any) => void>(key: string, cb: T) => {
+        return (val => {
+            cb(val);
+            queryParams.set(key, val.toString());
+            history.replaceState(null, '', `${location.pathname}?${queryParams}`);
+        }) as T;
+    };
+
+    const setViewPodNamesWithQueryParams = setWithQueryParams('viewPodNames', setViewPodNames);
+    const setViewTimestampsWithQueryParams = setWithQueryParams('viewTimestamps', setViewTimestamps);
+    const setFollowWithQueryParams = setWithQueryParams('follow', setFollow);
+    const setPreviousLogsWithQueryParams = setWithQueryParams('showPreviousLogs', setPreviousLogs);
+    const setTailWithQueryParams = setWithQueryParams('tail', setTail);
+    const setFilterWithQueryParams = setWithQueryParams('filterText', setFilter);
+
+    const onToggleViewPodNames = (val: boolean) => {
+        setViewPodNamesWithQueryParams(val);
+        if (val) {
+            setViewTimestampsWithQueryParams(false);
         }
-    }, [viewPodNames]);
+    };
 
     useEffect(() => {
         // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
         // matchNothing this is chosen instead of empty regexp, because that would match everything and break colored logs
+        // eslint-disable-next-line no-useless-escape
         setHighlight(filter === '' ? matchNothing : new RegExp(filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g'));
     }, [filter]);
 
@@ -143,7 +165,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         // show the pod name if there are multiple pods, pad with spaces to align
         (viewPodNames ? (lineNum === 0 || logs[lineNum - 1].podName !== log.podName ? podColor(podName) + log.podName + reset : ' '.repeat(log.podName.length)) + ' ' : '') +
         // show the timestamp if requested, pad with spaces to align
-        (viewTimestamps ? (lineNum === 0 || (logs[lineNum - 1].timeStamp !== log.timeStamp ? log.timeStampStr : '').padEnd(30)) + ' ' : '') +
+        (viewTimestamps ? (lineNum === 0 || logs[lineNum - 1].timeStamp !== log.timeStamp ? log.timeStampStr : '').padEnd(30) + ' ' : '') +
         // show the log content, highlight the filter text
         log.content?.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
     const logsContent = (width: number, height: number, isWrapped: boolean) => (
@@ -163,32 +185,32 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                     <React.Fragment>
                         <div className='pod-logs-viewer__settings'>
                             <span>
-                                <FollowToggleButton follow={follow} setFollow={setFollow} />
+                                <FollowToggleButton follow={follow} setFollow={setFollowWithQueryParams} />
                                 {follow && <AutoScrollButton scrollToBottom={scrollToBottom} setScrollToBottom={setScrollToBottom} />}
-                                <ShowPreviousLogsToggleButton setPreviousLogs={setPreviousLogs} showPreviousLogs={previous} />
+                                <ShowPreviousLogsToggleButton setPreviousLogs={setPreviousLogsWithQueryParams} showPreviousLogs={previous} />
                                 <Spacer />
                                 <ContainerSelector containerGroups={containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
                                 <Spacer />
                                 {!follow && (
                                     <>
                                         <SinceSecondsSelector sinceSeconds={sinceSeconds} setSinceSeconds={n => setSinceSeconds(n)} />
-                                        <TailSelector tail={tail} setTail={setTail} />
+                                        <TailSelector tail={tail} setTail={setTailWithQueryParams} />
                                     </>
                                 )}
-                                <LogMessageFilter filterText={filter} setFilterText={setFilter} />
+                                <LogMessageFilter filterText={filter} setFilterText={setFilterWithQueryParams} />
                             </span>
                             <Spacer />
                             <span>
                                 <WrapLinesButton prefs={prefs} />
-                                <PodNamesToggleButton viewPodNames={viewPodNames} setViewPodNames={setViewPodNames} />
-                                <TimestampsToggleButton setViewTimestamps={setViewTimestamps} viewTimestamps={viewTimestamps} timestamp={timestamp} />
+                                <PodNamesToggleButton viewPodNames={viewPodNames} setViewPodNames={onToggleViewPodNames} />
+                                <TimestampsToggleButton setViewTimestamps={setViewTimestampsWithQueryParams} viewTimestamps={viewTimestamps} timestamp={timestamp} />
                                 <DarkModeToggleButton prefs={prefs} />
                             </span>
                             <Spacer />
                             <span>
                                 <CopyLogsButton logs={logs} />
                                 <DownloadLogsButton {...props} />
-                                <FullscreenButton {...props} />
+                                <FullscreenButton {...props} viewPodNames={viewPodNames} viewTimestamps={viewTimestamps} follow={follow} showPreviousLogs={previous} />
                             </span>
                         </div>
                         <div className={classNames('pod-logs-viewer', {'pod-logs-viewer--inverted': prefs.appDetails.darkMode})} onWheel={handleScroll}>

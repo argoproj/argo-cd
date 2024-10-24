@@ -81,12 +81,11 @@ func TestNamespace() string {
 	return GetEnvWithDefault("ARGOCD_E2E_NAMESPACE", ArgoCDNamespace)
 }
 
-// GetE2EFixtureK8sClient initializes the Kubernetes clients (if needed), and returns the most recently initalized value.
+// GetE2EFixtureK8sClient initializes the Kubernetes clients (if needed), and returns the most recently initialized value.
 // Note: this requires a local Kubernetes configuration (for example, while running the E2E tests).
 func GetE2EFixtureK8sClient() *E2EFixtureK8sClient {
 	// Initialize the Kubernetes clients only on first use
 	clientInitialized.Do(func() {
-
 		// set-up variables
 		config := getKubeConfig("", clientcmd.ConfigOverrides{})
 
@@ -101,14 +100,13 @@ func GetE2EFixtureK8sClient() *E2EFixtureK8sClient {
 			ArgoCDExternalNamespace:  internalClientVars.DynamicClientset.Resource(v1alpha1.SchemeGroupVersion.WithResource("applicationsets")).Namespace(string(ArgoCDExternalNamespace)),
 			ArgoCDExternalNamespace2: internalClientVars.DynamicClientset.Resource(v1alpha1.SchemeGroupVersion.WithResource("applicationsets")).Namespace(string(ArgoCDExternalNamespace2)),
 		}
-
 	})
 	return internalClientVars
 }
 
-// EnsureCleanSlate ensures that the Kubernetes resources on the cluster are are in a 'clean' state, before a test is run.
+// EnsureCleanSlate ensures that the Kubernetes resources on the cluster are in a 'clean' state, before a test is run.
 func EnsureCleanState(t *testing.T) {
-
+	t.Helper()
 	start := time.Now()
 
 	fixtureClient := GetE2EFixtureK8sClient()
@@ -191,7 +189,6 @@ func EnsureCleanState(t *testing.T) {
 }
 
 func waitForExpectedClusterState() error {
-
 	fixtureClient := GetE2EFixtureK8sClient()
 
 	SetProjectSpec(fixtureClient, "default", v1alpha1.AppProjectSpec{
@@ -229,7 +226,6 @@ func waitForExpectedClusterState() error {
 			return fmt.Errorf("Waiting for list of Applications to be size zero: %d", len(appList.Items))
 		}
 		return nil // Pass
-
 	}, time.Now().Add(60*time.Second)); err != nil {
 		return err
 	}
@@ -273,14 +269,13 @@ func cleanUpNamespace(fixtureClient *E2EFixtureK8sClient, namespace string) erro
 		msg = err.Error()
 	}
 
-	return fmt.Errorf(msg)
+	return fmt.Errorf("%s", msg)
 }
 
 // waitForSuccess waits for the condition to return a non-error value.
 // Returns if condition returns nil, or the expireTime has elapsed (in which
 // case the last error will be returned)
 func waitForSuccess(condition func() error, expireTime time.Time) error {
-
 	var mostRecentError error
 
 	for {
@@ -302,7 +297,6 @@ func waitForSuccess(condition func() error, expireTime time.Time) error {
 		time.Sleep(500 * time.Millisecond)
 	}
 	return mostRecentError
-
 }
 
 // getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
@@ -319,7 +313,6 @@ func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 // creates e2e tests fixture: ensures that Application CRD is installed, creates temporal namespace, starts repo and api server,
 // configure currently available cluster.
 func init() {
-
 	// ensure we log all shell execs
 	log.SetLevel(log.DebugLevel)
 }
@@ -374,12 +367,11 @@ func ToUnstructured(obj interface{}) (*unstructured.Unstructured, error) {
 //
 // Note: This only applies to tests that use the GitHub API (different from GitHub's Git service)
 func IsGitHubAPISkippedTest(t *testing.T) bool {
-
+	t.Helper()
 	if strings.TrimSpace(os.Getenv("GITHUB_TOKEN")) == "" {
 		t.Skip("Skipping this test, as the GITHUB_TOKEN is not set. Please ensure this test passes locally, with your own GITHUB_TOKEN.")
 		return true
 	}
 
 	return false
-
 }

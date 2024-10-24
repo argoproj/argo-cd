@@ -57,7 +57,7 @@ argocd admin cluster stats target-cluster
       --sentinelmaster string                 Redis sentinel master group name. (default "master")
       --server string                         The address and port of the Kubernetes API server
       --shard int                             Cluster shard filter (default -1)
-      --sharding-method string                Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin]  (default "legacy")
+      --sharding-method string                Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin, consistent-hashing]  (default "legacy")
       --tls-server-name string                If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --token string                          Bearer token for authentication to the API server
       --user string                           The name of the kubeconfig user to use
@@ -67,7 +67,8 @@ argocd admin cluster stats target-cluster
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token
+      --argocd-context string           The name of the Argo-CD server context to use
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")

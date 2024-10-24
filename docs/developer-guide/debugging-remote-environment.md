@@ -21,7 +21,7 @@ curl -sSfL https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/i
 Connect to one of the services, for example, to debug the main ArgoCD server run:
 ```shell
 kubectl config set-context --current --namespace argocd
-telepresence helm install # Installs telepresence into your cluster
+telepresence helm install --set agent.securityContext={} # Installs telepresence into your cluster
 telepresence connect # Starts the connection to your cluster (bound to the current namespace)
 telepresence intercept argocd-server --port 8080:http --env-file .envrc.remote # Starts the interception
 ```

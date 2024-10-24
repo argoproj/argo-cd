@@ -6,9 +6,10 @@
 | codeql.yaml        | CodeQL analysis                                                |
 | image-reuse.yaml   | Build, push, and Sign container images                         |
 | image.yaml         | Build container image for PR's & publish for push events       |
-| pr-title-check.yaml| Lint PR for semantic information                               |
 | init-release.yaml  | Build manifests and version then create a PR for release branch|
+| pr-title-check.yaml| Lint PR for semantic information                               |
 | release.yaml       | Build images, cli-binaries, provenances, and post actions      |
+| scorecard.yaml     | Generate scorecard for supply-chain security                   |
 | update-snyk.yaml   | Scheduled snyk reports                                         |
 
 # Reusable workflows

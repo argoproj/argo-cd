@@ -69,7 +69,7 @@ func TestReceiveApplicationStream(t *testing.T) {
 		assert.NotEmpty(t, workdir)
 		files, err := os.ReadDir(workdir)
 		require.NoError(t, err)
-		require.Equal(t, 2, len(files))
+		require.Len(t, files, 2)
 		names := []string{}
 		for _, f := range files {
 			names = append(names, f.Name())
@@ -94,5 +94,6 @@ func (m *streamMock) sendFile(ctx context.Context, t *testing.T, basedir string,
 // getTestDataDir will return the full path of the testdata dir
 // under the running test folder.
 func getTestDataDir(t *testing.T) string {
+	t.Helper()
 	return filepath.Join(test.GetTestDir(t), "testdata")
 }

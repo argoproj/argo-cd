@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -41,6 +42,7 @@ type SessionManager struct {
 	storage                       UserStateStorage
 	sleep                         func(d time.Duration)
 	verificationDelayNoiseEnabled bool
+	failedLock                    sync.RWMutex
 }
 
 // LoginAttempts is a timestamped counter for failed login attempts
@@ -69,7 +71,7 @@ const (
 	// Maximum length of username, too keep the cache's memory signature low
 	maxUsernameLength = 32
 	// The default maximum session cache size
-	defaultMaxCacheSize = 1000
+	defaultMaxCacheSize = 10000
 	// The default number of maximum login failures before delay kicks in
 	defaultMaxLoginFailures = 5
 	// The default time in seconds for the failure window
@@ -91,9 +93,7 @@ const (
 	envLoginMaxCacheSize = "ARGOCD_SESSION_MAX_CACHE_SIZE"
 )
 
-var (
-	InvalidLoginErr = status.Errorf(codes.Unauthenticated, invalidLoginError)
-)
+var InvalidLoginErr = status.Errorf(codes.Unauthenticated, invalidLoginError)
 
 // Returns the maximum cache size as number of entries
 func getMaximumCacheSize() int {
@@ -284,13 +284,13 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 	return token.Claims, newToken, nil
 }
 
-// GetLoginFailures retrieves the login failure information from the cache
+// GetLoginFailures retrieves the login failure information from the cache. Any modifications to the LoginAttemps map must be done in a thread-safe manner.
 func (mgr *SessionManager) GetLoginFailures() map[string]LoginAttempts {
 	// Get failures from the cache
 	var failures map[string]LoginAttempts
 	err := mgr.storage.GetLoginAttempts(&failures)
 	if err != nil {
-		if err != appstate.ErrCacheMiss {
+		if !errors.Is(err, appstate.ErrCacheMiss) {
 			log.Errorf("Could not retrieve login attempts: %v", err)
 		}
 		failures = make(map[string]LoginAttempts)
@@ -299,25 +299,43 @@ func (mgr *SessionManager) GetLoginFailures() map[string]LoginAttempts {
 	return failures
 }
 
-func expireOldFailedAttempts(maxAge time.Duration, failures *map[string]LoginAttempts) int {
+func expireOldFailedAttempts(maxAge time.Duration, failures map[string]LoginAttempts) int {
 	expiredCount := 0
-	for key, attempt := range *failures {
+	for key, attempt := range failures {
 		if time.Since(attempt.LastFailed) > maxAge*time.Second {
 			expiredCount += 1
-			delete(*failures, key)
+			delete(failures, key)
 		}
 	}
 	return expiredCount
 }
 
+// Protect admin user from login attempt reset caused by attempts to overflow cache in a brute force attack. Instead remove random non-admin to make room in cache.
+func pickRandomNonAdminLoginFailure(failures map[string]LoginAttempts, username string) *string {
+	idx := rand.Intn(len(failures) - 1)
+	i := 0
+	for key := range failures {
+		if i == idx {
+			if key == common.ArgoCDAdminUsername || key == username {
+				return pickRandomNonAdminLoginFailure(failures, username)
+			}
+			return &key
+		}
+		i++
+	}
+	return nil
+}
+
 // Updates the failure count for a given username. If failed is true, increases the counter. Otherwise, sets counter back to 0.
 func (mgr *SessionManager) updateFailureCount(username string, failed bool) {
+	mgr.failedLock.Lock()
+	defer mgr.failedLock.Unlock()
 
 	failures := mgr.GetLoginFailures()
 
 	// Expire old entries in the cache if we have a failure window defined.
 	if window := getLoginFailureWindow(); window > 0 {
-		count := expireOldFailedAttempts(window, &failures)
+		count := expireOldFailedAttempts(window, failures)
 		if count > 0 {
 			log.Infof("Expired %d entries from session cache due to max age reached", count)
 		}
@@ -327,23 +345,13 @@ func (mgr *SessionManager) updateFailureCount(username string, failed bool) {
 	// prevent overbloating the cache with fake entries, as this could lead to
 	// memory exhaustion and ultimately in a DoS. We remove a single entry to
 	// replace it with the new one.
-	//
-	// Chances are that we remove the one that is under active attack, but this
-	// chance is low (1:cache_size)
 	if failed && len(failures) >= getMaximumCacheSize() {
 		log.Warnf("Session cache size exceeds %d entries, removing random entry", getMaximumCacheSize())
-		idx := rand.Intn(len(failures) - 1)
-		var rmUser string
-		i := 0
-		for key := range failures {
-			if i == idx {
-				rmUser = key
-				delete(failures, key)
-				break
-			}
-			i++
+		rmUser := pickRandomNonAdminLoginFailure(failures, username)
+		if rmUser != nil {
+			delete(failures, *rmUser)
+			log.Infof("Deleted entry for user %s from cache", *rmUser)
 		}
-		log.Infof("Deleted entry for user %s from cache", rmUser)
 	}
 
 	attempt, ok := failures[username]
@@ -358,22 +366,21 @@ func (mgr *SessionManager) updateFailureCount(username string, failed bool) {
 		attempt.LastFailed = time.Now()
 		failures[username] = attempt
 		log.Warnf("User %s failed login %d time(s)", username, attempt.FailCount)
-	} else {
-		if attempt.FailCount > 0 {
-			// Forget username for cache size enforcement, since entry in cache was deleted
-			delete(failures, username)
-		}
+	} else if attempt.FailCount > 0 {
+		// Forget username for cache size enforcement, since entry in cache was deleted
+		delete(failures, username)
 	}
 
 	err := mgr.storage.SetLoginAttempts(failures)
 	if err != nil {
 		log.Errorf("Could not update login attempts: %v", err)
 	}
-
 }
 
 // Get the current login failure attempts for given username
 func (mgr *SessionManager) getFailureCount(username string) LoginAttempts {
+	mgr.failedLock.RLock()
+	defer mgr.failedLock.RUnlock()
 	failures := mgr.GetLoginFailures()
 	attempt, ok := failures[username]
 	if !ok {
@@ -533,7 +540,6 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 		}
 
 		idToken, err := prov.Verify(tokenString, argoSettings)
-
 		// The token verification has failed. If the token has expired, we will
 		// return a dummy claims only containing a value for the issuer, so the
 		// UI can handle expired tokens appropriately.

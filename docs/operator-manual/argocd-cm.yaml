@@ -10,6 +10,10 @@ data:
   # Argo CD's externally facing base URL (optional). Required when configuring SSO
   url: https://argo-cd-demo.argoproj.io
 
+  # Additional externally facing base URLs (optional)
+  additionalUrls: |
+    - https://argo-cd-demo2.argoproj.io
+
   # Enables application status badge feature
   statusbadge.enabled: "true"
 
@@ -103,8 +107,8 @@ data:
     - /spec/replicas
 
   # Enable resource.customizations.ignoreResourceUpdates rules. If "false," those rules are not applied, and all updates
-  # to resources are applied to the cluster cache. Default is false.
-  resource.ignoreResourceUpdatesEnabled: "false"
+  # to resources are applied to the cluster cache. Default is true.
+  resource.ignoreResourceUpdatesEnabled: "true"
 
   # Configuration to define customizations ignoring differences during watched resource updates to skip application reconciles.
   resource.customizations.ignoreResourceUpdates.all: |
@@ -221,6 +225,16 @@ data:
   # An optional comma-separated list of metadata.labels to observe in the UI.
   resource.customLabels: tier
 
+  # An optional comma-separated list of metadata.labels keys to add to Kubernetes events generated for Applications.
+  # The keys are compared against the Application and its AppProject. If matched,
+  # the corresponding labels are added to the generated event.
+  # In case of a conflict between labels on the Application and AppProject,
+  # the Application label values are prioritized and added to the event. Supports wildcards.
+  resource.includeEventLabelKeys: team,env*
+  # An optional comma-separated list of metadata.labels keys to exclude from Kubernetes events generated for Applications. Supports wildcards.
+  resource.excludeEventLabelKeys: environment,bu
+
+
   resource.compareoptions: |
     # if ignoreAggregatedRoles set to true then differences caused by aggregated roles in RBAC resources are ignored.
     ignoreAggregatedRoles: true
@@ -235,19 +249,11 @@ data:
   # can be either empty, "normal" or "strict". By default, it is empty i.e. disabled.
   resource.respectRBAC: "normal"
 
-  # Configuration to add a config management plugin.
-  configManagementPlugins: |
-    - name: kasane
-      init:
-        command: [kasane, update]
-      generate:
-        command: [kasane, show]
-
   # A set of settings that allow enabling or disabling the config management tool.
   # If unset, each defaults to "true".
-  kustomize.enabled: true
-  jsonnet.enabled: true
-  helm.enabled: true
+  kustomize.enabled: "true"
+  jsonnet.enabled: "true"
+  helm.enabled: "true"
 
   # Build options/parameters to use with `kustomize build` (optional)
   kustomize.buildOptions: --load_restrictor none
@@ -276,6 +282,9 @@ data:
   # - annotation       : Uses an annotation with additional metadata for tracking instead of the label
   # - annotation+label : Also uses an annotation for tracking, but additionally labels the resource with the application name
   application.resourceTrackingMethod: annotation
+
+  # Optional installation id. Allows to have multiple installations of Argo CD in the same cluster.
+  installationID: "my-unique-id"
 
   # disables admin user. Admin is enabled by default
   admin.enabled: "false"
@@ -316,17 +325,22 @@ data:
 
   # Application reconciliation timeout is the max amount of time required to discover if a new manifests version got
   # published to the repository. Reconciliation by timeout is disabled if timeout is set to 0. Three minutes by default.
-  # > Note: argocd-repo-server deployment must be manually restarted after changing the setting.
+  # > Note: The argocd-repo-server deployment and the argocd-application-controller statefulset (or deployment, if
+  # configured) must be manually restarted after changing the setting.
   timeout.reconciliation: 180s
   # With a large number of applications, the periodic refresh for each application can cause a spike in the refresh queue
   # and can cause a spike in the repo-server component. To avoid this, you can set a jitter to the sync timeout, which will
   # spread out the refreshes and give time to the repo-server to catch up. The jitter is the maximum duration that can be
   # added to the sync timeout. So, if the sync timeout is 3 minutes and the jitter is 1 minute, then the actual timeout will
   # be between 3 and 4 minutes. Disabled when the value is 0, defaults to 0.
-  timeout.reconciliation.jitter: 0
+  timeout.reconciliation.jitter: "0"
 
   # cluster.inClusterEnabled indicates whether to allow in-cluster server address. This is enabled by default.
   cluster.inClusterEnabled: "true"
+
+  # The maximum number of pod logs to render in UI. If the application has more than this number of pods, the logs will not be rendered.
+  # This is to prevent the UI from becoming unresponsive when rendering a large number of logs. Default is 10.
+  server.maxPodLogsToRender: "10"
 
   # Application pod logs RBAC enforcement enables control over who can and who can't view application pod logs.
   # When you enable the switch, pod logs will be visible only to admin role by default. Other roles/users will not be able to view them via cli and UI.
@@ -359,7 +373,7 @@ data:
     - url: https://mycompany.splunk.com?search={{.spec.destination.namespace}}
       title: Splunk
     # conditionally show link e.g. for specific project
-    # github.com/antonmedv/expr is used for evaluation of conditions
+    # github.com/expr-lang/expr is used for evaluation of conditions
     - url: https://mycompany.splunk.com?search={{.spec.destination.namespace}}
       title: Splunk
       if: spec.project == "default"
@@ -414,3 +428,8 @@ data:
               cluster:
                 name: some-cluster
                 server: https://some-cluster
+  # The maximum size of the payload that can be sent to the webhook server.
+  webhook.maxPayloadSizeMB: "1024"
+
+  # application.sync.impersonation.enabled enables application sync to use a custom service account, via impersonation. This allows decoupling sync from control-plane service account.
+  application.sync.impersonation.enabled: "false"

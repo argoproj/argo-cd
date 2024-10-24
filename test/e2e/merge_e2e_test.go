@@ -54,9 +54,10 @@ func TestListMergeGenerator(t *testing.T) {
 	Given(t).
 		// Create a ClusterGenerator-based ApplicationSet
 		When().
-		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
-			Name: "merge-generator",
-		},
+		Create(v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "merge-generator",
+			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{path.basename}}-{{name-suffix}}"},
@@ -181,9 +182,10 @@ func TestClusterMergeGenerator(t *testing.T) {
 		When().
 		CreateClusterSecret("my-secret", "cluster1", "https://kubernetes.default.svc").
 		CreateClusterSecret("my-secret2", "cluster2", "https://kubernetes.default.svc").
-		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
-			Name: "merge-generator",
-		},
+		Create(v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "merge-generator",
+			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-{{path.basename}}-{{values.name-suffix}}"},
@@ -318,9 +320,10 @@ func TestMergeTerminalMergeGeneratorSelector(t *testing.T) {
 	Given(t).
 		// Create ApplicationSet with LabelSelector on an ApplicationSetTerminalGenerator
 		When().
-		Create(v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{
-			Name: "merge-generator-nested-merge",
-		},
+		Create(v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "merge-generator-nested-merge",
+			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				ApplyNestedSelectors: true,
 				Template: v1alpha1.ApplicationSetTemplate{
@@ -390,7 +393,6 @@ func TestMergeTerminalMergeGeneratorSelector(t *testing.T) {
 		// Update the ApplicationSetTerminalGenerator LabelSelector, and verify the Applications are deleted and created
 		When().
 		Update(func(appset *v1alpha1.ApplicationSet) {
-
 			appset.Spec.Generators[0].Merge.Generators[0].Merge = toAPIExtensionsJSON(t, &v1alpha1.NestedMergeGenerator{
 				MergeKeys: []string{"path.basename"},
 				Generators: []v1alpha1.ApplicationSetTerminalGenerator{
@@ -433,7 +435,7 @@ func TestMergeTerminalMergeGeneratorSelector(t *testing.T) {
 }
 
 func toAPIExtensionsJSON(t *testing.T, g interface{}) *apiextensionsv1.JSON {
-
+	t.Helper()
 	resVal, err := json.Marshal(g)
 	if err != nil {
 		t.Error("unable to unmarshal json", g)

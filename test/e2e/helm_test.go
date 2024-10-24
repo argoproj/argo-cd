@@ -135,13 +135,13 @@ func TestHelmIgnoreMissingValueFiles(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			assert.Equal(t, []string{"does-not-exist-values.yaml"}, app.Spec.GetSource().Helm.ValueFiles)
-			assert.Equal(t, false, app.Spec.GetSource().Helm.IgnoreMissingValueFiles)
+			assert.False(t, app.Spec.GetSource().Helm.IgnoreMissingValueFiles)
 		}).
 		When().
 		AppSet("--ignore-missing-value-files").
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, true, app.Spec.GetSource().Helm.IgnoreMissingValueFiles)
+			assert.True(t, app.Spec.GetSource().Helm.IgnoreMissingValueFiles)
 		}).
 		When().
 		Sync().
@@ -153,7 +153,7 @@ func TestHelmIgnoreMissingValueFiles(t *testing.T) {
 		AppUnSet("--ignore-missing-value-files").
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, false, app.Spec.GetSource().Helm.IgnoreMissingValueFiles)
+			assert.False(t, app.Spec.GetSource().Helm.IgnoreMissingValueFiles)
 		}).
 		When().
 		IgnoreErrors().
@@ -362,7 +362,62 @@ func TestKubeVersion(t *testing.T) {
 				"-o", "jsonpath={.data.kubeVersion}")).(string)
 			// Capabilities.KubeVersion defaults to 1.9.0, we assume here you are running a later version
 			assert.LessOrEqual(t, GetVersions().ServerVersion.Format("v%s.%s.0"), kubeVersion)
+		}).
+		When().
+		// Make sure override works.
+		AppSet("--helm-kube-version", "999.999.999").
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Equal(t, "v999.999.999", FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map",
+				"-o", "jsonpath={.data.kubeVersion}")).(string))
 		})
+}
+
+// make sure api versions gets passed down to resources
+func TestApiVersions(t *testing.T) {
+	SkipOnEnv(t, "HELM")
+	Given(t).
+		Path("helm-api-versions").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			apiVersions := FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map",
+				"-o", "jsonpath={.data.apiVersions}")).(string)
+			// The v1 API shouldn't be going anywhere.
+			assert.Contains(t, apiVersions, "v1")
+		}).
+		When().
+		// Make sure override works.
+		AppSet("--helm-api-versions", "v1/MyTestResource").
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			apiVersions := FailOnErr(Run(".", "kubectl", "-n", DeploymentNamespace(), "get", "cm", "my-map",
+				"-o", "jsonpath={.data.apiVersions}")).(string)
+			assert.Contains(t, apiVersions, "v1/MyTestResource")
+		})
+}
+
+func TestHelmNamespaceOverride(t *testing.T) {
+	SkipOnEnv(t, "HELM")
+	Given(t).
+		Path("helm-namespace").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		AppSet("--helm-namespace", "does-not-exist").
+		Then().
+		// The app should go out of sync, because the resource's target namespace changed.
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
 }
 
 func TestHelmValuesHiddenDirectory(t *testing.T) {
@@ -446,6 +501,7 @@ func TestHelmWithDependenciesLegacyRepo(t *testing.T) {
 }
 
 func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
+	t.Helper()
 	ctx := Given(t).
 		CustomCACertAdded().
 		// these are slow tests
