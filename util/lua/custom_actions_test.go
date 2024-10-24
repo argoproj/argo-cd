@@ -174,7 +174,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				require.NoError(t, err)
 
 				// Log the impacted resources
-        t.Logf("Impacted resources: %+v", impactedResources)
+				t.Logf("Impacted resources: %+v", impactedResources)
 
 				// Treat the Lua expected output as a list
 				expectedObjects := getExpectedObjectList(t, filepath.Join(dir, test.ExpectedOutputPath))
@@ -215,16 +215,23 @@ func TestLuaResourceActionsScript(t *testing.T) {
 
 					// Add specific checks for parameter-based actions
 					if test.Action == "scale" {
-						// Check spec.replicas
 						expectedScale, err := strconv.ParseInt(test.Parameters["scale"], 10, 64)
 						require.NoError(t, err)
-
+						// Check spec.replicas
 						actualReplicas, found, err := unstructured.NestedInt64(result.Object, "spec", "replicas")
 						if !found {
-								t.Errorf("spec.replicas not found in actual result. Result object: %+v", result.Object)
+							t.Errorf("spec.replicas not found in actual result. Result object: %+v", result.Object)
 						} else {
-								require.NoError(t, err)
-								assert.Equal(t, expectedScale, actualReplicas, "replica count mismatch")
+							require.NoError(t, err)
+							assert.Equal(t, expectedScale, actualReplicas, "spec.replica count mismatch")
+						}
+						// Check status.replicas
+						actualStatusReplicas, found, err := unstructured.NestedInt64(result.Object, "status", "replicas")
+						if !found {
+							t.Errorf("status.replicas not found in actual result. Result object: %+v", result.Object)
+						} else {
+							require.NoError(t, err)
+							assert.Equal(t, expectedScale, actualStatusReplicas, "status.replica count mismatch")
 						}
 					}
 
