@@ -4,6 +4,7 @@ package localconfig
 
 import (
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/util/config"
 	"os"
 	"path"
 	"path/filepath"
@@ -90,4 +91,113 @@ func TestFilePermission(t *testing.T) {
 			}
 		})
 	}
+}
+
+const testConfig = `contexts:
+- name: argocd1.example.com:443
+  server: argocd1.example.com:443
+  user: argocd1.example.com:443
+- name: argocd2.example.com:443
+  server: argocd2.example.com:443
+  user: argocd2.example.com:443
+- name: localhost:8080
+  server: localhost:8080
+  user: localhost:8080
+current-context: localhost:8080
+servers:
+- server: argocd1.example.com:443
+- server: argocd2.example.com:443
+- plain-text: true
+  server: localhost:8080
+users:
+- auth-token: vErrYS3c3tReFRe$hToken
+  name: argocd1.example.com:443
+  refresh-token: vErrYS3c3tReFRe$hToken
+- auth-token: vErrYS3c3tReFRe$hToken
+  name: argocd2.example.com:443
+  refresh-token: vErrYS3c3tReFRe$hToken
+- auth-token: vErrYS3c3tReFRe$hToken
+  name: localhost:8080`
+
+const testConfigFilePath = "./testdata/local.config"
+
+func loadOpts(t *testing.T, opts string) {
+	t.Helper()
+	t.Setenv("ARGOCD_OPTS", opts)
+	assert.NoError(t, config.LoadFlags())
+}
+
+func TestGetPromptsEnabled_useCLIOpts_false_localConfigPromptsEnabled_true(t *testing.T) {
+	// Write the test config file
+	err := os.WriteFile(testConfigFilePath, []byte(testConfig+"\nprompts-enabled: true"), os.ModePerm)
+	require.NoError(t, err)
+
+	defer os.Remove(testConfigFilePath)
+
+	err = os.Chmod(testConfigFilePath, 0o600)
+	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
+
+	loadOpts(t, "--config "+testConfigFilePath)
+
+	assert.Equal(t, true, GetPromptsEnabled(false))
+}
+
+func TestGetPromptsEnabled_useCLIOpts_false_localConfigPromptsEnabled_false(t *testing.T) {
+	// Write the test config file
+	err := os.WriteFile(testConfigFilePath, []byte(testConfig+"\nprompts-enabled: false"), os.ModePerm)
+	require.NoError(t, err)
+
+	defer os.Remove(testConfigFilePath)
+
+	err = os.Chmod(testConfigFilePath, 0o600)
+	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
+
+	loadOpts(t, "--config "+testConfigFilePath)
+
+	assert.Equal(t, false, GetPromptsEnabled(false))
+}
+
+func TestGetPromptsEnabled_useCLIOpts_true_forcePromptsEnabled_default(t *testing.T) {
+	// Write the test config file
+	err := os.WriteFile(testConfigFilePath, []byte(testConfig+"\nprompts-enabled: false"), os.ModePerm)
+	require.NoError(t, err)
+
+	defer os.Remove(testConfigFilePath)
+
+	err = os.Chmod(testConfigFilePath, 0o600)
+	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
+
+	loadOpts(t, "--config "+testConfigFilePath+" --force-prompts-enabled")
+
+	assert.Equal(t, true, GetPromptsEnabled(true))
+}
+
+func TestGetPromptsEnabled_useCLIOpts_true_forcePromptsEnabled_true(t *testing.T) {
+	// Write the test config file
+	err := os.WriteFile(testConfigFilePath, []byte(testConfig+"\nprompts-enabled: false"), os.ModePerm)
+	require.NoError(t, err)
+
+	defer os.Remove(testConfigFilePath)
+
+	err = os.Chmod(testConfigFilePath, 0o600)
+	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
+
+	loadOpts(t, "--config "+testConfigFilePath+" --force-prompts-enabled=true")
+
+	assert.Equal(t, true, GetPromptsEnabled(true))
+}
+
+func TestGetPromptsEnabled_useCLIOpts_true_forcePromptsEnabled_false(t *testing.T) {
+	// Write the test config file
+	err := os.WriteFile(testConfigFilePath, []byte(testConfig+"\nprompts-enabled: true"), os.ModePerm)
+	require.NoError(t, err)
+
+	defer os.Remove(testConfigFilePath)
+
+	err = os.Chmod(testConfigFilePath, 0o600)
+	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
+
+	loadOpts(t, "--config "+testConfigFilePath+" --force-prompts-enabled=false")
+
+	assert.Equal(t, false, GetPromptsEnabled(true))
 }
