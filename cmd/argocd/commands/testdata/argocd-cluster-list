@@ -1,0 +1,4 @@
+#!/bin/bash
+
+echo "Fetching the list of clusters in Argo CD..."
+argocd cluster list
