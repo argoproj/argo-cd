@@ -7,7 +7,8 @@ on:
         required: true
         type: string
         
-permissions: {}
+permissions:
+  contents: write
 
 jobs:
   prepare-release:
@@ -34,8 +35,8 @@ jobs:
 
       - name: Create release
         run: |
-          git config --global user.name "John Doe"
-          git config --global user.email "john.doe@example.com"
+          git config --global user.name "CI-Codefresh"
+          git config --global user.email "integration@codefresh.io"
           make cf-release
 
 
