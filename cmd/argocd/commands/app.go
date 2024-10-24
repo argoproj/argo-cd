@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8swatch "k8s.io/apimachinery/pkg/watch"
@@ -98,6 +99,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationLogsCommand(clientOpts))
 	command.AddCommand(NewApplicationAddSourceCommand(clientOpts))
 	command.AddCommand(NewApplicationRemoveSourceCommand(clientOpts))
+	command.AddCommand(NewApplicationConfirmDeletionCommand(clientOpts))
 	return command
 }
 
@@ -3200,5 +3202,52 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the target application where the source will be appended")
 	command.Flags().IntVar(&sourcePosition, "source-position", -1, "Position of the source from the list of sources of the app. Counting starts at 1.")
+	return command
+}
+
+func NewApplicationConfirmDeletionCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var appNamespace string
+	command := &cobra.Command{
+		Use:   "confirm-deletion APPNAME",
+		Short: "Confirms deletion/pruning of an application resources",
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
+			argocdClient := headless.NewClientOrDie(clientOpts, c)
+			conn, appIf := argocdClient.NewApplicationClientOrDie()
+			defer argoio.Close(conn)
+
+			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
+
+			app, err := appIf.Get(ctx, &application.ApplicationQuery{
+				Name:         &appName,
+				Refresh:      getRefreshType(false, false),
+				AppNamespace: &appNs,
+			})
+			errors.CheckError(err)
+
+			annotations := app.Annotations
+			if annotations == nil {
+				annotations = map[string]string{}
+				app.Annotations = annotations
+			}
+			annotations[common.AnnotationDeletionApproved] = metav1.Now().Format(time.RFC3339)
+
+			_, err = appIf.Update(ctx, &application.ApplicationUpdateRequest{
+				Application: app,
+				Validate:    ptr.To(false),
+				Project:     &app.Spec.Project,
+			})
+			errors.CheckError(err)
+
+			fmt.Printf("Application '%s' updated successfully\n", app.ObjectMeta.Name)
+		},
+	}
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the target application where the source will be appended")
 	return command
 }

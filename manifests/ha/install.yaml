@@ -4510,6 +4510,8 @@ spec:
                       type: string
                     namespace:
                       type: string
+                    requiresDeletionConfirmation:
+                      type: boolean
                     requiresPruning:
                       type: boolean
                     status:
@@ -21777,6 +21779,8 @@ spec:
                       type: string
                     namespace:
                       type: string
+                    requiresDeletionConfirmation:
+                      type: boolean
                     requiresPruning:
                       type: boolean
                     status:

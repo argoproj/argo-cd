@@ -823,6 +823,7 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 
 // TestFinalizeAppDeletion verifies application deletion
 func TestFinalizeAppDeletion(t *testing.T) {
+	now := metav1.Now()
 	defaultProj := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "default",
@@ -843,11 +844,9 @@ func TestFinalizeAppDeletion(t *testing.T) {
 	t.Run("CascadingDelete", func(t *testing.T) {
 		app := newFakeApp()
 		app.SetCascadedDeletion(v1alpha1.ResourcesFinalizerName)
+		app.DeletionTimestamp = &now
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-		appObj := kube.MustToUnstructured(&app)
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
-			kube.GetResourceKey(appObj): appObj,
-		}}, nil)
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{}}, nil)
 		patched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 		defaultReactor := fakeAppCs.ReactionChain[0]
@@ -886,6 +885,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		}
 		app := newFakeApp()
 		app.SetCascadedDeletion(v1alpha1.ResourcesFinalizerName)
+		app.DeletionTimestamp = &now
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 		app.Spec.Project = "restricted"
 		appObj := kube.MustToUnstructured(&app)
@@ -931,10 +931,8 @@ func TestFinalizeAppDeletion(t *testing.T) {
 	t.Run("DeleteWithDestinationClusterName", func(t *testing.T) {
 		app := newFakeAppWithDestName()
 		app.SetCascadedDeletion(v1alpha1.ResourcesFinalizerName)
-		appObj := kube.MustToUnstructured(&app)
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
-			kube.GetResourceKey(appObj): appObj,
-		}}, nil)
+		app.DeletionTimestamp = &now
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{}}, nil)
 		patched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 		defaultReactor := fakeAppCs.ReactionChain[0]

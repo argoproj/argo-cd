@@ -706,7 +706,7 @@ func (a *ArgoCDServer) watchSettings() {
 			log.Infof("gogs secret modified. restarting")
 			break
 		}
-		if prevExtConfig != a.settings.ExtensionConfig {
+		if !reflect.DeepEqual(prevExtConfig, a.settings.ExtensionConfig) {
 			prevExtConfig = a.settings.ExtensionConfig
 			log.Infof("extensions configs modified. Updating proxy registry...")
 			err := a.extensionManager.UpdateExtensionRegistry(a.settings)

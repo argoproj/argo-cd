@@ -123,9 +123,9 @@ type ArgoCDSettings struct {
 	OIDCTLSInsecureSkipVerify bool `json:"oidcTLSInsecureSkipVerify"`
 	// AppsInAnyNamespaceEnabled indicates whether applications are allowed to be created in any namespace
 	AppsInAnyNamespaceEnabled bool `json:"appsInAnyNamespaceEnabled"`
-	// ExtensionConfig configurations related to ArgoCD proxy extensions. The value
-	// is a yaml string defined in extension.ExtensionConfigs struct.
-	ExtensionConfig string `json:"extensionConfig,omitempty"`
+	// ExtensionConfig configurations related to ArgoCD proxy extensions. The keys are the extension name.
+	// The value is a yaml string defined in extension.ExtensionConfigs struct.
+	ExtensionConfig map[string]string `json:"extensionConfig,omitempty"`
 	// ImpersonationEnabled indicates whether Application sync privileges can be decoupled from control plane
 	// privileges using impersonation
 	ImpersonationEnabled bool `json:"impersonationEnabled"`
@@ -1537,8 +1537,19 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	}
 	settings.TrackingMethod = argoCDCM.Data[settingsResourceTrackingMethodKey]
 	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"
-	settings.ExtensionConfig = argoCDCM.Data[extensionConfig]
+	settings.ExtensionConfig = getExtensionConfigs(argoCDCM.Data)
 	settings.ImpersonationEnabled = argoCDCM.Data[impersonationEnabledKey] == "true"
+}
+
+func getExtensionConfigs(cmData map[string]string) map[string]string {
+	result := make(map[string]string)
+	for k, v := range cmData {
+		if strings.HasPrefix(k, extensionConfig) {
+			extName := strings.TrimPrefix(strings.TrimPrefix(k, extensionConfig), ".")
+			result[extName] = v
+		}
+	}
+	return result
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid
