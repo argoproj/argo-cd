@@ -12433,6 +12433,29 @@ func (m *ResourceAction) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	i -= len(m.ErrorMessage)
+	copy(dAtA[i:], m.ErrorMessage)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.ErrorMessage)))
+	i--
+	dAtA[i] = 0x4a
+	i -= len(m.Regexp)
+	copy(dAtA[i:], m.Regexp)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.Regexp)))
+	i--
+	dAtA[i] = 0x42
+	i--
+	if m.HasParameters {
+		dAtA[i] = 1
+	} else {
+		dAtA[i] = 0
+	}
+	i--
+	dAtA[i] = 0x38
+	i -= len(m.DefaultValue)
+	copy(dAtA[i:], m.DefaultValue)
+	i = encodeVarintGenerated(dAtA, i, uint64(len(m.DefaultValue)))
+	i--
+	dAtA[i] = 0x32
 	i -= len(m.DisplayName)
 	copy(dAtA[i:], m.DisplayName)
 	i = encodeVarintGenerated(dAtA, i, uint64(len(m.DisplayName)))
@@ -17597,6 +17620,13 @@ func (m *ResourceAction) Size() (n int) {
 	n += 1 + l + sovGenerated(uint64(l))
 	l = len(m.DisplayName)
 	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.DefaultValue)
+	n += 1 + l + sovGenerated(uint64(l))
+	n += 2
+	l = len(m.Regexp)
+	n += 1 + l + sovGenerated(uint64(l))
+	l = len(m.ErrorMessage)
+	n += 1 + l + sovGenerated(uint64(l))
 	return n
 }
 
@@ -20543,6 +20573,10 @@ func (this *ResourceAction) String() string {
 		`Disabled:` + fmt.Sprintf("%v", this.Disabled) + `,`,
 		`IconClass:` + fmt.Sprintf("%v", this.IconClass) + `,`,
 		`DisplayName:` + fmt.Sprintf("%v", this.DisplayName) + `,`,
+		`DefaultValue:` + fmt.Sprintf("%v", this.DefaultValue) + `,`,
+		`HasParameters:` + fmt.Sprintf("%v", this.HasParameters) + `,`,
+		`Regexp:` + fmt.Sprintf("%v", this.Regexp) + `,`,
+		`ErrorMessage:` + fmt.Sprintf("%v", this.ErrorMessage) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -44316,6 +44350,122 @@ func (m *ResourceAction) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.DisplayName = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DefaultValue", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.DefaultValue = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HasParameters", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.HasParameters = bool(v != 0)
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Regexp", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Regexp = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 9:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ErrorMessage", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowGenerated
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthGenerated
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ErrorMessage = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

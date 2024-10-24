@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -15,6 +16,7 @@ import (
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
 
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -97,10 +99,11 @@ type IndividualDiscoveryTest struct {
 }
 
 type IndividualActionTest struct {
-	Action             string `yaml:"action"`
-	InputPath          string `yaml:"inputPath"`
-	ExpectedOutputPath string `yaml:"expectedOutputPath"`
-	InputStr           string `yaml:"input"`
+	Action             string            `yaml:"action"`
+	InputPath          string            `yaml:"inputPath"`
+	ExpectedOutputPath string            `yaml:"expectedOutputPath"`
+	InputStr           string            `yaml:"input"`
+	Parameters         map[string]string `yaml:"parameters"`
 }
 
 func TestLuaResourceActionsScript(t *testing.T) {
@@ -149,8 +152,25 @@ func TestLuaResourceActionsScript(t *testing.T) {
 
 				require.NoError(t, err)
 
+				// Log the action Lua script
+				t.Logf("Action Lua script: %s", action.ActionLua)
+
+				// Parse action parameters
+				var params []*applicationpkg.ResourceActionParameters
+				if test.Parameters != nil {
+					for k, v := range test.Parameters {
+						params = append(params, &applicationpkg.ResourceActionParameters{
+							Name:  &k,
+							Value: &v,
+						})
+					}
+				}
+
+				// Log the parameters
+				t.Logf("Parameters: %+v", params)
+
 				require.NoError(t, err)
-				impactedResources, err := vm.ExecuteResourceAction(sourceObj, action.ActionLua)
+				impactedResources, err := vm.ExecuteResourceAction(sourceObj, action.ActionLua, params)
 				require.NoError(t, err)
 
 				// Treat the Lua expected output as a list
@@ -189,6 +209,21 @@ func TestLuaResourceActionsScript(t *testing.T) {
 							result.SetName(expectedObj.GetName())
 						}
 					}
+
+					// Add specific checks for parameter-based actions
+					if test.Action == "scale" {
+						expectedScale, err := strconv.ParseInt(test.Parameters["scale"], 10, 64)
+						require.NoError(t, err)
+						// Check spec.replicas
+						actualReplicas, found, err := unstructured.NestedInt64(result.Object, "spec", "replicas")
+						if !found {
+							t.Errorf("spec.replicas not found in actual result. Result object: %+v", result.Object)
+						} else {
+							require.NoError(t, err)
+							assert.Equal(t, expectedScale, actualReplicas, "spec.replica count mismatch")
+						}
+					}
+
 					// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
 					diffResult, err := diff.Diff(expectedObj, result, diff.WithNormalizer(testNormalizer{}))
 					require.NoError(t, err)
