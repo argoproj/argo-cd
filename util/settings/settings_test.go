@@ -75,6 +75,52 @@ func TestGetRepositories(t *testing.T) {
 	assert.Equal(t, []Repository{{URL: "http://foo"}}, filter)
 }
 
+func TestGetExtensionConfigs(t *testing.T) {
+	type cases struct {
+		name        string
+		input       map[string]string
+		expected    map[string]string
+		expectedLen int
+	}
+
+	testCases := []cases{
+		{
+			name:        "will return main config successfully",
+			expectedLen: 1,
+			input: map[string]string{
+				extensionConfig: "test",
+			},
+			expected: map[string]string{
+				"": "test",
+			},
+		},
+		{
+			name:        "will return main and additional config successfully",
+			expectedLen: 2,
+			input: map[string]string{
+				extensionConfig: "main config",
+				fmt.Sprintf("%s.anotherExtension", extensionConfig): "another config",
+			},
+			expected: map[string]string{
+				"":                 "main config",
+				"anotherExtension": "another config",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			// When
+			output := getExtensionConfigs(tc.input)
+
+			// Then
+			assert.Len(t, output, tc.expectedLen)
+			assert.Equal(t, tc.expected, output)
+		})
+	}
+}
+
 func TestSaveRepositories(t *testing.T) {
 	kubeClient, settingsManager := fixtures(nil)
 	err := settingsManager.SaveRepositories([]Repository{{URL: "http://foo"}})
