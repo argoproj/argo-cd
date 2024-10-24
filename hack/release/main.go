@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"regexp"
 	"strings"
 	"time"
 )
@@ -29,21 +28,11 @@ func getCurrentCommitSha() (string, error) {
 }
 
 func getArgoCDVersion() (string, error) {
-	// git rev-parse --abbrev-ref HEAD
-	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
-	result, err := cmd.Output()
+	data, err := os.ReadFile("SOURCE_VERSION")
 	if err != nil {
 		return "", err
 	}
-
-	pattern := `release-(\d+\.\d+)`
-	re := regexp.MustCompile(pattern)
-	matches := re.FindStringSubmatch(string(result))
-	if len(matches) >= 2 {
-		return matches[1], nil
-	}
-
-	return "", fmt.Errorf("failed to get argocd version")
+	return strings.TrimSpace(string(data)), nil
 }
 
 // function that returns version of the latest release by patern
@@ -94,7 +83,7 @@ func moveChangelog() error {
 	}
 
 	// mv changelog/CHANGELOG.md changelog/CHANGELOG-<version>.md
-	cmd := exec.Command("mv", "changelog/CHANGELOG.md", fmt.Sprintf("changelog/CHANGELOG-%s.md", version))
+	cmd := exec.Command("cp", "changelog/CHANGELOG.md", fmt.Sprintf("changelog/CHANGELOG-%s.md", version))
 	if output, err := cmd.CombinedOutput(); err != nil {
 		fmt.Print(string(output))
 		return err

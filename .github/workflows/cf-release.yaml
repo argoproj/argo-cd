@@ -1,0 +1,39 @@
+name: Init CF ArgoCD Release
+on:
+  workflow_dispatch:
+    inputs:
+      TARGET_BRANCH:
+        description: 'TARGET_BRANCH to checkout (e.g. release-2.5)'
+        required: true
+        type: string
+        
+permissions: {}
+
+jobs:
+  prepare-release:
+    permissions:
+      contents: write  # for peter-evans/create-pull-request to create branch
+    name: Automatically generate version and manifests on ${{ inputs.TARGET_BRANCH }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694  # v4.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ inputs.TARGET_BRANCH }}
+
+      - name: Check if TARGET_VERSION is well formed.
+        run: |
+          set -xue
+          # Target version must not contain 'v' prefix
+          if echo "${{ inputs.TARGET_VERSION }}" | grep -e '^v'; then
+            echo "::error::Target version '${{ inputs.TARGET_VERSION }}' should not begin with a 'v' prefix, refusing to continue." >&2
+            exit 1
+          fi
+
+      - name: Create release
+        run: |
+          make cf-release
+
+
