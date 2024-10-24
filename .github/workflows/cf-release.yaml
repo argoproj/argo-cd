@@ -1,11 +1,6 @@
 name: Init CF ArgoCD Release
 on:
   workflow_dispatch:
-    inputs:
-      TARGET_BRANCH:
-        description: 'TARGET_BRANCH to checkout (e.g. release-2.5)'
-        required: true
-        type: string
         
 permissions:
   contents: write
