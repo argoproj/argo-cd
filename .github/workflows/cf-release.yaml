@@ -18,6 +18,7 @@ jobs:
         uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694  # v4.0.0
         with:
           fetch-depth: 0
+          # use personal token due to https://stackoverflow.com/questions/72110432/github-workflow-is-not-triggered-after-pushing-tags
           token: ${{ secrets.RELEASE_GITHUB_TOKEN }}
           ref: ${{ inputs.TARGET_BRANCH }}
 
