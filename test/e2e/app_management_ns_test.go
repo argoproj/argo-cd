@@ -495,6 +495,9 @@ func TestNamespacedTrackAppStateAndSyncApp(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().
+		Get().
+		Then().
 		Expect(Success(fmt.Sprintf("Service     %s  guestbook-ui  Synced ", DeploymentNamespace()))).
 		Expect(Success(fmt.Sprintf("apps   Deployment  %s  guestbook-ui  Synced", DeploymentNamespace()))).
 		Expect(NamespacedEvent(AppNamespace(), EventReasonResourceUpdated, "sync")).
@@ -887,7 +890,10 @@ func testNSEdgeCasesApplicationResources(t *testing.T, appPath string, statusCod
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		Get().
+		Then()
 	for i := range message {
 		expect = expect.Expect(Success(message[i]))
 	}
@@ -920,6 +926,9 @@ func TestNamespacedResourceAction(t *testing.T) {
 		CreateApp().
 		Sync().
 		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
 			closer, client, err := ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
@@ -1197,6 +1206,9 @@ func TestNamespacedPermissions(t *testing.T) {
 		CreateApp().
 		Sync().
 		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		// make sure application resource actiions are successful
 		And(func(app *Application) {
 			assertNSResourceActions(t, app.Name, true)
