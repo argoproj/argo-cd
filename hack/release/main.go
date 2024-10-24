@@ -144,7 +144,8 @@ func release() error {
 	fmt.Printf("git push output: %s\n", string(output))
 
 	fmt.Println("Delete tag from remote")
-	return exec.Command("git", "push", "origin", "--delete", release).Run()
+	//return exec.Command("git", "push", "origin", "--delete", release).Run()
+	return nil
 }
 
 func commitChanges(version string) error {
