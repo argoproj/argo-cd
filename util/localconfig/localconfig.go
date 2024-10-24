@@ -309,17 +309,17 @@ func GetUsername(subject string) string {
 	return subject
 }
 
-func GetPromptsEnabled(fallback bool) bool {
+func GetPromptsEnabled() bool {
 	defaultLocalConfigPath, err := DefaultLocalConfigPath()
 	if err != nil {
-		return fallback
+		return false
 	}
 
 	localConfigPath := config.GetFlag("config", defaultLocalConfigPath)
 
 	localConfig, err := ReadLocalConfig(localConfigPath)
 	if localConfig == nil || err != nil {
-		return fallback
+		return false
 	}
 
 	return localConfig.PromptsEnabled
