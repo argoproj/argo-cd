@@ -286,6 +286,7 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
                                     <React.Fragment>
                                         {toolbar.actionMenu.items.map((item, i) => (
                                             <button
+                                                title={JSON.stringify(item.title).replace(/['"]+/g, '')}
                                                 disabled={!!item.disabled}
                                                 qe-id={item.qeId}
                                                 className='argo-button argo-button--base'
