@@ -38,7 +38,7 @@ argocd configure --prompts-enabled=false`,
 		},
 	}
 
-	command.Flags().BoolVar(&promptsEnabled, "prompts-enabled", localconfig.GetPromptsEnabled(), "Enable (or disable) optional interactive prompts")
+	command.Flags().BoolVar(&promptsEnabled, "prompts-enabled", localconfig.GetPromptsEnabled(false), "Enable (or disable) optional interactive prompts")
 
 	return command
 }

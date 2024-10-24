@@ -71,10 +71,6 @@ func GetBoolFlag(key string) bool {
 	return GetFlag(key, "false") == "true"
 }
 
-func GetBoolFlagWithFallback(key string, fallback bool) bool {
-	return GetFlag(key, strconv.FormatBool(fallback)) == "true"
-}
-
 func GetIntFlag(key string, fallback int) int {
 	val, ok := flags[key]
 	if !ok {

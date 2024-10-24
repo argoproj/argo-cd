@@ -148,15 +148,3 @@ func TestFlagWithEqualSign(t *testing.T) {
 
 	assert.Equal(t, "bar", GetFlag("foo", ""))
 }
-
-func TestBoolFlagWithFallbackUnused(t *testing.T) {
-	loadOpts(t, "--foo")
-
-	assert.True(t, GetBoolFlagWithFallback("foo", false))
-}
-
-func TestBoolFlagWithFallbackUsed(t *testing.T) {
-	loadOpts(t, "--foo")
-
-	assert.True(t, GetBoolFlagWithFallback("bar", true))
-}
