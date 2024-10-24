@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 )
 
@@ -9,9 +8,9 @@ type Prompt struct {
 	enabled bool
 }
 
-func NewPrompt(clientOpts *apiclient.ClientOptions) (*Prompt, error) {
+func NewPrompt(promptsEnabled bool) (*Prompt, error) {
 	return &Prompt{
-		enabled: clientOpts.PromptsEnabled,
+		enabled: promptsEnabled,
 	}, nil
 }
 
