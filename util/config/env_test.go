@@ -7,11 +7,13 @@ import (
 )
 
 func loadOpts(t *testing.T, opts string) {
+	t.Helper()
 	t.Setenv("ARGOCD_OPTS", opts)
 	assert.NoError(t, loadFlags())
 }
 
 func loadInvalidOpts(t *testing.T, opts string) {
+	t.Helper()
 	t.Setenv("ARGOCD_OPTS", opts)
 	assert.Error(t, loadFlags())
 }

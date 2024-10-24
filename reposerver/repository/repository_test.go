@@ -100,6 +100,7 @@ func newCacheMocksWithOpts(repoCacheExpiration, revisionCacheExpiration, revisio
 }
 
 func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *gitmocks.Client, *repoCacheMocks) {
+	t.Helper()
 	root, err := filepath.Abs(root)
 	if err != nil {
 		panic(err)
@@ -140,6 +141,7 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 }
 
 func newServiceWithOpt(t *testing.T, cf clientFunc, root string) (*Service, *gitmocks.Client, *repoCacheMocks) {
+	t.Helper()
 	helmClient := &helmmocks.Client{}
 	gitClient := &gitmocks.Client{}
 	paths := &iomocks.TempPaths{}
@@ -162,16 +164,19 @@ func newServiceWithOpt(t *testing.T, cf clientFunc, root string) (*Service, *git
 }
 
 func newService(t *testing.T, root string) *Service {
+	t.Helper()
 	service, _, _ := newServiceWithMocks(t, root, false)
 	return service
 }
 
 func newServiceWithSignature(t *testing.T, root string) *Service {
+	t.Helper()
 	service, _, _ := newServiceWithMocks(t, root, true)
 	return service
 }
 
 func newServiceWithCommitSHA(t *testing.T, root, revision string) *Service {
+	t.Helper()
 	var revisionErr error
 
 	commitSHARegex := regexp.MustCompile("^[0-9A-Fa-f]{40}$")
@@ -1842,6 +1847,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 	t.Run("No app name set and app specific file exists", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "multi", func(t *testing.T, path string) {
+			t.Helper()
 			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &argoappv1.Repository{},
 				Source: &argoappv1.ApplicationSource{
@@ -1855,6 +1861,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 	t.Run("No app specific override", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-global", func(t *testing.T, path string) {
+			t.Helper()
 			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &argoappv1.Repository{},
 				Source: &argoappv1.ApplicationSource{
@@ -1869,6 +1876,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 	t.Run("Only app specific override", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-app-only", func(t *testing.T, path string) {
+			t.Helper()
 			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &argoappv1.Repository{},
 				Source: &argoappv1.ApplicationSource{
@@ -1883,6 +1891,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 	t.Run("App specific override", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "multi", func(t *testing.T, path string) {
+			t.Helper()
 			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &argoappv1.Repository{},
 				Source: &argoappv1.ApplicationSource{
@@ -1897,6 +1906,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 	t.Run("App specific overrides containing non-mergeable field", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "multi", func(t *testing.T, path string) {
+			t.Helper()
 			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &argoappv1.Repository{},
 				Source: &argoappv1.ApplicationSource{
@@ -1911,6 +1921,7 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 	t.Run("Broken app-specific overrides", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "multi", func(t *testing.T, path string) {
+			t.Helper()
 			_, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &argoappv1.Repository{},
 				Source: &argoappv1.ApplicationSource{
@@ -1943,6 +1954,7 @@ func mkTempParameters(source string) string {
 // Simple wrapper run a test with a temporary copy of the testdata, because
 // the test would modify the data when run.
 func runWithTempTestdata(t *testing.T, path string, runner func(t *testing.T, path string)) {
+	t.Helper()
 	tempDir := mkTempParameters("./testdata/app-parameters")
 	runner(t, filepath.Join(tempDir, "app-parameters", path))
 	os.RemoveAll(tempDir)
@@ -1951,6 +1963,7 @@ func runWithTempTestdata(t *testing.T, path string, runner func(t *testing.T, pa
 func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 	t.Run("Single global override", func(t *testing.T) {
 		runWithTempTestdata(t, "single-global", func(t *testing.T, path string) {
+			t.Helper()
 			service := newService(t, ".")
 			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 				Repo: &argoappv1.Repository{},
@@ -1980,6 +1993,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 
 	t.Run("Single global override Helm", func(t *testing.T) {
 		runWithTempTestdata(t, "single-global-helm", func(t *testing.T, path string) {
+			t.Helper()
 			service := newService(t, ".")
 			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 				Repo: &argoappv1.Repository{},
@@ -2010,6 +2024,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 	t.Run("Application specific override", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-app-only", func(t *testing.T, path string) {
+			t.Helper()
 			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 				Repo: &argoappv1.Repository{},
 				ApplicationSource: &argoappv1.ApplicationSource{
@@ -2040,6 +2055,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 	t.Run("Multi-source with source as ref only does not generate manifests", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-app-only", func(t *testing.T, path string) {
+			t.Helper()
 			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 				Repo: &argoappv1.Repository{},
 				ApplicationSource: &argoappv1.ApplicationSource{
@@ -2061,6 +2077,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 	t.Run("Application specific override for other app", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-app-only", func(t *testing.T, path string) {
+			t.Helper()
 			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 				Repo: &argoappv1.Repository{},
 				ApplicationSource: &argoappv1.ApplicationSource{
@@ -2091,6 +2108,7 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 	t.Run("Override info does not appear in cache key", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-global", func(t *testing.T, path string) {
+			t.Helper()
 			source := &argoappv1.ApplicationSource{
 				Path: path,
 			}
@@ -2371,6 +2389,7 @@ func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
 }
 
 func tempDir(t *testing.T) string {
+	t.Helper()
 	dir, err := os.MkdirTemp(".", "")
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -2385,6 +2404,7 @@ func tempDir(t *testing.T) string {
 }
 
 func walkFor(t *testing.T, root string, testPath string, run func(info fs.FileInfo)) {
+	t.Helper()
 	hitExpectedPath := false
 	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
 		if path == testPath {
@@ -2932,6 +2952,7 @@ func TestDirectoryPermissionInitializer(t *testing.T) {
 }
 
 func addHelmToGitRepo(t *testing.T, options newGitRepoOptions) {
+	t.Helper()
 	err := os.WriteFile(filepath.Join(options.path, "Chart.yaml"), []byte("name: test\nversion: v1.0.0"), 0o777)
 	require.NoError(t, err)
 	for valuesFileName, values := range options.helmChartOptions.valuesFiles {
@@ -2950,6 +2971,7 @@ func addHelmToGitRepo(t *testing.T, options newGitRepoOptions) {
 }
 
 func initGitRepo(t *testing.T, options newGitRepoOptions) (revision string) {
+	t.Helper()
 	if options.createPath {
 		require.NoError(t, os.Mkdir(options.path, 0o755))
 	}
@@ -3070,6 +3092,7 @@ func TestCheckoutRevisionNotPresentCallFetch(t *testing.T) {
 // runGit runs a git command in the given working directory. If the command succeeds, it returns the combined standard
 // and error output. If it fails, it stops the test with a failure message.
 func runGit(t *testing.T, workDir string, args ...string) string {
+	t.Helper()
 	cmd := exec.Command("git", args...)
 	cmd.Dir = workDir
 	out, err := cmd.CombinedOutput()

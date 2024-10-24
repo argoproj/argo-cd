@@ -131,14 +131,16 @@ func fakeRepoServerClient(isHelm bool) *mocks.RepoServerServiceClient {
 
 // return an ApplicationServiceServer which returns fake data
 func newTestAppServer(t *testing.T, objects ...runtime.Object) *Server {
+	t.Helper()
 	f := func(enf *rbac.Enforcer) {
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 		enf.SetDefaultRole("role:admin")
 	}
-	return newTestAppServerWithEnforcerConfigure(f, t, map[string]string{}, objects...)
+	return newTestAppServerWithEnforcerConfigure(t, f, map[string]string{}, objects...)
 }
 
-func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T, additionalConfig map[string]string, objects ...runtime.Object) *Server {
+func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer), additionalConfig map[string]string, objects ...runtime.Object) *Server {
+	t.Helper()
 	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
@@ -315,14 +317,16 @@ func newTestAppServerWithEnforcerConfigure(f func(*rbac.Enforcer), t *testing.T,
 
 // return an ApplicationServiceServer which returns fake data
 func newTestAppServerWithBenchmark(b *testing.B, objects ...runtime.Object) *Server {
+	b.Helper()
 	f := func(enf *rbac.Enforcer) {
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 		enf.SetDefaultRole("role:admin")
 	}
-	return newTestAppServerWithEnforcerConfigureWithBenchmark(f, b, objects...)
+	return newTestAppServerWithEnforcerConfigureWithBenchmark(b, f, objects...)
 }
 
-func newTestAppServerWithEnforcerConfigureWithBenchmark(f func(*rbac.Enforcer), b *testing.B, objects ...runtime.Object) *Server {
+func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rbac.Enforcer), objects ...runtime.Object) *Server {
+	b.Helper()
 	kubeclientset := fake.NewSimpleClientset(&v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
@@ -792,7 +796,7 @@ func TestNoAppEnumeration(t *testing.T) {
 		}
 	})
 	testDeployment := kube.MustToUnstructured(&deployment)
-	appServer := newTestAppServerWithEnforcerConfigure(f, t, map[string]string{}, testApp, testHelmApp, testAppMulti, testDeployment)
+	appServer := newTestAppServerWithEnforcerConfigure(t, f, map[string]string{}, testApp, testHelmApp, testAppMulti, testDeployment)
 
 	noRoleCtx := context.Background()
 	// nolint:staticcheck
@@ -1096,6 +1100,7 @@ func TestNoAppEnumeration(t *testing.T) {
 
 // setSyncRunningOperationState simulates starting a sync operation on the given app.
 func setSyncRunningOperationState(t *testing.T, appServer *Server) {
+	t.Helper()
 	appIf := appServer.appclientset.ArgoprojV1alpha1().Applications("default")
 	app, err := appIf.Get(context.Background(), "test", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -1107,6 +1112,7 @@ func setSyncRunningOperationState(t *testing.T, appServer *Server) {
 
 // unsetSyncRunningOperationState simulates finishing a sync operation on the given app.
 func unsetSyncRunningOperationState(t *testing.T, appServer *Server) {
+	t.Helper()
 	appIf := appServer.appclientset.ArgoprojV1alpha1().Applications("default")
 	app, err := appIf.Get(context.Background(), "test", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -1153,6 +1159,7 @@ func TestListAppsInDefaultNSWithLabels(t *testing.T) {
 }
 
 func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery, appServer *Server) {
+	t.Helper()
 	validTests := []struct {
 		testName       string
 		label          string
@@ -1334,7 +1341,7 @@ g, group-49, role:test3
 `
 		_ = enf.SetUserPolicy(policy)
 	}
-	appServer := newTestAppServerWithEnforcerConfigure(f, t, map[string]string{}, objects...)
+	appServer := newTestAppServerWithEnforcerConfigure(t, f, map[string]string{}, objects...)
 
 	res, err := appServer.List(ctx, &application.ApplicationQuery{})
 
@@ -2228,6 +2235,7 @@ func TestMaxPodLogsRender(t *testing.T) {
 
 // createAppServerWithMaxLodLogs creates a new app server with given number of pods and resources
 func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRender ...int64) (*Server, context.Context) {
+	t.Helper()
 	runtimeObjects := make([]runtime.Object, podNumber+1)
 	resources := make([]appsv1.ResourceStatus, podNumber)
 
@@ -2269,7 +2277,7 @@ func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRend
 			enf.SetDefaultRole("role:admin")
 		}
 		formatInt := strconv.FormatInt(maxPodLogsToRender[0], 10)
-		appServer := newTestAppServerWithEnforcerConfigure(f, t, map[string]string{"server.maxPodLogsToRender": formatInt}, runtimeObjects...)
+		appServer := newTestAppServerWithEnforcerConfigure(t, f, map[string]string{"server.maxPodLogsToRender": formatInt}, runtimeObjects...)
 		return appServer, adminCtx
 	} else {
 		appServer := newTestAppServer(t, runtimeObjects...)
@@ -2279,6 +2287,7 @@ func createAppServerWithMaxLodLogs(t *testing.T, podNumber int, maxPodLogsToRend
 
 // refreshAnnotationRemover runs an infinite loop until it detects and removes refresh annotation or given context is done
 func refreshAnnotationRemover(t *testing.T, ctx context.Context, patched *int32, appServer *Server, appName string, ch chan string) {
+	t.Helper()
 	for ctx.Err() == nil {
 		aName, appNs := argo.ParseFromQualifiedName(appName, appServer.ns)
 		a, err := appServer.appLister.Applications(appNs).Get(aName)

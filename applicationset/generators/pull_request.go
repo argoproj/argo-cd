@@ -139,7 +139,7 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 				return nil, fmt.Errorf("error fetching CA certificates from ConfigMap: %w", prErr)
 			}
 		}
-		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.TokenRef, applicationSetInfo.Namespace)
+		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %w", err)
 		}
@@ -147,7 +147,7 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 	}
 	if generatorConfig.Gitea != nil {
 		providerConfig := generatorConfig.Gitea
-		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.TokenRef, applicationSetInfo.Namespace)
+		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %w", err)
 		}
@@ -164,13 +164,13 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 			}
 		}
 		if providerConfig.BearerToken != nil {
-			appToken, err := utils.GetSecretRef(ctx, g.client, providerConfig.BearerToken.TokenRef, applicationSetInfo.Namespace)
+			appToken, err := utils.GetSecretRef(ctx, g.client, providerConfig.BearerToken.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret Bearer token: %w", err)
 			}
 			return pullrequest.NewBitbucketServiceBearerToken(ctx, appToken, providerConfig.API, providerConfig.Project, providerConfig.Repo, g.scmRootCAPath, providerConfig.Insecure, caCerts)
 		} else if providerConfig.BasicAuth != nil {
-			password, err := utils.GetSecretRef(ctx, g.client, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace)
+			password, err := utils.GetSecretRef(ctx, g.client, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret token: %w", err)
 			}
@@ -182,13 +182,13 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 	if generatorConfig.Bitbucket != nil {
 		providerConfig := generatorConfig.Bitbucket
 		if providerConfig.BearerToken != nil {
-			appToken, err := utils.GetSecretRef(ctx, g.client, providerConfig.BearerToken.TokenRef, applicationSetInfo.Namespace)
+			appToken, err := utils.GetSecretRef(ctx, g.client, providerConfig.BearerToken.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret Bearer token: %w", err)
 			}
 			return pullrequest.NewBitbucketCloudServiceBearerToken(providerConfig.API, appToken, providerConfig.Owner, providerConfig.Repo)
 		} else if providerConfig.BasicAuth != nil {
-			password, err := utils.GetSecretRef(ctx, g.client, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace)
+			password, err := utils.GetSecretRef(ctx, g.client, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret token: %w", err)
 			}
@@ -199,7 +199,7 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 	}
 	if generatorConfig.AzureDevOps != nil {
 		providerConfig := generatorConfig.AzureDevOps
-		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.TokenRef, applicationSetInfo.Namespace)
+		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %w", err)
 		}
@@ -219,7 +219,7 @@ func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alph
 	}
 
 	// always default to token, even if not set (public access)
-	token, err := utils.GetSecretRef(ctx, g.client, cfg.TokenRef, applicationSetInfo.Namespace)
+	token, err := utils.GetSecretRef(ctx, g.client, cfg.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching Secret token: %w", err)
 	}
