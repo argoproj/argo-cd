@@ -79,24 +79,24 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 		}
 	case "HelmRelease", "ImageRepository", "ImageUpdateAutomation", "Kustomization", "Receiver", "Bucket", "GitRepository", "HelmChart", "HelmRepository", "OCIRepository":
 		err := unstructured.SetNestedStringMap(un.Object, map[string]string{"reconcile.fluxcd.io/requestedAt": "By Argo CD at: 0001-01-01T00:00:00"}, "metadata", "annotations")
-  case "MachineDeployment", "KubeadmControlPlane":
-		err := unstructured.SetNestedStringMap(un.Object, map[string]string{"cluster.x-k8s.io/restartedAt": "0001-01-01T00:00:00Z"}, "metadata", "annotations")
-		if err != nil {
-			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+	case "MachineDeployment", "KubeadmControlPlane":
+			err := unstructured.SetNestedStringMap(un.Object, map[string]string{"cluster.x-k8s.io/restartedAt": "0001-01-01T00:00:00Z"}, "metadata", "annotations")
+			if err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+			err = unstructured.SetNestedField(un.Object, nil, "spec", "rolloutAfter")
+			if err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+			err = unstructured.SetNestedField(un.Object, nil, "metadata", "generation")
+			if err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+			err = unstructured.SetNestedField(un.Object, nil, "status", "observedGeneration")
+			if err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
 		}
-		err = unstructured.SetNestedField(un.Object, nil, "spec", "rolloutAfter")
-		if err != nil {
-			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
-		}
-		err = unstructured.SetNestedField(un.Object, nil, "metadata", "generation")
-		if err != nil {
-			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
-		}
-		err = unstructured.SetNestedField(un.Object, nil, "status", "observedGeneration")
-		if err != nil {
-			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
-		}
-	}
 	return nil
 }
 
