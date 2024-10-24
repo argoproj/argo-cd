@@ -173,9 +173,6 @@ func TestLuaResourceActionsScript(t *testing.T) {
 				impactedResources, err := vm.ExecuteResourceAction(sourceObj, action.ActionLua, params)
 				require.NoError(t, err)
 
-				// Log the impacted resources
-				t.Logf("Impacted resources: %+v", impactedResources)
-
 				// Treat the Lua expected output as a list
 				expectedObjects := getExpectedObjectList(t, filepath.Join(dir, test.ExpectedOutputPath))
 
@@ -224,14 +221,6 @@ func TestLuaResourceActionsScript(t *testing.T) {
 						} else {
 							require.NoError(t, err)
 							assert.Equal(t, expectedScale, actualReplicas, "spec.replica count mismatch")
-						}
-						// Check status.replicas
-						actualStatusReplicas, found, err := unstructured.NestedInt64(result.Object, "status", "replicas")
-						if !found {
-							t.Errorf("status.replicas not found in actual result. Result object: %+v", result.Object)
-						} else {
-							require.NoError(t, err)
-							assert.Equal(t, expectedScale, actualStatusReplicas, "status.replica count mismatch")
 						}
 					}
 

@@ -45,6 +45,6 @@ status:
   currentRevision: statefulset-85b7f767c6
   observedGeneration: 2
   readyReplicas: 3
-  replicas: 6
+  replicas: 3
   updateRevision: statefulset-85b7f767c6
   updatedReplicas: 3
