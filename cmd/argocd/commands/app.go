@@ -31,6 +31,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8swatch "k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
@@ -60,7 +63,7 @@ import (
 )
 
 // NewApplicationCommand returns a new instance of an `argocd app` command
-func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewApplicationCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "app",
 		Short: "Manage applications",
@@ -78,16 +81,16 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		},
 	}
 	command.AddCommand(NewApplicationCreateCommand(clientOpts))
-	command.AddCommand(NewApplicationGetCommand(clientOpts))
+	command.AddCommand(NewApplicationGetCommand(clientOpts, pathOpts))
 	command.AddCommand(NewApplicationDiffCommand(clientOpts))
 	command.AddCommand(NewApplicationSetCommand(clientOpts))
 	command.AddCommand(NewApplicationUnsetCommand(clientOpts))
-	command.AddCommand(NewApplicationSyncCommand(clientOpts))
+	command.AddCommand(NewApplicationSyncCommand(clientOpts, pathOpts))
 	command.AddCommand(NewApplicationHistoryCommand(clientOpts))
-	command.AddCommand(NewApplicationRollbackCommand(clientOpts))
+	command.AddCommand(NewApplicationRollbackCommand(clientOpts, pathOpts))
 	command.AddCommand(NewApplicationListCommand(clientOpts))
 	command.AddCommand(NewApplicationDeleteCommand(clientOpts))
-	command.AddCommand(NewApplicationWaitCommand(clientOpts))
+	command.AddCommand(NewApplicationWaitCommand(clientOpts, pathOpts))
 	command.AddCommand(NewApplicationManifestsCommand(clientOpts))
 	command.AddCommand(NewApplicationTerminateOpCommand(clientOpts))
 	command.AddCommand(NewApplicationEditCommand(clientOpts))
@@ -317,7 +320,7 @@ func printHeader(acdClient argocdclient.Client, app *argoappv1.Application, ctx 
 }
 
 // NewApplicationGetCommand returns a new instance of an `argocd app get` command
-func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var (
 		refresh        bool
 		hardRefresh    bool
@@ -397,6 +400,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 
 			windows := proj.Spec.SyncWindows.Matches(app)
 
+			clientset := createKubeClient(pathOpts)
 			switch output {
 			case "yaml", "json":
 				err := PrintResource(app, output)
@@ -406,7 +410,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				if len(app.Status.Resources) > 0 {
 					fmt.Println()
 					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-					printAppResources(w, app)
+					printAppResources(w, app, clientset.DiscoveryClient)
 					_ = w.Flush()
 				}
 			case "tree":
@@ -436,6 +440,23 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only get application from namespace")
 	command.Flags().IntVar(&sourcePosition, "source-position", -1, "Position of the source from the list of sources of the app. Counting starts at 1.")
 	return command
+}
+
+func createKubeClient(pathOpts *clientcmd.PathOptions) *kubernetes.Clientset {
+	config, err := pathOpts.GetStartingConfig()
+	if err != nil {
+		errors.CheckError(fmt.Errorf("unable to obtain kubernetes configuration from host: %w", err))
+	}
+	clientConfig := clientcmd.NewDefaultClientConfig(*config, nil)
+	conf, err := clientConfig.ClientConfig()
+	if err != nil {
+		errors.CheckError(fmt.Errorf("unable to obtain kubernetes client configuration from configuration files. Configuration file: %s Error:%w", clientConfig, err))
+	}
+	clientset, err := kubernetes.NewForConfig(conf)
+	if err != nil {
+		errors.CheckError(fmt.Errorf("unable to create kubernetes client from configuration %s . Error: %w", conf, err))
+	}
+	return clientset
 }
 
 // NewApplicationLogsCommand returns logs of application pods
@@ -1724,7 +1745,7 @@ func getWatchOpts(watch watchOpts) watchOpts {
 }
 
 // NewApplicationWaitCommand returns a new instance of an `argocd app wait` command
-func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var (
 		watch        watchOpts
 		timeout      uint
@@ -1784,7 +1805,8 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				if appNamespace != "" && !strings.Contains(appName, "/") {
 					appName = appNamespace + "/" + appName
 				}
-				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources, output)
+
+				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources, output, createKubeClient(pathOpts).DiscoveryClient)
 				errors.CheckError(err)
 			}
 		},
@@ -1804,11 +1826,49 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 }
 
 // printAppResources prints the resources of an application in a tabwriter table
-func printAppResources(w io.Writer, app *argoappv1.Application) {
+func printAppResources(w io.Writer, app *argoappv1.Application, discoveryClient discovery.DiscoveryInterface) {
 	_, _ = fmt.Fprintf(w, "GROUP\tKIND\tNAMESPACE\tNAME\tSTATUS\tHEALTH\tHOOK\tMESSAGE\n")
-	for _, res := range getResourceStates(app, nil) {
+	versionedResourceStates := getVersionedResourceStates(app, nil)
+	for _, res := range mergeDuplicateClusterLevelResources(versionedResourceStates, discoveryClient) {
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", res.Group, res.Kind, res.Namespace, res.Name, res.Status, res.Health, res.Hook, res.Message)
 	}
+}
+
+func mergeDuplicateClusterLevelResources(resourceStates []*versionedResourceState, discoveryClient discovery.DiscoveryInterface) []*versionedResourceState {
+	resourcesByKey := make(map[kube.ResourceKey]*versionedResourceState)
+	for _, resource := range resourceStates {
+		groupVersion := ""
+		if resource.Group != "" {
+			groupVersion += (resource.Group + "/")
+		}
+		groupVersion += resource.Version
+		apiResourceList, err := discoveryClient.ServerResourcesForGroupVersion(groupVersion)
+		if err != nil {
+			errors.CheckError(fmt.Errorf("unable to retrieve server resources for group and version combination %s: %w", groupVersion, err))
+		}
+
+		for _, apiResource := range apiResourceList.APIResources {
+			if resource.Group == apiResource.Group && resource.Version == apiResource.Version && resource.Kind == apiResource.Kind {
+				if !apiResource.Namespaced {
+					resource.Namespace = ""
+				}
+			}
+		}
+
+		resourceKey := kube.NewResourceKey(resource.Group, resource.Kind, resource.Namespace, resource.Name)
+		previous, ok := resourcesByKey[resourceKey]
+		if ok {
+			previous.Merge(resource)
+		} else {
+			resourcesByKey[resourceKey] = resource
+		}
+	}
+
+	var uniqueResources []*versionedResourceState
+	for _, v := range resourcesByKey {
+		uniqueResources = append(uniqueResources, v)
+	}
+	return uniqueResources
 }
 
 func printTreeView(nodeMapping map[string]argoappv1.ResourceNode, parentChildMapping map[string][]string, parentNodes map[string]struct{}, mapNodeNameToResourceState map[string]*resourceState) {
@@ -1830,7 +1890,7 @@ func printTreeViewDetailed(nodeMapping map[string]argoappv1.ResourceNode, parent
 }
 
 // NewApplicationSyncCommand returns a new instance of an `argocd app sync` command
-func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var (
 		revision                string
 		revisions               []string
@@ -2132,7 +2192,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 
 				if !async {
-					app, opState, err := waitOnApplicationStatus(ctx, acdClient, appQualifiedName, timeout, watchOpts{operation: true}, selectedResources, output)
+					app, opState, err := waitOnApplicationStatus(ctx, acdClient, appQualifiedName, timeout, watchOpts{operation: true}, selectedResources, output, createKubeClient(pathOpts).DiscoveryClient)
 					errors.CheckError(err)
 
 					if !dryRun {
@@ -2211,6 +2271,11 @@ type resourceState struct {
 	Message   string
 }
 
+type versionedResourceState struct {
+	resourceState
+	Version string
+}
+
 // Key returns a unique-ish key for the resource.
 func (rs *resourceState) Key() string {
 	return fmt.Sprintf("%s/%s/%s/%s", rs.Group, rs.Kind, rs.Namespace, rs.Name)
@@ -2239,8 +2304,20 @@ func (rs *resourceState) Merge(newState *resourceState) bool {
 	return updated
 }
 
+func (rs *versionedResourceState) Merge(newState *versionedResourceState) bool {
+	return rs.resourceState.Merge(&newState.resourceState)
+}
+
 func getResourceStates(app *argoappv1.Application, selectedResources []*argoappv1.SyncOperationResource) []*resourceState {
-	var states []*resourceState
+	var resourceStates []*resourceState
+	for _, versionedResource := range getVersionedResourceStates(app, selectedResources) {
+		resourceStates = append(resourceStates, &versionedResource.resourceState)
+	}
+	return resourceStates
+}
+
+func getVersionedResourceStates(app *argoappv1.Application, selectedResources []*argoappv1.SyncOperationResource) []*versionedResourceState {
+	var states []*versionedResourceState
 	resourceByKey := make(map[kube.ResourceKey]argoappv1.ResourceStatus)
 	for i := range app.Status.Resources {
 		res := app.Status.Resources[i]
@@ -2260,8 +2337,11 @@ func getResourceStates(app *argoappv1.Application, selectedResources []*argoappv
 				}
 				sync = string(resource.Status)
 			}
-			states = append(states, &resourceState{
-				Group: res.Group, Kind: res.Kind, Namespace: res.Namespace, Name: res.Name, Status: sync, Health: health, Hook: string(res.HookType), Message: res.Message,
+			states = append(states, &versionedResourceState{
+				resourceState: resourceState{
+					Group: res.Group, Kind: res.Kind, Namespace: res.Namespace, Name: res.Name, Status: sync, Health: health, Hook: string(res.HookType), Message: res.Message,
+				},
+				Version: res.Version,
 			})
 			delete(resourceByKey, kube.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name))
 		}
@@ -2280,8 +2360,11 @@ func getResourceStates(app *argoappv1.Application, selectedResources []*argoappv
 		if res.Health != nil {
 			health = string(res.Health.Status)
 		}
-		states = append(states, &resourceState{
-			Group: res.Group, Kind: res.Kind, Namespace: res.Namespace, Name: res.Name, Status: string(res.Status), Health: health, Hook: "", Message: "",
+		states = append(states, &versionedResourceState{
+			resourceState: resourceState{
+				Group: res.Group, Kind: res.Kind, Namespace: res.Namespace, Name: res.Name, Status: string(res.Status), Health: health, Hook: "", Message: "",
+			},
+			Version: res.Version,
 		})
 	}
 	// filter out not selected resources
@@ -2316,9 +2399,9 @@ func filterAppResources(app *argoappv1.Application, selectedResources []*argoapp
 	return filteredResources
 }
 
-func groupResourceStates(app *argoappv1.Application, selectedResources []*argoappv1.SyncOperationResource) map[string]*resourceState {
-	resStates := make(map[string]*resourceState)
-	for _, result := range getResourceStates(app, selectedResources) {
+func groupResourceStates(app *argoappv1.Application, selectedResources []*argoappv1.SyncOperationResource, discovery discovery.DiscoveryInterface) map[string]*versionedResourceState {
+	resStates := make(map[string]*versionedResourceState)
+	for _, result := range mergeDuplicateClusterLevelResources(getVersionedResourceStates(app, selectedResources), discovery) {
 		key := result.Key()
 		if prev, ok := resStates[key]; ok {
 			prev.Merge(result)
@@ -2382,7 +2465,7 @@ const waitFormatString = "%s\t%5s\t%10s\t%10s\t%20s\t%8s\t%7s\t%10s\t%s\n"
 // waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
 // are fulfilled or we reach the timeout. Returns the app once desired conditions have been filled.
 // Additionally return the operationState at time of fulfilment (which may be different than returned app).
-func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource, output string) (*argoappv1.Application, *argoappv1.OperationState, error) {
+func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource, output string, discovery discovery.DiscoveryInterface) (*argoappv1.Application, *argoappv1.OperationState, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -2419,7 +2502,6 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 				printOperationResult(app.Status.OperationState)
 			}
 		}
-
 		switch output {
 		case "yaml", "json":
 			err := PrintResource(app, output)
@@ -2428,7 +2510,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			if len(app.Status.Resources) > 0 {
 				fmt.Println()
 				w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-				printAppResources(w, app)
+				printAppResources(w, app, discovery)
 				_ = w.Flush()
 			}
 		case "tree":
@@ -2478,7 +2560,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 		_, _ = fmt.Fprintf(w, waitFormatString, "TIMESTAMP", "GROUP", "KIND", "NAMESPACE", "NAME", "STATUS", "HEALTH", "HOOK", "MESSAGE")
 	}
 
-	prevStates := make(map[string]*resourceState)
+	prevStates := make(map[string]*versionedResourceState)
 	conn, appClient := acdClient.NewApplicationClientOrDie()
 	defer argoio.Close(conn)
 	app, err := appClient.Get(ctx, &application.ApplicationQuery{
@@ -2546,7 +2628,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			return app, finalOperationState, nil
 		}
 
-		newStates := groupResourceStates(app, selectedResources)
+		newStates := groupResourceStates(app, selectedResources, discovery)
 		for _, newState := range newStates {
 			var doPrint bool
 			stateKey := newState.Key()
@@ -2723,7 +2805,7 @@ func findRevisionHistory(application *argoappv1.Application, historyId int64) (*
 }
 
 // NewApplicationRollbackCommand returns a new instance of an `argocd app rollback` command
-func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientcmd.PathOptions) *cobra.Command {
 	var (
 		prune        bool
 		timeout      uint
@@ -2768,7 +2850,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 
 			_, _, err = waitOnApplicationStatus(ctx, acdClient, app.QualifiedName(), timeout, watchOpts{
 				operation: true,
-			}, nil, output)
+			}, nil, output, createKubeClient(pathOpts).DiscoveryClient)
 			errors.CheckError(err)
 		},
 	}
