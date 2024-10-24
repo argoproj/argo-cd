@@ -2,14 +2,7 @@ name: Create ArgoCD release
 on:
   push:
     tags:
-      - "release-v*"
-      - "!release-v1.5*"
-      - "!release-v1.4*"
-      - "!release-v1.3*"
-      - "!release-v1.2*"
-      - "!release-v1.1*"
-      - "!release-v1.0*"
-      - "!release-v0*"
+      - "*"
 
 env:
   GOLANG_VERSION: '1.22' # Note: go-version must also be set in job argocd-image.with.go-version
