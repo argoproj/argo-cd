@@ -994,7 +994,7 @@ func appSyncEnabledForNextStep(appset *argov1alpha1.ApplicationSet, app argov1al
 }
 
 func progressiveSyncsRollingSyncStrategyEnabled(appset *argov1alpha1.ApplicationSet) bool {
-	return appset.Spec.Strategy != nil && appset.Spec.Strategy.RollingSync != nil && appset.Spec.Strategy.Type == "RollingSync"
+	return appset.Spec.Strategy != nil && appset.Spec.Strategy.RollingSync != nil && appset.Spec.Strategy.Type == "RollingSync" && len(appset.Spec.Strategy.RollingSync.Steps) > 0
 }
 
 func isApplicationHealthy(app argov1alpha1.Application) bool {
@@ -1017,6 +1017,16 @@ func statusStrings(app argov1alpha1.Application) (string, string, string) {
 	return healthStatusString, syncStatusString, operationPhaseString
 }
 
+func getAppStep(appName string, appStepMap map[string]int) int {
+	// if an application is not selected by any match expression, it defaults to step -1
+	step := -1
+	if appStep, ok := appStepMap[appName]; ok {
+		// 1-based indexing
+		step = appStep + 1
+	}
+	return step
+}
+
 // check the status of each Application's status and promote Applications to the next status if needed
 func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
 	now := metav1.Now()
@@ -1036,7 +1046,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 				LastTransitionTime: &now,
 				Message:            "No Application status found, defaulting status to Waiting.",
 				Status:             "Waiting",
-				Step:               fmt.Sprint(appStepMap[app.Name] + 1),
+				Step:               fmt.Sprint(getAppStep(app.Name, appStepMap)),
 				TargetRevisions:    app.Status.GetRevisions(),
 			}
 		} else {
@@ -1061,7 +1071,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 			currentAppStatus.LastTransitionTime = &now
 			currentAppStatus.Status = "Waiting"
 			currentAppStatus.Message = "Application has pending changes, setting status to Waiting."
-			currentAppStatus.Step = fmt.Sprint(appStepMap[currentAppStatus.Application] + 1)
+			currentAppStatus.Step = fmt.Sprint(getAppStep(currentAppStatus.Application, appStepMap))
 			currentAppStatus.TargetRevisions = app.Status.GetRevisions()
 		}
 
@@ -1079,14 +1089,14 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 					currentAppStatus.LastTransitionTime = &now
 					currentAppStatus.Status = "Progressing"
 					currentAppStatus.Message = "Application resource completed a sync successfully, updating status from Pending to Progressing."
-					currentAppStatus.Step = fmt.Sprint(appStepMap[currentAppStatus.Application] + 1)
+					currentAppStatus.Step = fmt.Sprint(getAppStep(currentAppStatus.Application, appStepMap))
 				}
 			} else if operationPhaseString == "Running" || healthStatusString == "Progressing" {
 				logCtx.Infof("Application %v has entered Progressing status, updating its ApplicationSet status to Progressing", app.Name)
 				currentAppStatus.LastTransitionTime = &now
 				currentAppStatus.Status = "Progressing"
 				currentAppStatus.Message = "Application resource became Progressing, updating status from Pending to Progressing."
-				currentAppStatus.Step = fmt.Sprint(appStepMap[currentAppStatus.Application] + 1)
+				currentAppStatus.Step = fmt.Sprint(getAppStep(currentAppStatus.Application, appStepMap))
 			}
 		}
 
@@ -1095,7 +1105,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 			currentAppStatus.LastTransitionTime = &now
 			currentAppStatus.Status = healthStatusString
 			currentAppStatus.Message = "Application resource is already Healthy, updating status from Waiting to Healthy."
-			currentAppStatus.Step = fmt.Sprint(appStepMap[currentAppStatus.Application] + 1)
+			currentAppStatus.Step = fmt.Sprint(getAppStep(currentAppStatus.Application, appStepMap))
 		}
 
 		if currentAppStatus.Status == "Progressing" && isApplicationHealthy(app) {
@@ -1103,7 +1113,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 			currentAppStatus.LastTransitionTime = &now
 			currentAppStatus.Status = healthStatusString
 			currentAppStatus.Message = "Application resource became Healthy, updating status from Progressing to Healthy."
-			currentAppStatus.Step = fmt.Sprint(appStepMap[currentAppStatus.Application] + 1)
+			currentAppStatus.Step = fmt.Sprint(getAppStep(currentAppStatus.Application, appStepMap))
 		}
 
 		appStatuses = append(appStatuses, currentAppStatus)
@@ -1124,14 +1134,12 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 	appStatuses := make([]argov1alpha1.ApplicationSetApplicationStatus, 0, len(applicationSet.Status.ApplicationStatus))
 
 	// if we have no RollingUpdate steps, clear out the existing ApplicationStatus entries
-	if applicationSet.Spec.Strategy != nil && applicationSet.Spec.Strategy.Type != "" && applicationSet.Spec.Strategy.Type != "AllAtOnce" {
+	if progressiveSyncsRollingSyncStrategyEnabled(applicationSet) {
 		updateCountMap := []int{}
 		totalCountMap := []int{}
 
-		length := 0
-		if progressiveSyncsRollingSyncStrategyEnabled(applicationSet) {
-			length = len(applicationSet.Spec.Strategy.RollingSync.Steps)
-		}
+		length := len(applicationSet.Spec.Strategy.RollingSync.Steps)
+
 		for s := 0; s < length; s++ {
 			updateCountMap = append(updateCountMap, 0)
 			totalCountMap = append(totalCountMap, 0)
@@ -1141,10 +1149,8 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 		for _, appStatus := range applicationSet.Status.ApplicationStatus {
 			totalCountMap[appStepMap[appStatus.Application]] += 1
 
-			if progressiveSyncsRollingSyncStrategyEnabled(applicationSet) {
-				if appStatus.Status == "Pending" || appStatus.Status == "Progressing" {
-					updateCountMap[appStepMap[appStatus.Application]] += 1
-				}
+			if appStatus.Status == "Pending" || appStatus.Status == "Progressing" {
+				updateCountMap[appStepMap[appStatus.Application]] += 1
 			}
 		}
 
@@ -1169,7 +1175,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 
 				if updateCountMap[appStepMap[appStatus.Application]] >= maxUpdateVal {
 					maxUpdateAllowed = false
-					logCtx.Infof("Application %v is not allowed to update yet, %v/%v Applications already updating in step %v in AppSet %v", appStatus.Application, updateCountMap[appStepMap[appStatus.Application]], maxUpdateVal, appStepMap[appStatus.Application]+1, applicationSet.Name)
+					logCtx.Infof("Application %v is not allowed to update yet, %v/%v Applications already updating in step %v in AppSet %v", appStatus.Application, updateCountMap[appStepMap[appStatus.Application]], maxUpdateVal, getAppStep(appStatus.Application, appStepMap), applicationSet.Name)
 				}
 			}
 
@@ -1178,7 +1184,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 				appStatus.LastTransitionTime = &now
 				appStatus.Status = "Pending"
 				appStatus.Message = "Application moved to Pending status, watching for the Application resource to start Progressing."
-				appStatus.Step = fmt.Sprint(appStepMap[appStatus.Application] + 1)
+				appStatus.Step = fmt.Sprint(getAppStep(appStatus.Application, appStepMap))
 
 				updateCountMap[appStepMap[appStatus.Application]] += 1
 			}
