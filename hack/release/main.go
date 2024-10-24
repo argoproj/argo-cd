@@ -136,10 +136,12 @@ func release() error {
 	fmt.Println("Push new tag to remote")
 	// git push origin tags/version
 	cmd = exec.Command("git", "push", "origin", "tags/"+release)
-	if output, err := cmd.CombinedOutput(); err != nil {
+	output, err := cmd.CombinedOutput()
+	if err != nil {
 		fmt.Print(string(output))
 		return fmt.Errorf("failed to push tag: %w", err)
 	}
+	fmt.Printf("git push output: %s\n", string(output))
 
 	fmt.Println("Delete tag from remote")
 	return exec.Command("git", "push", "origin", "--delete", release).Run()
