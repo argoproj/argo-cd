@@ -1976,6 +1976,8 @@ message ResourceStatus {
   optional bool requiresPruning = 9;
 
   optional int64 syncWave = 10;
+
+  optional bool requiresDeletionConfirmation = 11;
 }
 
 // RetryStrategy contains information about the strategy to apply when a sync failed
