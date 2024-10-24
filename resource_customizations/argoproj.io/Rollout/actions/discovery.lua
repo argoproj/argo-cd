@@ -25,4 +25,10 @@ if obj.status ~= nil and not(fullyPromoted) then
     end
 end
 
+actions["promote"] = {["disabled"] = true}
+if obj.status.canary ~= nil and not(fullyPromoted) then
+    -- promote one step is only for canary
+    actions["promote"]["disabled"] = false
+end
+
 return actions
