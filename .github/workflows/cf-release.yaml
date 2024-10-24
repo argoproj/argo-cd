@@ -9,11 +9,13 @@ on:
         
 permissions:
   contents: write
+  actions: write
 
 jobs:
   prepare-release:
     permissions:
-      contents: write  # for peter-evans/create-pull-request to create branch
+      contents: write
+      actions: write  # for peter-evans/create-pull-request to create branch
     name: Automatically generate version and manifests on ${{ inputs.TARGET_BRANCH }}
     runs-on: ubuntu-22.04
     steps:
