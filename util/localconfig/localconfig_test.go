@@ -4,11 +4,12 @@ package localconfig
 
 import (
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/util/config"
 	"os"
 	"path"
 	"path/filepath"
 	"testing"
+
+	"github.com/argoproj/argo-cd/v2/util/config"
 
 	"github.com/stretchr/testify/require"
 
@@ -139,7 +140,7 @@ func TestGetPromptsEnabled_useCLIOpts_false_localConfigPromptsEnabled_true(t *te
 
 	loadOpts(t, "--config "+testConfigFilePath)
 
-	assert.Equal(t, true, GetPromptsEnabled(false))
+	assert.True(t, GetPromptsEnabled(false))
 }
 
 func TestGetPromptsEnabled_useCLIOpts_false_localConfigPromptsEnabled_false(t *testing.T) {
@@ -154,7 +155,7 @@ func TestGetPromptsEnabled_useCLIOpts_false_localConfigPromptsEnabled_false(t *t
 
 	loadOpts(t, "--config "+testConfigFilePath)
 
-	assert.Equal(t, false, GetPromptsEnabled(false))
+	assert.False(t, GetPromptsEnabled(false))
 }
 
 func TestGetPromptsEnabled_useCLIOpts_true_forcePromptsEnabled_default(t *testing.T) {
@@ -169,7 +170,7 @@ func TestGetPromptsEnabled_useCLIOpts_true_forcePromptsEnabled_default(t *testin
 
 	loadOpts(t, "--config "+testConfigFilePath+" --force-prompts-enabled")
 
-	assert.Equal(t, true, GetPromptsEnabled(true))
+	assert.True(t, GetPromptsEnabled(true))
 }
 
 func TestGetPromptsEnabled_useCLIOpts_true_forcePromptsEnabled_true(t *testing.T) {
@@ -184,7 +185,7 @@ func TestGetPromptsEnabled_useCLIOpts_true_forcePromptsEnabled_true(t *testing.T
 
 	loadOpts(t, "--config "+testConfigFilePath+" --force-prompts-enabled=true")
 
-	assert.Equal(t, true, GetPromptsEnabled(true))
+	assert.True(t, GetPromptsEnabled(true))
 }
 
 func TestGetPromptsEnabled_useCLIOpts_true_forcePromptsEnabled_false(t *testing.T) {
@@ -199,5 +200,5 @@ func TestGetPromptsEnabled_useCLIOpts_true_forcePromptsEnabled_false(t *testing.
 
 	loadOpts(t, "--config "+testConfigFilePath+" --force-prompts-enabled=false")
 
-	assert.Equal(t, false, GetPromptsEnabled(true))
+	assert.False(t, GetPromptsEnabled(true))
 }
