@@ -26,7 +26,7 @@ func getResourceEventPayload(
 	desiredState *apiclient.Manifest,
 	apptree *appv1.ApplicationTree,
 	manifestGenErr bool,
-	ts string,
+	appEventProcessingStartedAt string,
 	originalApplication *appv1.Application, // passed when rs is application
 	revisionsMetadata *utils.AppSyncRevisionsMetadata,
 	originalAppRevisionsMetadata *utils.AppSyncRevisionsMetadata, // passed when rs is application
@@ -194,7 +194,7 @@ func getResourceEventPayload(
 	}
 
 	payload := events.EventPayload{
-		Timestamp:   ts,
+		Timestamp:   appEventProcessingStartedAt,
 		Object:      object,
 		Source:      &source,
 		Errors:      errors,
@@ -215,7 +215,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 	ctx context.Context,
 	a *appv1.Application,
 	appTree *appv1.ApplicationTree,
-	ts string,
+	eventProcessingStartedAt string,
 	appInstanceLabelKey string,
 	trackingMethod appv1.TrackingMethod,
 	applicationVersions *apiclient.ApplicationVersions,
@@ -295,7 +295,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 	errors = append(errors, parseAggregativeHealthErrorsOfApplication(a, appTree)...)
 
 	payload := events.EventPayload{
-		Timestamp:   ts,
+		Timestamp:   eventProcessingStartedAt,
 		Object:      object,
 		Source:      source,
 		Errors:      errors,

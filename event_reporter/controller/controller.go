@@ -65,7 +65,7 @@ func (c *eventReporterController) Run(ctx context.Context) {
 
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
-	sendIfPermitted := func(ctx context.Context, a appv1.Application, eventType watch.EventType, ts string, ignoreResourceCache bool) error {
+	sendIfPermitted := func(ctx context.Context, a appv1.Application, eventType watch.EventType, eventProcessingStartedAt string, ignoreResourceCache bool) error {
 		if eventType == watch.Bookmark {
 			return nil // ignore this event
 		}
@@ -76,7 +76,7 @@ func (c *eventReporterController) Run(ctx context.Context) {
 		}
 		trackingMethod := argoutil.GetTrackingMethod(c.settingsMgr)
 
-		err = c.applicationEventReporter.StreamApplicationEvents(ctx, &a, ts, ignoreResourceCache, appInstanceLabelKey, trackingMethod)
+		err = c.applicationEventReporter.StreamApplicationEvents(ctx, &a, eventProcessingStartedAt, ignoreResourceCache, appInstanceLabelKey, trackingMethod)
 		if err != nil {
 			return err
 		}
@@ -105,9 +105,9 @@ func (c *eventReporterController) Run(ctx context.Context) {
 				c.metricsServer.IncCachedIgnoredEventsCounter(metrics.MetricAppEventType, event.Application.Name)
 				continue
 			}
-			ts := time.Now().Format("2006-01-02T15:04:05.000Z")
+			eventProcessingStartedAt := time.Now().Format("2006-01-02T15:04:05.000Z")
 			ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
-			err := sendIfPermitted(ctx, event.Application, event.Type, ts, ignoreResourceCache)
+			err := sendIfPermitted(ctx, event.Application, event.Type, eventProcessingStartedAt, ignoreResourceCache)
 			if err != nil {
 				logCtx.WithError(err).Error("failed to stream application events")
 				if strings.Contains(err.Error(), "context deadline exceeded") {
