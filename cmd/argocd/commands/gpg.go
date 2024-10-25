@@ -8,6 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
+
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
@@ -167,11 +169,21 @@ func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 			if len(args) != 1 {
 				errors.CheckError(fmt.Errorf("Missing KEYID argument"))
 			}
+
+			keyId := args[0]
+
 			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
 			defer argoio.Close(conn)
-			_, err := gpgIf.Delete(ctx, &gpgkeypkg.GnuPGPublicKeyQuery{KeyID: args[0]})
-			errors.CheckError(err)
-			fmt.Printf("Deleted key with key ID %s\n", args[0])
+
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
+			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to remove '%s'? [y/n] ", keyId))
+			if canDelete {
+				_, err := gpgIf.Delete(ctx, &gpgkeypkg.GnuPGPublicKeyQuery{KeyID: keyId})
+				errors.CheckError(err)
+				fmt.Printf("Deleted key with key ID %s\n", keyId)
+			} else {
+				fmt.Printf("The command to delete key with key ID '%s' was cancelled.\n", keyId)
+			}
 		},
 	}
 	return command
