@@ -1,0 +1,3 @@
+run:
+  skip-files:
+    - "pkg/diff/internal/fieldmanager/borrowed_.+\\.go$"
