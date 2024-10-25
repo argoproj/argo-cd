@@ -2966,3 +2966,38 @@ func TestInstallationID(t *testing.T) {
 			require.Equal(t, "test", deploy.Annotations[common.AnnotationInstallationID])
 		})
 }
+
+func TestDeletionConfirmation(t *testing.T) {
+	ctx := Given(t)
+	ctx.
+		And(func() {
+			_, err := fixture.KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Create(
+				context.Background(), &v1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-configmap",
+						Labels: map[string]string{
+							common.LabelKeyAppInstance: ctx.AppName(),
+						},
+						Annotations: map[string]string{
+							AnnotationSyncOptions: "Prune=confirm",
+						},
+					},
+				}, metav1.CreateOptions{})
+			require.NoError(t, err)
+		}).
+		Path(guestbookPath).
+		Async(true).
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "add", "path": "/metadata/annotations", "value": { "argocd.argoproj.io/sync-options": "Delete=confirm" }}]`).
+		CreateApp().Sync().
+		Then().Expect(OperationPhaseIs(OperationRunning)).
+		When().ConfirmDeletion().
+		Then().Expect(OperationPhaseIs(OperationSucceeded)).
+		When().Delete(true).
+		Then().
+		And(func(app *Application) {
+			assert.NotNil(t, app.DeletionTimestamp)
+		}).
+		When().ConfirmDeletion().
+		Then().Expect(DoesNotExist())
+}
