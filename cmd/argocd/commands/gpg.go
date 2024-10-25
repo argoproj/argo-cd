@@ -8,9 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
-
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	gpgkeypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/gpgkey"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
