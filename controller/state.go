@@ -10,6 +10,7 @@ import (
 	goSync "sync"
 	"time"
 
+	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
@@ -299,7 +300,8 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 	logCtx.Info("GetRepoObjs stats")
 
-	// in case if annotation not exists, we should always execute selfheal if manifests changed
+	// If a revision in any of the sources cannot be updated,
+	// we should trigger self-healing whenever there are changes to the manifests.
 	if atLeastOneRevisionIsNotPossibleToBeUpdated {
 		revisionUpdated = true
 	}
@@ -746,6 +748,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			Group:           gvk.Group,
 			Hook:            isHook(obj),
 			RequiresPruning: targetObj == nil && liveObj != nil && isSelfReferencedObj,
+			RequiresDeletionConfirmation: targetObj != nil && resourceutil.HasAnnotationOption(targetObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDeleteRequireConfirm) ||
+				liveObj != nil && resourceutil.HasAnnotationOption(liveObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDeleteRequireConfirm),
 		}
 		if targetObj != nil {
 			resState.SyncWave = int64(syncwaves.Wave(targetObj))

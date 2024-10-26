@@ -410,28 +410,46 @@ func proxyKey(extName, cName, cServer string) ProxyKey {
 }
 
 func parseAndValidateConfig(s *settings.ArgoCDSettings) (*ExtensionConfigs, error) {
-	if s.ExtensionConfig == "" {
+	if len(s.ExtensionConfig) == 0 {
 		return nil, fmt.Errorf("no extensions configurations found")
 	}
 
-	extConfigMap := map[string]interface{}{}
-	err := yaml.Unmarshal([]byte(s.ExtensionConfig), &extConfigMap)
-	if err != nil {
-		return nil, fmt.Errorf("invalid extension config: %w", err)
-	}
-
-	parsedExtConfig := settings.ReplaceMapSecrets(extConfigMap, s.Secrets)
-	parsedExtConfigBytes, err := yaml.Marshal(parsedExtConfig)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling parsed extension config: %w", err)
-	}
-
 	configs := ExtensionConfigs{}
-	err = yaml.Unmarshal(parsedExtConfigBytes, &configs)
-	if err != nil {
-		return nil, fmt.Errorf("invalid parsed extension config: %w", err)
+	for extName, extConfig := range s.ExtensionConfig {
+		extConfigMap := map[string]interface{}{}
+		err := yaml.Unmarshal([]byte(extConfig), &extConfigMap)
+		if err != nil {
+			return nil, fmt.Errorf("invalid extension config: %w", err)
+		}
+
+		parsedExtConfig := settings.ReplaceMapSecrets(extConfigMap, s.Secrets)
+		parsedExtConfigBytes, err := yaml.Marshal(parsedExtConfig)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling parsed extension config: %w", err)
+		}
+		// empty extName means that this is the main configuration defined by
+		// the 'extension.config' configmap key
+		if extName == "" {
+			mainConfig := ExtensionConfigs{}
+			err = yaml.Unmarshal(parsedExtConfigBytes, &mainConfig)
+			if err != nil {
+				return nil, fmt.Errorf("invalid parsed extension config: %w", err)
+			}
+			configs.Extensions = append(configs.Extensions, mainConfig.Extensions...)
+		} else {
+			backendConfig := BackendConfig{}
+			err = yaml.Unmarshal(parsedExtConfigBytes, &backendConfig)
+			if err != nil {
+				return nil, fmt.Errorf("invalid parsed backend extension config for extension %s: %w", extName, err)
+			}
+			ext := ExtensionConfig{
+				Name:    extName,
+				Backend: backendConfig,
+			}
+			configs.Extensions = append(configs.Extensions, ext)
+		}
 	}
-	err = validateConfigs(&configs)
+	err := validateConfigs(&configs)
 	if err != nil {
 		return nil, fmt.Errorf("validation error: %w", err)
 	}
@@ -546,7 +564,7 @@ func (m *Manager) RegisterExtensions() error {
 	if err != nil {
 		return fmt.Errorf("error getting settings: %w", err)
 	}
-	if settings.ExtensionConfig == "" {
+	if len(settings.ExtensionConfig) == 0 {
 		m.log.Infof("No extensions configured.")
 		return nil
 	}
