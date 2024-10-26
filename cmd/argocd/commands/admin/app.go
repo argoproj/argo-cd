@@ -338,7 +338,7 @@ func saveToFile(err error, outputFormat string, result reconcileResults, outputP
 func getReconcileResults(ctx context.Context, appClientset appclientset.Interface, namespace string, selector string) ([]appReconcileResult, error) {
 	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{LabelSelector: selector})
 	if err != nil {
-		return nil, fmt.Errorf("error listing namespace apps: %w", err)
+		return nil, fmt.Errorf("error listing namespaced apps: %w", err)
 	}
 
 	var items []appReconcileResult
