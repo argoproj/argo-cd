@@ -310,6 +310,12 @@ spec:
         # Labels is used to filter the PRs that you want to target. (optional)
         labels:
         - preview
+        # If true, skips validating the SCM provider's TLS certificate - useful for self-signed certificates.
+        insecure: true
+        # Reference to a ConfigMap containing trusted CA certs - useful for self-signed certificates. (optional)
+        caRef:
+          configMapName: argocd-tls-certs-cm
+          key: azure-devops-ca
       requeueAfterSeconds: 1800
   template:
   # ...
