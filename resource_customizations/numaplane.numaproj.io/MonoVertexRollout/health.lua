@@ -1,25 +1,30 @@
 local hs = {}
 local healthyCondition = {}
 
-if obj.metadata.generation ~= obj.status.observedGeneration then
-  hs.status = "Progressing"
-  hs.message = "not yet reconciled"
-  return hs
-end
-
 if obj.status ~= nil then
+
+  -- check for certain cases of "Progressing"
+
+  if obj.metadata.generation ~= obj.status.observedGeneration then
+    hs.status = "Progressing"
+    hs.message = "Not yet reconciled"
+    return hs
+  end
 
   if obj.status.phase == "Pending" then
     hs.status = "Progressing"
-    hs.message = "phase=Pending"
+    hs.message = "Phase=Pending"
     return hs
   end
 
   if obj.status.upgradeInProgress ~= nil and obj.status.upgradeInProgress ~= "" then
     hs.status = "Progressing"
-    hs.message = "update in progress"
+    hs.message = "Update in progress"
     return hs
   end
+
+
+  -- now check the Conditions
 
   if obj.status.conditions ~= nil then
     for i, condition in ipairs(obj.status.conditions) do
@@ -47,6 +52,11 @@ if obj.status ~= nil then
     hs.message = healthyCondition.message
     return hs
   end
+
+else -- if there's no Status at all, we haven't been reconciled
+  hs.status = "Progressing"
+  hs.message = "Not yet reconciled"
+  return hs
   
 end
 
