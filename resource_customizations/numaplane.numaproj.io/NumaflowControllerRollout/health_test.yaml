@@ -2,7 +2,7 @@ tests:
 - healthStatus:
     status: Progressing
     message: "Not yet reconciled"
-  inputPath: testdata/NumaflowControllerRollout/progressing-observedGen.yaml
+  inputPath: testdata/NumaflowControllerRollout/progressing-observedgen.yaml
 - healthStatus:
     status: Healthy
     message: "Successful"
@@ -15,3 +15,7 @@ tests:
     status: Progressing
     message: "Progressing"
   inputPath: testdata/NumaflowControllerRollout/progressing-reason.yaml
+- healthStatus:
+    status: Progressing
+    message: "Phase=Pending"
+  inputPath: testdata/NumaflowControllerRollout/pending.yaml

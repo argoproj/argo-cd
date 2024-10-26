@@ -2,7 +2,7 @@ tests:
 - healthStatus:
     status: Progressing
     message: "Not yet reconciled"
-  inputPath: testdata/ISBServiceRollout/progressing-observedGen.yaml
+  inputPath: testdata/ISBServiceRollout/progressing-observedgen.yaml
 - healthStatus:
     status: Healthy
     message: "Successful"
@@ -19,3 +19,7 @@ tests:
     status: Progressing
     message: "Progressing"
   inputPath: testdata/ISBServiceRollout/progressing-reason.yaml
+- healthStatus:
+    status: Progressing
+    message: "Phase=Pending"
+  inputPath: testdata/ISBServiceRollout/pending-upgrade-in-progress.yaml
