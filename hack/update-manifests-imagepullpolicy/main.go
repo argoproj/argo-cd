@@ -3,9 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"os"
 	"strings"
+
+	"gopkg.in/yaml.v2"
 )
 
 const AutoGenMsg = "# This is an auto-generated file. DO NOT EDIT"
@@ -55,7 +56,7 @@ func main() {
 
 	manifestFileContent = []byte(convertedMergedManifest)
 
-	if err = os.WriteFile(*manifestFilePathPtr, manifestFileContent, 0644); err != nil {
+	if err = os.WriteFile(*manifestFilePathPtr, manifestFileContent, 0o644); err != nil {
 		fmt.Printf("failed to write manifest file %s: %v\n", *manifestFilePathPtr, err)
 		os.Exit(1)
 	}
