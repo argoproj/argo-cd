@@ -1,7 +1,26 @@
 local hs = {}
 local healthyCondition = {}
 
+if obj.metadata.generation ~= obj.status.observedGeneration then
+  hs.status = "Progressing"
+  hs.message = "not yet reconciled"
+  return hs
+end
+
 if obj.status ~= nil then
+
+  if obj.status.phase == "Pending" then
+    hs.status = "Progressing"
+    hs.message = "phase=Pending"
+    return hs
+  end
+
+  if obj.status.upgradeInProgress ~= nil and obj.status.upgradeInProgress ~= "" then
+    hs.status = "Progressing"
+    hs.message = "update in progress"
+    return hs
+  end
+
   if obj.status.conditions ~= nil then
     for i, condition in ipairs(obj.status.conditions) do
       if condition.type == "ChildResourcesHealthy" then
@@ -10,23 +29,27 @@ if obj.status ~= nil then
     end
   end
 
-  if obj.metadata.generation == obj.status.observedGeneration then
-    if (healthyCondition ~= {} and healthyCondition.status == "False" and (obj.metadata.generation == healthyCondition.observedGeneration) and healthyCondition.reason == "Degraded") or obj.status.phase == "Failed" then
-      hs.status = "Degraded"
-      if obj.status.phase == "Failed" then
-        hs.message = obj.status.message
-      else
-        hs.message = healthyCondition.message
-      end
-      return hs
-    elseif healthyCondition ~= {} and healthyCondition.status == "True" and (obj.metadata.generation == healthyCondition.observedGeneration) and obj.status.phase == "Deployed" then
-      hs.status = "Healthy"
+  
+  if (healthyCondition ~= {} and healthyCondition.status == "False" and healthyCondition.reason == "Degraded") or obj.status.phase == "Failed" then
+    hs.status = "Degraded"
+    if obj.status.phase == "Failed" then
+      hs.message = obj.status.message
+    else
       hs.message = healthyCondition.message
-      return hs
     end
+    return hs
+  elseif healthyCondition ~= {} and healthyCondition.status == "False" and healthyCondition.reason == "Progressing" then
+    hs.status = "Progressing"
+    hs.message = healthyCondition.message
+    return hs
+  elseif healthyCondition ~= {} and healthyCondition.status == "True" and obj.status.phase == "Deployed" then
+    hs.status = "Healthy"
+    hs.message = healthyCondition.message
+    return hs
   end
+  
 end
 
-hs.status = "Progressing"
-hs.message = "Waiting for NumaflowController status"
+hs.status = "Unknown"
+hs.message = "Unknown NumaflowController status"
 return hs
