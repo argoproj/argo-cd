@@ -211,7 +211,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 				return nil, fmt.Errorf("error fetching CA certificates from ConfigMap: %w", scmError)
 			}
 		}
-		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.AzureDevOps.AccessTokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
+		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.AccessTokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Azure Devops access token: %w", err)
 		}
