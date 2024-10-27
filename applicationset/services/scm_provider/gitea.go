@@ -119,16 +119,17 @@ func (g *GiteaProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]
 
 		if g.excludeArchivedRepos && repo.Archived {
 			continue
-		} else {
-			repos = append(repos, &Repository{
-				Organization: g.owner,
-				Repository:   repo.Name,
-				Branch:       repo.DefaultBranch,
-				URL:          url,
-				Labels:       labels,
-				RepositoryId: int(repo.ID),
-			})
 		}
+
+		repos = append(repos, &Repository{
+			Organization: g.owner,
+			Repository:   repo.Name,
+			Branch:       repo.DefaultBranch,
+			URL:          url,
+			Labels:       labels,
+			RepositoryId: int(repo.ID),
+		})
+
 	}
 	return repos, nil
 }

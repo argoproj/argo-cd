@@ -88,16 +88,16 @@ func (g *GithubProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 			}
 			if g.excludeArchivedRepos && githubRepo.GetArchived() {
 				continue
-			} else {
-				repos = append(repos, &Repository{
-					Organization: githubRepo.Owner.GetLogin(),
-					Repository:   githubRepo.GetName(),
-					Branch:       githubRepo.GetDefaultBranch(),
-					URL:          url,
-					Labels:       githubRepo.Topics,
-					RepositoryId: githubRepo.ID,
-				})
 			}
+			repos = append(repos, &Repository{
+				Organization: githubRepo.Owner.GetLogin(),
+				Repository:   githubRepo.GetName(),
+				Branch:       githubRepo.GetDefaultBranch(),
+				URL:          url,
+				Labels:       githubRepo.Topics,
+				RepositoryId: githubRepo.ID,
+			})
+
 		}
 		if resp.NextPage == 0 {
 			break

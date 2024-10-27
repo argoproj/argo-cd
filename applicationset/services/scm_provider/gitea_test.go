@@ -548,7 +548,9 @@ func TestGiteaListRepos(t *testing.T) {
 			name:                 "blank protocol",
 			allBranches:          false,
 			excludeArchivedRepos: false,
-			branches:             []string{"main"},
+			filters:              []v1alpha1.SCMProviderGeneratorFilter{},
+
+			branches: []string{"main"},
 			expectedRepos: []*Repository{
 				{
 					Organization: "test-argocd",
@@ -569,14 +571,14 @@ func TestGiteaListRepos(t *testing.T) {
 					Labels:       []string{},
 				},
 			},
-			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{},
-			},
 		},
 		{
-			name:        "ssh protocol",
-			allBranches: false,
-			proto:       "ssh",
+			name:                 "ssh protocol",
+			allBranches:          false,
+			excludeArchivedRepos: false,
+			filters:              []v1alpha1.SCMProviderGeneratorFilter{},
+
+			proto: "ssh",
 			expectedRepos: []*Repository{
 				{
 					Organization: "test-argocd",
@@ -597,14 +599,14 @@ func TestGiteaListRepos(t *testing.T) {
 					Labels:       []string{},
 				},
 			},
-			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{},
-			},
 		},
 		{
-			name:        "https protocol",
-			allBranches: false,
-			proto:       "https",
+			name:                 "https protocol",
+			allBranches:          false,
+			excludeArchivedRepos: false,
+			filters:              []v1alpha1.SCMProviderGeneratorFilter{},
+
+			proto: "https",
 			expectedRepos: []*Repository{
 				{
 					Organization: "test-argocd",
@@ -625,116 +627,23 @@ func TestGiteaListRepos(t *testing.T) {
 					Labels:       []string{},
 				},
 			},
-
-			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{},
-			},
 		},
 		{
-			name:          "other protocol",
-			allBranches:   false,
+			name:                 "other protocol",
+			allBranches:          false,
+			excludeArchivedRepos: false,
+			filters:              []v1alpha1.SCMProviderGeneratorFilter{},
+
 			proto:         "other",
 			hasError:      true,
 			expectedRepos: []*Repository{},
-			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{},
-			},
 		},
 		{
-			name:        "all branches including archived repos",
-			allBranches: true,
-			expectedRepos: []*Repository{
-				{
-					Organization: "test-argocd",
-					Repository:   "pr-test",
-					Branch:       "main",
-					URL:          "git@gitea.com:test-argocd/pr-test.git",
-					SHA:          "75f6fceff80f6aaf12b65a2cf6a89190b866625b",
-					Labels:       []string{},
-					RepositoryId: 21618,
-				},
-				{
-					Organization: "test-argocd",
-					Repository:   "another-repo",
-					Branch:       "main",
-					URL:          "git@gitea.com:test-argocd/another-repo.git",
-					SHA:          "1fa33898cf84e89836863e3a5e76eee45777b4b0",
-					Labels:       []string{},
-					RepositoryId: 21619,
-				},
-				{
-					Organization: "test-argocd",
-					Repository:   "pr-test",
-					Branch:       "test",
-					URL:          "git@gitea.com:test-argocd/pr-test.git",
-					SHA:          "28c3b329933f6fefd9b55225535123bbffec5a46",
-					Labels:       []string{},
-					RepositoryId: 21618,
-				},
-				{
-					Organization: "test-argocd",
-					Repository:   "another-repo",
-					Branch:       "test",
-					URL:          "git@gitea.com:test-argocd/another-repo.git",
-					SHA:          "32cdcf613b259a9439ceabd4d1745d43f163ea70",
-					Labels:       []string{},
-					RepositoryId: 21619,
-				},
-			},
-			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{},
-			},
-		},
-		{
-			name:        "all branches",
-			allBranches: true,
-			expectedRepos: []*Repository{
-				{
-					Organization: "test-argocd",
-					Repository:   "pr-test",
-					Branch:       "main",
-					URL:          "git@gitea.com:test-argocd/pr-test.git",
-					SHA:          "75f6fceff80f6aaf12b65a2cf6a89190b866625b",
-					Labels:       []string{},
-					RepositoryId: 21618,
-				},
-				{
-					Organization: "test-argocd",
-					Repository:   "another-repo",
-					Branch:       "main",
-					URL:          "git@gitea.com:test-argocd/another-repo.git",
-					SHA:          "1fa33898cf84e89836863e3a5e76eee45777b4b0",
-					Labels:       []string{},
-					RepositoryId: 21619,
-				},
-				{
-					Organization: "test-argocd",
-					Repository:   "pr-test",
-					Branch:       "test",
-					URL:          "git@gitea.com:test-argocd/pr-test.git",
-					SHA:          "28c3b329933f6fefd9b55225535123bbffec5a46",
-					Labels:       []string{},
-					RepositoryId: 21618,
-				},
-				{
-					Organization: "test-argocd",
-					Repository:   "another-repo",
-					Branch:       "test",
-					URL:          "git@gitea.com:test-argocd/another-repo.git",
-					SHA:          "32cdcf613b259a9439ceabd4d1745d43f163ea70",
-					Labels:       []string{},
-					RepositoryId: 21619,
-				},
-			},
+			name:                 "all branches including archived repos",
+			allBranches:          true,
+			excludeArchivedRepos: false,
+			filters:              []v1alpha1.SCMProviderGeneratorFilter{},
 
-			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{},
-			},
-		},
-		{
-			name:        "all branches",
-			allBranches: true,
-			branches:    []string{"main"},
 			expectedRepos: []*Repository{
 				{
 					Organization: "test-argocd",
@@ -773,14 +682,105 @@ func TestGiteaListRepos(t *testing.T) {
 					RepositoryId: 21619,
 				},
 			},
-			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{},
+		},
+		{
+			name:                 "all branches",
+			allBranches:          true,
+			excludeArchivedRepos: false,
+			filters:              []v1alpha1.SCMProviderGeneratorFilter{},
+
+			expectedRepos: []*Repository{
+				{
+					Organization: "test-argocd",
+					Repository:   "pr-test",
+					Branch:       "main",
+					URL:          "git@gitea.com:test-argocd/pr-test.git",
+					SHA:          "75f6fceff80f6aaf12b65a2cf6a89190b866625b",
+					Labels:       []string{},
+					RepositoryId: 21618,
+				},
+				{
+					Organization: "test-argocd",
+					Repository:   "another-repo",
+					Branch:       "main",
+					URL:          "git@gitea.com:test-argocd/another-repo.git",
+					SHA:          "1fa33898cf84e89836863e3a5e76eee45777b4b0",
+					Labels:       []string{},
+					RepositoryId: 21619,
+				},
+				{
+					Organization: "test-argocd",
+					Repository:   "pr-test",
+					Branch:       "test",
+					URL:          "git@gitea.com:test-argocd/pr-test.git",
+					SHA:          "28c3b329933f6fefd9b55225535123bbffec5a46",
+					Labels:       []string{},
+					RepositoryId: 21618,
+				},
+				{
+					Organization: "test-argocd",
+					Repository:   "another-repo",
+					Branch:       "test",
+					URL:          "git@gitea.com:test-argocd/another-repo.git",
+					SHA:          "32cdcf613b259a9439ceabd4d1745d43f163ea70",
+					Labels:       []string{},
+					RepositoryId: 21619,
+				},
 			},
 		},
 		{
-			name:        "all branches with no archived repos",
-			allBranches: true,
-			branches:    []string{"main"},
+			name:                 "all branches",
+			allBranches:          true,
+			excludeArchivedRepos: false,
+			filters:              []v1alpha1.SCMProviderGeneratorFilter{},
+
+			branches: []string{"main"},
+			expectedRepos: []*Repository{
+				{
+					Organization: "test-argocd",
+					Repository:   "pr-test",
+					Branch:       "main",
+					URL:          "git@gitea.com:test-argocd/pr-test.git",
+					SHA:          "75f6fceff80f6aaf12b65a2cf6a89190b866625b",
+					Labels:       []string{},
+					RepositoryId: 21618,
+				},
+				{
+					Organization: "test-argocd",
+					Repository:   "another-repo",
+					Branch:       "main",
+					URL:          "git@gitea.com:test-argocd/another-repo.git",
+					SHA:          "1fa33898cf84e89836863e3a5e76eee45777b4b0",
+					Labels:       []string{},
+					RepositoryId: 21619,
+				},
+				{
+					Organization: "test-argocd",
+					Repository:   "pr-test",
+					Branch:       "test",
+					URL:          "git@gitea.com:test-argocd/pr-test.git",
+					SHA:          "28c3b329933f6fefd9b55225535123bbffec5a46",
+					Labels:       []string{},
+					RepositoryId: 21618,
+				},
+				{
+					Organization: "test-argocd",
+					Repository:   "another-repo",
+					Branch:       "test",
+					URL:          "git@gitea.com:test-argocd/another-repo.git",
+					SHA:          "32cdcf613b259a9439ceabd4d1745d43f163ea70",
+					Labels:       []string{},
+					RepositoryId: 21619,
+				},
+			},
+		},
+		{
+			name:                 "all branches with no archived repos",
+			allBranches:          true,
+			excludeArchivedRepos: true,
+			filters:              []v1alpha1.SCMProviderGeneratorFilter{},
+
+			branches: []string{"main"},
 			expectedRepos: []*Repository{
 				{
 					Organization: "test-argocd",
@@ -799,12 +799,6 @@ func TestGiteaListRepos(t *testing.T) {
 					SHA:          "28c3b329933f6fefd9b55225535123bbffec5a46",
 					Labels:       []string{},
 					RepositoryId: 21618,
-				},
-			},
-
-			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{
-					IncludeArchivedRepos: false,
 				},
 			},
 		},

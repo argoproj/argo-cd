@@ -406,8 +406,9 @@ func TestGithubListRepos(t *testing.T) {
 		filters               []v1alpha1.SCMProviderGeneratorFilter
 	}{
 		{
-			name:        "blank protocol",
-			allBranches: true,
+			name:                 "blank protocol",
+			allBranches:          true,
+			excludeArchivedRepos: false,
 			expectedRepos: []*Repository{
 				{
 					Organization: "argoproj",
@@ -457,9 +458,10 @@ func TestGithubListRepos(t *testing.T) {
 			},
 		},
 		{
-			name:        "ssh protocol",
-			proto:       "ssh",
-			allBranches: true,
+			name:                 "ssh protocol",
+			proto:                "ssh",
+			allBranches:          true,
+			excludeArchivedRepos: false,
 			expectedRepos: []*Repository{
 				{
 					Organization: "argoproj",
@@ -509,9 +511,10 @@ func TestGithubListRepos(t *testing.T) {
 			},
 		},
 		{
-			name:        "https protocol",
-			proto:       "https",
-			allBranches: true,
+			name:                 "https protocol",
+			proto:                "https",
+			allBranches:          true,
+			excludeArchivedRepos: false,
 			expectedRepos: []*Repository{
 				{
 					Organization: "argoproj",
@@ -561,18 +564,20 @@ func TestGithubListRepos(t *testing.T) {
 			},
 		},
 		{
-			name:          "other protocol",
-			proto:         "other",
-			hasError:      true,
-			expectedRepos: []*Repository{},
+			name:                 "other protocol",
+			proto:                "other",
+			hasError:             true,
+			excludeArchivedRepos: false,
+			expectedRepos:        []*Repository{},
 			filters: []v1alpha1.SCMProviderGeneratorFilter{
 				{},
 			},
 		},
 		{
-			name:        "all branches with archived repos",
-			allBranches: true,
-			proto:       "ssh",
+			name:                 "all branches with archived repos",
+			allBranches:          true,
+			proto:                "ssh",
+			excludeArchivedRepos: false,
 			expectedRepos: []*Repository{
 				{
 					Organization: "argoproj",
@@ -622,9 +627,10 @@ func TestGithubListRepos(t *testing.T) {
 			},
 		},
 		{
-			name:        "test repo all branches",
-			allBranches: true,
-			proto:       "https",
+			name:                 "test repo all branches without archived repos",
+			allBranches:          true,
+			excludeArchivedRepos: true,
+			proto:                "https",
 			expectedRepos: []*Repository{
 				{
 					Organization: "argoproj",
