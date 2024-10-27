@@ -31,6 +31,7 @@ type layerConf struct {
 }
 
 func generateManifest(t *testing.T, store *memory.Store, layerDescs ...layerConf) string {
+	t.Helper()
 	configBlob := []byte("Hello config")
 	configDesc := content.NewDescriptorFromBytes(v1.MediaTypeImageConfig, configBlob)
 
@@ -60,6 +61,7 @@ func generateManifest(t *testing.T, store *memory.Store, layerDescs ...layerConf
 }
 
 func createGzippedTarWithContent(t *testing.T, filename, content string) []byte {
+	t.Helper()
 	var buf bytes.Buffer
 	gzw := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(gzw)
