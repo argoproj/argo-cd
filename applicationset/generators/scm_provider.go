@@ -35,14 +35,16 @@ type SCMConfig struct {
 	allowedSCMProviders []string
 	enableSCMProviders  bool
 	GitHubApps          github_app_auth.Credentials
+	tokenRefStrictMode  bool
 }
 
-func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool, gitHubApps github_app_auth.Credentials) SCMConfig {
+func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool, gitHubApps github_app_auth.Credentials, tokenRefStrictMode bool) SCMConfig {
 	return SCMConfig{
 		scmRootCAPath:       scmRootCAPath,
 		allowedSCMProviders: allowedSCMProviders,
 		enableSCMProviders:  enableSCMProviders,
 		GitHubApps:          gitHubApps,
+		tokenRefStrictMode:  tokenRefStrictMode,
 	}
 }
 
@@ -154,7 +156,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 				return nil, fmt.Errorf("error fetching CA certificates from ConfigMap: %w", scmError)
 			}
 		}
-		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.TokenRef, applicationSetInfo.Namespace)
+		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitlab token: %w", err)
 		}
@@ -163,7 +165,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			return nil, fmt.Errorf("error initializing Gitlab service: %w", err)
 		}
 	} else if providerConfig.Gitea != nil {
-		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.Gitea.TokenRef, applicationSetInfo.Namespace)
+		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.Gitea.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitea token: %w", err)
 		}
@@ -182,13 +184,13 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			}
 		}
 		if providerConfig.BearerToken != nil {
-			appToken, err := utils.GetSecretRef(ctx, g.client, providerConfig.BearerToken.TokenRef, applicationSetInfo.Namespace)
+			appToken, err := utils.GetSecretRef(ctx, g.client, providerConfig.BearerToken.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret Bearer token: %w", err)
 			}
 			provider, scmError = scm_provider.NewBitbucketServerProviderBearerToken(ctx, appToken, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, g.scmRootCAPath, providerConfig.Insecure, caCerts)
 		} else if providerConfig.BasicAuth != nil {
-			password, err := utils.GetSecretRef(ctx, g.client, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace)
+			password, err := utils.GetSecretRef(ctx, g.client, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret token: %w", err)
 			}
@@ -209,7 +211,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 				return nil, fmt.Errorf("error fetching CA certificates from ConfigMap: %w", scmError)
 			}
 		}
-		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.AccessTokenRef, applicationSetInfo.Namespace)
+		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.AzureDevOps.AccessTokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Azure Devops access token: %w", err)
 		}
@@ -218,7 +220,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			return nil, fmt.Errorf("error initializing Azure Devops service: %w", err)
 		}
 	} else if providerConfig.Bitbucket != nil {
-		appPassword, err := utils.GetSecretRef(ctx, g.client, providerConfig.Bitbucket.AppPasswordRef, applicationSetInfo.Namespace)
+		appPassword, err := utils.GetSecretRef(ctx, g.client, providerConfig.Bitbucket.AppPasswordRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Bitbucket cloud appPassword: %w", err)
 		}
@@ -292,7 +294,7 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 		)
 	}
 
-	token, err := utils.GetSecretRef(ctx, g.client, github.TokenRef, applicationSetInfo.Namespace)
+	token, err := utils.GetSecretRef(ctx, g.client, github.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching Github token: %w", err)
 	}

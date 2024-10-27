@@ -18,6 +18,7 @@ argocd admin cluster generate-spec CONTEXT [flags]
       --bearer-token string                Authentication token that should be used to access K8S API server
       --cluster-endpoint string            Cluster endpoint to use. Can be one of the following: 'kubeconfig', 'kube-public', or 'internal'.
       --cluster-resources                  Indicates if cluster level resources should be managed. The setting is used only if list of managed namespaces is not empty.
+      --disable-compression                Bypasses automatic GZip compression requests to the server
       --exec-command string                Command to run to provide client credentials to the cluster. You may need to build a custom ArgoCD image to ensure the command is available at runtime.
       --exec-command-api-version string    Preferred input version of the ExecInfo for the --exec-command executable
       --exec-command-args stringArray      Arguments to supply to the --exec-command executable
@@ -47,6 +48,7 @@ argocd admin cluster generate-spec CONTEXT [flags]
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --controller-name string          Name of the Argo CD Application controller; set this or the ARGOCD_APPLICATION_CONTROLLER_NAME environment variable when the controller's name label differs from the default, for example when installing via the Helm chart (default "argocd-application-controller")
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
+      --force-prompts-enabled           Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)

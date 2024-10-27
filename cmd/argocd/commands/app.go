@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	k8swatch "k8s.io/apimachinery/pkg/watch"
@@ -98,6 +99,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationLogsCommand(clientOpts))
 	command.AddCommand(NewApplicationAddSourceCommand(clientOpts))
 	command.AddCommand(NewApplicationRemoveSourceCommand(clientOpts))
+	command.AddCommand(NewApplicationConfirmDeletionCommand(clientOpts))
 	return command
 }
 
@@ -585,8 +587,8 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 	var status string
 	var allow, deny, inactiveAllows bool
 	if windows.HasWindows() {
-		active := windows.Active()
-		if active.HasWindows() {
+		active, err := windows.Active()
+		if err == nil && active.HasWindows() {
 			for _, w := range *active {
 				if w.Kind == "deny" {
 					deny = true
@@ -595,13 +597,14 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 				}
 			}
 		}
-		if windows.InactiveAllows().HasWindows() {
+		inactiveAllowWindows, err := windows.InactiveAllows()
+		if err == nil && inactiveAllowWindows.HasWindows() {
 			inactiveAllows = true
 		}
 
-		s := windows.CanSync(true)
 		if deny || !deny && !allow && inactiveAllows {
-			if s {
+			s, err := windows.CanSync(true)
+			if err == nil && s {
 				status = "Manual Allowed"
 			} else {
 				status = "Sync Denied"
@@ -1080,17 +1083,18 @@ func getLocalObjectsString(ctx context.Context, app *argoappv1.Application, proj
 ) []string {
 	source := app.Spec.GetSource()
 	res, err := repository.GenerateManifests(ctx, local, localRepoRoot, source.TargetRevision, &repoapiclient.ManifestRequest{
-		Repo:               &argoappv1.Repository{Repo: source.RepoURL},
-		AppLabelKey:        appLabelKey,
-		AppName:            app.Name,
-		Namespace:          app.Spec.Destination.Namespace,
-		ApplicationSource:  &source,
-		KustomizeOptions:   kustomizeOptions,
-		KubeVersion:        kubeVersion,
-		ApiVersions:        apiVersions,
-		TrackingMethod:     trackingMethod,
-		ProjectName:        proj.Name,
-		ProjectSourceRepos: proj.Spec.SourceRepos,
+		Repo:                            &argoappv1.Repository{Repo: source.RepoURL},
+		AppLabelKey:                     appLabelKey,
+		AppName:                         app.Name,
+		Namespace:                       app.Spec.Destination.Namespace,
+		ApplicationSource:               &source,
+		KustomizeOptions:                kustomizeOptions,
+		KubeVersion:                     kubeVersion,
+		ApiVersions:                     apiVersions,
+		TrackingMethod:                  trackingMethod,
+		ProjectName:                     proj.Name,
+		ProjectSourceRepos:              proj.Spec.SourceRepos,
+		AnnotationManifestGeneratePaths: app.GetAnnotation(argoappv1.AnnotationKeyManifestGeneratePaths),
 	}, true, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 	errors.CheckError(err)
 
@@ -1139,6 +1143,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		refresh              bool
 		hardRefresh          bool
 		exitCode             bool
+		diffExitCode         int
 		local                string
 		revision             string
 		localRepoRoot        string
@@ -1241,13 +1246,14 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			proj := getProject(c, clientOpts, ctx, app.Spec.Project)
 			foundDiffs := findandPrintDiff(ctx, app, proj.Project, resources, argoSettings, diffOption, ignoreNormalizerOpts)
 			if foundDiffs && exitCode {
-				os.Exit(1)
+				os.Exit(diffExitCode)
 			}
 		},
 	}
 	command.Flags().BoolVar(&refresh, "refresh", false, "Refresh application data when retrieving")
 	command.Flags().BoolVar(&hardRefresh, "hard-refresh", false, "Refresh application data as well as target manifests cache")
-	command.Flags().BoolVar(&exitCode, "exit-code", true, "Return non-zero exit code when there is a diff")
+	command.Flags().BoolVar(&exitCode, "exit-code", true, "Return non-zero exit code when there is a diff. May also return non-zero exit code if there is an error.")
+	command.Flags().IntVar(&diffExitCode, "diff-exit-code", 1, "Return specified exit code when there is a diff. Typical error code is 20.")
 	command.Flags().StringVar(&local, "local", "", "Compare live app to a local manifests")
 	command.Flags().StringVar(&revision, "revision", "", "Compare live app to a particular revision")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
@@ -1374,7 +1380,7 @@ func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[
 		}
 		if local, ok := objs[key]; ok || live != nil {
 			if local != nil && !kube.IsCRD(local) {
-				err = resourceTracking.SetAppInstance(local, argoSettings.AppLabelKey, appName, namespace, argoappv1.TrackingMethod(argoSettings.GetTrackingMethod()))
+				err = resourceTracking.SetAppInstance(local, argoSettings.AppLabelKey, appName, namespace, argoappv1.TrackingMethod(argoSettings.GetTrackingMethod()), argoSettings.GetInstallationID())
 				errors.CheckError(err)
 			}
 
@@ -3196,5 +3202,52 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the target application where the source will be appended")
 	command.Flags().IntVar(&sourcePosition, "source-position", -1, "Position of the source from the list of sources of the app. Counting starts at 1.")
+	return command
+}
+
+func NewApplicationConfirmDeletionCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var appNamespace string
+	command := &cobra.Command{
+		Use:   "confirm-deletion APPNAME",
+		Short: "Confirms deletion/pruning of an application resources",
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+
+			argocdClient := headless.NewClientOrDie(clientOpts, c)
+			conn, appIf := argocdClient.NewApplicationClientOrDie()
+			defer argoio.Close(conn)
+
+			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
+
+			app, err := appIf.Get(ctx, &application.ApplicationQuery{
+				Name:         &appName,
+				Refresh:      getRefreshType(false, false),
+				AppNamespace: &appNs,
+			})
+			errors.CheckError(err)
+
+			annotations := app.Annotations
+			if annotations == nil {
+				annotations = map[string]string{}
+				app.Annotations = annotations
+			}
+			annotations[common.AnnotationDeletionApproved] = metav1.Now().Format(time.RFC3339)
+
+			_, err = appIf.Update(ctx, &application.ApplicationUpdateRequest{
+				Application: app,
+				Validate:    ptr.To(false),
+				Project:     &app.Spec.Project,
+			})
+			errors.CheckError(err)
+
+			fmt.Printf("Application '%s' updated successfully\n", app.ObjectMeta.Name)
+		},
+	}
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the target application where the source will be appended")
 	return command
 }

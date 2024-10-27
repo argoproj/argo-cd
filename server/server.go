@@ -229,6 +229,7 @@ type ArgoCDServerOpts struct {
 	ApplicationNamespaces   []string
 	EnableProxyExtension    bool
 	WebhookParallelism      int
+	EnableK8sEvent          []string
 }
 
 type ApplicationSetOpts struct {
@@ -327,7 +328,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	ag := extension.NewDefaultApplicationGetter(appLister)
 	pg := extension.NewDefaultProjectGetter(projLister, dbInstance)
 	ug := extension.NewDefaultUserGetter(policyEnf)
-	em := extension.NewManager(logger, sg, ag, pg, enf, ug)
+	em := extension.NewManager(logger, opts.Namespace, sg, ag, pg, enf, ug)
 
 	a := &ArgoCDServer{
 		ArgoCDServerOpts:   opts,
@@ -705,7 +706,7 @@ func (a *ArgoCDServer) watchSettings() {
 			log.Infof("gogs secret modified. restarting")
 			break
 		}
-		if prevExtConfig != a.settings.ExtensionConfig {
+		if !reflect.DeepEqual(prevExtConfig, a.settings.ExtensionConfig) {
 			prevExtConfig = a.settings.ExtensionConfig
 			log.Infof("extensions configs modified. Updating proxy registry...")
 			err := a.extensionManager.UpdateExtensionRegistry(a.settings)
@@ -885,7 +886,9 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		projectLock,
 		a.settingsMgr,
 		a.projInformer,
-		a.ApplicationNamespaces)
+		a.ApplicationNamespaces,
+		a.EnableK8sEvent,
+	)
 
 	applicationSetService := applicationset.NewServer(
 		a.db,
@@ -907,9 +910,10 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.ScmRootCAPath,
 		a.AllowedScmProviders,
 		a.EnableScmProviders,
+		a.EnableK8sEvent,
 	)
 
-	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db)
+	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db, a.EnableK8sEvent)
 	appsInAnyNamespaceEnabled := len(a.ArgoCDServerOpts.ApplicationNamespaces) > 0
 	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.DisableAuth, appsInAnyNamespaceEnabled)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf)
@@ -1283,7 +1287,7 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 		w.Header().Set("X-XSS-Protection", "1")
 
 		// serve index.html for non file requests to support HTML5 History API
-		if acceptHTML && !fileRequest && (r.Method == "GET" || r.Method == "HEAD") {
+		if acceptHTML && !fileRequest && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
 			for k, v := range noCacheHeaders {
 				w.Header().Set(k, v)
 			}

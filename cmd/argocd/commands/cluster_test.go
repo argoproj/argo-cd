@@ -32,11 +32,12 @@ func Test_printClusterTable(t *testing.T) {
 			Server: "my-server",
 			Name:   "my-name",
 			Config: v1alpha1.ClusterConfig{
-				Username:        "my-username",
-				Password:        "my-password",
-				BearerToken:     "my-bearer-token",
-				TLSClientConfig: v1alpha1.TLSClientConfig{},
-				AWSAuthConfig:   nil,
+				Username:           "my-username",
+				Password:           "my-password",
+				BearerToken:        "my-bearer-token",
+				TLSClientConfig:    v1alpha1.TLSClientConfig{},
+				AWSAuthConfig:      nil,
+				DisableCompression: false,
 			},
 			ConnectionState: v1alpha1.ConnectionState{
 				Status:     "my-status",

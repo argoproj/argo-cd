@@ -107,7 +107,7 @@ func (g *GithubProvider) RepoHasPath(ctx context.Context, repo *Repository, path
 		Ref: repo.Branch,
 	})
 	// 404s are not an error here, just a normal false.
-	if resp != nil && resp.StatusCode == 404 {
+	if resp != nil && resp.StatusCode == http.StatusNotFound {
 		return false, nil
 	}
 	if err != nil {

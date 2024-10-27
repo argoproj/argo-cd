@@ -168,6 +168,7 @@ func TestCustomToolSyncAndDiffLocal(t *testing.T) {
 }
 
 func startCMPServer(t *testing.T, configFile string) {
+	t.Helper()
 	pluginSockFilePath := TmpDir + PluginSockFilePath
 	t.Setenv("ARGOCD_BINARY_NAME", "argocd-cmp-server")
 	// ARGOCD_PLUGINSOCKFILEPATH should be set as the same value as repo server env var
