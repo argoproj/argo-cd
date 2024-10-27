@@ -188,12 +188,12 @@ func NewDiffReconcileResults() *cobra.Command {
 func toUnstructured(val interface{}) (*unstructured.Unstructured, error) {
 	data, err := json.Marshal(val)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while marhsalling value: %w", err)
 	}
 	res := make(map[string]interface{})
 	err = json.Unmarshal(data, &res)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while unmarhsalling data: %w", err)
 	}
 	return &unstructured.Unstructured{Object: res}, nil
 }
@@ -227,7 +227,7 @@ func diffReconcileResults(res1 reconcileResults, res2 reconcileResults) error {
 	for k, v := range resMap2 {
 		secondUn, err := toUnstructured(v)
 		if err != nil {
-			return err
+			return fmt.Errorf("error converting second resource of second map to unstructure: %w", err)
 		}
 		pairs = append(pairs, diffPair{name: k, first: nil, second: secondUn})
 	}
@@ -338,7 +338,7 @@ func saveToFile(err error, outputFormat string, result reconcileResults, outputP
 func getReconcileResults(ctx context.Context, appClientset appclientset.Interface, namespace string, selector string) ([]appReconcileResult, error) {
 	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{LabelSelector: selector})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error listing namespaced apps: %w", err)
 	}
 
 	var items []appReconcileResult
@@ -389,11 +389,11 @@ func reconcileApplications(
 		return nil
 	}, []string{}, []string{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error starting new metrics server: %w", err)
 	}
 	stateCache := createLiveStateCache(argoDB, appInformer, settingsMgr, server)
 	if err := stateCache.Init(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error initializing state cache: %w", err)
 	}
 
 	cache := appstatecache.NewCache(
@@ -406,7 +406,7 @@ func reconcileApplications(
 
 	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, v1.ListOptions{LabelSelector: selector})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error listing namespaced apps: %w", err)
 	}
 
 	sort.Slice(appsList.Items, func(i, j int) bool {
@@ -429,7 +429,7 @@ func reconcileApplications(
 
 		proj, err := projLister.AppProjects(namespace).Get(app.Spec.Project)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error getting namespaced project: %w", err)
 		}
 
 		sources := make([]v1alpha1.ApplicationSource, 0)
@@ -439,7 +439,7 @@ func reconcileApplications(
 
 		res, err := appStateManager.CompareAppState(&app, proj, revisions, sources, false, false, nil, false, false)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error comparing app states: %w", err)
 		}
 		items = append(items, appReconcileResult{
 			Name:       app.Name,
