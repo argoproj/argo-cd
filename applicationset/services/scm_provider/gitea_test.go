@@ -539,21 +539,22 @@ func TestGiteaListRepos(t *testing.T) {
 	cases := []struct {
 		name, proto                             string
 		hasError, allBranches, includeSubgroups bool
+		excludeArchivedRepos                    bool
 		branches                                []string
 		expectedRepos                           []*Repository
 		filters                                 []v1alpha1.SCMProviderGeneratorFilter
 	}{
 		{
-			name:        "blank protocol",
-			allBranches: false,
-			branches:    []string{"main"},
+			name:                 "blank protocol",
+			allBranches:          false,
+			excludeArchivedRepos: false,
+			branches:             []string{"main"},
 			expectedRepos: []*Repository{
 				{
 					Organization: "test-argocd",
 					Repository:   "pr-test",
 					Branch:       "main",
 					URL:          "git@gitea.com:test-argocd/pr-test.git",
-					Archived:     false,
 					SHA:          "75f6fceff80f6aaf12b65a2cf6a89190b866625b",
 					RepositoryId: 21618,
 					Labels:       []string{},
@@ -563,16 +564,13 @@ func TestGiteaListRepos(t *testing.T) {
 					Repository:   "another-repo",
 					Branch:       "main",
 					URL:          "git@gitea.com:test-argocd/another-repo.git",
-					Archived:     true,
 					SHA:          "1fa33898cf84e89836863e3a5e76eee45777b4b0",
 					RepositoryId: 21619,
 					Labels:       []string{},
 				},
 			},
 			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{
-					IncludeArchivedRepos: true,
-				},
+				{},
 			},
 		},
 		{
@@ -585,7 +583,6 @@ func TestGiteaListRepos(t *testing.T) {
 					Repository:   "pr-test",
 					Branch:       "main",
 					URL:          "git@gitea.com:test-argocd/pr-test.git",
-					Archived:     false,
 					SHA:          "75f6fceff80f6aaf12b65a2cf6a89190b866625b",
 					RepositoryId: 21618,
 					Labels:       []string{},
@@ -595,16 +592,13 @@ func TestGiteaListRepos(t *testing.T) {
 					Repository:   "another-repo",
 					Branch:       "main",
 					URL:          "git@gitea.com:test-argocd/another-repo.git",
-					Archived:     true,
 					SHA:          "1fa33898cf84e89836863e3a5e76eee45777b4b0",
 					RepositoryId: 21619,
 					Labels:       []string{},
 				},
 			},
 			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{
-					IncludeArchivedRepos: true,
-				},
+				{},
 			},
 		},
 		{
@@ -617,7 +611,6 @@ func TestGiteaListRepos(t *testing.T) {
 					Repository:   "pr-test",
 					Branch:       "main",
 					URL:          "https://gitea.com/test-argocd/pr-test",
-					Archived:     false,
 					SHA:          "75f6fceff80f6aaf12b65a2cf6a89190b866625b",
 					RepositoryId: 21618,
 					Labels:       []string{},
@@ -627,7 +620,6 @@ func TestGiteaListRepos(t *testing.T) {
 					Repository:   "another-repo",
 					Branch:       "main",
 					URL:          "https://gitea.com/test-argocd/another-repo",
-					Archived:     true,
 					SHA:          "1fa33898cf84e89836863e3a5e76eee45777b4b0",
 					RepositoryId: 21619,
 					Labels:       []string{},
@@ -635,9 +627,7 @@ func TestGiteaListRepos(t *testing.T) {
 			},
 
 			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{
-					IncludeArchivedRepos: true,
-				},
+				{},
 			},
 		},
 		{
@@ -647,9 +637,7 @@ func TestGiteaListRepos(t *testing.T) {
 			hasError:      true,
 			expectedRepos: []*Repository{},
 			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{
-					IncludeArchivedRepos: true,
-				},
+				{},
 			},
 		},
 		{
@@ -661,7 +649,6 @@ func TestGiteaListRepos(t *testing.T) {
 					Repository:   "pr-test",
 					Branch:       "main",
 					URL:          "git@gitea.com:test-argocd/pr-test.git",
-					Archived:     false,
 					SHA:          "75f6fceff80f6aaf12b65a2cf6a89190b866625b",
 					Labels:       []string{},
 					RepositoryId: 21618,
@@ -671,7 +658,6 @@ func TestGiteaListRepos(t *testing.T) {
 					Repository:   "another-repo",
 					Branch:       "main",
 					URL:          "git@gitea.com:test-argocd/another-repo.git",
-					Archived:     true,
 					SHA:          "1fa33898cf84e89836863e3a5e76eee45777b4b0",
 					Labels:       []string{},
 					RepositoryId: 21619,
@@ -681,7 +667,6 @@ func TestGiteaListRepos(t *testing.T) {
 					Repository:   "pr-test",
 					Branch:       "test",
 					URL:          "git@gitea.com:test-argocd/pr-test.git",
-					Archived:     false,
 					SHA:          "28c3b329933f6fefd9b55225535123bbffec5a46",
 					Labels:       []string{},
 					RepositoryId: 21618,
@@ -691,16 +676,13 @@ func TestGiteaListRepos(t *testing.T) {
 					Repository:   "another-repo",
 					Branch:       "test",
 					URL:          "git@gitea.com:test-argocd/another-repo.git",
-					Archived:     true,
 					SHA:          "32cdcf613b259a9439ceabd4d1745d43f163ea70",
 					Labels:       []string{},
 					RepositoryId: 21619,
 				},
 			},
 			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{
-					IncludeArchivedRepos: true,
-				},
+				{},
 			},
 		},
 		{
@@ -712,7 +694,6 @@ func TestGiteaListRepos(t *testing.T) {
 					Repository:   "pr-test",
 					Branch:       "main",
 					URL:          "git@gitea.com:test-argocd/pr-test.git",
-					Archived:     false,
 					SHA:          "75f6fceff80f6aaf12b65a2cf6a89190b866625b",
 					Labels:       []string{},
 					RepositoryId: 21618,
@@ -722,7 +703,6 @@ func TestGiteaListRepos(t *testing.T) {
 					Repository:   "another-repo",
 					Branch:       "main",
 					URL:          "git@gitea.com:test-argocd/another-repo.git",
-					Archived:     true,
 					SHA:          "1fa33898cf84e89836863e3a5e76eee45777b4b0",
 					Labels:       []string{},
 					RepositoryId: 21619,
@@ -732,7 +712,6 @@ func TestGiteaListRepos(t *testing.T) {
 					Repository:   "pr-test",
 					Branch:       "test",
 					URL:          "git@gitea.com:test-argocd/pr-test.git",
-					Archived:     false,
 					SHA:          "28c3b329933f6fefd9b55225535123bbffec5a46",
 					Labels:       []string{},
 					RepositoryId: 21618,
@@ -742,7 +721,6 @@ func TestGiteaListRepos(t *testing.T) {
 					Repository:   "another-repo",
 					Branch:       "test",
 					URL:          "git@gitea.com:test-argocd/another-repo.git",
-					Archived:     true,
 					SHA:          "32cdcf613b259a9439ceabd4d1745d43f163ea70",
 					Labels:       []string{},
 					RepositoryId: 21619,
@@ -750,9 +728,7 @@ func TestGiteaListRepos(t *testing.T) {
 			},
 
 			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{
-					IncludeArchivedRepos: true,
-				},
+				{},
 			},
 		},
 		{
@@ -765,7 +741,6 @@ func TestGiteaListRepos(t *testing.T) {
 					Repository:   "pr-test",
 					Branch:       "main",
 					URL:          "git@gitea.com:test-argocd/pr-test.git",
-					Archived:     false,
 					SHA:          "75f6fceff80f6aaf12b65a2cf6a89190b866625b",
 					Labels:       []string{},
 					RepositoryId: 21618,
@@ -775,7 +750,6 @@ func TestGiteaListRepos(t *testing.T) {
 					Repository:   "another-repo",
 					Branch:       "main",
 					URL:          "git@gitea.com:test-argocd/another-repo.git",
-					Archived:     true,
 					SHA:          "1fa33898cf84e89836863e3a5e76eee45777b4b0",
 					Labels:       []string{},
 					RepositoryId: 21619,
@@ -785,7 +759,6 @@ func TestGiteaListRepos(t *testing.T) {
 					Repository:   "pr-test",
 					Branch:       "test",
 					URL:          "git@gitea.com:test-argocd/pr-test.git",
-					Archived:     false,
 					SHA:          "28c3b329933f6fefd9b55225535123bbffec5a46",
 					Labels:       []string{},
 					RepositoryId: 21618,
@@ -795,16 +768,13 @@ func TestGiteaListRepos(t *testing.T) {
 					Repository:   "another-repo",
 					Branch:       "test",
 					URL:          "git@gitea.com:test-argocd/another-repo.git",
-					Archived:     true,
 					SHA:          "32cdcf613b259a9439ceabd4d1745d43f163ea70",
 					Labels:       []string{},
 					RepositoryId: 21619,
 				},
 			},
 			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{
-					IncludeArchivedRepos: true,
-				},
+				{},
 			},
 		},
 		{
@@ -817,7 +787,6 @@ func TestGiteaListRepos(t *testing.T) {
 					Repository:   "pr-test",
 					Branch:       "main",
 					URL:          "git@gitea.com:test-argocd/pr-test.git",
-					Archived:     false,
 					SHA:          "75f6fceff80f6aaf12b65a2cf6a89190b866625b",
 					Labels:       []string{},
 					RepositoryId: 21618,
@@ -827,7 +796,6 @@ func TestGiteaListRepos(t *testing.T) {
 					Repository:   "pr-test",
 					Branch:       "test",
 					URL:          "git@gitea.com:test-argocd/pr-test.git",
-					Archived:     false,
 					SHA:          "28c3b329933f6fefd9b55225535123bbffec5a46",
 					Labels:       []string{},
 					RepositoryId: 21618,
@@ -847,7 +815,7 @@ func TestGiteaListRepos(t *testing.T) {
 	defer ts.Close()
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewGiteaProvider(context.Background(), "test-argocd", "", ts.URL, c.allBranches, false)
+			provider, _ := NewGiteaProvider(context.Background(), "test-argocd", "", ts.URL, c.allBranches, false, c.excludeArchivedRepos)
 			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
 
 			if c.hasError {
@@ -870,7 +838,7 @@ func TestGiteaHasPath(t *testing.T) {
 		giteaMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	host, _ := NewGiteaProvider(context.Background(), "gitea", "", ts.URL, false, false)
+	host, _ := NewGiteaProvider(context.Background(), "gitea", "", ts.URL, false, false, false)
 	repo := &Repository{
 		Organization: "gitea",
 		Repository:   "go-sdk",

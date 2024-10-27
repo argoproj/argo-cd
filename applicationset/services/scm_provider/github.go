@@ -60,7 +60,6 @@ func (g *GithubProvider) GetBranches(ctx context.Context, repo *Repository) ([]*
 			SHA:          branch.GetCommit().GetSHA(),
 			Labels:       repo.Labels,
 			RepositoryId: repo.RepositoryId,
-			Archived:     repo.Archived,
 		})
 	}
 	return repos, nil

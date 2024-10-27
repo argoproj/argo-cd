@@ -158,7 +158,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitlab token: %w", err)
 		}
-		provider, err = scm_provider.NewGitlabProvider(ctx, providerConfig.Group, token, providerConfig.API, providerConfig.AllBranches, providerConfig.IncludeSubgroups, providerConfig.WillIncludeSharedProjects(), providerConfig.Insecure, g.scmRootCAPath, providerConfig.Topic, caCerts, providerConfig.ExcludeArchivedRepos)
+		provider, err = scm_provider.NewGitlabProvider(ctx, providerConfig.Group, token, providerConfig.API, providerConfig.AllBranches, providerConfig.IncludeSubgroups, providerConfig.WillIncludeSharedProjects(), providerConfig.Insecure, g.scmRootCAPath, providerConfig.Topic, caCerts)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Gitlab service: %w", err)
 		}

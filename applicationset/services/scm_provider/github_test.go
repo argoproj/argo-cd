@@ -401,6 +401,7 @@ func TestGithubListRepos(t *testing.T) {
 	cases := []struct {
 		name, proto           string
 		hasError, allBranches bool
+		excludeArchivedRepos  bool
 		expectedRepos         []*Repository
 		filters               []v1alpha1.SCMProviderGeneratorFilter
 	}{
@@ -421,7 +422,6 @@ func TestGithubListRepos(t *testing.T) {
 						"api",
 					},
 					RepositoryId: idptr(1296269),
-					Archived:     false,
 				},
 				{
 					Organization: "argoproj",
@@ -436,7 +436,6 @@ func TestGithubListRepos(t *testing.T) {
 						"api",
 					},
 					RepositoryId: idptr(1296269),
-					Archived:     false,
 				},
 				{
 					Organization: "argoproj",
@@ -451,13 +450,10 @@ func TestGithubListRepos(t *testing.T) {
 						"api",
 					},
 					RepositoryId: idptr(1296270),
-					Archived:     true,
 				},
 			},
 			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{
-					IncludeArchivedRepos: true,
-				},
+				{},
 			},
 		},
 		{
@@ -478,7 +474,6 @@ func TestGithubListRepos(t *testing.T) {
 						"api",
 					},
 					RepositoryId: idptr(1296269),
-					Archived:     false,
 				},
 				{
 					Organization: "argoproj",
@@ -493,7 +488,6 @@ func TestGithubListRepos(t *testing.T) {
 						"api",
 					},
 					RepositoryId: idptr(1296269),
-					Archived:     false,
 				},
 				{
 					Organization: "argoproj",
@@ -508,13 +502,10 @@ func TestGithubListRepos(t *testing.T) {
 						"api",
 					},
 					RepositoryId: idptr(1296270),
-					Archived:     true,
 				},
 			},
 			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{
-					IncludeArchivedRepos: true,
-				},
+				{},
 			},
 		},
 		{
@@ -535,7 +526,6 @@ func TestGithubListRepos(t *testing.T) {
 						"api",
 					},
 					RepositoryId: idptr(1296269),
-					Archived:     false,
 				},
 				{
 					Organization: "argoproj",
@@ -550,7 +540,6 @@ func TestGithubListRepos(t *testing.T) {
 						"api",
 					},
 					RepositoryId: idptr(1296269),
-					Archived:     false,
 				},
 				{
 					Organization: "argoproj",
@@ -565,13 +554,10 @@ func TestGithubListRepos(t *testing.T) {
 						"api",
 					},
 					RepositoryId: idptr(1296270),
-					Archived:     true,
 				},
 			},
 			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{
-					IncludeArchivedRepos: true,
-				},
+				{},
 			},
 		},
 		{
@@ -580,9 +566,7 @@ func TestGithubListRepos(t *testing.T) {
 			hasError:      true,
 			expectedRepos: []*Repository{},
 			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{
-					IncludeArchivedRepos: true,
-				},
+				{},
 			},
 		},
 		{
@@ -603,7 +587,6 @@ func TestGithubListRepos(t *testing.T) {
 						"api",
 					},
 					RepositoryId: idptr(1296269),
-					Archived:     false,
 				},
 				{
 					Organization: "argoproj",
@@ -618,7 +601,6 @@ func TestGithubListRepos(t *testing.T) {
 						"api",
 					},
 					RepositoryId: idptr(1296269),
-					Archived:     false,
 				},
 				{
 					Organization: "argoproj",
@@ -633,13 +615,10 @@ func TestGithubListRepos(t *testing.T) {
 						"api",
 					},
 					RepositoryId: idptr(1296270),
-					Archived:     true,
 				},
 			},
 			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{
-					IncludeArchivedRepos: true,
-				},
+				{},
 			},
 		},
 		{
@@ -660,7 +639,6 @@ func TestGithubListRepos(t *testing.T) {
 						"api",
 					},
 					RepositoryId: idptr(1296269),
-					Archived:     false,
 				},
 				{
 					Organization: "argoproj",
@@ -675,13 +653,10 @@ func TestGithubListRepos(t *testing.T) {
 						"api",
 					},
 					RepositoryId: idptr(1296269),
-					Archived:     false,
 				},
 			},
 			filters: []v1alpha1.SCMProviderGeneratorFilter{
-				{
-					IncludeArchivedRepos: false,
-				},
+				{},
 			},
 		},
 	}
@@ -692,7 +667,7 @@ func TestGithubListRepos(t *testing.T) {
 	defer ts.Close()
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, c.allBranches)
+			provider, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, c.allBranches, c.excludeArchivedRepos)
 			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
 			if c.hasError {
 				require.Error(t, err)
@@ -714,7 +689,7 @@ func TestGithubHasPath(t *testing.T) {
 		githubMockHandler(t)(w, r)
 	}))
 	defer ts.Close()
-	host, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, false)
+	host, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, false, false)
 	repo := &Repository{
 		Organization: "argoproj",
 		Repository:   "argo-cd",
@@ -735,7 +710,7 @@ func TestGithubGetBranches(t *testing.T) {
 	}))
 	defer ts.Close()
 	// all branches set to false
-	host, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, false)
+	host, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, false, false)
 	repo := &Repository{
 		Organization: "argoproj",
 		Repository:   "argo-cd",

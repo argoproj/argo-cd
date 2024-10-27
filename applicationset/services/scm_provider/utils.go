@@ -44,11 +44,6 @@ func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]
 			outFilter.FilterType = FilterTypeBranch
 		}
 
-		if outFilter.FilterType == FilterTypeUndefined {
-			outFilter.FilterType = FilterTypeRepo
-			outFilter.IncludeArchivedRepos = filter.ExcludeArchivedRepos
-		}
-
 		outFilters = append(outFilters, outFilter)
 	}
 	return outFilters, nil
@@ -72,10 +67,6 @@ func matchFilter(ctx context.Context, provider SCMProviderService, repo *Reposit
 		if !found {
 			return false, nil
 		}
-	}
-
-	if !filter.IncludeArchivedRepos && repo.Archived {
-		return false, nil
 	}
 
 	if len(filter.PathsExist) != 0 {
