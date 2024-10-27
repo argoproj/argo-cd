@@ -12,14 +12,15 @@ import (
 )
 
 type GiteaProvider struct {
-	client      *gitea.Client
-	owner       string
-	allBranches bool
+	client               *gitea.Client
+	owner                string
+	allBranches          bool
+	excludeArchivedRepos bool
 }
 
 var _ SCMProviderService = &GiteaProvider{}
 
-func NewGiteaProvider(ctx context.Context, owner, token, url string, allBranches, insecure bool) (*GiteaProvider, error) {
+func NewGiteaProvider(ctx context.Context, owner, token, url string, allBranches, insecure bool, excludeArchivedRepos bool) (*GiteaProvider, error) {
 	if token == "" {
 		token = os.Getenv("GITEA_TOKEN")
 	}
@@ -40,9 +41,10 @@ func NewGiteaProvider(ctx context.Context, owner, token, url string, allBranches
 		return nil, fmt.Errorf("error creating a new gitea client: %w", err)
 	}
 	return &GiteaProvider{
-		client:      client,
-		owner:       owner,
-		allBranches: allBranches,
+		client:               client,
+		owner:                owner,
+		allBranches:          allBranches,
+		excludeArchivedRepos: excludeArchivedRepos,
 	}, nil
 }
 
@@ -64,7 +66,6 @@ func (g *GiteaProvider) GetBranches(ctx context.Context, repo *Repository) ([]*R
 				SHA:          branch.Commit.ID,
 				Labels:       repo.Labels,
 				RepositoryId: repo.RepositoryId,
-				Archived:     repo.Archived,
 			},
 		}, nil
 	}
@@ -83,7 +84,6 @@ func (g *GiteaProvider) GetBranches(ctx context.Context, repo *Repository) ([]*R
 			SHA:          branch.Commit.ID,
 			Labels:       repo.Labels,
 			RepositoryId: repo.RepositoryId,
-			Archived:     repo.Archived,
 		})
 	}
 	return repos, nil
@@ -116,15 +116,19 @@ func (g *GiteaProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]
 		for _, label := range giteaLabels {
 			labels = append(labels, label.Name)
 		}
-		repos = append(repos, &Repository{
-			Organization: g.owner,
-			Repository:   repo.Name,
-			Branch:       repo.DefaultBranch,
-			URL:          url,
-			Labels:       labels,
-			RepositoryId: int(repo.ID),
-			Archived:     repo.Archived,
-		})
+
+		if g.excludeArchivedRepos && repo.Archived {
+			continue
+		} else {
+			repos = append(repos, &Repository{
+				Organization: g.owner,
+				Repository:   repo.Name,
+				Branch:       repo.DefaultBranch,
+				URL:          url,
+				Labels:       labels,
+				RepositoryId: int(repo.ID),
+			})
+		}
 	}
 	return repos, nil
 }

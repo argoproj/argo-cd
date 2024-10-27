@@ -470,6 +470,8 @@ type SCMProviderGeneratorGitea struct {
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,4,opt,name=allBranches"`
 	// Allow self-signed TLS / Certificates; default: false
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+	// Exclude repositories that are archived.
+	ExcludeArchivedRepos bool `json:"excludeArchivedRepos,omitempty" protobuf:"varint,6,opt,name=excludeArchivedRepos"`
 }
 
 // SCMProviderGeneratorGithub defines connection info specific to GitHub.
@@ -484,6 +486,8 @@ type SCMProviderGeneratorGithub struct {
 	AppSecretName string `json:"appSecretName,omitempty" protobuf:"bytes,4,opt,name=appSecretName"`
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,5,opt,name=allBranches"`
+	// Exclude repositories that are archived.
+	ExcludeArchivedRepos bool `json:"excludeArchivedRepos,omitempty" protobuf:"varint,6,opt,name=excludeArchivedRepos"`
 }
 
 // SCMProviderGeneratorGitlab defines connection info specific to Gitlab.
@@ -506,6 +510,8 @@ type SCMProviderGeneratorGitlab struct {
 	Topic string `json:"topic,omitempty" protobuf:"bytes,8,opt,name=topic"`
 	// ConfigMap key holding the trusted certificates
 	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,9,opt,name=caRef"`
+	// Exclude repositories that are archived.
+	ExcludeArchivedRepos bool `json:"excludeArchivedRepos,omitempty" protobuf:"varint,6,opt,name=excludeArchivedRepos"`
 }
 
 func (s *SCMProviderGeneratorGitlab) WillIncludeSharedProjects() bool {
@@ -589,8 +595,6 @@ type SCMProviderGeneratorFilter struct {
 	LabelMatch *string `json:"labelMatch,omitempty" protobuf:"bytes,4,opt,name=labelMatch"`
 	// A regex which must match the branch name.
 	BranchMatch *string `json:"branchMatch,omitempty" protobuf:"bytes,5,opt,name=branchMatch"`
-	// Include archived repos.
-	IncludeArchivedRepos bool `json:"includeArchivedRepos,omitempty" protobuf:"varint,6,opt,name=includeArchivedRepos"`
 }
 
 // PullRequestGenerator defines a generator that scrapes a PullRequest API to find candidate pull requests.

@@ -11,14 +11,15 @@ import (
 )
 
 type GithubProvider struct {
-	client       *github.Client
-	organization string
-	allBranches  bool
+	client               *github.Client
+	organization         string
+	allBranches          bool
+	excludeArchivedRepos bool
 }
 
 var _ SCMProviderService = &GithubProvider{}
 
-func NewGithubProvider(ctx context.Context, organization string, token string, url string, allBranches bool) (*GithubProvider, error) {
+func NewGithubProvider(ctx context.Context, organization string, token string, url string, allBranches bool, excludeArchivedRepos bool) (*GithubProvider, error) {
 	var ts oauth2.TokenSource
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
@@ -40,7 +41,7 @@ func NewGithubProvider(ctx context.Context, organization string, token string, u
 			return nil, err
 		}
 	}
-	return &GithubProvider{client: client, organization: organization, allBranches: allBranches}, nil
+	return &GithubProvider{client: client, organization: organization, allBranches: allBranches, excludeArchivedRepos: excludeArchivedRepos}, nil
 }
 
 func (g *GithubProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
@@ -86,15 +87,18 @@ func (g *GithubProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 			default:
 				return nil, fmt.Errorf("unknown clone protocol for GitHub %v", cloneProtocol)
 			}
-			repos = append(repos, &Repository{
-				Organization: githubRepo.Owner.GetLogin(),
-				Repository:   githubRepo.GetName(),
-				Branch:       githubRepo.GetDefaultBranch(),
-				URL:          url,
-				Labels:       githubRepo.Topics,
-				RepositoryId: githubRepo.ID,
-				Archived:     githubRepo.GetArchived(),
-			})
+			if g.excludeArchivedRepos && githubRepo.GetArchived() {
+				continue
+			} else {
+				repos = append(repos, &Repository{
+					Organization: githubRepo.Owner.GetLogin(),
+					Repository:   githubRepo.GetName(),
+					Branch:       githubRepo.GetDefaultBranch(),
+					URL:          url,
+					Labels:       githubRepo.Topics,
+					RepositoryId: githubRepo.ID,
+				})
+			}
 		}
 		if resp.NextPage == 0 {
 			break
