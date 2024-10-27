@@ -12,6 +12,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -386,6 +387,12 @@ func saveCompressedImageToPath(ctx context.Context, digest string, repo oras.Rea
 
 	// Copy remote repo at the given digest to the scratch dir.
 	_, err = oras.Copy(ctx, repo, digest, store, digest, oras.DefaultCopyOptions)
+	if err != nil {
+		return err
+	}
+
+	// Remove redundant ingest folder; this is an artifact from the oras.Copy call above
+	err = os.RemoveAll(path.Join(tempDir, "ingest"))
 	if err != nil {
 		return err
 	}
