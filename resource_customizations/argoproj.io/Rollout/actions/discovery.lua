@@ -14,7 +14,6 @@ actions["abort"] = {["disabled"] = fullyPromoted or obj.status.abort}
 actions["retry"] = {["disabled"] = fullyPromoted or not(obj.status.abort)}
 actions["pause"] = {["disabled"] = fullyPromoted or obj.status.abort }
 
-
 actions["promote-full"] = {["disabled"] = true}
 if obj.status ~= nil and not(fullyPromoted) then
     local generation = tonumber(obj.status.observedGeneration)
