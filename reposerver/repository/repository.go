@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/util/oci"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/TomOnTime/utfutil"
@@ -1757,18 +1758,32 @@ func getObjsFromYAMLOrJson(logCtx *log.Entry, manifestPath string, filename stri
 	if err != nil {
 		return status.Errorf(codes.FailedPrecondition, "Failed to open %q", manifestPath)
 	}
-	defer func() {
+
+	closeReader := func(reader goio.ReadCloser) {
 		err := reader.Close()
 		if err != nil {
 			logCtx.Errorf("failed to close %q - potential memory leak", manifestPath)
 		}
-	}()
-	if strings.HasSuffix(filename, ".json") && filename != "manifest.json" {
+	}
+	defer closeReader(reader)
+	if strings.HasSuffix(filename, ".json") {
 		var obj unstructured.Unstructured
 		decoder := json.NewDecoder(reader)
-		err = decoder.Decode(&obj)
-		if err != nil {
-			return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", filename, err)
+		decoderErr := decoder.Decode(&obj)
+		if decoderErr != nil {
+			// Check to see if the file is potentially an OCI manifest
+			reader, err := utfutil.OpenFile(manifestPath, utfutil.UTF8)
+			defer closeReader(reader)
+			if err != nil {
+				return status.Errorf(codes.FailedPrecondition, "Failed to open %q", manifestPath)
+			}
+			manifest := v1.Manifest{}
+			decoder := json.NewDecoder(reader)
+			err = decoder.Decode(&manifest)
+			if err != nil {
+				// Not an OCI manifest, return original error
+				return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", filename, decoderErr)
+			}
 		}
 		if decoder.More() {
 			return status.Errorf(codes.FailedPrecondition, "Found multiple objects in %q. Only single objects are allowed in JSON files.", filename)
