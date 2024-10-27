@@ -59,7 +59,7 @@ require (
 	github.com/itchyny/gojq v0.12.16
 	github.com/jeremywohl/flatten v1.0.1
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51
-	github.com/ktrysmt/go-bitbucket v0.9.80
+	github.com/ktrysmt/go-bitbucket v0.9.81
 	github.com/mattn/go-isatty v0.0.20
 	github.com/mattn/go-zglob v0.0.6
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
@@ -107,7 +107,7 @@ require (
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
 	oras.land/oras-go/v2 v2.5.0
-	sigs.k8s.io/controller-runtime v0.19.0
+	sigs.k8s.io/controller-runtime v0.19.1
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1
 	sigs.k8s.io/yaml v1.4.0
 )
