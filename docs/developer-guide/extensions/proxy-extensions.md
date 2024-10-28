@@ -91,7 +91,7 @@ data:
 ```
 
 Attention: Extension names must be unique in the Argo CD configmap. If
-duplicated keys are found, the Argo CD API server will log an error
+duplicate keys are found, the Argo CD API server will log an error
 message and no proxy extension will be registered.
 
 Note: There is no need to restart Argo CD Server after modifying the
