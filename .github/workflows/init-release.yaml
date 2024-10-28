@@ -73,5 +73,3 @@ jobs:
           branch-suffix: random
           signoff: true
           labels: release
-
-
