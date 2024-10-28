@@ -253,10 +253,10 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 						fmt.Printf("Removed cert for '%s' of type '%s' (subtype '%s')\n", cert.ServerName, cert.CertType, cert.CertSubType)
 					}
 				} else {
-					fmt.Println("No certificates were removed (none matched the given patterns)")
+					fmt.Println("No certificates were removed (none matched the given pattern)")
 				}
 			} else {
-				fmt.Printf("The command to  to remove all certificates for '%s' was cancelled.\n", hostNamePattern)
+				fmt.Printf("The command to remove all certificates for '%s' was cancelled.\n", hostNamePattern)
 			}
 		},
 	}
