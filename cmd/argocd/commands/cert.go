@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	certificatepkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/certificate"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -236,19 +237,26 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 				err := fmt.Errorf("A single wildcard is not allowed as REPOSERVER name.")
 				errors.CheckError(err)
 			}
-			certQuery = certificatepkg.RepositoryCertificateQuery{
-				HostNamePattern: hostNamePattern,
-				CertType:        certType,
-				CertSubType:     certSubType,
-			}
-			removed, err := certIf.DeleteCertificate(ctx, &certQuery)
-			errors.CheckError(err)
-			if len(removed.Items) > 0 {
-				for _, cert := range removed.Items {
-					fmt.Printf("Removed cert for '%s' of type '%s' (subtype '%s')\n", cert.ServerName, cert.CertType, cert.CertSubType)
+
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
+			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to remove all certificates for '%s'? [y/n]", hostNamePattern))
+			if canDelete {
+				certQuery = certificatepkg.RepositoryCertificateQuery{
+					HostNamePattern: hostNamePattern,
+					CertType:        certType,
+					CertSubType:     certSubType,
+				}
+				removed, err := certIf.DeleteCertificate(ctx, &certQuery)
+				errors.CheckError(err)
+				if len(removed.Items) > 0 {
+					for _, cert := range removed.Items {
+						fmt.Printf("Removed cert for '%s' of type '%s' (subtype '%s')\n", cert.ServerName, cert.CertType, cert.CertSubType)
+					}
+				} else {
+					fmt.Println("No certificates were removed (none matched the given pattern)")
 				}
 			} else {
-				fmt.Println("No certificates were removed (none matched the given patterns)")
+				fmt.Printf("The command to remove all certificates for '%s' was cancelled.\n", hostNamePattern)
 			}
 		},
 	}
