@@ -3,11 +3,9 @@ package commands
 import (
 	"bytes"
 	"fmt"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
+
 )
 
 type testPluginHandler struct {
