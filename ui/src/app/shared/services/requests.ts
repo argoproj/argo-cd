@@ -1,5 +1,5 @@
-import * as path from 'path';
 import * as agent from 'superagent';
+import _ from 'lodash';
 
 import {BehaviorSubject, Observable, Observer} from 'rxjs';
 import {filter} from 'rxjs/operators';
@@ -27,7 +27,7 @@ let baseHRef = '/';
 const onError = new BehaviorSubject<agent.ResponseError>(null);
 
 function toAbsURL(val: string): string {
-    return path.join(baseHRef, val);
+    return `${_.trimEnd(baseHRef, '/')}${val}`;
 }
 
 function apiRoot(): string {
