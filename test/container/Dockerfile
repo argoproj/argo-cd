@@ -6,7 +6,7 @@ FROM docker.io/library/redis:7.4.0@sha256:eadf354977d428e347d93046bb1a5569d701e8
 RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 
 # Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
-FROM docker.io/library/node:22.9.0@sha256:cbe2d5f94110cea9817dd8c5809d05df49b4bd1aac5203f3594d88665ad37988 as node
+FROM docker.io/library/node:22.8.0@sha256:bd00c03095f7586432805dbf7989be10361d27987f93de904b1fc003949a4794 as node
 
 FROM docker.io/library/golang:1.23@sha256:2fe82a3f3e006b4f2a316c6a21f62b66e1330ae211d039bb8d1128e12ed57bf1 as golang
 

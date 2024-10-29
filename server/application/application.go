@@ -509,6 +509,10 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings options: %w", err)
 			}
+			installationID, err := s.settingsMgr.GetInstallationID()
+			if err != nil {
+				return fmt.Errorf("error getting installation ID: %w", err)
+			}
 
 			manifestInfo, err := client.GenerateManifest(ctx, &apiclient.ManifestRequest{
 				Repo:               repo,
@@ -529,6 +533,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				ProjectSourceRepos: proj.Spec.SourceRepos,
 				HasMultipleSources: a.Spec.HasMultipleSources(),
 				RefSources:         refSources,
+				InstallationID:     installationID,
 			})
 			if err != nil {
 				return fmt.Errorf("error generating manifests: %w", err)
@@ -1886,7 +1891,11 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 
 	s.inferResourcesStatusHealth(a)
 
-	if !proj.Spec.SyncWindows.Matches(a).CanSync(true) {
+	canSync, err := proj.Spec.SyncWindows.Matches(a).CanSync(true)
+	if err != nil {
+		return a, status.Errorf(codes.PermissionDenied, "cannot sync: invalid sync window: %v", err)
+	}
+	if !canSync {
 		return a, status.Errorf(codes.PermissionDenied, "cannot sync: blocked by sync window")
 	}
 
@@ -2603,10 +2612,17 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 	}
 
 	windows := proj.Spec.SyncWindows.Matches(a)
-	sync := windows.CanSync(true)
+	sync, err := windows.CanSync(true)
+	if err != nil {
+		return nil, fmt.Errorf("invalid sync windows: %w", err)
+	}
 
+	activeWindows, err := windows.Active()
+	if err != nil {
+		return nil, fmt.Errorf("invalid sync windows: %w", err)
+	}
 	res := &application.ApplicationSyncWindowsResponse{
-		ActiveWindows:   convertSyncWindows(windows.Active()),
+		ActiveWindows:   convertSyncWindows(activeWindows),
 		AssignedWindows: convertSyncWindows(windows),
 		CanSync:         &sync,
 	}

@@ -327,7 +327,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	ag := extension.NewDefaultApplicationGetter(appLister)
 	pg := extension.NewDefaultProjectGetter(projLister, dbInstance)
 	ug := extension.NewDefaultUserGetter(policyEnf)
-	em := extension.NewManager(logger, sg, ag, pg, enf, ug)
+	em := extension.NewManager(logger, opts.Namespace, sg, ag, pg, enf, ug)
 
 	a := &ArgoCDServer{
 		ArgoCDServerOpts:   opts,
@@ -705,7 +705,7 @@ func (a *ArgoCDServer) watchSettings() {
 			log.Infof("gogs secret modified. restarting")
 			break
 		}
-		if prevExtConfig != a.settings.ExtensionConfig {
+		if !reflect.DeepEqual(prevExtConfig, a.settings.ExtensionConfig) {
 			prevExtConfig = a.settings.ExtensionConfig
 			log.Infof("extensions configs modified. Updating proxy registry...")
 			err := a.extensionManager.UpdateExtensionRegistry(a.settings)

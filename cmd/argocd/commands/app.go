@@ -585,8 +585,8 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 	var status string
 	var allow, deny, inactiveAllows bool
 	if windows.HasWindows() {
-		active := windows.Active()
-		if active.HasWindows() {
+		active, err := windows.Active()
+		if err == nil && active.HasWindows() {
 			for _, w := range *active {
 				if w.Kind == "deny" {
 					deny = true
@@ -595,13 +595,14 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 				}
 			}
 		}
-		if windows.InactiveAllows().HasWindows() {
+		inactiveAllowWindows, err := windows.InactiveAllows()
+		if err == nil && inactiveAllowWindows.HasWindows() {
 			inactiveAllows = true
 		}
 
-		s := windows.CanSync(true)
 		if deny || !deny && !allow && inactiveAllows {
-			if s {
+			s, err := windows.CanSync(true)
+			if err == nil && s {
 				status = "Manual Allowed"
 			} else {
 				status = "Sync Denied"
@@ -1374,7 +1375,7 @@ func groupObjsForDiff(resources *application.ManagedResourcesResponse, objs map[
 		}
 		if local, ok := objs[key]; ok || live != nil {
 			if local != nil && !kube.IsCRD(local) {
-				err = resourceTracking.SetAppInstance(local, argoSettings.AppLabelKey, appName, namespace, argoappv1.TrackingMethod(argoSettings.GetTrackingMethod()))
+				err = resourceTracking.SetAppInstance(local, argoSettings.AppLabelKey, appName, namespace, argoappv1.TrackingMethod(argoSettings.GetTrackingMethod()), argoSettings.GetInstallationID())
 				errors.CheckError(err)
 			}
 

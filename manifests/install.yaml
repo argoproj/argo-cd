@@ -115,6 +115,11 @@ spec:
               sync:
                 description: Sync contains parameters for the operation
                 properties:
+                  autoHealAttemptsCount:
+                    description: SelfHealAttemptsCount contains the number of auto-heal
+                      attempts
+                    format: int64
+                    type: integer
                   dryRun:
                     description: DryRun specifies to perform a `kubectl apply --dry-run`
                       without actually performing the sync
@@ -2710,6 +2715,11 @@ spec:
                       sync:
                         description: Sync contains parameters for the operation
                         properties:
+                          autoHealAttemptsCount:
+                            description: SelfHealAttemptsCount contains the number
+                              of auto-heal attempts
+                            format: int64
+                            type: integer
                           dryRun:
                             description: DryRun specifies to perform a `kubectl apply
                               --dry-run` without actually performing the sync
@@ -21735,7 +21745,7 @@ spec:
                     sync operation.
                   properties:
                     defaultServiceAccount:
-                      description: ServiceAccountName to be used for impersonation
+                      description: DefaultServiceAccount to be used for impersonation
                         during the sync operation
                       type: string
                     namespace:
@@ -21746,6 +21756,9 @@ spec:
                       description: Server specifies the URL of the target cluster's
                         Kubernetes control plane API.
                       type: string
+                  required:
+                  - defaultServiceAccount
+                  - server
                   type: object
                 type: array
               destinations:
@@ -22430,6 +22443,7 @@ rules:
   - delete
   - get
   - patch
+  - list
 - apiGroups:
   - ""
   resources:
@@ -23018,7 +23032,7 @@ spec:
               key: applicationsetcontroller.webhook.parallelism.limit
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.13.0-rc5
         imagePullPolicy: Always
         name: argocd-applicationset-controller
         ports:
@@ -23153,7 +23167,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /shared/argocd-dex
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.13.0-rc5
         imagePullPolicy: Always
         name: copyutil
         securityContext:
@@ -23241,7 +23255,7 @@ spec:
               key: notificationscontroller.repo.server.plaintext
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.13.0-rc5
         imagePullPolicy: Always
         livenessProbe:
           tcpSocket:
@@ -23341,7 +23355,7 @@ spec:
         - argocd
         - admin
         - redis-initial-password
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.13.0-rc5
         imagePullPolicy: IfNotPresent
         name: secret-init
         securityContext:
@@ -23594,7 +23608,7 @@ spec:
           value: /helm-working-dir
         - name: HELM_DATA_HOME
           value: /helm-working-dir
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.13.0-rc5
         imagePullPolicy: Always
         livenessProbe:
           failureThreshold: 3
@@ -23646,7 +23660,7 @@ spec:
         - -n
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.13.0-rc5
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false
@@ -23998,7 +24012,7 @@ spec:
               key: applicationsetcontroller.enable.scm.providers
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.13.0-rc5
         imagePullPolicy: Always
         livenessProbe:
           httpGet:
@@ -24198,6 +24212,24 @@ spec:
               key: controller.self.heal.timeout.seconds
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_TIMEOUT_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.self.heal.backoff.timeout.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_FACTOR
+          valueFrom:
+            configMapKeyRef:
+              key: controller.self.heal.backoff.factor
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_CAP_SECONDS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.self.heal.backoff.cap.seconds
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT
           valueFrom:
             configMapKeyRef:
@@ -24306,7 +24338,7 @@ spec:
               key: controller.ignore.normalizer.jq.timeout
               name: argocd-cmd-params-cm
               optional: true
-        image: quay.io/argoproj/argocd:latest
+        image: quay.io/argoproj/argocd:v2.13.0-rc5
         imagePullPolicy: Always
         name: argocd-application-controller
         ports:

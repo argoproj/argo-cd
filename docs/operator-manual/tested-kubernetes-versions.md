@@ -1,2 +1,5 @@
-This page is populated for released Argo CD versions. Use the version selector to view this table for a specific 
-version. 
+| Argo CD version | Kubernetes versions |
+|-----------------|---------------------|
+| 2.13 | v1.30, v1.29, v1.28, v1.27 |
+| 2.12 | v1.29, v1.28, v1.27, v1.26 |
+| 2.11 | v1.29, v1.28, v1.27, v1.26, v1.25 |
