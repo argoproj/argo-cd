@@ -35,6 +35,7 @@ import (
 const (
 	couldNotMarshalErrMsg       = "Could not unmarshal to object of type %s: %v"
 	AnnotationLastAppliedConfig = "kubectl.kubernetes.io/last-applied-configuration"
+	replacement                 = "++++++++"
 )
 
 // Holds diffing result of two resources
@@ -969,13 +970,13 @@ func CreateTwoWayMergePatch(orig, new, dataStruct interface{}) ([]byte, bool, er
 	return patch, string(patch) != "{}", nil
 }
 
-// HideSecretData replaces secret data values in specified target, live secrets and in last applied configuration of live secret with stars. Also preserves differences between
-// target, live and last applied config values. E.g. if all three are equal the values would be replaced with same number of stars. If all the are different then number of stars
+// HideSecretData replaces secret data & optional annotations values in specified target, live secrets and in last applied configuration of live secret with plus(+). Also preserves differences between
+// target, live and last applied config values. E.g. if all three are equal the values would be replaced with same number of plus(+). If all are different then number of plus(+)
 // in replacement should be different.
-func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstructured) (*unstructured.Unstructured, *unstructured.Unstructured, error) {
-	var orig *unstructured.Unstructured
+func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstructured, hideAnnotations map[string]bool) (*unstructured.Unstructured, *unstructured.Unstructured, error) {
+	var liveLastAppliedAnnotation *unstructured.Unstructured
 	if live != nil {
-		orig, _ = GetLastAppliedConfigAnnotation(live)
+		liveLastAppliedAnnotation, _ = GetLastAppliedConfigAnnotation(live)
 		live = live.DeepCopy()
 	}
 	if target != nil {
@@ -983,7 +984,7 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 	}
 
 	keys := map[string]bool{}
-	for _, obj := range []*unstructured.Unstructured{target, live, orig} {
+	for _, obj := range []*unstructured.Unstructured{target, live, liveLastAppliedAnnotation} {
 		if obj == nil {
 			continue
 		}
@@ -995,25 +996,57 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 		}
 	}
 
+	var err error
+	target, live, liveLastAppliedAnnotation, err = hide(target, live, liveLastAppliedAnnotation, keys, "data")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	target, live, liveLastAppliedAnnotation, err = hide(target, live, liveLastAppliedAnnotation, hideAnnotations, "metadata", "annotations")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if live != nil && liveLastAppliedAnnotation != nil {
+		annotations := live.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		// special case: hide "kubectl.kubernetes.io/last-applied-configuration" annotation
+		if _, ok := hideAnnotations[corev1.LastAppliedConfigAnnotation]; ok {
+			annotations[corev1.LastAppliedConfigAnnotation] = replacement
+		} else {
+			lastAppliedData, err := json.Marshal(liveLastAppliedAnnotation)
+			if err != nil {
+				return nil, nil, fmt.Errorf("error marshaling json: %s", err)
+			}
+			annotations[corev1.LastAppliedConfigAnnotation] = string(lastAppliedData)
+		}
+		live.SetAnnotations(annotations)
+	}
+	return target, live, nil
+}
+
+func hide(target, live, liveLastAppliedAnnotation *unstructured.Unstructured, keys map[string]bool, fields ...string) (*unstructured.Unstructured, *unstructured.Unstructured, *unstructured.Unstructured, error) {
 	for k := range keys {
 		// we use "+" rather than the more common "*"
-		nextReplacement := "++++++++"
+		nextReplacement := replacement
 		valToReplacement := make(map[string]string)
-		for _, obj := range []*unstructured.Unstructured{target, live, orig} {
+		for _, obj := range []*unstructured.Unstructured{target, live, liveLastAppliedAnnotation} {
 			var data map[string]interface{}
 			if obj != nil {
 				// handles an edge case when secret data has nil value
 				// https://github.com/argoproj/argo-cd/issues/5584
-				dataValue, ok := obj.Object["data"]
+				dataValue, ok, _ := unstructured.NestedFieldCopy(obj.Object, fields...)
 				if ok {
 					if dataValue == nil {
 						continue
 					}
 				}
 				var err error
-				data, _, err = unstructured.NestedMap(obj.Object, "data")
+				data, _, err = unstructured.NestedMap(obj.Object, fields...)
 				if err != nil {
-					return nil, nil, fmt.Errorf("unstructured.NestedMap error: %s", err)
+					return nil, nil, nil, fmt.Errorf("unstructured.NestedMap error: %s", err)
 				}
 			}
 			if data == nil {
@@ -1031,25 +1064,13 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 				valToReplacement[val] = replacement
 			}
 			data[k] = replacement
-			err := unstructured.SetNestedField(obj.Object, data, "data")
+			err := unstructured.SetNestedField(obj.Object, data, fields...)
 			if err != nil {
-				return nil, nil, fmt.Errorf("unstructured.SetNestedField error: %s", err)
+				return nil, nil, nil, fmt.Errorf("unstructured.SetNestedField error: %s", err)
 			}
 		}
 	}
-	if live != nil && orig != nil {
-		annotations := live.GetAnnotations()
-		if annotations == nil {
-			annotations = make(map[string]string)
-		}
-		lastAppliedData, err := json.Marshal(orig)
-		if err != nil {
-			return nil, nil, fmt.Errorf("error marshaling json: %s", err)
-		}
-		annotations[corev1.LastAppliedConfigAnnotation] = string(lastAppliedData)
-		live.SetAnnotations(annotations)
-	}
-	return target, live, nil
+	return target, live, liveLastAppliedAnnotation, nil
 }
 
 func toString(val interface{}) string {

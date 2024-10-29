@@ -80,7 +80,7 @@ func (k *kubectlResourceOperations) runResourceCommand(ctx context.Context, obj 
 		if err != nil {
 			return "", err
 		}
-		redacted, _, err := diff.HideSecretData(&obj, nil)
+		redacted, _, err := diff.HideSecretData(&obj, nil, nil)
 		if err != nil {
 			return "", err
 		}
