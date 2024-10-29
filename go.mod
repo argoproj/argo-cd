@@ -2,8 +2,6 @@ module github.com/argoproj/argo-cd/v2
 
 go 1.22.0
 
-replace github.com/argoproj/gitops-engine => github.com/svghadi/gitops-engine v0.0.0-20241023151912-5c87732b878d
-
 require (
 	code.gitea.io/sdk/gitea v0.19.0
 	github.com/Azure/kubelogin v0.0.20
@@ -12,7 +10,7 @@ require (
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.33.0
 	github.com/antonmedv/expr v1.15.1
-	github.com/argoproj/gitops-engine v0.7.1-0.20241023134423-09e5225f8472
+	github.com/argoproj/gitops-engine v0.7.1-0.20241029102952-9ab0b2ecae96
 	github.com/argoproj/notifications-engine v0.4.1-0.20241007194503-2fef5c9049fd
 	github.com/argoproj/pkg v0.13.7-0.20230626144333-d56162821bd1
 	github.com/aws/aws-sdk-go v1.55.5
