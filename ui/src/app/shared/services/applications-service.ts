@@ -64,7 +64,7 @@ export class ApplicationsService {
         return r.then(res => res.body as models.RevisionMetadata);
     }
 
-    public revisionChartDetails(name: string, appNamespace: string, revision: string, sourceIndex: number | null, versionId: number | null): Promise<models.ChartDetails> {
+    public revisionChartDetails(name: string, appNamespace: string, revision: string, sourceIndex: number, versionId: number | null): Promise<models.ChartDetails> {
         let r = requests.get(`/applications/${name}/revisions/${revision || 'HEAD'}/chartdetails`).query({appNamespace});
         if (sourceIndex !== null) {
             r = r.query({sourceIndex});
