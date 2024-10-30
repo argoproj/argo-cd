@@ -4557,6 +4557,9 @@
         "namespace": {
           "type": "string"
         },
+        "requiresDeletionConfirmation": {
+          "type": "boolean"
+        },
         "requiresPruning": {
           "type": "boolean"
         },
