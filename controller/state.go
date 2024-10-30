@@ -10,6 +10,7 @@ import (
 	goSync "sync"
 	"time"
 
+	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
@@ -299,7 +300,8 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 	logCtx.Info("GetRepoObjs stats")
 
-	// in case if annotation not exists, we should always execute selfheal if manifests changed
+	// If a revision in any of the sources cannot be updated,
+	// we should trigger self-healing whenever there are changes to the manifests.
 	if atLeastOneRevisionIsNotPossibleToBeUpdated {
 		revisionUpdated = true
 	}
@@ -746,6 +748,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			Group:           gvk.Group,
 			Hook:            isHook(obj),
 			RequiresPruning: targetObj == nil && liveObj != nil && isSelfReferencedObj,
+			RequiresDeletionConfirmation: targetObj != nil && resourceutil.HasAnnotationOption(targetObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDeleteRequireConfirm) ||
+				liveObj != nil && resourceutil.HasAnnotationOption(liveObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDeleteRequireConfirm),
 		}
 		if targetObj != nil {
 			resState.SyncWave = int64(syncwaves.Wave(targetObj))
@@ -936,15 +940,32 @@ func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sou
 		return false
 	}
 
-	currentSpec := app.BuildComparedToStatus()
-	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, currentSpec)
-	if specChanged {
+	if !specEqualsCompareTo(app.Spec, app.Status.Sync.ComparedTo) {
 		log.WithField("useDiffCache", "false").Debug("specChanged")
 		return false
 	}
 
 	log.WithField("useDiffCache", "true").Debug("using diff cache")
 	return true
+}
+
+// specEqualsCompareTo compares the application spec to the comparedTo status. It normalizes the destination to match
+// the comparedTo destination before comparing. It does not mutate the original spec or comparedTo.
+func specEqualsCompareTo(spec v1alpha1.ApplicationSpec, comparedTo v1alpha1.ComparedTo) bool {
+	// Make a copy to be sure we don't mutate the original.
+	specCopy := spec.DeepCopy()
+	currentSpec := specCopy.BuildComparedToStatus()
+
+	// The spec might have been augmented to include both server and name, so change it to match the comparedTo before
+	// comparing.
+	if comparedTo.Destination.Server == "" {
+		currentSpec.Destination.Server = ""
+	}
+	if comparedTo.Destination.Name == "" {
+		currentSpec.Destination.Name = ""
+	}
+
+	return reflect.DeepEqual(comparedTo, currentSpec)
 }
 
 func (m *appStateManager) persistRevisionHistory(

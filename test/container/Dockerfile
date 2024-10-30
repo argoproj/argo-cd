@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:7.4.1@sha256:541209804a009ab69e97a06504706cfe83be2693150885fa08ed05a91f243089 as redis
+FROM docker.io/library/redis:7.4.1@sha256:a06cea905344470eb49c972f3d030e22f28f632c1b4f43bbe4a26a4329dd6be5 as redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
@@ -12,7 +12,7 @@ FROM docker.io/library/golang:1.23.1@sha256:4f063a24d429510e512cc730c3330292ff49
 
 FROM docker.io/library/registry:2.8@sha256:ac0192b549007e22998eb74e8d8488dcfe70f1489520c3b144a6047ac5efbe90 as registry
 
-FROM docker.io/bitnami/kubectl:1.31@sha256:b509ab6000477ebe788df3509a8c4177e91238ee3003f33edea0931be3794340 as kubectl
+FROM docker.io/bitnami/kubectl:1.31@sha256:4d757d958f7f9c232a9aa4a1c8cc94fa2aa7a7a253869d7dce09b4dc58a3fbd6 as kubectl
 
 FROM docker.io/library/ubuntu:24.04@sha256:3f85b7caad41a95462cf5b787d8a04604c8262cdcdf9a472b8c52ef83375fe15
 

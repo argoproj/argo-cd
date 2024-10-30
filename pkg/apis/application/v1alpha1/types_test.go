@@ -2982,6 +2982,7 @@ func TestSetConditions(t *testing.T) {
 				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
 			},
 			validate: func(t *testing.T, a *Application) {
+				t.Helper()
 				assert.Equal(t, fiveMinsAgo, a.Status.Conditions[0].LastTransitionTime)
 				assert.Equal(t, tenMinsAgo, a.Status.Conditions[1].LastTransitionTime)
 			},
@@ -3002,6 +3003,7 @@ func TestSetConditions(t *testing.T) {
 				testCond(ApplicationConditionSharedResourceWarning, "bar", nil),
 			},
 			validate: func(t *testing.T, a *Application) {
+				t.Helper()
 				// SetConditions should add timestamps for new conditions.
 				assert.True(t, a.Status.Conditions[0].LastTransitionTime.Time.After(fiveMinsAgo.Time))
 				assert.True(t, a.Status.Conditions[1].LastTransitionTime.Time.After(fiveMinsAgo.Time))
@@ -3024,6 +3026,7 @@ func TestSetConditions(t *testing.T) {
 				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
 			},
 			validate: func(t *testing.T, a *Application) {
+				t.Helper()
 				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
 			},
 		},
@@ -3059,6 +3062,7 @@ func TestSetConditions(t *testing.T) {
 				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
 			},
 			validate: func(t *testing.T, a *Application) {
+				t.Helper()
 				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
 				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[1].LastTransitionTime.Time)
 			},
@@ -3082,6 +3086,7 @@ func TestSetConditions(t *testing.T) {
 				testCond(ApplicationConditionSharedResourceWarning, "bar changed message", fiveMinsAgo),
 			},
 			validate: func(t *testing.T, a *Application) {
+				t.Helper()
 				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
 				assert.Equal(t, fiveMinsAgo.Time, a.Status.Conditions[1].LastTransitionTime.Time)
 			},
@@ -3100,6 +3105,7 @@ func TestSetConditions(t *testing.T) {
 				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
 			},
 			validate: func(t *testing.T, a *Application) {
+				t.Helper()
 				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
 			},
 		},
@@ -3121,6 +3127,7 @@ func TestSetConditions(t *testing.T) {
 // difficult to strictly assert on as they can use time.Now(). Elements in each array are assumed
 // to match positions.
 func assertConditions(t *testing.T, expected []ApplicationCondition, actual []ApplicationCondition) {
+	t.Helper()
 	assert.Equal(t, len(expected), len(actual))
 	for i := range expected {
 		assert.Equal(t, expected[i].Type, actual[i].Type)

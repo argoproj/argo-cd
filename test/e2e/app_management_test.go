@@ -757,6 +757,7 @@ func TestManipulateApplicationResources(t *testing.T) {
 }
 
 func assetSecretDataHidden(t *testing.T, manifest string) {
+	t.Helper()
 	secret, err := UnmarshalToUnstructured(manifest)
 	require.NoError(t, err)
 
@@ -1020,6 +1021,7 @@ func TestConfigMap(t *testing.T) {
 }
 
 func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode health.HealthStatusCode, message ...string) {
+	t.Helper()
 	expect := Given(t).
 		Path(appPath).
 		When().
@@ -1442,6 +1444,7 @@ func TestSyncAsync(t *testing.T) {
 
 // assertResourceActions verifies if view/modify resource actions are successful/failing for given application
 func assertResourceActions(t *testing.T, appName string, successful bool) {
+	t.Helper()
 	assertError := func(err error, message string) {
 		if successful {
 			require.NoError(t, err)
@@ -2962,4 +2965,39 @@ func TestInstallationID(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, "test", deploy.Annotations[common.AnnotationInstallationID])
 		})
+}
+
+func TestDeletionConfirmation(t *testing.T) {
+	ctx := Given(t)
+	ctx.
+		And(func() {
+			_, err := fixture.KubeClientset.CoreV1().ConfigMaps(DeploymentNamespace()).Create(
+				context.Background(), &v1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-configmap",
+						Labels: map[string]string{
+							common.LabelKeyAppInstance: ctx.AppName(),
+						},
+						Annotations: map[string]string{
+							AnnotationSyncOptions: "Prune=confirm",
+						},
+					},
+				}, metav1.CreateOptions{})
+			require.NoError(t, err)
+		}).
+		Path(guestbookPath).
+		Async(true).
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "add", "path": "/metadata/annotations", "value": { "argocd.argoproj.io/sync-options": "Delete=confirm" }}]`).
+		CreateApp().Sync().
+		Then().Expect(OperationPhaseIs(OperationRunning)).
+		When().ConfirmDeletion().
+		Then().Expect(OperationPhaseIs(OperationSucceeded)).
+		When().Delete(true).
+		Then().
+		And(func(app *Application) {
+			assert.NotNil(t, app.DeletionTimestamp)
+		}).
+		When().ConfirmDeletion().
+		Then().Expect(DoesNotExist())
 }
