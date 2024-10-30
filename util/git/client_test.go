@@ -7,7 +7,6 @@ import (
 	"path"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -40,7 +39,7 @@ func Test_nativeGitClient_Fetch(t *testing.T) {
 	tempDir, err := _createEmptyGitRepo()
 	require.NoError(t, err)
 
-	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", "")
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -54,7 +53,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	tempDir, err := _createEmptyGitRepo()
 	require.NoError(t, err)
 
-	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", "")
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -77,7 +76,7 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 
 func Test_IsAnnotatedTag(t *testing.T) {
 	tempDir := t.TempDir()
-	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", "")
+	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -122,7 +121,7 @@ func Test_IsAnnotatedTag(t *testing.T) {
 func Test_ChangedFiles(t *testing.T) {
 	tempDir := t.TempDir()
 
-	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -177,7 +176,7 @@ func Test_ChangedFiles(t *testing.T) {
 func Test_SemverTags(t *testing.T) {
 	tempDir := t.TempDir()
 
-	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -352,7 +351,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	err = runCmd(tempDir, "git", "clone", foo)
 	require.NoError(t, err)
 
-	client, err := NewClient(fmt.Sprintf("file://%s", foo), NopCreds{}, true, false, "", "")
+	client, err := NewClient(fmt.Sprintf("file://%s", foo), NopCreds{}, true, false, "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -400,7 +399,7 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 }
 
 func TestNewClient_invalidSSHURL(t *testing.T) {
-	client, err := NewClient("ssh://bitbucket.org:org/repo", NopCreds{}, false, false, "", "")
+	client, err := NewClient("ssh://bitbucket.org:org/repo", NopCreds{}, false, false, "")
 	assert.Nil(t, client)
 	assert.ErrorIs(t, err, ErrInvalidRepoURL)
 }
@@ -408,7 +407,7 @@ func TestNewClient_invalidSSHURL(t *testing.T) {
 func Test_IsRevisionPresent(t *testing.T) {
 	tempDir := t.TempDir()
 
-	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "", "")
+	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "")
 	require.NoError(t, err)
 
 	err = client.Init()
@@ -438,44 +437,4 @@ func Test_IsRevisionPresent(t *testing.T) {
 	// Ensure invalid revision is not returned.
 	revisionPresent = client.IsRevisionPresent("invalid-revision")
 	assert.False(t, revisionPresent)
-}
-
-func Test_nativeGitClient_RevisionMetadata(t *testing.T) {
-	tempDir := t.TempDir()
-	client, err := NewClient(fmt.Sprintf("file://%s", tempDir), NopCreds{}, true, false, "", "")
-	require.NoError(t, err)
-
-	err = client.Init()
-	require.NoError(t, err)
-
-	p := path.Join(client.Root(), "README")
-	f, err := os.Create(p)
-	require.NoError(t, err)
-	_, err = f.WriteString("Hello.")
-	require.NoError(t, err)
-	err = f.Close()
-	require.NoError(t, err)
-
-	err = runCmd(client.Root(), "git", "config", "user.name", "FooBar ||| something\nelse")
-	require.NoError(t, err)
-	err = runCmd(client.Root(), "git", "config", "user.email", "foo@foo.com")
-	require.NoError(t, err)
-
-	err = runCmd(client.Root(), "git", "add", "README")
-	require.NoError(t, err)
-	err = runCmd(client.Root(), "git", "commit", "--date=\"Sat Jun 5 20:00:00 2021 +0000 UTC\"", "-m", `| Initial commit |
-
-
-(╯°□°)╯︵ ┻━┻
-		`, "-a")
-	require.NoError(t, err)
-
-	metadata, err := client.RevisionMetadata("HEAD")
-	require.NoError(t, err)
-	require.Equal(t, &RevisionMetadata{
-		Author:  `FooBar ||| somethingelse <foo@foo.com>`,
-		Date:    time.Date(2021, time.June, 5, 20, 0, 0, 0, time.UTC).Local(),
-		Tags:    []string{},
-		Message: "| Initial commit |\n\n(╯°□°)╯︵ ┻━┻",
-	}, metadata)
 }

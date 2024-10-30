@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"net"
@@ -11,8 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
-
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,7 +17,6 @@ import (
 
 	"github.com/argoproj/pkg/rand"
 
-	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
@@ -849,10 +845,7 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 		Spec: v1alpha1.ApplicationSetSpec{
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
-					Name:       "{{.cluster}}-guestbook-sync-policy-create-update",
-					Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-				},
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook-sync-policy-create-update"},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
 					Source: &argov1alpha1.ApplicationSource{
@@ -920,11 +913,9 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 		// verify the ApplicationSet status conditions were set correctly
 		Expect(ApplicationSetHasConditions("sync-policy-create-update", ExpectedConditions)).
 
-		// Delete the ApplicationSet, and verify it not deletes the Applications
-		// As policy is create-update, AppSet controller will remove all generated applications's ownerReferences on delete AppSet
-		// So AppSet deletion will be reflected, but all the applications it generates will still exist
+		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewMetadata}))
+		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewMetadata}))
 }
 
 func TestSyncPolicyCreateDelete(t *testing.T) {
@@ -1061,10 +1052,7 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 		Spec: v1alpha1.ApplicationSetSpec{
 			GoTemplate: true,
 			Template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
-					Name:       "{{.cluster}}-guestbook-sync-policy-create-only",
-					Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-				},
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.cluster}}-guestbook-sync-policy-create-only"},
 				Spec: argov1alpha1.ApplicationSpec{
 					Project: "default",
 					Source: &argov1alpha1.ApplicationSource{
@@ -1123,11 +1111,9 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 		// verify the ApplicationSet status conditions were set correctly
 		Expect(ApplicationSetHasConditions("sync-policy-create-only", ExpectedConditions)).
 
-		// Delete the ApplicationSet, and verify it not deletes the Applications
-		// As policy is create-update, AppSet controller will remove all generated applications's ownerReferences on delete AppSet
-		// So AppSet deletion will be reflected, but all the applications it generates will still exist
+		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsExist([]argov1alpha1.Application{*expectedAppNewNamespace}))
+		Delete().Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{*expectedAppNewNamespace}))
 }
 
 func TestSimpleGitDirectoryGenerator(t *testing.T) {
@@ -2107,7 +2093,6 @@ func TestSimpleGitFilesPreserveResourcesOnDeletionGoTemplate(t *testing.T) {
 }
 
 func githubSCMMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
-	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
@@ -2297,7 +2282,6 @@ func githubSCMMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request)
 }
 
 func testServerWithPort(t *testing.T, port int, handler http.Handler) *httptest.Server {
-	t.Helper()
 	// Use mocked API response to avoid rate-limiting.
 	l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
@@ -2675,7 +2659,6 @@ func TestCustomApplicationFinalizersGoTemplate(t *testing.T) {
 }
 
 func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
-	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
@@ -2683,7 +2666,6 @@ func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request
 			_, err := io.WriteString(w, `[
   {
     "number": 1,
-    "title": "title1",
     "labels": [
       {
         "name": "preview"
@@ -2696,10 +2678,7 @@ func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request
     "head": {
       "ref": "pull-request",
       "sha": "824a5c987fdfb2b0629e9dbf5f31636c69ba4772"
-    },
-	"user": {
-	  "login": "testName"
-	}
+    }
   }
 ]`)
 			if err != nil {
@@ -2709,219 +2688,6 @@ func githubPullMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request
 			w.WriteHeader(http.StatusNotFound)
 		}
 	}
-}
-
-func TestSimpleSCMProviderGeneratorTokenRefStrictOk(t *testing.T) {
-	secretName := uuid.New().String()
-
-	ts := testServerWithPort(t, 8341, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		githubSCMMockHandler(t)(w, r)
-	}))
-
-	ts.Start()
-	defer ts.Close()
-
-	expectedApp := argov1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "argo-cd-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-		},
-		Spec: argov1alpha1.ApplicationSpec{
-			Project: "default",
-			Source: &argov1alpha1.ApplicationSource{
-				RepoURL:        "git@github.com:argoproj/argo-cd.git",
-				TargetRevision: "master",
-				Path:           "guestbook",
-			},
-			Destination: argov1alpha1.ApplicationDestination{
-				Server:    "https://kubernetes.default.svc",
-				Namespace: "guestbook",
-			},
-		},
-	}
-
-	// Because you can't &"".
-	repoMatch := "argo-cd"
-
-	Given(t).
-		And(func() {
-			_, err := utils.GetE2EFixtureK8sClient().KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Create(context.Background(), &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: fixture.TestNamespace(),
-					Name:      secretName,
-					Labels: map[string]string{
-						common.LabelKeySecretType: common.LabelValueSecretTypeSCMCreds,
-					},
-				},
-				Data: map[string][]byte{
-					"hello": []byte("world"),
-				},
-			}, metav1.CreateOptions{})
-
-			assert.NoError(t, err)
-		}).
-		// Create an SCMProviderGenerator-based ApplicationSet
-		When().Create(v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "simple-scm-provider-generator-strict",
-		},
-		Spec: v1alpha1.ApplicationSetSpec{
-			Template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{ repository }}-guestbook"},
-				Spec: argov1alpha1.ApplicationSpec{
-					Project: "default",
-					Source: &argov1alpha1.ApplicationSource{
-						RepoURL:        "{{ url }}",
-						TargetRevision: "{{ branch }}",
-						Path:           "guestbook",
-					},
-					Destination: argov1alpha1.ApplicationDestination{
-						Server:    "https://kubernetes.default.svc",
-						Namespace: "guestbook",
-					},
-				},
-			},
-			Generators: []v1alpha1.ApplicationSetGenerator{
-				{
-					SCMProvider: &v1alpha1.SCMProviderGenerator{
-						Github: &v1alpha1.SCMProviderGeneratorGithub{
-							Organization: "argoproj",
-							API:          ts.URL,
-							TokenRef: &argov1alpha1.SecretRef{
-								SecretName: secretName,
-								Key:        "hello",
-							},
-						},
-						Filters: []v1alpha1.SCMProviderGeneratorFilter{
-							{
-								RepositoryMatch: &repoMatch,
-							},
-						},
-					},
-				},
-			},
-		},
-	}).Then().Expect(ApplicationsExist([]argov1alpha1.Application{expectedApp})).
-		When().And(func() {
-		err := utils.GetE2EFixtureK8sClient().KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Delete(context.Background(), secretName, metav1.DeleteOptions{})
-		assert.NoError(t, err)
-	})
-}
-
-func TestSimpleSCMProviderGeneratorTokenRefStrictKo(t *testing.T) {
-	secretName := uuid.New().String()
-
-	ts := testServerWithPort(t, 8341, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		githubSCMMockHandler(t)(w, r)
-	}))
-
-	ts.Start()
-	defer ts.Close()
-
-	expectedApp := argov1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "argo-cd-guestbook",
-			Namespace:  fixture.TestNamespace(),
-			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
-			Labels: map[string]string{
-				common.LabelKeyAppInstance: "simple-scm-provider-generator-strict-ko",
-			},
-		},
-		Spec: argov1alpha1.ApplicationSpec{
-			Project: "default",
-			Source: &argov1alpha1.ApplicationSource{
-				RepoURL:        "git@github.com:argoproj/argo-cd.git",
-				TargetRevision: "master",
-				Path:           "guestbook",
-			},
-			Destination: argov1alpha1.ApplicationDestination{
-				Server:    "https://kubernetes.default.svc",
-				Namespace: "guestbook",
-			},
-		},
-	}
-
-	// Because you can't &"".
-	repoMatch := "argo-cd"
-
-	Given(t).
-		And(func() {
-			_, err := utils.GetE2EFixtureK8sClient().KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Create(context.Background(), &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: fixture.TestNamespace(),
-					Name:      secretName,
-					Labels: map[string]string{
-						// Try to exfiltrate cluster secret
-						common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-					},
-				},
-				Data: map[string][]byte{
-					"hello": []byte("world"),
-				},
-			}, metav1.CreateOptions{})
-
-			assert.NoError(t, err)
-		}).
-		// Create an SCMProviderGenerator-based ApplicationSet
-		When().Create(v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "simple-scm-provider-generator-strict-ko",
-		},
-		Spec: v1alpha1.ApplicationSetSpec{
-			Template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{ repository }}-guestbook"},
-				Spec: argov1alpha1.ApplicationSpec{
-					Project: "default",
-					Source: &argov1alpha1.ApplicationSource{
-						RepoURL:        "{{ url }}",
-						TargetRevision: "{{ branch }}",
-						Path:           "guestbook",
-					},
-					Destination: argov1alpha1.ApplicationDestination{
-						Server:    "https://kubernetes.default.svc",
-						Namespace: "guestbook",
-					},
-				},
-			},
-			Generators: []v1alpha1.ApplicationSetGenerator{
-				{
-					SCMProvider: &v1alpha1.SCMProviderGenerator{
-						Github: &v1alpha1.SCMProviderGeneratorGithub{
-							Organization: "argoproj",
-							API:          ts.URL,
-							TokenRef: &argov1alpha1.SecretRef{
-								SecretName: secretName,
-								Key:        "hello",
-							},
-						},
-						Filters: []v1alpha1.SCMProviderGeneratorFilter{
-							{
-								RepositoryMatch: &repoMatch,
-							},
-						},
-					},
-				},
-			},
-		},
-	}).Then().Expect(ApplicationsDoNotExist([]argov1alpha1.Application{expectedApp})).
-		When().
-		And(func() {
-			// app should be listed
-			output, err := fixture.RunCli("appset", "get", "simple-scm-provider-generator-strict-ko")
-			require.NoError(t, err)
-			assert.Contains(t, output, fmt.Sprintf("scm provider: error fetching Github token: secret %s/%s is not a valid SCM creds secret", fixture.TestNamespace(), secretName))
-			err2 := utils.GetE2EFixtureK8sClient().KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Delete(context.Background(), secretName, metav1.DeleteOptions{})
-			assert.NoError(t, err2)
-		})
 }
 
 func TestSimplePullRequestGenerator(t *testing.T) {

@@ -5,14 +5,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"net/http"
-	"os"
 	"sort"
 	"strings"
 	"testing"
 	"time"
-
-	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -56,16 +52,6 @@ func fixtures(data map[string]string, opts ...func(secret *v1.Secret)) (*fake.Cl
 	return kubeClient, settingsManager
 }
 
-func TestDocumentedArgoCDConfigMapIsValid(t *testing.T) {
-	var argocdCM *v1.ConfigMap
-	settings := ArgoCDSettings{}
-	data, err := os.ReadFile("../../docs/operator-manual/argocd-cm.yaml")
-	require.NoError(t, err)
-	err = yaml.Unmarshal(data, &argocdCM)
-	require.NoError(t, err)
-	updateSettingsFromConfigMap(&settings, argocdCM)
-}
-
 func TestGetRepositories(t *testing.T) {
 	_, settingsManager := fixtures(map[string]string{
 		"repositories": "\n  - url: http://foo\n",
@@ -73,52 +59,6 @@ func TestGetRepositories(t *testing.T) {
 	filter, err := settingsManager.GetRepositories()
 	require.NoError(t, err)
 	assert.Equal(t, []Repository{{URL: "http://foo"}}, filter)
-}
-
-func TestGetExtensionConfigs(t *testing.T) {
-	type cases struct {
-		name        string
-		input       map[string]string
-		expected    map[string]string
-		expectedLen int
-	}
-
-	testCases := []cases{
-		{
-			name:        "will return main config successfully",
-			expectedLen: 1,
-			input: map[string]string{
-				extensionConfig: "test",
-			},
-			expected: map[string]string{
-				"": "test",
-			},
-		},
-		{
-			name:        "will return main and additional config successfully",
-			expectedLen: 2,
-			input: map[string]string{
-				extensionConfig: "main config",
-				fmt.Sprintf("%s.anotherExtension", extensionConfig): "another config",
-			},
-			expected: map[string]string{
-				"":                 "main config",
-				"anotherExtension": "another config",
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			// When
-			output := getExtensionConfigs(tc.input)
-
-			// Then
-			assert.Len(t, output, tc.expectedLen)
-			assert.Equal(t, tc.expected, output)
-		})
-	}
 }
 
 func TestSaveRepositories(t *testing.T) {
@@ -246,23 +186,16 @@ func TestGetServerRBACLogEnforceEnableKeyDefaultFalse(t *testing.T) {
 }
 
 func TestGetIsIgnoreResourceUpdatesEnabled(t *testing.T) {
-	_, settingsManager := fixtures(nil)
-	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
-	require.NoError(t, err)
-	assert.True(t, ignoreResourceUpdatesEnabled)
-
-	_, settingsManager = fixtures(map[string]string{
+	_, settingsManager := fixtures(map[string]string{
 		"resource.ignoreResourceUpdatesEnabled": "true",
 	})
-	ignoreResourceUpdatesEnabled, err = settingsManager.GetIsIgnoreResourceUpdatesEnabled()
+	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
 	require.NoError(t, err)
 	assert.True(t, ignoreResourceUpdatesEnabled)
 }
 
-func TestGetIsIgnoreResourceUpdatesEnabledFalse(t *testing.T) {
-	_, settingsManager := fixtures(map[string]string{
-		"resource.ignoreResourceUpdatesEnabled": "false",
-	})
+func TestGetIsIgnoreResourceUpdatesEnabledDefaultFalse(t *testing.T) {
+	_, settingsManager := fixtures(nil)
 	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
 	require.NoError(t, err)
 	assert.False(t, ignoreResourceUpdatesEnabled)
@@ -1274,7 +1207,8 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		)
 		settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
-		require.ErrorContains(t, err, "could not read from secret")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "could not read from secret")
 		assert.NotNil(t, settings)
 	})
 	t.Run("No external TLS secret", func(t *testing.T) {
@@ -1667,156 +1601,4 @@ func TestReplaceStringSecret(t *testing.T) {
 
 	result = ReplaceStringSecret("my-value", secretValues)
 	assert.Equal(t, "my-value", result)
-}
-
-func TestRedirectURLForRequest(t *testing.T) {
-	generateRequest := func(url string) *http.Request {
-		r, err := http.NewRequest(http.MethodPost, url, nil)
-		require.NoError(t, err)
-		return r
-	}
-
-	testCases := []struct {
-		Name        string
-		Settings    *ArgoCDSettings
-		Request     *http.Request
-		ExpectedURL string
-		ExpectError bool
-	}{
-		{
-			Name: "Single URL",
-			Settings: &ArgoCDSettings{
-				URL: "https://example.org",
-			},
-			Request:     generateRequest("https://example.org/login"),
-			ExpectedURL: "https://example.org/auth/callback",
-			ExpectError: false,
-		},
-		{
-			Name: "Request does not match configured URL.",
-			Settings: &ArgoCDSettings{
-				URL: "https://otherhost.org",
-			},
-			Request:     generateRequest("https://example.org/login"),
-			ExpectedURL: "https://otherhost.org/auth/callback",
-			ExpectError: false,
-		},
-		{
-			Name: "Cannot parse URL.",
-			Settings: &ArgoCDSettings{
-				URL: ":httpsotherhostorg",
-			},
-			Request:     generateRequest("https://example.org/login"),
-			ExpectedURL: "",
-			ExpectError: true,
-		},
-		{
-			Name: "Match extended URL in settings.URL.",
-			Settings: &ArgoCDSettings{
-				URL:            "https://otherhost.org",
-				AdditionalURLs: []string{"https://anotherhost.org"},
-			},
-			Request:     generateRequest("https://anotherhost.org/login"),
-			ExpectedURL: "https://anotherhost.org/auth/callback",
-			ExpectError: false,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			result, err := tc.Settings.RedirectURLForRequest(tc.Request)
-			assert.Equal(t, tc.ExpectedURL, result)
-			if tc.ExpectError {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-			}
-		})
-	}
-}
-
-func TestRedirectAdditionalURLs(t *testing.T) {
-	testCases := []struct {
-		Name           string
-		Settings       *ArgoCDSettings
-		ExpectedResult []string
-		ExpectedError  bool
-	}{
-		{
-			Name: "Good case with two AdditionalURLs",
-			Settings: &ArgoCDSettings{
-				URL:            "https://example.org",
-				AdditionalURLs: []string{"https://anotherhost.org", "https://yetanother.org"},
-			},
-			ExpectedResult: []string{
-				"https://anotherhost.org/auth/callback",
-				"https://yetanother.org/auth/callback",
-			},
-			ExpectedError: false,
-		},
-		{
-			Name: "Bad URL causes error",
-			Settings: &ArgoCDSettings{
-				URL:            "https://example.org",
-				AdditionalURLs: []string{":httpsotherhostorg"},
-			},
-			ExpectedResult: []string{},
-			ExpectedError:  true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			result, err := tc.Settings.RedirectAdditionalURLs()
-			if tc.ExpectedError {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-			}
-			require.Equal(t, tc.ExpectedResult, result)
-		})
-	}
-}
-
-func TestIsImpersonationEnabled(t *testing.T) {
-	// When there is no argocd-cm itself,
-	// Then IsImpersonationEnabled() must return false (default value) and an error with appropriate error message.
-	kubeClient := fake.NewSimpleClientset()
-	settingsManager := NewSettingsManager(context.Background(), kubeClient, "default")
-	featureFlag, err := settingsManager.IsImpersonationEnabled()
-	require.False(t, featureFlag,
-		"with no argocd-cm config map, IsImpersonationEnabled() must return return false (default value)")
-	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
-		"with no argocd-cm config map, IsImpersonationEnabled() must return an error")
-
-	// When there is no impersonation feature flag present in the argocd-cm,
-	// Then IsImpersonationEnabled() must return false (default value) and nil error.
-	_, settingsManager = fixtures(map[string]string{})
-	featureFlag, err = settingsManager.IsImpersonationEnabled()
-	require.False(t, featureFlag,
-		"with empty argocd-cm config map, IsImpersonationEnabled() must return false (default value)")
-	require.NoError(t, err,
-		"with empty argocd-cm config map, IsImpersonationEnabled() must not return any error")
-
-	// When user disables the feature explicitly,
-	// Then IsImpersonationEnabled() must return false and nil error.
-	_, settingsManager = fixtures(map[string]string{
-		"application.sync.impersonation.enabled": "false",
-	})
-	featureFlag, err = settingsManager.IsImpersonationEnabled()
-	require.False(t, featureFlag,
-		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must return user set value")
-	require.NoError(t, err,
-		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must not return any error")
-
-	// When user enables the feature explicitly,
-	// Then IsImpersonationEnabled() must return true and nil error.
-	_, settingsManager = fixtures(map[string]string{
-		"application.sync.impersonation.enabled": "true",
-	})
-	featureFlag, err = settingsManager.IsImpersonationEnabled()
-	require.True(t, featureFlag,
-		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must return user set value")
-	require.NoError(t, err,
-		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must not return any error")
 }

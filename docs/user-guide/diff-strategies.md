@@ -16,11 +16,9 @@ Argo CD currently has 3 different strategies to calculate diffs:
   in dryrun mode in order to generate the predicted live state.
 
 ## Structured-Merge Diff
+*Current Status: [Beta][1] (Since v2.5.0)*
 
-!!! warning "Beta Feature (Since v2.5.0)"
-    This feature is in the [Beta][1] stage. It is generally considered stable, but there may be unhandled edge cases.
-
-This diff strategy is automatically used when Server-Side Apply
+This is diff strategy is automatically used when Server-Side Apply
 sync option is enabled. It uses the [structured-merge-diff][2] library
 used by Kubernetes to calculate diffs based on fields ownership. There
 are some challenges using this strategy to calculate diffs for CRDs
@@ -29,9 +27,7 @@ the community, this strategy is being discontinued in favour of
 Server-Side Diff.
 
 ## Server-Side Diff
-
-!!! warning "Beta Feature (Since v2.10.0)"
-    This feature is in the [Beta][1] stage. It is generally considered stable, but there may be unhandled edge cases.
+*Current Status: [Beta][1] (Since v2.10.0)*
 
 This diff strategy will execute a Server-Side Apply in dryrun mode for
 each resource of the application. The response of this operation is then

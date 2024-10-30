@@ -27,20 +27,6 @@ The sync-status panel shows that pruning was skipped, and why:
 
 The app will be out of sync if Argo CD expects a resource to be pruned. You may wish to use this along with [compare options](compare-options.md).
 
-## Resource Pruning With Confirmation
-
-Resources such as Namespaces are critical and should not be pruned without confirmation. You can set the `Prune=confirm`
-sync option to require manual confirmation before pruning.
-
-```yaml
-metadata:
-  annotations:
-    argocd.argoproj.io/sync-options: Prune=confirm
-```
-
-To confirm the pruning you can use Argo CD UI, CLI or manually apply the `argocd.argoproj.io/deletion-approved: <ISO formatted timestamp>`
-annotation to the application.
-
 ## Disable Kubectl Validation
 
 For a certain class of objects, it is necessary to `kubectl apply` them using the `--validate=false` flag. Examples of this are Kubernetes types which uses `RawExtension`, such as [ServiceCatalog](https://github.com/kubernetes-incubator/service-catalog/blob/master/pkg/apis/servicecatalog/v1beta1/types.go#L497). You can do using this annotations:
@@ -83,20 +69,6 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-options: Delete=false
 ```
-
-## Resource Deletion With Confirmation
-
-Resources such as Namespaces are critical and should not be deleted without confirmation. You can set the `Delete=confirm`
-sync option to require manual confirmation before deletion.
-
-```yaml
-metadata:
-  annotations:
-    argocd.argoproj.io/sync-options: Delete=confirm
-```
-
-To confirm the deletion you can use Argo CD UI, CLI or manually apply the `argocd.argoproj.io/deletion-approved: <ISO formatted timestamp>`
-annotation to the application.
 
 ## Selective Sync
 

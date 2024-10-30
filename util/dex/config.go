@@ -2,14 +2,11 @@ package dex
 
 import (
 	"fmt"
-	"os"
 
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-
-	log "github.com/sirupsen/logrus"
 )
 
 func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTls bool) ([]byte, error) {
@@ -41,20 +38,6 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTls b
 		}
 	}
 
-	if loggerCfg, found := dexCfg["logger"].(map[string]interface{}); found {
-		if _, found := loggerCfg["level"]; !found {
-			loggerCfg["level"] = slogLevelFromLogrus(os.Getenv(common.EnvLogLevel))
-		}
-		if _, found := loggerCfg["format"]; !found {
-			loggerCfg["format"] = os.Getenv(common.EnvLogFormat)
-		}
-	} else {
-		dexCfg["logger"] = map[string]interface{}{
-			"level":  slogLevelFromLogrus(os.Getenv(common.EnvLogLevel)),
-			"format": os.Getenv(common.EnvLogFormat),
-		}
-	}
-
 	dexCfg["grpc"] = map[string]interface{}{
 		"addr": "0.0.0.0:5557",
 	}
@@ -72,15 +55,13 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTls b
 		}
 	}
 
-	additionalRedirectURLs, err := argocdSettings.RedirectAdditionalURLs()
-	if err != nil {
-		return nil, fmt.Errorf("failed to infer additional redirect urls from config: %w", err)
-	}
 	argoCDStaticClient := map[string]interface{}{
-		"id":           common.ArgoCDClientAppID,
-		"name":         common.ArgoCDClientAppName,
-		"secret":       argocdSettings.DexOAuth2ClientSecret(),
-		"redirectURIs": append([]string{redirectURL}, additionalRedirectURLs...),
+		"id":     common.ArgoCDClientAppID,
+		"name":   common.ArgoCDClientAppName,
+		"secret": argocdSettings.DexOAuth2ClientSecret(),
+		"redirectURIs": []string{
+			redirectURL,
+		},
 	}
 	argoCDPKCEStaticClient := map[string]interface{}{
 		"id":   "argo-cd-pkce",
@@ -146,24 +127,4 @@ func needsRedirectURI(connectorType string) bool {
 		return true
 	}
 	return false
-}
-
-func slogLevelFromLogrus(level string) string {
-	logrusLevel, err := log.ParseLevel(level)
-	if err != nil {
-		return level
-	}
-
-	switch logrusLevel {
-	case log.DebugLevel, log.TraceLevel:
-		return "DEBUG"
-	case log.InfoLevel:
-		return "INFO"
-	case log.WarnLevel:
-		return "WARN"
-	case log.ErrorLevel, log.FatalLevel, log.PanicLevel:
-		return "ERROR"
-	}
-	// return the logrus level and let slog parse it
-	return level
 }

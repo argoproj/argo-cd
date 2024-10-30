@@ -13,31 +13,24 @@ argocd appset create [flags]
 ```
   # Create ApplicationSets
   argocd appset create <filename or URL> (<filename or URL>...)
-  
-  # Dry-run AppSet creation to see what applications would be managed
-  argocd appset create --dry-run <filename or URL> -o json | jq -r '.status.resources[].name'
 ```
 
 ### Options
 
 ```
-      --dry-run         Allows to evaluate the ApplicationSet template on the server to get a preview of the applications that would be created
-  -h, --help            help for create
-  -o, --output string   Output format. One of: json|yaml|wide (default "wide")
-      --upsert          Allows to override ApplicationSet with the same name even if supplied ApplicationSet spec is different from existing spec
+  -h, --help     help for create
+      --upsert   Allows to override ApplicationSet with the same name even if supplied ApplicationSet spec is different from existing spec
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --argocd-context string           The name of the Argo-CD server context to use
-      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
+      --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --controller-name string          Name of the Argo CD Application controller; set this or the ARGOCD_APPLICATION_CONTROLLER_NAME environment variable when the controller's name label differs from the default, for example when installing via the Helm chart (default "argocd-application-controller")
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
-      --force-prompts-enabled           Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)

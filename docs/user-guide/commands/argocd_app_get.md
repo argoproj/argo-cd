@@ -26,9 +26,6 @@ argocd app get APPNAME [flags]
   # Show application parameters and overrides
   argocd app get my-app --show-params
   
-  # Show application parameters and overrides for a source at position 1 under spec.sources of app my-app
-  argocd app get my-app --show-params --source-position 1
-  
   # Refresh application data when retrieving
   argocd app get my-app --refresh
   
@@ -52,20 +49,17 @@ argocd app get APPNAME [flags]
       --refresh                Refresh application data when retrieving
       --show-operation         Show application operation
       --show-params            Show application parameters and overrides
-      --source-position int    Position of the source from the list of sources of the app. Counting starts at 1. (default -1)
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --argocd-context string           The name of the Argo-CD server context to use
-      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
+      --auth-token string               Authentication token
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --controller-name string          Name of the Argo CD Application controller; set this or the ARGOCD_APPLICATION_CONTROLLER_NAME environment variable when the controller's name label differs from the default, for example when installing via the Helm chart (default "argocd-application-controller")
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
-      --force-prompts-enabled           Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)

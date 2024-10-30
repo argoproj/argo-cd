@@ -156,13 +156,13 @@ func TestParseAppInstanceValueColon(t *testing.T) {
 func TestParseAppInstanceValueWrongFormat1(t *testing.T) {
 	resourceTracking := NewResourceTracking()
 	_, err := resourceTracking.ParseAppInstanceValue("app")
-	require.ErrorIs(t, err, WrongResourceTrackingFormat)
+	require.Error(t, err, WrongResourceTrackingFormat)
 }
 
 func TestParseAppInstanceValueWrongFormat2(t *testing.T) {
 	resourceTracking := NewResourceTracking()
 	_, err := resourceTracking.ParseAppInstanceValue("app;group/kind/ns")
-	require.ErrorIs(t, err, WrongResourceTrackingFormat)
+	require.Error(t, err, WrongResourceTrackingFormat)
 }
 
 func TestParseAppInstanceValueCorrectFormat(t *testing.T) {
@@ -172,7 +172,6 @@ func TestParseAppInstanceValueCorrectFormat(t *testing.T) {
 }
 
 func sampleResource(t *testing.T) *unstructured.Unstructured {
-	t.Helper()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 	var obj *unstructured.Unstructured
