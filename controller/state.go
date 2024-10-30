@@ -235,7 +235,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 				HasMultipleSources: app.Spec.HasMultipleSources(),
 			})
 			if err != nil {
-				logCtx.Warnf("failed to generate manifest for source %d of %d: %v", i+1, len(sources), err)
+				logCtx.Warnf("failed to compare revisions for source %d of %d: %v", i+1, len(sources), err)
 			}
 
 			if updateRevisionResult != nil {
