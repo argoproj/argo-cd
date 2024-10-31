@@ -35,6 +35,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Axians ACSP](https://www.axians.fr)
 1. [Axual B.V.](https://axual.com)
 1. [Back Market](https://www.backmarket.com)
+1. [Bajaj Finserv Health Ltd.](https://www.bajajfinservhealth.in)
 1. [Baloise](https://www.baloise.com)
 1. [BCDevExchange DevOps Platform](https://bcdevexchange.org/DevOpsPlatform)
 1. [Beat](https://thebeat.co/en/)
