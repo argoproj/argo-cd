@@ -107,12 +107,16 @@ func TestAppProject_IsNegatedSourcePermitted(t *testing.T) {
 }
 
 func TestAppProject_IsDestinationPermitted(t *testing.T) {
+	t.Parallel()
+
 	testData := []struct {
+		name        string
 		projDest    []ApplicationDestination
 		appDest     ApplicationDestination
 		isPermitted bool
 	}{
 		{
+			name: "server an namespace match",
 			projDest: []ApplicationDestination{{
 				Server: "https://kubernetes.default.svc", Namespace: "default",
 			}},
@@ -120,6 +124,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: true,
 		},
 		{
+			name: "namespace does not match",
 			projDest: []ApplicationDestination{{
 				Server: "https://kubernetes.default.svc", Namespace: "default",
 			}},
@@ -127,6 +132,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: false,
 		},
 		{
+			name: "server does not match",
 			projDest: []ApplicationDestination{{
 				Server: "https://my-cluster", Namespace: "default",
 			}},
@@ -134,6 +140,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: false,
 		},
 		{
+			name: "wildcard namespace",
 			projDest: []ApplicationDestination{{
 				Server: "https://kubernetes.default.svc", Namespace: "*",
 			}},
@@ -141,6 +148,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: true,
 		},
 		{
+			name: "wildcard server",
 			projDest: []ApplicationDestination{{
 				Server: "https://*.default.svc", Namespace: "default",
 			}},
@@ -148,6 +156,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: true,
 		},
 		{
+			name: "wildcard server and namespace",
 			projDest: []ApplicationDestination{{
 				Server: "https://team1-*", Namespace: "default",
 			}},
@@ -155,6 +164,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: false,
 		},
 		{
+			name: "wildcard namespace with prefix",
 			projDest: []ApplicationDestination{{
 				Server: "https://kubernetes.default.svc", Namespace: "test-*",
 			}},
@@ -162,6 +172,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: true,
 		},
 		{
+			name: "wildcard namespace without prefix",
 			projDest: []ApplicationDestination{{
 				Server: "https://kubernetes.default.svc", Namespace: "test-*",
 			}},
@@ -169,6 +180,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: false,
 		},
 		{
+			name: "wildcard server and namespace",
 			projDest: []ApplicationDestination{{
 				Server: "*", Namespace: "*",
 			}},
@@ -176,6 +188,7 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: true,
 		},
 		{
+			name: "wildcard server and namespace with name",
 			projDest: []ApplicationDestination{{
 				Server: "", Namespace: "*", Name: "test",
 			}},
@@ -183,24 +196,51 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: true,
 		},
 		{
+			name: "wildcard server and namespace with different name",
 			projDest: []ApplicationDestination{{
 				Server: "", Namespace: "*", Name: "test2",
 			}},
 			appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
 			isPermitted: false,
 		},
+		/**
+		  - name: host-cluster
+		    namespace: '!{kube-system,argocd}'
+		    server: 'https://kubernetes.default.svc'
+		  - name: destination-cluster-01
+		    namespace: '*'
+		    server: 'https://eks-cluster-endpoint.ap-southeast-1.eks.amazonaws.com'
+
+		  destination:
+		    server: https://eks-cluster-endpoint.ap-southeast-1.eks.amazonaws.com
+		    namespace: karpenter
+		*/
+		{
+			name: "negated namespace with multiple values",
+			projDest: []ApplicationDestination{
+				{Name: "host-cluster", Server: "https://kubernetes.default.svc", Namespace: "!{kube-system,argocd}"},
+				{Name: "destination-cluster-01", Server: "https://eks-cluster-endpoint.ap-southeast-1.eks.amazonaws.com", Namespace: "*"},
+			},
+			appDest:     ApplicationDestination{Server: "https://eks-cluster-endpoint.ap-southeast-1.eks.amazonaws.com", Namespace: "kube-system"},
+			isPermitted: true,
+		},
 	}
 
 	for _, data := range testData {
-		proj := AppProject{
-			Spec: AppProjectSpec{
-				Destinations: data.projDest,
-			},
-		}
-		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
-			return []*Cluster{}, nil
+		data := data
+		t.Run(data.name, func(t *testing.T) {
+			t.Parallel()
+
+			proj := AppProject{
+				Spec: AppProjectSpec{
+					Destinations: data.projDest,
+				},
+			}
+			permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
+				return []*Cluster{}, nil
+			})
+			assert.Equal(t, data.isPermitted, permitted)
 		})
-		assert.Equal(t, data.isPermitted, permitted)
 	}
 }
 
