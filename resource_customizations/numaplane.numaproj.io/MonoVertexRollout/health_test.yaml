@@ -8,6 +8,10 @@ tests:
     message: "Successful"
   inputPath: testdata/MonoVertexRollout/healthy.yaml
 - healthStatus:
+    status: Suspended
+    message: "MonoVertex paused"
+  inputPath: testdata/MonoVertexRollout/paused.yaml
+- healthStatus:
     status: Degraded
     message: "MonoVertex Failed"
   inputPath: testdata/MonoVertexRollout/degraded.yaml

@@ -1,5 +1,6 @@
 local hs = {}
 local healthyCondition = {}
+local monoVertexPaused = {}
 
 -- check for certain cases of "Progressing"
 
@@ -35,6 +36,9 @@ if obj.status.conditions ~= nil then
     if condition.type == "ChildResourcesHealthy" then
       healthyCondition = condition
     end
+    if condition.type == "MonoVertexPausingOrPaused" then
+      monoVertexPaused = condition
+    end
   end
 end
 
@@ -50,6 +54,10 @@ if (healthyCondition ~= {} and healthyCondition.status == "False" and healthyCon
 elseif healthyCondition ~= {} and healthyCondition.status == "False" and healthyCondition.reason == "Progressing" then
   hs.status = "Progressing"
   hs.message = healthyCondition.message
+  return hs
+elseif (monoVertexPaused ~= {} and monoVertexPaused.status == "True") then
+  hs.status = "Suspended"
+  hs.message = monoVertexPaused.message
   return hs
 elseif healthyCondition ~= {} and healthyCondition.status == "True" and obj.status.phase == "Deployed" then
   hs.status = "Healthy"
