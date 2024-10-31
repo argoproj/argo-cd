@@ -46,6 +46,30 @@
         margin-left: -1em;
     }
 
+    .collapsed-section {
+        margin-top: 20px;
+        padding: 20px;
+        border: 1px solid;
+        box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.1);
+        border-radius: '4px';
+        @include themify($themes) {
+            border-color: themed('border');
+            box-shadow: themed('shadow');
+        }
+    }
+
+    .expanded-section {
+        margin-top: 20px;
+        padding: 20px;
+        border: 2px solid;
+        box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.1);
+        border-radius: '4px';
+        @include themify($themes) {
+            border-color: themed('border');
+            box-shadow: themed('shadow');
+        }
+    }
+
     .separator {
         height: 2px;
         margin: 1em 0;

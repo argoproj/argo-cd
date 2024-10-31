@@ -26,7 +26,6 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
 
     const [showParameterDetails, setShowParameterDetails] = React.useState(Boolean);
     const [showSourceDetails, setShowSourceDetails] = React.useState([]);
-    const singleSourceTopMargin: string = '20px';
     const updateMap = (i: number) => {
         if (i === null || i === undefined) {
             return;
@@ -38,19 +37,18 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
         }
     };
 
-    const getCollapsedSection = (i: number, repoURL: string, topMargin: string): React.ReactFragment => {
+    const getCollapsedSection = (i: number, repoURL: string): React.ReactFragment => {
         return (
             <div
                 id={i ? `'hide-parameters-'${i}` : 'hide-parameters'}
-                key={i ? `'hide-parameters-'${i}` : 'hide-parameters'}
-                className='settings-overview__redirect-panel'
-                style={{marginTop: topMargin, border: '1px solid rgba(0, 0, 0, 0.1)'}}
+                key={i ? `'hide-parameters-'${i}` : 'hide-parameters2'}
+                className='settings-overview__redirect-panel collapsed-section'
                 onClick={() => {
                     setShowParameterDetails(!showParameterDetails);
                     updateMap(i);
                 }}>
                 <div className='editable-panel__collapsible-button'>
-                    <i className={`fa fa-angle-down filter__collapse`} />
+                    <i className={`fa fa-angle-down filter__collapse editable-panel__collapsible-button__override`} />
                 </div>
 
                 <div style={{textAlign: 'center'}}>
@@ -66,7 +64,7 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
             <React.Fragment>
                 <div id={index ? `'show-parameters-'${index}` : 'show-parameters'} className='editable-panel__collapsible-button' style={{zIndex: 1001}}>
                     <i
-                        className={`fa fa-angle-up filter__collapse`}
+                        className={`fa fa-angle-up filter__collapse editable-panel__collapsible-button__override`}
                         onClick={() => {
                             setShowParameterDetails(!showParameterDetails);
                             updateMap(index);
@@ -109,15 +107,8 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
                         <div
                             id={`'history-expanded'`}
                             key={`'history-expanded'`}
-                            className={classNames('white-box')}
-                            style={{
-                                marginTop: singleSourceTopMargin,
-                                padding: '20px',
-                                border: '2px solid rgba(0, 0, 0, 0.1)',
-                                boxShadow: '1px 2px 3px rgba(0, 0, 0, 0.1)',
-                                borderRadius: '4px'
-                            }}>
-                            {getExpandedSection(null)}
+                            className={classNames('white-box','expanded-section')}>
+                            {getExpandedSection()}
                             <DataLoader
                                 errorRenderer={err => {
                                     return getErrorSection(err);
@@ -138,7 +129,7 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
                             </DataLoader>
                         </div>
                     ) : (
-                        getCollapsedSection(null, recentDeployments[index].source.repoURL, singleSourceTopMargin)
+                        getCollapsedSection(null, recentDeployments[index].source.repoURL)
                     )}
                 </React.Fragment>
             ) : (
@@ -170,14 +161,7 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
                             <div
                                 id={`'history-expanded-'${i}`}
                                 key={`'history-expanded-'${i}`}
-                                className={classNames('white-box')}
-                                style={{
-                                    marginTop: '20px',
-                                    padding: '0px',
-                                    border: '2px solid rgba(0, 0, 0, 0.1)',
-                                    boxShadow: '1px 2px 3px rgba(0, 0, 0, 0.1)',
-                                    borderRadius: '4px'
-                                }}>
+                                className={classNames('white-box','expanded-section')}>
                                 <div id={`'history-expanded-'${i}`} key={`'history-expanded-'${i}`} className='white-box__details' style={{marginBottom: '0px'}}>
                                     {getExpandedSection(i)}
                                     <DataLoader
@@ -194,10 +178,8 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
                                         load={src => services.repos.appDetails(src, src.appName, app.spec.project, i, recentDeployments[index].id)}>
                                         {(details: models.RepoAppDetails) => (
                                             <React.Fragment>
-                                                <div
-                                                    id={'floating_title_' + i}
-                                                    className='editable-panel__sticky-title'>
-                                                    <div style={{marginTop: '20px'}}>
+                                                <div id={'floating_title_' + i} className='editable-panel__sticky-title'>
+                                                    <div style={{marginTop: '0px'}}>
                                                         <div>Source {i + 1} Parameters</div>
                                                         <div>Repo URL: {source.repoURL}</div>
                                                         <div>{source.path ? 'Path: ' + source.path : ''}</div>
@@ -219,7 +201,7 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
                                 </div>
                             </div>
                         ) : (
-                            getCollapsedSection(i, source.repoURL, '20px')
+                            getCollapsedSection(i, source.repoURL)
                         )}
                     </React.Fragment>
                 ))
