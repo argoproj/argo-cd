@@ -313,7 +313,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         const getContentForNonChart = (
             aRevision: string,
             aSourceIndex: number,
-            aVersionId: number,
+            aVersionId: number | null,
             indx: number,
             aSource: models.ApplicationSource,
             sourceHeader?: JSX.Element
