@@ -1,4 +1,4 @@
-import {Checkbox, DropDown, Duration, NotificationType, Ticker, HelpIcon, Tooltip} from 'argo-ui';
+import {Checkbox, DropDown, Duration, NotificationType, Ticker, HelpIcon, Tooltip, DataLoader} from 'argo-ui';
 import * as moment from 'moment';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -15,7 +15,8 @@ interface Props {
     application: models.Application;
     operationState: models.OperationState;
 }
-const buildResourceUniqueId = (res: Omit<models.ResourceRef, 'uid'>) => `${res.group}-${res.kind}-${res.version}-${res.namespace}-${res.name}`;
+const buildResourceUniqueId = (res: Omit<models.ResourceRef, 'uid'>) =>
+    `${res.group || ''}-${res.kind || ''}-${res.version || ''}-${res.kind === 'Namespace' ? res.name : res.kind}-${res.name}`;
 const FilterableMessageStatuses = ['Changed', 'Unchanged'];
 
 const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; options: string[]; title: string; style?: React.CSSProperties}) => {
@@ -141,13 +142,19 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
     // const hookPhases = ['Running', 'Terminating', 'Failed', 'Error', 'Succeeded'];
     const resourceHealth = application.status.resources.reduce(
         (acc, res) => {
-            if (res.health) {
-                acc[buildResourceUniqueId(res)] = res.health;
-            }
-
+            acc[buildResourceUniqueId(res)] = {
+                health: res.health,
+                syncWave: res.syncWave
+            };
             return acc;
         },
-        {} as Record<string, models.HealthStatus>
+        {} as Record<
+            string,
+            {
+                health: models.HealthStatus;
+                syncWave: number;
+            }
+        >
     );
 
     const combinedHealthSyncResult: models.SyncResourceResult[] = syncResult?.resources?.map(syncResultItem => {
@@ -159,9 +166,11 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
             ...syncResultItem
         };
 
-        if (healthStatus) {
-            syncResultWithHealth.health = healthStatus;
+        if (healthStatus?.health) {
+            syncResultWithHealth.health = healthStatus.health;
         }
+
+        syncResultWithHealth.syncWave = healthStatus?.syncWave;
 
         return syncResultWithHealth;
     });
@@ -207,77 +216,137 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                     ))}
                 </div>
             </div>
-            {syncResult && syncResult.resources && syncResult.resources.length > 0 && (
-                <React.Fragment>
-                    <div style={{display: 'flex'}}>
-                        <label style={{display: 'block', marginBottom: '1em'}}>RESULT</label>
-                        <div style={{marginLeft: 'auto'}}>
-                            <Filter options={Healths} filters={healthFilters} setFilters={setHealthFilters} title='HEALTH' style={{marginRight: '5px'}} />
-                            <Filter options={Statuses} filters={filters} setFilters={setFilters} title='STATUS' style={{marginRight: '5px'}} />
-                            <Filter options={OperationPhases} filters={filters} setFilters={setFilters} title='HOOK' />
-                            <Tooltip placement='top-start' content='Filter on resources that have changed or remained unchanged'>
-                                <div style={{display: 'inline-block'}}>
-                                    <Filter options={FilterableMessageStatuses} filters={messageFilters} setFilters={setMessageFilters} title='MESSAGE' />
-                                </div>
-                            </Tooltip>
-                        </div>
-                    </div>
-                    <div className='argo-table-list'>
-                        <div className='argo-table-list__head'>
-                            <div className='row'>
-                                <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>KIND</div>
-                                <div className='columns large-2 show-for-large'>NAMESPACE</div>
-                                <div className='columns large-2 small-2'>NAME</div>
-                                <div className='columns large-1 small-2'>STATUS</div>
-                                <div className='columns large-1 small-2'>HEALTH</div>
-                                <div className='columns large-1 show-for-large'>HOOK</div>
-                                <div className='columns large-4 small-8'>MESSAGE</div>
-                            </div>
-                        </div>
-                        {filtered.length > 0 ? (
-                            filtered.map((resource, i) => (
-                                <div className='argo-table-list__row' key={i}>
-                                    <div className='row'>
-                                        <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>
-                                            <div className='application-operation-state__icons_container'>
-                                                {resource.hookType && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
-                                            </div>
-                                            <span title={getKind(resource)}>{getKind(resource)}</span>
-                                        </div>
-                                        <div className='columns large-2 show-for-large' title={resource.namespace}>
-                                            {resource.namespace}
-                                        </div>
-                                        <div className='columns large-2 small-2' title={resource.name}>
-                                            {resource.name}
-                                        </div>
-                                        <div className='columns large-1 small-2' title={getStatus(resource)}>
-                                            <utils.ResourceResultIcon resource={resource} /> {getStatus(resource)}
-                                        </div>
-                                        <div className='columns large-1 small-2'>
-                                            {resource.health ? (
-                                                <div>
-                                                    <utils.HealthStatusIcon state={resource?.health} /> {resource.health?.status}
-                                                    {resource.health.message && <HelpIcon title={resource.health.message} />}
+            <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                {pref => {
+                    const showSyncWave = pref.appDetails?.syncResult?.showSyncWave ?? false;
+
+                    return (
+                        <>
+                            {syncResult && syncResult.resources && syncResult.resources.length > 0 && (
+                                <React.Fragment>
+                                    <div style={{display: 'flex'}}>
+                                        <label style={{display: 'block', marginBottom: '1em'}}>RESULT</label>
+                                        <div style={{marginLeft: 'auto'}}>
+                                            <span style={{marginRight: '5px'}}>
+                                                <Checkbox
+                                                    id='show_sync_wave'
+                                                    checked={showSyncWave}
+                                                    onChange={() =>
+                                                        services.viewPreferences.updatePreferences({
+                                                            ...pref,
+                                                            appDetails: {
+                                                                ...pref.appDetails,
+                                                                syncResult: {
+                                                                    ...pref.appDetails.syncResult,
+                                                                    showSyncWave: !showSyncWave
+                                                                }
+                                                            }
+                                                        })
+                                                    }></Checkbox>
+                                                <label htmlFor='show_sync_wave'>SHOW SYNC WAVE</label>
+                                            </span>
+                                            <Filter options={Healths} filters={healthFilters} setFilters={setHealthFilters} title='HEALTH' style={{marginRight: '5px'}} />
+                                            <Filter options={Statuses} filters={filters} setFilters={setFilters} title='STATUS' style={{marginRight: '5px'}} />
+                                            <Filter options={OperationPhases} filters={filters} setFilters={setFilters} title='HOOK' />
+                                            <Tooltip placement='top-start' content='Filter on resources that have changed or remained unchanged'>
+                                                <div style={{display: 'inline-block'}}>
+                                                    <Filter options={FilterableMessageStatuses} filters={messageFilters} setFilters={setMessageFilters} title='MESSAGE' />
                                                 </div>
-                                            ) : (
-                                                <>{'-'}</>
-                                            )}
-                                        </div>
-                                        <div className='columns large-1 show-for-large' title={resource.hookType}>
-                                            {resource.hookType}
-                                        </div>
-                                        <div className='columns large-4 small-8' title={resource.message}>
-                                            <div className='application-operation-state__message'>{resource.message}</div>
+                                            </Tooltip>
                                         </div>
                                     </div>
-                                </div>
-                            ))
-                        ) : (
-                            <div style={{textAlign: 'center', marginTop: '2em', fontSize: '20px'}}>No Sync Results match filter</div>
-                        )}
-                    </div>
-                </React.Fragment>
-            )}
+                                    <div className='argo-table-list'>
+                                        <div className='argo-table-list__head'>
+                                            <div className='row'>
+                                                {showSyncWave ? (
+                                                    <>
+                                                        <div className='columns large-1 small-1 application-operation-state__icons_container_padding'>SYNC WAVE</div>
+                                                        <div className='columns large-1 show-for-large'>KIND</div>
+                                                        <div className='columns large-1 show-for-large'>NAMESPACE</div>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>KIND</div>
+                                                        <div className='columns large-2 show-for-large'>NAMESPACE</div>
+                                                    </>
+                                                )}
+
+                                                <div className='columns large-2 small-2'>NAME</div>
+                                                <div className='columns large-1 small-2'>STATUS</div>
+                                                <div className='columns large-1 small-2'>HEALTH</div>
+                                                <div className='columns large-1 show-for-large'>HOOK</div>
+                                                <div className='columns large-4 small-8'>MESSAGE</div>
+                                            </div>
+                                        </div>
+                                        {filtered.length > 0 ? (
+                                            filtered.map((resource, i) => (
+                                                <div className='argo-table-list__row' key={i}>
+                                                    <div className='row'>
+                                                        {showSyncWave ? (
+                                                            <>
+                                                                <div
+                                                                    className='columns large-1 small-1 application-operation-state__icons_container_padding'
+                                                                    title={`${resource.syncWave || '0'}`}>
+                                                                    {resource.syncWave || '0'}
+                                                                </div>
+                                                                <div className='columns large-1 show-for-large'>
+                                                                    <div className='application-operation-state__icons_container'>
+                                                                        {resource.hookType && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
+                                                                    </div>
+                                                                    <span title={getKind(resource)}>{getKind(resource)}</span>
+                                                                </div>
+                                                                <div className='columns large-1 show-for-large' title={resource.namespace}>
+                                                                    {resource.namespace}
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <div className='columns large-1 show-for-large application-operation-state__icons_container_padding'>
+                                                                    <div className='application-operation-state__icons_container'>
+                                                                        {resource.hookType && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
+                                                                    </div>
+                                                                    <span title={getKind(resource)}>{getKind(resource)}</span>
+                                                                </div>
+                                                                <div className='columns large-2 show-for-large' title={resource.namespace}>
+                                                                    {resource.namespace}
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                        <div className='columns large-2 small-2' title={resource.name}>
+                                                            {resource.name}
+                                                        </div>
+                                                        <div className='columns large-1 small-2' title={getStatus(resource)}>
+                                                            <utils.ResourceResultIcon resource={resource} /> {getStatus(resource)}
+                                                        </div>
+                                                        <div className='columns large-1 small-2'>
+                                                            {resource.health ? (
+                                                                <div>
+                                                                    <utils.HealthStatusIcon state={resource?.health} /> {resource.health?.status}
+                                                                    {resource.health.message && <HelpIcon title={resource.health.message} />}
+                                                                </div>
+                                                            ) : (
+                                                                <>{'-'}</>
+                                                            )}
+                                                        </div>
+                                                        <div className='columns large-1 show-for-large' title={resource.hookType}>
+                                                            {resource.hookType}
+                                                        </div>
+                                                        <div className='columns large-4 small-8' title={resource.message}>
+                                                            <div className='application-operation-state__message'>{resource.message}</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div style={{textAlign: 'center', marginTop: '2em', fontSize: '20px'}}>No Sync Results match filter</div>
+                                        )}
+                                    </div>
+                                </React.Fragment>
+                            )}
+                        </>
+                    );
+                }}
+            </DataLoader>
         </div>
     );
 };
