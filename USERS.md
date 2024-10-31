@@ -341,6 +341,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Technacy](https://www.technacy.it/)
 1. [Telavita](https://www.telavita.com.br/)
 1. [Tesla](https://tesla.com/)
+1. [TextNow](https://www.textnow.com/)
 1. [The Scale Factory](https://www.scalefactory.com/)
 1. [ThousandEyes](https://www.thousandeyes.com/)
 1. [Ticketmaster](https://ticketmaster.com)

@@ -965,6 +965,10 @@ func specEqualsCompareTo(spec v1alpha1.ApplicationSpec, comparedTo v1alpha1.Comp
 		currentSpec.Destination.Name = ""
 	}
 
+	// Set IsServerInferred to false on both, because that field is not important for comparison.
+	comparedTo.Destination.SetIsServerInferred(false)
+	currentSpec.Destination.SetIsServerInferred(false)
+
 	return reflect.DeepEqual(comparedTo, currentSpec)
 }
 
