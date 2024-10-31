@@ -104,10 +104,7 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
                     />
 
                     {showParameterDetails ? (
-                        <div
-                            id={`'history-expanded'`}
-                            key={`'history-expanded'`}
-                            className={classNames('white-box','expanded-section')}>
+                        <div id={`'history-expanded'`} key={`'history-expanded'`} className={classNames('white-box','expanded-section')}>
                             {getExpandedSection()}
                             <DataLoader
                                 errorRenderer={err => {
@@ -158,10 +155,7 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
                             versionId={recentDeployments[index].id}
                         />
                         {showSourceDetails.includes(i) ? (
-                            <div
-                                id={`'history-expanded-'${i}`}
-                                key={`'history-expanded-'${i}`}
-                                className={classNames('white-box','expanded-section')}>
+                            <div id={`'history-expanded-'${i}`} key={`'history-expanded-'${i}`} className={classNames('white-box','expanded-section')}>
                                 <div id={`'history-expanded-'${i}`} key={`'history-expanded-'${i}`} className='white-box__details' style={{marginBottom: '0px'}}>
                                     {getExpandedSection(i)}
                                     <DataLoader
