@@ -1225,6 +1225,14 @@ Notes:
 * Invalid globs result in the whole rule being ignored.
 * If you add a rule that matches existing resources, these will appear in the interface as `OutOfSync`.
 
+## Mask sensitive Annotations on Secrets
+
+An optional comma-separated list of `metadata.annotations` keys can be configured with `resource.sensitive.mask.annotations` to mask their values in UI/CLI on Secrets.
+
+```yaml
+  resource.sensitive.mask.annotations: openshift.io/token-secret.value, api-key
+```
+
 ## Auto respect RBAC for controller
 
 Argocd controller can be restricted from discovering/syncing specific resources using just controller rbac, without having to manually configure resource exclusions.
