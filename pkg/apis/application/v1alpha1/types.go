@@ -938,6 +938,12 @@ type ApplicationDestination struct {
 	isServerInferred bool `json:"-"`
 }
 
+// SetIsServerInferred sets the isServerInferred flag. This is used to allow comparison between two destinations where
+// one server is inferred and the other is not.
+func (d *ApplicationDestination) SetIsServerInferred(inferred bool) {
+	d.isServerInferred = inferred
+}
+
 type ResourceHealthLocation string
 
 var (
