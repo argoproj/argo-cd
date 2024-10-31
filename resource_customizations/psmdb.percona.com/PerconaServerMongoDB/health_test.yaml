@@ -1,0 +1,5 @@
+tests:
+- healthStatus:
+    status: ExpectedStatus
+    message: Expected message
+  inputPath: testdata/test-resource-definition.yaml
