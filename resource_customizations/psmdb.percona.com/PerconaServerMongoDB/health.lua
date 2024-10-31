@@ -1,36 +1,16 @@
 local hs = {}
 if obj.status ~= nil then
+  local state_map = {
+    initializing = "Progressing",
+    ready = "Healthy",
+    error = "Degraded",
+    stopping = "Progressing",
+    paused = "Suspended"
+  }
 
-  if obj.status.state == "initializing" then
-    hs.status = "Progressing"
-    hs.message = "Cluster is initializing..."
-    return hs
-  end
-
-  if obj.status.state == "ready" then
-    hs.status = "Healthy"
-    hs.message = "Cluster is healthy"
-    return hs
-  end
-
-  if obj.status.state == "error" then
-    hs.status = "Degraded"
-    hs.message = "Cluster has error"
-    return hs
-  end
-
-  if obj.status.state == "stopping" then
-    hs.status = "Progressing"
-    hs.message = "Cluster is stopping..."
-    return hs
-  end
-
-  if obj.status.state == "paused" then
-    hs.status = "Suspended"
-    hs.message = "Cluster is paused"
-    return hs
-  end
-
+  hs.status = state_map[obj.status.state] or "Unknown"
+  hs.message = obj.status.ready .. "/" .. obj.status.size .. " node(s) are ready"
+  return hs
 end
 
 hs.status = "Unknown"
