@@ -466,7 +466,7 @@ $ argocd proj role delete-token test-project test-role 1696769937
 				_, err = projIf.DeleteToken(ctx, &projectpkg.ProjectTokenDeleteRequest{Project: projName, Role: roleName, Iat: issuedAt})
 				errors.CheckError(err)
 			} else {
-				fmt.Printf("The command to delete project token token '%s' was cancelled.\n", tokenId)
+				fmt.Printf("The command to delete project token '%s' was cancelled.\n", tokenId)
 			}
 		},
 	}
