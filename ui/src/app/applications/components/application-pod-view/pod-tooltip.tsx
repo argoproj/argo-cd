@@ -2,6 +2,7 @@ import * as React from 'react';
 import Moment from 'react-moment';
 import {Pod} from '../../../shared/models';
 import {isYoungerThanXMinutes} from '../utils';
+import {formatSize} from './pod-view';
 
 export const PodTooltip = (props: {pod: Pod}) => {
     const pod = props.pod;
@@ -16,15 +17,22 @@ export const PodTooltip = (props: {pod: Pod}) => {
                 <div className='columns small-6'>{pod.health}</div>
             </div>
             {(pod.info || [])
-                .filter(i => i.name !== 'Node')
-                .map(i => (
-                    <div className='row' key={i.name}>
-                        <div className='columns small-6' style={{whiteSpace: 'nowrap'}}>
-                            {i.name}:
+                .filter(i => { 
+                    //filter out 0 values for CPU and mem on pod info
+                    return i.name !== 'Node' && !((i.name === 'Requests (CPU)' || i.name === 'Requests (MEM)') && parseInt(i.value, 10) === 0);
+                })
+                .map(i => {
+                        //formatted the values here for info for cpu and mem
+                    const formattedValue = formatPodMetric(i.name, i.value);
+                    return (
+                        <div className='row' key={i.name}>
+                            <div className='columns small-6' style={{whiteSpace: 'nowrap'}}>
+                                {i.name}:
+                            </div>
+                            <div className='columns small-6'>{formattedValue}</div>
                         </div>
-                        <div className='columns small-6'>{i.value}</div>
-                    </div>
-                ))}
+                    );
+                })}
             {pod.createdAt && (
                 <div className='row'>
                     <div className='columns small-6'>
@@ -49,3 +57,17 @@ export const PodTooltip = (props: {pod: Pod}) => {
         </div>
     );
 };
+
+function formatPodMetric(name: string, value: string) {
+    const numericValue = parseInt(value, 10);
+
+    switch (name) {
+        case 'Requests (CPU)':
+            return `${numericValue}m`;
+        case 'Requests (MEM)': {
+            return formatSize(numericValue / 1000);
+        }
+        default:
+            return value;
+    }
+}

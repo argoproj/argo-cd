@@ -446,12 +446,21 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	}
 
 	req, _ := resourcehelper.PodRequestsAndLimits(&pod)
+	CPUReq, MemoryReq := req[v1.ResourceCPU], req[v1.ResourceMemory]
+
 	res.PodInfo = &PodInfo{NodeName: pod.Spec.NodeName, ResourceRequests: req, Phase: pod.Status.Phase}
 
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Node", Value: pod.Spec.NodeName})
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
 	if restarts > 0 {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Restart Count", Value: fmt.Sprintf("%d", restarts)})
+	}
+
+	// requests will be released for terminated pods either with success or failed state termination.
+
+	if reason != "Completed" && reason != "Error" {
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Requests (CPU)", Value: fmt.Sprintf("%d", CPUReq.MilliValue())})
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Requests (MEM)", Value: fmt.Sprintf("%d", MemoryReq.MilliValue())})
 	}
 
 	var urls []string
