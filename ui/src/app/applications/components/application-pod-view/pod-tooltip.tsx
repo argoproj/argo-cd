@@ -17,12 +17,12 @@ export const PodTooltip = (props: {pod: Pod}) => {
                 <div className='columns small-6'>{pod.health}</div>
             </div>
             {(pod.info || [])
-                .filter(i => { 
+                .filter(i => {
                     //filter out 0 values for CPU and mem on pod info
                     return i.name !== 'Node' && !((i.name === 'Requests (CPU)' || i.name === 'Requests (MEM)') && parseInt(i.value, 10) === 0);
                 })
                 .map(i => {
-                        //formatted the values here for info for cpu and mem
+                    //formatted the values here for info for cpu and mem
                     const formattedValue = formatPodMetric(i.name, i.value);
                     return (
                         <div className='row' key={i.name}>
