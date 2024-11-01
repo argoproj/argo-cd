@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/Azure/kubelogin/pkg/token"
@@ -34,8 +35,9 @@ func newAzureCommand() *cobra.Command {
 			}
 			tp, err := token.GetTokenProvider(o)
 			errors.CheckError(err)
-			_, err = tp.GetAccessToken(c.Context())
+			tok, err := tp.GetAccessToken(c.Context())
 			errors.CheckError(err)
+			_, _ = fmt.Fprint(os.Stdout, formatJSON(tok.Token, tok.ExpiresOn))
 		},
 	}
 	return command
