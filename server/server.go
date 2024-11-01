@@ -562,7 +562,8 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		// If not matched, we assume that its TLS.
 		tlsl := tcpm.Match(cmux.Any())
 		tlsConfig := tls.Config{
-			NextProtos: []string{"h2", "http/1.1"},
+			// Prefer http/1.1 for HTTPS and HTTP2 for grpc
+			NextProtos: []string{"http/1.1", "h2"},
 		}
 		tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 			return a.settings.Certificate, nil
