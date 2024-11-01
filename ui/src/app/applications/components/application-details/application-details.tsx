@@ -905,7 +905,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                             {this.selectedExtension !== '' && activeStatusExt?.flyout && <activeStatusExt.flyout application={application} tree={tree} />}
                                         </SlidingPanel>
                                         <SlidingPanel
-                                            isMiddle={activeTopBarActionMenuExt?.isMiddle}
+                                            isMiddle={activeTopBarActionMenuExt?.isMiddle ?? true}
                                             isShown={this.selectedExtension !== '' && activeTopBarActionMenuExt != null && activeTopBarActionMenuExt.flyout != null}
                                             onClose={() => this.setExtensionPanelVisible('')}>
                                             {this.selectedExtension !== '' && activeTopBarActionMenuExt?.flyout && (
