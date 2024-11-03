@@ -1528,6 +1528,10 @@ func TestUseDiffCache(t *testing.T) {
 				t.Fatalf("error merging app: %s", err)
 			}
 		}
+		if app.Spec.Destination.Name != "" && app.Spec.Destination.Server != "" {
+			// Simulate the controller's process for populating both of these fields.
+			app.Spec.Destination.SetInferredServer(app.Spec.Destination.Server)
+		}
 		return app
 	}
 
