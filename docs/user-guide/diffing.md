@@ -199,3 +199,4 @@ metadata:
   name: argocd-cmd-params-cm
 data:
   ignore.normalizer.jq.timeout: "5s"
+```
