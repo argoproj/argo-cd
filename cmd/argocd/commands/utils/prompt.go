@@ -8,10 +8,10 @@ type Prompt struct {
 	enabled bool
 }
 
-func NewPrompt(promptsEnabled bool) (*Prompt, error) {
+func NewPrompt(promptsEnabled bool) *Prompt {
 	return &Prompt{
 		enabled: promptsEnabled,
-	}, nil
+	}
 }
 
 func (p *Prompt) Confirm(message string) bool {
