@@ -7,8 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/v2/util/argo"
 	"k8s.io/client-go/rest"
+
+	"github.com/argoproj/argo-cd/v2/util/argo"
 
 	"github.com/redis/go-redis/v9"
 	"k8s.io/apimachinery/pkg/runtime"

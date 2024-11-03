@@ -73,7 +73,7 @@ type ApplicationSetControllerConfig struct {
 	allowedScmProviders          []string
 	globalPreservedAnnotations   []string
 	globalPreservedLabels        []string
-	metricsApplicationsetLabels   []string
+	metricsApplicationsetLabels  []string
 	enableScmProviders           bool
 	webhookParallelism           int
 	tokenRefStrictMode           bool

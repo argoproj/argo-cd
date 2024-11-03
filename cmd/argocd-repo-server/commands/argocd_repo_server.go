@@ -72,8 +72,8 @@ type RepoServerConfig struct {
 	pauseGenerationOnFailureForMinutes           int
 	pauseGenerationOnFailureForRequests          int
 	gitSubmoduleEnabled                          bool
-	includeHiddenDirectories          bool
-	cmpUseManifestGeneratePaths       bool
+	includeHiddenDirectories                     bool
+	cmpUseManifestGeneratePaths                  bool
 }
 
 func NewRepoServerConfig(cmd *cobra.Command) *RepoServerConfig {
