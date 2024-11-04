@@ -6,11 +6,11 @@ import (
 	"strconv"
 	"text/tabwriter"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
