@@ -1031,6 +1031,12 @@ message ExecProviderConfig {
   optional string installHint = 5;
 }
 
+message ExtraParameterFileItem {
+  optional string path = 1;
+
+  optional string prefix = 2;
+}
+
 message GitDirectoryGeneratorItem {
   optional string path = 1;
 
@@ -1058,6 +1064,9 @@ message GitGenerator {
 
   // Values contains key/value pairs which are passed directly as parameters to the template
   map<string, string> values = 8;
+
+  // List of files containing parameters to add on top to the template
+  repeated ExtraParameterFileItem extraParameterFiles = 9;
 }
 
 // GnuPGPublicKey is a representation of a GnuPG public key

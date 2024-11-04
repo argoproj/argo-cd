@@ -119,7 +119,7 @@ func (g *GitGenerator) generateParamsForGitDirectories(appSetGenerator *argoproj
 
 	requestedApps := g.filterApps(appSetGenerator.Git.Directories, allPaths)
 
-	res, err := g.generateParamsFromApps(requestedApps, appSetGenerator, useGoTemplate, goTemplateOptions)
+	res, err := g.generateParamsFromApps(requestedApps, appSetGenerator, project, useGoTemplate, noRevisionCache, verifyCommit, goTemplateOptions)
 	if err != nil {
 		return nil, fmt.Errorf("error generating params from apps: %w", err)
 	}
@@ -152,7 +152,7 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	res := []map[string]any{}
 	for _, path := range allPaths {
 		// A JSON / YAML file path can contain multiple sets of parameters (ie it is an array)
-		paramsArray, err := g.generateParamsFromGitFile(path, allFiles[path], appSetGenerator.Git.Values, useGoTemplate, goTemplateOptions, appSetGenerator.Git.PathParamPrefix)
+		paramsArray, err := g.generateParamsFromGitFile(path, allFiles[path], appSetGenerator.Git, project, goTemplateOptions, useGoTemplate, noRevisionCache, verifyCommit)
 		if err != nil {
 			return nil, fmt.Errorf("unable to process file '%s': %w", path, err)
 		}
@@ -162,19 +162,12 @@ func (g *GitGenerator) generateParamsForGitFiles(appSetGenerator *argoprojiov1al
 	return res, nil
 }
 
-func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []byte, values map[string]string, useGoTemplate bool, goTemplateOptions []string, pathParamPrefix string) ([]map[string]any, error) {
-	objectsFound := []map[string]any{}
-
-	// First, we attempt to parse as an array
-	err := yaml.Unmarshal(fileContent, &objectsFound)
+func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []byte, git *argoprojiov1alpha1.GitGenerator, project string, goTemplateOptions []string,
+	useGoTemplate, noRevisionCache, verifyCommit bool,
+) ([]map[string]any, error) {
+	objectsFound, err := unmarshalYamlFile(fileContent)
 	if err != nil {
-		// If unable to parse as an array, attempt to parse as a single object
-		singleObj := make(map[string]any)
-		err = yaml.Unmarshal(fileContent, &singleObj)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse file: %w", err)
-		}
-		objectsFound = append(objectsFound, singleObj)
+		return nil, err
 	} else if len(objectsFound) == 0 {
 		// If file is valid but empty, add a default empty item
 		objectsFound = append(objectsFound, map[string]any{})
@@ -198,8 +191,8 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 			paramPath["basenameNormalized"] = utils.SanitizeName(path.Base(paramPath["path"].(string)))
 			paramPath["filenameNormalized"] = utils.SanitizeName(path.Base(paramPath["filename"].(string)))
 			paramPath["segments"] = strings.Split(paramPath["path"].(string), "/")
-			if pathParamPrefix != "" {
-				params[pathParamPrefix] = map[string]any{"path": paramPath}
+			if git.PathParamPrefix != "" {
+				params[git.PathParamPrefix] = map[string]any{"path": paramPath}
 			} else {
 				params["path"] = paramPath
 			}
@@ -212,8 +205,8 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 				params[k] = fmt.Sprintf("%v", v)
 			}
 			pathParamName := "path"
-			if pathParamPrefix != "" {
-				pathParamName = pathParamPrefix + "." + pathParamName
+			if git.PathParamPrefix != "" {
+				pathParamName = git.PathParamPrefix + "." + pathParamName
 			}
 			params[pathParamName] = path.Dir(filePath)
 			params[pathParamName+".basename"] = path.Base(params[pathParamName].(string))
@@ -227,15 +220,113 @@ func (g *GitGenerator) generateParamsFromGitFile(filePath string, fileContent []
 			}
 		}
 
-		err := appendTemplatedValues(values, params, useGoTemplate, goTemplateOptions)
+		err := appendTemplatedValues(git.Values, params, useGoTemplate, goTemplateOptions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to append templated values: %w", err)
+		}
+
+		// Get the common parameters from files, removing duplicates
+		// We need to resolve them for each git file, as they could depend on parameters inside
+		err = g.appendExtraParams(git, project, goTemplateOptions, useGoTemplate, noRevisionCache, verifyCommit, params)
+		if err != nil {
+			return nil, err
 		}
 
 		res = append(res, params)
 	}
 
 	return res, nil
+}
+
+func (g *GitGenerator) appendExtraParams(git *argoprojiov1alpha1.GitGenerator, project string, goTemplateOptions []string, useGoTemplate bool, noRevisionCache bool, verifyCommit bool, params map[string]any) error {
+	extraParams, err := g.getExtraParams(git, project, goTemplateOptions, useGoTemplate, noRevisionCache, verifyCommit, params)
+	if err != nil {
+		return fmt.Errorf("failed to append extra parameters from files: %w", err)
+	}
+	if len(extraParams) == 0 {
+		return nil
+	}
+	if useGoTemplate {
+		params["extraParams"] = extraParams
+	} else {
+		flat, err := flatten.Flatten(extraParams, "", flatten.DotStyle)
+		if err != nil {
+			return fmt.Errorf("error flattening extra params: %w", err)
+		}
+		for k, v := range flat {
+			params[fmt.Sprintf("extraParams.%v", k)] = fmt.Sprintf("%v", v)
+		}
+	}
+	return nil
+}
+
+func unmarshalYamlFile(fileContent []byte) ([]map[string]any, error) {
+	objectsFound := []map[string]any{}
+
+	// First, we attempt to parse as an array
+	err := yaml.Unmarshal(fileContent, &objectsFound)
+	if err != nil {
+		// If unable to parse as an array, attempt to parse as a single object
+		singleObj := make(map[string]any)
+		err = yaml.Unmarshal(fileContent, &singleObj)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse file: %w", err)
+		}
+		objectsFound = append(objectsFound, singleObj)
+	} else if len(objectsFound) == 0 {
+		// If file is valid but empty, add a default empty item
+		objectsFound = append(objectsFound, map[string]any{})
+	}
+	return objectsFound, nil
+}
+
+func (g *GitGenerator) getExtraParams(git *argoprojiov1alpha1.GitGenerator, project string, goTemplateOptions []string,
+	useGoTemplate, noRevisionCache, verifyCommit bool, params map[string]any,
+) (map[string]any, error) {
+	extraParams := map[string]any{}
+	extraParamFilesContent := map[string][]byte{}
+
+	// Keep the order to apply the params in the list of the files provided
+	for _, requestedExtraFile := range git.ExtraParameterFiles {
+		templatedPath, err := replaceTemplatedString(requestedExtraFile.Path, params, useGoTemplate, goTemplateOptions)
+		if err != nil {
+			return nil, err
+		}
+
+		files, err := g.repos.GetFiles(context.TODO(), git.RepoURL, git.Revision, project, templatedPath, noRevisionCache, verifyCommit)
+		if err != nil {
+			return nil, err
+		}
+		for extraFilePath, content := range files {
+			extraParamFilesContent[extraFilePath] = content
+		}
+		// Extract the unduplicated map into a list, and sort by path to ensure a deterministic
+		// processing order in the subsequent step
+		allPaths := []string{}
+		for path := range files {
+			allPaths = append(allPaths, path)
+		}
+		sort.Strings(allPaths)
+
+		// Merge yaml based on the order in the list: the further in the list overrides the ones before
+		for _, path := range allPaths {
+			fileObjects, err := unmarshalYamlFile(extraParamFilesContent[path])
+			if err != nil {
+				return nil, err
+			}
+			for _, object := range fileObjects {
+				if requestedExtraFile.Prefix != "" {
+					// Add top level prefix if specified
+					objectWithPrefix := map[string]any{}
+					objectWithPrefix[requestedExtraFile.Prefix] = object
+					extraParams = utils.CombineMaps(extraParams, objectWithPrefix)
+				} else {
+					extraParams = utils.CombineMaps(extraParams, object)
+				}
+			}
+		}
+	}
+	return extraParams, nil
 }
 
 func (g *GitGenerator) filterApps(directories []argoprojiov1alpha1.GitDirectoryGeneratorItem, allPaths []string) []string {
@@ -266,7 +357,7 @@ func (g *GitGenerator) filterApps(directories []argoprojiov1alpha1.GitDirectoryG
 	return res
 }
 
-func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, useGoTemplate bool, goTemplateOptions []string) ([]map[string]any, error) {
+func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, project string, useGoTemplate, noRevisionCache, verifyCommit bool, goTemplateOptions []string) ([]map[string]any, error) {
 	res := make([]map[string]any, len(requestedApps))
 	for i, a := range requestedApps {
 		params := make(map[string]any, 5)
@@ -300,6 +391,13 @@ func (g *GitGenerator) generateParamsFromApps(requestedApps []string, appSetGene
 		err := appendTemplatedValues(appSetGenerator.Git.Values, params, useGoTemplate, goTemplateOptions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to append templated values: %w", err)
+		}
+
+		// Get the common parameters from files, removing duplicates
+		// We need to resolve them for each git file, as they could depend on parameters inside
+		err = g.appendExtraParams(appSetGenerator.Git, project, goTemplateOptions, useGoTemplate, noRevisionCache, verifyCommit, params)
+		if err != nil {
+			return nil, err
 		}
 
 		res[i] = params

@@ -60,3 +60,23 @@ func CombineStringMapsAllowDuplicates(aSI map[string]any, bSI map[string]any) (m
 
 	return res, nil
 }
+
+func CombineMaps(firstMap map[string]any, secondMap map[string]any) map[string]any {
+	out := make(map[string]any, len(firstMap))
+	for k, v := range firstMap {
+		out[k] = v
+	}
+	for k, v := range secondMap {
+		if v, ok := v.(map[string]any); ok {
+			if bv, ok := out[k]; ok {
+				if bv, ok := bv.(map[string]any); ok {
+					out[k] = CombineMaps(bv, v)
+
+					continue
+				}
+			}
+		}
+		out[k] = v
+	}
+	return out
+}
