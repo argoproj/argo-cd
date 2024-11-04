@@ -7421,6 +7421,13 @@
             "$ref": "#/definitions/v1alpha1GitDirectoryGeneratorItem"
           }
         },
+        "extraParameterFiles": {
+          "type": "array",
+          "title": "List of files containing parameters to add on top to the template",
+          "items": {
+            "type": "string"
+          }
+        },
         "files": {
           "type": "array",
           "items": {

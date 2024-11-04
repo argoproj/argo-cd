@@ -1985,6 +1985,96 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
 }
 
+func TestSimpleGitFilesGeneratorGoTemplateAndExtraParams(t *testing.T) {
+	expectedApps := []argov1alpha1.Application{
+		{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       application.ApplicationKind,
+				APIVersion: "argoproj.io/v1alpha1",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:       "engineering-dev-guestbook-11223344",
+				Namespace:  fixture.TestNamespace(),
+				Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+				Labels: map[string]string{
+					"myCustomLabel": "engineering-prod",
+				},
+			},
+			Spec: argov1alpha1.ApplicationSpec{
+				Project: "default",
+				Source: &argov1alpha1.ApplicationSource{
+					RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+					TargetRevision: "HEAD",
+					Path:           "guestbook",
+				},
+				Destination: argov1alpha1.ApplicationDestination{
+					Server:    "https://kubernetes.default.svc",
+					Namespace: "guestbook",
+				},
+			},
+		},
+	}
+
+	var expectedAppsNewNamespace []argov1alpha1.Application
+
+	Given(t).
+		When().
+		// Create a GitGenerator-based ApplicationSet
+		Create(v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "simple-git-generator-with-extra-params",
+			},
+			Spec: v1alpha1.ApplicationSetSpec{
+				GoTemplate: true,
+				Template: v1alpha1.ApplicationSetTemplate{
+					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+						Name: "{{.cluster.name}}-guestbook-{{.extraParams.asset_id}}",
+						Labels: map[string]string{
+							"myCustomLabel": "{{.extraParams.cluster.name}}",
+						},
+					},
+					Spec: argov1alpha1.ApplicationSpec{
+						Project: "default",
+						Source: &argov1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							TargetRevision: "HEAD",
+							Path:           "guestbook",
+						},
+						Destination: argov1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "guestbook",
+						},
+					},
+				},
+				Generators: []v1alpha1.ApplicationSetGenerator{
+					{
+						Git: &v1alpha1.GitGenerator{
+							RepoURL: "https://github.com/argoproj/applicationset.git",
+							Files: []v1alpha1.GitFileGeneratorItem{
+								{
+									Path: "examples/git-generator-files-discovery/cluster-config/**/dev/config.json",
+								},
+							},
+							ExtraParameterFiles: []string{
+								// Dummy extra params, just reusing the file generators
+								"examples/git-generator-files-discovery/cluster-config/**/dev/config.json",
+								// Prod should override dev
+								"examples/git-generator-files-discovery/cluster-config/**/prod/config.json",
+							},
+						},
+					},
+				},
+			},
+		}).Then().Expect(ApplicationsExist(expectedApps)).
+
+		// verify the ApplicationSet status conditions were set correctly
+		Expect(ApplicationSetHasConditions("simple-git-generator-with-extra-params", ExpectedConditions)).
+
+		// Delete the ApplicationSet, and verify it deletes the Applications
+		When().
+		Delete().Then().Expect(ApplicationsDoNotExist(expectedAppsNewNamespace))
+}
+
 func TestSimpleGitFilesPreserveResourcesOnDeletion(t *testing.T) {
 	Given(t).
 		When().

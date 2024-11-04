@@ -1314,6 +1314,10 @@ spec:
                             - path
                             type: object
                           type: array
+                        extraParameterFiles:
+                          items:
+                            type: string
+                          type: array
                         files:
                           items:
                             properties:
@@ -3823,6 +3827,10 @@ spec:
                                       required:
                                       - path
                                       type: object
+                                    type: array
+                                  extraParameterFiles:
+                                    items:
+                                      type: string
                                     type: array
                                   files:
                                     items:
@@ -9253,6 +9261,10 @@ spec:
                                       required:
                                       - path
                                       type: object
+                                    type: array
+                                  extraParameterFiles:
+                                    items:
+                                      type: string
                                     type: array
                                   files:
                                     items:

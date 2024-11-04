@@ -2080,6 +2080,11 @@ func (in *GitGenerator) DeepCopyInto(out *GitGenerator) {
 			(*out)[key] = val
 		}
 	}
+	if in.ExtraParameterFiles != nil {
+		in, out := &in.ExtraParameterFiles, &out.ExtraParameterFiles
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
