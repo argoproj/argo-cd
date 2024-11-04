@@ -579,7 +579,7 @@ func NewResourceActionRunCommand(cmdCtx commandContext) *cobra.Command {
 		Short:   "Executes resource action",
 		Long:    "Executes resource action using the lua script configured in the 'resource.customizations' field of 'argocd-cm' ConfigMap and outputs updated fields",
 		Example: `
-argocd admin settings resource-overrides action /tmp/deploy.yaml restart --argocd-cm-path ./argocd-cm.yaml`,
+argocd admin settings resource-overrides action run /tmp/deploy.yaml restart --argocd-cm-path ./argocd-cm.yaml`,
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 

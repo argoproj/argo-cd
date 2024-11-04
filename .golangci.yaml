@@ -20,10 +20,8 @@ linters:
     - misspell
     - staticcheck
     - testifylint
-    - thelper
     - unparam
     - unused
-    - usestdlibvars
     - whitespace 
 linters-settings:
   gocritic:

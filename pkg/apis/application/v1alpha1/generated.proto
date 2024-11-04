@@ -515,9 +515,6 @@ message ApplicationSourceHelm {
   // APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
   // Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
   repeated string apiVersions = 13;
-
-  // SkipTests skips test manifest installation step (Helm's --skip-tests).
-  optional bool skipTests = 14;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
@@ -841,12 +838,6 @@ message ClusterConfig {
 
   // ExecProviderConfig contains configuration for an exec provider
   optional ExecProviderConfig execProviderConfig = 6;
-
-  // DisableCompression bypasses automatic GZip compression requests to the server.
-  optional bool disableCompression = 7;
-
-  // ProxyURL is the URL to the proxy to be used for all requests send to the server
-  optional string proxyUrl = 8;
 }
 
 // ClusterGenerator defines a generator to match against clusters registered with ArgoCD.
@@ -860,9 +851,6 @@ message ClusterGenerator {
 
   // Values contains key/value pairs which are passed directly as parameters to the template
   map<string, string> values = 3;
-
-  // returns the clusters a single 'clusters' value in the template
-  optional bool flatList = 4;
 }
 
 // ClusterInfo contains information about the cluster
@@ -1968,8 +1956,6 @@ message ResourceStatus {
   optional bool requiresPruning = 9;
 
   optional int64 syncWave = 10;
-
-  optional bool requiresDeletionConfirmation = 11;
 }
 
 // RetryStrategy contains information about the strategy to apply when a sync failed

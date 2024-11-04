@@ -112,7 +112,6 @@ func NewServer(
 	settingsMgr *settings.SettingsManager,
 	projInformer cache.SharedIndexInformer,
 	enabledNamespaces []string,
-	enableK8sEvent []string,
 ) (application.ApplicationServiceServer, AppResourceTreeFn) {
 	if appBroadcaster == nil {
 		appBroadcaster = &broadcasterHandler{}
@@ -134,7 +133,7 @@ func NewServer(
 		kubectl:           kubectl,
 		enf:               enf,
 		projectLock:       projectLock,
-		auditLogger:       argo.NewAuditLogger(namespace, kubeclientset, "argocd-server", enableK8sEvent),
+		auditLogger:       argo.NewAuditLogger(namespace, kubeclientset, "argocd-server"),
 		settingsMgr:       settingsMgr,
 		projInformer:      projInformer,
 		enabledNamespaces: enabledNamespaces,
@@ -516,26 +515,25 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			}
 
 			manifestInfo, err := client.GenerateManifest(ctx, &apiclient.ManifestRequest{
-				Repo:                            repo,
-				Revision:                        source.TargetRevision,
-				AppLabelKey:                     appInstanceLabelKey,
-				AppName:                         a.InstanceName(s.ns),
-				Namespace:                       a.Spec.Destination.Namespace,
-				ApplicationSource:               &source,
-				Repos:                           helmRepos,
-				KustomizeOptions:                kustomizeOptions,
-				KubeVersion:                     serverVersion,
-				ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
-				HelmRepoCreds:                   helmCreds,
-				HelmOptions:                     helmOptions,
-				TrackingMethod:                  string(argoutil.GetTrackingMethod(s.settingsMgr)),
-				EnabledSourceTypes:              enableGenerateManifests,
-				ProjectName:                     proj.Name,
-				ProjectSourceRepos:              proj.Spec.SourceRepos,
-				HasMultipleSources:              a.Spec.HasMultipleSources(),
-				RefSources:                      refSources,
-				AnnotationManifestGeneratePaths: a.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
-				InstallationID:                  installationID,
+				Repo:               repo,
+				Revision:           source.TargetRevision,
+				AppLabelKey:        appInstanceLabelKey,
+				AppName:            a.InstanceName(s.ns),
+				Namespace:          a.Spec.Destination.Namespace,
+				ApplicationSource:  &source,
+				Repos:              helmRepos,
+				KustomizeOptions:   kustomizeOptions,
+				KubeVersion:        serverVersion,
+				ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+				HelmRepoCreds:      helmCreds,
+				HelmOptions:        helmOptions,
+				TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
+				EnabledSourceTypes: enableGenerateManifests,
+				ProjectName:        proj.Name,
+				ProjectSourceRepos: proj.Spec.SourceRepos,
+				HasMultipleSources: a.Spec.HasMultipleSources(),
+				RefSources:         refSources,
+				InstallationID:     installationID,
 			})
 			if err != nil {
 				return fmt.Errorf("error generating manifests: %w", err)
@@ -636,23 +634,22 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 		}
 
 		req := &apiclient.ManifestRequest{
-			Repo:                            repo,
-			Revision:                        source.TargetRevision,
-			AppLabelKey:                     appInstanceLabelKey,
-			AppName:                         a.Name,
-			Namespace:                       a.Spec.Destination.Namespace,
-			ApplicationSource:               &source,
-			Repos:                           helmRepos,
-			KustomizeOptions:                kustomizeOptions,
-			KubeVersion:                     serverVersion,
-			ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
-			HelmRepoCreds:                   helmCreds,
-			HelmOptions:                     helmOptions,
-			TrackingMethod:                  string(argoutil.GetTrackingMethod(s.settingsMgr)),
-			EnabledSourceTypes:              enableGenerateManifests,
-			ProjectName:                     proj.Name,
-			ProjectSourceRepos:              proj.Spec.SourceRepos,
-			AnnotationManifestGeneratePaths: a.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
+			Repo:               repo,
+			Revision:           source.TargetRevision,
+			AppLabelKey:        appInstanceLabelKey,
+			AppName:            a.Name,
+			Namespace:          a.Spec.Destination.Namespace,
+			ApplicationSource:  &source,
+			Repos:              helmRepos,
+			KustomizeOptions:   kustomizeOptions,
+			KubeVersion:        serverVersion,
+			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+			HelmRepoCreds:      helmCreds,
+			HelmOptions:        helmOptions,
+			TrackingMethod:     string(argoutil.GetTrackingMethod(s.settingsMgr)),
+			EnabledSourceTypes: enableGenerateManifests,
+			ProjectName:        proj.Name,
+			ProjectSourceRepos: proj.Spec.SourceRepos,
 		}
 
 		repoStreamClient, err := client.GenerateManifestWithFiles(stream.Context())
@@ -931,8 +928,8 @@ func (s *Server) updateApp(app *appv1.Application, newApp *appv1.Application, ct
 	for i := 0; i < 10; i++ {
 		app.Spec = newApp.Spec
 		if merge {
-			app.Labels = collections.Merge(app.Labels, newApp.Labels)
-			app.Annotations = collections.Merge(app.Annotations, newApp.Annotations)
+			app.Labels = collections.MergeStringMaps(app.Labels, newApp.Labels)
+			app.Annotations = collections.MergeStringMaps(app.Annotations, newApp.Annotations)
 		} else {
 			app.Labels = newApp.Labels
 			app.Annotations = newApp.Annotations
@@ -1289,11 +1286,7 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *appv1.Appli
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster: %w", err)
 	}
-	config, err := clst.RESTConfig()
-	if err != nil {
-		return nil, fmt.Errorf("error getting cluster REST config: %w", err)
-	}
-
+	config := clst.RESTConfig()
 	return config, err
 }
 

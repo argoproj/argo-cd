@@ -1,7 +1,6 @@
 package path
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -52,11 +51,6 @@ func CheckOutOfBoundsSymlinks(basePath string) error {
 	}
 	return filepath.Walk(absBasePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			// Ignore "no such file or directory" errors than can happen with
-			// temporary files such as .git/*.lock
-			if errors.Is(err, os.ErrNotExist) {
-				return nil
-			}
 			return fmt.Errorf("failed to walk for symlinks in %s: %w", absBasePath, err)
 		}
 		if files.IsSymlink(info) {

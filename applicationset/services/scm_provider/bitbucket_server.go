@@ -129,7 +129,7 @@ func (b *BitbucketServerProvider) RepoHasPath(_ context.Context, repo *Repositor
 	}
 	// No need to query for all pages here
 	response, err := b.client.DefaultApi.GetContent_0(repo.Organization, repo.Repository, path, opts)
-	if response != nil && response.StatusCode == http.StatusNotFound {
+	if response != nil && response.StatusCode == 404 {
 		// File/directory not found
 		return false, nil
 	}
@@ -203,7 +203,7 @@ func (b *BitbucketServerProvider) getDefaultBranch(org string, repo string) (*bi
 	response, err := b.client.DefaultApi.GetDefaultBranch(org, repo)
 	// The API will return 404 if a default branch is set but doesn't exist. In case the repo is empty and default branch is unset,
 	// we will get an EOF and a nil response.
-	if (response != nil && response.StatusCode == http.StatusNotFound) || (response == nil && err != nil && errors.Is(err, io.EOF)) {
+	if (response != nil && response.StatusCode == 404) || (response == nil && err != nil && errors.Is(err, io.EOF)) {
 		return nil, nil
 	}
 	if err != nil {

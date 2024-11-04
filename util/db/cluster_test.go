@@ -255,7 +255,6 @@ func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
 }
 
 func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster)) {
-	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

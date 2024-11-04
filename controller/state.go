@@ -10,7 +10,6 @@ import (
 	goSync "sync"
 	"time"
 
-	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/argoproj/gitops-engine/pkg/diff"
@@ -256,29 +255,28 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 
 		log.Debugf("Generating Manifest for source %s revision %s", source, revision)
 		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-			Repo:                            repo,
-			Repos:                           permittedHelmRepos,
-			Revision:                        revision,
-			NoCache:                         noCache,
-			NoRevisionCache:                 noRevisionCache,
-			AppLabelKey:                     appLabelKey,
-			AppName:                         app.InstanceName(m.namespace),
-			Namespace:                       app.Spec.Destination.Namespace,
-			ApplicationSource:               &source,
-			KustomizeOptions:                kustomizeOptions,
-			KubeVersion:                     serverVersion,
-			ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
-			VerifySignature:                 verifySignature,
-			HelmRepoCreds:                   permittedHelmCredentials,
-			TrackingMethod:                  string(argo.GetTrackingMethod(m.settingsMgr)),
-			EnabledSourceTypes:              enabledSourceTypes,
-			HelmOptions:                     helmOptions,
-			HasMultipleSources:              app.Spec.HasMultipleSources(),
-			RefSources:                      refSources,
-			ProjectName:                     proj.Name,
-			ProjectSourceRepos:              proj.Spec.SourceRepos,
-			AnnotationManifestGeneratePaths: app.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
-			InstallationID:                  installationID,
+			Repo:               repo,
+			Repos:              permittedHelmRepos,
+			Revision:           revision,
+			NoCache:            noCache,
+			NoRevisionCache:    noRevisionCache,
+			AppLabelKey:        appLabelKey,
+			AppName:            app.InstanceName(m.namespace),
+			Namespace:          app.Spec.Destination.Namespace,
+			ApplicationSource:  &source,
+			KustomizeOptions:   kustomizeOptions,
+			KubeVersion:        serverVersion,
+			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+			VerifySignature:    verifySignature,
+			HelmRepoCreds:      permittedHelmCredentials,
+			TrackingMethod:     string(argo.GetTrackingMethod(m.settingsMgr)),
+			EnabledSourceTypes: enabledSourceTypes,
+			HelmOptions:        helmOptions,
+			HasMultipleSources: app.Spec.HasMultipleSources(),
+			RefSources:         refSources,
+			ProjectName:        proj.Name,
+			ProjectSourceRepos: proj.Spec.SourceRepos,
+			InstallationID:     installationID,
 		})
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
@@ -300,8 +298,7 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 	logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 	logCtx.Info("GetRepoObjs stats")
 
-	// If a revision in any of the sources cannot be updated,
-	// we should trigger self-healing whenever there are changes to the manifests.
+	// in case if annotation not exists, we should always execute selfheal if manifests changed
 	if atLeastOneRevisionIsNotPossibleToBeUpdated {
 		revisionUpdated = true
 	}
@@ -748,8 +745,6 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			Group:           gvk.Group,
 			Hook:            isHook(obj),
 			RequiresPruning: targetObj == nil && liveObj != nil && isSelfReferencedObj,
-			RequiresDeletionConfirmation: targetObj != nil && resourceutil.HasAnnotationOption(targetObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDeleteRequireConfirm) ||
-				liveObj != nil && resourceutil.HasAnnotationOption(liveObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDeleteRequireConfirm),
 		}
 		if targetObj != nil {
 			resState.SyncWave = int64(syncwaves.Wave(targetObj))
@@ -964,6 +959,10 @@ func specEqualsCompareTo(spec v1alpha1.ApplicationSpec, comparedTo v1alpha1.Comp
 	if comparedTo.Destination.Name == "" {
 		currentSpec.Destination.Name = ""
 	}
+
+	// Set IsServerInferred to false on both, because that field is not important for comparison.
+	comparedTo.Destination.SetIsServerInferred(false)
+	currentSpec.Destination.SetIsServerInferred(false)
 
 	return reflect.DeepEqual(comparedTo, currentSpec)
 }
