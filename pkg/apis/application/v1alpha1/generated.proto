@@ -1035,6 +1035,9 @@ message GitGenerator {
 
   // Values contains key/value pairs which are passed directly as parameters to the template
   map<string, string> values = 8;
+
+  // List of files containing parameters to add on top to the template
+  repeated string extraParameterFiles = 9;
 }
 
 // GnuPGPublicKey is a representation of a GnuPG public key
