@@ -1454,8 +1454,8 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			// before we showed the prompts only when condition cascade && isTerminal && !noPrompt is true
 			promptUtil := utils.NewPrompt(cascade && isTerminal && !noPrompt)
 			var (
-				confirmAll      = false
-				confirm    bool = false
+				confirmAll = false
+				confirm    = false
 			)
 
 			for _, appFullName := range appNames {
