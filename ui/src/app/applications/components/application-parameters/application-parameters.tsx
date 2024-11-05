@@ -304,7 +304,7 @@ export const ApplicationParameters = (props: {
                     props.handleCollapse(index, !currentState);
                 }}>
                 <div className='editable-panel__collapsible-button'>
-                    <i className={`fa fa-angle-down filter__collapse`} />
+                    <i className={`fa fa-angle-down filter__collapse editable-panel__collapsible-button__override`} />
                 </div>
                 <div className='settings-overview__redirect-panel__content'>
                     <div className='settings-overview__redirect-panel__title'>Source {index + 1 + ': ' + appSource.repoURL}</div>
@@ -320,7 +320,7 @@ export const ApplicationParameters = (props: {
                         <React.Fragment>
                             <div className='editable-panel__collapsible-button'>
                                 <i
-                                    className={`fa fa-angle-up filter__collapse`}
+                                    className={`fa fa-angle-up filter__collapse editable-panel__collapsible-button__override`}
                                     onClick={() => {
                                         props.handleCollapse(index, !props.collapsedSources[index]);
                                     }}
