@@ -51,15 +51,15 @@ func TestConfirmBaseOnCountZeroApps(t *testing.T) {
 
 func TestConfirmPrompt(t *testing.T) {
 	cases := []struct {
-		input string
-		output  bool
+		input  string
+		output bool
 	}{
 		{"y\n", true},
 		{"n\n", false},
 	}
-	
+
 	origStdin := os.Stdin
-	
+
 	for _, c := range cases {
 		tmpFile, err := writeToStdin(c.input)
 		if err != nil {
@@ -71,15 +71,15 @@ func TestConfirmPrompt(t *testing.T) {
 		os.Remove(tmpFile.Name())
 		_ = tmpFile.Close()
 	}
-	
+
 	os.Stdin = origStdin
 }
 
 func TestConfirmAllPrompt(t *testing.T) {
 	cases := []struct {
-		input string
-		confirm  bool
-		confirmAll  bool
+		input      string
+		confirm    bool
+		confirmAll bool
 	}{
 		{"y\n", true, false},
 		{"n\n", false, false},
@@ -119,7 +119,7 @@ func writeToStdin(msg string) (*os.File, error) {
 	if _, err := tmpFile.Seek(0, 0); err != nil {
 		return nil, err
 	}
-	
+
 	os.Stdin = tmpFile
 
 	return tmpFile, nil
