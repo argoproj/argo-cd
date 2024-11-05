@@ -1443,8 +1443,6 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			var isTerminal bool = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
-			var isConfirmAll bool = false
-			numOfApps := len(args)
 			promptFlag := c.Flag("yes")
 			if promptFlag.Changed && promptFlag.Value.String() == "true" {
 				noPrompt = true
@@ -1456,6 +1454,16 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			if len(appNames) == 0 {
 				appNames = args
 			}
+
+			numOfApps := len(appNames)
+
+			// This is for backward compatibility,
+			// before we showed the prompts only when condition cascade && isTerminal && !noPrompt is true
+			promptUtil := utils.NewPrompt(cascade && isTerminal && !noPrompt)
+			var (
+				confirmAll = false
+				confirm    = false
+			)
 
 			for _, appFullName := range appNames {
 				appName, appNs := argo.ParseFromQualifiedName(appFullName, appNamespace)
@@ -1469,38 +1477,21 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				if c.Flag("propagation-policy").Changed {
 					appDeleteReq.PropagationPolicy = &propagationPolicy
 				}
-				if cascade && isTerminal && !noPrompt {
-					var lowercaseAnswer string
-					if numOfApps == 1 {
-						lowercaseAnswer = cli.AskToProceedS("Are you sure you want to delete '" + appFullName + "' and all its resources? [y/n] ")
-					} else {
-						if !isConfirmAll {
-							lowercaseAnswer = cli.AskToProceedS("Are you sure you want to delete '" + appFullName + "' and all its resources? [y/n/A] where 'A' is to delete all specified apps and their resources without prompting ")
-							if lowercaseAnswer == "a" {
-								lowercaseAnswer = "y"
-								isConfirmAll = true
-							}
-						} else {
-							lowercaseAnswer = "y"
-						}
-					}
-					if lowercaseAnswer == "y" {
-						_, err := appIf.Delete(ctx, &appDeleteReq)
-						errors.CheckError(err)
-						if wait {
-							checkForDeleteEvent(ctx, acdClient, appFullName)
-						}
-						fmt.Printf("application '%s' deleted\n", appFullName)
-					} else {
-						fmt.Println("The command to delete '" + appFullName + "' was cancelled.")
-					}
-				} else {
+				messageForSingle := "Are you sure you want to delete '" + appFullName + "' and all its resources? [y/n] "
+				messageForAll := "Are you sure you want to delete '" + appFullName + "' and all its resources? [y/n/a] where 'a' is to delete all specified apps and their resources without prompting "
+
+				if !confirmAll {
+					confirm, confirmAll = promptUtil.ConfirmBaseOnCount(messageForSingle, messageForAll, numOfApps)
+				}
+				if confirm || confirmAll {
 					_, err := appIf.Delete(ctx, &appDeleteReq)
 					errors.CheckError(err)
-
 					if wait {
 						checkForDeleteEvent(ctx, acdClient, appFullName)
 					}
+					fmt.Printf("application '%s' deleted\n", appFullName)
+				} else {
+					fmt.Println("The command to delete '" + appFullName + "' was cancelled.")
 				}
 			}
 		},
