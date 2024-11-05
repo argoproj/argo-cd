@@ -2,6 +2,7 @@ import React, {useEffect, useState} from 'react';
 import {RouteComponentProps} from 'react-router';
 import {services} from '../../shared/services';
 import {PKCECodeVerifier, PKCELoginError, getPKCERedirectURI, pkceCallback} from './utils';
+import requests from '../../shared/services/requests';
 
 import './pkce-verify.scss';
 
