@@ -1450,7 +1450,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 
 			numOfApps := len(appNames)
 
-			// This is for backward compatibility, 
+			// This is for backward compatibility,
 			// before we showed the prompts only when condition cascade && isTerminal && !noPrompt is true
 			promptUtil := utils.NewPrompt(cascade && isTerminal && !noPrompt)
 			var (
