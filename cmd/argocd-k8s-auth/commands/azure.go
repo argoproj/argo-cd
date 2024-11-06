@@ -24,8 +24,10 @@ func newAzureCommand() *cobra.Command {
 		Use: "azure",
 		Run: func(c *cobra.Command, args []string) {
 			o := token.OptionsWithEnv()
-			// we'll use default of WorkloadIdentityLogin for the login flow
-			o.LoginMethod = token.WorkloadIdentityLogin
+			if o.LoginMethod == "" { // no environment variable overrides
+				// we'll use default of WorkloadIdentityLogin for the login flow
+				o.LoginMethod = token.WorkloadIdentityLogin
+			}
 			o.ServerID = DEFAULT_AAD_SERVER_APPLICATION_ID
 			if v, ok := os.LookupEnv(envServerApplicationID); ok {
 				o.ServerID = v
