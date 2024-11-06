@@ -382,7 +382,8 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			})
 			errors.CheckError(err)
 
-			if app.Spec.HasMultipleSources() {
+			// check for source position if --show-params is set
+			if app.Spec.HasMultipleSources() && showParams {
 				if sourcePosition <= 0 {
 					errors.CheckError(fmt.Errorf("Source position should be specified and must be greater than 0 for applications with multiple sources"))
 				}
