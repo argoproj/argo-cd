@@ -226,7 +226,7 @@ func TestGetShardByIndexModuloReplicasCountDistributionFunctionWhenClusterNumber
 	// The other implementation was giving almost linear time of 400ms up to 10'000 clusters
 	clusterPointers := []*v1alpha1.Cluster{}
 	for i := 0; i < 2048; i++ {
-		cluster := createCluster(fmt.Sprintf("cluster-%d", i), fmt.Sprintf("%d", i))
+		cluster := createCluster(fmt.Sprintf("cluster-%d", i), strconv.Itoa(i))
 		clusterPointers = append(clusterPointers, &cluster)
 	}
 	replicasCount := 2
