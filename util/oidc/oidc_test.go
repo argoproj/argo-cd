@@ -639,7 +639,7 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey("randomUser"),
+					key:         formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser"}),
 					expectError: true,
 				},
 			},
@@ -654,7 +654,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey("randomUser"),
+					key:     formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser"}),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -673,7 +673,7 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey("randomUser"),
+					key:         formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser"}),
 					expectError: true,
 				},
 			},
@@ -688,7 +688,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey("randomUser"),
+					key:     formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser"}),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -707,7 +707,7 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey("randomUser"),
+					key:         formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser"}),
 					expectError: true,
 				},
 			},
@@ -730,7 +730,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey("randomUser"),
+					key:     formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser"}),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -749,7 +749,7 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey("randomUser"),
+					key:         formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser"}),
 					expectError: true,
 				},
 			},
@@ -782,7 +782,7 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:             formatUserInfoResponseCacheKey("randomUser"),
+					key:             formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser"}),
 					value:           "{\"groups\":[\"githubOrg:engineers\"]}",
 					expectEncrypted: true,
 					expectError:     false,
@@ -809,7 +809,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey("randomUser"),
+					key:     formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser"}),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
