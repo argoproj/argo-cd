@@ -25,6 +25,7 @@ import (
 
 	appcontrollercommand "github.com/argoproj/argo-cd/v2/cmd/argocd-application-controller/commands"
 	appsetcontrollercommand "github.com/argoproj/argo-cd/v2/cmd/argocd-applicationset-controller/commands"
+	notificationscontrollercommand "github.com/argoproj/argo-cd/v2/cmd/argocd-notification/commands"
 	reposervercommand "github.com/argoproj/argo-cd/v2/cmd/argocd-repo-server/commands"
 	servercommand "github.com/argoproj/argo-cd/v2/cmd/argocd-server/commands"
 	grpcutil "github.com/argoproj/argo-cd/v2/util/grpc"
@@ -64,7 +65,6 @@ const (
 	ArgoCDAppNamespace      = "argocd-e2e-external"
 
 	// notifications controller, metrics server port
-	defaultNotificationServer = "localhost:9001"
 
 	// ensure all repos are in one directory tree, so we can easily clean them up
 	TmpDir             = "/tmp/argo-e2e"
@@ -125,6 +125,7 @@ var (
 	mappedHttpsClientAuthPort string // port 9444
 	MappedOCIRegistryPort     string // port 5000
 	mappedHelmHttpPort        string // port 9080
+	defaultNotificationServer = "localhost:9001"
 )
 
 type RepoURLType string
@@ -828,6 +829,18 @@ func initTestServices(ctx context.Context) {
 	appControllerConfig := appcontrollercommand.NewApplicationControllerConfig(appControllerCmd).WithDefaultFlags().WithK8sSettings(TestNamespace(), appRestConfig)
 	CheckError(appControllerCmd.Flags().Set("repo-server", repoServerAddress))
 	CheckError(appControllerConfig.CreateApplicationController(ctx))
+
+	// Start notifications-controller
+	notificationsRestConfig := rest.CopyConfig(KubeConfig)
+	// notificationRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-notifications-controller", TestNamespace()) // TODO: Run controller with serviceaccount perms
+	notificationsControllerCmd := &cobra.Command{}
+	notificationsControllerConfig := notificationscontrollercommand.NewNotificationsControllerConfig(notificationsControllerCmd).WithDefaultFlags().WithK8sSettings(TestNamespace(), notificationsRestConfig)
+	// CheckError(appControllerCmd.Flags().Set("repo-server", repoServerAddress))
+	metricsPort := randomPort()
+	CheckError(notificationsControllerCmd.Flags().Set("metrics-port", metricsPort))
+	CheckError(notificationsControllerConfig.CreateNotificationsController(ctx))
+
+	defaultNotificationServer = fmt.Sprintf("localhost:%s", metricsPort)
 
 	// Start applicationset-controller
 	appsetCmd := cobra.Command{}
