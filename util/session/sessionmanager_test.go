@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v2/common"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
@@ -99,7 +100,7 @@ func TestSessionManager_AdminToken(t *testing.T) {
 	assert.Empty(t, newToken)
 
 	mapClaims := *(claims.(*jwt.MapClaims))
-	subject := mapClaims["sub"].(string)
+	subject := utils.GetUserIdentifier(mapClaims)
 	if subject != "admin" {
 		t.Errorf("Token claim subject \"%s\" does not match expected subject \"%s\".", subject, "admin")
 	}
@@ -126,7 +127,7 @@ func TestSessionManager_AdminToken_ExpiringSoon(t *testing.T) {
 	claims, _, err := mgr.Parse(newToken)
 	require.NoError(t, err)
 	mapClaims := *(claims.(*jwt.MapClaims))
-	subject := mapClaims["sub"].(string)
+	subject := utils.GetUserIdentifier(mapClaims)
 	assert.Equal(t, "admin", subject)
 }
 
