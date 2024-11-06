@@ -7,13 +7,13 @@ import (
 	"reflect"
 	"text/tabwriter"
 
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
@@ -359,7 +359,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 			// This is for backward compatibility,
 			// before we showed the prompts only when condition isTerminal && !noPrompt is true
 			promptUtil := utils.NewPrompt(isTerminal && !noPrompt)
-			
+
 			for _, appSetQualifiedName := range args {
 				appSetName, appSetNs := argo.ParseFromQualifiedName(appSetQualifiedName, "")
 
