@@ -20,6 +20,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
@@ -226,7 +227,7 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 		return nil, "", err
 	}
 
-	subject := jwtutil.StringField(claims, "sub")
+	subject := utils.GetUserIdentifier(claims)
 	id := jwtutil.StringField(claims, "jti")
 
 	if projName, role, ok := rbacpolicy.GetProjectRoleFromSubject(subject); ok {
@@ -502,9 +503,17 @@ func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) h
 				return
 			}
 			ctx := r.Context()
+
+			// Assert that claims is of type jwt.MapClaims
+			mapClaims, ok := claims.(jwt.MapClaims)
+			if !ok {
+				http.Error(w, "Invalid claims type", http.StatusUnauthorized)
+				return
+			}
+
 			// Add claims to the context to inspect for RBAC
 			// nolint:staticcheck
-			ctx = context.WithValue(ctx, "claims", claims)
+			ctx = context.WithValue(ctx, "user_id", utils.GetUserIdentifier(mapClaims))
 			r = r.WithContext(ctx)
 		}
 		next.ServeHTTP(w, r)
@@ -593,12 +602,7 @@ func Username(ctx context.Context) string {
 	if !ok {
 		return ""
 	}
-	switch jwtutil.StringField(mapClaims, "iss") {
-	case SessionManagerClaimsIssuer:
-		return jwtutil.StringField(mapClaims, "sub")
-	default:
-		return jwtutil.StringField(mapClaims, "email")
-	}
+	return utils.GetUserIdentifier(mapClaims)
 }
 
 func Iss(ctx context.Context) string {
@@ -622,7 +626,7 @@ func Sub(ctx context.Context) string {
 	if !ok {
 		return ""
 	}
-	return jwtutil.StringField(mapClaims, "sub")
+	return utils.GetUserIdentifier(mapClaims)
 }
 
 func Groups(ctx context.Context, scopes []string) []string {

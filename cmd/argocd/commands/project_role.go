@@ -332,7 +332,7 @@ Create token succeeded for proj:test-project:test-role.
 			issuedAt, _ := jwt.IssuedAt(claims)
 			expiresAt := int64(jwt.Float64Field(claims, "exp"))
 			id := jwt.StringField(claims, "jti")
-			subject := jwt.StringField(claims, "sub")
+			subject := utils.GetUserIdentifier(claims)
 
 			if !outputTokenOnly {
 				fmt.Printf("Create token succeeded for %s.\n", subject)
