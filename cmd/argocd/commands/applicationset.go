@@ -368,7 +368,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 					AppsetNamespace: appSetNs,
 				}
 				messageForSingle := "Are you sure you want to delete '" + appSetQualifiedName + "' and all its Applications? [y/n] "
-				messageForAll := "Are you sure you want to delete '" + appSetQualifiedName + "' and all its Applications? [y/n/A] where 'A' is to delete all specified ApplicationSets and their Applications without prompting"
+				messageForAll := "Are you sure you want to delete '" + appSetQualifiedName + "' and all its Applications? [y/n/a] where 'a' is to delete all specified ApplicationSets and their Applications without prompting"
 				if !confirmAll {
 					confirm, confirmAll = promptUtil.ConfirmBaseOnCount(messageForSingle, messageForAll, numOfApps)
 				}
