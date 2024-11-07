@@ -882,3 +882,155 @@ return hs`
 		assert.Nil(t, status)
 	})
 }
+
+const objSyncWindowsNil = `
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: test
+spec:
+  destinations: {}
+  # syncWindows:
+`
+
+const objSyncWindowsEmpty = `
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: test
+spec:
+  destinations: {}
+  syncWindows: []
+`
+
+const addToSyncWindowAction = `
+newSyncWindow = {}
+newSyncWindow.duration = "1h"
+if obj.spec.syncWindows == nil then
+  obj.spec.syncWindows = {}
+end
+table.insert(obj.spec.syncWindows, newSyncWindow)
+return obj
+`
+
+const objSyncWindowsExpected = `
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: test
+spec:
+  destinations: {}
+  syncWindows:
+  - duration: 1h
+`
+
+func TestAddToArrayNil(t *testing.T) {
+	testObj := StrToUnstructured(objSyncWindowsNil)
+	expectedObj := StrToUnstructured(objSyncWindowsExpected)
+	vm := VM{}
+	newObjects, err := vm.ExecuteResourceAction(testObj, addToSyncWindowAction)
+	assert.Nil(t, err)
+	assert.Equal(t, len(newObjects), 1)
+	assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
+	assert.Equal(t, expectedObj, newObjects[0].UnstructuredObj)
+}
+
+func TestAddToArrayEmpty(t *testing.T) {
+	testObj := StrToUnstructured(objSyncWindowsEmpty)
+	expectedObj := StrToUnstructured(objSyncWindowsExpected)
+	vm := VM{}
+	newObjects, err := vm.ExecuteResourceAction(testObj, addToSyncWindowAction)
+	assert.Nil(t, err)
+	assert.Equal(t, len(newObjects), 1)
+	assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
+	assert.Equal(t, expectedObj, newObjects[0].UnstructuredObj)
+}
+
+const objArrayOfArray = `
+apiVersion: argoproj.io/v1alpha1
+kind: TestDummy
+metadata:
+  name: test
+spec:
+  something: {}
+  outerArray:
+  - - entry1: "a"
+      entry2: "b"
+`
+
+const addToArrayOfArrayAction = `
+item = {}
+item.entry1 = "c"
+item.entry2 = "d"
+arr = {}
+arr[1] = item
+table.insert(obj.spec.outerArray, arr)
+return obj
+`
+
+const objArrayOfArrayExpected = `
+apiVersion: argoproj.io/v1alpha1
+kind: TestDummy
+metadata:
+  name: test
+spec:
+  something: {}
+  outerArray:
+  - - entry1: a
+      entry2: b
+  - - entry1: c
+      entry2: d
+`
+
+func TestAddToArrayOfArray(t *testing.T) {
+	testObj := StrToUnstructured(objArrayOfArray)
+	expectedObj := StrToUnstructured(objArrayOfArrayExpected)
+	vm := VM{}
+	newObjects, err := vm.ExecuteResourceAction(testObj, addToArrayOfArrayAction)
+	assert.Nil(t, err)
+	assert.Equal(t, len(newObjects), 1)
+	assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
+	assert.Equal(t, expectedObj, newObjects[0].UnstructuredObj)
+}
+
+const objArrayWithOneObject = `
+apiVersion: argoproj.io/v1alpha1
+kind: TestDummy
+metadata:
+  name: test
+spec:
+  something: {}
+  testArray:
+  - attribute1: "a"
+    attribute2: "b"
+`
+
+const addToArrayAction = `
+item = {}
+table.insert(obj.spec.testArray, item)
+return obj
+`
+
+const objArrayWithTwoObjectsExpected = `
+apiVersion: argoproj.io/v1alpha1
+kind: TestDummy
+metadata:
+  name: test
+spec:
+  something: {}
+  testArray:
+  - attribute1: "a"
+    attribute2: "b"
+  - {}
+`
+
+func TestAddToArrayWithObject(t *testing.T) {
+	testObj := StrToUnstructured(objArrayWithOneObject)
+	expectedObj := StrToUnstructured(objArrayWithTwoObjectsExpected)
+	vm := VM{}
+	newObjects, err := vm.ExecuteResourceAction(testObj, addToArrayAction)
+	assert.Nil(t, err)
+	assert.Equal(t, len(newObjects), 1)
+	assert.Equal(t, newObjects[0].K8SOperation, K8SOperation("patch"))
+	assert.Equal(t, expectedObj, newObjects[0].UnstructuredObj)
+}
