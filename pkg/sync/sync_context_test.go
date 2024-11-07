@@ -792,6 +792,11 @@ func withServerSideApplyAnnotation(un *unstructured.Unstructured) *unstructured.
 	return un
 }
 
+func withDisableServerSideApplyAnnotation(un *unstructured.Unstructured) *unstructured.Unstructured {
+	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: synccommon.SyncOptionDisableServerSideApply})
+	return un
+}
+
 func withReplaceAndServerSideApplyAnnotations(un *unstructured.Unstructured) *unstructured.Unstructured {
 	un.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Replace=true,ServerSideApply=true"})
 	return un
@@ -808,6 +813,7 @@ func TestSync_ServerSideApply(t *testing.T) {
 	}{
 		{"NoAnnotation", NewPod(), NewPod(), "apply", false, "managerA"},
 		{"ServerSideApplyAnnotationIsSet", withServerSideApplyAnnotation(NewPod()), NewPod(), "apply", true, "managerB"},
+		{"DisableServerSideApplyAnnotationIsSet", withDisableServerSideApplyAnnotation(NewPod()), NewPod(), "apply", false, "managerB"},
 		{"ServerSideApplyAndReplaceAnnotationsAreSet", withReplaceAndServerSideApplyAnnotations(NewPod()), NewPod(), "replace", false, ""},
 		{"ServerSideApplyAndReplaceAnnotationsAreSetNamespace", withReplaceAndServerSideApplyAnnotations(NewNamespace()), NewNamespace(), "update", false, ""},
 		{"LiveObjectMissing", withReplaceAnnotation(NewPod()), nil, "create", false, ""},

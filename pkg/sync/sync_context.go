@@ -948,6 +948,23 @@ func (sc *syncContext) ensureCRDReady(name string) error {
 	})
 }
 
+func (sc *syncContext) shouldUseServerSideApply(targetObj *unstructured.Unstructured) bool {
+	// if it is a dry run, disable server side apply, as the goal is to validate only the
+	// yaml correctness of the rendered manifests.
+	// running dry-run in server mode breaks the auto create namespace feature
+	// https://github.com/argoproj/argo-cd/issues/13874
+	if sc.dryRun {
+		return false
+	}
+
+	resourceHasDisableSSAAnnotation := resourceutil.HasAnnotationOption(targetObj, common.AnnotationSyncOptions, common.SyncOptionDisableServerSideApply)
+	if resourceHasDisableSSAAnnotation {
+		return false
+	}
+
+	return sc.serverSideApply || resourceutil.HasAnnotationOption(targetObj, common.AnnotationSyncOptions, common.SyncOptionServerSideApply)
+}
+
 func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.ResultCode, string) {
 	dryRunStrategy := cmdutil.DryRunNone
 	if dryRun {
@@ -963,11 +980,7 @@ func (sc *syncContext) applyObject(t *syncTask, dryRun, validate bool) (common.R
 	var message string
 	shouldReplace := sc.replace || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionReplace)
 	force := sc.force || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionForce)
-	// if it is a dry run, disable server side apply, as the goal is to validate only the
-	// yaml correctness of the rendered manifests.
-	// running dry-run in server mode breaks the auto create namespace feature
-	// https://github.com/argoproj/argo-cd/issues/13874
-	serverSideApply := !dryRun && (sc.serverSideApply || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionServerSideApply))
+	serverSideApply := sc.shouldUseServerSideApply(t.targetObj)
 	if shouldReplace {
 		if t.liveObj != nil {
 			// Avoid using `kubectl replace` for CRDs since 'replace' might recreate resource and so delete all CRD instances.
