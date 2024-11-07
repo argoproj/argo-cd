@@ -248,6 +248,16 @@ metadata:
     argocd.argoproj.io/sync-options: ServerSideApply=true
 ```
 
+If you want to disable ServerSideApply for a specific resource while it is enabled at the application level,
+the sync-option annotation can be used:
+
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: ServerSideApply=false
+```
+
+
 ServerSideApply can also be used to patch existing resources by providing a partial
 yaml. For example, if there is a requirement to update just the number of replicas
 in a given Deployment, the following yaml can be provided to Argo CD:
