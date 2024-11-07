@@ -26,14 +26,13 @@ RUN  apt-get update && apt-get install --no-install-recommends -y \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # These are required for running end-to-end tests
-COPY ./test/fixture/testrepos/id_rsa.pub /root/.ssh/authorized_keys
 COPY ./test/fixture/testrepos/nginx.conf /etc/nginx/nginx.conf
 COPY ./test/fixture/testrepos/.htpasswd /etc/nginx/.htpasswd
 COPY ./test/fixture/testrepos/sudoers.conf /etc/sudoers
 COPY ./test/fixture/testrepos/ssh_host_*_key* /etc/ssh/
-COPY ./test/fixture/certs/argocd-e2e-server.crt /etc/certs/argocd-test-server.crt
-COPY ./test/fixture/certs/argocd-e2e-server.key /etc/certs/argocd-test-server.key
-COPY ./test/fixture/certs/argocd-test-ca.crt /etc/certs/argocd-test-ca.crt
+COPY ./test/fixture/certs/argocd-e2e-server.crt.pem /etc/certs/argocd-test-server.crt.pem
+COPY ./test/fixture/certs/argocd-e2e-server.key.pem /etc/certs/argocd-test-server.key.pem
+COPY ./test/fixture/certs/argocd-test-ca.pem /etc/certs/argocd-test-ca.pem
 
 # Entrypoint is required for container's user management
 COPY ./test/remote/entrypoint.sh /usr/local/bin
@@ -44,14 +43,17 @@ COPY --from=go /go/bin/goreman /usr/local/bin/goreman
 
 COPY ./test/e2e/testdata/ /app/config/testdata/
 
+ARG UID=1000
+
 # Prepare user configuration & build environments
-RUN useradd -l -u 1000 -d /home/user -s /bin/bash user && \
+RUN userdel -r ubuntu && \
+	useradd -l -u ${UID} -d /home/user -s /bin/bash user && \
     echo "user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/user && \
     mkdir -p /home/user && \
     HOME=/home/user git config --global user.name "ArgoCD Test User" && \
     HOME=/home/user git config --global user.email "noreply@example.com" && \
     mkdir -p /var/run/sshd && \
-    mkdir -p /root/.ssh && \
+    mkdir -p /home/user/.ssh && \
     chown -R user /home/user && \
     chgrp -R user /home/user && \
     chown root /etc/ssh/ssh_host_*_key* && \
@@ -74,7 +76,10 @@ RUN useradd -l -u 1000 -d /home/user -s /bin/bash user && \
     chown -R user /tmp/argo-e2e/testdata.git && \
     chown -R user /tmp/argo-e2e/submodule.git && \
     chown -R user /tmp/argo-e2e/submoduleParent.git && \
+    cp -r /app/config/testdata/helm-repo /tmp/argo-e2e/testdata.git/helm-repo && \
     ln -s /usr/libexec/git-core /usr/lib/git-core
+
+COPY ./test/fixture/testrepos/id_rsa.pub /home/user/.ssh/authorized_keys
 
 RUN echo "[http]" >> /tmp/argo-e2e/testdata.git/config && \
     echo "  receivepack = true" >> /tmp/argo-e2e/testdata.git/config 

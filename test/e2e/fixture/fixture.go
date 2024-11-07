@@ -5,13 +5,32 @@ import (
 	"context"
 	goerrors "errors"
 	"fmt"
+	"io"
+	"net"
 	"os"
+	"os/user"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/spf13/cobra"
+
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/k3s"
+	"github.com/testcontainers/testcontainers-go/modules/redis"
+	"github.com/testcontainers/testcontainers-go/wait"
+
+	appcontrollercommand "github.com/argoproj/argo-cd/v2/cmd/argocd-application-controller/commands"
+	appsetcontrollercommand "github.com/argoproj/argo-cd/v2/cmd/argocd-applicationset-controller/commands"
+	notificationscontrollercommand "github.com/argoproj/argo-cd/v2/cmd/argocd-notification/commands"
+	reposervercommand "github.com/argoproj/argo-cd/v2/cmd/argocd-repo-server/commands"
+	servercommand "github.com/argoproj/argo-cd/v2/cmd/argocd-server/commands"
+	grpcutil "github.com/argoproj/argo-cd/v2/util/grpc"
+
+	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/argoproj/pkg/errors"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -31,14 +50,13 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v2/util/env"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
-	grpcutil "github.com/argoproj/argo-cd/v2/util/grpc"
-	"github.com/argoproj/argo-cd/v2/util/io"
+	utilio "github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/rand"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 const (
-	defaultApiServer        = "localhost:8080"
+	defaultk3sVersion       = "v1.27.15"
 	defaultAdminPassword    = "password"
 	defaultAdminUsername    = "admin"
 	DefaultTestUserPassword = "password"
@@ -47,7 +65,6 @@ const (
 	ArgoCDAppNamespace      = "argocd-e2e-external"
 
 	// notifications controller, metrics server port
-	defaultNotificationServer = "localhost:9001"
 
 	// ensure all repos are in one directory tree, so we can easily clean them up
 	TmpDir             = "/tmp/argo-e2e"
@@ -73,28 +90,42 @@ const (
 	EnvArgoCDRedisName         = "ARGOCD_E2E_REDIS_NAME"
 	EnvArgoCDRepoServerName    = "ARGOCD_E2E_REPO_SERVER_NAME"
 	EnvArgoCDAppControllerName = "ARGOCD_E2E_APPLICATION_CONTROLLER_NAME"
+	EnvArgoCDApiServerPort     = "ARGOCD_E2E_APISERVER_PORT"
+	EnvArgoCDRepoServerPort    = "ARGOCD_E2E_REPOSERVER_PORT"
+	EnvArgoCDUseTestContainers = "ARGOCD_E2E_USE_TESTCONTAINERS"
+	EnvK3sVersion              = "ARGOCD_E2E_K3S_VERSION"
 )
 
 var (
-	id                      string
-	deploymentNamespace     string
-	name                    string
-	KubeClientset           kubernetes.Interface
-	KubeConfig              *rest.Config
-	DynamicClientset        dynamic.Interface
-	AppClientset            appclientset.Interface
-	ArgoCDClientset         apiclient.Client
-	adminUsername           string
-	AdminPassword           string
-	apiServerAddress        string
-	token                   string
-	plainText               bool
-	testsRun                map[string]bool
-	argoCDServerName        string
-	argoCDRedisHAProxyName  string
-	argoCDRedisName         string
-	argoCDRepoServerName    string
-	argoCDAppControllerName string
+	id                        string
+	deploymentNamespace       string
+	name                      string
+	KubeClientset             kubernetes.Interface
+	KubeConfig                *rest.Config
+	DynamicClientset          dynamic.Interface
+	AppClientset              appclientset.Interface
+	ArgoCDClientset           apiclient.Client
+	adminUsername             string
+	AdminPassword             string
+	apiServerAddress          string
+	token                     string
+	plainText                 bool
+	testsRun                  map[string]bool
+	argoCDServerName          string
+	argoCDRedisHAProxyName    string
+	argoCDRedisName           string
+	argoCDRepoServerName      string
+	argoCDAppControllerName   string
+	k3sVersion                string
+	apiServerPort             string
+	repoServerPort            string
+	mappedSSHPort             string // port 2222
+	mappedGitNoAuthPort       string // port 9081
+	MappedHttpsAuthPort       string // port 9443
+	mappedHttpsClientAuthPort string // port 9444
+	MappedOCIRegistryPort     string // port 5000
+	mappedHelmHttpPort        string // port 9080
+	defaultNotificationServer = "localhost:9001"
 )
 
 type RepoURLType string
@@ -123,7 +154,6 @@ const (
 	GithubAppID                     = "2978632978"
 	GithubAppInstallationID         = "7893789433789"
 	GpgGoodKeyID                    = "D56C4FCA57A46444"
-	HelmOCIRegistryURL              = "localhost:5000/myrepo"
 )
 
 // TestNamespace returns the namespace where Argo CD E2E test instance will be
@@ -155,6 +185,21 @@ func GetEnvWithDefault(envName, defaultValue string) string {
 	return r
 }
 
+func SetEnvWithDefaultIfNotSet(envName, value string) string {
+	r := os.Getenv(envName)
+	if r == "" {
+		_ = os.Setenv(envName, value)
+		return value
+	}
+	return r
+}
+
+// IsRunningTestContainers returns true when the tests are being run against a workload that
+// is running in a testcontainer.
+func IsRunningTestContainers() bool {
+	return env.ParseBoolFromEnv(EnvArgoCDUseTestContainers, true)
+}
+
 // IsRemote returns true when the tests are being run against a workload that
 // is running in a remote cluster.
 func IsRemote() bool {
@@ -171,14 +216,12 @@ func IsLocal() bool {
 func init() {
 	// ensure we log all shell execs
 	log.SetLevel(log.DebugLevel)
-	// set-up variables
-	config := getKubeConfig("", clientcmd.ConfigOverrides{})
-	AppClientset = appclientset.NewForConfigOrDie(config)
-	KubeClientset = kubernetes.NewForConfigOrDie(config)
-	DynamicClientset = dynamic.NewForConfigOrDie(config)
-	KubeConfig = config
 
-	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, defaultApiServer)
+	apiServerPort = GetEnvWithDefault(EnvArgoCDApiServerPort, randomPort())
+	repoServerPort = GetEnvWithDefault(EnvArgoCDRepoServerPort, randomPort())
+	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, fmt.Sprintf("localhost:%s", apiServerPort))
+	apiServerPort = strings.Split(apiServerAddress, ":")[1]
+
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
 	AdminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
@@ -187,6 +230,28 @@ func init() {
 	argoCDRedisName = GetEnvWithDefault(EnvArgoCDRedisName, common.DefaultRedisName)
 	argoCDRepoServerName = GetEnvWithDefault(EnvArgoCDRepoServerName, common.DefaultRepoServerName)
 	argoCDAppControllerName = GetEnvWithDefault(EnvArgoCDAppControllerName, common.DefaultApplicationControllerName)
+	k3sVersion = GetEnvWithDefault(EnvK3sVersion, defaultk3sVersion)
+
+	if IsRunningTestContainers() {
+		ctx := context.Background()
+
+		// Recreate temp dir
+		CheckError(os.RemoveAll(TmpDir))
+		FailOnErr(Run("", "mkdir", "-p", TmpDir))
+
+		setupGPG()
+		// setup k3s, redis and argocd-e2e-cluster as testcontainers
+		initTestContainers(ctx)
+		// configure app-controller, repo-server, appset-controller etc in-process
+		initTestServices(ctx)
+	} else {
+		// set-up variables
+		config := getKubeConfig("", clientcmd.ConfigOverrides{})
+		AppClientset = appclientset.NewForConfigOrDie(config)
+		KubeClientset = kubernetes.NewForConfigOrDie(config)
+		DynamicClientset = dynamic.NewForConfigOrDie(config)
+		KubeConfig = config
+	}
 
 	dialTime := 30 * time.Second
 	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress, dialTime)
@@ -236,10 +301,20 @@ func init() {
 	}
 }
 
+func randomPort() string {
+	l, err := net.Listen("tcp", ":0")
+	defer func() {
+		CheckError(l.Close())
+	}()
+	CheckError(err)
+	port := l.Addr().(*net.TCPAddr).Port
+	return strconv.FormatInt(int64(port), 10)
+}
+
 func loginAs(username, password string) {
 	closer, client, err := ArgoCDClientset.NewSessionClient()
 	CheckError(err)
-	defer io.Close(closer)
+	defer utilio.Close(closer)
 
 	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: username, Password: password})
 	CheckError(err)
@@ -271,7 +346,7 @@ func Name() string {
 	return name
 }
 
-func repoDirectory() string {
+func RepoDirectory() string {
 	return path.Join(TmpDir, repoDir)
 }
 
@@ -300,37 +375,37 @@ func RepoURL(urlType RepoURLType) string {
 	switch urlType {
 	// Git server via SSH
 	case RepoURLTypeSSH:
-		return GetEnvWithDefault(EnvRepoURLTypeSSH, "ssh://root@localhost:2222/tmp/argo-e2e/testdata.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSH, fmt.Sprintf("ssh://user@localhost:%s/tmp/argo-e2e/testdata.git", mappedSSHPort))
 	// Git submodule repo
 	case RepoURLTypeSSHSubmodule:
-		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmodule, "ssh://root@localhost:2222/tmp/argo-e2e/submodule.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmodule, fmt.Sprintf("ssh://user@localhost:%s/tmp/argo-e2e/submodule.git", mappedSSHPort))
 	// Git submodule parent repo
 	case RepoURLTypeSSHSubmoduleParent:
-		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmoduleParent, "ssh://root@localhost:2222/tmp/argo-e2e/submoduleParent.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmoduleParent, fmt.Sprintf("ssh://user@localhost:%s/tmp/argo-e2e/submoduleParent.git", mappedSSHPort))
 	// Git server via HTTPS
 	case RepoURLTypeHTTPS:
-		return GetEnvWithDefault(EnvRepoURLTypeHTTPS, "https://localhost:9443/argo-e2e/testdata.git")
+		return GetEnvWithDefault(EnvRepoURLTypeHTTPS, fmt.Sprintf("https://localhost:%s/argo-e2e/testdata.git", MappedHttpsAuthPort))
 	// Git "organisation" via HTTPS
 	case RepoURLTypeHTTPSOrg:
-		return GetEnvWithDefault(EnvRepoURLTypeHTTPSOrg, "https://localhost:9443/argo-e2e")
+		return GetEnvWithDefault(EnvRepoURLTypeHTTPSOrg, fmt.Sprintf("https://localhost:%s/argo-e2e", MappedHttpsAuthPort))
 	// Git server via HTTPS - Client Cert protected
 	case RepoURLTypeHTTPSClientCert:
-		return GetEnvWithDefault(EnvRepoURLTypeHTTPSClientCert, "https://localhost:9444/argo-e2e/testdata.git")
+		return GetEnvWithDefault(EnvRepoURLTypeHTTPSClientCert, fmt.Sprintf("https://localhost:%s/argo-e2e/testdata.git", mappedHttpsClientAuthPort))
 	case RepoURLTypeHTTPSSubmodule:
-		return GetEnvWithDefault(EnvRepoURLTypeHTTPSSubmodule, "https://localhost:9443/argo-e2e/submodule.git")
+		return GetEnvWithDefault(EnvRepoURLTypeHTTPSSubmodule, fmt.Sprintf("https://localhost:%s/argo-e2e/submodule.git", MappedHttpsAuthPort))
 		// Git submodule parent repo
 	case RepoURLTypeHTTPSSubmoduleParent:
-		return GetEnvWithDefault(EnvRepoURLTypeHTTPSSubmoduleParent, "https://localhost:9443/argo-e2e/submoduleParent.git")
+		return GetEnvWithDefault(EnvRepoURLTypeHTTPSSubmoduleParent, fmt.Sprintf("https://localhost:%s/argo-e2e/submoduleParent.git", MappedHttpsAuthPort))
 	// Default - file based Git repository
 	case RepoURLTypeHelm:
-		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo/local")
+		return GetEnvWithDefault(EnvRepoURLTypeHelm, fmt.Sprintf("https://localhost:%s/argo-e2e/testdata.git/helm-repo/local", mappedHttpsClientAuthPort))
 	// When Helm Repo has sub repos, this is the parent repo URL
 	case RepoURLTypeHelmParent:
-		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo")
+		return GetEnvWithDefault(EnvRepoURLTypeHelm, fmt.Sprintf("https://localhost:%s/argo-e2e/testdata.git/helm-repo", mappedHttpsClientAuthPort))
 	case RepoURLTypeHelmOCI:
-		return HelmOCIRegistryURL
+		return fmt.Sprintf("localhost:%s/myrepo", MappedOCIRegistryPort)
 	default:
-		return GetEnvWithDefault(EnvRepoURLDefault, fmt.Sprintf("file://%s", repoDirectory()))
+		return GetEnvWithDefault(EnvRepoURLDefault, fmt.Sprintf("file://%s", RepoDirectory()))
 	}
 }
 
@@ -573,6 +648,234 @@ func WithTestData(testdata string) TestOption {
 	}
 }
 
+type testLogConsumer struct{}
+
+func (g *testLogConsumer) Accept(l testcontainers.Log) {
+	log.Info(string(l.Content))
+}
+
+func initTestContainers(ctx context.Context) {
+	currentWorkingDirectory, err := os.Getwd()
+	CheckError(err)
+	base := filepath.Join(currentWorkingDirectory, "../../")
+	l := testLogConsumer{}
+
+	// Get the current user
+	currentUser, err := user.Current()
+	CheckError(err)
+
+	e2eServer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			User: fmt.Sprintf("%s:%s", currentUser.Uid, currentUser.Gid),
+			FromDockerfile: testcontainers.FromDockerfile{
+				Context:       base,
+				PrintBuildLog: true,
+				Dockerfile:    "test/remote/Dockerfile",
+				BuildArgs: map[string]*string{
+					"UID": &currentUser.Uid,
+				},
+			},
+			ExposedPorts: []string{"2222/tcp", "9080/tcp", "9081/tcp", "9443/tcp", "9444/tcp"},
+			Cmd:          []string{"goreman", "start"},
+			LogConsumerCfg: &testcontainers.LogConsumerConfig{
+				Opts:      []testcontainers.LogProductionOption{testcontainers.WithLogProductionTimeout(10 * time.Second)},
+				Consumers: []testcontainers.LogConsumer{&l},
+			},
+		},
+		Started: true,
+	})
+	CheckError(err)
+
+	ociRegistry, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			ExposedPorts: []string{"5000/tcp"},
+			Image:        "docker.io/registry:2",
+		},
+		Started: true,
+	})
+	CheckError(err)
+
+	port, _ := e2eServer.MappedPort(ctx, "2222")
+	mappedSSHPort = port.Port()
+
+	port, _ = e2eServer.MappedPort(ctx, "9080")
+	mappedHelmHttpPort = port.Port()
+
+	port, _ = e2eServer.MappedPort(ctx, "9081")
+	mappedGitNoAuthPort = port.Port()
+
+	port, _ = e2eServer.MappedPort(ctx, "9443")
+	MappedHttpsAuthPort = port.Port()
+
+	port, _ = e2eServer.MappedPort(ctx, "9444")
+	mappedHttpsClientAuthPort = port.Port()
+
+	port, _ = ociRegistry.MappedPort(ctx, "5000")
+	MappedOCIRegistryPort = port.Port()
+
+	// TODO: Figure nicer way to template helm index files with the forwarded port
+	c, reader, err := e2eServer.Exec(ctx, []string{
+		"sudo", "sed", "-i",
+		fmt.Sprintf("s/9080/%s/g", mappedHelmHttpPort),
+		"/tmp/argo-e2e/testdata.git/helm-repo/local/index.yaml",
+		"/tmp/argo-e2e/testdata.git/helm-repo/local2/index.yaml",
+		"/tmp/argo-e2e/testdata.git/helm-repo/remote/index.yaml",
+	})
+	CheckError(err)
+
+	if c != 0 {
+		buf := new(strings.Builder)
+		_, _ = io.Copy(buf, reader)
+		panic(buf.String())
+	}
+
+	k3sContainer, err := k3s.RunContainer(ctx,
+		testcontainers.WithImage(fmt.Sprintf("rancher/k3s:%s-k3s1", k3sVersion)),
+		testcontainers.WithWaitStrategy(wait.ForExec([]string{"kubectl", "wait", "--timeout=60s", "apiservice", "v1beta1.metrics.k8s.io", "--for", "condition=Available=True"})),
+	)
+	CheckError(err)
+
+	kubeConfigYaml, err := k3sContainer.GetKubeConfig(ctx)
+	CheckError(err)
+
+	config, err := clientcmd.RESTConfigFromKubeConfig(kubeConfigYaml)
+	CheckError(err)
+
+	// set-up variables
+	AppClientset = appclientset.NewForConfigOrDie(config)
+	KubeClientset = kubernetes.NewForConfigOrDie(config)
+	DynamicClientset = dynamic.NewForConfigOrDie(config)
+	KubeConfig = config
+
+	redisContainer, err := redis.RunContainer(ctx, testcontainers.WithImage("redis:6"))
+	CheckError(err)
+
+	endpoint, err := redisContainer.Endpoint(ctx, "")
+	CheckError(err)
+
+	temp, err := os.MkdirTemp("", "kubeconfig")
+	CheckError(err)
+	kubeConfigPath := temp + "/kubeconfig.yaml"
+
+	CheckError(os.WriteFile(kubeConfigPath, kubeConfigYaml, 0o600))
+	CheckError(os.Setenv("REDIS_SERVER", endpoint))
+	CheckError(os.Setenv("KUBECONFIG", kubeConfigPath))
+	CheckError(os.Setenv("ARGOCD_FAKE_IN_CLUSTER", "true"))
+	CheckError(os.Setenv("ARGOCD_E2E_K3S", "true"))
+	SetEnvWithDefaultIfNotSet("ARGOCD_E2E_GIT_SERVICE_SUBMODULE", fmt.Sprintf("http://127.0.0.1:%s/argo-e2e/submodule.git", mappedGitNoAuthPort))
+	SetEnvWithDefaultIfNotSet("ARGOCD_E2E_GIT_SERVICE_SUBMODULE_PARENT", fmt.Sprintf("http://127.0.0.1:%s/argo-e2e/submoduleParent.git", mappedGitNoAuthPort))
+	SetEnvWithDefaultIfNotSet("ARGOCD_E2E_GIT_SERVICE", fmt.Sprintf("http://127.0.0.1:%s/argo-e2e/testdata.git", mappedGitNoAuthPort))
+	SetEnvWithDefaultIfNotSet("ARGOCD_PLUGINCONFIGFILEPATH", "/tmp/argo-e2e/app/config/plugin")
+	SetEnvWithDefaultIfNotSet("ARGOCD_PLUGINSOCKFILEPATH", "/tmp/argo-e2e/app/config/plugin")
+	SetEnvWithDefaultIfNotSet("ARGOCD_GPG_DATA_PATH", "/tmp/argo-e2e/app/config/gpg/source")
+	SetEnvWithDefaultIfNotSet("ARGOCD_TLS_DATA_PATH", "/tmp/argo-e2e/app/config/tls")
+	SetEnvWithDefaultIfNotSet("ARGOCD_SSH_DATA_PATH", "/tmp/argo-e2e/app/config/ssh")
+	SetEnvWithDefaultIfNotSet("ARGOCD_GNUPGHOME", "/tmp/argo-e2e/app/config/gpg/keys")
+	SetEnvWithDefaultIfNotSet("ARGOCD_APPLICATION_NAMESPACES", "argocd-e2e-external,argocd-e2e-external-2")
+	SetEnvWithDefaultIfNotSet("ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES", "argocd-e2e-external,argocd-e2e-external-2")
+	SetEnvWithDefaultIfNotSet("ARGOCD_GPG_WRAPPER_PATH", currentWorkingDirectory+"/../../hack/")
+	SetEnvWithDefaultIfNotSet("ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS", "http://127.0.0.1:8341,http://127.0.0.1:8342,http://127.0.0.1:8343,http://127.0.0.1:8344")
+
+	namespaces := []string{TestNamespace(), AppNamespace(), "argocd-e2e-external-2"}
+	for _, s := range namespaces {
+		namespace := &corev1.Namespace{
+			ObjectMeta: v1.ObjectMeta{
+				Name: s,
+			},
+		}
+
+		_, err = KubeClientset.CoreV1().Namespaces().Create(context.TODO(), namespace, v1.CreateOptions{})
+		CheckError(err)
+	}
+
+	FailOnErr(Run("", "kubectl", "config", "set-context", "--current", fmt.Sprintf("--namespace=%s", TestNamespace())))
+	FailOnErr(Run("", "kubectl", "apply", "-f", "https://raw.githubusercontent.com/open-cluster-management/api/a6845f2ebcb186ec26b832f60c988537a58f3859/cluster/v1alpha1/0000_04_clusters.open-cluster-management.io_placementdecisions.crd.yaml"))
+	FailOnErr(Run("", "kubectl", "apply", "-k", "../manifests/base"))
+
+	// TODO: For now this logging seems a bit verbose, this should be tweakable
+	// cli.SetLogLevel("debug")
+	// cli.SetGLogLevel(0)
+}
+
+func initTestServices(ctx context.Context) {
+	// Start repo-server
+	repoServerCmd := cobra.Command{}
+	reposerverConfig := reposervercommand.NewRepoServerConfig(&repoServerCmd).WithDefaultFlags()
+	CheckError(repoServerCmd.Flags().Set("port", repoServerPort))
+
+	go func() {
+		if err := reposerverConfig.CreateRepoServer(ctx); err != nil {
+			log.Error(err, "problem starting repo-server")
+			os.Exit(1)
+		}
+	}()
+
+	repoServerAddress := fmt.Sprintf("localhost:%s", repoServerPort)
+
+	// Start argocd-server
+	serverCmd := cobra.Command{}
+	serverRestConfig := rest.CopyConfig(KubeConfig)
+	// serverRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-server", TestNamespace()) // TODO: Run controller with serviceaccount perms
+	serverConfig := servercommand.NewServerConfig(&serverCmd).WithDefaultFlags().WithK8sSettings(TestNamespace(), serverRestConfig)
+	CheckError(serverCmd.Flags().Set("insecure", "true"))
+	CheckError(serverCmd.Flags().Set("port", apiServerPort))
+	CheckError(serverCmd.Flags().Set("repo-server", repoServerAddress))
+	serverConfig.CreateServer(ctx)
+
+	// Start application-controller
+	appRestConfig := rest.CopyConfig(KubeConfig)
+	// appRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-application-controller", TestNamespace()) // TODO: Run controller with serviceaccount perms
+	appControllerCmd := &cobra.Command{}
+	appControllerConfig := appcontrollercommand.NewApplicationControllerConfig(appControllerCmd).WithDefaultFlags().WithK8sSettings(TestNamespace(), appRestConfig)
+	CheckError(appControllerCmd.Flags().Set("repo-server", repoServerAddress))
+	CheckError(appControllerConfig.CreateApplicationController(ctx))
+
+	// Start notifications-controller
+	notificationsRestConfig := rest.CopyConfig(KubeConfig)
+	// notificationRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-notifications-controller", TestNamespace()) // TODO: Run controller with serviceaccount perms
+	notificationsControllerCmd := &cobra.Command{}
+	notificationsControllerConfig := notificationscontrollercommand.NewNotificationsControllerConfig(notificationsControllerCmd).WithDefaultFlags().WithK8sSettings(TestNamespace(), notificationsRestConfig)
+	// CheckError(appControllerCmd.Flags().Set("repo-server", repoServerAddress))
+	metricsPort := randomPort()
+	CheckError(notificationsControllerCmd.Flags().Set("metrics-port", metricsPort))
+	CheckError(notificationsControllerConfig.CreateNotificationsController(ctx))
+
+	defaultNotificationServer = fmt.Sprintf("localhost:%s", metricsPort)
+
+	// Start applicationset-controller
+	appsetCmd := cobra.Command{}
+	appsetRestConfig := rest.CopyConfig(KubeConfig)
+	// appsetRestConfig.Impersonate.UserName = fmt.Sprintf("system:serviceaccount:%s:argocd-applicationset-controller", TestNamespace()) // TODO: Run controller with serviceaccount perms
+	appSetControllerConfig := appsetcontrollercommand.NewApplicationSetControllerConfig(&appsetCmd).WithDefaultFlags().WithK8sSettings(TestNamespace(), appsetRestConfig)
+	CheckError(appsetCmd.Flags().Set("probe-addr", fmt.Sprintf(":%s", randomPort())))
+	CheckError(appsetCmd.Flags().Set("metrics-addr", fmt.Sprintf(":%s", randomPort())))
+	CheckError(appsetCmd.Flags().Set("webhook-addr", fmt.Sprintf(":%s", randomPort())))
+	CheckError(appsetCmd.Flags().Set("argocd-repo-server", repoServerAddress))
+	mgr, err := appSetControllerConfig.CreateApplicationSetController(ctx)
+	CheckError(err)
+	go func() {
+		log.Info("Starting manager")
+		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+			log.Error(err, "problem running manager")
+			os.Exit(1)
+		}
+	}()
+}
+
+func replaceInFile(path string, replacements map[string]string) error {
+	input, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	output := string(input)
+	for k, v := range replacements {
+		output = strings.ReplaceAll(output, k, v)
+	}
+
+	return os.WriteFile(path, []byte(output), 0o666)
+}
+
 func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	t.Helper()
 	opt := newTestOption(opts...)
@@ -674,34 +977,43 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	}
 
 	// For signing during the tests
-	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/gpg"))
-	FailOnErr(Run("", "chmod", "0700", TmpDir+"/gpg"))
-	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
-	// nolint:errcheck
-	Run("", "pkill", "-9", "gpg-agent")
-	FailOnErr(Run("", "gpg", "--import", "../fixture/gpg/signingkey.asc"))
-	os.Setenv("GNUPGHOME", prevGnuPGHome)
-
-	// recreate GPG directories
-	if IsLocal() {
-		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/source"))
-		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/keys"))
-		FailOnErr(Run("", "chmod", "0700", TmpDir+"/app/config/gpg/keys"))
-		FailOnErr(Run("", "mkdir", "-p", TmpDir+PluginSockFilePath))
-		FailOnErr(Run("", "chmod", "0700", TmpDir+PluginSockFilePath))
-	}
+	setupGPG()
 
 	// set-up tmp repo, must have unique name
-	FailOnErr(Run("", "cp", "-Rf", opt.testdata, repoDirectory()))
-	FailOnErr(Run(repoDirectory(), "chmod", "777", "."))
-	FailOnErr(Run(repoDirectory(), "git", "init", "-b", "master"))
-	FailOnErr(Run(repoDirectory(), "git", "add", "."))
-	FailOnErr(Run(repoDirectory(), "git", "commit", "-q", "-m", "initial commit"))
+	FailOnErr(Run("", "cp", "-Rf", opt.testdata, RepoDirectory()))
+	FailOnErr(Run(RepoDirectory(), "chmod", "777", "."))
+	FailOnErr(Run(RepoDirectory(), "git", "init", "-b", "master"))
 
-	if IsRemote() {
-		FailOnErr(Run(repoDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE")))
-		FailOnErr(Run(repoDirectory(), "git", "push", "origin", "master", "-f"))
+	FailOnErr(Run(".", "cp", "../fixture/testrepos/ssh_known_hosts", TmpDir+"/ssh_known_hosts"))
+
+	if IsRunningTestContainers() {
+		CheckError(replaceInFile(TmpDir+"/ssh_known_hosts", map[string]string{
+			"2222": mappedSSHPort,
+		}))
+
+		CheckError(filepath.Walk(RepoDirectory(), func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if !info.IsDir() && strings.HasSuffix(path, ".yaml") {
+				CheckError(replaceInFile(path, map[string]string{
+					"9080": mappedHelmHttpPort,
+					"2222": mappedSSHPort,
+					"5000": MappedOCIRegistryPort,
+					"9443": MappedHttpsAuthPort,
+					"9444": mappedHttpsClientAuthPort,
+				}))
+			}
+			return nil
+		}))
+	}
+
+	FailOnErr(Run(RepoDirectory(), "git", "add", "."))
+	FailOnErr(Run(RepoDirectory(), "git", "commit", "-q", "-m", "initial commit"))
+
+	if IsRemote() || IsRunningTestContainers() {
+		FailOnErr(Run(RepoDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE")))
+		FailOnErr(Run(RepoDirectory(), "git", "push", "origin", "master", "-f"))
 	}
 
 	// create namespace
@@ -735,7 +1047,31 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		}
 	}
 
+	LoginAs(adminUsername)
+
+	log.WithFields(log.Fields{"apiServerAddress": apiServerAddress}).Info("initialized")
+
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
+}
+
+func setupGPG() {
+	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/gpg"))
+	FailOnErr(Run("", "chmod", "0700", TmpDir+"/gpg"))
+	prevGnuPGHome := os.Getenv("GNUPGHOME")
+	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	// nolint:errcheck
+	Run("", "pkill", "-9", "gpg-agent")
+	FailOnErr(Run("", "gpg", "--import", "../fixture/gpg/signingkey.asc"))
+	os.Setenv("GNUPGHOME", prevGnuPGHome)
+
+	// recreate GPG directories
+	if IsLocal() {
+		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/source"))
+		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/keys"))
+		FailOnErr(Run("", "chmod", "0700", TmpDir+"/app/config/gpg/keys"))
+		FailOnErr(Run("", "mkdir", "-p", TmpDir+PluginSockFilePath))
+		FailOnErr(Run("", "chmod", "0700", TmpDir+PluginSockFilePath))
+	}
 }
 
 func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
@@ -773,7 +1109,7 @@ func RunCliWithStdin(stdin string, isKubeConextOnlyCli bool, args ...string) (st
 func Patch(path string, jsonPatch string) {
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
 
-	filename := filepath.Join(repoDirectory(), path)
+	filename := filepath.Join(RepoDirectory(), path)
 	bytes, err := os.ReadFile(filename)
 	CheckError(err)
 
@@ -795,44 +1131,45 @@ func Patch(path string, jsonPatch string) {
 	if isYaml {
 		log.Info("converting JSON back to YAML")
 		bytes, err = yaml.JSONToYAML(bytes)
+		log.WithFields(log.Fields{"bytes": string(bytes)}).Info("Patched YAML")
 		CheckError(err)
 	}
 
 	CheckError(os.WriteFile(filename, bytes, 0o644))
-	FailOnErr(Run(repoDirectory(), "git", "diff"))
-	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
-	if IsRemote() {
-		FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+	FailOnErr(Run(RepoDirectory(), "git", "diff"))
+	FailOnErr(Run(RepoDirectory(), "git", "commit", "-am", "patch"))
+	if IsRemote() || IsRunningTestContainers() {
+		FailOnErr(Run(RepoDirectory(), "git", "push", "-f", "origin", "master"))
 	}
 }
 
 func Delete(path string) {
 	log.WithFields(log.Fields{"path": path}).Info("deleting")
 
-	CheckError(os.Remove(filepath.Join(repoDirectory(), path)))
+	CheckError(os.Remove(filepath.Join(RepoDirectory(), path)))
 
-	FailOnErr(Run(repoDirectory(), "git", "diff"))
-	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "delete"))
-	if IsRemote() {
-		FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+	FailOnErr(Run(RepoDirectory(), "git", "diff"))
+	FailOnErr(Run(RepoDirectory(), "git", "commit", "-am", "delete"))
+	if IsRemote() || IsRunningTestContainers() {
+		FailOnErr(Run(RepoDirectory(), "git", "push", "-f", "origin", "master"))
 	}
 }
 
 func WriteFile(path, contents string) {
 	log.WithFields(log.Fields{"path": path}).Info("adding")
 
-	CheckError(os.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0o644))
+	CheckError(os.WriteFile(filepath.Join(RepoDirectory(), path), []byte(contents), 0o644))
 }
 
 func AddFile(path, contents string) {
 	WriteFile(path, contents)
 
-	FailOnErr(Run(repoDirectory(), "git", "diff"))
-	FailOnErr(Run(repoDirectory(), "git", "add", "."))
-	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "add file"))
+	FailOnErr(Run(RepoDirectory(), "git", "diff"))
+	FailOnErr(Run(RepoDirectory(), "git", "add", "."))
+	FailOnErr(Run(RepoDirectory(), "git", "commit", "-am", "add file"))
 
-	if IsRemote() {
-		FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+	if IsRemote() || IsRunningTestContainers() {
+		FailOnErr(Run(RepoDirectory(), "git", "push", "-f", "origin", "master"))
 	}
 }
 
@@ -841,12 +1178,12 @@ func AddSignedFile(path, contents string) {
 
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
 	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
-	FailOnErr(Run(repoDirectory(), "git", "diff"))
-	FailOnErr(Run(repoDirectory(), "git", "add", "."))
-	FailOnErr(Run(repoDirectory(), "git", "-c", fmt.Sprintf("user.signingkey=%s", GpgGoodKeyID), "commit", "-S", "-am", "add file"))
+	FailOnErr(Run(RepoDirectory(), "git", "diff"))
+	FailOnErr(Run(RepoDirectory(), "git", "add", "."))
+	FailOnErr(Run(RepoDirectory(), "git", "-c", fmt.Sprintf("user.signingkey=%s", GpgGoodKeyID), "commit", "-S", "-am", "add file"))
 	os.Setenv("GNUPGHOME", prevGnuPGHome)
-	if IsRemote() {
-		FailOnErr(Run(repoDirectory(), "git", "push", "-f", "origin", "master"))
+	if IsRemote() || IsRunningTestContainers() {
+		FailOnErr(Run(RepoDirectory(), "git", "push", "-f", "origin", "master"))
 	}
 }
 
@@ -854,9 +1191,9 @@ func AddSignedTag(name string) {
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
 	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
 	defer os.Setenv("GNUPGHOME", prevGnuPGHome)
-	FailOnErr(Run(repoDirectory(), "git", "-c", fmt.Sprintf("user.signingkey=%s", GpgGoodKeyID), "tag", "-sm", "add signed tag", name))
-	if IsRemote() {
-		FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+	FailOnErr(Run(RepoDirectory(), "git", "-c", fmt.Sprintf("user.signingkey=%s", GpgGoodKeyID), "tag", "-sm", "add signed tag", name))
+	if IsRemote() || IsRunningTestContainers() {
+		FailOnErr(Run(RepoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
 	}
 }
 
@@ -864,9 +1201,9 @@ func AddTag(name string) {
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
 	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
 	defer os.Setenv("GNUPGHOME", prevGnuPGHome)
-	FailOnErr(Run(repoDirectory(), "git", "tag", name))
-	if IsRemote() {
-		FailOnErr(Run(repoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
+	FailOnErr(Run(RepoDirectory(), "git", "tag", name))
+	if IsRemote() || IsRunningTestContainers() {
+		FailOnErr(Run(RepoDirectory(), "git", "push", "--tags", "-f", "origin", "master"))
 	}
 }
 
@@ -891,7 +1228,7 @@ func CreateSubmoduleRepos(repoType string) {
 	FailOnErr(Run(submoduleDirectory(), "git", "add", "."))
 	FailOnErr(Run(submoduleDirectory(), "git", "commit", "-q", "-m", "initial commit"))
 
-	if IsRemote() {
+	if IsRemote() || IsRunningTestContainers() {
 		FailOnErr(Run(submoduleDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE")))
 		FailOnErr(Run(submoduleDirectory(), "git", "push", "origin", "master", "-f"))
 	}
@@ -901,7 +1238,7 @@ func CreateSubmoduleRepos(repoType string) {
 	FailOnErr(Run(submoduleParentDirectory(), "chmod", "777", "."))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "init", "-b", "master"))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "."))
-	if IsRemote() {
+	if IsRemote() || IsRunningTestContainers() {
 		FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE"), "submodule/test"))
 	} else {
 		oldAllowProtocol, isAllowProtocolSet := os.LookupEnv("GIT_ALLOW_PROTOCOL")
@@ -921,7 +1258,7 @@ func CreateSubmoduleRepos(repoType string) {
 	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "--all"))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-q", "-m", "commit with submodule"))
 
-	if IsRemote() {
+	if IsRemote() || IsRunningTestContainers() {
 		FailOnErr(Run(submoduleParentDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE_PARENT")))
 		FailOnErr(Run(submoduleParentDirectory(), "git", "push", "origin", "master", "-f"))
 	}
@@ -934,7 +1271,7 @@ func RemoveSubmodule() {
 	FailOnErr(Run(submoduleParentDirectory(), "touch", "submodule/.gitkeep"))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "submodule/.gitkeep"))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "commit", "-m", "remove submodule"))
-	if IsRemote() {
+	if IsRemote() || IsRunningTestContainers() {
 		FailOnErr(Run(submoduleParentDirectory(), "git", "push", "-f", "origin", "master"))
 	}
 }
@@ -956,7 +1293,7 @@ func RestartRepoServer() {
 	}
 }
 
-// RestartAPIServer performs a restart of the API server deployemt and waits
+// RestartAPIServer performs a restart of the API server deployment and waits
 // until the rollout has completed.
 func RestartAPIServer() {
 	if IsRemote() {

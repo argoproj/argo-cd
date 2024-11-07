@@ -118,11 +118,11 @@ func TestSameURL(t *testing.T) {
 }
 
 func TestCustomHTTPClient(t *testing.T) {
-	certFile, err := filepath.Abs("../../test/fixture/certs/argocd-test-client.crt")
+	certFile, err := filepath.Abs("../../test/fixture/certs/argocd-test-client.crt.pem")
 	require.NoError(t, err)
 	assert.NotEqual(t, "", certFile)
 
-	keyFile, err := filepath.Abs("../../test/fixture/certs/argocd-test-client.key")
+	keyFile, err := filepath.Abs("../../test/fixture/certs/argocd-test-client.key.pem")
 	require.NoError(t, err)
 	assert.NotEqual(t, "", keyFile)
 
@@ -344,6 +344,12 @@ func TestLFSClient(t *testing.T) {
 }
 
 func TestVerifyCommitSignature(t *testing.T) {
+	currentWorkingDirectory, err := os.Getwd()
+	base := filepath.Join(currentWorkingDirectory, "../../hack")
+	require.NoError(t, err)
+
+	t.Setenv(common.EnvGPGWrapperPath, base+"/")
+
 	p := t.TempDir()
 
 	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", p, NopCreds{}, false, false, "", "")
@@ -453,8 +459,11 @@ func TestListRevisions(t *testing.T) {
 }
 
 func TestLsFiles(t *testing.T) {
-	tmpDir1 := t.TempDir()
-	tmpDir2 := t.TempDir()
+	// filepath.EvalSymlinks is used to correctly resolve the tmpdir path on macos, otherwise the test fails there
+	tmpDir1, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	tmpDir2, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
 
 	client, err := NewClientExt("", tmpDir1, NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
@@ -490,13 +499,13 @@ func TestLsFiles(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, expectedResult, lsResult)
 
-	// New and safer globbing, do not return symlinks resolving outside of the repo
+	// New and safer globbing, do not return symlinks resolving outside the repo
 	expectedResult = []string{"a.yaml"}
 	lsResult, err = client.LsFiles("*.yaml", true)
 	require.NoError(t, err)
 	assert.Equal(t, expectedResult, lsResult)
 
-	// New globbing, do not return files outside of the repo
+	// New globbing, do not return files outside the repo
 	var nilResult []string
 	lsResult, err = client.LsFiles(filepath.Join(tmpDir2, "*.yaml"), true)
 	require.NoError(t, err)

@@ -72,7 +72,7 @@ func (a *Actions) SwitchToExternalNamespace(namespace utils.ExternalNamespace) *
 
 func (a *Actions) SwitchToArgoCDNamespace() *Actions {
 	a.context.switchToNamespace = ""
-	log.Infof("switched to argocd namespace: %s", utils.ArgoCDNamespace)
+	log.Infof("switched to argocd namespace: %s", fixture.TestNamespace())
 	return a
 }
 

@@ -198,6 +198,8 @@ type ArgoCDServer struct {
 	configMapInformer cache.SharedIndexInformer
 	serviceSet        *ArgoCDServiceSet
 	extensionManager  *extension.Manager
+	closer            func()
+	cancel            context.CancelFunc
 }
 
 type ArgoCDServerOpts struct {
@@ -514,8 +516,10 @@ func (a *ArgoCDServer) Init(ctx context.Context) {
 // We use k8s.io/code-generator/cmd/go-to-protobuf to generate the .proto files from the API types.
 // k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
 // golang/protobuf).
-func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
+func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners, cancel context.CancelFunc, closer func()) {
 	a.userStateStorage.Init(ctx)
+	a.cancel = cancel
+	a.closer = closer
 
 	metricsServ := metrics.NewMetricsServer(a.MetricsHost, a.MetricsPort)
 	if a.RedisClient != nil {
@@ -600,7 +604,9 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	if !cache.WaitForCacheSync(ctx.Done(), a.projInformer.HasSynced, a.appInformer.HasSynced) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}
+}
 
+func (a *ArgoCDServer) Wait() {
 	a.stopCh = make(chan struct{})
 	<-a.stopCh
 }
@@ -626,6 +632,14 @@ func (a *ArgoCDServer) checkServeErr(name string, err error) {
 // Shutdown stops the Argo CD server
 func (a *ArgoCDServer) Shutdown() {
 	log.Info("Shut down requested")
+	if a.cancel != nil {
+		a.cancel()
+	}
+
+	if a.closer != nil {
+		a.closer()
+	}
+
 	stopCh := a.stopCh
 	a.stopCh = nil
 	if stopCh != nil {
@@ -640,13 +654,7 @@ func checkOIDCConfigChange(currentOIDCConfig *settings_util.OIDCConfig, newArgoC
 		return true
 	}
 
-	if currentOIDCConfig != nil && newOIDCConfig != nil {
-		if !reflect.DeepEqual(*currentOIDCConfig, *newOIDCConfig) {
-			return true
-		}
-	}
-
-	return false
+	return currentOIDCConfig != nil && !reflect.DeepEqual(*currentOIDCConfig, *newOIDCConfig)
 }
 
 // watchSettings watches the configmap and secret for any setting updates that would warrant a

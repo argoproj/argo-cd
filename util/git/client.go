@@ -117,10 +117,11 @@ type runOpts struct {
 }
 
 var (
-	maxAttemptsCount = 1
-	maxRetryDuration time.Duration
-	retryDuration    time.Duration
-	factor           int64
+	maxAttemptsCount     = 1
+	maxRetryDuration     time.Duration
+	retryDuration        time.Duration
+	factor               int64
+	gitVerifyWrapperPath string
 )
 
 func init() {
@@ -317,6 +318,7 @@ func (m *nativeGitClient) Root() string {
 
 // Init initializes a local git repository and sets the remote origin
 func (m *nativeGitClient) Init() error {
+	gitVerifyWrapperPath = env.StringFromEnv(common.EnvGPGWrapperPath, "")
 	_, err := git.PlainOpen(m.root)
 	if err == nil {
 		return nil
@@ -769,7 +771,7 @@ func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, 
 
 // VerifyCommitSignature Runs verify-commit on a given revision and returns the output
 func (m *nativeGitClient) VerifyCommitSignature(revision string) (string, error) {
-	out, err := m.runGnuPGWrapper("git-verify-wrapper.sh", revision)
+	out, err := m.runGnuPGWrapper(fmt.Sprintf("%sgit-verify-wrapper.sh", gitVerifyWrapperPath), revision)
 	if err != nil {
 		log.Errorf("error verifying commit signature: %v", err)
 		return "", fmt.Errorf("permission denied")

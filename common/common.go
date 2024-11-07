@@ -275,6 +275,8 @@ const (
 	EnvCMPWorkDir = "ARGOCD_CMP_WORKDIR"
 	// EnvGPGDataPath overrides the location where GPG keyring for signature verification is stored
 	EnvGPGDataPath = "ARGOCD_GPG_DATA_PATH"
+	// EnvGPGWrapperPath overrides the location where git-wrapper.sh is located
+	EnvGPGWrapperPath = "ARGOCD_GPG_WRAPPER_PATH"
 	// EnvServerName is the name of the Argo CD server component, as specified by the value under the LabelKeyAppName label key.
 	EnvServerName = "ARGOCD_SERVER_NAME"
 	// EnvRepoServerName is the name of the Argo CD repo server component, as specified by the value under the LabelKeyAppName label key.

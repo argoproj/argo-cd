@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	CertPath    = mustToAbsPath("../fixture/certs/argocd-test-client.crt")
-	CertKeyPath = mustToAbsPath("../fixture/certs/argocd-test-client.key")
+	CertPath    = mustToAbsPath("../fixture/certs/argocd-test-client.crt.pem")
+	CertKeyPath = mustToAbsPath("../fixture/certs/argocd-test-client.key.pem")
 )
 
 func mustToAbsPath(relativePath string) string {
@@ -83,7 +83,7 @@ func AddHelmOCIRepo(name string) {
 	args := []string{
 		"repo",
 		"add",
-		fixture.HelmOCIRegistryURL,
+		fixture.RepoURL(fixture.RepoURLTypeHelmOCI),
 		"--type", "helm",
 		"--name", name,
 		"--enable-oci",
@@ -100,9 +100,9 @@ func AddHTTPSCredentialsUserPass() {
 
 // AddHTTPSRepoCredentialsTLSClientCert adds E2E  for HTTPS repos to context
 func AddHTTPSCredentialsTLSClientCert() {
-	certPath, err := filepath.Abs("../fixture/certs/argocd-test-client.crt")
+	certPath, err := filepath.Abs("../fixture/certs/argocd-test-client.crt.pem")
 	errors.CheckError(err)
-	keyPath, err := filepath.Abs("../fixture/certs/argocd-test-client.key")
+	keyPath, err := filepath.Abs("../fixture/certs/argocd-test-client.key.pem")
 	errors.CheckError(err)
 	args := []string{
 		"repocreds",
@@ -118,9 +118,9 @@ func AddHTTPSCredentialsTLSClientCert() {
 
 // AddHelmHTTPSCredentialsTLSClientCert adds credentials for Helm repos to context
 func AddHelmHTTPSCredentialsTLSClientCert() {
-	certPath, err := filepath.Abs("../fixture/certs/argocd-test-client.crt")
+	certPath, err := filepath.Abs("../fixture/certs/argocd-test-client.crt.pem")
 	errors.CheckError(err)
-	keyPath, err := filepath.Abs("../fixture/certs/argocd-test-client.key")
+	keyPath, err := filepath.Abs("../fixture/certs/argocd-test-client.key.pem")
 	errors.CheckError(err)
 	args := []string{
 		"repocreds",
@@ -160,7 +160,7 @@ func PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) {
 	errors.CheckError(err1)
 	defer func() { _ = os.RemoveAll(tempDest) }()
 
-	chartAbsPath, err2 := filepath.Abs(fmt.Sprintf("./testdata/%s", chartPathName))
+	chartAbsPath, err2 := filepath.Abs(fmt.Sprintf("%s/%s", fixture.RepoDirectory(), chartPathName))
 	errors.CheckError(err2)
 
 	_ = os.Setenv("HELM_EXPERIMENTAL_OCI", "1")
@@ -172,6 +172,6 @@ func PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) {
 		"helm",
 		"push",
 		fmt.Sprintf("%s/%s-%s.tgz", tempDest, chartName, chartVersion),
-		fmt.Sprintf("oci://%s", fixture.HelmOCIRegistryURL),
+		fmt.Sprintf("oci://%s", fixture.RepoURL(fixture.RepoURLTypeHelmOCI)),
 	))
 }
