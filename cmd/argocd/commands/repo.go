@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
@@ -254,10 +255,17 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			}
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
 			defer io.Close(conn)
+
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
 			for _, repoURL := range args {
-				_, err := repoIf.DeleteRepository(ctx, &repositorypkg.RepoQuery{Repo: repoURL, AppProject: project})
-				errors.CheckError(err)
-				fmt.Printf("Repository '%s' removed\n", repoURL)
+				canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to delete repository '%s'? [y/n]", repoURL))
+				if canDelete {
+					_, err := repoIf.DeleteRepository(ctx, &repositorypkg.RepoQuery{Repo: repoURL, AppProject: project})
+					errors.CheckError(err)
+					fmt.Printf("Repository '%s' removed\n", repoURL)
+				} else {
+					fmt.Printf("The command to delete '%s' was cancelled.\n", repoURL)
+				}
 			}
 		},
 	}

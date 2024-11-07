@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/controller"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -381,7 +382,8 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			})
 			errors.CheckError(err)
 
-			if app.Spec.HasMultipleSources() {
+			// check for source position if --show-params is set
+			if app.Spec.HasMultipleSources() && showParams {
 				if sourcePosition <= 0 {
 					errors.CheckError(fmt.Errorf("Source position should be specified and must be greater than 0 for applications with multiple sources"))
 				}
@@ -912,13 +914,20 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 			}
 
 			cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts, sourcePosition)
-			_, err = appIf.UpdateSpec(ctx, &application.ApplicationUpdateSpecRequest{
-				Name:         &app.Name,
-				Spec:         &app.Spec,
-				Validate:     &appOpts.Validate,
-				AppNamespace: &appNs,
-			})
-			errors.CheckError(err)
+
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
+			canUnset := promptUtil.Confirm("Are you sure you want to unset the parameters? [y/n]")
+			if canUnset {
+				_, err = appIf.UpdateSpec(ctx, &application.ApplicationUpdateSpecRequest{
+					Name:         &app.Name,
+					Spec:         &app.Spec,
+					Validate:     &appOpts.Validate,
+					AppNamespace: &appNs,
+				})
+				errors.CheckError(err)
+			} else {
+				fmt.Println("The command to unset the parameters has been cancelled.")
+			}
 		},
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Unset application parameters in namespace")
@@ -1435,8 +1444,6 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer argoio.Close(conn)
 			var isTerminal bool = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
-			var isConfirmAll bool = false
-			numOfApps := len(args)
 			promptFlag := c.Flag("yes")
 			if promptFlag.Changed && promptFlag.Value.String() == "true" {
 				noPrompt = true
@@ -1448,6 +1455,16 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			if len(appNames) == 0 {
 				appNames = args
 			}
+
+			numOfApps := len(appNames)
+
+			// This is for backward compatibility,
+			// before we showed the prompts only when condition cascade && isTerminal && !noPrompt is true
+			promptUtil := utils.NewPrompt(cascade && isTerminal && !noPrompt)
+			var (
+				confirmAll = false
+				confirm    = false
+			)
 
 			for _, appFullName := range appNames {
 				appName, appNs := argo.ParseFromQualifiedName(appFullName, appNamespace)
@@ -1461,38 +1478,21 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				if c.Flag("propagation-policy").Changed {
 					appDeleteReq.PropagationPolicy = &propagationPolicy
 				}
-				if cascade && isTerminal && !noPrompt {
-					var lowercaseAnswer string
-					if numOfApps == 1 {
-						lowercaseAnswer = cli.AskToProceedS("Are you sure you want to delete '" + appFullName + "' and all its resources? [y/n] ")
-					} else {
-						if !isConfirmAll {
-							lowercaseAnswer = cli.AskToProceedS("Are you sure you want to delete '" + appFullName + "' and all its resources? [y/n/A] where 'A' is to delete all specified apps and their resources without prompting ")
-							if lowercaseAnswer == "a" {
-								lowercaseAnswer = "y"
-								isConfirmAll = true
-							}
-						} else {
-							lowercaseAnswer = "y"
-						}
-					}
-					if lowercaseAnswer == "y" {
-						_, err := appIf.Delete(ctx, &appDeleteReq)
-						errors.CheckError(err)
-						if wait {
-							checkForDeleteEvent(ctx, acdClient, appFullName)
-						}
-						fmt.Printf("application '%s' deleted\n", appFullName)
-					} else {
-						fmt.Println("The command to delete '" + appFullName + "' was cancelled.")
-					}
-				} else {
+				messageForSingle := "Are you sure you want to delete '" + appFullName + "' and all its resources? [y/n] "
+				messageForAll := "Are you sure you want to delete '" + appFullName + "' and all its resources? [y/n/a] where 'a' is to delete all specified apps and their resources without prompting "
+
+				if !confirmAll {
+					confirm, confirmAll = promptUtil.ConfirmBaseOnCount(messageForSingle, messageForAll, numOfApps)
+				}
+				if confirm || confirmAll {
 					_, err := appIf.Delete(ctx, &appDeleteReq)
 					errors.CheckError(err)
-
 					if wait {
 						checkForDeleteEvent(ctx, acdClient, appFullName)
 					}
+					fmt.Printf("application '%s' deleted\n", appFullName)
+				} else {
+					fmt.Println("The command to delete '" + appFullName + "' was cancelled.")
 				}
 			}
 		},
@@ -3190,14 +3190,20 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 
 			app.Spec.Sources = append(app.Spec.Sources[:sourcePosition-1], app.Spec.Sources[sourcePosition:]...)
 
-			_, err = appIf.UpdateSpec(ctx, &application.ApplicationUpdateSpecRequest{
-				Name:         &app.Name,
-				Spec:         &app.Spec,
-				AppNamespace: &appNs,
-			})
-			errors.CheckError(err)
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
+			canDelete := promptUtil.Confirm("Are you sure you want to delete the source? [y/n]")
+			if canDelete {
+				_, err = appIf.UpdateSpec(ctx, &application.ApplicationUpdateSpecRequest{
+					Name:         &app.Name,
+					Spec:         &app.Spec,
+					AppNamespace: &appNs,
+				})
+				errors.CheckError(err)
 
-			fmt.Printf("Application '%s' updated successfully\n", app.ObjectMeta.Name)
+				fmt.Printf("Application '%s' updated successfully\n", app.ObjectMeta.Name)
+			} else {
+				fmt.Println("The command to delete the source was cancelled")
+			}
 		},
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the target application where the source will be appended")
