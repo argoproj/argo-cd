@@ -608,6 +608,10 @@ func (c *liveStateCache) getCluster(server string) (clustercache.ClusterCache, e
 		c.metricsServer.IncClusterEventsCount(cluster.Server, gvk.Group, gvk.Kind)
 	})
 
+	_ = clusterCache.OnProcessEventsHandler(func(duration time.Duration, processedEventsNumber int) {
+		c.metricsServer.ObserveResourceEventsProcessingDuration(cluster.Server, duration, processedEventsNumber)
+	})
+
 	c.clusters[server] = clusterCache
 
 	return clusterCache, nil
