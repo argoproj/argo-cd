@@ -248,8 +248,8 @@ metadata:
     argocd.argoproj.io/sync-options: ServerSideApply=true
 ```
 
-If you want to disable ServerSideApply for a specific resource while it is enabled at the application level,
-the sync-option annotation can be used:
+If you want to disable ServerSideApply for a specific resource, while it is enabled at the application level, 
+add the following sync-option annotation in it:
 
 ```yaml
 metadata:
