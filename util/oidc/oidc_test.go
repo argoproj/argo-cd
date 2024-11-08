@@ -629,9 +629,9 @@ func TestGetUserInfo(t *testing.T) {
 		{
 			name:                  "call UserInfo with wrong userInfoPath",
 			userInfoPath:          "/user",
-			expectedOutput:        jwt.MapClaims(nil),
+			expectedOutput:        jwt.MapClaims{},
 			expectError:           true,
-			expectUnauthenticated: false,
+			expectUnauthenticated: true,
 			expectedCacheItems: []struct {
 				key             string
 				value           string
@@ -639,11 +639,11 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser"}),
+					key:         formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]interface{}{"user_id": "randomUser"}}),
 					expectError: true,
 				},
 			},
-			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			idpClaims: jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]interface{}{"user_id": "randomUser"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			idpHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusNotFound)
 			},
@@ -654,7 +654,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser"}),
+					key:     formatAccessTokenCacheKey(jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]interface{}{"user_id": "randomUser"}}),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -673,11 +673,11 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser"}),
+					key:         formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "fallbackUser"}),
 					expectError: true,
 				},
 			},
-			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			idpClaims: jwt.MapClaims{"sub": "fallbackUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			idpHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusUnauthorized)
 			},
@@ -688,7 +688,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser"}),
+					key:     formatAccessTokenCacheKey(jwt.MapClaims{"sub": "fallbackUser"}),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -707,11 +707,11 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser"}),
+					key:         formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]interface{}{"user_id": "randomUser"}}),
 					expectError: true,
 				},
 			},
-			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			idpClaims: jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]interface{}{"user_id": "randomUser"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			idpHandler: func(w http.ResponseWriter, r *http.Request) {
 				userInfoBytes := `
 			  notevenJsongarbage	
@@ -730,7 +730,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser"}),
+					key:     formatAccessTokenCacheKey(jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]interface{}{"user_id": "randomUser"}}),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -749,11 +749,11 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser"}),
+					key:         formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]interface{}{"user_id": "randomUser"}}),
 					expectError: true,
 				},
 			},
-			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			idpClaims: jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]interface{}{"user_id": "randomUser"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			idpHandler: func(w http.ResponseWriter, r *http.Request) {
 				userInfoBytes := `
 				{
@@ -782,13 +782,13 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:             formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser"}),
+					key:             formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]interface{}{"user_id": "randomUser"}}),
 					value:           "{\"groups\":[\"githubOrg:engineers\"]}",
 					expectEncrypted: true,
 					expectError:     false,
 				},
 			},
-			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			idpClaims: jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]interface{}{"user_id": "randomUser"}, "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
 			idpHandler: func(w http.ResponseWriter, r *http.Request) {
 				userInfoBytes := `
 				{
@@ -809,7 +809,171 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "randomUser"}),
+					key:     formatAccessTokenCacheKey(jwt.MapClaims{"sub": "randomUser", "federated_claims": map[string]interface{}{"user_id": "randomUser"}}),
+					value:   "FakeAccessToken",
+					encrypt: true,
+				},
+			},
+		},
+		{
+			name:         "call UserInfo with different sub and federated_claims",
+			userInfoPath: "/user-info",
+			expectedOutput: jwt.MapClaims{
+				"sub": "different-sub",
+				"federated_claims": map[string]interface{}{
+					"connector_id": "github",
+					"user_id":      "preferred-id",
+				},
+				"groups": []interface{}{"githubOrg:engineers"},
+			},
+			expectError:           false,
+			expectUnauthenticated: false,
+			expectedCacheItems: []struct {
+				key             string
+				value           string
+				expectEncrypted bool
+				expectError     bool
+			}{
+				{
+					// Key should use federated_claims.user_id (preferred-id) instead of sub
+					key:             formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "different-sub", "federated_claims": map[string]interface{}{"user_id": "preferred-id"}}),
+					value:           `{"sub":"different-sub","federated_claims":{"connector_id":"github","user_id":"preferred-id"},"groups":["githubOrg:engineers"]}`,
+					expectEncrypted: true,
+					expectError:     false,
+				},
+			},
+			idpClaims: jwt.MapClaims{
+				"sub": "different-sub",
+				"federated_claims": map[string]interface{}{
+					"connector_id": "github",
+					"user_id":      "preferred-id",
+				},
+				"exp": float64(time.Now().Add(5 * time.Minute).Unix()),
+			},
+			idpHandler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("content-type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				response := jwt.MapClaims{
+					"sub": "different-sub",
+					"federated_claims": map[string]interface{}{
+						"connector_id": "github",
+						"user_id":      "preferred-id",
+					},
+					"groups": []interface{}{"githubOrg:engineers"},
+				}
+				json.NewEncoder(w).Encode(response)
+			},
+			cache: cache.NewInMemoryCache(24 * time.Hour),
+			cacheItems: []struct {
+				key     string
+				value   string
+				encrypt bool
+			}{
+				{
+					// Access token cache key should also use federated_claims.user_id
+					key:     formatAccessTokenCacheKey(jwt.MapClaims{"sub": "different-sub", "federated_claims": map[string]interface{}{"user_id": "preferred-id"}}),
+					value:   "FakeAccessToken",
+					encrypt: true,
+				},
+			},
+		},
+		{
+			name:                  "call UserInfo with only sub claim",
+			userInfoPath:          "/user-info",
+			expectedOutput:        jwt.MapClaims{"sub": "sub-only-user", "groups": []interface{}{"githubOrg:engineers"}},
+			expectError:           false,
+			expectUnauthenticated: false,
+			expectedCacheItems: []struct {
+				key             string
+				value           string
+				expectEncrypted bool
+				expectError     bool
+			}{
+				{
+					key:             formatUserInfoResponseCacheKey(jwt.MapClaims{"sub": "sub-only-user"}),
+					value:           `{"sub":"sub-only-user","groups":["githubOrg:engineers"]}`,
+					expectEncrypted: true,
+					expectError:     false,
+				},
+			},
+			idpClaims: jwt.MapClaims{
+				"sub": "sub-only-user",
+				"exp": float64(time.Now().Add(5 * time.Minute).Unix()),
+			},
+			idpHandler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("content-type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				response := jwt.MapClaims{
+					"sub":    "sub-only-user",
+					"groups": []interface{}{"githubOrg:engineers"},
+				}
+				json.NewEncoder(w).Encode(response)
+			},
+			cache: cache.NewInMemoryCache(24 * time.Hour),
+			cacheItems: []struct {
+				key     string
+				value   string
+				encrypt bool
+			}{
+				{
+					key:     formatAccessTokenCacheKey(jwt.MapClaims{"sub": "sub-only-user"}),
+					value:   "FakeAccessToken",
+					encrypt: true,
+				},
+			},
+		},
+		{
+			name:         "call UserInfo with only federated claims",
+			userInfoPath: "/user-info",
+			expectedOutput: jwt.MapClaims{
+				"federated_claims": map[string]interface{}{
+					"connector_id": "github",
+					"user_id":      "federated-only-user",
+				},
+				"groups": []interface{}{"githubOrg:engineers"},
+			},
+			expectError:           false,
+			expectUnauthenticated: false,
+			expectedCacheItems: []struct {
+				key             string
+				value           string
+				expectEncrypted bool
+				expectError     bool
+			}{
+				{
+					key:             formatUserInfoResponseCacheKey(jwt.MapClaims{"federated_claims": map[string]interface{}{"user_id": "federated-only-user"}}),
+					value:           `{"federated_claims":{"connector_id":"github","user_id":"federated-only-user"},"groups":["githubOrg:engineers"]}`,
+					expectEncrypted: true,
+					expectError:     false,
+				},
+			},
+			idpClaims: jwt.MapClaims{
+				"federated_claims": map[string]interface{}{
+					"connector_id": "github",
+					"user_id":      "federated-only-user",
+				},
+				"exp": float64(time.Now().Add(5 * time.Minute).Unix()),
+			},
+			idpHandler: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("content-type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				response := jwt.MapClaims{
+					"federated_claims": map[string]interface{}{
+						"connector_id": "github",
+						"user_id":      "federated-only-user",
+					},
+					"groups": []interface{}{"githubOrg:engineers"},
+				}
+				json.NewEncoder(w).Encode(response)
+			},
+			cache: cache.NewInMemoryCache(24 * time.Hour),
+			cacheItems: []struct {
+				key     string
+				value   string
+				encrypt bool
+			}{
+				{
+					key:     formatAccessTokenCacheKey(jwt.MapClaims{"federated_claims": map[string]interface{}{"user_id": "federated-only-user"}}),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -848,6 +1012,9 @@ func TestGetUserInfo(t *testing.T) {
 			assert.Equal(t, tt.expectUnauthenticated, unauthenticated)
 			if tt.expectError {
 				require.Error(t, err)
+				if tt.userInfoPath != "/user-info" {
+					assert.Contains(t, err.Error(), "user info path not found")
+				}
 			} else {
 				require.NoError(t, err)
 			}
@@ -862,7 +1029,13 @@ func TestGetUserInfo(t *testing.T) {
 						tmpValue, err = crypto.Decrypt(tmpValue, encryptionKey)
 						require.NoError(t, err)
 					}
-					assert.Equal(t, item.value, string(tmpValue))
+					// Compare as objects instead of strings
+					var expected, actual map[string]interface{}
+					err = json.Unmarshal([]byte(item.value), &expected)
+					require.NoError(t, err)
+					err = json.Unmarshal(tmpValue, &actual)
+					require.NoError(t, err)
+					assert.Equal(t, expected, actual)
 				}
 			}
 		})

@@ -235,10 +235,17 @@ type tokenVerifierMock struct {
 }
 
 func (tm *tokenVerifierMock) VerifyToken(token string) (jwt.Claims, string, error) {
-	if tm.claims == nil {
+	if tm.err != nil {
 		return nil, "", tm.err
 	}
-	return tm.claims, "", tm.err
+	mapClaims := jwt.MapClaims{
+		"sub": "test-user",
+		"exp": time.Now().Add(time.Hour).Unix(),
+	}
+	if tm.claims == nil {
+		return jwt.MapClaims{}, "", nil
+	}
+	return mapClaims, "", nil
 }
 
 func strPointer(str string) *string {
