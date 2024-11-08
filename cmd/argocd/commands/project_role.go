@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -169,8 +170,15 @@ ID          ISSUED-AT                                EXPIRES-AT
 			}
 			role.Policies[duplicateIndex] = role.Policies[len(role.Policies)-1]
 			proj.Spec.Roles[roleIndex].Policies = role.Policies[:len(role.Policies)-1]
-			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
-			errors.CheckError(err)
+
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
+			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to delete '%s' policy? [y/n]", policyToRemove))
+			if canDelete {
+				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+				errors.CheckError(err)
+			} else {
+				fmt.Printf("The command to delete policy '%s' was cancelled.\n", policyToRemove)
+			}
 		},
 	}
 	addPolicyFlags(command, &opts)
@@ -237,6 +245,8 @@ func NewProjectRoleDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer io.Close(conn)
 
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
+
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
 			errors.CheckError(err)
 
@@ -248,9 +258,14 @@ func NewProjectRoleDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			proj.Spec.Roles[index] = proj.Spec.Roles[len(proj.Spec.Roles)-1]
 			proj.Spec.Roles = proj.Spec.Roles[:len(proj.Spec.Roles)-1]
 
-			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
-			errors.CheckError(err)
-			fmt.Printf("Role '%s' deleted\n", roleName)
+			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to delete '%s' role? [y/n]", roleName))
+			if canDelete {
+				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+				errors.CheckError(err)
+				fmt.Printf("Role '%s' deleted\n", roleName)
+			} else {
+				fmt.Printf("The command to delete role '%s' was cancelled.\n", roleName)
+			}
 		},
 	}
 	return command
@@ -437,14 +452,22 @@ $ argocd proj role delete-token test-project test-role 1696769937
 			}
 			projName := args[0]
 			roleName := args[1]
-			issuedAt, err := strconv.ParseInt(args[2], 10, 64)
+			tokenId := args[2]
+			issuedAt, err := strconv.ParseInt(tokenId, 10, 64)
 			errors.CheckError(err)
+
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
 
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer io.Close(conn)
 
-			_, err = projIf.DeleteToken(ctx, &projectpkg.ProjectTokenDeleteRequest{Project: projName, Role: roleName, Iat: issuedAt})
-			errors.CheckError(err)
+			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to delete '%s' project token? [y/n]", tokenId))
+			if canDelete {
+				_, err = projIf.DeleteToken(ctx, &projectpkg.ProjectTokenDeleteRequest{Project: projName, Role: roleName, Iat: issuedAt})
+				errors.CheckError(err)
+			} else {
+				fmt.Printf("The command to delete project token '%s' was cancelled.\n", tokenId)
+			}
 		},
 	}
 	return command
@@ -621,9 +644,18 @@ func NewProjectRoleRemoveGroupCommand(clientOpts *argocdclient.ClientOptions) *c
 				fmt.Printf("Group '%s' not present in role '%s'\n", groupName, roleName)
 				return
 			}
-			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
-			errors.CheckError(err)
-			fmt.Printf("Group '%s' removed from role '%s'\n", groupName, roleName)
+
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
+
+			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to remove '%s' group from role '%s'? [y/n]", groupName, roleName))
+
+			if canDelete {
+				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+				errors.CheckError(err)
+				fmt.Printf("Group '%s' removed from role '%s'\n", groupName, roleName)
+			} else {
+				fmt.Printf("The command to remove group '%s' from role '%s' was cancelled.\n", groupName, roleName)
+			}
 		},
 	}
 	return command

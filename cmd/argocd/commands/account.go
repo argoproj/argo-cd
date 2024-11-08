@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
@@ -432,8 +433,14 @@ argocd account delete-token --account <account-name> ID`,
 			if account == "" {
 				account = getCurrentAccount(ctx, clientset).Username
 			}
-			_, err := client.DeleteToken(ctx, &accountpkg.DeleteTokenRequest{Name: account, Id: id})
-			errors.CheckError(err)
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
+			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to delete '%s' token? [y/n]", id))
+			if canDelete {
+				_, err := client.DeleteToken(ctx, &accountpkg.DeleteTokenRequest{Name: account, Id: id})
+				errors.CheckError(err)
+			} else {
+				fmt.Printf("The command to delete '%s' was cancelled.\n", id)
+			}
 		},
 	}
 	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Defaults to the current account.")

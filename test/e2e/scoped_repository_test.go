@@ -56,7 +56,7 @@ func TestCreateRepositoryNonAdminUserPermissionDenied(t *testing.T) {
 		Create().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, err.Error(), "PermissionDenied desc = permission denied: repositories, create")
+			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied: repositories, create")
 		})
 }
 
@@ -83,7 +83,7 @@ func TestCreateRepositoryNonAdminUserWithWrongProject(t *testing.T) {
 		Create().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, err.Error(), "PermissionDenied desc = permission denied: repositories, create")
+			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied: repositories, create")
 		})
 }
 
@@ -170,7 +170,7 @@ func TestDeleteRepositoryRbacDenied(t *testing.T) {
 		Delete().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, err.Error(), "PermissionDenied desc = permission denied: repositories, delete")
+			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied: repositories, delete")
 		})
 }
 

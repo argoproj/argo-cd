@@ -1,0 +1,7 @@
+actionTests:
+- action: pause
+  inputPath: testdata/MonoVertexRollout/rollout.yaml
+  expectedOutputPath: testdata/MonoVertexRollout/rollout-paused.yaml
+- action: unpause
+  inputPath: testdata/MonoVertexRollout/rollout-paused.yaml
+  expectedOutputPath: testdata/MonoVertexRollout/rollout-running.yaml

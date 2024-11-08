@@ -43,6 +43,7 @@ message Settings {
     string controllerNamespace = 23;
     bool appsInAnyNamespaceEnabled = 24;
     bool impersonationEnabled = 25;
+    string installationID = 26;
 }
 
 message GoogleAnalyticsConfig {

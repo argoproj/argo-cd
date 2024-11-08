@@ -49,6 +49,10 @@ func (f fakeSettingsSrc) GetTrackingMethod() (string, error) {
 	return "", nil
 }
 
+func (f fakeSettingsSrc) GetInstallationID() (string, error) {
+	return "", nil
+}
+
 type reactorDef struct {
 	verb     string
 	resource string
@@ -241,7 +245,7 @@ func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {
 			},
 		},
 	)
-	req := httptest.NewRequest("POST", "/api/webhook", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
 	req.Header.Set("X-GitHub-Event", "push")
 	eventJSON, err := os.ReadFile("testdata/github-commit-event.json")
 	require.NoError(t, err)

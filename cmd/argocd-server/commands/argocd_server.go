@@ -27,6 +27,7 @@ import (
 	reposervercache "github.com/argoproj/argo-cd/v2/reposerver/cache"
 	"github.com/argoproj/argo-cd/v2/server"
 	servercache "github.com/argoproj/argo-cd/v2/server/cache"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/dex"
@@ -91,6 +92,9 @@ func NewCommand() *cobra.Command {
 		scmRootCAPath            string
 		allowedScmProviders      []string
 		enableScmProviders       bool
+
+		// argocd k8s event logging flag
+		enableK8sEvent []string
 	)
 	command := &cobra.Command{
 		Use:               cliName,
@@ -229,6 +233,7 @@ func NewCommand() *cobra.Command {
 				ApplicationNamespaces:   applicationNamespaces,
 				EnableProxyExtension:    enableProxyExtension,
 				WebhookParallelism:      webhookParallelism,
+				EnableK8sEvent:          enableK8sEvent,
 			}
 
 			appsetOpts := server.ApplicationSetOpts{
@@ -303,6 +308,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
 	command.Flags().BoolVar(&enableProxyExtension, "enable-proxy-extension", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_PROXY_EXTENSION", false), "Enable Proxy Extension feature")
 	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
+	command.Flags().StringSliceVar(&enableK8sEvent, "enable-k8s-event", env.StringsFromEnv("ARGOCD_ENABLE_K8S_EVENT", argo.DefaultEnableEventList(), ","), "Enable ArgoCD to use k8s event. For disabling all events, set the value as `none`. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated)")
 
 	// Flags related to the applicationSet component.
 	command.Flags().StringVar(&scmRootCAPath, "appset-scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")

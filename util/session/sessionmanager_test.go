@@ -160,8 +160,7 @@ func TestSessionManager_AdminToken_Deactivated(t *testing.T) {
 	}
 
 	_, _, err = mgr.Parse(token)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "account admin is disabled")
+	assert.ErrorContains(t, err, "account admin is disabled")
 }
 
 func TestSessionManager_AdminToken_LoginCapabilityDisabled(t *testing.T) {
@@ -174,8 +173,7 @@ func TestSessionManager_AdminToken_LoginCapabilityDisabled(t *testing.T) {
 	}
 
 	_, _, err = mgr.Parse(token)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "account admin does not have 'apiKey' capability")
+	assert.ErrorContains(t, err, "account admin does not have 'apiKey' capability")
 }
 
 func TestSessionManager_ProjectToken(t *testing.T) {
@@ -218,9 +216,7 @@ func TestSessionManager_ProjectToken(t *testing.T) {
 		require.NoError(t, err)
 
 		_, _, err = mgr.Parse(jwtToken)
-		require.Error(t, err)
-
-		assert.Contains(t, err.Error(), "does not exist in project 'default'")
+		assert.ErrorContains(t, err, "does not exist in project 'default'")
 	})
 }
 
@@ -277,7 +273,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			cookieHeader:         true,
 			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       nil,
-			expectedStatusCode:   200,
+			expectedStatusCode:   http.StatusOK,
 			expectedResponseBody: strPointer("Ok"),
 		},
 		{
@@ -286,7 +282,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			cookieHeader:         false,
 			verifiedClaims:       nil,
 			verifyTokenErr:       nil,
-			expectedStatusCode:   200,
+			expectedStatusCode:   http.StatusOK,
 			expectedResponseBody: strPointer("Ok"),
 		},
 		{
@@ -295,7 +291,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			cookieHeader:         false,
 			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       nil,
-			expectedStatusCode:   400,
+			expectedStatusCode:   http.StatusBadRequest,
 			expectedResponseBody: nil,
 		},
 		{
@@ -304,7 +300,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			cookieHeader:         true,
 			verifiedClaims:       &claimsMock{},
 			verifyTokenErr:       stderrors.New("token error"),
-			expectedStatusCode:   401,
+			expectedStatusCode:   http.StatusUnauthorized,
 			expectedResponseBody: nil,
 		},
 		{
@@ -313,7 +309,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			cookieHeader:         true,
 			verifiedClaims:       nil,
 			verifyTokenErr:       nil,
-			expectedStatusCode:   200,
+			expectedStatusCode:   http.StatusOK,
 			expectedResponseBody: strPointer("Ok"),
 		},
 	}
@@ -538,8 +534,7 @@ func TestMaxUsernameLength(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("password", true), "argocd")
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 	err := mgr.VerifyUsernamePassword(username, "password")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), fmt.Sprintf(usernameTooLongError, maxUsernameLength))
+	assert.ErrorContains(t, err, fmt.Sprintf(usernameTooLongError, maxUsernameLength))
 }
 
 func TestMaxCacheSize(t *testing.T) {

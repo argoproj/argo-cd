@@ -329,7 +329,10 @@ func ValidateRepo(
 		})
 		return conditions, nil
 	}
-	config := cluster.RESTConfig()
+	config, err := cluster.RESTConfig()
+	if err != nil {
+		return nil, fmt.Errorf("error getting cluster REST config: %w", err)
+	}
 	// nolint:staticcheck
 	cluster.ServerVersion, err = kubectl.GetServerVersion(config)
 	if err != nil {
@@ -423,8 +426,7 @@ func validateRepo(ctx context.Context,
 		db,
 		permittedHelmRepos,
 		helmOptions,
-		app.Name,
-		app.Spec.Destination,
+		app,
 		proj,
 		sources,
 		repoClient,
@@ -434,7 +436,6 @@ func validateRepo(ctx context.Context,
 		permittedHelmCredentials,
 		enabledSourceTypes,
 		settingsMgr,
-		app.Spec.HasMultipleSources(),
 		refSources)...)
 
 	return conditions, nil
@@ -706,8 +707,7 @@ func verifyGenerateManifests(
 	db db.ArgoDB,
 	helmRepos argoappv1.Repositories,
 	helmOptions *argoappv1.HelmOptions,
-	name string,
-	dest argoappv1.ApplicationDestination,
+	app *argoappv1.Application,
 	proj *argoappv1.AppProject,
 	sources []argoappv1.ApplicationSource,
 	repoClient apiclient.RepoServerServiceClient,
@@ -716,11 +716,10 @@ func verifyGenerateManifests(
 	repositoryCredentials []*argoappv1.RepoCreds,
 	enableGenerateManifests map[string]bool,
 	settingsMgr *settings.SettingsManager,
-	hasMultipleSources bool,
 	refSources argoappv1.RefTargetRevisionMapping,
 ) []argoappv1.ApplicationCondition {
 	var conditions []argoappv1.ApplicationCondition
-	if dest.Server == "" {
+	if app.Spec.Destination.Server == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
 			Message: errDestinationMissing,
@@ -753,6 +752,14 @@ func verifyGenerateManifests(
 			})
 			continue
 		}
+		installationID, err := settingsMgr.GetInstallationID()
+		if err != nil {
+			conditions = append(conditions, argoappv1.ApplicationCondition{
+				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Message: fmt.Sprintf("Error getting installation ID: %v", err),
+			})
+			continue
+		}
 		req := apiclient.ManifestRequest{
 			Repo: &argoappv1.Repository{
 				Repo:    source.RepoURL,
@@ -761,23 +768,25 @@ func verifyGenerateManifests(
 				Proxy:   repoRes.Proxy,
 				NoProxy: repoRes.NoProxy,
 			},
-			Repos:              helmRepos,
-			Revision:           source.TargetRevision,
-			AppName:            name,
-			Namespace:          dest.Namespace,
-			ApplicationSource:  &source,
-			KustomizeOptions:   kustomizeOptions,
-			KubeVersion:        kubeVersion,
-			ApiVersions:        apiVersions,
-			HelmOptions:        helmOptions,
-			HelmRepoCreds:      repositoryCredentials,
-			TrackingMethod:     string(GetTrackingMethod(settingsMgr)),
-			EnabledSourceTypes: enableGenerateManifests,
-			NoRevisionCache:    true,
-			HasMultipleSources: hasMultipleSources,
-			RefSources:         refSources,
-			ProjectName:        proj.Name,
-			ProjectSourceRepos: proj.Spec.SourceRepos,
+			Repos:                           helmRepos,
+			Revision:                        source.TargetRevision,
+			AppName:                         app.Name,
+			Namespace:                       app.Spec.Destination.Namespace,
+			ApplicationSource:               &source,
+			KustomizeOptions:                kustomizeOptions,
+			KubeVersion:                     kubeVersion,
+			ApiVersions:                     apiVersions,
+			HelmOptions:                     helmOptions,
+			HelmRepoCreds:                   repositoryCredentials,
+			TrackingMethod:                  string(GetTrackingMethod(settingsMgr)),
+			EnabledSourceTypes:              enableGenerateManifests,
+			NoRevisionCache:                 true,
+			HasMultipleSources:              app.Spec.HasMultipleSources(),
+			RefSources:                      refSources,
+			ProjectName:                     proj.Name,
+			ProjectSourceRepos:              proj.Spec.SourceRepos,
+			AnnotationManifestGeneratePaths: app.GetAnnotation(argoappv1.AnnotationKeyManifestGeneratePaths),
+			InstallationID:                  installationID,
 		}
 		req.Repo.CopyCredentialsFromRepo(repoRes)
 		req.Repo.CopySettingsFrom(repoRes)

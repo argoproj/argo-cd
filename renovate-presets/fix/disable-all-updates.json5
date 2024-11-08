@@ -1,0 +1,13 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Disable all updates to avoid conflicts with dependabot, then enable what you need.",
+  "packageRules": [
+    {
+      "matchPackageNames": [
+        "*"
+      ],
+      "enabled": false
+    }
+  ]
+}
+

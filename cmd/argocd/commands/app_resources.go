@@ -5,6 +5,7 @@ import (
 	"os"
 	"text/tabwriter"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v2/cmd/util"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
@@ -130,23 +131,32 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 		errors.CheckError(err)
 		objectsToDelete, err := util.FilterResources(command.Flags().Changed("group"), resources.Items, group, kind, namespace, resourceName, all)
 		errors.CheckError(err)
+
+		promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
+
 		for i := range objectsToDelete {
 			obj := objectsToDelete[i]
 			gvk := obj.GroupVersionKind()
-			_, err = appIf.DeleteResource(ctx, &applicationpkg.ApplicationResourceDeleteRequest{
-				Name:         &appName,
-				AppNamespace: &appNs,
-				Namespace:    ptr.To(obj.GetNamespace()),
-				ResourceName: ptr.To(obj.GetName()),
-				Version:      ptr.To(gvk.Version),
-				Group:        ptr.To(gvk.Group),
-				Kind:         ptr.To(gvk.Kind),
-				Force:        &force,
-				Orphan:       &orphan,
-				Project:      ptr.To(project),
-			})
-			errors.CheckError(err)
-			log.Infof("Resource '%s' deleted", obj.GetName())
+
+			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to delete %s/%s %s/%s ? [y/n]", gvk.Group, gvk.Kind, obj.GetNamespace(), obj.GetName()))
+			if canDelete {
+				_, err = appIf.DeleteResource(ctx, &applicationpkg.ApplicationResourceDeleteRequest{
+					Name:         &appName,
+					AppNamespace: &appNs,
+					Namespace:    ptr.To(obj.GetNamespace()),
+					ResourceName: ptr.To(obj.GetName()),
+					Version:      ptr.To(gvk.Version),
+					Group:        ptr.To(gvk.Group),
+					Kind:         ptr.To(gvk.Kind),
+					Force:        &force,
+					Orphan:       &orphan,
+					Project:      ptr.To(project),
+				})
+				errors.CheckError(err)
+				log.Infof("Resource '%s' deleted", obj.GetName())
+			} else {
+				fmt.Printf("The command to delete %s/%s %s/%s was cancelled.\n", gvk.Group, gvk.Kind, obj.GetNamespace(), obj.GetName())
+			}
 		}
 	}
 

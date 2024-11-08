@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -235,8 +236,14 @@ argocd proj windows delete new-project 1`,
 			err = proj.Spec.DeleteWindow(id)
 			errors.CheckError(err)
 
-			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
-			errors.CheckError(err)
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
+			canDelete := promptUtil.Confirm("Are you sure you want to delete sync window? [y/n]")
+			if canDelete {
+				_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
+				errors.CheckError(err)
+			} else {
+				fmt.Printf("The command to delete the sync window was cancelled\n")
+			}
 		},
 	}
 	return command
@@ -352,9 +359,10 @@ func printSyncWindows(proj *v1alpha1.AppProject) {
 	fmt.Fprintf(w, fmtStr, headers...)
 	if proj.Spec.SyncWindows.HasWindows() {
 		for i, window := range proj.Spec.SyncWindows {
+			isActive, _ := window.Active()
 			vals := []interface{}{
 				strconv.Itoa(i),
-				formatBoolOutput(window.Active()),
+				formatBoolOutput(isActive),
 				window.Kind,
 				window.Schedule,
 				window.Duration,
