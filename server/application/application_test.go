@@ -1901,6 +1901,133 @@ func TestSyncGit(t *testing.T) {
 	assert.Equal(t, "Unknown user initiated sync locally", events.Items[1].Message)
 }
 
+func getArtifactsForSyncWithReplacePermissionsTest(t *testing.T, role string) (*Server, *v1alpha1.Application) {
+	t.Helper()
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole(fmt.Sprintf("role:%s", role))
+	}
+	deployment := appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "test",
+		},
+	}
+	testApp := newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "test"
+		app.Status.Resources = []v1alpha1.ResourceStatus{
+			{
+				Group:     deployment.GroupVersionKind().Group,
+				Kind:      deployment.GroupVersionKind().Kind,
+				Version:   deployment.GroupVersionKind().Version,
+				Name:      deployment.Name,
+				Namespace: deployment.Namespace,
+				Status:    "Synced",
+			},
+		}
+		app.Status.History = []v1alpha1.RevisionHistory{
+			{
+				ID: 0,
+				Source: v1alpha1.ApplicationSource{
+					TargetRevision: "something-old",
+				},
+			},
+		}
+	})
+	testDeployment := kube.MustToUnstructured(&deployment)
+	return newTestAppServerWithEnforcerConfigure(t, f, map[string]string{}, testApp, testDeployment), testApp
+}
+
+func TestSyncWithReplacePermissionsWithAppDeletionAllowed(t *testing.T) {
+	ctx := context.Background()
+	appServer, testApp := getArtifactsForSyncWithReplacePermissionsTest(t, "applicationdeleter")
+	_, err := appServer.Sync(
+		ctx,
+		&application.ApplicationSyncRequest{
+			Name:        &testApp.Name,
+			SyncOptions: &application.SyncOptions{Items: []string{synccommon.SyncOptionReplace}},
+		},
+	)
+	require.NoError(t, err)
+
+	unsetSyncRunningOperationState(t, appServer)
+
+	_, err = appServer.Sync(
+		ctx,
+		&application.ApplicationSyncRequest{
+			Name:        &testApp.Name,
+			SyncOptions: &application.SyncOptions{Items: []string{synccommon.SyncOptionReplace}},
+			Resources:   []*v1alpha1.SyncOperationResource{{Group: "apps", Kind: "Deployment", Namespace: "test", Name: "test"}},
+		},
+	)
+	require.NoError(t, err)
+}
+
+func TestSyncWithReplacePermissionsWithDeploymentDeletionAllowed(t *testing.T) {
+	ctx := context.Background()
+	appServer, testApp := getArtifactsForSyncWithReplacePermissionsTest(t, "deploymentdeleter")
+	_, err := appServer.Sync(
+		ctx,
+		&application.ApplicationSyncRequest{
+			Name:        &testApp.Name,
+			SyncOptions: &application.SyncOptions{Items: []string{synccommon.SyncOptionReplace}},
+		},
+	)
+	require.EqualError(t, err, "rpc error: code = PermissionDenied desc = cannot sync: sync with replace requested, but resource delete permissions denied")
+
+	_, err = appServer.Sync(
+		ctx,
+		&application.ApplicationSyncRequest{
+			Name:        &testApp.Name,
+			SyncOptions: &application.SyncOptions{Items: []string{synccommon.SyncOptionReplace}},
+			Resources: []*v1alpha1.SyncOperationResource{
+				{Group: "apps", Kind: "Deployment", Namespace: "test", Name: "test"},
+				{Group: "", Kind: "ConfigMap", Namespace: "test", Name: "does-not-exist"},
+			},
+		},
+	)
+	require.EqualError(t, err, "rpc error: code = PermissionDenied desc = cannot sync: sync with replace requested, but resource delete permissions denied")
+
+	_, err = appServer.Sync(
+		ctx,
+		&application.ApplicationSyncRequest{
+			Name:        &testApp.Name,
+			SyncOptions: &application.SyncOptions{Items: []string{synccommon.SyncOptionReplace}},
+			Resources:   []*v1alpha1.SyncOperationResource{{Group: "apps", Kind: "Deployment", Namespace: "test", Name: "test"}},
+		},
+	)
+	require.NoError(t, err)
+}
+
+func TestSyncWithReplacePermissionsWithResourcesDeletionAllowed(t *testing.T) {
+	ctx := context.Background()
+	appServer, testApp := getArtifactsForSyncWithReplacePermissionsTest(t, "resourcesdeleter")
+	_, err := appServer.Sync(
+		ctx,
+		&application.ApplicationSyncRequest{
+			Name:        &testApp.Name,
+			SyncOptions: &application.SyncOptions{Items: []string{synccommon.SyncOptionReplace}},
+		},
+	)
+	require.NoError(t, err)
+
+	unsetSyncRunningOperationState(t, appServer)
+
+	_, err = appServer.Sync(
+		ctx,
+		&application.ApplicationSyncRequest{
+			Name:        &testApp.Name,
+			SyncOptions: &application.SyncOptions{Items: []string{synccommon.SyncOptionReplace}},
+			Resources:   []*v1alpha1.SyncOperationResource{{Group: "apps", Kind: "Deployment", Namespace: "test", Name: "test"}},
+		},
+	)
+	require.NoError(t, err)
+}
+
 func TestRollbackApp(t *testing.T) {
 	testApp := newTestApp()
 	testApp.Status.History = []v1alpha1.RevisionHistory{{

@@ -1977,6 +1977,31 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 			}
 		}
 	}
+
+	// Extra checks for sync with replace, to see if people have permissions to delete resources. Note, that this doesn't check for
+	// sync with replace set via resource annotations. For now, people would have to rely on manifests peer reviews to ensure the
+	// sync with replace would be intended if set that way. The proper permissions check for the later is tricky to support.
+	if syncOptions.HasOption(common.SyncOptionReplace) {
+		// If application-level delete policy is allow, we don't check for specific resources' permissions and just allow.
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionDelete, a.RBACName(s.ns)); err != nil {
+			if len(resources) == 0 {
+				// If no resources are specified, check for ability to delete any resource
+				action := fmt.Sprintf("%s/*/*/*/*", rbacpolicy.ActionDelete)
+				if resourcesErr := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, action, a.RBACName(s.ns)); resourcesErr != nil {
+					return nil, status.Errorf(codes.PermissionDenied, "cannot sync: sync with replace requested, but resource delete permissions denied")
+				}
+			} else {
+				// Otherwise, check for specific resources
+				for _, resource := range resources {
+					action := fmt.Sprintf("%s/%s/%s/%s/%s", rbacpolicy.ActionDelete, resource.Group, resource.Kind, resource.Namespace, resource.Name)
+					if resourceErr := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, action, a.RBACName(s.ns)); resourceErr != nil {
+						return nil, status.Errorf(codes.PermissionDenied, "cannot sync: sync with replace requested, but resource delete permissions denied")
+					}
+				}
+			}
+		}
+	}
+
 	op := v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{
 			Revision:     revision,

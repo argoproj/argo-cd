@@ -1,4 +1,5 @@
-# Built-in policy which defines two roles: role:readonly and role:admin,
+# Built-in policy which defines several roles: role:readonly, role:applicationsyncer,
+# role:applicationdeleter, role:deploymentdeleter, role:resourcesdeleter and role:admin, 
 # and additionally assigns the admin user to the role:admin role.
 # There are two policy formats:
 # 1. Applications, applicationsets, logs, and exec (which belong to a project):
@@ -15,6 +16,14 @@ p, role:readonly, projects, get, *, allow
 p, role:readonly, accounts, get, *, allow
 p, role:readonly, gpgkeys, get, *, allow
 p, role:readonly, logs, get, */*, allow
+
+p, role:applicationsyncer, applications, sync, */*, allow
+
+p, role:applicationdeleter, applications, delete, */*, allow
+
+p, role:deploymentdeleter, applications, delete/*/Deployment/*, */*, allow
+
+p, role:resourcesdeleter, applications, delete/*, */*, allow
 
 p, role:admin, applications, create, */*, allow
 p, role:admin, applications, update, */*, allow
@@ -49,4 +58,8 @@ p, role:admin, gpgkeys, delete, *, allow
 p, role:admin, exec, create, */*, allow
 
 g, role:admin, role:readonly
+g, role:applicationsyncer, role:readonly
+g, role:applicationdeleter, role:applicationsyncer
+g, role:deploymentdeleter, role:applicationsyncer
+g, role:resourcesdeleter, role:applicationsyncer
 g, admin, role:admin
