@@ -2,9 +2,9 @@ package cluster
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"time"
-	"fmt"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
