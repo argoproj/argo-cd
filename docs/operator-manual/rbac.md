@@ -158,6 +158,21 @@ p, example-user, applications, delete/*/Pod/*/*, default/prod-app, allow
     p, example-user, applications, delete/*/Pod/*/*, default/prod-app, deny
     ```
 
+!!! note
+
+    The deletion permissions are generally necessary to do a sync with replace, since that deletes and recreates the objects.
+    However, the checks are not done when replace option is specified via application/resource annotations. This would be hard to
+    implement, but also may offer a bit of extra protection by PR reviews for example. This is also a way to avoid giving users
+    too broad delete permissions if only specific resources need to be synced with replace. Here are examples of how you can configure
+    deletion options necessary for various syncs replace:
+
+    ```csv
+    p, example-user-whole-app-sync-with-replace, applications, delete/*, */*, allow
+    p, example-user-deployment-sync-with-replace, applications, delete/*/Deployment/*, */*, allow
+    ```
+
+    We don't have to grant a permission to delete a whole application.
+
 #### The `action` action
 
 The `action` action corresponds to either built-in resource customizations defined
