@@ -28,6 +28,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	mockrepoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 )
@@ -679,6 +680,7 @@ func TestCompareAppStateWithManifestGeneratePath(t *testing.T) {
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, "abc123", compRes.syncStatus.Revision)
+	ctrl.repoClientset.(*mockrepoclient.Clientset).RepoServerServiceClient.(*mockrepoclient.RepoServerServiceClient).AssertNumberOfCalls(t, "UpdateRevisionForPaths", 1)
 }
 
 func TestSetHealth(t *testing.T) {
@@ -1430,6 +1432,8 @@ func TestIsLiveResourceManaged(t *testing.T) {
 }
 
 func TestUseDiffCache(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
 		testName             string
 		noCache              bool
@@ -1524,6 +1528,10 @@ func TestUseDiffCache(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error merging app: %s", err)
 			}
+		}
+		if app.Spec.Destination.Name != "" && app.Spec.Destination.Server != "" {
+			// Simulate the controller's process for populating both of these fields.
+			app.Spec.Destination.SetInferredServer(app.Spec.Destination.Server)
 		}
 		return app
 	}
@@ -1689,6 +1697,44 @@ func TestUseDiffCache(t *testing.T) {
 			statusRefreshTimeout: time.Hour * 24,
 			expectedUseCache:     false,
 			serverSideDiff:       false,
+		},
+		{
+			// There are code paths that modify the ApplicationSpec and augment the destination field with both the
+			// destination server and name. Since both fields are populated in the app spec but not in the comparedTo,
+			// we need to make sure we correctly compare the fields and don't miss the cache.
+			testName:      "will return true if the app spec destination contains both server and name, but otherwise matches comparedTo",
+			noCache:       false,
+			manifestInfos: manifestInfos("rev1"),
+			sources:       sources(),
+			app: app("httpbin", "rev1", false, &argoappv1.Application{
+				Spec: argoappv1.ApplicationSpec{
+					Destination: argoappv1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Name:      "httpbin",
+						Namespace: "httpbin",
+					},
+				},
+				Status: argoappv1.ApplicationStatus{
+					Resources: []argoappv1.ResourceStatus{},
+					Sync: argoappv1.SyncStatus{
+						Status: argoappv1.SyncStatusCodeSynced,
+						ComparedTo: argoappv1.ComparedTo{
+							Destination: argoappv1.ApplicationDestination{
+								Server:    "https://kubernetes.default.svc",
+								Namespace: "httpbin",
+							},
+						},
+						Revision: "rev1",
+					},
+					ReconciledAt: &metav1.Time{
+						Time: time.Now().Add(-time.Hour),
+					},
+				},
+			}),
+			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     true,
+			serverSideDiff:       true,
 		},
 	}
 

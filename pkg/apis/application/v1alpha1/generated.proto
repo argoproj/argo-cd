@@ -515,9 +515,6 @@ message ApplicationSourceHelm {
   // APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
   // Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
   repeated string apiVersions = 13;
-
-  // SkipTests skips test manifest installation step (Helm's --skip-tests).
-  optional bool skipTests = 14;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
@@ -854,9 +851,6 @@ message ClusterGenerator {
 
   // Values contains key/value pairs which are passed directly as parameters to the template
   map<string, string> values = 3;
-
-  // returns the clusters a single 'clusters' value in the template
-  optional bool flatList = 4;
 }
 
 // ClusterInfo contains information about the cluster

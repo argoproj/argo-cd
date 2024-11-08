@@ -22,7 +22,6 @@ import (
 	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/v2/server/rbacpolicy"
-	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/assets"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -34,8 +33,6 @@ const (
 	testNamespace = "default"
 	fakeRepoURL   = "https://git.com/repo.git"
 )
-
-var testEnableEventList []string = argo.DefaultEnableEventList()
 
 func fakeRepo() *appsv1.Repository {
 	return &appsv1.Repository{
@@ -165,7 +162,6 @@ func newTestAppSetServerWithEnforcerConfigure(f func(*rbac.Enforcer), namespace 
 		"",
 		[]string{},
 		true,
-		testEnableEventList,
 	)
 	return server.(*Server)
 }

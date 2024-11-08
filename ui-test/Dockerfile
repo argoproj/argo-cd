@@ -1,4 +1,4 @@
-FROM docker.io/library/node:22.9.0@sha256:69e667a79aa41ec0db50bc452a60e705ca16f35285eaf037ebe627a65a5cdf52 as node
+FROM docker.io/library/node:22.8.0@sha256:bd00c03095f7586432805dbf7989be10361d27987f93de904b1fc003949a4794 as node
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
     software-properties-common 

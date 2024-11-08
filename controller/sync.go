@@ -80,12 +80,7 @@ func (m *appStateManager) getResourceOperations(server string) (kube.ResourceOpe
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting cluster: %w", err)
 	}
-
-	rawConfig, err := cluster.RawRestConfig()
-	if err != nil {
-		return nil, nil, fmt.Errorf("error getting cluster REST config: %w", err)
-	}
-	ops, cleanup, err := m.kubectl.ManageResources(rawConfig, clusterCache.GetOpenAPISchema())
+	ops, cleanup, err := m.kubectl.ManageResources(cluster.RawRestConfig(), clusterCache.GetOpenAPISchema())
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating kubectl ResourceOperations: %w", err)
 	}
@@ -179,12 +174,18 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to load application project: %v", err)
 		return
-	} else if syncWindowPreventsSync(app, proj) {
-		// If the operation is currently running, simply let the user know the sync is blocked by a current sync window
-		if state.Phase == common.OperationRunning {
-			state.Message = "Sync operation blocked by sync window"
+	} else {
+		isBlocked, err := syncWindowPreventsSync(app, proj)
+		if isBlocked {
+			// If the operation is currently running, simply let the user know the sync is blocked by a current sync window
+			if state.Phase == common.OperationRunning {
+				state.Message = "Sync operation blocked by sync window"
+				if err != nil {
+					state.Message = fmt.Sprintf("%s: %v", state.Message, err)
+				}
+			}
+			return
 		}
-		return
 	}
 
 	if !isMultiSourceRevision {
@@ -222,20 +223,8 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, state *v1alpha
 		return
 	}
 
-	rawConfig, err := clst.RawRestConfig()
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = err.Error()
-		return
-	}
-
-	clusterRESTConfig, err := clst.RESTConfig()
-	if err != nil {
-		state.Phase = common.OperationError
-		state.Message = err.Error()
-		return
-	}
-	restConfig := metrics.AddMetricsTransportWrapper(m.metricsServer, app, clusterRESTConfig)
+	rawConfig := clst.RawRestConfig()
+	restConfig := metrics.AddMetricsTransportWrapper(m.metricsServer, app, clst.RESTConfig())
 
 	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
 	if err != nil {
@@ -579,13 +568,18 @@ func delayBetweenSyncWaves(phase common.SyncPhase, wave int, finalWave bool) err
 	return nil
 }
 
-func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject) bool {
+func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject) (bool, error) {
 	window := proj.Spec.SyncWindows.Matches(app)
 	isManual := false
 	if app.Status.OperationState != nil {
 		isManual = !app.Status.OperationState.Operation.InitiatedBy.Automated
 	}
-	return !window.CanSync(isManual)
+	canSync, err := window.CanSync(isManual)
+	if err != nil {
+		// prevents sync because sync window has an error
+		return true, err
+	}
+	return !canSync, nil
 }
 
 // deriveServiceAccountToImpersonate determines the service account to be used for impersonation for the sync operation.

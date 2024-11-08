@@ -23,11 +23,6 @@
     chalk "^2.0.0"
     js-tokens "^4.0.0"
 
-"@bazel/runfiles@^5.8.1":
-  version "5.8.1"
-  resolved "https://registry.yarnpkg.com/@bazel/runfiles/-/runfiles-5.8.1.tgz#737d5b3dc9739767054820265cfe432a80564c82"
-  integrity sha512-NDdfpdQ6rZlylgv++iMn5FkObC/QlBQvipinGLSOguTYpRywmieOyJ29XHvUilspwTFSILWpoE9CqMGkHXug1g==
-
 "@testim/chrome-version@^1.1.4":
   version "1.1.4"
   resolved "https://registry.yarnpkg.com/@testim/chrome-version/-/chrome-version-1.1.4.tgz#86e04e677cd6c05fa230dd15ac223fa72d1d7090"
@@ -38,22 +33,22 @@
   resolved "https://registry.yarnpkg.com/@tootallnate/quickjs-emscripten/-/quickjs-emscripten-0.23.0.tgz#db4ecfd499a9765ab24002c3b696d02e6d32a12c"
   integrity sha512-C5Mc6rdnsaJDjO3UpGW/CQTHtCKaYlScZTly4JIu97Jxo/odCiH0ITnDXSJPTOrEKk/ycSZ0AOgTmkDtkOsvIA==
 
-"@types/mocha@^10.0.9":
-  version "10.0.9"
-  resolved "https://registry.yarnpkg.com/@types/mocha/-/mocha-10.0.9.tgz#101e9da88d2c02e5ac8952982c23b224524d662a"
-  integrity sha512-sicdRoWtYevwxjOHNMPTl3vSfJM6oyW8o1wXeI7uww6b6xHg8eBznQDNSGBCDJmsE8UMxP05JgZRtsKbTqt//Q==
+"@types/mocha@^10.0.8":
+  version "10.0.8"
+  resolved "https://registry.yarnpkg.com/@types/mocha/-/mocha-10.0.8.tgz#a7eff5816e070c3b4d803f1d3cd780c4e42934a1"
+  integrity sha512-HfMcUmy9hTMJh66VNcmeC9iVErIZJli2bszuXc6julh5YGuRb/W5OnkHjwLNYdFlMis0sY3If5SEAp+PktdJjw==
 
-"@types/node@*", "@types/node@^22.7.5":
-  version "22.7.5"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-22.7.5.tgz#cfde981727a7ab3611a481510b473ae54442b92b"
-  integrity sha512-jML7s2NAzMWc//QSJ1a3prpk78cOPchGvXJsC3C6R6PSMoooztvRVQEz89gmBTBY1SPMaqo5teB4uNHPdetShQ==
+"@types/node@*", "@types/node@^22.5.5":
+  version "22.5.5"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-22.5.5.tgz#52f939dd0f65fc552a4ad0b392f3c466cc5d7a44"
+  integrity sha512-Xjs4y5UPO/CLdzpgR6GirZJx36yScjh73+2NlLlkFRSoQN8B0DpfXPdZGnvVmLRLOsqDpOfTNv7D9trgGhmOIA==
   dependencies:
     undici-types "~6.19.2"
 
-"@types/selenium-webdriver@^4.1.26":
-  version "4.1.26"
-  resolved "https://registry.yarnpkg.com/@types/selenium-webdriver/-/selenium-webdriver-4.1.26.tgz#09c696a341cf8cfc1641cded11d14813350b6ca9"
-  integrity sha512-PUgqsyNffal0eAU0bzGlh37MJo558aporAPZoKqBeB/pF7zhKl1S3zqza0GpwFqgoigNxWhEIJzru75eeYco/w==
+"@types/selenium-webdriver@^4.1.23":
+  version "4.1.23"
+  resolved "https://registry.yarnpkg.com/@types/selenium-webdriver/-/selenium-webdriver-4.1.23.tgz#05a2794927db661f075ab443d5504b679b32f7f7"
+  integrity sha512-PgreEfCfafYLyTwvJTZvOspCq3JABnS51e+NSFFL5yoiMO7h04lWgLfr10NA7nl/yZbz4m76rBfOOdDfleb7pQ==
   dependencies:
     "@types/node" "*"
     "@types/ws" "*"
@@ -267,10 +262,10 @@ chokidar@^3.5.3:
   optionalDependencies:
     fsevents "~2.3.2"
 
-chromedriver@^129.0.2:
-  version "129.0.2"
-  resolved "https://registry.yarnpkg.com/chromedriver/-/chromedriver-129.0.2.tgz#950bb0a7d1095bc9c7a6f61e5f18e02e27875477"
-  integrity sha512-rUEFCJAmAwOdFfaDFtveT97fFeA7NOxlkgyPyN+G09Ws4qGW39aLDxMQBbS9cxQQHhTihqZZobgF5CLVYXnmGA==
+chromedriver@^128.0.3:
+  version "128.0.3"
+  resolved "https://registry.yarnpkg.com/chromedriver/-/chromedriver-128.0.3.tgz#7c2cd2d160f269e78f40840ee7a043dac3687148"
+  integrity sha512-Xn/bknOpGlY9tKinwS/hVWeNblSeZvbbJbF8XZ73X1jeWfAFPRXx3fMLdNNz8DqruDbx3cKEJ5wR3mnst6G3iw==
   dependencies:
     "@testim/chrome-version" "^1.1.4"
     axios "^1.7.4"
@@ -1272,15 +1267,14 @@ safe-buffer@^5.1.0, safe-buffer@~5.1.0, safe-buffer@~5.1.1:
   resolved "https://registry.npmjs.org/safe-buffer/-/safe-buffer-5.1.2.tgz"
   integrity sha512-Gd2UZBJDkXlY7GbJxfsE8/nvKkUEU1G38c1siN6QP6a9PT9MmHB8GnpscSmMJSoF8LOIrt8ud/wPtojys4G6+g==
 
-selenium-webdriver@^4.25.0:
-  version "4.25.0"
-  resolved "https://registry.yarnpkg.com/selenium-webdriver/-/selenium-webdriver-4.25.0.tgz#3562b49668817974bb1d13d25a50e8bc0264fcf3"
-  integrity sha512-zl9IX93caOT8wbcCpZzAkEtYa+hNgJ4C5GUN8uhpzggqRLvsg1asfKi0p1uNZC8buYVvsBZbx8S+9MjVAjs4oA==
+selenium-webdriver@^4.21.0:
+  version "4.21.0"
+  resolved "https://registry.yarnpkg.com/selenium-webdriver/-/selenium-webdriver-4.21.0.tgz#d38aebfc34770421a880afcfdb7bd8fe85ce9174"
+  integrity sha512-WaEJHZjOWNth1QG5FEpxpREER0qptZBMonFU6GtAqdCNLJVxbtC3E7oS/I/+Q1sf1W032Wg0Ebk+m46lANOXyQ==
   dependencies:
-    "@bazel/runfiles" "^5.8.1"
     jszip "^3.10.1"
     tmp "^0.2.3"
-    ws "^8.18.0"
+    ws ">=8.16.0"
 
 semver@^5.3.0:
   version "5.7.2"
@@ -1483,10 +1477,10 @@ tsutils@^2.29.0:
   dependencies:
     tslib "^1.8.1"
 
-typescript@^5.6.3:
-  version "5.6.3"
-  resolved "https://registry.yarnpkg.com/typescript/-/typescript-5.6.3.tgz#5f3449e31c9d94febb17de03cc081dd56d81db5b"
-  integrity sha512-hjcS1mhfuyi4WW8IWtjP7brDrG2cuDZukyrYrSauoXGNgx0S7zceP07adYkJycEr56BOUTNPzbInooiN3fn1qw==
+typescript@^5.6.2:
+  version "5.6.2"
+  resolved "https://registry.yarnpkg.com/typescript/-/typescript-5.6.2.tgz#d1de67b6bef77c41823f822df8f0b3bcff60a5a0"
+  integrity sha512-NW8ByodCSNCwZeghjN3o+JX5OFH0Ojg6sadjEKY4huZ52TqbJTJnDo5+Tw98lSy63NZvi4n+ez5m2u5d4PkZyw==
 
 undici-types@~6.19.2:
   version "6.19.8"
@@ -1546,10 +1540,10 @@ wrappy@1:
   resolved "https://registry.yarnpkg.com/wrappy/-/wrappy-1.0.2.tgz#b5243d8f3ec1aa35f1364605bc0d1036e30ab69f"
   integrity sha1-tSQ9jz7BqjXxNkYFvA0QNuMKtp8=
 
-ws@^8.18.0:
-  version "8.18.0"
-  resolved "https://registry.yarnpkg.com/ws/-/ws-8.18.0.tgz#0d7505a6eafe2b0e712d232b42279f53bc289bbc"
-  integrity sha512-8VbfWfHLbbwu3+N6OKsOMpBdT4kXPDDB9cJk2bJ6mh9ucxdlnNvH1e+roYkKmN9Nxw2yjz7VzeO9oOz2zJ04Pw==
+ws@>=8.16.0:
+  version "8.17.1"
+  resolved "https://registry.yarnpkg.com/ws/-/ws-8.17.1.tgz#9293da530bb548febc95371d90f9c878727d919b"
+  integrity sha512-6XQFvXTkbfUOZOKKILFG1PDK2NDQs4azKQl26T0YS5CxqWLgXajbPZ+h4gZekJyRqFU8pvnbAbbs/3TgRPy+GQ==
 
 y18n@^5.0.5:
   version "5.0.8"

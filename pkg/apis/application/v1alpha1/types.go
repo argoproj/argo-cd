@@ -395,8 +395,6 @@ type ApplicationSourceHelm struct {
 	// APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
 	// Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
 	APIVersions []string `json:"apiVersions,omitempty" protobuf:"bytes,13,opt,name=apiVersions"`
-	// SkipTests skips test manifest installation step (Helm's --skip-tests).
-	SkipTests bool `json:"skipTests,omitempty" protobuf:"bytes,14,opt,name=skipTests"`
 }
 
 // HelmParameter is a parameter that's passed to helm template during manifest generation
@@ -478,7 +476,7 @@ func (in *ApplicationSourceHelm) AddFileParameter(p HelmFileParameter) {
 
 // IsZero Returns true if the Helm options in an application source are considered zero
 func (h *ApplicationSourceHelm) IsZero() bool {
-	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.ValuesIsEmpty() && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds && !h.SkipTests && h.KubeVersion == "" && len(h.APIVersions) == 0 && h.Namespace == ""
+	return h == nil || (h.Version == "") && (h.ReleaseName == "") && len(h.ValueFiles) == 0 && len(h.Parameters) == 0 && len(h.FileParameters) == 0 && h.ValuesIsEmpty() && !h.PassCredentials && !h.IgnoreMissingValueFiles && !h.SkipCrds && h.KubeVersion == "" && len(h.APIVersions) == 0 && h.Namespace == ""
 }
 
 // KustomizeImage represents a Kustomize image definition in the format [old_image_name=]<image_name>:<image_tag>
@@ -1001,6 +999,12 @@ type ApplicationDestination struct {
 	isServerInferred bool `json:"-"`
 }
 
+// SetIsServerInferred sets the isServerInferred flag. This is used to allow comparison between two destinations where
+// one server is inferred and the other is not.
+func (d *ApplicationDestination) SetIsServerInferred(inferred bool) {
+	d.isServerInferred = inferred
+}
+
 type ResourceHealthLocation string
 
 var (
@@ -1055,15 +1059,15 @@ func (a *ApplicationStatus) GetRevisions() []string {
 
 // BuildComparedToStatus will build a ComparedTo object based on the current
 // Application state.
-func (app *Application) BuildComparedToStatus() ComparedTo {
+func (spec *ApplicationSpec) BuildComparedToStatus() ComparedTo {
 	ct := ComparedTo{
-		Destination:       app.Spec.Destination,
-		IgnoreDifferences: app.Spec.IgnoreDifferences,
+		Destination:       spec.Destination,
+		IgnoreDifferences: spec.IgnoreDifferences,
 	}
-	if app.Spec.HasMultipleSources() {
-		ct.Sources = app.Spec.Sources
+	if spec.HasMultipleSources() {
+		ct.Sources = spec.Sources
 	} else {
-		ct.Source = app.Spec.GetSource()
+		ct.Source = spec.GetSource()
 	}
 	return ct
 }
@@ -2383,11 +2387,11 @@ func (s *SyncWindows) HasWindows() bool {
 }
 
 // Active returns a list of sync windows that are currently active
-func (s *SyncWindows) Active() *SyncWindows {
+func (s *SyncWindows) Active() (*SyncWindows, error) {
 	return s.active(time.Now())
 }
 
-func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
+func (s *SyncWindows) active(currentTime time.Time) (*SyncWindows, error) {
 	// If SyncWindows.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before we scan through the SyncWindows.
 	currentTime = currentTime.In(time.UTC)
@@ -2396,8 +2400,14 @@ func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
 		var active SyncWindows
 		specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
 		for _, w := range *s {
-			schedule, _ := specParser.Parse(w.Schedule)
-			duration, _ := time.ParseDuration(w.Duration)
+			schedule, sErr := specParser.Parse(w.Schedule)
+			if sErr != nil {
+				return nil, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
+			}
+			duration, dErr := time.ParseDuration(w.Duration)
+			if dErr != nil {
+				return nil, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
+			}
 
 			// Offset the nextWindow time to consider the timeZone of the sync window
 			timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
@@ -2407,20 +2417,20 @@ func (s *SyncWindows) active(currentTime time.Time) *SyncWindows {
 			}
 		}
 		if len(active) > 0 {
-			return &active
+			return &active, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // InactiveAllows will iterate over the SyncWindows and return all inactive allow windows
 // for the current time. If the current time is in an inactive allow window, syncs will
 // be denied.
-func (s *SyncWindows) InactiveAllows() *SyncWindows {
+func (s *SyncWindows) InactiveAllows() (*SyncWindows, error) {
 	return s.inactiveAllows(time.Now())
 }
 
-func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
+func (s *SyncWindows) inactiveAllows(currentTime time.Time) (*SyncWindows, error) {
 	// If SyncWindows.InactiveAllows() is called outside of a UTC locale, it should be
 	// first converted to UTC before we scan through the SyncWindows.
 	currentTime = currentTime.In(time.UTC)
@@ -2431,21 +2441,27 @@ func (s *SyncWindows) inactiveAllows(currentTime time.Time) *SyncWindows {
 		for _, w := range *s {
 			if w.Kind == "allow" {
 				schedule, sErr := specParser.Parse(w.Schedule)
+				if sErr != nil {
+					return nil, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
+				}
 				duration, dErr := time.ParseDuration(w.Duration)
+				if dErr != nil {
+					return nil, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
+				}
 				// Offset the nextWindow time to consider the timeZone of the sync window
 				timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
 				nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
 
-				if !nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) && sErr == nil && dErr == nil {
+				if !nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)) {
 					inactive = append(inactive, w)
 				}
 			}
 		}
 		if len(inactive) > 0 {
-			return &inactive
+			return &inactive, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
@@ -2549,36 +2565,42 @@ func (w *SyncWindows) Matches(app *Application) *SyncWindows {
 }
 
 // CanSync returns true if a sync window currently allows a sync. isManual indicates whether the sync has been triggered manually.
-func (w *SyncWindows) CanSync(isManual bool) bool {
+func (w *SyncWindows) CanSync(isManual bool) (bool, error) {
 	if !w.HasWindows() {
-		return true
+		return true, nil
 	}
 
-	active := w.Active()
+	active, err := w.Active()
+	if err != nil {
+		return false, fmt.Errorf("invalid sync windows: %w", err)
+	}
 	hasActiveDeny, manualEnabled := active.hasDeny()
 
 	if hasActiveDeny {
 		if isManual && manualEnabled {
-			return true
+			return true, nil
 		} else {
-			return false
+			return false, nil
 		}
 	}
 
 	if active.hasAllow() {
-		return true
+		return true, nil
 	}
 
-	inactiveAllows := w.InactiveAllows()
+	inactiveAllows, err := w.InactiveAllows()
+	if err != nil {
+		return false, fmt.Errorf("invalid sync windows: %w", err)
+	}
 	if inactiveAllows.HasWindows() {
 		if isManual && inactiveAllows.manualEnabled() {
-			return true
+			return true, nil
 		} else {
-			return false
+			return false, nil
 		}
 	}
 
-	return true
+	return true, nil
 }
 
 // hasDeny will iterate over the SyncWindows and return if a deny window is found and if
@@ -2633,24 +2655,30 @@ func (w *SyncWindows) manualEnabled() bool {
 }
 
 // Active returns true if the sync window is currently active
-func (w SyncWindow) Active() bool {
+func (w SyncWindow) Active() (bool, error) {
 	return w.active(time.Now())
 }
 
-func (w SyncWindow) active(currentTime time.Time) bool {
+func (w SyncWindow) active(currentTime time.Time) (bool, error) {
 	// If SyncWindow.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before search
 	currentTime = currentTime.UTC()
 
 	specParser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow)
-	schedule, _ := specParser.Parse(w.Schedule)
-	duration, _ := time.ParseDuration(w.Duration)
+	schedule, sErr := specParser.Parse(w.Schedule)
+	if sErr != nil {
+		return false, fmt.Errorf("cannot parse schedule '%s': %w", w.Schedule, sErr)
+	}
+	duration, dErr := time.ParseDuration(w.Duration)
+	if dErr != nil {
+		return false, fmt.Errorf("cannot parse duration '%s': %w", w.Duration, dErr)
+	}
 
 	// Offset the nextWindow time to consider the timeZone of the sync window
 	timeZoneOffsetDuration := w.scheduleOffsetByTimeZone()
 	nextWindow := schedule.Next(currentTime.Add(timeZoneOffsetDuration - duration))
 
-	return nextWindow.Before(currentTime.Add(timeZoneOffsetDuration))
+	return nextWindow.Before(currentTime.Add(timeZoneOffsetDuration)), nil
 }
 
 // Update updates a sync window's settings with the given parameter
@@ -3102,7 +3130,7 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 }
 
 // RawRestConfig returns a go-client REST config from cluster that might be serialized into the file using kube.WriteKubeConfig method.
-func (c *Cluster) RawRestConfig() (*rest.Config, error) {
+func (c *Cluster) RawRestConfig() *rest.Config {
 	var config *rest.Config
 	var err error
 	if c.Server == KubernetesInternalAPIServerAddr && env.ParseBoolFromEnv(EnvVarFakeInClusterConfig, false) {
@@ -3186,25 +3214,22 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 		}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("Unable to create K8s REST config: %w", err)
+		panic(fmt.Sprintf("Unable to create K8s REST config: %v", err))
 	}
 	config.Timeout = K8sServerSideTimeout
 	config.QPS = K8sClientConfigQPS
 	config.Burst = K8sClientConfigBurst
-	return config, nil
+	return config
 }
 
 // RESTConfig returns a go-client REST config from cluster with tuned throttling and HTTP client settings.
-func (c *Cluster) RESTConfig() (*rest.Config, error) {
-	config, err := c.RawRestConfig()
+func (c *Cluster) RESTConfig() *rest.Config {
+	config := c.RawRestConfig()
+	err := SetK8SConfigDefaults(config)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to get K8s RAW REST config: %w", err)
+		panic(fmt.Sprintf("Unable to apply K8s REST config defaults: %v", err))
 	}
-	err = SetK8SConfigDefaults(config)
-	if err != nil {
-		return nil, fmt.Errorf("Unable to apply K8s REST config defaults: %w", err)
-	}
-	return config, nil
+	return config
 }
 
 // UnmarshalToUnstructured unmarshals a resource representation in JSON to unstructured data
@@ -3285,16 +3310,4 @@ func (a *Application) QualifiedName() string {
 // in a backwards-compatible way.
 func (a *Application) RBACName(defaultNS string) string {
 	return security.RBACName(defaultNS, a.Spec.GetProject(), a.Namespace, a.Name)
-}
-
-// GetAnnotation returns the value of the specified annotation if it exists,
-// e.g., a.GetAnnotation("argocd.argoproj.io/manifest-generate-paths").
-// If the annotation does not exist, it returns an empty string.
-func (a *Application) GetAnnotation(annotation string) string {
-	v, exists := a.Annotations[annotation]
-	if !exists {
-		return ""
-	}
-
-	return v
 }

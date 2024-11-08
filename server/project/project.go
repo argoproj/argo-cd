@@ -58,9 +58,9 @@ type Server struct {
 
 // NewServer returns a new instance of the Project service
 func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock sync.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer,
-	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, db db.ArgoDB, enableK8sEvent []string,
+	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, db db.ArgoDB,
 ) *Server {
-	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server", enableK8sEvent)
+	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server")
 	return &Server{
 		enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr,
 		projInformer: projInformer, settingsMgr: settingsMgr, db: db,
@@ -525,7 +525,10 @@ func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindows
 
 	res := &project.SyncWindowsResponse{}
 
-	windows := proj.Spec.SyncWindows.Active()
+	windows, err := proj.Spec.SyncWindows.Active()
+	if err != nil {
+		return nil, err
+	}
 	if windows.HasWindows() {
 		res.Windows = *windows
 	} else {

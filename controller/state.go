@@ -255,29 +255,28 @@ func (m *appStateManager) GetRepoObjs(app *v1alpha1.Application, sources []v1alp
 
 		log.Debugf("Generating Manifest for source %s revision %s", source, revision)
 		manifestInfo, err := repoClient.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
-			Repo:                            repo,
-			Repos:                           permittedHelmRepos,
-			Revision:                        revision,
-			NoCache:                         noCache,
-			NoRevisionCache:                 noRevisionCache,
-			AppLabelKey:                     appLabelKey,
-			AppName:                         app.InstanceName(m.namespace),
-			Namespace:                       app.Spec.Destination.Namespace,
-			ApplicationSource:               &source,
-			KustomizeOptions:                kustomizeOptions,
-			KubeVersion:                     serverVersion,
-			ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
-			VerifySignature:                 verifySignature,
-			HelmRepoCreds:                   permittedHelmCredentials,
-			TrackingMethod:                  string(argo.GetTrackingMethod(m.settingsMgr)),
-			EnabledSourceTypes:              enabledSourceTypes,
-			HelmOptions:                     helmOptions,
-			HasMultipleSources:              app.Spec.HasMultipleSources(),
-			RefSources:                      refSources,
-			ProjectName:                     proj.Name,
-			ProjectSourceRepos:              proj.Spec.SourceRepos,
-			AnnotationManifestGeneratePaths: app.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
-			InstallationID:                  installationID,
+			Repo:               repo,
+			Repos:              permittedHelmRepos,
+			Revision:           revision,
+			NoCache:            noCache,
+			NoRevisionCache:    noRevisionCache,
+			AppLabelKey:        appLabelKey,
+			AppName:            app.InstanceName(m.namespace),
+			Namespace:          app.Spec.Destination.Namespace,
+			ApplicationSource:  &source,
+			KustomizeOptions:   kustomizeOptions,
+			KubeVersion:        serverVersion,
+			ApiVersions:        argo.APIResourcesToStrings(apiResources, true),
+			VerifySignature:    verifySignature,
+			HelmRepoCreds:      permittedHelmCredentials,
+			TrackingMethod:     string(argo.GetTrackingMethod(m.settingsMgr)),
+			EnabledSourceTypes: enabledSourceTypes,
+			HelmOptions:        helmOptions,
+			HasMultipleSources: app.Spec.HasMultipleSources(),
+			RefSources:         refSources,
+			ProjectName:        proj.Name,
+			ProjectSourceRepos: proj.Spec.SourceRepos,
+			InstallationID:     installationID,
 		})
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
@@ -936,15 +935,36 @@ func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sou
 		return false
 	}
 
-	currentSpec := app.BuildComparedToStatus()
-	specChanged := !reflect.DeepEqual(app.Status.Sync.ComparedTo, currentSpec)
-	if specChanged {
+	if !specEqualsCompareTo(app.Spec, app.Status.Sync.ComparedTo) {
 		log.WithField("useDiffCache", "false").Debug("specChanged")
 		return false
 	}
 
 	log.WithField("useDiffCache", "true").Debug("using diff cache")
 	return true
+}
+
+// specEqualsCompareTo compares the application spec to the comparedTo status. It normalizes the destination to match
+// the comparedTo destination before comparing. It does not mutate the original spec or comparedTo.
+func specEqualsCompareTo(spec v1alpha1.ApplicationSpec, comparedTo v1alpha1.ComparedTo) bool {
+	// Make a copy to be sure we don't mutate the original.
+	specCopy := spec.DeepCopy()
+	currentSpec := specCopy.BuildComparedToStatus()
+
+	// The spec might have been augmented to include both server and name, so change it to match the comparedTo before
+	// comparing.
+	if comparedTo.Destination.Server == "" {
+		currentSpec.Destination.Server = ""
+	}
+	if comparedTo.Destination.Name == "" {
+		currentSpec.Destination.Name = ""
+	}
+
+	// Set IsServerInferred to false on both, because that field is not important for comparison.
+	comparedTo.Destination.SetIsServerInferred(false)
+	currentSpec.Destination.SetIsServerInferred(false)
+
+	return reflect.DeepEqual(comparedTo, currentSpec)
 }
 
 func (m *appStateManager) persistRevisionHistory(

@@ -570,7 +570,8 @@ func TestUnlockGitReferences(t *testing.T) {
 
 	t.Run("Test not locked", func(t *testing.T) {
 		err := cache.UnlockGitReferences("test-repo", "")
-		assert.ErrorContains(t, err, "key is missing")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "key is missing")
 	})
 
 	t.Run("Test unlock", func(t *testing.T) {
