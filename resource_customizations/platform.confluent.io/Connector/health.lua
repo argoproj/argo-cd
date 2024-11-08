@@ -1,6 +1,6 @@
 hs = {}
 if obj.status ~= nil and obj.status.state ~= nil then
-    if obj.status.state == "CREATED" and obj.status.connectorState == "RUNNING" then
+    if obj.status.state == "CREATED" and obj.status.connectorState == "RUNNING" and obj.status.failedTasksCount == nil then
         hs.status = "Healthy"
         hs.message = "Connector running"
         return hs
@@ -12,6 +12,11 @@ if obj.status ~= nil and obj.status.state ~= nil then
         else
             hs.message = "No conditions available"
         end
+        return hs
+    end
+    if obj.status.failedTasksCount ~= nil and obj.status.failedTasksCount > 0 then
+        hs.status = "Degraded"
+        hs.message = "Connector has failed tasks"
         return hs
     end
 end
