@@ -31,9 +31,6 @@ export interface AppDetailsPreferences {
     zoom: number;
     podGroupCount: number;
     userHelpTipMsgs: UserMessages[];
-    syncResult?: {
-        showSyncWave?: boolean;
-    };
 }
 
 export interface PodViewPreferences {
@@ -129,10 +126,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         wrapLines: false,
         zoom: 1.0,
         podGroupCount: 15.0,
-        userHelpTipMsgs: [],
-        syncResult: {
-            showSyncWave: false
-        }
+        userHelpTipMsgs: []
     },
     appList: {
         view: 'tiles' as AppsListViewType,
