@@ -226,11 +226,23 @@ type tokenVerifierMock struct {
 	err    error
 }
 
+<<<<<<< HEAD
 func (tm *tokenVerifierMock) VerifyToken(_ string) (jwt.Claims, string, error) {
 	if tm.claims == nil {
+=======
+func (tm *tokenVerifierMock) VerifyToken(token string) (jwt.Claims, string, error) {
+	if tm.err != nil {
+>>>>>>> 7bd5b1485 (updated getUser tests and fixed some failing tests)
 		return nil, "", tm.err
 	}
-	return tm.claims, "", tm.err
+	mapClaims := jwt.MapClaims{
+		"sub": "test-user",
+		"exp": time.Now().Add(time.Hour).Unix(),
+	}
+	if tm.claims == nil {
+		return jwt.MapClaims{}, "", nil
+	}
+	return mapClaims, "", nil
 }
 
 func strPointer(str string) *string {

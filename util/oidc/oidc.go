@@ -606,6 +606,9 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	if response.StatusCode == http.StatusUnauthorized {
 		return claims, true, err
 	}
+	if response.StatusCode == http.StatusNotFound {
+		return jwt.MapClaims{}, true, fmt.Errorf("user info path not found: %s", userInfoPath)
+	}
 
 	// according to https://openid.net/specs/openid-connect-core-1_0.html#UserInfoResponseValidation
 	// the response should be validated
@@ -685,12 +688,12 @@ func getTokenExpiration(claims jwt.MapClaims) time.Duration {
 
 // formatUserInfoResponseCacheKey returns the key which is used to store userinfo of user in cache
 func formatUserInfoResponseCacheKey(claims jwt.MapClaims) string {
-	sub := utils.GetUserIdentifier(claims)
-	return fmt.Sprintf("%s_%s", UserInfoResponseCachePrefix, sub)
+	userID := utils.GetUserIdentifier(claims)
+	return fmt.Sprintf("%s_%s", UserInfoResponseCachePrefix, userID)
 }
 
 // formatAccessTokenCacheKey returns the key which is used to store the accessToken of a user in cache
 func formatAccessTokenCacheKey(claims jwt.MapClaims) string {
-	sub := utils.GetUserIdentifier(claims)
-	return fmt.Sprintf("%s_%s", AccessTokenCachePrefix, sub)
+	userID := utils.GetUserIdentifier(claims)
+	return fmt.Sprintf("%s_%s", AccessTokenCachePrefix, userID)
 }
