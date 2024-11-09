@@ -157,7 +157,7 @@ export class PodView extends React.Component<PodViewProps> {
                                                                             </div>
                                                                         </React.Fragment>
                                                                     }>
-                                                                    <div id='cost'> Requests? </div>
+                                                                    <div id='cost'> Requests </div>
                                                                 </Tooltip>
                                                             }
                                                             {group.createdAt ? (
