@@ -1471,3 +1471,9 @@ export const userMsgsList: {[key: string]: string} = {
     groupNodes: `Since the number of pods has surpassed the threshold pod count of 15, you will now be switched to the group node view.
                  If you prefer the tree view, you can simply click on the Group Nodes toolbar button to deselect the current view.`
 };
+
+// constant for podrequests
+export const podRequests = {
+    CPU: 'Requests (CPU)',
+    MEMORY: 'Requests (MEM)'
+} as const;

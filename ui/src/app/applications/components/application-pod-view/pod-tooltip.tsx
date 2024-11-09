@@ -1,7 +1,7 @@
 import * as React from 'react';
 import Moment from 'react-moment';
 import {Pod} from '../../../shared/models';
-import {isYoungerThanXMinutes} from '../utils';
+import {isYoungerThanXMinutes, podRequests} from '../utils';
 import {formatSize} from './pod-view';
 
 export const PodTooltip = (props: {pod: Pod}) => {
@@ -62,9 +62,9 @@ function formatPodMetric(name: string, value: string) {
     const numericValue = parseInt(value, 10);
 
     switch (name) {
-        case 'Requests (CPU)':
+        case podRequests.CPU:
             return `${numericValue}m`;
-        case 'Requests (MEM)': {
+        case podRequests.MEMORY: {
             return formatSize(numericValue / 1000); // divide by 1000 to convert "milli bytes" to bytes
         }
         default:

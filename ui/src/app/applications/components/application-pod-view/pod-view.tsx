@@ -11,7 +11,7 @@ import {PodViewPreferences, services, ViewPreferences} from '../../../shared/ser
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {ComparisonStatusIcon, isYoungerThanXMinutes, HealthStatusIcon, nodeKey, PodHealthIcon} from '../utils';
+import {ComparisonStatusIcon, isYoungerThanXMinutes, HealthStatusIcon, nodeKey, PodHealthIcon, podRequests} from '../utils';
 
 import './pod-view.scss';
 import {PodTooltip} from './pod-tooltip';
@@ -420,10 +420,10 @@ function calculatePodGrouprResquests(pods: Pod[]) {
         pod.info?.forEach(info => {
             const numericValue = parseInt(info.value, 10);
 
-            if (info.name === 'Requests (CPU)') {
+            if (info.name === podRequests.CPU) {
                 resources.cpu += numericValue;
             }
-            if (info.name === 'Requests (MEM)') {
+            if (info.name === podRequests.MEMORY) {
                 resources.memory += numericValue;
             }
         });
