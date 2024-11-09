@@ -94,10 +94,10 @@ const (
 )
 
 // consts for podrequests metrics in cache/info
-const {
+const (
 	podRequestsCPU = "Requests (CPU)"
 	podRequestsMEM = "Requests (MEM)"
-}
+)
 
 // Argo CD application related constants
 const (
