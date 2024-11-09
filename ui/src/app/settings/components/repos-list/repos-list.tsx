@@ -103,12 +103,6 @@ interface NewGoogleCloudSourceRepoCredsParams {
     gcpServiceAccountKey: string;
 }
 
-interface ColumnHeaderProps {
-    label: string;
-    property?: string;
-    className?: string;
-}
-
 export enum ConnectionMethod {
     SSH = 'via SSH',
     HTTPS = 'via HTTPS',
@@ -123,8 +117,11 @@ export class ReposList extends React.Component<
         method: string;
         currentRepo: models.Repository;
         displayEditPanel: boolean;
-        sortProperty: keyof models.Repository | null;
-        sortOrder: 'asc' | 'desc';
+        sortProperty: 'asc' | 'desc';
+        statusProperty: 'all' | 'Successful' | 'Failed' | 'Unknown';
+        projectProperty: string;
+        typeProperty: 'all' | 'git' | 'helm';
+        name: string;
     }
 > {
     public static contextTypes = {
@@ -145,8 +142,11 @@ export class ReposList extends React.Component<
             method: ConnectionMethod.SSH,
             currentRepo: null,
             displayEditPanel: false,
-            sortProperty: null,
-            sortOrder: 'asc'
+            sortProperty: 'asc',
+            statusProperty: 'all',
+            projectProperty: 'all',
+            typeProperty: 'all',
+            name: ''
         };
     }
 
@@ -270,32 +270,6 @@ export class ReposList extends React.Component<
     }
 
     public render() {
-        const compareReposAsc = (a: models.Repository, b: models.Repository) => {
-            const x = a[this.state.sortProperty] === undefined ? '' : a[this.state.sortProperty].toString();
-            const y = b[this.state.sortProperty] === undefined ? '' : b[this.state.sortProperty].toString();
-            return x.localeCompare(y);
-        };
-
-        const compareReposDesc = (a: models.Repository, b: models.Repository) => {
-            return compareReposAsc(b, a);
-        };
-
-        const ColumnHeader = (props: ColumnHeaderProps) => {
-            const onClick = () => {
-                if (this.state.sortProperty === props.property) {
-                    this.setState({sortOrder: this.state.sortOrder === 'asc' ? 'desc' : 'asc'});
-                } else {
-                    this.setState({sortProperty: props.property as keyof models.Repository, sortOrder: 'asc'});
-                }
-            };
-
-            return (
-                <div className={props.className} onClick={onClick}>
-                    {props.label}
-                </div>
-            );
-        };
-
         return (
             <Page
                 title='Repositories'
@@ -320,30 +294,118 @@ export class ReposList extends React.Component<
                 }}>
                 <div className='repos-list'>
                     <div className='argo-container'>
-                        <DataLoader load={() => services.repos.list()} ref={loader => (this.repoLoader = loader)}>
+                        <div style={{display: 'flex', margin: '20px 0', justifyContent: 'space-between'}}>
+                            <div style={{display: 'flex', gap: '10px', width: '50%'}}>
+                                <DropDownMenu
+                                    items={[
+                                        {
+                                            title: 'all',
+                                            action: () => this.setState({typeProperty: 'all'})
+                                        },
+                                        {
+                                            title: 'git',
+                                            action: () => this.setState({typeProperty: 'git'})
+                                        },
+                                        {
+                                            title: 'helm',
+                                            action: () => this.setState({typeProperty: 'helm'})
+                                        }
+                                    ]}
+                                    anchor={() => (
+                                        <>
+                                            <a>
+                                                Type: {this.state.typeProperty} <i className='fa fa-caret-down' />
+                                            </a>
+                                            &nbsp;
+                                        </>
+                                    )}
+                                    qeId='type-menu'
+                                />
+                                <DataLoader load={services.repos.list} ref={loader => (this.repoLoader = loader)}>
+                                    {(repos: models.Repository[]) => {
+                                        const projectValues = Array.from(new Set(repos.map(repo => repo.project)));
+
+                                        const projectItems = [
+                                            {
+                                                title: 'all',
+                                                action: () => this.setState({projectProperty: 'all'})
+                                            },
+                                            ...projectValues
+                                                .filter(project => project && project.trim() !== '')
+                                                .map(project => ({
+                                                    title: project,
+                                                    action: () => this.setState({projectProperty: project})
+                                                }))
+                                        ];
+
+                                        return (
+                                            <DropDownMenu
+                                                items={projectItems}
+                                                anchor={() => (
+                                                    <>
+                                                        <a>
+                                                            Project: {this.state.projectProperty} <i className='fa fa-caret-down' />
+                                                        </a>
+                                                        &nbsp;
+                                                    </>
+                                                )}
+                                                qeId='project-menu'
+                                            />
+                                        );
+                                    }}
+                                </DataLoader>
+                                <DropDownMenu
+                                    items={[
+                                        {
+                                            title: 'all',
+                                            action: () => this.setState({statusProperty: 'all'})
+                                        },
+                                        {
+                                            title: 'Successful',
+                                            action: () => this.setState({statusProperty: 'Successful'})
+                                        },
+                                        {
+                                            title: 'Failed',
+                                            action: () => this.setState({statusProperty: 'Failed'})
+                                        },
+                                        {
+                                            title: 'Unknown',
+                                            action: () => this.setState({statusProperty: 'Unknown'})
+                                        }
+                                    ]}
+                                    anchor={() => (
+                                        <>
+                                            <a>
+                                                Status: {this.state.statusProperty} <i className='fa fa-caret-down' />
+                                            </a>
+                                            &nbsp;
+                                        </>
+                                    )}
+                                    qeId='status-menu'
+                                />
+                            </div>
+                            <div className='search-bar' style={{display: 'flex', alignItems: 'flex-end', width: '50%'}}>
+                                <input type='text' className='argo-field' placeholder='Search Name' value={this.state.name} onChange={e => this.setState({name: e.target.value})} />
+                            </div>
+                        </div>
+                        <DataLoader load={services.repos.list} ref={loader => (this.repoLoader = loader)}>
                             {(repos: models.Repository[]) => {
-                                if (this.state.sortProperty) {
-                                    if (this.state.sortOrder === 'asc') {
-                                        repos.sort(compareReposAsc);
-                                    } else {
-                                        repos.sort(compareReposDesc);
-                                    }
-                                }
+                                const filteredRepos = this.filteredRepos(repos, this.state.typeProperty, this.state.projectProperty, this.state.statusProperty, this.state.name);
 
                                 return (
-                                    (repos.length > 0 && (
+                                    (filteredRepos.length > 0 && (
                                         <div className='argo-table-list'>
                                             <div className='argo-table-list__head'>
                                                 <div className='row'>
                                                     <div className='columns small-1' />
-                                                    <ColumnHeader className='columns small-1' label='TYPE' property='type' />
-                                                    <ColumnHeader className='columns small-2' label='NAME' property='name' />
-                                                    <ColumnHeader className='columns small-2' label='PROJECT' property='project' />
-                                                    <ColumnHeader className='columns small-4' label='REPOSITORY' property='repo' />
+                                                    <div className='columns small-1'>TYPE</div>
+                                                    <div className='columns small-2'>NAME</div>
+                                                    <div className='columns small-2'>PROJECT</div>
+                                                    <div className='columns small-4'>REPOSITORY</div>
                                                     <div className='columns small-2'>CONNECTION STATUS</div>
                                                 </div>
                                             </div>
-                                            {repos.map(repo => (
+                                            {filteredRepos.map(repo => (
                                                 <div
                                                     className={`argo-table-list__row ${this.isRepoUpdatable(repo) ? 'item-clickable' : ''}`}
                                                     key={repo.repo}
@@ -955,6 +1017,57 @@ export class ReposList extends React.Component<
                 });
             }
         }
+    }
+
+    // filtering function
+    private filteredRepos(repos: models.Repository[], type: string, project: string, status: string, name: string) {
+        let newRepos = repos;
+
+        if (name && name.trim() !== '') {
+            const response = this.filteredName(newRepos, name);
+            newRepos = response;
+        }
+
+        if (type !== 'all') {
+            const response = this.filteredType(newRepos, type);
+            newRepos = response;
+        }
+
+        if (status !== 'all') {
+            const response = this.filteredStatus(newRepos, status);
+            newRepos = response;
+        }
+
+        if (project !== 'all') {
+            const response = this.filteredProject(newRepos, project);
+            newRepos = response;
+        }
+
+        return newRepos;
+    }
+
+    private filteredName(repos: models.Repository[], name: string) {
+        const trimmedName = name.trim();
+        if (trimmedName === '') {
+            return repos;
+        }
+        const newRepos = repos.filter(repo => repo.name && repo.name.toLowerCase().includes(trimmedName.toLowerCase()));
+        return newRepos;
+    }
+
+    private filteredStatus(repos: models.Repository[], status: string) {
+        const newRepos = repos.filter(repo => repo.connectionState.status.includes(status));
+        return newRepos;
+    }
+
+    private filteredProject(repos: models.Repository[], project: string) {
+        const newRepos = repos.filter(repo => repo.project && repo.project.includes(project));
+        return newRepos;
+    }
+
+    private filteredType(repos: models.Repository[], type: string) {
+        const newRepos = repos.filter(repo => repo.type.includes(type));
+        return newRepos;
     }
 
     // Whether to show the new repository connection dialogue on the page
