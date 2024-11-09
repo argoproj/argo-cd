@@ -22,7 +22,7 @@ export const PodTooltip = (props: {pod: Pod}) => {
                     return i.name !== 'Node' && !((i.name === 'Requests (CPU)' || i.name === 'Requests (MEM)') && parseInt(i.value, 10) === 0);
                 })
                 .map(i => {
-                    //formatted the values here for info for cpu and mem
+                    //formatted the values for cpu and mem
                     const formattedValue = formatPodMetric(i.name, i.value);
                     return (
                         <div className='row' key={i.name}>
@@ -65,7 +65,7 @@ function formatPodMetric(name: string, value: string) {
         case 'Requests (CPU)':
             return `${numericValue}m`;
         case 'Requests (MEM)': {
-            return formatSize(numericValue / 1000);
+            return formatSize(numericValue / 1000); // divide by 1000 to convert "milli bytes" to bytes
         }
         default:
             return value;

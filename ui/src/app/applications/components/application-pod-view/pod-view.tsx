@@ -90,7 +90,7 @@ export class PodView extends React.Component<PodViewProps> {
                                         if (group.type === 'node' && group.name === 'Unschedulable' && podPrefs.hideUnschedulable) {
                                             return <React.Fragment />;
                                         }
-                                        const GroupPodResources = claculatePodGrouprResquests(group.pods);
+                                        const GroupPodResources = calculatePodGrouprResquests(group.pods);
                                         return (
                                             <div className={`pod-view__node white-box ${group.kind === 'node' && 'pod-view__node--large'}`} key={group.fullName || group.name}>
                                                 <div className='pod-view__node__container--header'>
@@ -410,26 +410,28 @@ function formatMetric(name: ResourceName, val: number) {
     return (val || '0') + 'm';
 }
 
-function claculatePodGrouprResquests(pods: Pod[]) {
-    let totalCpuMillicores = 0;
-    let totalMemory = 0;
+function calculatePodGrouprResquests(pods: Pod[]) {
+    const resources = {
+        cpu: 0,
+        memory: 0
+    };
 
     pods.forEach(pod => {
         pod.info?.forEach(info => {
+            const numericValue = parseInt(info.value, 10);
+
             if (info.name === 'Requests (CPU)') {
-                const numericValue = parseInt(info.value, 10); //convert the string value to number
-                totalCpuMillicores += numericValue;
+                resources.cpu += numericValue;
             }
             if (info.name === 'Requests (MEM)') {
-                const numericValue = parseInt(info.value, 10);
-                totalMemory += numericValue;
+                resources.memory += numericValue;
             }
         });
     });
 
     return {
-        cpuRequest: `${totalCpuMillicores}m`,
-        memoryRequests: `${formatSize(totalMemory / 1000)}` //changing it to bytes for formatSize
+        cpuRequest: `${resources.cpu}m`,
+        memoryRequests: `${formatSize(resources.memory / 1000)}` // divide by 1000 to convert "milli bytes" to bytes
     };
 }
 
