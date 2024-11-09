@@ -349,26 +349,33 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 var loggedOutContext = context.Background()
 
 // nolint:staticcheck
-var loggedInContext = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
+var loggedInContext = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}, "federated_claims": map[string]interface{}{"user_id": "foo"}})
+
+// for testing without federated claims
+var loggedInContextNoFederated = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
 
 func TestIss(t *testing.T) {
 	assert.Empty(t, Iss(loggedOutContext))
 	assert.Equal(t, "qux", Iss(loggedInContext))
+	assert.Equal(t, "foo", Sub(loggedInContextNoFederated)) // Without federated claims, falls back to sub
 }
 
 func TestLoggedIn(t *testing.T) {
 	assert.False(t, LoggedIn(loggedOutContext))
 	assert.True(t, LoggedIn(loggedInContext))
+	assert.Equal(t, "foo", Username(loggedInContextNoFederated))
 }
 
 func TestUsername(t *testing.T) {
 	assert.Empty(t, Username(loggedOutContext))
-	assert.Equal(t, "bar", Username(loggedInContext))
+	assert.Equal(t, "foo", Username(loggedInContext))
+	assert.Equal(t, "foo", Username(loggedInContextNoFederated))
 }
 
 func TestSub(t *testing.T) {
 	assert.Empty(t, Sub(loggedOutContext))
 	assert.Equal(t, "foo", Sub(loggedInContext))
+	assert.Equal(t, "foo", Username(loggedInContextNoFederated))
 }
 
 func TestGroups(t *testing.T) {
