@@ -108,6 +108,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                             <div className='applications-tiles argo-table-list argo-table-list--clickable' ref={appContainerRef}>
                                 {applications.map((app, i) => {
                                     const source = getAppDefaultSource(app);
+                                    const targetRevision = source ? source.targetRevision || 'HEAD' : 'Unknown';
                                     return (
                                         <div
                                             key={AppUtils.appInstanceName(app)}
@@ -118,7 +119,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                             <div
                                                 className='row applications-tiles__wrapper'
                                                 onClick={e =>
-                                                    ctx.navigation.goto(`/applications/${app.metadata.namespace}/${app.metadata.name}`, {view: pref.appDetails.view}, {event: e})
+                                                    ctx.navigation.goto(`applications/${app.metadata.namespace}/${app.metadata.name}`, {view: pref.appDetails.view}, {event: e})
                                                 }>
                                                 <div
                                                     className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(
@@ -126,7 +127,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                     )} applications-tiles__item`}>
                                                     <div className='row '>
                                                         <div className={app.status.summary.externalURLs?.length > 0 ? 'columns small-10' : 'columns small-11'}>
-                                                            <i className={'icon argo-icon-' + (source.chart != null ? 'helm' : 'git')} />
+                                                            <i className={'icon argo-icon-' + (source?.chart != null ? 'helm' : 'git')} />
                                                             <Tooltip content={AppUtils.appInstanceName(app)}>
                                                                 <span className='applications-list__title'>
                                                                     {AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
@@ -208,8 +209,8 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                             Repository:
                                                         </div>
                                                         <div className='columns small-9'>
-                                                            <Tooltip content={source.repoURL} zIndex={4}>
-                                                                <span>{source.repoURL}</span>
+                                                            <Tooltip content={source?.repoURL} zIndex={4}>
+                                                                <span>{source?.repoURL}</span>
                                                             </Tooltip>
                                                         </div>
                                                     </div>
@@ -217,22 +218,22 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                                         <div className='columns small-3' title='Target Revision:'>
                                                             Target Revision:
                                                         </div>
-                                                        <div className='columns small-9'>{source.targetRevision || 'HEAD'}</div>
+                                                        <div className='columns small-9'>{targetRevision}</div>
                                                     </div>
-                                                    {source.path && (
+                                                    {source?.path && (
                                                         <div className='row'>
                                                             <div className='columns small-3' title='Path:'>
                                                                 Path:
                                                             </div>
-                                                            <div className='columns small-9'>{source.path}</div>
+                                                            <div className='columns small-9'>{source?.path}</div>
                                                         </div>
                                                     )}
-                                                    {source.chart && (
+                                                    {source?.chart && (
                                                         <div className='row'>
                                                             <div className='columns small-3' title='Chart:'>
                                                                 Chart:
                                                             </div>
-                                                            <div className='columns small-9'>{source.chart}</div>
+                                                            <div className='columns small-9'>{source?.chart}</div>
                                                         </div>
                                                     )}
                                                     <div className='row'>

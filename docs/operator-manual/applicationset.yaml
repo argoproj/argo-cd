@@ -3,16 +3,6 @@ kind: ApplicationSet
 metadata:
   name: test-hello-world-appset
   namespace: argocd
-  # To preserve this annotation and label we can use the preservedFields property 
-  preservedFields:
-    # This annotation and label exists only on this Application, and not in 
-    # the parent ApplicationSet template:
-    # ignoreApplicationDifferences is the preferred way to accomplish this now.
-    annotations: 
-      my-custom-annotation: some-value
-    labels:
-      my-custom-label: some-value
-
 spec:
   generators:
 
@@ -168,29 +158,17 @@ spec:
     applicationsSync: create-only
 
     # Prevents ApplicationSet controller from deleting Applications. Update is allowed
-  # applicationsSync: create-update
+    # applicationsSync: create-update
 
     # Prevents ApplicationSet controller from modifying Applications. Delete is allowed.
-  # applicationsSync: create-delete
+    # applicationsSync: create-delete
 
-    syncOptions:
-    - CreateNamespace=true
     # Prevent an Application's child resources from being deleted, when the parent Application is deleted
     preserveResourcesOnDeletion: true
 
-    # which fields of the ApplicationSet should be ignored when comparing Applications.
-    ignoreApplicationDifferences:
-    - jsonPointers:
-        - /spec/source/targetRevision
-    - name: some-app
-      jqExpressions:
-        - .spec.source.helm.values
-
   strategy:
-  # This field lets you define fields which should be ignored when applying Application resources. This is helpful if you
-  # want to use ApplicationSets to create apps, but also want to allow users to modify those apps without having their
-  # changes overwritten by the ApplicationSet.
-     # This update strategy allows you to group Applications by labels present on the generated Application resources
+     # The RollingSync update strategy allows you to group Applications by labels present on the generated Application resources
+     # See documentation for "Progressive Syncs"
      type: RollingSync
      rollingSync:
       steps:
@@ -214,6 +192,13 @@ spec:
                 - env-prod
           maxUpdate: 10%    # maxUpdate supports both integer and percentage string values (rounds down, but floored at 1 Application for >0%)
 
+  # Define annotations and labels of the Application that this ApplicationSet will ignore
+  # ignoreApplicationDifferences is the preferred way to accomplish this now.
+  preservedFields:
+    annotations: [ some-annotation-key ]
+    labels: [ some-label-key ]
+
+  # Define fields of the that should be ignored when comparing Applications
   ignoreApplicationDifferences:
   - jsonPointers:
     - /spec/source/targetRevision

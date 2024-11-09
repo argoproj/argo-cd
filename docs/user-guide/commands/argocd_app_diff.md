@@ -19,7 +19,8 @@ argocd app diff APPNAME [flags]
 
 ```
   -N, --app-namespace string                              Only render the difference in namespace
-      --exit-code                                         Return non-zero exit code when there is a diff (default true)
+      --diff-exit-code int                                Return specified exit code when there is a diff. Typical error code is 20. (default 1)
+      --exit-code                                         Return non-zero exit code when there is a diff. May also return non-zero exit code if there is an error. (default true)
       --hard-refresh                                      Refresh application data as well as target manifests cache
   -h, --help                                              help for diff
       --ignore-normalizer-jq-execution-timeout duration   Set ignore normalizer JQ execution timeout (default 1s)
@@ -43,6 +44,7 @@ argocd app diff APPNAME [flags]
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --controller-name string          Name of the Argo CD Application controller; set this or the ARGOCD_APPLICATION_CONTROLLER_NAME environment variable when the controller's name label differs from the default, for example when installing via the Helm chart (default "argocd-application-controller")
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
+      --force-prompts-enabled           Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)

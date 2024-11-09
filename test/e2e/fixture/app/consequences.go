@@ -42,6 +42,31 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 	return c
 }
 
+// ExpectConsistently will continuously evaluate a condition, and it must be true each time it is evaluated, otherwise the test is failed. The condition will be repeatedly evaluated until 'expirationDuration' is met, waiting 'waitDuration' after each success.
+func (c *Consequences) ExpectConsistently(e Expectation, waitDuration time.Duration, expirationDuration time.Duration) *Consequences {
+	// this invocation makes sure this func is not reported as the cause of the failure - we are a "test helper"
+	c.context.t.Helper()
+
+	expiration := time.Now().Add(expirationDuration)
+	for time.Now().Before(expiration) {
+		state, message := e(c)
+		switch state {
+		case succeeded:
+			log.Infof("expectation succeeded: %s", message)
+		case failed:
+			c.context.t.Fatalf("failed expectation: %s", message)
+			return c
+		}
+
+		// On condition success: wait, then retry
+		log.Infof("Expectation '%s' passes, repeating to ensure consistency", message)
+		time.Sleep(waitDuration)
+	}
+
+	// If the condition never failed before expiring, it is a pass.
+	return c
+}
+
 func (c *Consequences) And(block func(app *Application)) *Consequences {
 	c.context.t.Helper()
 	block(c.app())

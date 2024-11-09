@@ -195,8 +195,7 @@ func TestUntgz(t *testing.T) {
 		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
 
 		// then
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "illegal filepath in symlink")
+		assert.ErrorContains(t, err, "illegal filepath in symlink")
 	})
 
 	t.Run("preserves file mode", func(t *testing.T) {
@@ -252,11 +251,13 @@ func read(tgz *os.File) (map[string]string, error) {
 // getTestAppDir will return the full path of the app dir under
 // the 'testdata' folder.
 func getTestAppDir(t *testing.T) string {
+	t.Helper()
 	return filepath.Join(getTestDataDir(t), "app")
 }
 
 // getTestDataDir will return the full path of the testdata dir
 // under the running test folder.
 func getTestDataDir(t *testing.T) string {
+	t.Helper()
 	return filepath.Join(test.GetTestDir(t), "testdata")
 }

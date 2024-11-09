@@ -91,8 +91,7 @@ func TestNamespacedGetLogsDenySwitchOn(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
 			_, err := RunCliWithRetry(5, "app", "logs", ctx.AppQualifiedName(), "--kind", "Deployment", "--group", "", "--name", "guestbook-ui")
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "permission denied")
+			assert.ErrorContains(t, err, "permission denied")
 		})
 }
 
@@ -667,8 +666,7 @@ func TestNamespacedAppWithSecrets(t *testing.T) {
 			_, err = RunCli("app", "patch-resource", ctx.AppQualifiedName(), "--resource-name", "test-secret",
 				"--kind", "Secret", "--patch", `{"op": "add", "path": "/data", "value": "hello"}'`,
 				"--patch-type", "application/json-patch+json")
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), fmt.Sprintf("failed to patch Secret %s/test-secret", DeploymentNamespace()))
+			require.ErrorContains(t, err, fmt.Sprintf("failed to patch Secret %s/test-secret", DeploymentNamespace()))
 			assert.NotContains(t, err.Error(), "username")
 			assert.NotContains(t, err.Error(), "password")
 
@@ -878,6 +876,7 @@ func TestNamespacedConfigMap(t *testing.T) {
 }
 
 func testNSEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode health.HealthStatusCode, message ...string) {
+	t.Helper()
 	ctx := Given(t)
 	expect := ctx.
 		Path(appPath).
@@ -973,8 +972,7 @@ func TestNamespacedSyncResourceByLabel(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			_, err := RunCli("app", "sync", ctx.AppQualifiedName(), "--label", "this-label=does-not-exist")
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "level=fatal")
+			assert.ErrorContains(t, err, "level=fatal")
 		})
 }
 
@@ -1045,8 +1043,7 @@ func TestNamespacedNoLocalSyncWithAutosyncEnabled(t *testing.T) {
 			require.NoError(t, err)
 
 			_, err = RunCli("app", "sync", app.QualifiedName(), "--local", guestbookPathLocal)
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "Cannot use local sync")
+			assert.ErrorContains(t, err, "Cannot use local sync")
 		})
 }
 
@@ -1089,12 +1086,12 @@ func TestNamespacedSyncAsync(t *testing.T) {
 
 // assertResourceActions verifies if view/modify resource actions are successful/failing for given application
 func assertNSResourceActions(t *testing.T, appName string, successful bool) {
+	t.Helper()
 	assertError := func(err error, message string) {
 		if successful {
 			require.NoError(t, err)
 		} else {
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), message)
+			assert.ErrorContains(t, err, message)
 		}
 	}
 

@@ -324,12 +324,12 @@ export const SyncStatuses: {[key: string]: SyncStatusCode} = {
 export type HealthStatusCode = 'Unknown' | 'Progressing' | 'Healthy' | 'Suspended' | 'Degraded' | 'Missing';
 
 export const HealthStatuses: {[key: string]: HealthStatusCode} = {
-    Unknown: 'Unknown',
     Progressing: 'Progressing',
     Suspended: 'Suspended',
     Healthy: 'Healthy',
     Degraded: 'Degraded',
-    Missing: 'Missing'
+    Missing: 'Missing',
+    Unknown: 'Unknown'
 };
 
 export interface HealthStatus {
@@ -354,6 +354,7 @@ export interface ResourceStatus {
     createdAt?: models.Time;
     hook?: boolean;
     requiresPruning?: boolean;
+    requiresDeletionConfirmation?: boolean;
     syncWave?: number;
     orphaned?: boolean;
 }
@@ -985,3 +986,5 @@ export interface UserMessages {
     duration?: number;
     animation?: string;
 }
+
+export const AppDeletionConfirmedAnnotation = 'argocd.argoproj.io/deletion-approved';

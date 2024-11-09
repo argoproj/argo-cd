@@ -24,12 +24,21 @@ import (
 
 const (
 	incorrectReturnType       = "expect %s output from Lua script, not %s"
-	incorrectInnerType        = "expect %s inner type from Lua script, not %s"
 	invalidHealthStatus       = "Lua returned an invalid health status"
 	healthScriptFile          = "health.lua"
 	actionScriptFile          = "action.lua"
 	actionDiscoveryScriptFile = "discovery.lua"
 )
+
+// ScriptDoesNotExistError is an error type for when a built-in script does not exist.
+type ScriptDoesNotExistError struct {
+	// ScriptName is the name of the script that does not exist.
+	ScriptName string
+}
+
+func (e ScriptDoesNotExistError) Error() string {
+	return fmt.Sprintf("built-in script %q does not exist", e.ScriptName)
+}
 
 type ResourceHealthOverrides map[string]appv1.ResourceOverride
 
@@ -132,8 +141,9 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
 }
 
-// GetHealthScript attempts to read lua script from config and then filesystem for that resource
-func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (string, bool, error) {
+// GetHealthScript attempts to read lua script from config and then filesystem for that resource. If none exists, return
+// an empty string.
+func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (script string, useOpenLibs bool, err error) {
 	// first, search the gvk as is in the ResourceOverrides
 	key := GetConfigMapKey(obj.GroupVersionKind())
 
@@ -141,18 +151,24 @@ func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (string, bool, erro
 		return script.HealthLua, script.UseOpenLibs, nil
 	}
 
-	// if not found as is, perhaps it matches wildcard entries in the configmap
-	wildcardKey := GetWildcardConfigMapKey(vm, obj.GroupVersionKind())
+	// if not found as is, perhaps it matches a wildcard entry in the configmap
+	getWildcardHealthOverride, useOpenLibs := getWildcardHealthOverrideLua(vm.ResourceOverrides, obj.GroupVersionKind())
 
-	if wildcardKey != "" {
-		if wildcardScript, ok := vm.ResourceOverrides[wildcardKey]; ok && wildcardScript.HealthLua != "" {
-			return wildcardScript.HealthLua, wildcardScript.UseOpenLibs, nil
-		}
+	if getWildcardHealthOverride != "" {
+		return getWildcardHealthOverride, useOpenLibs, nil
 	}
 
 	// if not found in the ResourceOverrides at all, search it as is in the built-in scripts
 	// (as built-in scripts are files in folders, named after the GVK, currently there is no wildcard support for them)
 	builtInScript, err := vm.getPredefinedLuaScripts(key, healthScriptFile)
+	if err != nil {
+		var doesNotExist *ScriptDoesNotExistError
+		if errors.As(err, &doesNotExist) {
+			// It's okay if no built-in health script exists. Just return an empty string and let the caller handle it.
+			return "", false, nil
+		}
+		return "", false, err
+	}
 	// standard libraries will be enabled for all built-in scripts
 	return builtInScript, true, err
 }
@@ -382,7 +398,10 @@ func (vm VM) GetResourceActionDiscovery(obj *unstructured.Unstructured) ([]strin
 	// Fetch predefined Lua scripts
 	discoveryKey := fmt.Sprintf("%s/actions/", key)
 	discoveryScript, err := vm.getPredefinedLuaScripts(discoveryKey, actionDiscoveryScriptFile)
-	if err != nil {
+
+	// Ignore the error if the script does not exist.
+	var doesNotExistErr *ScriptDoesNotExistError
+	if err != nil && !errors.As(err, &doesNotExistErr) {
 		return nil, fmt.Errorf("error while fetching predefined lua scripts: %w", err)
 	}
 
@@ -426,22 +445,25 @@ func GetConfigMapKey(gvk schema.GroupVersionKind) string {
 	return fmt.Sprintf("%s/%s", gvk.Group, gvk.Kind)
 }
 
-func GetWildcardConfigMapKey(vm VM, gvk schema.GroupVersionKind) string {
+// getWildcardHealthOverrideLua returns the first encountered resource override which matches the wildcard and has a
+// non-empty health script. Having multiple wildcards with non-empty health checks that can match the GVK is
+// non-deterministic.
+func getWildcardHealthOverrideLua(overrides map[string]appv1.ResourceOverride, gvk schema.GroupVersionKind) (string, bool) {
 	gvkKeyToMatch := GetConfigMapKey(gvk)
 
-	for key := range vm.ResourceOverrides {
-		if glob.Match(key, gvkKeyToMatch) {
-			return key
+	for key, override := range overrides {
+		if glob.Match(key, gvkKeyToMatch) && override.HealthLua != "" {
+			return override.HealthLua, override.UseOpenLibs
 		}
 	}
-	return ""
+	return "", false
 }
 
 func (vm VM) getPredefinedLuaScripts(objKey string, scriptFile string) (string, error) {
 	data, err := resource_customizations.Embedded.ReadFile(filepath.Join(objKey, scriptFile))
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "", nil
+			return "", &ScriptDoesNotExistError{ScriptName: objKey}
 		}
 		return "", err
 	}

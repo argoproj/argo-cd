@@ -111,6 +111,7 @@ func TestSelectiveSyncWithNamespace(t *testing.T) {
 }
 
 func getNewNamespace(t *testing.T) string {
+	t.Helper()
 	randStr, err := rand.String(5)
 	require.NoError(t, err)
 	postFix := "-" + strings.ToLower(randStr)

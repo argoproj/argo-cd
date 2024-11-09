@@ -86,6 +86,41 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
 
     constructor(props: RouteComponentProps<{appnamespace: string; name: string}>) {
         super(props);
+        this.state = {
+            page: 0,
+            groupedResources: [],
+            slidingPanelPage: 0,
+            filteredGraph: [],
+            truncateNameOnRight: false,
+            collapsedNodes: [],
+            ...this.getExtensionsState()
+        };
+        if (typeof this.props.match.params.appnamespace === 'undefined') {
+            this.appNamespace = '';
+        } else {
+            this.appNamespace = this.props.match.params.appnamespace;
+        }
+    }
+
+    public componentDidMount() {
+        services.extensions.addEventListener('resource', this.onExtensionsUpdate);
+        services.extensions.addEventListener('appView', this.onExtensionsUpdate);
+        services.extensions.addEventListener('statusPanel', this.onExtensionsUpdate);
+        services.extensions.addEventListener('topBar', this.onExtensionsUpdate);
+    }
+
+    public componentWillUnmount() {
+        services.extensions.removeEventListener('resource', this.onExtensionsUpdate);
+        services.extensions.removeEventListener('appView', this.onExtensionsUpdate);
+        services.extensions.removeEventListener('statusPanel', this.onExtensionsUpdate);
+        services.extensions.removeEventListener('topBar', this.onExtensionsUpdate);
+    }
+
+    private onExtensionsUpdate = () => {
+        this.setState({...this.state, ...this.getExtensionsState()});
+    };
+
+    private getExtensionsState = () => {
         const extensions = services.extensions.getAppViewExtensions();
         const extensionsMap: {[key: string]: AppViewExtension} = {};
         extensions.forEach(ext => {
@@ -101,26 +136,8 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         topBarActionMenuExts.forEach(ext => {
             topBarActionMenuExtsMap[ext.id] = ext;
         });
-        this.state = {
-            page: 0,
-            groupedResources: [],
-            slidingPanelPage: 0,
-            filteredGraph: [],
-            truncateNameOnRight: false,
-            collapsedNodes: [],
-            extensions,
-            extensionsMap,
-            statusExtensions,
-            statusExtensionsMap,
-            topBarActionMenuExts,
-            topBarActionMenuExtsMap
-        };
-        if (typeof this.props.match.params.appnamespace === 'undefined') {
-            this.appNamespace = '';
-        } else {
-            this.appNamespace = this.props.match.params.appnamespace;
-        }
-    }
+        return {extensions, extensionsMap, statusExtensions, statusExtensionsMap, topBarActionMenuExts, topBarActionMenuExtsMap};
+    };
 
     private get showOperationState() {
         return new URLSearchParams(this.props.history.location.search).get('operation') === 'true';
@@ -296,7 +313,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         const getContentForNonChart = (
             aRevision: string,
             aSourceIndex: number,
-            aVersionId: number,
+            aVersionId: number | null,
             indx: number,
             aSource: models.ApplicationSource,
             sourceHeader?: JSX.Element
@@ -855,7 +872,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                             {this.selectedRollbackDeploymentIndex > -1 && (
                                                 <ApplicationDeploymentHistory
                                                     app={application}
-                                                    selectedRollbackDeploymentIndex={this.selectedRollbackDeploymentIndex}
                                                     rollbackApp={info => this.rollbackApplication(info, application)}
                                                     selectDeployment={i => this.setRollbackPanelVisible(i)}
                                                 />
@@ -889,7 +905,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                             {this.selectedExtension !== '' && activeStatusExt?.flyout && <activeStatusExt.flyout application={application} tree={tree} />}
                                         </SlidingPanel>
                                         <SlidingPanel
-                                            isMiddle={activeTopBarActionMenuExt?.isMiddle}
+                                            isMiddle={activeTopBarActionMenuExt?.isMiddle ?? true}
                                             isShown={this.selectedExtension !== '' && activeTopBarActionMenuExt != null && activeTopBarActionMenuExt.flyout != null}
                                             onClose={() => this.setExtensionPanelVisible('')}>
                                             {this.selectedExtension !== '' && activeTopBarActionMenuExt?.flyout && (
@@ -920,19 +936,30 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             {
                 iconClassName: 'fa fa-info-circle',
                 title: <ActionMenuItem actionLabel='Details' />,
-                action: () => this.selectNode(fullName)
+                action: () => this.selectNode(fullName),
+                disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0)
             },
             {
                 iconClassName: 'fa fa-file-medical',
                 title: <ActionMenuItem actionLabel='Diff' />,
                 action: () => this.selectNode(fullName, 0, 'diff'),
-                disabled: app.status.sync.status === appModels.SyncStatuses.Synced
+                disabled: app.status.sync.status === appModels.SyncStatuses.Synced || (!app.spec.source && (!app.spec.sources || app.spec.sources.length === 0))
             },
             {
                 iconClassName: 'fa fa-sync',
                 title: <ActionMenuItem actionLabel='Sync' />,
-                action: () => AppUtils.showDeploy('all', null, this.appContext.apis)
+                action: () => AppUtils.showDeploy('all', null, this.appContext.apis),
+                disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0)
             },
+            ...(app.status?.operationState?.phase === 'Running' && app.status.resources.find(r => r.requiresDeletionConfirmation)
+                ? [
+                      {
+                          iconClassName: 'fa fa-check',
+                          title: <ActionMenuItem actionLabel='Confirm Pruning' />,
+                          action: () => this.confirmDeletion(app, 'Confirm Prunning', 'Are you sure you want to confirm resources pruning?')
+                      }
+                  ]
+                : []),
             {
                 iconClassName: 'fa fa-info-circle',
                 title: <ActionMenuItem actionLabel='Sync Status' />,
@@ -947,11 +974,20 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 },
                 disabled: !app.status.operationState
             },
-            {
-                iconClassName: 'fa fa-times-circle',
-                title: <ActionMenuItem actionLabel='Delete' />,
-                action: () => this.deleteApplication()
-            },
+            app.metadata.deletionTimestamp &&
+            app.status.resources.find(r => r.requiresDeletionConfirmation) &&
+            !((app.metadata.annotations || {})[appModels.AppDeletionConfirmedAnnotation] == 'true')
+                ? {
+                      iconClassName: 'fa fa-check',
+                      title: <ActionMenuItem actionLabel='Confirm Deletion' />,
+                      action: () => this.confirmDeletion(app, 'Confirm Deletion', 'Are you sure you want to delete this application?')
+                  }
+                : {
+                      iconClassName: 'fa fa-times-circle',
+                      title: <ActionMenuItem actionLabel='Delete' />,
+                      action: () => this.deleteApplication(),
+                      disabled: !!app.metadata.deletionTimestamp
+                  },
             {
                 iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
                 title: (
@@ -1170,6 +1206,17 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
 
     private async deleteApplication() {
         await AppUtils.deleteApplication(this.props.match.params.name, this.appNamespace, this.appContext.apis);
+    }
+
+    private async confirmDeletion(app: appModels.Application, title: string, message: string) {
+        const confirmed = await this.appContext.apis.popup.confirm(title, message);
+        if (confirmed) {
+            if (!app.metadata.annotations) {
+                app.metadata.annotations = {};
+            }
+            app.metadata.annotations[appModels.AppDeletionConfirmedAnnotation] = new Date().toISOString();
+            await services.applications.update(app);
+        }
     }
 }
 

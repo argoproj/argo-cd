@@ -7,8 +7,8 @@ redis-ha:
   redis:
     masterGroupName: argocd
     config:
-      save: "\"\""
-      bind: "0.0.0.0"
+      save: '""'
+      bind: '0.0.0.0'
   haproxy:
     enabled: true
     IPv6:
@@ -26,4 +26,11 @@ redis-ha:
     tag: 7.0.15-alpine
   containerSecurityContext: null
   sentinel:
-    bind: "0.0.0.0"
+    bind: '0.0.0.0'
+    lifecycle:
+      postStart:
+        exec:
+          command:
+            - '/bin/sh'
+            - '-c'
+            - 'sleep 30; redis-cli -p 26379 sentinel reset argocd'

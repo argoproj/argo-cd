@@ -130,7 +130,7 @@ type ApplicationController struct {
 	statusHardRefreshTimeout      time.Duration
 	statusRefreshJitter           time.Duration
 	selfHealTimeout               time.Duration
-	repoClientset                 apiclient.Clientset
+	selfHealBackOff               *wait.Backoff
 	db                            db.ArgoDB
 	settingsMgr                   *settings_util.SettingsManager
 	refreshRequestedApps          map[string]CompareWith
@@ -160,6 +160,7 @@ func NewApplicationController(
 	appHardResyncPeriod time.Duration,
 	appResyncJitter time.Duration,
 	selfHealTimeout time.Duration,
+	selfHealBackoff *wait.Backoff,
 	repoErrorGracePeriod time.Duration,
 	metricsPort int,
 	metricsCacheExpiration time.Duration,
@@ -173,6 +174,7 @@ func NewApplicationController(
 	serverSideDiff bool,
 	dynamicClusterDistributionEnabled bool,
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
+	enableK8sEvent []string,
 ) (*ApplicationController, error) {
 	log.Infof("appResyncPeriod=%v, appHardResyncPeriod=%v, appResyncJitter=%v", appResyncPeriod, appHardResyncPeriod, appResyncJitter)
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
@@ -186,7 +188,6 @@ func NewApplicationController(
 		kubeClientset:                     kubeClientset,
 		kubectl:                           kubectl,
 		applicationClientset:              applicationClientset,
-		repoClientset:                     repoClientset,
 		appRefreshQueue:                   workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "app_reconciliation_queue"}),
 		appOperationQueue:                 workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "app_operation_processing_queue"}),
 		projectRefreshQueue:               workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "project_reconciliation_queue"}),
@@ -197,9 +198,10 @@ func NewApplicationController(
 		statusRefreshJitter:               appResyncJitter,
 		refreshRequestedApps:              make(map[string]CompareWith),
 		refreshRequestedAppsMutex:         &sync.Mutex{},
-		auditLogger:                       argo.NewAuditLogger(namespace, kubeClientset, common.ApplicationController),
+		auditLogger:                       argo.NewAuditLogger(namespace, kubeClientset, common.ApplicationController, enableK8sEvent),
 		settingsMgr:                       settingsMgr,
 		selfHealTimeout:                   selfHealTimeout,
+		selfHealBackOff:                   selfHealBackoff,
 		clusterSharding:                   clusterSharding,
 		projByNameCache:                   sync.Map{},
 		applicationNamespaces:             applicationNamespaces,
@@ -626,6 +628,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 			Message: fmt.Sprintf("Application has %d orphaned resources", len(orphanedNodes)),
 		}}
 	}
+	ctrl.metricsServer.SetOrphanedResourcesMetric(a, len(orphanedNodes))
 	a.Status.SetConditions(conditions, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionOrphanedResourceWarning: true})
 	sort.Slice(orphanedNodes, func(i, j int) bool {
 		return orphanedNodes[i].ResourceRef.String() < orphanedNodes[j].ResourceRef.String()
@@ -757,7 +760,7 @@ func (ctrl *ApplicationController) hideSecretData(app *appv1.Application, compar
 		resDiff := res.Diff
 		if res.Kind == kube.SecretKind && res.Group == "" {
 			var err error
-			target, live, err = diff.HideSecretData(res.Target, res.Live)
+			target, live, err = diff.HideSecretData(res.Target, res.Live, ctrl.settingsMgr.GetSensitiveAnnotations())
 			if err != nil {
 				return nil, fmt.Errorf("error hiding secret data: %w", err)
 			}
@@ -1162,9 +1165,15 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		logCtx.Infof("Resource entries removed from undefined cluster")
 		return nil
 	}
-	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
+	clusterRESTConfig, err := cluster.RESTConfig()
+	if err != nil {
+		return err
+	}
+	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, clusterRESTConfig)
 
 	if app.CascadedDeletion() {
+		deletionApproved := app.IsDeletionConfirmed(app.DeletionTimestamp.Time)
+
 		logCtx.Infof("Deleting resources")
 		// ApplicationDestination points to a valid cluster, so we may clean up the live objects
 		objs := make([]*unstructured.Unstructured, 0)
@@ -1182,6 +1191,10 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 			if ctrl.shouldBeDeleted(app, objsMap[k]) {
 				objs = append(objs, objsMap[k])
+				if res, ok := app.Status.FindResource(k); ok && res.RequiresDeletionConfirmation && !deletionApproved {
+					logCtx.Infof("Resource %v requires manual confirmation to delete", k)
+					return nil
+				}
 			}
 		}
 
@@ -1690,7 +1703,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Summary = tree.GetSummary(app)
 	}
 
-	if project.Spec.SyncWindows.Matches(app).CanSync(false) {
+	canSync, _ := project.Spec.SyncWindows.Matches(app).CanSync(false)
+	if canSync {
 		syncErrCond, opMS := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources, compareResult.revisionUpdated)
 		setOpMs = opMS
 		if syncErrCond != nil {
@@ -1980,6 +1994,9 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		InitiatedBy: appv1.OperationInitiator{Automated: true},
 		Retry:       appv1.RetryStrategy{Limit: 5},
 	}
+	if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
+		op.Sync.SelfHealAttemptsCount = app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount
+	}
 	if app.Spec.SyncPolicy.Retry != nil {
 		op.Retry = *app.Spec.SyncPolicy.Retry
 	}
@@ -1997,6 +2014,7 @@ func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *
 		return nil, 0
 	} else if alreadyAttempted && selfHeal {
 		if shouldSelfHeal, retryAfter := ctrl.shouldSelfHeal(app); shouldSelfHeal {
+			op.Sync.SelfHealAttemptsCount++
 			for _, resource := range resources {
 				if resource.Status != appv1.SyncStatusCodeSynced {
 					op.Sync.Resources = append(op.Sync.Resources, appv1.SyncOperationResource{
@@ -2115,10 +2133,24 @@ func (ctrl *ApplicationController) shouldSelfHeal(app *appv1.Application) (bool,
 	}
 
 	var retryAfter time.Duration
-	if app.Status.OperationState.FinishedAt == nil {
-		retryAfter = ctrl.selfHealTimeout
+	if ctrl.selfHealBackOff == nil {
+		if app.Status.OperationState.FinishedAt == nil {
+			retryAfter = ctrl.selfHealTimeout
+		} else {
+			retryAfter = ctrl.selfHealTimeout - time.Since(app.Status.OperationState.FinishedAt.Time)
+		}
 	} else {
-		retryAfter = ctrl.selfHealTimeout - time.Since(app.Status.OperationState.FinishedAt.Time)
+		backOff := *ctrl.selfHealBackOff
+		backOff.Steps = int(app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount)
+		var delay time.Duration
+		for backOff.Steps > 0 {
+			delay = backOff.Step()
+		}
+		if app.Status.OperationState.FinishedAt == nil {
+			retryAfter = delay
+		} else {
+			retryAfter = delay - time.Since(app.Status.OperationState.FinishedAt.Time)
+		}
 	}
 	return retryAfter <= 0, retryAfter
 }

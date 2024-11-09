@@ -13,12 +13,12 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/applicationset"
 	arogappsetv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo"
-	"github.com/argoproj/argo-cd/v2/util/cli"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/grpc"
 	argoio "github.com/argoproj/argo-cd/v2/util/io"
@@ -345,12 +345,21 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDie()
 			defer argoio.Close(conn)
 			var isTerminal bool = isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd())
-			var isConfirmAll bool = false
 			numOfApps := len(args)
 			promptFlag := c.Flag("yes")
 			if promptFlag.Changed && promptFlag.Value.String() == "true" {
 				noPrompt = true
 			}
+
+			var (
+				confirmAll = false
+				confirm    = false
+			)
+
+			// This is for backward compatibility,
+			// before we showed the prompts only when condition isTerminal && !noPrompt is true
+			promptUtil := utils.NewPrompt(isTerminal && !noPrompt)
+
 			for _, appSetQualifiedName := range args {
 				appSetName, appSetNs := argo.ParseFromQualifiedName(appSetQualifiedName, "")
 
@@ -358,32 +367,17 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 					Name:            appSetName,
 					AppsetNamespace: appSetNs,
 				}
-
-				if isTerminal && !noPrompt {
-					var lowercaseAnswer string
-					if numOfApps == 1 {
-						lowercaseAnswer = cli.AskToProceedS("Are you sure you want to delete '" + appSetQualifiedName + "' and all its Applications? [y/n] ")
-					} else {
-						if !isConfirmAll {
-							lowercaseAnswer = cli.AskToProceedS("Are you sure you want to delete '" + appSetQualifiedName + "' and all its Applications? [y/n/A] where 'A' is to delete all specified ApplicationSets and their Applications without prompting")
-							if lowercaseAnswer == "a" || lowercaseAnswer == "all" {
-								lowercaseAnswer = "y"
-								isConfirmAll = true
-							}
-						} else {
-							lowercaseAnswer = "y"
-						}
-					}
-					if lowercaseAnswer == "y" || lowercaseAnswer == "yes" {
-						_, err := appIf.Delete(ctx, &appsetDeleteReq)
-						errors.CheckError(err)
-						fmt.Printf("applicationset '%s' deleted\n", appSetQualifiedName)
-					} else {
-						fmt.Println("The command to delete '" + appSetQualifiedName + "' was cancelled.")
-					}
-				} else {
+				messageForSingle := "Are you sure you want to delete '" + appSetQualifiedName + "' and all its Applications? [y/n] "
+				messageForAll := "Are you sure you want to delete '" + appSetQualifiedName + "' and all its Applications? [y/n/a] where 'a' is to delete all specified ApplicationSets and their Applications without prompting"
+				if !confirmAll {
+					confirm, confirmAll = promptUtil.ConfirmBaseOnCount(messageForSingle, messageForAll, numOfApps)
+				}
+				if confirm || confirmAll {
 					_, err := appIf.Delete(ctx, &appsetDeleteReq)
 					errors.CheckError(err)
+					fmt.Printf("applicationset '%s' deleted\n", appSetQualifiedName)
+				} else {
+					fmt.Println("The command to delete '" + appSetQualifiedName + "' was cancelled.")
 				}
 			}
 		},
