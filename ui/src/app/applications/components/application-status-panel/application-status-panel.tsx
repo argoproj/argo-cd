@@ -112,7 +112,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                         application.status.sync &&
                         (hasMultipleSources
                             ? application.status.sync.revisions && application.status.sync.revisions[0] && application.spec.sources && !application.spec.sources[0].chart
-                            : application.status.sync.revision && !application.spec.source.chart) && (
+                            : application.status.sync.revision && !application.spec?.source?.chart) && (
                             <div className='application-status-panel__item-name'>
                                 <RevisionMetadataPanel
                                     appName={application.metadata.name}
@@ -160,7 +160,7 @@ export const ApplicationStatusPanel = ({application, showDiff, showOperation, sh
                             <RevisionMetadataPanel
                                 appName={application.metadata.name}
                                 appNamespace={application.metadata.namespace}
-                                type={source.chart && 'helm'}
+                                type={source?.chart && 'helm'}
                                 revision={operationStateRevision}
                                 versionId={utils.getAppCurrentVersion(application)}
                             />

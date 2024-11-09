@@ -168,7 +168,7 @@ func generateCommandsDocs(out io.Writer) error {
 				for _, c := range toolSubCommand.Commands() {
 					var cmdDesc bytes.Buffer
 					if err := doc.GenMarkdown(c, &cmdDesc); err != nil {
-						return err
+						return fmt.Errorf("error generating Markdown for command: %v : %w", c, err)
 					}
 					for _, line := range strings.Split(cmdDesc.String(), "\n") {
 						if strings.HasPrefix(line, "### SEE ALSO") {
@@ -194,19 +194,19 @@ func buildConfigFromFS(templatesDir string, triggersDir string) (map[string]serv
 	templatesCfg := map[string]services.Notification{}
 	err := filepath.Walk(templatesDir, func(p string, info os.FileInfo, e error) error {
 		if e != nil {
-			return e
+			return fmt.Errorf("error navigating the templates dirctory: %s : %w", templatesDir, e)
 		}
 		if info.IsDir() {
 			return nil
 		}
 		data, err := os.ReadFile(p)
 		if err != nil {
-			return err
+			return fmt.Errorf("error reading the template file: %s : %w", p, err)
 		}
 		name := strings.Split(path.Base(p), ".")[0]
 		var template services.Notification
 		if err := yaml.Unmarshal(data, &template); err != nil {
-			return err
+			return fmt.Errorf("error unmarshaling the data from file: %s : %w", p, err)
 		}
 		templatesCfg[name] = template
 		return nil
@@ -218,19 +218,19 @@ func buildConfigFromFS(templatesDir string, triggersDir string) (map[string]serv
 	triggersCfg := map[string][]triggers.Condition{}
 	err = filepath.Walk(triggersDir, func(p string, info os.FileInfo, e error) error {
 		if e != nil {
-			return e
+			return fmt.Errorf("error navigating the triggers dirctory: %s : %w", triggersDir, e)
 		}
 		if info.IsDir() {
 			return nil
 		}
 		data, err := os.ReadFile(p)
 		if err != nil {
-			return err
+			return fmt.Errorf("error reading the trigger file: %s : %w", p, err)
 		}
 		name := strings.Split(path.Base(p), ".")[0]
 		var trigger []triggers.Condition
 		if err := yaml.Unmarshal(data, &trigger); err != nil {
-			return err
+			return fmt.Errorf("error unmarshaling the data from file: %s : %w", p, err)
 		}
 		triggersCfg[name] = trigger
 		return nil

@@ -269,6 +269,9 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	if a.context.helmSkipCrds {
 		args = append(args, "--helm-skip-crds")
 	}
+	if a.context.helmSkipTests {
+		args = append(args, "--helm-skip-tests")
+	}
 	return args
 }
 
@@ -382,6 +385,14 @@ func (a *Actions) Sync(args ...string) *Actions {
 	return a
 }
 
+func (a *Actions) ConfirmDeletion() *Actions {
+	a.context.t.Helper()
+
+	a.runCli("app", "confirm-deletion", a.context.AppQualifiedName())
+
+	return a
+}
+
 func (a *Actions) TerminateOp() *Actions {
 	a.context.t.Helper()
 	a.runCli("app", "terminate-op", a.context.AppQualifiedName())
@@ -466,6 +477,11 @@ func (a *Actions) verifyAction() {
 
 func (a *Actions) SetTrackingMethod(trackingMethod string) *Actions {
 	fixture.SetTrackingMethod(trackingMethod)
+	return a
+}
+
+func (a *Actions) SetInstallationID(installationID string) *Actions {
+	fixture.SetInstallationID(installationID)
 	return a
 }
 

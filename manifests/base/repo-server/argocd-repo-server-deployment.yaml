@@ -149,6 +149,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: reposerver.plugin.tar.exclusions
                 optional: true
+          - name: ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.plugin.use.manifest.generate.paths
+                name: argocd-cmd-params-cm
+                optional: true
           - name: ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS
             valueFrom:
               configMapKeyRef:
@@ -330,3 +336,5 @@ spec:
                 matchLabels:
                   app.kubernetes.io/part-of: argocd
               topologyKey: kubernetes.io/hostname
+      nodeSelector:
+        kubernetes.io/os: linux

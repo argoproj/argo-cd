@@ -3,7 +3,7 @@ import * as minimatch from 'minimatch';
 
 import {Application, ApplicationTree, State} from '../models';
 
-type ExtensionsEventType = 'resource' | 'systemLevel' | 'appView' | 'statusPanel' | 'top-bar';
+type ExtensionsEventType = 'resource' | 'systemLevel' | 'appView' | 'statusPanel' | 'topBar';
 type ExtensionsType = ResourceTabExtension | SystemLevelExtension | AppViewExtension | StatusPanelExtension | TopBarActionMenuExt;
 
 class ExtensionsEventTarget {
@@ -73,7 +73,7 @@ function registerTopBarActionMenuExt(
 ) {
     const ext = {component, flyout, shouldDisplay, title, id, iconClassName, isMiddle};
     extensions.topBarActionMenuExts.push(ext);
-    extensions.eventTarget.emit('top-bar', ext);
+    extensions.eventTarget.emit('topBar', ext);
 }
 
 let legacyInitialized = false;

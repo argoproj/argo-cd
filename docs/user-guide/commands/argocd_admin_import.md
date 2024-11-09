@@ -23,7 +23,9 @@ argocd admin import SOURCE [flags]
       --context string                      The name of the kubeconfig context to use
       --disable-compression                 If true, opt-out of response compression for all requests to the server
       --dry-run                             Print what will be performed
+      --force-prompts-enabled               Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
   -h, --help                                help for import
+      --ignore-tracking                     Do not update the tracking annotation if the resource is already tracked
       --insecure-skip-tls-verify            If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                   Path to a kube config. Only required if out-of-cluster
   -n, --namespace string                    If present, the namespace scope for this CLI request
@@ -44,7 +46,7 @@ argocd admin import SOURCE [flags]
 
 ```
       --argocd-context string           The name of the Argo-CD server context to use
-      --auth-token string               Authentication token
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")

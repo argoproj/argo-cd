@@ -18,6 +18,11 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
                 view: repository.repo
             },
             {
+                title: 'Name',
+                view: repository.name || '',
+                edit: (formApi: FormApi) => <FormField formApi={formApi} field='name' component={Text} />
+            },
+            {
                 title: 'Username (optional)',
                 view: repository.username || '',
                 edit: (formApi: FormApi) => <FormField formApi={formApi} field='username' component={Text} />
@@ -28,13 +33,6 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
                 edit: (formApi: FormApi) => <FormField formApi={formApi} field='password' component={Text} componentProps={{type: 'password'}} />
             }
         ];
-
-        if (repository.name) {
-            items.splice(1, 0, {
-                title: 'NAME',
-                view: repository.name
-            });
-        }
 
         if (repository.project) {
             items.splice(repository.name ? 2 : 1, 0, {
@@ -86,6 +84,7 @@ export const RepoDetails = (props: {repo: models.Repository; save?: (params: New
             })}
             save={async input => {
                 const params: NewHTTPSRepoParams = {...newRepo};
+                params.name = input.name || '';
                 params.username = input.username || '';
                 params.password = input.password || '';
                 save(params);

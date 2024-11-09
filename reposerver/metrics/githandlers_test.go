@@ -22,6 +22,7 @@ func TestEdgeCasesAndErrorHandling(t *testing.T) {
 		{
 			name: "lsRemoteParallelismLimitSemaphore is nil",
 			testFunc: func(t *testing.T) {
+				t.Helper()
 				lsRemoteParallelismLimitSemaphore = nil
 				assert.NotPanics(t, func() {
 					NewGitClientEventHandlers(&MetricsServer{})
@@ -37,6 +38,7 @@ func TestEdgeCasesAndErrorHandling(t *testing.T) {
 				lsRemoteParallelismLimitSemaphore = nil
 			},
 			testFunc: func(t *testing.T) {
+				t.Helper()
 				assert.NotPanics(t, func() {
 					NewGitClientEventHandlers(&MetricsServer{})
 				})
@@ -51,6 +53,7 @@ func TestEdgeCasesAndErrorHandling(t *testing.T) {
 				lsRemoteParallelismLimitSemaphore = nil
 			},
 			testFunc: func(t *testing.T) {
+				t.Helper()
 				assert.NotPanics(t, func() {
 					NewGitClientEventHandlers(&MetricsServer{})
 				})
@@ -88,6 +91,7 @@ func TestSemaphoreFunctionality(t *testing.T) {
 				lsRemoteParallelismLimitSemaphore = nil
 			},
 			testFunc: func(t *testing.T) {
+				t.Helper()
 				assert.NotPanics(t, func() {
 					NewGitClientEventHandlers(&MetricsServer{})
 				})
@@ -102,6 +106,7 @@ func TestSemaphoreFunctionality(t *testing.T) {
 				lsRemoteParallelismLimitSemaphore = nil
 			},
 			testFunc: func(t *testing.T) {
+				t.Helper()
 				assert.NotPanics(t, func() {
 					NewGitClientEventHandlers(&MetricsServer{})
 				})

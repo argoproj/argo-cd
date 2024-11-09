@@ -36,7 +36,7 @@ argocd admin notifications trigger get on-sync-failed -o=yaml
       --as string                       Username to impersonate for the operation
       --as-group stringArray            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
       --as-uid string                   UID to impersonate for the operation
-      --auth-token string               Authentication token
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --certificate-authority string    Path to a cert file for the certificate authority
       --client-certificate string       Path to a client certificate file for TLS
       --client-crt string               Client certificate file
@@ -49,6 +49,7 @@ argocd admin notifications trigger get on-sync-failed -o=yaml
       --controller-name string          Name of the Argo CD Application controller; set this or the ARGOCD_APPLICATION_CONTROLLER_NAME environment variable when the controller's name label differs from the default, for example when installing via the Helm chart (default "argocd-application-controller")
       --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
       --disable-compression             If true, opt-out of response compression for all requests to the server
+      --force-prompts-enabled           Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)

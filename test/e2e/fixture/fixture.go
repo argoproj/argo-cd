@@ -46,6 +46,9 @@ const (
 	ArgoCDNamespace         = "argocd-e2e"
 	ArgoCDAppNamespace      = "argocd-e2e-external"
 
+	// notifications controller, metrics server port
+	defaultNotificationServer = "localhost:9001"
+
 	// ensure all repos are in one directory tree, so we can easily clean them up
 	TmpDir             = "/tmp/argo-e2e"
 	repoDir            = "testdata.git"
@@ -403,6 +406,13 @@ func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 	SetResourceOverridesSplitKeys(overrides)
 }
 
+func SetInstallationID(installationID string) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["installationID"] = installationID
+		return nil
+	})
+}
+
 func SetTrackingMethod(trackingMethod string) {
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		cm.Data["application.resourceTrackingMethod"] = trackingMethod
@@ -564,6 +574,7 @@ func WithTestData(testdata string) TestOption {
 }
 
 func EnsureCleanState(t *testing.T, opts ...TestOption) {
+	t.Helper()
 	opt := newTestOption(opts...)
 	// In large scenarios, we can skip tests that already run
 	SkipIfAlreadyRun(t)
@@ -974,6 +985,7 @@ func LocalOrRemotePath(base string) string {
 // Environment variable names follow the ARGOCD_E2E_SKIP_<suffix> pattern,
 // and must be set to the string value 'true' in order to skip a test.
 func SkipOnEnv(t *testing.T, suffixes ...string) {
+	t.Helper()
 	for _, suffix := range suffixes {
 		e := os.Getenv("ARGOCD_E2E_SKIP_" + suffix)
 		if e == "true" {
@@ -985,6 +997,7 @@ func SkipOnEnv(t *testing.T, suffixes ...string) {
 // SkipIfAlreadyRun skips a test if it has been already run by a previous
 // test cycle and was recorded.
 func SkipIfAlreadyRun(t *testing.T) {
+	t.Helper()
 	if _, ok := testsRun[t.Name()]; ok {
 		t.Skip()
 	}
@@ -993,6 +1006,7 @@ func SkipIfAlreadyRun(t *testing.T) {
 // RecordTestRun records a test that has been run successfully to a text file,
 // so that it can be automatically skipped if requested.
 func RecordTestRun(t *testing.T) {
+	t.Helper()
 	if t.Skipped() || t.Failed() {
 		return
 	}
@@ -1018,6 +1032,10 @@ func RecordTestRun(t *testing.T) {
 
 func GetApiServerAddress() string {
 	return apiServerAddress
+}
+
+func GetNotificationServerAddress() string {
+	return defaultNotificationServer
 }
 
 func GetToken() string {

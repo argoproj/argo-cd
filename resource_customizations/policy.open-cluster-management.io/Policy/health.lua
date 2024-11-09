@@ -14,10 +14,10 @@ if obj.status.status ~= nil then
   -- "root" policy
   for i, entry in ipairs(obj.status.status) do
     if entry.compliant ~= "Compliant" then
-      noncompliants[i] = entry.clustername
+      table.insert(noncompliants, entry.clustername)
     end
   end
-  if table.getn(noncompliants) == 0 then
+  if #noncompliants == 0 then
     hs.message = "All clusters are compliant"
   else
     hs.message = "NonCompliant clusters: " .. table.concat(noncompliants, ", ")
@@ -26,10 +26,10 @@ elseif obj.status.details ~= nil then
   -- "replicated" policy
   for i, entry in ipairs(obj.status.details) do
     if entry.compliant ~= "Compliant" then
-      noncompliants[i] = entry.templateMeta.name
+      table.insert(noncompliants, entry.templateMeta.name)
     end
   end
-  if table.getn(noncompliants) == 0 then
+  if #noncompliants == 0 then
     hs.message = "All templates are compliant"
   else
     hs.message = "NonCompliant templates: " .. table.concat(noncompliants, ", ")

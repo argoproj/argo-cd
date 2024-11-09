@@ -31,6 +31,8 @@ import (
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -113,6 +115,7 @@ type RepoServerInitConstants struct {
 	HelmRegistryMaxIndexSize                     int64
 	DisableHelmManifestMaxExtractedSize          bool
 	IncludeHiddenDirectories                     bool
+	CMPUseManifestGeneratePaths                  bool
 }
 
 // NewService returns a new instance of the Manifest service
@@ -805,7 +808,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -826,7 +829,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			// Retrieve a new copy (if available) of the cached response: this ensures we are updating the latest copy of the cache,
 			// rather than a copy of the cache that occurred before (a potentially lengthy) manifest generation.
 			innerRes := &cache.CachedManifestResponse{}
-			cacheErr := s.cache.GetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs)
+			cacheErr := s.cache.GetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs, q.InstallationID)
 			if cacheErr != nil && !errors.Is(cacheErr, cache.ErrCacheMiss) {
 				logCtx.Warnf("manifest cache get error %s: %v", appSourceCopy.String(), cacheErr)
 				ch.errCh <- cacheErr
@@ -844,7 +847,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			// Update the cache to include failure information
 			innerRes.NumberOfConsecutiveFailures++
 			innerRes.MostRecentError = err.Error()
-			cacheErr = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs)
+			cacheErr = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, innerRes, refSourceCommitSHAs, q.InstallationID)
 
 			if cacheErr != nil {
 				logCtx.Warnf("manifest cache set error %s: %v", appSourceCopy.String(), cacheErr)
@@ -868,7 +871,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	}
 	manifestGenResult.Revision = commitSHA
 	manifestGenResult.VerifyResult = opContext.verificationResult
-	err = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry, refSourceCommitSHAs)
+	err = s.cache.SetManifests(cacheKey, appSourceCopy, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &manifestGenCacheEntry, refSourceCommitSHAs, q.InstallationID)
 	if err != nil {
 		log.Warnf("manifest cache set error %s/%s: %v", appSourceCopy.String(), cacheKey, err)
 	}
@@ -885,7 +888,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifest API call", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs)
 
 	res := cache.CachedManifestResponse{}
-	err := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res, refSourceCommitSHAs)
+	err := s.cache.GetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res, refSourceCommitSHAs, q.InstallationID)
 	if err == nil {
 		// The cache contains an existing value
 
@@ -902,7 +905,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "manifest hash did not match or cached response is empty", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs)
 
 						// We can now try again, so reset the cache state and run the operation below
-						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs)
+						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs, q.InstallationID)
 						if err != nil {
 							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
@@ -917,7 +920,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 						cache.LogDebugManifestCacheKeyFields("deleting manifests cache", "reset after paused generation count", cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs)
 
 						// We can now try again, so reset the error cache state and run the operation below
-						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs)
+						err = s.cache.DeleteManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, refSourceCommitSHAs, q.InstallationID)
 						if err != nil {
 							log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 						}
@@ -937,7 +940,7 @@ func (s *Service) getManifestCacheEntry(cacheKey string, q *apiclient.ManifestRe
 					// Increment the number of returned cached responses and push that new value to the cache
 					// (if we have not already done so previously in this function)
 					res.NumberOfCachedResponsesReturned++
-					err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res, refSourceCommitSHAs)
+					err = s.cache.SetManifests(cacheKey, q.ApplicationSource, q.RefSources, q, q.Namespace, q.TrackingMethod, q.AppLabelKey, q.AppName, &res, refSourceCommitSHAs, q.InstallationID)
 					if err != nil {
 						log.Warnf("manifest cache set error %s/%s: %v", q.ApplicationSource.String(), cacheKey, err)
 					}
@@ -1188,6 +1191,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 		}
 		passCredentials = appHelm.PassCredentials
 		templateOpts.SkipCrds = appHelm.SkipCrds
+		templateOpts.SkipTests = appHelm.SkipTests
 	}
 	if templateOpts.Name == "" {
 		templateOpts.Name = q.AppName
@@ -1376,8 +1380,9 @@ func getRepoCredential(repoCredentials []*v1alpha1.RepoCreds, repoURL string) *v
 type (
 	GenerateManifestOpt func(*generateManifestOpt)
 	generateManifestOpt struct {
-		cmpTarDoneCh        chan<- bool
-		cmpTarExcludedGlobs []string
+		cmpTarDoneCh                chan<- bool
+		cmpTarExcludedGlobs         []string
+		cmpUseManifestGeneratePaths bool
 	}
 )
 
@@ -1403,6 +1408,14 @@ func WithCMPTarDoneChannel(ch chan<- bool) GenerateManifestOpt {
 func WithCMPTarExcludedGlobs(excludedGlobs []string) GenerateManifestOpt {
 	return func(o *generateManifestOpt) {
 		o.cmpTarExcludedGlobs = excludedGlobs
+	}
+}
+
+// WithCMPUseManifestGeneratePaths enables or disables the use of the
+// 'argocd.argoproj.io/manifest-generate-paths' annotation for manifest generation instead of transmit the whole repository.
+func WithCMPUseManifestGeneratePaths(enabled bool) GenerateManifestOpt {
+	return func(o *generateManifestOpt) {
+		o.cmpUseManifestGeneratePaths = enabled
 	}
 }
 
@@ -1447,7 +1460,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 			pluginName = q.ApplicationSource.Plugin.Name
 		}
 		// if pluginName is provided it has to be `<metadata.name>-<spec.version>` or just `<metadata.name>` if plugin version is empty
-		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs)
+		targetObjs, err = runConfigManagementPluginSidecars(ctx, appPath, repoRoot, pluginName, env, q, q.Repo.GetGitCreds(gitCredsStore), opt.cmpTarDoneCh, opt.cmpTarExcludedGlobs, opt.cmpUseManifestGeneratePaths)
 		if err != nil {
 			err = fmt.Errorf("plugin sidecar failed. %s", err.Error())
 		}
@@ -1490,7 +1503,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 		for _, target := range targets {
 			if q.AppLabelKey != "" && q.AppName != "" && !kube.IsCRD(target) {
-				err = resourceTracking.SetAppInstance(target, q.AppLabelKey, q.AppName, q.Namespace, v1alpha1.TrackingMethod(q.TrackingMethod))
+				err = resourceTracking.SetAppInstance(target, q.AppLabelKey, q.AppName, q.Namespace, v1alpha1.TrackingMethod(q.TrackingMethod), q.InstallationID)
 				if err != nil {
 					return nil, fmt.Errorf("failed to set app instance tracking info on manifest: %w", err)
 				}
@@ -1511,19 +1524,25 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 }
 
 func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
-	shortRevision := revision
-	if len(shortRevision) > 7 {
-		shortRevision = shortRevision[:7]
-	}
+	shortRevision := shortenRevision(revision, 7)
+	shortRevision8 := shortenRevision(revision, 8)
 	return &v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppName},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: q.Namespace},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: revision},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT", Value: shortRevision},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT_8", Value: shortRevision8},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: q.Repo.Repo},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: q.ApplicationSource.Path},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: q.ApplicationSource.TargetRevision},
 	}
+}
+
+func shortenRevision(revision string, length int) string {
+	if len(revision) > length {
+		return revision[:length]
+	}
+	return revision
 }
 
 func newEnvRepoQuery(q *apiclient.RepoServerAppDetailsQuery, revision string) *v1alpha1.Env {
@@ -1958,7 +1977,7 @@ func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlug
 	return env, nil
 }
 
-func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, tarDoneCh chan<- bool, tarExcludedGlobs []string) ([]*unstructured.Unstructured, error) {
+func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool, tarExcludedGlobs []string, useManifestGeneratePaths bool) ([]*unstructured.Unstructured, error) {
 	// compute variables.
 	env, err := getPluginEnvs(envVars, q)
 	if err != nil {
@@ -1972,8 +1991,31 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 	}
 	defer io.Close(conn)
 
+	rootPath := repoPath
+	if useManifestGeneratePaths {
+		// Transmit the files under the common root path for all paths related to the manifest generate paths annotation.
+		rootPath = getApplicationRootPath(q, appPath, repoPath)
+		log.Debugf("common root path calculated for application %s: %s", q.AppName, rootPath)
+	}
+
+	pluginConfigResponse, err := cmpClient.CheckPluginConfiguration(ctx, &emptypb.Empty{})
+	if err != nil {
+		return nil, fmt.Errorf("error calling cmp-server checkPluginConfiguration: %w", err)
+	}
+
+	if pluginConfigResponse.ProvideGitCreds {
+		if creds != nil {
+			closer, environ, err := creds.Environ()
+			if err != nil {
+				return nil, fmt.Errorf("failed to retrieve git creds environment variables: %w", err)
+			}
+			defer func() { _ = closer.Close() }()
+			env = append(env, environ...)
+		}
+	}
+
 	// generate manifests using commands provided in plugin config file in detected cmp-server sidecar
-	cmpManifests, err := generateManifestsCMP(ctx, appPath, repoPath, env, cmpClient, tarDoneCh, tarExcludedGlobs)
+	cmpManifests, err := generateManifestsCMP(ctx, appPath, rootPath, env, cmpClient, tarDoneCh, tarExcludedGlobs)
 	if err != nil {
 		return nil, fmt.Errorf("error generating manifests in cmp: %w", err)
 	}
@@ -1996,7 +2038,7 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 // generateManifestsCMP will send the appPath files to the cmp-server over a gRPC stream.
 // The cmp-server will generate the manifests. Returns a response object with the generated
 // manifests.
-func generateManifestsCMP(ctx context.Context, appPath, repoPath string, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool, tarExcludedGlobs []string) (*pluginclient.ManifestResponse, error) {
+func generateManifestsCMP(ctx context.Context, appPath, rootPath string, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool, tarExcludedGlobs []string) (*pluginclient.ManifestResponse, error) {
 	generateManifestStream, err := cmpClient.GenerateManifest(ctx, grpc_retry.Disable())
 	if err != nil {
 		return nil, fmt.Errorf("error getting generateManifestStream: %w", err)
@@ -2005,7 +2047,7 @@ func generateManifestsCMP(ctx context.Context, appPath, repoPath string, env []s
 		cmp.WithTarDoneChan(tarDoneCh),
 	}
 
-	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, repoPath, generateManifestStream, env, tarExcludedGlobs, opts...)
+	err = cmp.SendRepoStream(generateManifestStream.Context(), appPath, rootPath, generateManifestStream, env, tarExcludedGlobs, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("error sending file to cmp-server: %w", err)
 	}
@@ -2858,7 +2900,7 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 		}
 	}
 
-	err := s.cache.SetNewRevisionManifests(newRev, oldRev, request.ApplicationSource, request.RefSources, request, request.Namespace, request.TrackingMethod, request.AppLabelKey, request.AppName, repoRefs)
+	err := s.cache.SetNewRevisionManifests(newRev, oldRev, request.ApplicationSource, request.RefSources, request, request.Namespace, request.TrackingMethod, request.AppLabelKey, request.AppName, repoRefs, request.InstallationID)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheMiss) {
 			logCtx.Debugf("manifest cache miss during comparison for application %s in repo %s from revision %s", request.AppName, request.GetRepo().Repo, oldRev)

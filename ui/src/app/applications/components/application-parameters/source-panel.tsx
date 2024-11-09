@@ -104,37 +104,37 @@ export const SourcePanel = (props: {
                                             }
                                         });
                                     }
-                                    if (a.spec.source.repoURL && a.spec.source.chart) {
+                                    if (a.spec?.source?.repoURL && a.spec?.source?.chart) {
                                         props.appCurrent.spec.sources.forEach(source => {
                                             if (
-                                                source.repoURL === a.spec.source.repoURL &&
-                                                source.chart === a.spec.source.chart &&
-                                                source.targetRevision === a.spec.source.targetRevision
+                                                source?.repoURL === a.spec?.source?.repoURL &&
+                                                source?.chart === a.spec?.source?.chart &&
+                                                source?.targetRevision === a.spec?.source?.targetRevision
                                             ) {
                                                 sameChartVersion = true;
                                                 chartError =
                                                     'Version ' +
-                                                    source.targetRevision +
+                                                    source?.targetRevision +
                                                     ' of chart ' +
-                                                    source.chart +
+                                                    source?.chart +
                                                     ' from the selected repository was already added to this multi-source application';
                                             }
                                         });
                                     }
                                     if (!samePath) {
-                                        if (!a.spec.source.path && !a.spec.source.chart && !a.spec.source.ref) {
+                                        if (!a.spec?.source?.path && !a.spec?.source?.chart && !a.spec?.source?.ref) {
                                             pathError = 'Path or Ref is required';
                                         }
                                     }
                                     if (!sameChartVersion) {
-                                        if (!a.spec.source.chart && !a.spec.source.path && !a.spec.source.ref) {
+                                        if (!a.spec?.source?.chart && !a.spec?.source?.path && !a.spec?.source?.ref) {
                                             chartError = 'Chart is required';
                                         }
                                     }
                                     return {
-                                        'spec.source.repoURL': !a.spec.source.repoURL && 'Repository URL is required',
+                                        'spec.source.repoURL': !a.spec?.source?.repoURL && 'Repository URL is required',
                                         // eslint-disable-next-line no-prototype-builtins
-                                        'spec.source.targetRevision': !a.spec.source.targetRevision && a.spec.source.hasOwnProperty('chart') && 'Version is required',
+                                        'spec.source.targetRevision': !a.spec?.source?.targetRevision && a.spec?.source?.hasOwnProperty('chart') && 'Version is required',
                                         'spec.source.path': pathError,
                                         'spec.source.chart': chartError
                                     };
@@ -157,8 +157,8 @@ export const SourcePanel = (props: {
                                 getApi={props.getFormApi}>
                                 {api => {
                                     // eslint-disable-next-line no-prototype-builtins
-                                    const repoType = (api.getFormState().values.spec.source.hasOwnProperty('chart') && 'helm') || 'git';
-                                    const repoInfo = reposInfo.find(info => info.repo === api.getFormState().values.spec.source.repoURL);
+                                    const repoType = (api.getFormState().values.spec?.source?.hasOwnProperty('chart') && 'helm') || 'git';
+                                    const repoInfo = reposInfo.find(info => info.repo === api.getFormState().values.spec?.source?.repoURL);
                                     if (repoInfo) {
                                         normalizeAppSource(appInEdit, repoInfo.type || 'git');
                                     }
@@ -206,12 +206,12 @@ export const SourcePanel = (props: {
                                             </div>
                                             {(repoType === 'git' && (
                                                 <React.Fragment>
-                                                    <RevisionFormField formApi={api} helpIconTop={'2.5em'} repoURL={api.getFormState().values.spec.source.repoURL} />
+                                                    <RevisionFormField formApi={api} helpIconTop={'2.5em'} repoURL={api.getFormState().values.spec?.source?.repoURL} />
                                                     <div className='argo-form-row'>
                                                         <DataLoader
                                                             input={{
-                                                                repoURL: api.getFormState().values.spec.source.repoURL,
-                                                                revision: api.getFormState().values.spec.source.targetRevision
+                                                                repoURL: api.getFormState().values.spec?.source?.repoURL,
+                                                                revision: api.getFormState().values.spec?.source?.targetRevision
                                                             }}
                                                             load={async src =>
                                                                 (src.repoURL &&
@@ -247,7 +247,7 @@ export const SourcePanel = (props: {
                                                         new Array<models.HelmChart>()
                                                     }>
                                                     {(charts: models.HelmChart[]) => {
-                                                        const selectedChart = charts.find(chart => chart.name === api.getFormState().values.spec.source.chart);
+                                                        const selectedChart = charts.find(chart => chart.name === api.getFormState().values.spec?.source?.chart);
                                                         return (
                                                             <div className='row argo-form-row'>
                                                                 <div className='columns small-10'>
@@ -284,15 +284,15 @@ export const SourcePanel = (props: {
                                     const typePanel = () => (
                                         <DataLoader
                                             input={{
-                                                repoURL: appInEdit.spec.source.repoURL,
-                                                path: appInEdit.spec.source.path,
-                                                chart: appInEdit.spec.source.chart,
-                                                targetRevision: appInEdit.spec.source.targetRevision,
+                                                repoURL: appInEdit.spec?.source?.repoURL,
+                                                path: appInEdit.spec?.source?.path,
+                                                chart: appInEdit.spec?.source?.chart,
+                                                targetRevision: appInEdit.spec?.source?.targetRevision,
                                                 appName: appInEdit.metadata.name
                                             }}
                                             load={async src => {
-                                                if (src.repoURL && src.targetRevision && (src.path || src.chart)) {
-                                                    return services.repos.appDetails(src, src.appName, props.appCurrent.spec.project, 0, 0).catch(() => ({
+                                                if (src?.repoURL && src?.targetRevision && (src?.path || src?.chart)) {
+                                                    return services.repos.appDetails(src, src?.appName, props.appCurrent.spec?.project, 0, 0).catch(() => ({
                                                         type: 'Directory',
                                                         details: {}
                                                     }));
@@ -304,7 +304,7 @@ export const SourcePanel = (props: {
                                                 }
                                             }}>
                                             {(details: models.RepoAppDetails) => {
-                                                const type = (explicitPathType && explicitPathType.path === appInEdit.spec.source.path && explicitPathType.type) || details.type;
+                                                const type = (explicitPathType && explicitPathType.path === appInEdit.spec?.source?.path && explicitPathType.type) || details.type;
                                                 if (details.type !== type) {
                                                     switch (type) {
                                                         case 'Helm':
@@ -337,7 +337,7 @@ export const SourcePanel = (props: {
                                                             items={appTypes.map(item => ({
                                                                 title: item.type,
                                                                 action: () => {
-                                                                    setExplicitPathType({type: item.type, path: appInEdit.spec.source.path});
+                                                                    setExplicitPathType({type: item.type, path: appInEdit.spec?.source?.path});
                                                                     normalizeTypeFields(api, item.type);
                                                                 }
                                                             }))}

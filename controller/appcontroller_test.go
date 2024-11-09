@@ -4,16 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
+	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
-
-	clustercache "github.com/argoproj/gitops-engine/pkg/cache"
+	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	statecache "github.com/argoproj/argo-cd/v2/controller/cache"
@@ -43,11 +45,14 @@ import (
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	mockrepoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
+
+var testEnableEventList []string = argo.DefaultEnableEventList()
 
 type namespacedResource struct {
 	v1alpha1.ResourceNode
@@ -64,6 +69,7 @@ type fakeData struct {
 	metricsCacheExpiration         time.Duration
 	applicationNamespaces          []string
 	updateRevisionForPathsResponse *apiclient.UpdateRevisionForPathsResponse
+	additionalObjs                 []runtime.Object
 }
 
 type MockKubectl struct {
@@ -133,7 +139,9 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		},
 		Data: data.configMapData,
 	}
-	kubeClient := fake.NewSimpleClientset(&clust, &cm, &secret)
+	runtimeObjs := []runtime.Object{&clust, &secret, &cm}
+	runtimeObjs = append(runtimeObjs, data.additionalObjs...)
+	kubeClient := fake.NewSimpleClientset(runtimeObjs...)
 	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
 	kubectl := &MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}}
 	ctrl, err := NewApplicationController(
@@ -151,6 +159,7 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		time.Hour,
 		time.Second,
 		time.Minute,
+		nil,
 		time.Second*10,
 		common.DefaultPortArgoCDMetrics,
 		data.metricsCacheExpiration,
@@ -164,6 +173,7 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		false,
 		false,
 		normalizers.IgnoreNormalizerOpts{},
+		testEnableEventList,
 	)
 	db := &dbmocks.ArgoDB{}
 	db.On("GetApplicationControllerReplicas").Return(1)
@@ -813,6 +823,7 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 
 // TestFinalizeAppDeletion verifies application deletion
 func TestFinalizeAppDeletion(t *testing.T) {
+	now := metav1.Now()
 	defaultProj := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "default",
@@ -833,11 +844,9 @@ func TestFinalizeAppDeletion(t *testing.T) {
 	t.Run("CascadingDelete", func(t *testing.T) {
 		app := newFakeApp()
 		app.SetCascadedDeletion(v1alpha1.ResourcesFinalizerName)
+		app.DeletionTimestamp = &now
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-		appObj := kube.MustToUnstructured(&app)
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
-			kube.GetResourceKey(appObj): appObj,
-		}}, nil)
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{}}, nil)
 		patched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 		defaultReactor := fakeAppCs.ReactionChain[0]
@@ -876,6 +885,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		}
 		app := newFakeApp()
 		app.SetCascadedDeletion(v1alpha1.ResourcesFinalizerName)
+		app.DeletionTimestamp = &now
 		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
 		app.Spec.Project = "restricted"
 		appObj := kube.MustToUnstructured(&app)
@@ -921,10 +931,8 @@ func TestFinalizeAppDeletion(t *testing.T) {
 	t.Run("DeleteWithDestinationClusterName", func(t *testing.T) {
 		app := newFakeAppWithDestName()
 		app.SetCascadedDeletion(v1alpha1.ResourcesFinalizerName)
-		appObj := kube.MustToUnstructured(&app)
-		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
-			kube.GetResourceKey(appObj): appObj,
-		}}, nil)
+		app.DeletionTimestamp = &now
+		ctrl := newFakeController(&fakeData{apps: []runtime.Object{app, &defaultProj}, managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{}}, nil)
 		patched := false
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 		defaultReactor := fakeAppCs.ReactionChain[0]
@@ -2183,4 +2191,68 @@ func TestAlreadyAttemptSync(t *testing.T) {
 		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, true)
 		assert.False(t, attempted)
 	})
+}
+
+func assertDurationAround(t *testing.T, expected time.Duration, actual time.Duration) {
+	t.Helper()
+	delta := time.Second / 2
+	assert.GreaterOrEqual(t, expected, actual-delta)
+	assert.LessOrEqual(t, expected, actual+delta)
+}
+
+func TestSelfHealExponentialBackoff(t *testing.T) {
+	ctrl := newFakeController(&fakeData{}, nil)
+	ctrl.selfHealBackOff = &wait.Backoff{
+		Factor:   3,
+		Duration: 2 * time.Second,
+		Cap:      5 * time.Minute,
+	}
+
+	app := &v1alpha1.Application{
+		Status: v1alpha1.ApplicationStatus{
+			OperationState: &v1alpha1.OperationState{
+				Operation: v1alpha1.Operation{
+					Sync: &v1alpha1.SyncOperation{},
+				},
+			},
+		},
+	}
+
+	testCases := []struct {
+		attempts         int64
+		finishedAt       *metav1.Time
+		expectedDuration time.Duration
+		shouldSelfHeal   bool
+	}{{
+		attempts:         0,
+		finishedAt:       ptr.To(metav1.Now()),
+		expectedDuration: 0,
+		shouldSelfHeal:   true,
+	}, {
+		attempts:         1,
+		finishedAt:       ptr.To(metav1.Now()),
+		expectedDuration: 2 * time.Second,
+		shouldSelfHeal:   false,
+	}, {
+		attempts:         2,
+		finishedAt:       ptr.To(metav1.Now()),
+		expectedDuration: 6 * time.Second,
+		shouldSelfHeal:   false,
+	}, {
+		attempts:         3,
+		finishedAt:       nil,
+		expectedDuration: 18 * time.Second,
+		shouldSelfHeal:   false,
+	}}
+
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
+			app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount = tc.attempts
+			app.Status.OperationState.FinishedAt = tc.finishedAt
+			ok, duration := ctrl.shouldSelfHeal(app)
+			require.Equal(t, ok, tc.shouldSelfHeal)
+			assertDurationAround(t, tc.expectedDuration, duration)
+		})
+	}
 }
