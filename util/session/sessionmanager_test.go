@@ -346,13 +346,13 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 	}
 }
 
-var loggedOutContext = context.Background()
-
-// nolint:staticcheck
-var loggedInContext = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}, "federated_claims": map[string]interface{}{"user_id": "foo"}})
-
-// for testing without federated claims
-var loggedInContextNoFederated = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
+var (
+	loggedOutContext = context.Background()
+	// nolint:staticcheck
+	loggedInContext = context.WithValue(context.Background(), claimsKey, &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}, "federated_claims": map[string]interface{}{"user_id": "foo"}})
+	// for testing without federated claims
+	loggedInContextNoFederated = context.WithValue(context.Background(), claimsKey, &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
+)
 
 func TestIss(t *testing.T) {
 	assert.Empty(t, Iss(loggedOutContext))

@@ -637,8 +637,12 @@ func Groups(ctx context.Context, scopes []string) []string {
 	return jwtutil.GetGroups(mapClaims, scopes)
 }
 
+type contextKey struct{}
+
+var claimsKey = contextKey{}
+
 func mapClaims(ctx context.Context) (jwt.MapClaims, bool) {
-	claims, ok := ctx.Value("claims").(jwt.Claims)
+	claims, ok := ctx.Value(claimsKey).(jwt.Claims)
 	if !ok {
 		return nil, false
 	}
