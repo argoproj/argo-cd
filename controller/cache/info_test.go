@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 )
@@ -306,8 +307,8 @@ func TestGetPodInfo(t *testing.T) {
 		assert.Equal(t, []v1alpha1.InfoItem{
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/1"},
-			{Name: "Requests (CPU)", Value: "0"},
-			{Name: "Requests (MEM)", Value: "134217728000"},
+			{Name: common.PodRequestsCPU, Value: "0"}, // strings imported from common
+			{Name: common.PodRequestsMEM, Value: "134217728000"},
 		}, info.Info)
 		assert.Equal(t, []string{"bar"}, info.Images)
 		assert.Equal(t, &PodInfo{
@@ -369,8 +370,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Status Reason", Value: "Running"},
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "1/1"},
-			{Name: "Requests (CPU)", Value: "0"},
-			{Name: "Requests (MEM)", Value: "0"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -440,8 +441,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Status Reason", Value: "Running"},
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "1/1"},
-			{Name: "Requests (CPU)", Value: "100"},
-			{Name: "Requests (MEM)", Value: "134217728000"},
+			{Name: common.PodRequestsCPU, Value: "100"},
+			{Name: common.PodRequestsMEM, Value: "134217728000"},
 		}, info.Info)
 	})
 	t.Run("TestGetPodInfoWithSidecar", func(t *testing.T) {
@@ -498,8 +499,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Status Reason", Value: "Running"},
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "2/2"},
-			{Name: "Requests (CPU)", Value: "0"},
-			{Name: "Requests (MEM)", Value: "0"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -558,8 +559,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Status Reason", Value: "Init:0/1"},
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/1"},
-			{Name: "Requests (CPU)", Value: "0"},
-			{Name: "Requests (MEM)", Value: "0"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -617,8 +618,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/3"},
 			{Name: "Restart Count", Value: "3"},
-			{Name: "Requests (CPU)", Value: "0"},
-			{Name: "Requests (MEM)", Value: "0"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -676,8 +677,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/3"},
 			{Name: "Restart Count", Value: "3"},
-			{Name: "Requests (CPU)", Value: "0"},
-			{Name: "Requests (MEM)", Value: "0"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -738,8 +739,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "1/3"},
 			{Name: "Restart Count", Value: "7"},
-			{Name: "Requests (CPU)", Value: "0"},
-			{Name: "Requests (MEM)", Value: "0"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -782,8 +783,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/1"},
 			{Name: "Restart Count", Value: "3"},
-			{Name: "Requests (CPU)", Value: "0"},
-			{Name: "Requests (MEM)", Value: "0"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -991,8 +992,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Status Reason", Value: "Terminating"},
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/1"},
-			{Name: "Requests (CPU)", Value: "0"},
-			{Name: "Requests (MEM)", Value: "0"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -1019,8 +1020,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Status Reason", Value: "Terminating"},
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/1"},
-			{Name: "Requests (CPU)", Value: "0"},
-			{Name: "Requests (MEM)", Value: "0"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 
@@ -1051,8 +1052,8 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: "Status Reason", Value: "SchedulingGated"},
 			{Name: "Node", Value: "minikube"},
 			{Name: "Containers", Value: "0/2"},
-			{Name: "Requests (CPU)", Value: "0"},
-			{Name: "Requests (MEM)", Value: "0"},
+			{Name: common.PodRequestsCPU, Value: "0"},
+			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
 }

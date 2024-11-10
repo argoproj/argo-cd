@@ -19,7 +19,7 @@ export const PodTooltip = (props: {pod: Pod}) => {
             {(pod.info || [])
                 .filter(i => {
                     //filter out 0 values for CPU and mem on pod info
-                    return i.name !== 'Node' && !((i.name === 'Requests (CPU)' || i.name === 'Requests (MEM)') && parseInt(i.value, 10) === 0);
+                    return i.name !== 'Node' && !((i.name === podRequests.CPU || i.name === podRequests.MEMORY) && parseInt(i.value, 10) === 0);
                 })
                 .map(i => {
                     //formatted the values for cpu and mem
