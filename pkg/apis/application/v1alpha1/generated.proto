@@ -2172,6 +2172,9 @@ message SCMProviderGeneratorGitea {
 
   // Allow self-signed TLS / Certificates; default: false
   optional bool insecure = 5;
+
+  // Exclude repositories that are archived.
+  optional bool excludeArchivedRepos = 6;
 }
 
 // SCMProviderGeneratorGithub defines connection info specific to GitHub.
@@ -2190,6 +2193,9 @@ message SCMProviderGeneratorGithub {
 
   // Scan all branches instead of just the default branch.
   optional bool allBranches = 5;
+
+  // Exclude repositories that are archived.
+  optional bool excludeArchivedRepos = 6;
 }
 
 // SCMProviderGeneratorGitlab defines connection info specific to Gitlab.
