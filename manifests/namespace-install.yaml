@@ -72,7 +72,7 @@ metadata:
   name: argocd-application-controller
 rules:
 - apiGroups:
-  - ""
+  - ''
   resources:
   - secrets
   - configmaps
@@ -94,7 +94,7 @@ rules:
   - patch
   - delete
 - apiGroups:
-  - ""
+  - ''
   resources:
   - events
   verbs:
@@ -149,7 +149,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - ""
+  - ''
   resources:
   - events
   verbs:
@@ -159,7 +159,7 @@ rules:
   - patch
   - watch
 - apiGroups:
-  - ""
+  - ''
   resources:
   - secrets
   - configmaps
@@ -187,7 +187,7 @@ metadata:
   name: argocd-dex-server
 rules:
 - apiGroups:
-  - ""
+  - ''
   resources:
   - secrets
   - configmaps
@@ -217,7 +217,7 @@ rules:
   - update
   - patch
 - apiGroups:
-  - ""
+  - ''
   resources:
   - configmaps
   - secrets
@@ -225,7 +225,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - ""
+  - ''
   resourceNames:
   - argocd-notifications-cm
   resources:
@@ -233,7 +233,7 @@ rules:
   verbs:
   - get
 - apiGroups:
-  - ""
+  - ''
   resourceNames:
   - argocd-notifications-secret
   resources:
@@ -251,7 +251,7 @@ metadata:
   name: argocd-redis
 rules:
 - apiGroups:
-  - ""
+  - ''
   resourceNames:
   - argocd-redis
   resources:
@@ -259,7 +259,7 @@ rules:
   verbs:
   - get
 - apiGroups:
-  - ""
+  - ''
   resources:
   - secrets
   verbs:
@@ -275,7 +275,7 @@ metadata:
   name: argocd-server
 rules:
 - apiGroups:
-  - ""
+  - ''
   resources:
   - secrets
   - configmaps
@@ -302,7 +302,7 @@ rules:
   - delete
   - patch
 - apiGroups:
-  - ""
+  - ''
   resources:
   - events
   verbs:
@@ -1126,10 +1126,11 @@ spec:
       containers:
       - args:
         - --save
-        - ""
+        - ''
         - --appendonly
-        - "no"
-        - --requirepass $(REDIS_PASSWORD)
+        - 'no'
+        - |-
+          --requirepass $(REDIS_PASSWORD)
         env:
         - name: REDIS_PASSWORD
           valueFrom:
@@ -1948,7 +1949,7 @@ spec:
               key: auth
               name: argocd-redis
         - name: ARGOCD_CONTROLLER_REPLICAS
-          value: "1"
+          value: '1'
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
             configMapKeyRef:
