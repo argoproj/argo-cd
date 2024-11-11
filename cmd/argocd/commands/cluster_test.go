@@ -102,7 +102,7 @@ func Test_getRestConfig(t *testing.T) {
 			if tt.wantErr {
 				require.EqualError(t, err, tt.expectedErr)
 			} else {
-				require.Errorf(t, err, "An unexpected error occurred during test %s:\n%s", tt.name, err.Error())
+				require.NoErrorf(t, err, "An unexpected error occurred during test %s", tt.name)
 				require.Equal(t, tt.expected, got)
 			}
 		})

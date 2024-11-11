@@ -17,8 +17,7 @@ func TestShortVersionClient(t *testing.T) {
 	cmd.SetOut(buf)
 	cmd.SetArgs([]string{"version", "--short", "--client"})
 	require.NoError(t, cmd.Execute(), "Failed to execute short version command")
-	output := buf.String()
-	assert.Equal(t, "argocd: v99.99.99+unknown\n", output)
+	assert.Equal(t, "argocd: v99.99.99+unknown\n", buf.String())
 }
 
 func TestShortVersion(t *testing.T) {

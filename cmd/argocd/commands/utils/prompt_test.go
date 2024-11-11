@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewPrompt_PromptsEnabled_True(t *testing.T) {
@@ -57,9 +58,7 @@ func TestConfirmPrompt(t *testing.T) {
 
 	for _, c := range cases {
 		tmpFile, err := writeToStdin(c.input)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 		p := &Prompt{enabled: true}
 		result := p.Confirm("Are you sure you want to run this command? (y/n) \n")
 		assert.Equal(t, c.output, result)
@@ -85,9 +84,7 @@ func TestConfirmAllPrompt(t *testing.T) {
 
 	for _, c := range cases {
 		tmpFile, err := writeToStdin(c.input)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 		p := &Prompt{enabled: true}
 		confirm, confirmAll := p.ConfirmAll("Are you sure you want to run this command? (y/n) \n")
 		assert.Equal(t, c.confirm, confirm)
