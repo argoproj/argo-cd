@@ -26,27 +26,22 @@ func TestConfirm_PromptsEnabled_False(t *testing.T) {
 func TestConfirmAllPromptDisabled(t *testing.T) {
 	p := &Prompt{enabled: false}
 	result1, result2 := p.ConfirmAll("Proceed?")
-	if result1 != true || result2 != true {
-		t.Errorf("Expected (true, true), got (%v, %v)", result1, result2)
-	}
+	assert.True(t, result1)
+	assert.True(t, result2)
 }
 
 func TestConfirmBaseOnCountPromptDisabled(t *testing.T) {
 	p := &Prompt{enabled: false}
 	result1, result2 := p.ConfirmBaseOnCount("Proceed?", "Process all?", 2)
-
-	if result1 != true || result2 != true {
-		t.Errorf("Expected (true, true), got (%v, %v)", result1, result2)
-	}
+	assert.True(t, result1)
+	assert.True(t, result2)
 }
 
 func TestConfirmBaseOnCountZeroApps(t *testing.T) {
 	p := &Prompt{enabled: true}
 	result1, result2 := p.ConfirmBaseOnCount("Proceed?", "Process all?", 0)
-
-	if result1 != true || result2 != true {
-		t.Errorf("Expected (true, true), got (%v, %v)", result1, result2)
-	}
+	assert.True(t, result1)
+	assert.True(t, result2)
 }
 
 func TestConfirmPrompt(t *testing.T) {
