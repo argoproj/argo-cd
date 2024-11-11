@@ -164,7 +164,7 @@ func TestAddAccount_AccountAdded(t *testing.T) {
 
 	assert.Equal(t, "hash", string(secret.Data["accounts.test.password"]))
 	assert.Equal(t, mTime.Format(time.RFC3339), string(secret.Data["accounts.test.passwordMtime"]))
-	assert.Equal(t, `[{"id":"123","iat":0}]`, string(secret.Data["accounts.test.tokens"]))
+	assert.JSONEq(t, `[{"id":"123","iat":0}]`, string(secret.Data["accounts.test.tokens"]))
 }
 
 func TestAddAccount_AlreadyExists(t *testing.T) {
@@ -204,7 +204,7 @@ func TestUpdateAccount_SuccessfullyUpdated(t *testing.T) {
 
 	assert.Equal(t, "hash", string(secret.Data["accounts.test.password"]))
 	assert.Equal(t, mTime.Format(time.RFC3339), string(secret.Data["accounts.test.passwordMtime"]))
-	assert.Equal(t, `[{"id":"123","iat":0}]`, string(secret.Data["accounts.test.tokens"]))
+	assert.JSONEq(t, `[{"id":"123","iat":0}]`, string(secret.Data["accounts.test.tokens"]))
 }
 
 func TestUpdateAccount_UpdateAdminPassword(t *testing.T) {
