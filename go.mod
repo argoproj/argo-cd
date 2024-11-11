@@ -27,7 +27,7 @@ require (
 	github.com/evanphx/json-patch v5.9.0+incompatible
 	github.com/expr-lang/expr v1.16.9
 	github.com/felixge/httpsnoop v1.0.4
-	github.com/fsnotify/fsnotify v1.7.0
+	github.com/fsnotify/fsnotify v1.8.0
 	github.com/gfleury/go-bitbucket-v1 v0.0.0-20220301131131-8e7ed04b843e
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/go-jose/go-jose/v3 v3.0.3
