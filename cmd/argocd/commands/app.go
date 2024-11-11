@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -1738,6 +1739,7 @@ func formatConditionsSummary(app argoappv1.Application) string {
 	}
 	summary := "<none>"
 	if len(items) > 0 {
+		slices.Sort(items)
 		summary = strings.Join(items, ",")
 	}
 	return summary
