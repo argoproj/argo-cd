@@ -566,11 +566,11 @@ func TestGetVirtualProjectNoMatch(t *testing.T) {
 	time.Sleep(time.Second * 2)
 
 	// App trying to sync a resource which is not blacked listed anywhere
-	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
+	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", strconv.Itoa(10))
 	require.NoError(t, err)
 
 	// app trying to sync a resource which is black listed by global project
-	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
+	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", strconv.Itoa(10))
 	require.NoError(t, err)
 }
 
@@ -606,11 +606,11 @@ func TestGetVirtualProjectMatch(t *testing.T) {
 	time.Sleep(time.Second * 2)
 
 	// App trying to sync a resource which is not blacked listed anywhere
-	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
+	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", "apps:Deployment:guestbook-ui", "--timeout", strconv.Itoa(10))
 	require.ErrorContains(t, err, "blocked by sync window")
 
 	// app trying to sync a resource which is black listed by global project
-	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", fmt.Sprintf("%v", 10))
+	_, err = fixture.RunCli("app", "sync", fixture.Name(), "--resource", ":Service:guestbook-ui", "--timeout", strconv.Itoa(10))
 	assert.ErrorContains(t, err, "blocked by sync window")
 }
 

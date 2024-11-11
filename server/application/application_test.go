@@ -242,7 +242,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 						oldVersion = 0
 					}
 					clonedApp := app.DeepCopy()
-					clonedApp.ResourceVersion = fmt.Sprintf("%d", oldVersion+1)
+					clonedApp.ResourceVersion = strconv.Itoa(oldVersion + 1)
 					events <- &appsv1.ApplicationWatchEvent{Type: watch.Added, Application: *clonedApp}
 				}
 			}
@@ -425,7 +425,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 						oldVersion = 0
 					}
 					clonedApp := app.DeepCopy()
-					clonedApp.ResourceVersion = fmt.Sprintf("%d", oldVersion+1)
+					clonedApp.ResourceVersion = strconv.Itoa(oldVersion + 1)
 					events <- &appsv1.ApplicationWatchEvent{Type: watch.Added, Application: *clonedApp}
 				}
 			}
