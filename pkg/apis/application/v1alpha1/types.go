@@ -191,6 +191,8 @@ type ApplicationSource struct {
 	Chart string `json:"chart,omitempty" protobuf:"bytes,12,opt,name=chart"`
 	// Ref is reference to another source within sources field. This field will not be used if used with a `source` tag.
 	Ref string `json:"ref,omitempty" protobuf:"bytes,13,opt,name=ref"`
+	// Name is used to refer to a source and is displayed in the UI. It is used in multi-source Applications.
+	Name string `json:"name,omitempty" protobuf:"bytes,14,opt,name=name"`
 }
 
 // ApplicationSources contains list of required information about the sources of an application
