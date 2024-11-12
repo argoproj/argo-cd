@@ -21,8 +21,9 @@ Within [Argo CD cluster Secrets](../../declarative-setup/#clusters) are data fie
 ```yaml
 kind: Secret
 data:
-  # Within Kubernetes these fields are actually encoded in Base64; they are decoded here for convenience.
-  # (They are likewise decoded when passed as parameters by the Cluster generator)
+  # Within Kubernetes these fields are actually encoded in Base64; they are
+  # decoded here for convenience. (They are likewise decoded when passed as
+  # parameters by the Cluster generator)
   config: "{'tlsClientConfig':{'insecure':false}}"
   name: "in-cluster2"
   server: "https://kubernetes.default.svc"
@@ -227,7 +228,8 @@ spec:
           type: 'staging'
       # A key-value map for arbitrary parameters
       values:
-        # If `my-custom-annotation` is in your cluster secret, `revision` will be substituted with it.
+        # If `my-custom-annotation` is in your cluster secret, `revision` will
+        # be substituted with it.
         revision: '{{index .metadata.annotations "my-custom-annotation"}}' 
         clusterName: '{{.name}}'
   - clusters:

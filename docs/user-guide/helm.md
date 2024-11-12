@@ -35,7 +35,8 @@ spec:
   project: default
   source:
     chart: nginx
-    repoURL: registry-1.docker.io/bitnamicharts  # note: the oci:// syntax is not included.
+    repoURL: registry-1.docker.io/bitnamicharts  # note: the oci:// syntax is
+                                                 # not included.
     targetRevision: 15.9.0
   destination:
     name: "in-cluster"

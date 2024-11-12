@@ -140,7 +140,9 @@ spec:
       jsonPointers:
         # Allow manually disabling auto sync for apps, useful for debugging.
         - /spec/syncPolicy/automated
-        # These are automatically updated on a regular basis. Not ignoring last applied configuration since it's used for computing diffs after normalization.
+        # These are automatically updated on a regular basis. Not ignoring last
+        # applied configuration since it's used for computing diffs after
+        # normalization.
         - /metadata/annotations/argocd.argoproj.io~1refresh
         - /operation
   ...

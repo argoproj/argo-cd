@@ -72,7 +72,8 @@ The following command will verify the signature of an attestation and how it was
 Run the following command as per the [slsa-verifier documentation](https://github.com/slsa-framework/slsa-verifier/tree/main#containers):
 
 ```bash
-# Get the immutable container image to prevent TOCTOU attacks https://github.com/slsa-framework/slsa-verifier#toctou-attacks
+# Get the immutable container image to prevent TOCTOU attacks
+# https://github.com/slsa-framework/slsa-verifier#toctou-attacks
 IMAGE=quay.io/argoproj/argocd:v2.7.0
 IMAGE="${IMAGE}@"$(crane digest "${IMAGE}")
 # Verify provenance, including the tag to prevent rollback attacks.
@@ -86,7 +87,8 @@ If you only want to verify up to the major or minor verion of the source reposit
 ```shell
 slsa-verifier verify-image "$IMAGE" \
     --source-uri github.com/argoproj/argo-cd \
-    --source-versioned-tag v2 # Note: May use v2.7 for minor version verification.
+    --source-versioned-tag v2 # Note: May use v2.7 for minor version
+                              # verification.
 ```
 
 The attestation payload contains a non-forgeable provenance which is base64 encoded and can be viewed by passing the `--print-provenance` option to the commands above:

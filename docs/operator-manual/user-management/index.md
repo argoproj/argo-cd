@@ -95,7 +95,8 @@ argocd account get --account <username>
 
 * Set user password
 ```bash
-# if you are managing users as the admin user, <current-user-password> should be the current admin password.
+# if you are managing users as the admin user, <current-user-password> should
+# be the current admin password.
 argocd account update-password \
   --account <name> \
   --current-password <current-user-password> \
@@ -194,7 +195,8 @@ data:
         name: GitHub
         config:
           clientID: aabbccddeeff00112233
-          clientSecret: $dex.github.clientSecret # Alternatively $<some_K8S_secret>:dex.github.clientSecret
+          # Alternatively $<some_K8S_secret>:dex.github.clientSecret
+          clientSecret: $dex.github.clientSecret
           orgs:
           - name: your-github-org
 
@@ -205,7 +207,8 @@ data:
         config:
           hostName: github.acme.example.com
           clientID: abcdefghijklmnopqrst
-          clientSecret: $dex.acme.clientSecret  # Alternatively $<some_K8S_secret>:dex.acme.clientSecret
+          # Alternatively $<some_K8S_secret>:dex.acme.clientSecret
+          clientSecret: $dex.acme.clientSecret
           orgs:
           - name: your-github-org
 ```
@@ -322,35 +325,41 @@ data:
     clientID: aaaabbbbccccddddeee
     clientSecret: $oidc.okta.clientSecret
     
-    # Optional list of allowed aud claims. If omitted or empty, defaults to the clientID value above (and the 
-    # cliClientID, if that is also specified). If you specify a list and want the clientID to be allowed, you must 
+    # Optional list of allowed aud claims. If omitted or empty, defaults to the
+    # clientID value above (and the cliClientID, if that is also specified). If
+    # you specify a list and want the clientID to be allowed, you must
     # explicitly include it in the list.
-    # Token verification will pass if any of the token's audiences matches any of the audiences in this list.
+    # Token verification will pass if any of the token's audiences matches any
+    # of the audiences in this list.
     allowedAudiences:
     - aaaabbbbccccddddeee
     - qqqqwwwweeeerrrrttt
 
-    # Optional. If false, tokens without an audience will always fail validation. If true, tokens without an audience 
-    # will always pass validation.
-    # Defaults to true for Argo CD < 2.6.0. Defaults to false for Argo CD >= 2.6.0.
+    # Optional. If false, tokens without an audience will always fail
+    # validation. If true, tokens without an audience will always pass
+    # validation.
+    # Defaults to true for Argo CD < 2.6.0. Defaults to false for Argo CD >=
+    # 2.6.0.
     skipAudienceCheckWhenTokenHasNoAudience: true
 
-    # Optional set of OIDC scopes to request. If omitted, defaults to: ["openid", "profile", "email", "groups"]
+    # Optional set of OIDC scopes to request. If omitted, defaults to:
+    # ["openid", "profile", "email", "groups"]
     requestedScopes: ["openid", "profile", "email", "groups"]
 
     # Optional set of OIDC claims to request on the ID token.
     requestedIDTokenClaims: {"groups": {"essential": true}}
 
-    # Some OIDC providers require a separate clientID for different callback URLs.
-    # For example, if configuring Argo CD with self-hosted Dex, you will need a separate client ID
-    # for the 'localhost' (CLI) client to Dex. This field is optional. If omitted, the CLI will
-    # use the same clientID as the Argo CD server
+    # Some OIDC providers require a separate clientID for different callback
+    # URLs. For example, if configuring Argo CD with self-hosted Dex, you will
+    # need a separate client ID for the 'localhost' (CLI) client to Dex. This
+    # field is optional. If omitted, the CLI will use the same clientID as the
+    # Argo CD server
     cliClientID: vvvvwwwwxxxxyyyyzzzz
 
-    # PKCE authentication flow processes authorization flow from browser only - default false
-    # uses the clientID
-    # make sure the Identity Provider (IdP) is public and doesn't need clientSecret
-    # make sure the Identity Provider (IdP) has this redirect URI registered: https://argocd.example.com/pkce/verify
+    # PKCE authentication flow processes authorization flow from browser only -
+    # default false uses the clientID make sure the Identity Provider (IdP) is
+    # public and doesn't need clientSecret make sure the Identity Provider (IdP)
+    # has this redirect URI registered: https://argocd.example.com/pkce/verify
     enablePKCEAuthentication: true
 ```
 

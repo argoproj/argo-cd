@@ -47,9 +47,11 @@ spec:
       gitea:
         # The Gitea owner to scan.
         owner: myorg
-        # With this malicious setting, user can send all request to a Pod that will log incoming requests including headers with tokens
+        # With this malicious setting, user can send all request to a Pod that
+        # will log incoming requests including headers with tokens
         api: http://my-service.appNs.svc.cluster.local
-        # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
+        # If true, scan every branch of every repository. If false, scan only
+        # the default branch. Defaults to false.
         allBranches: true
         # By changing this token reference, user can exfiltrate any secrets
         tokenRef:

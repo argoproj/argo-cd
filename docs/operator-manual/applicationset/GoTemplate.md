@@ -66,7 +66,9 @@ possible with Go text templates:
             spec:
               source:
                 helm:
-                  useCredentials: "{{.useCredentials}}"  # This field may NOT be templated, because it is a boolean field.
+                  useCredentials: "{{.useCredentials}}"  # This field may NOT be
+                                                         # templated, because it
+                                                         # is a boolean field.
 
 - Templating an object field:
 
@@ -78,7 +80,8 @@ possible with Go text templates:
           goTemplateOptions: ["missingkey=error"]
           template:
             spec:
-              syncPolicy: "{{.syncPolicy}}"  # This field may NOT be templated, because it is an object field.
+              syncPolicy: "{{.syncPolicy}}"  # This field may NOT be templated,
+                                             # because it is an object field.
 
 - Using control keywords across fields:
 
@@ -93,7 +96,8 @@ possible with Go text templates:
               source:
                 helm:
                   parameters:
-                  # Each of these fields is evaluated as an independent template, so the first one will fail with an error.
+                  # Each of these fields is evaluated as an independent
+                  # template, so the first one will fail with an error.
                   - name: "{{range .parameters}}"
                   - name: "{{.name}}"
                     value: "{{.value}}"

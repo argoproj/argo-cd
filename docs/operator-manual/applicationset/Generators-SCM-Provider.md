@@ -42,7 +42,8 @@ spec:
         organization: myorg
         # For GitHub Enterprise:
         api: https://git.example.com/
-        # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
+        # If true, scan every branch of every repository. If false, scan only
+        # the default branch. Defaults to false.
         allBranches: true
         # Reference to a Secret containing an access token. (optional)
         tokenRef:
@@ -79,26 +80,33 @@ spec:
   generators:
   - scmProvider:
       gitlab:
-        # The base GitLab group to scan.  You can either use the group id or the full namespaced path.
+        # The base GitLab group to scan. You can either use the group id or the
+        # full namespaced path.
         group: "8675309"
         # For self-hosted GitLab:
         api: https://gitlab.example.com/
-        # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
+        # If true, scan every branch of every repository. If false, scan only
+        # the default branch. Defaults to false.
         allBranches: true
-        # If true, recurses through subgroups. If false, it searches only in the base group. Defaults to false.
+        # If true, recurses through subgroups. If false, it searches only in the
+        # base group. Defaults to false.
         includeSubgroups: true
-        # If true and includeSubgroups is also true, include Shared Projects, which is gitlab API default.
-        # If false only search Projects under the same path. Defaults to true.
+        # If true and includeSubgroups is also true, include Shared Projects,
+        # which is gitlab API default. If false only search Projects under the
+        # same path. Defaults to true.
         includeSharedProjects: false
-        # filter projects by topic. A single topic is supported by Gitlab API. Defaults to "" (all topics).
+        # filter projects by topic. A single topic is supported by Gitlab API.
+        # Defaults to "" (all topics).
         topic: "my-topic"
         # Reference to a Secret containing an access token. (optional)
         tokenRef:
           secretName: gitlab-token
           key: token
-        # If true, skips validating the SCM provider's TLS certificate - useful for self-signed certificates.
+        # If true, skips validating the SCM provider's TLS certificate - useful
+        # for self-signed certificates.
         insecure: false
-        # Reference to a ConfigMap containing trusted CA certs - useful for self-signed certificates. (optional)
+        # Reference to a ConfigMap containing trusted CA certs - useful for
+        # self-signed certificates. (optional)
         caRef:
           configMapName: argocd-tls-certs-cm
           key: gitlab-ca
@@ -145,7 +153,8 @@ spec:
         owner: myorg
         # The Gitea instance url
         api: https://gitea.mydomain.com/
-        # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
+        # If true, scan every branch of every repository. If false, scan only
+        # the default branch. Defaults to false.
         allBranches: true
         # Reference to a Secret containing an access token. (optional)
         tokenRef:
@@ -181,31 +190,38 @@ spec:
         project: myproject
         # URL of the Bitbucket Server. Required.
         api: https://mycompany.bitbucket.org
-        # If true, scan every branch of every repository. If false, scan only the default branch. Defaults to false.
+        # If true, scan every branch of every repository. If false, scan only
+        # the default branch. Defaults to false.
         allBranches: true
-        # Credentials for Basic authentication (App Password). Either basicAuth or bearerToken
-        # authentication is required to access private repositories
+        # Credentials for Basic authentication (App Password). Either basicAuth
+        # or bearerToken authentication is required to access private
+        # repositories
         basicAuth:
           # The username to authenticate with
           username: myuser
-          # Reference to a Secret containing the password or personal access token.
+          # Reference to a Secret containing the password or personal access
+          # token.
           passwordRef:
             secretName: mypassword
             key: password
-        # Credentials for Bearer Token (App Token) authentication. Either basicAuth or bearerToken
-        # authentication is required to access private repositories
+        # Credentials for Bearer Token (App Token) authentication. Either
+        # basicAuth or bearerToken authentication is required to access private
+        # repositories
         bearerToken:
           # Reference to a Secret containing the bearer token.
           tokenRef:
             secretName: repotoken
             key: token
-        # If true, skips validating the SCM provider's TLS certificate - useful for self-signed certificates.
+        # If true, skips validating the SCM provider's TLS certificate - useful
+        # for self-signed certificates.
         insecure: true
-        # Reference to a ConfigMap containing trusted CA certs - useful for self-signed certificates. (optional)
+        # Reference to a ConfigMap containing trusted CA certs - useful for
+        # self-signed certificates. (optional)
         caRef:
           configMapName: argocd-tls-certs-cm
           key: bitbucket-ca
-        # Support for filtering by labels is TODO. Bitbucket server labels are not supported for PRs, but they are for repos
+        # Support for filtering by labels is TODO. Bitbucket server labels are
+        # not supported for PRs, but they are for repos
   template:
   # ...
 ```
@@ -245,11 +261,14 @@ spec:
         organization: myorg
         # URL to Azure DevOps. Optional. Defaults to https://dev.azure.com.
         api: https://dev.azure.com
-        # If true, scan every branch of eligible repositories. If false, check only the default branch of the eligible repositories. Defaults to false.
+        # If true, scan every branch of eligible repositories. If false, check
+        # only the default branch of the eligible repositories. Defaults to
+        # false.
         allBranches: true
         # The team project within the specified Azure DevOps organization.
         teamProject: myProject
-        # Reference to a Secret containing the Azure DevOps Personal Access Token (PAT) used for accessing Azure DevOps.
+        # Reference to a Secret containing the Azure DevOps Personal Access
+        # Token (PAT) used for accessing Azure DevOps.
         accessTokenRef:
           secretName: azure-devops-scm
           key: accesstoken
@@ -280,7 +299,8 @@ spec:
         owner: "example-owner"
         # The user to use for basic authentication with an app password.
         user: "example-user"
-        # If true, scan every branch of every repository. If false, scan only the main branch. Defaults to false.
+        # If true, scan every branch of every repository. If false, scan only
+        # the main branch. Defaults to false.
         allBranches: true
         # Reference to a Secret containing an app password.
         appPasswordRef:
@@ -318,7 +338,8 @@ spec:
           # AWS role to assume to scan repos.
           # default to the environmental role from ApplicationSet controller.
           role: arn:aws:iam::111111111111:role/argocd-application-set-discovery
-          # If true, scan every branch of every repository. If false, scan only the main branch. Defaults to false.
+          # If true, scan every branch of every repository. If false, scan only
+          # the main branch. Defaults to false.
           allBranches: true
           # AWS resource tags to filter repos with.
           # see https://docs.aws.amazon.com/resourcegroupstagging/latest/APIReference/API_GetResources.html#resourcegrouptagging-GetResources-request-TagFilters for details
@@ -393,11 +414,13 @@ spec:
   generators:
   - scmProvider:
       filters:
-      # Include any repository starting with "myapp" AND including a Kustomize config AND labeled with "deploy-ok" ...
+      # Include any repository starting with "myapp" AND including a Kustomize
+      # config AND labeled with "deploy-ok" ...
       - repositoryMatch: ^myapp
         pathsExist: [kubernetes/kustomization.yaml]
         labelMatch: deploy-ok
-      # ... OR include any repository starting with "otherapp" AND a Helm folder and doesn't have file disabledrepo.txt.
+      # ... OR include any repository starting with "otherapp" AND a Helm folder
+      # and doesn't have file disabledrepo.txt.
       - repositoryMatch: ^otherapp
         pathsExist: [helm]
         pathsDoNotExist: [disabledrepo.txt]

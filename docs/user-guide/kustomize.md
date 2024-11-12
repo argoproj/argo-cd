@@ -123,7 +123,8 @@ spec:
             patch: |-
               - op: add
                 path: /spec/template/spec/containers/0/args/3
-                value: --txt-owner-id={{.name}}   # patch using attribute from generator
+                # patch using attribute from generator
+                value: --txt-owner-id={{.name}}
       destination:
         name: 'in-cluster'
         namespace: default

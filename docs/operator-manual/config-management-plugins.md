@@ -34,84 +34,107 @@ metadata:
   # The name of the plugin must be unique within a given Argo CD instance.
   name: my-plugin
 spec:
-  # The version of your plugin. Optional. If specified, the Application's spec.source.plugin.name field
-  # must be <plugin name>-<plugin version>.
+  # The version of your plugin. Optional. If specified, the Application's
+  # spec.source.plugin.name field must be <plugin name>-<plugin version>.
   version: v1.0
-  # The init command runs in the Application source directory at the beginning of each manifest generation. The init
-  # command can output anything. A non-zero status code will fail manifest generation.
+  # The init command runs in the Application source directory at the beginning
+  # of each manifest generation. The init command can output anything. A
+  # non-zero status code will fail manifest generation.
   init:
-    # Init always happens immediately before generate, but its output is not treated as manifests.
-    # This is a good place to, for example, download chart dependencies.
+    # Init always happens immediately before generate, but its output is not
+    # treated as manifests. This is a good place to, for example, download chart
+    # dependencies.
     command: [sh]
     args: [-c, 'echo "Initializing..."']
-  # The generate command runs in the Application source directory each time manifests are generated. Standard output
-  # must be ONLY valid Kubernetes Objects in either YAML or JSON. A non-zero exit code will fail manifest generation.
-  # To write log messages from the command, write them to stderr, it will always be displayed.
-  # Error output will be sent to the UI, so avoid printing sensitive information (such as secrets).
+  # The generate command runs in the Application source directory each time
+  # manifests are generated. Standard output must be ONLY valid Kubernetes
+  # Objects in either YAML or JSON. A non-zero exit code will fail manifest
+  # generation. To write log messages from the command, write them to stderr, it
+  # will always be displayed. Error output will be sent to the UI, so avoid
+  # printing sensitive information (such as secrets).
   generate:
     command: [sh, -c]
     args:
       - |
         echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\", \"annotations\": {\"Foo\": \"$ARGOCD_ENV_FOO\", \"KubeVersion\": \"$KUBE_VERSION\", \"KubeApiVersion\": \"$KUBE_API_VERSIONS\",\"Bar\": \"baz\"}}}"
-  # The discovery config is applied to a repository. If every configured discovery tool matches, then the plugin may be
-  # used to generate manifests for Applications using the repository. If the discovery config is omitted then the plugin 
-  # will not match any application but can still be invoked explicitly by specifying the plugin name in the app spec. 
-  # Only one of fileName, find.glob, or find.command should be specified. If multiple are specified then only the 
-  # first (in that order) is evaluated.
+  # The discovery config is applied to a repository. If every configured
+  # discovery tool matches, then the plugin may be used to generate manifests
+  # for Applications using the repository. If the discovery config is omitted
+  # then the plugin will not match any application but can still be invoked
+  # explicitly by specifying the plugin name in the app spec. Only one of
+  # fileName, find.glob, or find.command should be specified. If multiple are
+  # specified then only the first (in that order) is evaluated.
   discover:
-    # fileName is a glob pattern (https://pkg.go.dev/path/filepath#Glob) that is applied to the Application's source 
-    # directory. If there is a match, this plugin may be used for the Application.
+    # fileName is a glob pattern (https://pkg.go.dev/path/filepath#Glob) that is
+    # applied to the Application's source directory. If there is a match, this
+    # plugin may be used for the Application.
     fileName: "./subdir/s*.yaml"
     find:
-      # This does the same thing as fileName, but it supports double-start (nested directory) glob patterns.
+      # This does the same thing as fileName, but it supports double-start
+      # (nested directory) glob patterns.
       glob: "**/Chart.yaml"
-      # The find command runs in the repository's root directory. To match, it must exit with status code 0 _and_ 
-      # produce non-empty output to standard out.
+      # The find command runs in the repository's root directory. To match, it
+      # must exit with status code 0 _and_ produce non-empty output to standard
+      # out.
       command: [sh, -c, find . -name env.yaml]
-  # The parameters config describes what parameters the UI should display for an Application. It is up to the user to
-  # actually set parameters in the Application manifest (in spec.source.plugin.parameters). The announcements _only_
-  # inform the "Parameters" tab in the App Details page of the UI.
+  # The parameters config describes what parameters the UI should display for an
+  # Application. It is up to the user to actually set parameters in the
+  # Application manifest (in spec.source.plugin.parameters). The announcements
+  # _only_ inform the "Parameters" tab in the App Details page of the UI.
   parameters:
-    # Static parameter announcements are sent to the UI for _all_ Applications handled by this plugin.
-    # Think of the `string`, `array`, and `map` values set here as "defaults". It is up to the plugin author to make 
-    # sure that these default values actually reflect the plugin's behavior if the user doesn't explicitly set different
-    # values for those parameters.
+    # Static parameter announcements are sent to the UI for _all_ Applications
+    # handled by this plugin. Think of the `string`, `array`, and `map` values
+    # set here as "defaults". It is up to the plugin author to make sure that
+    # these default values actually reflect the plugin's behavior if the user
+    # doesn't explicitly set different values for those parameters.
     static:
       - name: string-param
         title: Description of the string param
         tooltip: Tooltip shown when the user hovers the
-        # If this field is set, the UI will indicate to the user that they must set the value.
+        # If this field is set, the UI will indicate to the user that they must
+        # set the value.
         required: false
-        # itemType tells the UI how to present the parameter's value (or, for arrays and maps, values). Default is
-        # "string". Examples of other types which may be supported in the future are "boolean" or "number".
-        # Even if the itemType is not "string", the parameter value from the Application spec will be sent to the plugin
-        # as a string. It's up to the plugin to do the appropriate conversion.
+        # itemType tells the UI how to present the parameter's value (or, for
+        # arrays and maps, values). Default is "string". Examples of other types
+        # which may be supported in the future are "boolean" or "number". Even
+        # if the itemType is not "string", the parameter value from the
+        # Application spec will be sent to the plugin as a string. It's up to
+        # the plugin to do the appropriate conversion.
         itemType: ""
-        # collectionType describes what type of value this parameter accepts (string, array, or map) and allows the UI
-        # to present a form to match that type. Default is "string". This field must be present for non-string types.
-        # It will not be inferred from the presence of an `array` or `map` field.
+        # collectionType describes what type of value this parameter accepts
+        # (string, array, or map) and allows the UI to present a form to match
+        # that type. Default is "string". This field must be present for
+        # non-string types. It will not be inferred from the presence of an
+        # `array` or `map` field.
         collectionType: ""
-        # This field communicates the parameter's default value to the UI. Setting this field is optional.
+        # This field communicates the parameter's default value to the UI.
+        # Setting this field is optional.
         string: default-string-value
-      # All the fields above besides "string" apply to both the array and map type parameter announcements.
+      # All the fields above besides "string" apply to both the array and map
+      # type parameter announcements.
       - name: array-param
-        # This field communicates the parameter's default value to the UI. Setting this field is optional.
+        # This field communicates the parameter's default value to the UI.
+        # Setting this field is optional.
         array: [default, items]
         collectionType: array
       - name: map-param
-        # This field communicates the parameter's default value to the UI. Setting this field is optional.
+        # This field communicates the parameter's default value to the UI.
+        # Setting this field is optional.
         map:
           some: value
         collectionType: map
-    # Dynamic parameter announcements are announcements specific to an Application handled by this plugin. For example,
-    # the values for a Helm chart's values.yaml file could be sent as parameter announcements.
+    # Dynamic parameter announcements are announcements specific to an
+    # Application handled by this plugin. For example, the values for a Helm
+    # chart's values.yaml file could be sent as parameter announcements.
     dynamic:
-      # The command is run in an Application's source directory. Standard output must be JSON matching the schema of the
-      # static parameter announcements list.
+      # The command is run in an Application's source directory. Standard output
+      # must be JSON matching the schema of the static parameter announcements
+      # list.
       command: [echo, '[{"name": "example-param", "string": "default-string-value"}]']
 
-  # If set to `true` then the plugin receives repository files with original file mode. Dangerous since the repository
-  # might have executable files. Set to true only if you trust the CMP plugin authors.
+  # If set to `true` then the plugin receives repository files with original
+  # file mode. Dangerous since the repository might have executable files. Set
+  # to true only if you trust the CMP plugin authors.
   preserveFileMode: false
 
   # If set to `true` then the plugin can retrieve git credentials from the reposerver during generate. Plugin authors 
@@ -181,7 +204,9 @@ entrypoint. You can use either off-the-shelf or custom-built plugin image as sid
 ```yaml
 containers:
 - name: my-plugin
-  command: [/var/run/argocd/argocd-cmp-server] # Entrypoint should be Argo CD lightweight CMP server i.e. argocd-cmp-server
+  command: [/var/run/argocd/argocd-cmp-server] # Entrypoint should be Argo CD
+                                               # lightweight CMP server i.e.
+                                               # argocd-cmp-server
   image: ubuntu # This can be off-the-shelf or custom-built image
   securityContext:
     runAsNonRoot: true
@@ -191,12 +216,14 @@ containers:
       name: var-files
     - mountPath: /home/argocd/cmp-server/plugins
       name: plugins
-    # Remove this volumeMount if you've chosen to bake the config file into the sidecar image.
+    # Remove this volumeMount if you've chosen to bake the config file into the
+    # sidecar image.
     - mountPath: /home/argocd/cmp-server/config/plugin.yaml
       subPath: plugin.yaml
       name: my-plugin-config
-    # Starting with v2.4, do NOT mount the same tmp volume as the repo-server container. The filesystem separation helps 
-    # mitigate path traversal attacks.
+    # Starting with v2.4, do NOT mount the same tmp volume as the repo-server
+    # container. The filesystem separation helps mitigate path traversal
+    # attacks.
     - mountPath: /tmp
       name: cmp-tmp
 volumes:
@@ -387,10 +414,12 @@ First, copy the plugin's configuration into its own YAML file. Take for example 
 data:
   configManagementPlugins: |
     - name: pluginName
-      init:                          # Optional command to initialize application source directory
+      init:                          # Optional command to initialize
+                                     # application source directory
         command: ["sample command"]
         args: ["sample args"]
-      generate:                      # Command to generate Kubernetes Objects in either YAML or JSON
+      generate:                      # Command to generate Kubernetes Objects in
+                                     # either YAML or JSON
         command: ["sample command"]
         args: ["sample args"]
       lockRepo: true                 # Defaults to false. See below.
@@ -404,10 +433,12 @@ kind: ConfigManagementPlugin
 metadata:
   name: pluginName
 spec:
-  init:                          # Optional command to initialize application source directory
+  init:                          # Optional command to initialize application
+                                 # source directory
     command: ["sample command"]
     args: ["sample args"]
-  generate:                      # Command to generate Kubernetes Objects in either YAML or JSON
+  generate:                      # Command to generate Kubernetes Objects in
+                                 # either YAML or JSON
     command: ["sample command"]
     args: ["sample args"]
 ```
@@ -433,10 +464,12 @@ data:
     metadata:
       name: pluginName
     spec:
-      init:                          # Optional command to initialize application source directory
+      init:                          # Optional command to initialize
+                                     # application source directory
         command: ["sample command"]
         args: ["sample args"]
-      generate:                      # Command to generate Kubernetes Objects in either YAML or JSON
+      generate:                      # Command to generate Kubernetes Objects in
+                                     # either YAML or JSON
         command: ["sample command"]
         args: ["sample args"]
 ```
@@ -463,7 +496,9 @@ metadata:
 spec:
   source:
     plugin:
-      name: pluginName  # Delete this for auto-discovery (and set `plugin: {}` if `name` was the only value) or use proper sidecar plugin name
+      name: pluginName  # Delete this for auto-discovery (and set `plugin: {}`
+                        # if `name` was the only value) or use proper sidecar
+                        # plugin name
 ```
 
 ### Make sure the plugin has access to the tools it needs
