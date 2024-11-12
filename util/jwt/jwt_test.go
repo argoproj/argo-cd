@@ -1,7 +1,6 @@
 package jwt
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -45,7 +44,7 @@ func TestIssuedAtTime_Int64(t *testing.T) {
 	claims := jwt.MapClaims{"iat": int64(1606831200)}
 	issuedAt, err := IssuedAtTime(claims)
 	require.NoError(t, err)
-	str := fmt.Sprint(issuedAt.UTC().Format("Mon Jan _2 15:04:05 2006"))
+	str := issuedAt.UTC().Format("Mon Jan _2 15:04:05 2006")
 	assert.Equal(t, "Tue Dec  1 14:00:00 2020", str)
 }
 
