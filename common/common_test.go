@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"testing"
 	"time"
 
@@ -41,7 +42,7 @@ func Test_GRPCKeepAliveMinIsSet(t *testing.T) {
 // Test invalid env var set for EnvGRPCKeepAliveMin
 func Test_GRPCKeepAliveMinIncorrectlySet(t *testing.T) {
 	numSeconds := 15
-	os.Setenv(EnvGRPCKeepAliveMin, fmt.Sprintf("%d", numSeconds))
+	os.Setenv(EnvGRPCKeepAliveMin, strconv.Itoa(numSeconds))
 
 	grpcKeepAliveMin := GetGRPCKeepAliveEnforcementMinimum()
 	grpcKeepAliveExpectedMin := defaultGRPCKeepAliveEnforcementMinimum

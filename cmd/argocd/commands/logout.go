@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
@@ -35,19 +36,26 @@ $ argocd logout
 				log.Fatalf("Nothing to logout from")
 			}
 
-			ok := localCfg.RemoveToken(context)
-			if !ok {
-				log.Fatalf("Context %s does not exist", context)
-			}
+			promptUtil := utils.NewPrompt(globalClientOpts.PromptsEnabled)
 
-			err = localconfig.ValidateLocalConfig(*localCfg)
-			if err != nil {
-				log.Fatalf("Error in logging out: %s", err)
-			}
-			err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
-			errors.CheckError(err)
+			canLogout := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to log out from '%s'?", context))
+			if canLogout {
+				ok := localCfg.RemoveToken(context)
+				if !ok {
+					log.Fatalf("Context %s does not exist", context)
+				}
 
-			fmt.Printf("Logged out from '%s'\n", context)
+				err = localconfig.ValidateLocalConfig(*localCfg)
+				if err != nil {
+					log.Fatalf("Error in logging out: %s", err)
+				}
+				err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
+				errors.CheckError(err)
+
+				fmt.Printf("Logged out from '%s'\n", context)
+			} else {
+				log.Infof("Logout from '%s' cancelled", context)
+			}
 		},
 	}
 	return command

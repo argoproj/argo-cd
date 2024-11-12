@@ -628,6 +628,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 			Message: fmt.Sprintf("Application has %d orphaned resources", len(orphanedNodes)),
 		}}
 	}
+	ctrl.metricsServer.SetOrphanedResourcesMetric(a, len(orphanedNodes))
 	a.Status.SetConditions(conditions, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionOrphanedResourceWarning: true})
 	sort.Slice(orphanedNodes, func(i, j int) bool {
 		return orphanedNodes[i].ResourceRef.String() < orphanedNodes[j].ResourceRef.String()
@@ -759,7 +760,7 @@ func (ctrl *ApplicationController) hideSecretData(app *appv1.Application, compar
 		resDiff := res.Diff
 		if res.Kind == kube.SecretKind && res.Group == "" {
 			var err error
-			target, live, err = diff.HideSecretData(res.Target, res.Live)
+			target, live, err = diff.HideSecretData(res.Target, res.Live, ctrl.settingsMgr.GetSensitiveAnnotations())
 			if err != nil {
 				return nil, fmt.Errorf("error hiding secret data: %w", err)
 			}

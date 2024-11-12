@@ -8,10 +8,7 @@ func ConvertToMapStringString(mapStringInterface map[string]interface{}) map[str
 	mapStringString := make(map[string]string, len(mapStringInterface))
 
 	for key, value := range mapStringInterface {
-		strKey := fmt.Sprintf("%v", key)
-		strValue := fmt.Sprintf("%v", value)
-
-		mapStringString[strKey] = strValue
+		mapStringString[key] = fmt.Sprintf("%v", value)
 	}
 	return mapStringString
 }
