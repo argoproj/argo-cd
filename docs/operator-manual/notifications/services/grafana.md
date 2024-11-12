@@ -44,8 +44,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   annotations:
-    # list of tags separated with |
-    notifications.argoproj.io/subscribe.<trigger-name>.grafana: tag1|tag2
+    notifications.argoproj.io/subscribe.<trigger-name>.grafana: tag1|tag2 # list of tags separated with |
 ```
 
 8. Change the annotations settings
