@@ -165,7 +165,7 @@ spec:
 * `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
 * `tokenRef`: A `Secret` name and key containing the Gitea access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
 * `insecure`: Allow for self-signed TLS certificates.
-* `excludeArchivedRepos`: exclude repositories that are archived. defaults to false\
+* `excludeArchivedRepos`: exclude repositories that are archived. defaults to false
 
 This SCM provider does not yet support label filtering
 
