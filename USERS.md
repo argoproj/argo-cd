@@ -120,6 +120,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [freee](https://corp.freee.co.jp/en/company/)
 1. [Freshop, Inc](https://www.freshop.com/)
 1. [Future PLC](https://www.futureplc.com/)
+1. [Flagler Health](https://www.flaglerhealth.io/)
 1. [G DATA CyberDefense AG](https://www.gdata-software.com/)
 1. [G-Research](https://www.gresearch.com/teams/open-source-software/)
 1. [Garner](https://www.garnercorp.com)

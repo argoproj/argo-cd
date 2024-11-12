@@ -29,9 +29,7 @@ func TestPrintApplicationSetNames(t *testing.T) {
 		return nil
 	})
 	expectation := "test\nteam-one/test\n"
-	if output != expectation {
-		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
-	}
+	require.Equalf(t, output, expectation, "Incorrect print params output %q, should be %q", output, expectation)
 }
 
 func TestPrintApplicationSetTable(t *testing.T) {

@@ -3,6 +3,7 @@ package env
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"testing"
 	"time"
 
@@ -23,10 +24,10 @@ func TestParseNumFromEnv(t *testing.T) {
 		{"Valid positive number", "200", 200},
 		{"Valid negative number", "-200", -200},
 		{"Invalid number", "abc", def},
-		{"Equals minimum", fmt.Sprintf("%d", math.MinInt+1), min},
-		{"Equals maximum", fmt.Sprintf("%d", math.MaxInt-1), max},
-		{"Less than minimum", fmt.Sprintf("%d", math.MinInt), def},
-		{"Greater than maximum", fmt.Sprintf("%d", math.MaxInt), def},
+		{"Equals minimum", strconv.Itoa(math.MinInt + 1), min},
+		{"Equals maximum", strconv.Itoa(math.MaxInt - 1), max},
+		{"Less than minimum", strconv.Itoa(math.MinInt), def},
+		{"Greater than maximum", strconv.Itoa(math.MaxInt), def},
 		{"Variable not set", "", def},
 	}
 
@@ -81,10 +82,10 @@ func TestParseInt64FromEnv(t *testing.T) {
 	}{
 		{"Valid int64", "200", 200},
 		{"Text as invalid int64", "abc", def},
-		{"Equals maximum", fmt.Sprintf("%d", max), max},
-		{"Equals minimum", fmt.Sprintf("%d", min), min},
-		{"Greater than maximum", fmt.Sprintf("%d", max+1), def},
-		{"Less than minimum", fmt.Sprintf("%d", min-1), def},
+		{"Equals maximum", strconv.FormatInt(max, 10), max},
+		{"Equals minimum", strconv.FormatInt(min, 10), min},
+		{"Greater than maximum", strconv.FormatInt(max+1, 10), def},
+		{"Less than minimum", strconv.FormatInt(min-1, 10), def},
 		{"Environment not set", "", def},
 	}
 

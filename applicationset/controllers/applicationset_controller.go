@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1047,7 +1048,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 				LastTransitionTime: &now,
 				Message:            "No Application status found, defaulting status to Waiting.",
 				Status:             "Waiting",
-				Step:               fmt.Sprint(getAppStep(app.Name, appStepMap)),
+				Step:               strconv.Itoa(getAppStep(app.Name, appStepMap)),
 				TargetRevisions:    app.Status.GetRevisions(),
 			}
 		} else {
@@ -1072,7 +1073,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 			currentAppStatus.LastTransitionTime = &now
 			currentAppStatus.Status = "Waiting"
 			currentAppStatus.Message = "Application has pending changes, setting status to Waiting."
-			currentAppStatus.Step = fmt.Sprint(getAppStep(currentAppStatus.Application, appStepMap))
+			currentAppStatus.Step = strconv.Itoa(getAppStep(currentAppStatus.Application, appStepMap))
 			currentAppStatus.TargetRevisions = app.Status.GetRevisions()
 		}
 
@@ -1090,14 +1091,14 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 					currentAppStatus.LastTransitionTime = &now
 					currentAppStatus.Status = "Progressing"
 					currentAppStatus.Message = "Application resource completed a sync successfully, updating status from Pending to Progressing."
-					currentAppStatus.Step = fmt.Sprint(getAppStep(currentAppStatus.Application, appStepMap))
+					currentAppStatus.Step = strconv.Itoa(getAppStep(currentAppStatus.Application, appStepMap))
 				}
 			} else if operationPhaseString == "Running" || healthStatusString == "Progressing" {
 				logCtx.Infof("Application %v has entered Progressing status, updating its ApplicationSet status to Progressing", app.Name)
 				currentAppStatus.LastTransitionTime = &now
 				currentAppStatus.Status = "Progressing"
 				currentAppStatus.Message = "Application resource became Progressing, updating status from Pending to Progressing."
-				currentAppStatus.Step = fmt.Sprint(getAppStep(currentAppStatus.Application, appStepMap))
+				currentAppStatus.Step = strconv.Itoa(getAppStep(currentAppStatus.Application, appStepMap))
 			}
 		}
 
@@ -1106,7 +1107,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 			currentAppStatus.LastTransitionTime = &now
 			currentAppStatus.Status = healthStatusString
 			currentAppStatus.Message = "Application resource is already Healthy, updating status from Waiting to Healthy."
-			currentAppStatus.Step = fmt.Sprint(getAppStep(currentAppStatus.Application, appStepMap))
+			currentAppStatus.Step = strconv.Itoa(getAppStep(currentAppStatus.Application, appStepMap))
 		}
 
 		if currentAppStatus.Status == "Progressing" && isApplicationHealthy(app) {
@@ -1114,7 +1115,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 			currentAppStatus.LastTransitionTime = &now
 			currentAppStatus.Status = healthStatusString
 			currentAppStatus.Message = "Application resource became Healthy, updating status from Progressing to Healthy."
-			currentAppStatus.Step = fmt.Sprint(getAppStep(currentAppStatus.Application, appStepMap))
+			currentAppStatus.Step = strconv.Itoa(getAppStep(currentAppStatus.Application, appStepMap))
 		}
 
 		appStatuses = append(appStatuses, currentAppStatus)
@@ -1185,7 +1186,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 				appStatus.LastTransitionTime = &now
 				appStatus.Status = "Pending"
 				appStatus.Message = "Application moved to Pending status, watching for the Application resource to start Progressing."
-				appStatus.Step = fmt.Sprint(getAppStep(appStatus.Application, appStepMap))
+				appStatus.Step = strconv.Itoa(getAppStep(appStatus.Application, appStepMap))
 
 				updateCountMap[appStepMap[appStatus.Application]] += 1
 			}

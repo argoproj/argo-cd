@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="18 known vulnerabilities found in 72 vulnerable dependency paths.">
+  <meta name="description" content="19 known vulnerabilities found in 73 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">October 27th 2024, 12:19:58 am (UTC+00:00)</p>
+                <p class="timestamp">November 10th 2024, 12:19:23 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -470,9 +470,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>18</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>72 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2359</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>19</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>73 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2358</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -2317,7 +2317,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        git-lfs@3.4.1-1ubuntu0.1
+                                        git-lfs@3.4.1-1ubuntu0.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                         
@@ -2347,6 +2347,99 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-GIT-6723389">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2024-9681</h2>
+            <div class="card__section">
+        
+                <div class="label label--low">
+                    <span class="label__text">low severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            curl/libcurl3t64-gnutls
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.43.0-1ubuntu7.1 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.43.0-1ubuntu7.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>curl</code> package and not the <code>curl</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>When curl is asked to use HSTS, the expiry time for a subdomain might
+        overwrite a parent domain&#39;s cache entry, making it end sooner or later than
+        otherwise intended.</p>
+        <p>This affects curl using applications that enable HSTS and use URLs with the
+        insecure <code>HTTP://</code> scheme and perform transfers with hosts like
+        <code>x.example.com</code> as well as <code>example.com</code> where the first host is a subdomain
+        of the second host.</p>
+        <p>(The HSTS cache either needs to have been populated manually or there needs to
+        have been previous HTTPS accesses done as the cache needs to have entries for
+        the domains involved to trigger this problem.)</p>
+        <p>When <code>x.example.com</code> responds with <code>Strict-Transport-Security:</code> headers, this
+        bug can make the subdomain&#39;s expiry timeout <em>bleed over</em> and get set for the
+        parent domain <code>example.com</code> in curl&#39;s HSTS cache.</p>
+        <p>The result of a triggered bug is that HTTP accesses to <code>example.com</code> get
+        converted to HTTPS for a different period of time than what was asked for by
+        the origin server. If <code>example.com</code> for example stops supporting HTTPS at its
+        expiry time, curl might then fail to access <code>http://example.com</code> until the
+        (wrongly set) timeout expires. This bug can also expire the parent&#39;s entry
+        <em>earlier</em>, thus making curl inadvertently switch back to insecure HTTP earlier
+        than otherwise intended.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:24.04</code> <code>curl</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-9681">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-9681</a></li>
+        <li><a href="https://curl.se/docs/CVE-2024-9681.html">https://curl.se/docs/CVE-2024-9681.html</a></li>
+        <li><a href="https://curl.se/docs/CVE-2024-9681.json">https://curl.se/docs/CVE-2024-9681.json</a></li>
+        <li><a href="https://hackerone.com/reports/2764830">https://hackerone.com/reports/2764830</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-CURL-8344769">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
