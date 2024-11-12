@@ -2793,33 +2793,38 @@ func TestSyncWindow_Active(t *testing.T) {
 func TestSyncWindow_Update(t *testing.T) {
 	e := SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h", Applications: []string{"app1"}}
 	t.Run("AddApplication", func(t *testing.T) {
-		err := e.Update("", "", []string{"app1", "app2"}, []string{}, []string{}, "")
+		err := e.Update("", "", []string{"app1", "app2"}, []string{}, []string{}, "", "")
 		require.NoError(t, err)
 		assert.Equal(t, []string{"app1", "app2"}, e.Applications)
 	})
 	t.Run("AddNamespace", func(t *testing.T) {
-		err := e.Update("", "", []string{}, []string{"namespace1"}, []string{}, "")
+		err := e.Update("", "", []string{}, []string{"namespace1"}, []string{}, "", "")
 		require.NoError(t, err)
 		assert.Equal(t, []string{"namespace1"}, e.Namespaces)
 	})
 	t.Run("AddCluster", func(t *testing.T) {
-		err := e.Update("", "", []string{}, []string{}, []string{"cluster1"}, "")
+		err := e.Update("", "", []string{}, []string{}, []string{"cluster1"}, "", "")
 		require.NoError(t, err)
 		assert.Equal(t, []string{"cluster1"}, e.Clusters)
 	})
 	t.Run("MissingConfig", func(t *testing.T) {
-		err := e.Update("", "", []string{}, []string{}, []string{}, "")
+		err := e.Update("", "", []string{}, []string{}, []string{}, "", "")
 		require.EqualError(t, err, "cannot update: require one or more of schedule, duration, application, namespace, or cluster")
 	})
 	t.Run("ChangeDuration", func(t *testing.T) {
-		err := e.Update("", "10h", []string{}, []string{}, []string{}, "")
+		err := e.Update("", "10h", []string{}, []string{}, []string{}, "", "")
 		require.NoError(t, err)
 		assert.Equal(t, "10h", e.Duration)
 	})
 	t.Run("ChangeSchedule", func(t *testing.T) {
-		err := e.Update("* 1 0 0 *", "", []string{}, []string{}, []string{}, "")
+		err := e.Update("* 1 0 0 *", "", []string{}, []string{}, []string{}, "", "")
 		require.NoError(t, err)
 		assert.Equal(t, "* 1 0 0 *", e.Schedule)
+	})
+	t.Run("AddDescription", func(t *testing.T) {
+		err := e.Update("", "", []string{}, []string{}, []string{}, "", "Ticket 123")
+		require.NoError(t, err)
+		assert.Equal(t, "Ticket 123", e.Description)
 	})
 }
 
