@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClient(t *testing.T) {
@@ -24,9 +25,7 @@ func TestClient(t *testing.T) {
 
 	var clientOptionFns []ClientOptionFunc
 	_, err := NewClient(server.URL, clientOptionFns...)
-	if err != nil {
-		t.Fatalf("Failed to create client: %v", err)
-	}
+	require.NoError(t, err, "Failed to create client")
 }
 
 func TestClientDo(t *testing.T) {
@@ -118,14 +117,10 @@ func TestClientDo(t *testing.T) {
 			defer cc.fakeServer.Close()
 
 			client, err := NewClient(cc.fakeServer.URL, cc.clientOptionFns...)
-			if err != nil {
-				t.Fatalf("NewClient returned unexpected error: %v", err)
-			}
+			require.NoError(t, err, "NewClient returned unexpected error")
 
 			req, err := client.NewRequest("POST", "", cc.params, nil)
-			if err != nil {
-				t.Fatalf("NewRequest returned unexpected error: %v", err)
-			}
+			require.NoError(t, err, "NewRequest returned unexpected error")
 
 			var data []map[string]interface{}
 
@@ -149,12 +144,5 @@ func TestCheckResponse(t *testing.T) {
 	}
 
 	err := CheckResponse(resp)
-	if err == nil {
-		t.Error("Expected an error, got nil")
-	}
-
-	expected := "API error with status code 400: invalid_request"
-	if err.Error() != expected {
-		t.Errorf("Expected error '%s', got '%s'", expected, err.Error())
-	}
+	require.EqualError(t, err, "API error with status code 400: invalid_request")
 }

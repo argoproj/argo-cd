@@ -507,9 +507,7 @@ func TestRotateAuth(t *testing.T) {
 	}
 
 	configMarshal, err := json.Marshal(config)
-	if err != nil {
-		t.Errorf("failed to marshal config for test: %v", err)
-	}
+	require.NoError(t, err, "failed to marshal config for test")
 
 	clientset := getClientset(nil, testNamespace,
 		&corev1.Secret{
@@ -716,9 +714,7 @@ func TestListCluster(t *testing.T) {
 				t.Errorf("Server.List() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Server.List() = %v, want %v", got, tt.want)
-			}
+			assert.Truef(t, reflect.DeepEqual(got, tt.want), "Server.List() = %v, want %v", got, tt.want)
 		})
 	}
 }
@@ -801,14 +797,12 @@ func TestNoClusterEnumeration(t *testing.T) {
 		_, err := server.Get(context.Background(), &clusterapi.ClusterQuery{
 			Name: "cluster-not-exists",
 		})
-		require.Error(t, err)
-		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+		require.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 
 		_, err = server.Get(context.Background(), &clusterapi.ClusterQuery{
 			Name: "test/ing",
 		})
-		require.Error(t, err)
-		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+		assert.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 	})
 
 	t.Run("Update", func(t *testing.T) {
@@ -817,57 +811,49 @@ func TestNoClusterEnumeration(t *testing.T) {
 				Name: "cluster-not-exists",
 			},
 		})
-		require.Error(t, err)
-		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+		require.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 
 		_, err = server.Update(context.Background(), &clusterapi.ClusterUpdateRequest{
 			Cluster: &v1alpha1.Cluster{
 				Name: "test/ing",
 			},
 		})
-		require.Error(t, err)
-		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+		assert.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 	})
 
 	t.Run("Delete", func(t *testing.T) {
 		_, err := server.Delete(context.Background(), &clusterapi.ClusterQuery{
 			Server: "https://127.0.0.2",
 		})
-		require.Error(t, err)
-		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+		require.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 
 		_, err = server.Delete(context.Background(), &clusterapi.ClusterQuery{
 			Server: "https://127.0.0.1",
 		})
-		require.Error(t, err)
-		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+		assert.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 	})
 
 	t.Run("RotateAuth", func(t *testing.T) {
 		_, err := server.RotateAuth(context.Background(), &clusterapi.ClusterQuery{
 			Server: "https://127.0.0.2",
 		})
-		require.Error(t, err)
-		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+		require.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 
 		_, err = server.RotateAuth(context.Background(), &clusterapi.ClusterQuery{
 			Server: "https://127.0.0.1",
 		})
-		require.Error(t, err)
-		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+		assert.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 	})
 
 	t.Run("InvalidateCache", func(t *testing.T) {
 		_, err := server.InvalidateCache(context.Background(), &clusterapi.ClusterQuery{
 			Server: "https://127.0.0.2",
 		})
-		require.Error(t, err)
-		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+		require.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 
 		_, err = server.InvalidateCache(context.Background(), &clusterapi.ClusterQuery{
 			Server: "https://127.0.0.1",
 		})
-		require.Error(t, err)
-		assert.Equal(t, common.PermissionDeniedAPIError.Error(), err.Error(), "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
+		assert.ErrorIs(t, err, common.PermissionDeniedAPIError, "error message must be _only_ the permission error, to avoid leaking information about cluster existence")
 	})
 }

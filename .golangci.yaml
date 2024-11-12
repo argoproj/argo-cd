@@ -18,6 +18,7 @@ linters:
     - govet
     - ineffassign
     - misspell
+    - perfsprint
     - staticcheck
     - testifylint
     - thelper
@@ -39,6 +40,17 @@ linters-settings:
       - typeSwitchVar
   goimports:
     local-prefixes: github.com/argoproj/argo-cd/v2
+  perfsprint:
+    # Optimizes even if it requires an int or uint type cast.
+    int-conversion: true
+    # Optimizes into `err.Error()` even if it is only equivalent for non-nil errors.
+    err-error: false
+    # Optimizes `fmt.Errorf`.
+    errorf: false
+    # Optimizes `fmt.Sprintf` with only one argument.
+    sprintf1: true
+    # Optimizes into strings concatenation.
+    strconcat: false
   testifylint:
     enable-all: true
     disable:
