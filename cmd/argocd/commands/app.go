@@ -1649,6 +1649,10 @@ func formatConditionsSummary(app argoappv1.Application) string {
 			items = append(items, cndType)
 		}
 	}
+
+	// Sort the keys by name
+	sort.Strings(items)
+
 	summary := "<none>"
 	if len(items) > 0 {
 		summary = strings.Join(items, ",")
