@@ -1178,18 +1178,18 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 			// argoDB := db.NewDB("namespace", settingsMgr, r.KubeClientset)
 			// clusterList, err := argoDB.ListClusters(context.Background())
 			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace")
-			require.NoError(t, err, "Unexpected error")
+			require.NoError(t, err)
 
 			appLog := log.WithFields(log.Fields{"app": app.Name, "appSet": ""})
 
 			appInputParam := app.DeepCopy()
 
 			err = r.removeFinalizerOnInvalidDestination(context.Background(), appSet, appInputParam, clusterList, appLog)
-			require.NoError(t, err, "Unexpected error")
+			require.NoError(t, err)
 
 			retrievedApp := v1alpha1.Application{}
 			err = client.Get(context.Background(), crtclient.ObjectKeyFromObject(&app), &retrievedApp)
-			require.NoError(t, err, "Unexpected error")
+			require.NoError(t, err)
 
 			// App on the cluster should have the expected finalizers
 			assert.ElementsMatch(t, c.expectedFinalizers, retrievedApp.Finalizers)
@@ -1334,18 +1334,18 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 			// argoDB := db.NewDB("argocd", settingsMgr, r.KubeClientset)
 			// clusterList, err := argoDB.ListClusters(context.Background())
 			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace")
-			require.NoError(t, err, "Unexpected error")
+			require.NoError(t, err)
 
 			appLog := log.WithFields(log.Fields{"app": app.Name, "appSet": ""})
 
 			appInputParam := app.DeepCopy()
 
 			err = r.removeFinalizerOnInvalidDestination(context.Background(), appSet, appInputParam, clusterList, appLog)
-			require.NoError(t, err, "Unexpected error")
+			require.NoError(t, err)
 
 			retrievedApp := v1alpha1.Application{}
 			err = client.Get(context.Background(), crtclient.ObjectKeyFromObject(&app), &retrievedApp)
-			require.NoError(t, err, "Unexpected error")
+			require.NoError(t, err)
 
 			finalizerRemoved := len(retrievedApp.Finalizers) == 0
 
@@ -1402,7 +1402,7 @@ func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 			}
 
 			err := controllerutil.SetControllerReference(&appSet, &app, scheme)
-			require.NoError(t, err, "Unexpected error")
+			require.NoError(t, err)
 
 			initObjs := []crtclient.Object{&app, &appSet}
 
@@ -1418,11 +1418,11 @@ func TestRemoveOwnerReferencesOnDeleteAppSet(t *testing.T) {
 			}
 
 			err = r.removeOwnerReferencesOnDeleteAppSet(context.Background(), appSet)
-			require.NoError(t, err, "Unexpected error")
+			require.NoError(t, err)
 
 			retrievedApp := v1alpha1.Application{}
 			err = client.Get(context.Background(), crtclient.ObjectKeyFromObject(&app), &retrievedApp)
-			require.NoError(t, err, "Unexpected error")
+			require.NoError(t, err)
 
 			ownerReferencesRemoved := len(retrievedApp.OwnerReferences) == 0
 			assert.True(t, ownerReferencesRemoved)

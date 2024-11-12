@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="39 known vulnerabilities found in 127 vulnerable dependency paths.">
+  <meta name="description" content="41 known vulnerabilities found in 129 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">October 27th 2024, 12:24:26 am (UTC+00:00)</p>
+                <p class="timestamp">November 10th 2024, 12:26:18 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -469,8 +469,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>39</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>127 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>41</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>129 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>829</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -556,6 +556,74 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTTP2-6531285">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Path Traversal</h2>
+            <div class="card__section">
+        
+                <div class="label label--high">
+                    <span class="label__text">high severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.38.0/hairyhenderson/gomplate/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/hashicorp/consul/api
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v3@* and github.com/hashicorp/consul/api@v1.13.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/hashicorp/consul/api@v1.13.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Path Traversal due to a lack of path normalization, when using URL paths in L7 traffic intentions. An attacker could bypass HTTP request path-based access rules, using URL-encoded paths and/or multiple slashes.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/hashicorp/consul/api</code> to version 1.20.1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/hashicorp/consul/commit/d9206fc7e284a9244af4d62f8653a63ca30bd00c">GitHub Commit</a></li>
+        <li><a href="https://discuss.hashicorp.com/t/hcsec-2024-22-consul-l7-intentions-vulnerable-to-url-path-bypass/71035">HashiCorp Discuss</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMHASHICORPCONSULAPI-8310965">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -2329,6 +2397,74 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:hashicorp:errwrap:MPL-2.0">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Access Control Bypass</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.38.0/hairyhenderson/gomplate/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/hashicorp/consul/api
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v3@* and github.com/hashicorp/consul/api@v1.13.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/hashicorp/consul/api@v1.13.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Access Control Bypass due to a lack of header normalization while using Headers in L7 traffic intentions. By exploiting this, an attacker could bypass HTTP header based access rules.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/hashicorp/consul/api</code> to version 1.20.1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/hashicorp/consul/commit/d9206fc7e284a9244af4d62f8653a63ca30bd00c">GitHub Commit</a></li>
+        <li><a href="https://discuss.hashicorp.com/t/hcsec-2024-23-consul-l7-intentions-vulnerable-to-headers-bypass/71036">HashiCorp Discuss</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMHASHICORPCONSULAPI-8310963">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->

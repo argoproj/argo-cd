@@ -3,10 +3,10 @@ package logout
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"strconv"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -385,7 +385,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 			if status := tt.responseRecorder.Code; status != http.StatusSeeOther {
 				if !tt.wantErr {
 					t.Error(tt.responseRecorder.Body.String())
-					t.Error("handler returned wrong status code: " + fmt.Sprintf("%d", tt.responseRecorder.Code))
+					t.Error("handler returned wrong status code: " + strconv.Itoa(tt.responseRecorder.Code))
 				}
 			} else {
 				if tt.wantErr {
