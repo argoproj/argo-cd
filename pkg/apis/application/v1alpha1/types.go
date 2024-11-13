@@ -2764,6 +2764,11 @@ func (w *SyncWindow) Validate() error {
 	if err != nil {
 		return fmt.Errorf("cannot parse duration '%s': %w", w.Duration, err)
 	}
+
+	if len(w.Description) > 255 {
+		return fmt.Errorf("description must not exceed 255 characters")
+	}
+
 	return nil
 }
 
