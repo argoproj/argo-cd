@@ -251,9 +251,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "application/text")
 			_, err := w.Write([]byte("Ok"))
-			if err != nil {
-				t.Fatalf("error writing response: %s", err)
-			}
+			require.NoError(t, err, "error writing response: %s", err)
 		}
 	}
 	type testCase struct {
@@ -326,9 +324,7 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 			ts := httptest.NewServer(WithAuthMiddleware(tc.authDisabled, tm, mux))
 			defer ts.Close()
 			req, err := http.NewRequest(http.MethodGet, ts.URL, nil)
-			if err != nil {
-				t.Fatalf("error creating request: %s", err)
-			}
+			require.NoErrorf(t, err, "error creating request: %s", err)
 			if tc.cookieHeader {
 				req.Header.Add("Cookie", "argocd.token=123456")
 			}
@@ -478,8 +474,8 @@ func TestCacheValueGetters(t *testing.T) {
 	})
 
 	t.Run("Greater than allowed in environment overrides", func(t *testing.T) {
-		t.Setenv(envLoginMaxFailCount, fmt.Sprintf("%d", math.MaxInt32+1))
-		t.Setenv(envLoginMaxCacheSize, fmt.Sprintf("%d", math.MaxInt32+1))
+		t.Setenv(envLoginMaxFailCount, strconv.Itoa(math.MaxInt32+1))
+		t.Setenv(envLoginMaxCacheSize, strconv.Itoa(math.MaxInt32+1))
 
 		mlf := getMaxLoginFailures()
 		assert.Equal(t, defaultMaxLoginFailures, mlf)

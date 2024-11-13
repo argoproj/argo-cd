@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -345,7 +346,7 @@ func (a *Actions) Sync(args ...string) *Actions {
 	if a.context.name != "" {
 		args = append(args, a.context.AppQualifiedName())
 	}
-	args = append(args, "--timeout", fmt.Sprintf("%v", a.context.timeout))
+	args = append(args, "--timeout", strconv.Itoa(a.context.timeout))
 
 	if a.context.async {
 		args = append(args, "--async")
@@ -441,7 +442,7 @@ func (a *Actions) Wait(args ...string) *Actions {
 	if a.context.name != "" {
 		args = append(args, a.context.AppQualifiedName())
 	}
-	args = append(args, "--timeout", fmt.Sprintf("%v", a.context.timeout))
+	args = append(args, "--timeout", strconv.Itoa(a.context.timeout))
 	a.runCli(args...)
 	return a
 }
