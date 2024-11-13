@@ -55,16 +55,19 @@ func (r *resourceInfoProviderStub) IsNamespaced(_ schema.GroupKind) (bool, error
 }
 
 type managedResource struct {
-	Target          *unstructured.Unstructured
-	Live            *unstructured.Unstructured
-	Diff            diff.DiffResult
-	Group           string
-	Version         string
-	Kind            string
-	Namespace       string
-	Name            string
-	Hook            bool
-	ResourceVersion string
+	Target           *unstructured.Unstructured
+	Live             *unstructured.Unstructured
+	Diff             diff.DiffResult
+	Group            string
+	Version          string
+	Kind             string
+	Namespace        string
+	Name             string
+	Hook             bool
+	ResourceVersion  string
+	RequiresPruning  bool
+	PruningDisabled  bool
+	IgnoreExtraneous bool
 }
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
@@ -754,6 +757,12 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 		if targetObj != nil {
 			resState.SyncWave = int64(syncwaves.Wave(targetObj))
 		}
+		if resourceutil.HasAnnotationOption(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionDisablePrune) {
+			resState.PruningDisabled = true
+		}
+		if resourceutil.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreExtraneous") {
+			resState.IgnoreExtraneous = true
+		}
 
 		var diffResult diff.DiffResult
 		if i < len(diffResults.Diffs) {
@@ -777,15 +786,17 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			// the source object, don't store sync status, and do not affect
 			// overall sync status
 		} else if !isManagedNs && (diffResult.Modified || targetObj == nil || liveObj == nil) {
-			// Set resource state to OutOfSync since one of the following is true:
-			// * target and live resource are different
-			// * target resource not defined and live resource is extra
-			// * target resource present but live resource is missing
-			resState.Status = v1alpha1.SyncStatusCodeOutOfSync
-			// we ignore the status if the obj needs pruning AND we have the annotation
-			needsPruning := targetObj == nil && liveObj != nil
-			if !(needsPruning && resourceutil.HasAnnotationOption(obj, common.AnnotationCompareOptions, "IgnoreExtraneous")) {
+			// set the overall AND resource sync status to OutOfSync,
+			// unless the resource requires pruning and has the IgnoreExtraneous annotation
+			if resState.RequiresPruning && resState.IgnoreExtraneous {
+				resState.Status = v1alpha1.SyncStatusCodeSynced
+			} else {
+				// One of the following is true:
+				// * target and live resource are different
+				// * target resource not defined and live resource is extra
+				// * target resource present but live resource is missing
 				syncCode = v1alpha1.SyncStatusCodeOutOfSync
+				resState.Status = v1alpha1.SyncStatusCodeOutOfSync
 			}
 		} else {
 			resState.Status = v1alpha1.SyncStatusCodeSynced
@@ -810,16 +821,19 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			resourceVersion = liveObj.GetResourceVersion()
 		}
 		managedResources[i] = managedResource{
-			Name:            resState.Name,
-			Namespace:       resState.Namespace,
-			Group:           resState.Group,
-			Kind:            resState.Kind,
-			Version:         resState.Version,
-			Live:            liveObj,
-			Target:          targetObj,
-			Diff:            diffResult,
-			Hook:            resState.Hook,
-			ResourceVersion: resourceVersion,
+			Name:             resState.Name,
+			Namespace:        resState.Namespace,
+			Group:            resState.Group,
+			Kind:             resState.Kind,
+			Version:          resState.Version,
+			Live:             liveObj,
+			Target:           targetObj,
+			Diff:             diffResult,
+			Hook:             resState.Hook,
+			ResourceVersion:  resourceVersion,
+			RequiresPruning:  resState.RequiresPruning,
+			PruningDisabled:  resState.PruningDisabled,
+			IgnoreExtraneous: resState.IgnoreExtraneous,
 		}
 		resourceSummaries[i] = resState
 	}

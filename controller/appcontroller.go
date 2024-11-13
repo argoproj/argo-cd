@@ -747,12 +747,15 @@ func (ctrl *ApplicationController) hideSecretData(app *appv1.Application, compar
 	for i := range comparisonResult.managedResources {
 		res := comparisonResult.managedResources[i]
 		item := appv1.ResourceDiff{
-			Namespace:       res.Namespace,
-			Name:            res.Name,
-			Group:           res.Group,
-			Kind:            res.Kind,
-			Hook:            res.Hook,
-			ResourceVersion: res.ResourceVersion,
+			Namespace:        res.Namespace,
+			Name:             res.Name,
+			Group:            res.Group,
+			Kind:             res.Kind,
+			Hook:             res.Hook,
+			ResourceVersion:  res.ResourceVersion,
+			RequiresPruning:  res.RequiresPruning,
+			PruningDisabled:  res.PruningDisabled,
+			IgnoreExtraneous: res.IgnoreExtraneous,
 		}
 
 		target := res.Target
