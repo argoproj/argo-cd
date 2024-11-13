@@ -269,6 +269,14 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Error AzureDevops",
+			providerConfig: &argoprojiov1alpha1.PullRequestGenerator{
+				AzureDevOps: &argoprojiov1alpha1.PullRequestGeneratorAzureDevOps{
+					API: "https://myservice.mynamespace.svc.cluster.local",
+				},
+			},
+		},
 	}
 
 	for _, testCase := range cases {

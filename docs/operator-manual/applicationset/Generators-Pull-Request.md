@@ -310,6 +310,12 @@ spec:
         # Labels is used to filter the PRs that you want to target. (optional)
         labels:
         - preview
+        # If true, skips validating the SCM provider's TLS certificate - useful for self-signed certificates.
+        insecure: true
+        # Reference to a ConfigMap containing trusted CA certs - useful for self-signed certificates. (optional)
+        caRef:
+          configMapName: argocd-tls-certs-cm
+          key: azure-devops-ca
       requeueAfterSeconds: 1800
   template:
   # ...
@@ -321,6 +327,10 @@ spec:
 * `api`: If using self-hosted Azure DevOps Repos, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the Azure DevOps access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
+
+In case self-signed Azure DevOps certificates, the following options can be usefully:
+* `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
+* `caRef`: Optional `ConfigMap` name and key containing the Azure DevOps certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs. Will be concatenated with the ArgoCD trusted CM.
 
 ## Filters
 
