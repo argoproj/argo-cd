@@ -27,7 +27,6 @@ interface PodViewProps {
 export type PodGroupType = 'topLevelResource' | 'parentResource' | 'node';
 export type SortOrder = 'asc' | 'desc';
 
-
 const labelForSortOrder: Record<SortOrder, string> = {
     asc: 'Oldest First',
     desc: 'Newest First'
@@ -63,16 +62,14 @@ export class PodView extends React.Component<PodViewProps> {
 
                     if (podPrefs.sortMode !== 'node' && podPrefs.sortOrder) {
                         // Sort the groups in place based on precomputed timestamps
-                            groups.sort((a, b) => {
-                                const timeA = Date.parse(a.createdAt || '0');
-                                const timeB = Date.parse(b.createdAt || '0');
-                                a.timestamp = timeA; 
-                                b.timestamp = timeB;  
-                                
-                                return podPrefs.sortOrder === 'asc' 
-                                    ? timeA - timeB 
-                                    : timeB - timeA;
-                            });
+                        groups.sort((a, b) => {
+                            const timeA = Date.parse(a.createdAt || '0');
+                            const timeB = Date.parse(b.createdAt || '0');
+                            a.timestamp = timeA;
+                            b.timestamp = timeB;
+
+                            return podPrefs.sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+                        });
                     }
 
                     return (
@@ -92,17 +89,17 @@ export class PodView extends React.Component<PodViewProps> {
                                 </div>
                                 {podPrefs.sortMode !== 'node' && (
                                     <div className='pod-view__settings__section'>
-                                    SORT BY AGE:&nbsp;
-                                    <DropDownMenu
-                                        anchor={() => (
-                                            <button className='argo-button argo-button--base-o'>
-                                                {labelForSortOrder[podPrefs.sortOrder || 'desc']}&nbsp;&nbsp;
-                                                <i className='fa fa-chevron-circle-down' />
-                                            </button>
-                                        )}
-                                        items={this.sortOrderItemsFor(['asc', 'desc'], prefs)}
-                                    />
-                                </div>
+                                        SORT BY AGE:&nbsp;
+                                        <DropDownMenu
+                                            anchor={() => (
+                                                <button className='argo-button argo-button--base-o'>
+                                                    {labelForSortOrder[podPrefs.sortOrder || 'desc']}&nbsp;&nbsp;
+                                                    <i className='fa fa-chevron-circle-down' />
+                                                </button>
+                                            )}
+                                            items={this.sortOrderItemsFor(['asc', 'desc'], prefs)}
+                                        />
+                                    </div>
                                 )}
                                 {podPrefs.sortMode === 'node' && (
                                     <div className='pod-view__settings__section'>
