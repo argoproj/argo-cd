@@ -491,6 +491,7 @@ func TestNamespacedTrackAppStateAndSyncApp(t *testing.T) {
 		When().
 		CreateApp().
 		Sync().
+		Wait().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -885,6 +886,7 @@ func testNSEdgeCasesApplicationResources(t *testing.T, appPath string, statusCod
 		When().
 		CreateApp().
 		Sync().
+		Wait().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
@@ -919,6 +921,7 @@ func TestNamespacedResourceAction(t *testing.T) {
 		When().
 		CreateApp().
 		Sync().
+		Wait().
 		Then().
 		And(func(app *Application) {
 			closer, client, err := ArgoCDClientset.NewApplicationClient()
@@ -1196,6 +1199,7 @@ func TestNamespacedPermissions(t *testing.T) {
 		}).
 		CreateApp().
 		Sync().
+		Wait().
 		Then().
 		// make sure application resource actiions are successful
 		And(func(app *Application) {

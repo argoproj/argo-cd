@@ -17,6 +17,7 @@ func TestPruningRequired(t *testing.T) {
 		IgnoreErrors().
 		CreateApp().
 		Sync().
+		Wait().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		When().
