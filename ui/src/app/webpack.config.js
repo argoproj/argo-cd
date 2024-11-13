@@ -25,7 +25,6 @@ const config = {
 
     resolve: {
         extensions: ['.ts', '.tsx', '.js', '.json'],
-        alias: { react: require.resolve('react') },
         fallback: { fs: false }
     },
     ignoreWarnings: [{
