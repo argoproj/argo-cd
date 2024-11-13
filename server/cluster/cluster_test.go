@@ -330,7 +330,7 @@ func TestGetCluster_CannotSetCADataAndInsecureTrue(t *testing.T) {
 			Cluster: cluster,
 		})
 
-		assert.EqualError(t, err, `Unable to apply K8s REST config defaults: specifying a root certificates file with the insecure flag is not allowed`)
+		assert.EqualError(t, err, `error getting REST config: Unable to apply K8s REST config defaults: specifying a root certificates file with the insecure flag is not allowed`)
 	})
 
 	cluster.Config.TLSClientConfig.CAData = nil
@@ -485,7 +485,7 @@ func TestDeleteClusterByName(t *testing.T) {
 			Name: "foo",
 		})
 
-		assert.EqualError(t, err, `rpc error: code = PermissionDenied desc = permission denied`)
+		assert.EqualError(t, err, `failed to get cluster with permissions check: rpc error: code = PermissionDenied desc = permission denied`)
 	})
 
 	t.Run("Delete Succeeds When Deleting by Name", func(t *testing.T) {
@@ -562,7 +562,7 @@ func TestRotateAuth(t *testing.T) {
 			Name: "foo",
 		})
 
-		assert.EqualError(t, err, `rpc error: code = PermissionDenied desc = permission denied`)
+		assert.EqualError(t, err, `failed to get cluster with permissions check: rpc error: code = PermissionDenied desc = permission denied`)
 	})
 
 	// While the tests results for the next two tests result in an error, they do
