@@ -495,7 +495,7 @@ func TestDeleteClusterByName(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = db.GetCluster(context.Background(), "https://my-cluster-server")
-		assert.EqualError(t, err, `failed to get cluster with permissions check: rpc error: code = NotFound desc = cluster "https://my-cluster-server" not found`)
+		assert.EqualError(t, err, `rpc error: code = NotFound desc = cluster "https://my-cluster-server" not found`)
 	})
 }
 
