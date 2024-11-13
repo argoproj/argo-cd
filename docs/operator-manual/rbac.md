@@ -122,8 +122,18 @@ To do so, when the action if performed on an application's resource, the `<actio
 For instance, to grant access to `example-user` to only delete Pods in the `prod-app` Application, the policy could be:
 
 ```csv
-p, example-user, applications, delete/*/Pod/*, default/prod-app, allow
+p, example-user, applications, delete/*/Pod/*/*, default/prod-app, allow
 ```
+
+!!!warning "Understand glob pattern behavior"
+
+    Argo CD RBAC does not use `/` as a separator when evaluating glob patterns. So the pattern `delete/*/kind/*`
+    will match `delete/<group>/kind/<namespace>/<name>` but also `delete/<group>/<kind>/kind/<name>`.
+
+    The fact that both of these match will generally not be a problem, because resource kinds generally contain capital 
+    letters, and namespaces cannot contain capital letters. However, it is possible for a resource kind to be lowercase. 
+    So it is better to just always include all the parts of the resource in the pattern (in other words, always use four 
+    slashes).
 
 If we want to grant access to the user to update all resources of an application, but not the application itself:
 
@@ -135,7 +145,7 @@ If we want to explicitly deny delete of the application, but allow the user to d
 
 ```csv
 p, example-user, applications, delete, default/prod-app, deny
-p, example-user, applications, delete/*/Pod/*, default/prod-app, allow
+p, example-user, applications, delete/*/Pod/*/*, default/prod-app, allow
 ```
 
 !!! note
@@ -145,7 +155,7 @@ p, example-user, applications, delete/*/Pod/*, default/prod-app, allow
 
     ```csv
     p, example-user, applications, delete, default/prod-app, allow
-    p, example-user, applications, delete/*/Pod/*, default/prod-app, deny
+    p, example-user, applications, delete/*/Pod/*/*, default/prod-app, deny
     ```
 
 #### The `action` action

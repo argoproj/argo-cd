@@ -150,7 +150,7 @@ func TestRegisterExtensions(t *testing.T) {
 
 		logger, _ := test.NewNullLogger()
 		logEntry := logger.WithContext(context.Background())
-		m := extension.NewManager(logEntry, settMock, nil, nil, nil, nil)
+		m := extension.NewManager(logEntry, "", settMock, nil, nil, nil, nil)
 
 		return &fixture{
 			settingsGetterMock: settMock,
@@ -162,12 +162,16 @@ func TestRegisterExtensions(t *testing.T) {
 		t.Parallel()
 		f := setup()
 		settings := &settings.ArgoCDSettings{
-			ExtensionConfig: getExtensionConfigString(),
+			ExtensionConfig: map[string]string{
+				"":            getExtensionConfigString(),
+				"another-ext": getSingleExtensionConfigString(),
+			},
 		}
 		f.settingsGetterMock.On("Get", mock.Anything).Return(settings, nil)
 		expectedProxyRegistries := []string{
 			"external-backend",
 			"some-backend",
+			"another-ext",
 		}
 
 		// when
@@ -223,7 +227,9 @@ func TestRegisterExtensions(t *testing.T) {
 				t.Parallel()
 				f := setup()
 				settings := &settings.ArgoCDSettings{
-					ExtensionConfig: tc.configYaml,
+					ExtensionConfig: map[string]string{
+						"": tc.configYaml,
+					},
 				}
 				f.settingsGetterMock.On("Get", mock.Anything).Return(settings, nil)
 
@@ -248,6 +254,7 @@ func TestCallExtension(t *testing.T) {
 		userMock           *mocks.UserGetter
 		manager            *extension.Manager
 	}
+	defaultServerNamespace := "control-plane-ns"
 	defaultProjectName := "project-name"
 
 	setup := func() *fixture {
@@ -260,7 +267,7 @@ func TestCallExtension(t *testing.T) {
 
 		logger, _ := test.NewNullLogger()
 		logEntry := logger.WithContext(context.Background())
-		m := extension.NewManager(logEntry, settMock, appMock, projMock, rbacMock, userMock)
+		m := extension.NewManager(logEntry, defaultServerNamespace, settMock, appMock, projMock, rbacMock, userMock)
 		m.AddMetricsRegistry(metricsMock)
 
 		mux := http.NewServeMux()
@@ -361,8 +368,10 @@ func TestCallExtension(t *testing.T) {
 		secrets["extension.auth.header2"] = "Bearer another-bearer-token"
 
 		settings := &settings.ArgoCDSettings{
-			ExtensionConfig: configYaml,
-			Secrets:         secrets,
+			ExtensionConfig: map[string]string{
+				"": configYaml,
+			},
+			Secrets: secrets,
 		}
 		f.settingsGetterMock.On("Get", mock.Anything).Return(settings, nil)
 	}
@@ -444,6 +453,7 @@ func TestCallExtension(t *testing.T) {
 		require.NoError(t, err)
 		actual := strings.TrimSuffix(string(body), "\n")
 		assert.Equal(t, backendResponse, actual)
+		assert.Equal(t, defaultServerNamespace, resp.Header.Get(extension.HeaderArgoCDNamespace))
 		assert.Equal(t, clusterURL, resp.Header.Get(extension.HeaderArgoCDTargetClusterURL))
 		assert.Equal(t, "Bearer some-bearer-token", resp.Header.Get("Authorization"))
 		assert.Equal(t, "some-user", resp.Header.Get(extension.HeaderArgoCDUsername))
@@ -791,6 +801,17 @@ extensions:
   backend:
     services:
     - url: http://localhost:7777
+`
+}
+
+func getSingleExtensionConfigString() string {
+	return `
+connectionTimeout: 10s
+keepAlive: 11s
+idleConnectionTimeout: 12s
+maxIdleConnections: 30
+services:
+- url: http://localhost:7777
 `
 }
 
