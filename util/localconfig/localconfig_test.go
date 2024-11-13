@@ -168,7 +168,7 @@ func TestGetPromptsEnabled_useCLIOpts_true_forcePromptsEnabled_default(t *testin
 	err = os.Chmod(testConfigFilePath, 0o600)
 	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
 
-	loadOpts(t, "--config "+testConfigFilePath+" --force-prompts-enabled")
+	loadOpts(t, "--config "+testConfigFilePath+" --prompts-enabled")
 
 	assert.True(t, GetPromptsEnabled(true))
 }
@@ -183,7 +183,7 @@ func TestGetPromptsEnabled_useCLIOpts_true_forcePromptsEnabled_true(t *testing.T
 	err = os.Chmod(testConfigFilePath, 0o600)
 	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
 
-	loadOpts(t, "--config "+testConfigFilePath+" --force-prompts-enabled=true")
+	loadOpts(t, "--config "+testConfigFilePath+" --prompts-enabled=true")
 
 	assert.True(t, GetPromptsEnabled(true))
 }
@@ -198,7 +198,7 @@ func TestGetPromptsEnabled_useCLIOpts_true_forcePromptsEnabled_false(t *testing.
 	err = os.Chmod(testConfigFilePath, 0o600)
 	require.NoError(t, err, "Could not change the file permission to 0600 %v", err)
 
-	loadOpts(t, "--config "+testConfigFilePath+" --force-prompts-enabled=false")
+	loadOpts(t, "--config "+testConfigFilePath+" --prompts-enabled=false")
 
 	assert.False(t, GetPromptsEnabled(true))
 }
