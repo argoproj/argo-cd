@@ -160,16 +160,19 @@ func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id 
 	// Create a new token object, specifying signing method and the claims
 	// you would like it to contain.
 	now := time.Now().UTC()
-	claims := jwt.RegisteredClaims{
-		IssuedAt:  jwt.NewNumericDate(now),
-		Issuer:    SessionManagerClaimsIssuer,
-		NotBefore: jwt.NewNumericDate(now),
-		Subject:   subject,
-		ID:        id,
+	claims := jwt.MapClaims{
+		"iat": now.Unix(),
+		"iss": SessionManagerClaimsIssuer,
+		"nbf": now.Unix(),
+		"sub": subject,
+		"jti": id,
+		"federated_claims": map[string]interface{}{
+			"user_id": "", // Empty for local auth
+		},
 	}
 	if secondsBeforeExpiry > 0 {
 		expires := now.Add(time.Duration(secondsBeforeExpiry) * time.Second)
-		claims.ExpiresAt = jwt.NewNumericDate(expires)
+		claims["exp"] = expires.Unix()
 	}
 
 	return mgr.signClaims(claims)
@@ -640,6 +643,11 @@ func Groups(ctx context.Context, scopes []string) []string {
 type contextKey struct{}
 
 var claimsKey = contextKey{}
+
+// ClaimsKey returns the context key used for claims
+func ClaimsKey() interface{} {
+	return claimsKey
+}
 
 func mapClaims(ctx context.Context) (jwt.MapClaims, bool) {
 	claims, ok := ctx.Value(claimsKey).(jwt.Claims)

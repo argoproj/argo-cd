@@ -82,30 +82,51 @@ func getAdminAccount(mgr *settings.SettingsManager) (*settings.Account, error) {
 }
 
 func adminContext(ctx context.Context) context.Context {
-	//nolint:staticcheck
-	return context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin", Issuer: sessionutil.SessionManagerClaimsIssuer})
+	claims := jwt.MapClaims{
+		"sub":    "admin",
+		"iss":    sessionutil.SessionManagerClaimsIssuer,
+		"groups": []string{"role:admin"},
+		"federated_claims": map[string]interface{}{
+			"user_id": "admin",
+		},
+	}
+	ctx = context.WithValue(ctx, sessionutil.ClaimsKey(), claims)
+	ctx = context.WithValue(ctx, "claims", claims)
+	return ctx
 }
 
 func ssoAdminContext(ctx context.Context, iat time.Time) context.Context {
-	//nolint:staticcheck
-	return context.WithValue(ctx, "claims", &jwt.RegisteredClaims{
-		Subject:  "admin",
-		Issuer:   "https://myargocdhost.com/api/dex",
-		IssuedAt: jwt.NewNumericDate(iat),
-	})
+	claims := jwt.MapClaims{
+		"sub":    "admin",
+		"iss":    "https://myargocdhost.com/api/dex",
+		"iat":    jwt.NewNumericDate(iat),
+		"groups": []string{"role:admin"}, // Add admin group
+		"federated_claims": map[string]interface{}{
+			"user_id": "admin",
+		},
+	}
+	// Set both context values
+	ctx = context.WithValue(ctx, sessionutil.ClaimsKey(), claims)
+	ctx = context.WithValue(ctx, "claims", claims)
+
+	return ctx
 }
 
 func projTokenContext(ctx context.Context) context.Context {
-	//nolint:staticcheck
-	return context.WithValue(ctx, "claims", &jwt.RegisteredClaims{
-		Subject: "proj:demo:deployer",
-		Issuer:  sessionutil.SessionManagerClaimsIssuer,
-	})
+	claims := jwt.MapClaims{
+		"sub":    "proj:demo:deployer",
+		"iss":    sessionutil.SessionManagerClaimsIssuer,
+		"groups": []string{"proj:demo:deployer"},
+	}
+	ctx = context.WithValue(ctx, sessionutil.ClaimsKey(), claims)
+	ctx = context.WithValue(ctx, "claims", claims)
+	return ctx
 }
 
 func TestUpdatePassword(t *testing.T) {
 	accountServer, sessionServer := newTestAccountServer(context.Background())
 	ctx := adminContext(context.Background())
+
 	var err error
 
 	// ensure password is not allowed to be updated if given bad password

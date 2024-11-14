@@ -886,7 +886,6 @@ func TestGetUserInfo(t *testing.T) {
 					},
 					"groups": []interface{}{"githubOrg:engineers"},
 				}
-				// json.NewEncoder(w).Encode(response)
 				if err := json.NewEncoder(w).Encode(response); err != nil {
 					t.Errorf("failed to encode response: %v", err)
 				}
@@ -935,7 +934,6 @@ func TestGetUserInfo(t *testing.T) {
 					"sub":    "sub-only-user",
 					"groups": []interface{}{"githubOrg:engineers"},
 				}
-				// json.NewEncoder(w).Encode(response)
 				if err := json.NewEncoder(w).Encode(response); err != nil {
 					t.Errorf("failed to encode response: %v", err)
 				}
@@ -995,7 +993,6 @@ func TestGetUserInfo(t *testing.T) {
 					},
 					"groups": []interface{}{"githubOrg:engineers"},
 				}
-				// json.NewEncoder(w).Encode(response)
 				if err := json.NewEncoder(w).Encode(response); err != nil {
 					t.Errorf("failed to encode response: %v", err)
 				}
