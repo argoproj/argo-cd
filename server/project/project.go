@@ -58,9 +58,9 @@ type Server struct {
 
 // NewServer returns a new instance of the Project service
 func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock sync.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer,
-	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, db db.ArgoDB,
+	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, db db.ArgoDB, enableK8sEvent []string,
 ) *Server {
-	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server")
+	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server", enableK8sEvent)
 	return &Server{
 		enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr,
 		projInformer: projInformer, settingsMgr: settingsMgr, db: db,
