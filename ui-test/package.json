@@ -14,7 +14,7 @@
   "dependencies": {
     "@types/selenium-webdriver": "^4.1.27",
     "assert": "^2.1.0",
-    "chromedriver": "^130.0.4",
+    "chromedriver": "^131.0.0",
     "selenium-webdriver": "^4.26.0"
   },
   "devDependencies": {
