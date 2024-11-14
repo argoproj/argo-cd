@@ -135,29 +135,42 @@ func parseAggregativeHealthErrors(rs *appv1.ResourceStatus, apptree *appv1.Appli
 	childNodes := n.GetAllChildNodes(apptree, "")
 
 	for _, cn := range childNodes {
-		if cn.Health != nil && cn.Health.Status == health.HealthStatusDegraded {
-			newErr := events.ObjectError{
-				Type:     "health",
-				Level:    "error",
-				Message:  cn.Health.Message,
-				LastSeen: *cn.CreatedAt,
-			}
+		if newErr := getNodeHealthError(cn, rs, addReference); newErr != nil {
+			errs = append(errs, newErr)
+		}
+	}
 
-			if addReference {
-				newErr.SourceReference = &events.ErrorSourceReference{
-					Group:     rs.Group,
-					Version:   rs.Version,
-					Kind:      rs.Kind,
-					Namespace: rs.Namespace,
-					Name:      rs.Name,
-				}
-			}
-
-			errs = append(errs, &newErr)
+	if len(errs) == 0 {
+		if newErr := getNodeHealthError(*n, rs, addReference); newErr != nil {
+			errs = append(errs, newErr)
 		}
 	}
 
 	return errs
+}
+
+func getNodeHealthError(node appv1.ResourceNode, managedResource *appv1.ResourceStatus, addReference bool) *events.ObjectError {
+	if node.Health == nil || node.Health.Status != health.HealthStatusDegraded {
+		return nil
+	}
+
+	newErr := &events.ObjectError{
+		Type:     "health",
+		Level:    "error",
+		Message:  node.Health.Message,
+		LastSeen: *node.CreatedAt,
+	}
+
+	if addReference {
+		newErr.SourceReference = &events.ErrorSourceReference{
+			Group:     managedResource.Group,
+			Version:   managedResource.Version,
+			Kind:      managedResource.Kind,
+			Namespace: managedResource.Namespace,
+			Name:      managedResource.Name,
+		}
+	}
+	return newErr
 }
 
 func parseAggregativeResourcesSyncErrors(resourceResults appv1.ResourceResults) []*events.ObjectError {

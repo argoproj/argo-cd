@@ -336,4 +336,81 @@ func TestParseAggregativeHealthErrors(t *testing.T) {
 		assert.NotNil(t, errs[0].SourceReference)
 		assert.Equal(t, deployRef.Name, errs[0].SourceReference.Name)
 	})
+
+	t.Run("should build error from root node if it's degraded while no one of child in degraded health state", func(t *testing.T) {
+		rsName := "test-deployment"
+		ns := "test"
+		errMessage := "backoff pulling image test/test:0.1"
+		replicaSetRef := v1alpha1.ResourceRef{
+			Group:     "g",
+			Version:   "v",
+			Kind:      "ReplicaSet",
+			Name:      rsName + "1",
+			Namespace: ns,
+		}
+
+		deploymentRef := v1alpha1.ResourceRef{
+			Group:     "g",
+			Version:   "v",
+			Kind:      "Deployment",
+			Name:      rsName,
+			Namespace: ns,
+		}
+
+		appTree := v1alpha1.ApplicationTree{
+			Nodes: []v1alpha1.ResourceNode{
+				{ // Pod
+					ResourceRef: v1alpha1.ResourceRef{
+						Group:     "g",
+						Version:   "v",
+						Kind:      "Pod",
+						Name:      rsName + "1-3n235j5",
+						Namespace: ns,
+					},
+					Health: &v1alpha1.HealthStatus{
+						Status:  health.HealthStatusProgressing,
+						Message: "some error of pod",
+					},
+					ParentRefs: []v1alpha1.ResourceRef{replicaSetRef},
+					CreatedAt: &metav1.Time{
+						Time: time.Now(),
+					},
+				},
+				{ // ReplicaSet
+					ResourceRef: replicaSetRef,
+					Health: &v1alpha1.HealthStatus{
+						Status:  health.HealthStatusProgressing,
+						Message: "",
+					},
+					ParentRefs: []v1alpha1.ResourceRef{deploymentRef},
+					CreatedAt: &metav1.Time{
+						Time: time.Now(),
+					},
+				},
+				{ // Deployment
+					ResourceRef: deploymentRef,
+					Health: &v1alpha1.HealthStatus{
+						Status:  health.HealthStatusDegraded,
+						Message: errMessage,
+					},
+					ParentRefs: []v1alpha1.ResourceRef{},
+					CreatedAt: &metav1.Time{
+						Time: time.Now(),
+					},
+				},
+			},
+		}
+
+		errs := parseAggregativeHealthErrors(&v1alpha1.ResourceStatus{
+			Group:     deploymentRef.Group,
+			Version:   deploymentRef.Version,
+			Kind:      deploymentRef.Kind,
+			Name:      deploymentRef.Name,
+			Namespace: deploymentRef.Namespace,
+		}, &appTree, true)
+		assert.Len(t, errs, 1)
+		assert.Equal(t, errMessage, errs[0].Message)
+		assert.NotNil(t, errs[0].SourceReference)
+		assert.Equal(t, deploymentRef.Name, errs[0].SourceReference.Name)
+	})
 }
