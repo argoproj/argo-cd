@@ -31,7 +31,8 @@ export const COLORS = {
     sync: {
         synced: ARGO_SUCCESS_COLOR,
         out_of_sync: ARGO_WARNING_COLOR,
-        unknown: ARGO_GRAY4_COLOR
+        unknown: ARGO_GRAY4_COLOR,
+        ignored: ARGO_GRAY4_COLOR
     },
     sync_result: {
         failed: ARGO_FAILED_COLOR,

@@ -1,0 +1,110 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
+
+div.theme-light {
+    --diff-background-color: transparent;
+    --diff-text-color: #000;
+    --diff-selection-background-color: #b3d7ff;
+    --diff-gutter-insert-background-color: #d6fedb;
+    --diff-gutter-delete-background-color: #fadde0;
+    --diff-gutter-selected-background-color: #fffce0;
+    --diff-code-insert-background-color: #eaffee;
+    --diff-code-delete-background-color: #fdeff0;
+    --diff-code-insert-edit-background-color: #c0dc91;
+    --diff-code-delete-edit-background-color: #f39ea2;
+    --diff-code-selected-background-color: #fffce0;
+    --diff-omit-background-color: #fafbfc;
+    --diff-decoration-background-color: #f2f8ff;
+    --diff-decoration-background-color-hover: #e6f2ff;
+    --diff-decoration-gutter-color: #999;
+    --diff-decoration-content-color: #999;
+}
+
+div.theme-dark {
+    --diff-background-color: #303237;
+    --diff-text-color: #fafafa;
+    --diff-selection-background-color: #5a5f80;
+    --diff-gutter-insert-background-color: #082525;
+    --diff-gutter-delete-background-color: #2b1523;
+    --diff-gutter-selected-background-color: #5a5f80;
+    --diff-code-insert-background-color: #082525;
+    --diff-code-delete-background-color: #2b1523;
+    --diff-code-insert-edit-background-color: #00462f;
+    --diff-code-delete-edit-background-color: #4e2436;
+    --diff-code-selected-background-color: #5a5f80;
+    --diff-omit-background-color: #101120;
+    --diff-decoration-background-color: #222;
+    --diff-decoration-background-color-hover: #333;
+    --diff-decoration-gutter-color: #ababab;
+    --diff-decoration-content-color: #ababab;
+}
+
+.diff {
+    background-color: var(--diff-background-color);
+    color: var(--diff-text-color);
+    tab-size: 4;
+    hyphens: none;
+}
+
+.diff::selection {
+    background-color: var(--diff-selection-background-color);
+}
+
+.diff-decoration {
+    line-height: 2;
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    background-color: var(--diff-decoration-background-color);
+}
+
+.diff-decoration:hover {
+    background-color: var(--diff-decoration-background-color-hover);
+}
+
+.diff-decoration-gutter {
+    color: var(--diff-decoration-gutter-color);
+}
+
+.diff-decoration-content {
+    padding-left: .5em;
+    color: var(--diff-decoration-content-color);
+}
+
+.diff-gutter {
+    position: relative;
+}
+
+.diff-gutter-insert {
+    background-color: var(--diff-gutter-insert-background-color);
+}
+
+.diff-gutter-delete {
+    background-color: var(--diff-gutter-delete-background-color);
+}
+
+.diff-gutter-selected {
+    background-color: var(--diff-gutter-selected-background-color);
+}
+
+.diff-code-insert {
+    background-color: var(--diff-code-insert-background-color);
+}
+
+.diff-code-edit {
+    color: inherit;
+}
+
+.diff-code-insert .diff-code-edit {
+    background-color: var(--diff-code-insert-edit-background-color);
+}
+
+.diff-code-delete {
+    background-color: var(--diff-code-delete-background-color);
+}
+
+.diff-code-delete .diff-code-edit {
+    background-color: var(--diff-code-delete-edit-background-color);
+}
+
+.diff-code-selected {
+    background-color: var(--diff-code-selected-background-color);
+}

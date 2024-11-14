@@ -24,7 +24,8 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
     const isVisible = !!(selectedResource && application);
     const appResources = ((application && selectedResource && application.status && application.status.resources) || [])
         .sort((first, second) => nodeKey(first).localeCompare(nodeKey(second)))
-        .filter(item => !item.hook);
+        .filter(item => !item.hook)
+        .filter(item => !(item.requiresPruning && item.pruningDisabled));
     const syncResIndex = appResources.findIndex(item => nodeKey(item) === selectedResource);
     const syncStrategy = {} as models.SyncStrategy;
     const [isPending, setPending] = React.useState(false);
@@ -188,6 +189,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                         'resources',
                                                         application.status.resources
                                                             .filter(item => !item.hook)
+                                                            .filter(item => !(item.requiresPruning && item.pruningDisabled))
                                                             .map((resource: models.ResourceStatus) => resource.status === models.SyncStatuses.OutOfSync)
                                                     )
                                                 }>
@@ -210,6 +212,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                         <div>
                                             {application.status.resources
                                                 .filter(item => !item.hook)
+                                                .filter(item => !(item.requiresPruning && item.pruningDisabled))
                                                 .map((item, i) => {
                                                     const resKey = nodeKey(item);
                                                     const contentStart = resKey.substr(0, Math.floor(resKey.length / 2));

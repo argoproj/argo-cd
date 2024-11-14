@@ -3,6 +3,9 @@
 
 .application-resources-diff {
     &__checkboxes {
+        @include themify($themes){
+            background-color: themed('background-1');
+        }
         text-align: right;
         label {
             padding-right: 2em;
@@ -10,6 +13,23 @@
             @include themify($themes){
                 color: themed('text-2');
             }
+        }
+    }
+    &__heading {
+        @include themify($themes){
+            color: themed('text-1');
+            background-color: themed('background-1');
+        }
+        text-align: center;
+        font-size: 1.2em;
+
+        code {
+          padding: .2em .4em;
+          margin: 0;
+          font-size: 85%;
+          white-space: break-spaces;
+          background-color: #818b981f;
+          border-radius: 6px;
         }
     }
     &__diff {
@@ -22,17 +42,12 @@
                 cursor: pointer;
                 margin-left: auto;
                 margin-right: 1.5rem;
-                color: #495763;
                 font-size: 20px;
+                @include themify($themes){
+                    box-shadow: 0 0 2px themed('shadow');
+                }
+                padding: 0.2em 0.35em;
             }
         }
-    }
-}
-
-.custom-diff-hunk {           
-    color: $argo-color-gray-6;
-    border-bottom: 1px dashed;
-    @include themify($themes){
-        border-bottom: 1px dashed themed('text-2');
     }
 }
