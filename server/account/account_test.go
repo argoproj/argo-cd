@@ -91,6 +91,7 @@ func adminContext(ctx context.Context) context.Context {
 		},
 	}
 	ctx = context.WithValue(ctx, sessionutil.ClaimsKey(), claims)
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", claims)
 	return ctx
 }
@@ -107,6 +108,7 @@ func ssoAdminContext(ctx context.Context, iat time.Time) context.Context {
 	}
 	// Set both context values
 	ctx = context.WithValue(ctx, sessionutil.ClaimsKey(), claims)
+	//nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", claims)
 
 	return ctx
@@ -119,6 +121,7 @@ func projTokenContext(ctx context.Context) context.Context {
 		"groups": []string{"proj:demo:deployer"},
 	}
 	ctx = context.WithValue(ctx, sessionutil.ClaimsKey(), claims)
+	// nolint:staticcheck
 	ctx = context.WithValue(ctx, "claims", claims)
 	return ctx
 }
