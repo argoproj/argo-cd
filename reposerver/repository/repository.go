@@ -1812,13 +1812,6 @@ var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 
 // findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
 func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory, enabledManifestGeneration map[string]bool, maxCombinedManifestQuantity resource.Quantity) ([]manifest, error) {
-	absRepoRoot, err := filepath.Abs(repoRoot)
-	if err != nil {
-		return nil, err
-	}
-
-	var manifests []manifest
-
 	// Validate the directory before loading any manifests to save memory.
 	potentiallyValidManifests, err := getPotentiallyValidManifests(logCtx, appPath, repoRoot, directory.Recurse, directory.Include, directory.Exclude, maxCombinedManifestQuantity)
 	if err != nil {
@@ -1826,7 +1819,11 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 		return nil, fmt.Errorf("failed to get potentially valid manifests: %w", err)
 	}
 
-	var objs []*unstructured.Unstructured
+	absRepoRoot, err := filepath.Abs(repoRoot)
+	if err != nil {
+		return nil, err
+	}
+	var manifests []manifest
 	for _, potentiallyValidManifest := range potentiallyValidManifests {
 		manifestPath := potentiallyValidManifest.path
 		manifestFileInfo := potentiallyValidManifest.fileInfo
@@ -1836,6 +1833,7 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 		repoRelPath, _ := filepath.Rel(absRepoRoot, absPath)
 
 		if strings.HasSuffix(manifestFileInfo.Name(), ".jsonnet") {
+			var objs []*unstructured.Unstructured
 			if !discovery.IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeDirectory, enabledManifestGeneration) {
 				continue
 			}
@@ -1875,6 +1873,7 @@ func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1al
 				})
 			}
 		} else {
+			var objs []*unstructured.Unstructured
 			err := getObjsFromYAMLOrJson(logCtx, manifestPath, manifestFileInfo.Name(), &objs)
 			if err != nil {
 				return nil, err
