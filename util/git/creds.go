@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -428,7 +427,7 @@ func (g GitHubAppCreds) getAccessToken() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	key := hex.EncodeToString(h.Sum(nil))
+	key := fmt.Sprintf("%x", h.Sum(nil))
 
 	// Check cache for GitHub transport which helps fetch an API token
 	t, found := githubAppTokenCache.Get(key)
@@ -544,7 +543,7 @@ func (c GoogleCloudCreds) getAccessToken() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	key := hex.EncodeToString(h.Sum(nil))
+	key := fmt.Sprintf("%x", h.Sum(nil))
 
 	t, found := googleCloudTokenSource.Get(key)
 	if found {

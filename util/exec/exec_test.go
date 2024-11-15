@@ -32,13 +32,13 @@ func TestRun(t *testing.T) {
 
 func TestHideUsernamePassword(t *testing.T) {
 	_, err := RunWithRedactor(exec.Command("helm registry login https://charts.bitnami.com/bitnami", "--username", "foo", "--password", "bar"), nil)
-	require.Error(t, err)
+	assert.NotEmpty(t, err)
 
 	redactor := func(text string) string {
 		return regexp.MustCompile("(--username|--password) [^ ]*").ReplaceAllString(text, "$1 ******")
 	}
 	_, err = RunWithRedactor(exec.Command("helm registry login https://charts.bitnami.com/bitnami", "--username", "foo", "--password", "bar"), redactor)
-	require.Error(t, err)
+	assert.NotEmpty(t, err)
 }
 
 func TestRunWithExecRunOpts(t *testing.T) {

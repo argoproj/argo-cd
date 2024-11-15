@@ -81,14 +81,14 @@ func Test_PrintResource(t *testing.T) {
 		return err
 	})
 	require.NoError(t, err)
-	assert.YAMLEq(t, expectYamlSingle, str)
+	assert.Equal(t, expectYamlSingle, str)
 
 	str, err = captureOutput(func() error {
 		err := PrintResource(testResource, "json")
 		return err
 	})
 	require.NoError(t, err)
-	assert.JSONEq(t, expectJsonSingle, str)
+	assert.Equal(t, expectJsonSingle, str)
 
 	err = PrintResource(testResource, "unknown")
 	require.Error(t, err)
@@ -116,28 +116,28 @@ func Test_PrintResourceList(t *testing.T) {
 		return err
 	})
 	require.NoError(t, err)
-	assert.YAMLEq(t, expectYamlList, str)
+	assert.Equal(t, expectYamlList, str)
 
 	str, err = captureOutput(func() error {
 		err := PrintResourceList(testResource, "json", false)
 		return err
 	})
 	require.NoError(t, err)
-	assert.JSONEq(t, expectJsonList, str)
+	assert.Equal(t, expectJsonList, str)
 
 	str, err = captureOutput(func() error {
 		err := PrintResourceList(testResource2, "yaml", true)
 		return err
 	})
 	require.NoError(t, err)
-	assert.YAMLEq(t, expectYamlSingle, str)
+	assert.Equal(t, expectYamlSingle, str)
 
 	str, err = captureOutput(func() error {
 		err := PrintResourceList(testResource2, "json", true)
 		return err
 	})
 	require.NoError(t, err)
-	assert.JSONEq(t, expectJsonSingle, str)
+	assert.Equal(t, expectJsonSingle, str)
 
 	err = PrintResourceList(testResource, "unknown", false)
 	require.Error(t, err)

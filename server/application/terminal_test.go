@@ -74,7 +74,9 @@ func TestPodExists(t *testing.T) {
 	} {
 		t.Run(tcase.name, func(t *testing.T) {
 			result := podExists(tcase.treeNodes, tcase.podName, tcase.namespace)
-			assert.Equalf(t, tcase.expectedResult, result, "Expected result %v, but got %v", tcase.expectedResult, result)
+			if result != tcase.expectedResult {
+				t.Errorf("Expected result %v, but got %v", tcase.expectedResult, result)
+			}
 		})
 	}
 }
@@ -108,7 +110,9 @@ func TestIsValidPodName(t *testing.T) {
 	} {
 		t.Run(tcase.name, func(t *testing.T) {
 			result := argo.IsValidPodName(tcase.resourceName)
-			assert.Equalf(t, tcase.expectedResult, result, "Expected result %v, but got %v", tcase.expectedResult, result)
+			if result != tcase.expectedResult {
+				t.Errorf("Expected result %v, but got %v", tcase.expectedResult, result)
+			}
 		})
 	}
 }
@@ -137,7 +141,9 @@ func TestIsValidNamespaceName(t *testing.T) {
 	} {
 		t.Run(tcase.name, func(t *testing.T) {
 			result := argo.IsValidNamespaceName(tcase.resourceName)
-			assert.Equalf(t, tcase.expectedResult, result, "Expected result %v, but got %v", tcase.expectedResult, result)
+			if result != tcase.expectedResult {
+				t.Errorf("Expected result %v, but got %v", tcase.expectedResult, result)
+			}
 		})
 	}
 }
@@ -166,7 +172,9 @@ func TestIsValidContainerNameName(t *testing.T) {
 	} {
 		t.Run(tcase.name, func(t *testing.T) {
 			result := argo.IsValidContainerName(tcase.resourceName)
-			assert.Equalf(t, tcase.expectedResult, result, "Expected result %v, but got %v", tcase.expectedResult, result)
+			if result != tcase.expectedResult {
+				t.Errorf("Expected result %v, but got %v", tcase.expectedResult, result)
+			}
 		})
 	}
 }

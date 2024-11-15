@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -164,12 +163,15 @@ func TestGetKubePublicEndpoint(t *testing.T) {
 			}
 			clientset := fake.NewSimpleClientset(objects...)
 			endpoint, err := GetKubePublicEndpoint(clientset)
-			if tc.expectError {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
+			if err != nil && !tc.expectError {
+				t.Fatalf("unexpected error: %v", err)
 			}
-			require.Equalf(t, tc.expectedEndpoint, endpoint, "expected endpoint %s, got %s", tc.expectedEndpoint, endpoint)
+			if err == nil && tc.expectError {
+				t.Error("expected error to be returned, received none")
+			}
+			if endpoint != tc.expectedEndpoint {
+				t.Errorf("expected endpoint %s, got %s", tc.expectedEndpoint, endpoint)
+			}
 		})
 	}
 }

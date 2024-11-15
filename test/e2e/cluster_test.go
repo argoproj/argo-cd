@@ -308,13 +308,19 @@ func TestClusterDelete(t *testing.T) {
 
 	// Check that RBAC is created
 	_, err := fixture.Run("", "kubectl", "get", "serviceaccount", "argocd-manager", "-n", "kube-system")
-	require.NoError(t, err, "Expected no error from not finding serviceaccount argocd-manager")
+	if err != nil {
+		t.Errorf("Expected no error from not finding serviceaccount argocd-manager but got:\n%s", err.Error())
+	}
 
 	_, err = fixture.Run("", "kubectl", "get", "clusterrole", "argocd-manager-role")
-	require.NoError(t, err, "Expected no error from not finding clusterrole argocd-manager-role")
+	if err != nil {
+		t.Errorf("Expected no error from not finding clusterrole argocd-manager-role but got:\n%s", err.Error())
+	}
 
 	_, err = fixture.Run("", "kubectl", "get", "clusterrolebinding", "argocd-manager-role-binding")
-	require.NoError(t, err, "Expected no error from not finding clusterrolebinding argocd-manager-role-binding")
+	if err != nil {
+		t.Errorf("Expected no error from not finding clusterrolebinding argocd-manager-role-binding but got:\n%s", err.Error())
+	}
 
 	clstAction.DeleteByName().
 		Then().
@@ -324,11 +330,17 @@ func TestClusterDelete(t *testing.T) {
 
 	// Check that RBAC is removed after delete
 	output, err := fixture.Run("", "kubectl", "get", "serviceaccount", "argocd-manager", "-n", "kube-system")
-	require.Error(t, err, "Expected error from not finding serviceaccount argocd-manager but got:\n%s", output)
+	if err == nil {
+		t.Errorf("Expected error from not finding serviceaccount argocd-manager but got:\n%s", output)
+	}
 
 	output, err = fixture.Run("", "kubectl", "get", "clusterrole", "argocd-manager-role")
-	require.Error(t, err, "Expected error from not finding clusterrole argocd-manager-role but got:\n%s", output)
+	if err == nil {
+		t.Errorf("Expected error from not finding clusterrole argocd-manager-role but got:\n%s", output)
+	}
 
 	output, err = fixture.Run("", "kubectl", "get", "clusterrolebinding", "argocd-manager-role-binding")
-	assert.Error(t, err, "Expected error from not finding clusterrolebinding argocd-manager-role-binding but got:\n%s", output)
+	if err == nil {
+		t.Errorf("Expected error from not finding clusterrolebinding argocd-manager-role-binding but got:\n%s", output)
+	}
 }

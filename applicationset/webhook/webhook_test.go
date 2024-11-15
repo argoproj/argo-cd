@@ -242,8 +242,9 @@ func TestWebhookHandler(t *testing.T) {
 			for i := range list.Items {
 				gotAppSet := &list.Items[i]
 				if _, isEffected := effectedAppSetsAsExpected[gotAppSet.Name]; isEffected {
-					expected, got := test.expectedRefresh, gotAppSet.RefreshRequired()
-					require.Equalf(t, expected, got, "unexpected RefreshRequired() for appset '%s' expect: %v got: %v", gotAppSet.Name, expected, got)
+					if expected, got := test.expectedRefresh, gotAppSet.RefreshRequired(); expected != got {
+						t.Errorf("unexpected RefreshRequired() for appset '%s' expect: %v got: %v", gotAppSet.Name, expected, got)
+					}
 					effectedAppSetsAsExpected[gotAppSet.Name] = true
 				} else {
 					assert.False(t, gotAppSet.RefreshRequired())

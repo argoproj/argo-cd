@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestNewPrompt_PromptsEnabled_True(t *testing.T) {
@@ -27,22 +26,27 @@ func TestConfirm_PromptsEnabled_False(t *testing.T) {
 func TestConfirmAllPromptDisabled(t *testing.T) {
 	p := &Prompt{enabled: false}
 	result1, result2 := p.ConfirmAll("Proceed?")
-	assert.True(t, result1)
-	assert.True(t, result2)
+	if result1 != true || result2 != true {
+		t.Errorf("Expected (true, true), got (%v, %v)", result1, result2)
+	}
 }
 
 func TestConfirmBaseOnCountPromptDisabled(t *testing.T) {
 	p := &Prompt{enabled: false}
 	result1, result2 := p.ConfirmBaseOnCount("Proceed?", "Process all?", 2)
-	assert.True(t, result1)
-	assert.True(t, result2)
+
+	if result1 != true || result2 != true {
+		t.Errorf("Expected (true, true), got (%v, %v)", result1, result2)
+	}
 }
 
 func TestConfirmBaseOnCountZeroApps(t *testing.T) {
 	p := &Prompt{enabled: true}
 	result1, result2 := p.ConfirmBaseOnCount("Proceed?", "Process all?", 0)
-	assert.True(t, result1)
-	assert.True(t, result2)
+
+	if result1 != true || result2 != true {
+		t.Errorf("Expected (true, true), got (%v, %v)", result1, result2)
+	}
 }
 
 func TestConfirmPrompt(t *testing.T) {
@@ -58,7 +62,9 @@ func TestConfirmPrompt(t *testing.T) {
 
 	for _, c := range cases {
 		tmpFile, err := writeToStdin(c.input)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatal(err)
+		}
 		p := &Prompt{enabled: true}
 		result := p.Confirm("Are you sure you want to run this command? (y/n) \n")
 		assert.Equal(t, c.output, result)
@@ -84,7 +90,9 @@ func TestConfirmAllPrompt(t *testing.T) {
 
 	for _, c := range cases {
 		tmpFile, err := writeToStdin(c.input)
-		require.NoError(t, err)
+		if err != nil {
+			t.Fatal(err)
+		}
 		p := &Prompt{enabled: true}
 		confirm, confirmAll := p.ConfirmAll("Are you sure you want to run this command? (y/n) \n")
 		assert.Equal(t, c.confirm, confirm)

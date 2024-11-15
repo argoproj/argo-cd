@@ -185,7 +185,10 @@ func TestGetTagsFromUrl(t *testing.T) {
 				}
 			}
 			w.WriteHeader(http.StatusOK)
-			require.NoError(t, json.NewEncoder(w).Encode(responseTags))
+			err := json.NewEncoder(w).Encode(responseTags)
+			if err != nil {
+				t.Fatal(err)
+			}
 		}))
 
 		client := NewClient(server.URL, Creds{InsecureSkipVerify: true}, true, "", "")
@@ -240,7 +243,10 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		require.NoError(t, json.NewEncoder(w).Encode(responseTags))
+		err := json.NewEncoder(w).Encode(responseTags)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}))
 	t.Cleanup(server.Close)
 
@@ -318,7 +324,10 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		require.NoError(t, json.NewEncoder(w).Encode(responseTags))
+		err := json.NewEncoder(w).Encode(responseTags)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}))
 	t.Cleanup(server.Close)
 
