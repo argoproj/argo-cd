@@ -105,7 +105,7 @@ Configure the client by setting the __Root URL__, __Web origins__, __Admin URL__
 Also you can set __Home URL__ to _/applications_ path and __Valid Post logout redirect URIs__ to "https://{hostname}/applications".
 
 The Valid Redirect URIs should be set to:
-- http://localhost:8085/auth/callback (needed for argo-cd cli)
+- http://localhost:8085/auth/callback (needed for argo-cd cli, depends on value from [--sso-port](../../user-guide/commands/argocd_login.md))
 - https://{hostname}/auth/callback
 - https://{hostname}/pkce/verify
 
@@ -142,7 +142,7 @@ data:
 Make sure that:
 
 - __issuer__ ends with the correct realm (in this example _master_)
-- __issuer__ on Keycloak releases older than version 17 the URL must includenablePKCEAuthentication: truee /auth (in this example /auth/realms/master)
+- __issuer__ on Keycloak releases older than version 17 the URL must include /auth (in this example /auth/realms/master)
 - __clientID__ is set to the Client ID you configured in Keycloak
 - __enablePKCEAuthentication__ must be set to true to enable correct ArgoCD behaviour with PKCE
 - __requestedScopes__ contains the _groups_ claim if you didn't add it to the Default scopes
