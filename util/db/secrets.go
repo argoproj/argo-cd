@@ -37,8 +37,8 @@ func (db *db) listSecretsByType(types ...string) ([]*apiv1.Secret, error) {
 	secrets, err := secretsLister.Secrets(db.ns).List(labelSelector)
 	var secretsCopy []*apiv1.Secret
 	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
-	// Objects returned by the lister must be treated as read-only. To allow us to modify the secrets,
-	// make a copy
+	// Objects returned by the lister must be treated as read-only.
+	// To allow us to modify the secrets, make a copy
 	for _, secret := range secrets {
 		sc := secret.DeepCopy()
 		secretsCopy = append(secretsCopy, sc)

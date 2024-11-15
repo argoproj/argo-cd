@@ -1338,8 +1338,8 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	secrets, err := mgr.secrets.Secrets(mgr.namespace).List(selector)
 	var secretsCopy []*apiv1.Secret
 	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
-	// Objects returned by the lister must be treated as read-only. To allow us to modify the secrets,
-	// make a copy
+	// Objects returned by the lister must be treated as read-only.
+	// To allow us to modify the secrets, make a copy
 	for _, secret := range secrets {
 		secretsCopy = append(secretsCopy, secret.DeepCopy())
 	}
