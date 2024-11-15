@@ -395,7 +395,7 @@ export const ApplicationsList = (props: RouteComponentProps<{}>) => {
                                                 const closeButton = document.querySelector('.sliding-panel__close');
 
                                                 if (outsideDiv && closeButton && closeButton !== document.activeElement) {
-                                                    const confirmed = await ctx.popup.confirm('Close Panel?', 'Closing this panel will discard all entered values. Continue?');
+                                                    const confirmed = await ctx.popup.confirm('Close Panel', 'Closing this panel will discard all entered values. Continue?');
                                                     if (confirmed) {
                                                         ctx.navigation.goto('.', {new: null}, {replace: true});
                                                     }
