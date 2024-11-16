@@ -295,7 +295,7 @@ export class ReposList extends React.Component<
                 <div className='repos-list'>
                     <div className='argo-container'>
                         <div style={{display: 'flex', margin: '20px 0', justifyContent: 'space-between'}}>
-                            <div style={{display: 'flex', gap: '8px', width:  '50%'}}>
+                            <div style={{display: 'flex', gap: '8px', width: '50%'}}>
                                 <DropDownMenu
                                     items={[
                                         {
@@ -311,9 +311,9 @@ export class ReposList extends React.Component<
                                             action: () => this.setState({typeProperty: 'helm'})
                                         }
                                     ]}
-                                    anchor={() =>   (
+                                    anchor={() => (
                                         <>
-                                            <a>
+                                            <a style={{whiteSpace: 'nowrap'}}>
                                                 Type: {this.state.typeProperty} <i className='fa fa-caret-down' />
                                             </a>
                                             &nbsp;
@@ -341,9 +341,9 @@ export class ReposList extends React.Component<
                                         return (
                                             <DropDownMenu
                                                 items={projectItems}
-                                               anchor={() => (
+                                                anchor={() => (
                                                     <>
-                                                        <a>
+                                                        <a style={{whiteSpace: 'nowrap'}}>
                                                             Project: {this.state.projectProperty} <i className='fa fa-caret-down' />
                                                         </a>
                                                         &nbsp;
@@ -373,14 +373,14 @@ export class ReposList extends React.Component<
                                             action: () => this.setState({statusProperty: 'Unknown'})
                                         }
                                     ]}
-                                 anchor={() =>  (
+                                    anchor={() => (
                                         <>
-                                            <a>
+                                            <a style={{whiteSpace: 'nowrap'}}>
                                                 Status: {this.state.statusProperty} <i className='fa fa-caret-down' />
                                             </a>
                                             &nbsp;
                                         </>
-                                    )}                                             
+                                    )}
                                     qeId='status-menu'
                                 />
                             </div>
