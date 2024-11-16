@@ -6,7 +6,7 @@ package lua
 // github.com/yuin/gopher-lua.
 
 import (
-	"strconv"
+	"fmt"
 	"strings"
 	"time"
 
@@ -116,7 +116,7 @@ func strftime(t time.Time, cfmt string) string {
 				} else {
 					switch c {
 					case 'w':
-						sc.AppendString(strconv.Itoa(int(t.Weekday())))
+						sc.AppendString(fmt.Sprint(int(t.Weekday())))
 					default:
 						sc.AppendChar('%')
 						sc.AppendChar(c)

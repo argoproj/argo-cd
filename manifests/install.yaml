@@ -12028,6 +12028,8 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
+                                      excludeArchivedRepos:
+                                        type: boolean
                                       insecure:
                                         type: boolean
                                       owner:
@@ -12054,6 +12056,8 @@ spec:
                                         type: string
                                       appSecretName:
                                         type: string
+                                      excludeArchivedRepos:
+                                        type: boolean
                                       organization:
                                         type: string
                                       tokenRef:
@@ -17426,6 +17430,8 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
+                                      excludeArchivedRepos:
+                                        type: boolean
                                       insecure:
                                         type: boolean
                                       owner:
@@ -17452,6 +17458,8 @@ spec:
                                         type: string
                                       appSecretName:
                                         type: string
+                                      excludeArchivedRepos:
+                                        type: boolean
                                       organization:
                                         type: string
                                       tokenRef:
@@ -20331,6 +20339,8 @@ spec:
                               type: boolean
                             api:
                               type: string
+                            excludeArchivedRepos:
+                              type: boolean
                             insecure:
                               type: boolean
                             owner:
@@ -20357,6 +20367,8 @@ spec:
                               type: string
                             appSecretName:
                               type: string
+                            excludeArchivedRepos:
+                              type: boolean
                             organization:
                               type: string
                             tokenRef:

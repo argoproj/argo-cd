@@ -694,7 +694,7 @@ func TestPluginGenerateParams(t *testing.T) {
 				require.NoError(t, err)
 				gotJson, err := json.Marshal(got)
 				require.NoError(t, err)
-				assert.JSONEq(t, string(expectedJson), string(gotJson))
+				assert.Equal(t, string(expectedJson), string(gotJson))
 			}
 		})
 	}
