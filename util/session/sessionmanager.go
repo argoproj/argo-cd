@@ -527,12 +527,15 @@ func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) h
 // We choose how to verify based on the issuer.
 func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, error) {
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
-	var claims jwt.RegisteredClaims
+	//var claims jwt.RegisteredClaims
+	claims := jwt.MapClaims{}
 	_, _, err := parser.ParseUnverified(tokenString, &claims)
 	if err != nil {
 		return nil, "", err
 	}
-	switch claims.Issuer {
+	// Get issuer from MapClaims
+	issuer, _ := claims["iss"].(string)
+	switch issuer {
 	case SessionManagerClaimsIssuer:
 		// Argo CD signed token
 		return mgr.Parse(tokenString)
@@ -559,8 +562,8 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 			log.Warnf("Failed to verify token: %s", err)
 			tokenExpiredError := &oidc.TokenExpiredError{}
 			if errors.As(err, &tokenExpiredError) {
-				claims = jwt.RegisteredClaims{
-					Issuer: "sso",
+				claims = jwt.MapClaims{
+					"iss": "sso",
 				}
 				return claims, "", common.TokenVerificationErr
 			}
@@ -605,7 +608,12 @@ func Username(ctx context.Context) string {
 	if !ok {
 		return ""
 	}
-	return utils.GetUserIdentifier(mapClaims)
+	subject := jwtutil.StringField(mapClaims, "sub")
+	if strings.Contains(subject, ":") {
+		parts := strings.Split(subject, ":")
+		return parts[0] // Return just the username part
+	}
+	return subject
 }
 
 func Iss(ctx context.Context) string {
@@ -652,8 +660,20 @@ func ClaimsKey() interface{} {
 func mapClaims(ctx context.Context) (jwt.MapClaims, bool) {
 	claims, ok := ctx.Value(claimsKey).(jwt.Claims)
 	if !ok {
-		return nil, false
+		claims, ok = ctx.Value("claims").(jwt.Claims)
+		if !ok {
+			// Try direct MapClaims from both keys
+			mapClaims, ok := ctx.Value(claimsKey).(jwt.MapClaims)
+			if !ok {
+				mapClaims, ok = ctx.Value("claims").(jwt.MapClaims)
+			}
+			if ok {
+				return mapClaims, true
+			}
+			return nil, false
+		}
 	}
+
 	mapClaims, err := jwtutil.MapClaims(claims)
 	if err != nil {
 		return nil, false
