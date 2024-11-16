@@ -103,12 +103,6 @@ interface NewGoogleCloudSourceRepoCredsParams {
     gcpServiceAccountKey: string;
 }
 
-interface ColumnHeaderProps {
-    label: string;
-    property?: string;
-    className?: string;
-}
-
 export enum ConnectionMethod {
     SSH = 'via SSH',
     HTTPS = 'via HTTPS',
@@ -276,32 +270,6 @@ export class ReposList extends React.Component<
     }
 
     public render() {
-        const compareReposAsc = (a: models.Repository, b: models.Repository) => {
-            const x = a[this.state.sortProperty] === undefined ? '' : a[this.state.sortProperty].toString();
-            const y = b[this.state.sortProperty] === undefined ? '' : b[this.state.sortProperty].toString();
-            return x.localeCompare(y);
-        };
-
-        const compareReposDesc = (a: models.Repository, b: models.Repository) => {
-            return compareReposAsc(b, a);
-        };
-
-        const ColumnHeader = (props: ColumnHeaderProps) => {
-            const onClick = () => {
-                if (this.state.sortProperty === props.property) {
-                    this.setState({sortOrder: this.state.sortOrder === 'asc' ? 'desc' : 'asc'});
-                } else {
-                    this.setState({sortProperty: props.property as keyof models.Repository, sortOrder: 'asc'});
-                }
-            };
-
-            return (
-                <div className={props.className} onClick={onClick}>
-                    {props.label}
-                </div>
-            );
-        };
-
         return (
             <Page
                 title='Repositories'
