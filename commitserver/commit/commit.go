@@ -108,14 +108,14 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 		return out, "", fmt.Errorf("failed to checkout target branch: %w", err)
 	}
 
-	logCtx.Debug("Checking out if hydrated already")
+	logCtx.Debug("Checking if hydrated already")
 	metadataPath := path.Join(dirPath, "hydrator.metadata")
 	fileData, err := os.ReadFile(metadataPath)
 	if err == nil {
 		var hydratorMetadata hydratorMetadataFile
 		json.Unmarshal(fileData, &hydratorMetadata)
 		if hydratorMetadata.DrySHA == r.DrySha {
-			logCtx.Debug("Already Hydrated")
+			logCtx.WithField("drySHA", r.DrySha).Debug("Already Hydrated")
 			return "", r.DrySha, nil
 		}
 	}
