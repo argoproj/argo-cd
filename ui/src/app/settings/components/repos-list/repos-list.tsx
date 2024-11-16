@@ -1052,18 +1052,6 @@ export class ReposList extends React.Component<
         return newRepos;
     }
 
-<<<<<<< HEAD
-    private filteredName(repos: models.Repository[], name: string) {
-        const trimmedName = name.trim();
-        if (trimmedName === '') {
-            return repos;
-        }
-        const newRepos = repos.filter(repo => repo.name && repo.name.toLowerCase().includes(trimmedName.toLowerCase()));
-        return newRepos;
-    }
-
-=======
->>>>>>> 0a23f1847 (refactor : delete sort dropdown and fix eslint)
     private filteredName(repos: models.Repository[], name: string) {
         const trimmedName = name.trim();
         if (trimmedName === '') {
