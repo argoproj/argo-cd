@@ -55,7 +55,7 @@ recent minor releases.
 
 |    | Critical | High | Medium | Low |
 |---:|:--------:|:----:|:------:|:---:|
-| [go.mod](v2.11.12/argocd-test.html) | 0 | 1 | 9 | 2 |
+| [go.mod](v2.11.12/argocd-test.html) | 0 | 2 | 9 | 2 |
 | [ui/yarn.lock](v2.11.12/argocd-test.html) | 0 | 0 | 1 | 0 |
 | [dex:v2.38.0](v2.11.12/ghcr.io_dexidp_dex_v2.38.0.html) | 0 | 0 | 6 | 7 |
 | [haproxy:2.6.14-alpine](v2.11.12/haproxy_2.6.14-alpine.html) | 0 | 1 | 7 | 7 |
@@ -68,7 +68,7 @@ recent minor releases.
 
 |    | Critical | High | Medium | Low |
 |---:|:--------:|:----:|:------:|:---:|
-| [go.mod](v2.10.18/argocd-test.html) | 0 | 1 | 9 | 2 |
+| [go.mod](v2.10.18/argocd-test.html) | 0 | 2 | 9 | 2 |
 | [ui/yarn.lock](v2.10.18/argocd-test.html) | 0 | 0 | 1 | 0 |
 | [dex:v2.37.0](v2.10.18/ghcr.io_dexidp_dex_v2.37.0.html) | 1 | 1 | 10 | 7 |
 | [haproxy:2.6.14-alpine](v2.10.18/haproxy_2.6.14-alpine.html) | 0 | 1 | 7 | 7 |
