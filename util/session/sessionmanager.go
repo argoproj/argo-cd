@@ -527,7 +527,6 @@ func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) h
 // We choose how to verify based on the issuer.
 func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, error) {
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
-	//var claims jwt.RegisteredClaims
 	claims := jwt.MapClaims{}
 	_, _, err := parser.ParseUnverified(tokenString, &claims)
 	if err != nil {
