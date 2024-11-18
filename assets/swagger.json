@@ -9417,6 +9417,10 @@
             "type": "string"
           }
         },
+        "description": {
+          "type": "string",
+          "title": "Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example"
+        },
         "duration": {
           "type": "string",
           "title": "Duration is the amount of time the sync window will be open"
