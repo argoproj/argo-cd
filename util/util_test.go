@@ -52,13 +52,22 @@ func TestSecretCopy(t *testing.T) {
 		want []*apiv1.Secret
 	}{
 		{name: "nil", args: args{secrets: nil}, want: []*apiv1.Secret{}},
-		{name: "Three", args: args{secrets: []*apiv1.Secret{{ObjectMeta: metav1.ObjectMeta{Name: "one"}},
-			{ObjectMeta: metav1.ObjectMeta{Name: "two"}}, {ObjectMeta: metav1.ObjectMeta{Name: "three"}}}},
-			want: []*apiv1.Secret{{ObjectMeta: metav1.ObjectMeta{Name: "one"}},
+		{
+			name: "Three", args: args{secrets: []*apiv1.Secret{
+				{ObjectMeta: metav1.ObjectMeta{Name: "one"}},
 				{ObjectMeta: metav1.ObjectMeta{Name: "two"}},
-				{ObjectMeta: metav1.ObjectMeta{Name: "three"}}}},
-		{name: "One", args: args{secrets: []*apiv1.Secret{{ObjectMeta: metav1.ObjectMeta{Name: "one"}}}},
-			want: []*apiv1.Secret{{ObjectMeta: metav1.ObjectMeta{Name: "one"}}}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "three"}},
+			}},
+			want: []*apiv1.Secret{
+				{ObjectMeta: metav1.ObjectMeta{Name: "one"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "two"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "three"}},
+			},
+		},
+		{
+			name: "One", args: args{secrets: []*apiv1.Secret{{ObjectMeta: metav1.ObjectMeta{Name: "one"}}}},
+			want: []*apiv1.Secret{{ObjectMeta: metav1.ObjectMeta{Name: "one"}}},
+		},
 		{name: "Zero", args: args{secrets: []*apiv1.Secret{}}, want: []*apiv1.Secret{}},
 	}
 	for _, tt := range tests {
