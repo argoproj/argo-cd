@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	"github.com/argoproj/argo-cd/v2/util"
 )
 
 func (db *db) listSecretsByType(types ...string) ([]*apiv1.Secret, error) {
@@ -35,18 +36,14 @@ func (db *db) listSecretsByType(types ...string) ([]*apiv1.Secret, error) {
 		return nil, err
 	}
 	secrets, err := secretsLister.Secrets(db.ns).List(labelSelector)
-	var secretsCopy []*apiv1.Secret
-	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
-	// Objects returned by the lister must be treated as read-only.
-	// To allow us to modify the secrets, make a copy
-	for _, secret := range secrets {
-		sc := secret.DeepCopy()
-		secretsCopy = append(secretsCopy, sc)
-	}
 	if err != nil {
 		return nil, err
 	}
-	return secretsCopy, nil
+	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
+	// Objects returned by the lister must be treated as read-only.
+	// To allow us to modify the secrets, make a copy
+	secrets = util.SecretCopy(secrets)
+	return secrets, nil
 }
 
 func boolOrFalse(secret *apiv1.Secret, key string) (bool, error) {
