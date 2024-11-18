@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	apiv1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v2/util"
 	"github.com/argoproj/argo-cd/v2/util/webhook"
@@ -36,6 +38,36 @@ func TestParseRevision(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equalf(t, tt.want, webhook.ParseRevision(tt.args.ref), "parseRevision(%v)", tt.args.ref)
+		})
+	}
+}
+
+func TestSecretCopy(t *testing.T) {
+	type args struct {
+		secrets []*apiv1.Secret
+	}
+	tests := []struct {
+		name string
+		args args
+		want []*apiv1.Secret
+	}{
+		{name: "nil", args: args{secrets: nil}, want: []*apiv1.Secret{}},
+		{name: "Three", args: args{secrets: []*apiv1.Secret{{ObjectMeta: metav1.ObjectMeta{Name: "one"}},
+			{ObjectMeta: metav1.ObjectMeta{Name: "two"}}, {ObjectMeta: metav1.ObjectMeta{Name: "three"}}}},
+			want: []*apiv1.Secret{{ObjectMeta: metav1.ObjectMeta{Name: "one"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "two"}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "three"}}}},
+		{name: "One", args: args{secrets: []*apiv1.Secret{{ObjectMeta: metav1.ObjectMeta{Name: "one"}}}},
+			want: []*apiv1.Secret{{ObjectMeta: metav1.ObjectMeta{Name: "one"}}}},
+		{name: "Zero", args: args{secrets: []*apiv1.Secret{}}, want: []*apiv1.Secret{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			secretsCopy := util.SecretCopy(tt.args.secrets)
+			assert.Equalf(t, tt.want, secretsCopy, "SecretCopy(%v)", tt.args.secrets)
+			for i := range tt.args.secrets {
+				assert.NotSame(t, secretsCopy[i], tt.args.secrets[i])
+			}
 		})
 	}
 }
