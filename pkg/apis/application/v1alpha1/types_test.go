@@ -3673,7 +3673,7 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 				Namespace: "argocd",
 			},
 			Spec: AppProjectSpec{
-				SourceNamespaces: []string{"other-ns"},
+				SourceNamespaces: []string{"argocd", "some-ns"},
 			},
 		}
 		// app1 is installed to argocd namespace, controller as well

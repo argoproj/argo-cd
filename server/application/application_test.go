@@ -2662,6 +2662,16 @@ func TestIsApplicationPermitted(t *testing.T) {
 		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, *testApp)
 		assert.True(t, permitted)
 	})
+
+	t.Run("Application's namespace is server-ns and is not part of enabled namespace", func(t *testing.T) {
+		testApp := newTestApp()
+		testApp.Namespace = "server-ns"
+		appServer := newTestAppServer(t, testApp)
+		appServer.ns = "server-ns"
+		appServer.enabledNamespaces = []string{"demo"}
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, *testApp)
+		assert.False(t, permitted)
+	})
 }
 
 func TestAppNamespaceRestrictions(t *testing.T) {
@@ -2824,6 +2834,29 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		require.ErrorContains(t, err, "app is not allowed in project")
 	})
 
+	t.Run("Create application in server namespace when not allowed by project", func(t *testing.T) {
+		t.Parallel()
+		testApp := newTestApp()
+		testApp.Namespace = "default"
+		testApp.Spec.Project = "same-ns"
+		sameNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "same-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"argocd-1"},
+			},
+		}
+		appServer := newTestAppServer(t, sameNsProj)
+		appServer.enabledNamespaces = []string{"default"}
+		app, err := appServer.Create(context.TODO(), &application.ApplicationCreateRequest{
+			Application: testApp,
+		})
+		require.Error(t, err)
+		require.Nil(t, app)
+		require.ErrorContains(t, err, "app is not allowed in project")
+	})
+
 	t.Run("Create application in other namespace when not allowed by configuration", func(t *testing.T) {
 		t.Parallel()
 		testApp := newTestApp()
@@ -2846,6 +2879,54 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		require.Nil(t, app)
 		require.ErrorContains(t, err, "namespace 'argocd-1' is not permitted")
 	})
+
+	t.Run("Create application in server namespace when not allowed by configuration", func(t *testing.T) {
+		t.Parallel()
+		testApp := newTestApp()
+		testApp.Namespace = "default"
+		testApp.Spec.Project = "same-ns"
+		sameNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "same-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{"default", "argocd-1"},
+			},
+		}
+		appServer := newTestAppServer(t, sameNsProj)
+		appServer.enabledNamespaces = []string{"argocd-1"}
+		app, err := appServer.Create(context.TODO(), &application.ApplicationCreateRequest{
+			Application: testApp,
+		})
+		require.Error(t, err)
+		require.Nil(t, app)
+		require.ErrorContains(t, err, "namespace 'default' is not permitted")
+	})
+
+	t.Run("Create application in server namespace when enabledNamespaces is empty", func(t *testing.T) {
+		t.Parallel()
+		testApp := newTestApp()
+		testApp.Namespace = "default"
+		testApp.Spec.Project = "same-ns"
+		otherNsProj := &appsv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "same-ns", Namespace: "default"},
+			Spec: appsv1.AppProjectSpec{
+				SourceRepos:      []string{"*"},
+				Destinations:     []appsv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				SourceNamespaces: []string{},
+			},
+		}
+		appServer := newTestAppServer(t, otherNsProj)
+		appServer.enabledNamespaces = []string{}
+		app, err := appServer.Create(context.TODO(), &application.ApplicationCreateRequest{
+			Application: testApp,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, app)
+		assert.Equal(t, "test-app", app.Name)
+		assert.Equal(t, "default", app.Namespace)
+	})
+
 	t.Run("Get application sync window in other namespace when project is allowed", func(t *testing.T) {
 		t.Parallel()
 		testApp := newTestApp()

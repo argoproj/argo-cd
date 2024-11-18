@@ -484,8 +484,8 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
 	BIN_MODE=$(ARGOCD_BIN_MODE) \
-	ARGOCD_APPLICATION_NAMESPACES=argocd-e2e-external,argocd-e2e-external-2 \
-	ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES=argocd-e2e-external,argocd-e2e-external-2 \
+	ARGOCD_APPLICATION_NAMESPACES=argocd-e2e,argocd-e2e-external,argocd-e2e-external-2 \
+	ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES=argocd-e2e,argocd-e2e-external,argocd-e2e-external-2 \
 	ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE=true \
 	ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS=http://127.0.0.1:8341,http://127.0.0.1:8342,http://127.0.0.1:8343,http://127.0.0.1:8344 \
 	ARGOCD_E2E_TEST=true \

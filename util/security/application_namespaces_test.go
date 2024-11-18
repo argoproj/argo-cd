@@ -63,6 +63,13 @@ func Test_IsNamespaceEnabled(t *testing.T) {
 			[]string{"/^((?!disallowed).)*$/"},
 			true,
 		},
+		{
+			"argocd namespace is not in the enabled list",
+			"argocd",
+			"argocd",
+			[]string{"my-namespace"},
+			false,
+		},
 	}
 
 	for _, tc := range testCases {

@@ -7,7 +7,7 @@ import (
 )
 
 func IsNamespaceEnabled(namespace string, serverNamespace string, enabledNamespaces []string) bool {
-	return namespace == serverNamespace || glob.MatchStringInList(enabledNamespaces, namespace, glob.REGEXP)
+	return (namespace == serverNamespace && len(enabledNamespaces) == 0) || glob.MatchStringInList(enabledNamespaces, namespace, glob.REGEXP)
 }
 
 func NamespaceNotPermittedError(namespace string) error {
