@@ -25,9 +25,6 @@ func MakeSignature(size int) ([]byte, error) {
 // containing deep copies of the original secrets.
 func SecretCopy(secrets []*apiv1.Secret) []*apiv1.Secret {
 	secretsCopy := make([]*apiv1.Secret, len(secrets))
-	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
-	// Objects returned by the lister must be treated as read-only.
-	// To allow us to modify the secrets, make a copy
 	for i, secret := range secrets {
 		secretsCopy[i] = secret.DeepCopy()
 	}
