@@ -3,6 +3,7 @@ import * as React from 'react';
 
 import {Context} from '../../../shared/context';
 import {services} from '../../../shared/services';
+import {getAppUrl} from '../utils';
 
 export const ApplicationsDetailsAppDropdown = (props: {appName: string}) => {
     const [opened, setOpened] = React.useState(false);
@@ -42,7 +43,7 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string}) => {
                                 })
                                 .slice(0, 100) // take top 100 results after filtering to avoid performance issues
                                 .map(app => (
-                                    <li key={app.metadata.name} onClick={() => ctx.navigation.goto(`/applications/${app.metadata.namespace}/${app.metadata.name}`)}>
+                                    <li key={app.metadata.name} onClick={() => ctx.navigation.goto(getAppUrl(app))}>
                                         {app.metadata.name} {app.metadata.name === props.appName && ' (current)'}
                                     </li>
                                 ))
