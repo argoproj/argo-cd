@@ -93,6 +93,7 @@ argocd app create APPNAME [flags]
       --revision-history-limit int                 How many items to keep in revision history (default 10)
       --self-heal                                  Set self healing when sync is automated
       --set-finalizer                              Sets deletion finalizer on the application, application resources will be cascaded on deletion
+      --source-name string                         Name of the source from the list of sources of the app.
       --sync-option Prune=false                    Add or remove a sync option, e.g add Prune=false. Remove using `!` prefix, e.g. `!Prune=false`
       --sync-policy string                         Set the sync policy (one of: manual (aliases of manual: none), automated (aliases of automated: auto, automatic))
       --sync-retry-backoff-duration duration       Sync retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h) (default 5s)

@@ -20,6 +20,9 @@ argocd app unset APPNAME parameters [flags]
   # Unset kustomize override suffix for source at position 1 under spec.sources of app my-app. source-position starts at 1.
   argocd app unset my-app --source-position 1 --namesuffix
 
+  # Unset kustomize override suffix for source named "test" under spec.sources of app my-app.
+  argocd app unset my-app --source-name test --namesuffix
+
   # Unset parameter override
   argocd app unset my-app -p COMPONENT=PARAM
 ```

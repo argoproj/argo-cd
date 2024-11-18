@@ -89,6 +89,7 @@ type AppOptions struct {
 	retryBackoffMaxDuration         time.Duration
 	retryBackoffFactor              int64
 	ref                             string
+	SourceName                      string
 }
 
 // SetAutoMaxProcs sets the GOMAXPROCS value based on the binary name.
@@ -164,6 +165,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().DurationVar(&opts.retryBackoffMaxDuration, "sync-retry-backoff-max-duration", argoappv1.DefaultSyncRetryMaxDuration, "Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().Int64Var(&opts.retryBackoffFactor, "sync-retry-backoff-factor", argoappv1.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed sync retry")
 	command.Flags().StringVar(&opts.ref, "ref", "", "Ref is reference to another source within sources field")
+	command.Flags().StringVar(&opts.SourceName, "source-name", "", "Name of the source from the list of sources of the app.")
 }
 
 func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, appOpts *AppOptions, sourcePosition int) int {
@@ -751,6 +753,8 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			setPluginOptEnvs(source, appOpts.pluginEnvs)
 		case "ref":
 			source.Ref = appOpts.ref
+		case "source-name":
+			source.Name = appOpts.SourceName
 		}
 	})
 	return source, visited
