@@ -16461,12 +16461,16 @@ spec:
                       type: object
                     hook:
                       type: boolean
+                    ignoreExtraneous:
+                      type: boolean
                     kind:
                       type: string
                     name:
                       type: string
                     namespace:
                       type: string
+                    pruningDisabled:
+                      type: boolean
                     requiresDeletionConfirmation:
                       type: boolean
                     requiresPruning:

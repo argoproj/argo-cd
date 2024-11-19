@@ -1828,6 +1828,12 @@ message ResourceDiff {
   optional string resourceVersion = 11;
 
   optional bool modified = 12;
+
+  optional bool requiresPruning = 13;
+
+  optional bool pruningDisabled = 14;
+
+  optional bool ignoreExtraneous = 15;
 }
 
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
@@ -1973,6 +1979,10 @@ message ResourceStatus {
   optional int64 syncWave = 10;
 
   optional bool requiresDeletionConfirmation = 11;
+
+  optional bool pruningDisabled = 12;
+
+  optional bool ignoreExtraneous = 13;
 }
 
 // RetryStrategy contains information about the strategy to apply when a sync failed
