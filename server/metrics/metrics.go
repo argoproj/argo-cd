@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -20,6 +21,13 @@ type MetricsServer struct {
 	extensionRequestCounter  *prometheus.CounterVec
 	extensionRequestDuration *prometheus.HistogramVec
 	argoVersion              *prometheus.GaugeVec
+}
+
+type DAUMetrics struct {
+	mu       sync.Mutex
+	userSet  map[string]time.Time
+	gauge    prometheus.Gauge
+	duration time.Duration
 }
 
 var (
@@ -61,6 +69,8 @@ var (
 		[]string{"version"},
 	)
 )
+
+var DAUMetricsInstance *DAUMetrics
 
 // NewMetricsServer returns a new prometheus server which collects api server metrics
 func NewMetricsServer(host string, port int) *MetricsServer {
@@ -108,4 +118,36 @@ func (m *MetricsServer) IncExtensionRequestCounter(extension string, status int)
 
 func (m *MetricsServer) ObserveExtensionRequestDuration(extension string, duration time.Duration) {
 	m.extensionRequestDuration.WithLabelValues(extension).Observe(duration.Seconds())
+}
+
+
+func InitDAUMetrics(duration time.Duration) {
+	DAUMetricsInstance = &DAUMetrics{
+		userSet:  make(map[string]time.Time),
+		duration: duration,
+		gauge: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "argo_cd_daily_active_users",
+			Help: "Number of daily active users in the last 24 hours",
+		}),
+	}
+
+	prometheus.MustRegister(DAUMetricsInstance.gauge)
+}
+
+func (d *DAUMetrics) RecordActivity(userID string) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	d.userSet[userID] = time.Now()
+	d.cleanup()
+	d.gauge.Set(float64(len(d.userSet)))
+}
+
+func (d *DAUMetrics) cleanup() {
+	threshold := time.Now().Add(-d.duration)
+	for userID, lastSeen := range d.userSet {
+		if lastSeen.Before(threshold) {
+			delete(d.userSet, userID)
+		}
+	}
 }
