@@ -209,6 +209,8 @@ Similar to the CLI, you can refer to the application in the UI as `foo/bar`.
 
 For example, to create an application named `bar` in the namespace `foo` in the web UI, set the application name in the creation dialogue's _Application Name_ field to `foo/bar`. If the namespace is omitted, the control plane's namespace will be used.
 
+You can alternatively use the `Application Namespace` field.
+
 ### Using the REST API
 
 If you are using the REST API, the namespace for `Application` cannot be specified as the application name, and resources need to be specified using the optional `appNamespace` query parameter. For example, to work with the `Application` resource named `foo` in the namespace `bar`, the request would look like follows:
