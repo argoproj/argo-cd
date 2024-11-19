@@ -16,6 +16,7 @@ interface Props {
     operationState: models.OperationState;
 }
 const buildResourceUniqueId = (res: Omit<models.ResourceRef, 'uid'>) => `${res.group}-${res.kind}-${res.version}-${res.namespace}-${res.name}`;
+const MessageStatuses = ['configured', 'unchanged'];
 
 const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; options: string[]; title: string; style?: React.CSSProperties}) => {
     const {filters, setFilters, options, title, style} = props;
@@ -52,6 +53,8 @@ const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; op
 };
 
 export const ApplicationOperationState: React.StatelessComponent<Props> = ({application, operationState}, ctx: AppContext) => {
+    const [messageFilters, setMessageFilters] = React.useState([]);
+
     const operationAttributes = [
         {title: 'OPERATION', value: utils.getOperationType(application)},
         {title: 'PHASE', value: operationState.phase},
@@ -166,7 +169,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
 
     if (combinedHealthSyncResult && combinedHealthSyncResult.length > 0) {
         filtered = combinedHealthSyncResult.filter(r => {
-            if (filters.length === 0 && healthFilters.length === 0) {
+            if (filters.length === 0 && healthFilters.length === 0 && messageFilters.length === 0) {
                 return true;
             }
 
@@ -176,6 +179,10 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
             }
 
             if (pass && healthFilters.length !== 0 && !healthFilters.includes(r.health?.status)) {
+                pass = false;
+            }
+
+            if (pass && messageFilters.length !== 0 && !messageFilters.includes(r.message)) {
                 pass = false;
             }
 
@@ -203,6 +210,8 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                             <Filter options={Healths} filters={healthFilters} setFilters={setHealthFilters} title='HEALTH' style={{marginRight: '5px'}} />
                             <Filter options={Statuses} filters={filters} setFilters={setFilters} title='STATUS' style={{marginRight: '5px'}} />
                             <Filter options={OperationPhases} filters={filters} setFilters={setFilters} title='HOOK' />
+                            <Filter options={MessageStatuses} filters={messageFilters} setFilters={setMessageFilters} title='MESSAGE' />
+
                         </div>
                     </div>
                     <div className='argo-table-list'>
