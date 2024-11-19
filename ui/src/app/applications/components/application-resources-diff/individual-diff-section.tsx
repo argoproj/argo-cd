@@ -1,39 +1,32 @@
 import * as React from 'react';
 import {useState} from 'react';
-import {Diff, Hunk, tokenize, markEdits} from 'react-diff-view';
+import {ViewType} from 'react-diff-view';
 import 'react-diff-view/style/index.css';
 
 import './application-resources-diff.scss';
+import DiffView from '../diff-view/diff-view';
+import {FileWithSource} from './application-resources-diff';
 
 export interface IndividualDiffSectionProps {
-    file: any;
+    resourceName: string;
+    file: FileWithSource;
     showPath: boolean;
     whiteBox: string;
-    viewType: string;
+    viewType: ViewType;
 }
 
 export const IndividualDiffSection = (props: IndividualDiffSectionProps) => {
-    const {file, showPath, whiteBox, viewType} = props;
+    const {resourceName, file, showPath, whiteBox, viewType} = props;
     const [collapsed, setCollapsed] = useState(false);
-    const options = {
-        highlight: false,
-        enhancers: [markEdits(file.hunks, {type: 'block'})]
-    };
-    const token = tokenize(file.hunks, options);
-
     return (
         <div className={`${whiteBox} application-component-diff__diff`}>
             {showPath && (
                 <p className='application-resources-diff__diff__title'>
-                    {file.newPath}
+                    {resourceName}
                     <i className={`fa fa-caret-${collapsed ? 'down' : 'up'} diff__collapse`} onClick={() => setCollapsed(!collapsed)} />
                 </p>
             )}
-            {!collapsed && (
-                <Diff viewType={viewType} diffType={file.type} hunks={file.hunks} tokens={token}>
-                    {(hunks: any) => hunks.map((hunk: any) => <Hunk className={'custom-diff-hunk'} key={hunk.content} hunk={hunk} />)}
-                </Diff>
-            )}
+            {!collapsed && <DiffView diffType={file.type} viewType={viewType} editsType={'block'} language={'yaml'} hunks={file.hunks} oldSource={file.oldSource} />}
         </div>
     );
 };

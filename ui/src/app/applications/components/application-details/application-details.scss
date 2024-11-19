@@ -282,6 +282,11 @@ $header: 120px;
         }
     }
 
+    // prevent very large line height within resource details table
+    .white-box__details-row .columns {
+        padding: 1rem 0;
+        line-height: unset;
+    }
 
     @media screen and (max-width: map-get($breakpoints, large)) {
         .sliding-panel__body {

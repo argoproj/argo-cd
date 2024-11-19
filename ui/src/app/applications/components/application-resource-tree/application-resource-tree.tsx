@@ -41,6 +41,8 @@ export interface ResourceTreeNode extends models.ResourceNode {
     hook?: boolean;
     root?: ResourceTreeNode;
     requiresPruning?: boolean;
+    pruningDisabled?: boolean;
+    ignoreExtraneous?: boolean;
     orphaned?: boolean;
     podGroup?: PodGroup;
     isExpanded?: boolean;
@@ -888,6 +890,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 resourceNode.status = status.status;
                 resourceNode.hook = status.hook;
                 resourceNode.requiresPruning = status.requiresPruning;
+                resourceNode.pruningDisabled = status.pruningDisabled;
+                resourceNode.ignoreExtraneous = status.ignoreExtraneous;
             }
             nodeByKey.set(treeNodeKey(node), resourceNode);
         });

@@ -105,10 +105,17 @@ func TestSyncStatusOptionIgnore(t *testing.T) {
 				// new map in-sync
 				if resourceStatus.Name != oldMap {
 					assert.Contains(t, resourceStatus.Name, "my-map-")
-					// make sure we've a new map with changed name
 					assert.Equal(t, SyncStatusCodeSynced, resourceStatus.Status)
+					assert.True(t, resourceStatus.IgnoreExtraneous)
+					assert.True(t, resourceStatus.PruningDisabled)
+					// the new map should not require pruning
+					assert.False(t, resourceStatus.RequiresPruning)
 				} else {
-					assert.Equal(t, SyncStatusCodeOutOfSync, resourceStatus.Status)
+					assert.Equal(t, SyncStatusCodeSynced, resourceStatus.Status)
+					assert.True(t, resourceStatus.IgnoreExtraneous)
+					assert.True(t, resourceStatus.PruningDisabled)
+					// the old map should require pruning
+					assert.True(t, resourceStatus.RequiresPruning)
 				}
 			}
 		})

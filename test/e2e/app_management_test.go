@@ -1775,11 +1775,20 @@ func TestCompareOptionIgnoreExtraneous(t *testing.T) {
 		And(func(app *Application) {
 			assert.Len(t, app.Status.Resources, 2)
 			statusByName := map[string]SyncStatusCode{}
+			requiresPruneByName := map[string]bool{}
+			ignoreExtraneousByName := map[string]bool{}
 			for _, r := range app.Status.Resources {
 				statusByName[r.Name] = r.Status
+				requiresPruneByName[r.Name] = r.RequiresPruning
+				ignoreExtraneousByName[r.Name] = r.IgnoreExtraneous
 			}
-			assert.Equal(t, SyncStatusCodeOutOfSync, statusByName["pod-1"])
+			assert.Equal(t, SyncStatusCodeSynced, statusByName["pod-1"])
+			assert.True(t, requiresPruneByName["pod-1"])
+			assert.True(t, ignoreExtraneousByName["pod-1"])
+
 			assert.Equal(t, SyncStatusCodeSynced, statusByName["pod-2"])
+			assert.False(t, requiresPruneByName["pod-2"])
+			assert.False(t, ignoreExtraneousByName["pod-2"])
 		}).
 		When().
 		Sync().

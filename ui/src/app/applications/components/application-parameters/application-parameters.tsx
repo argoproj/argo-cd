@@ -764,7 +764,7 @@ function gatherDetails(
         }
     } else if (repoDetails.type === 'Helm' && repoDetails.helm) {
         const isValuesObject = source?.helm?.valuesObject;
-        const helmValues = isValuesObject ? jsYaml.dump(source.helm.valuesObject) : source?.helm?.values;
+        const helmValues = isValuesObject ? jsYaml.dump(source.helm.valuesObject, {indent: 2, lineWidth: -1}) : source?.helm?.values;
         attributes.push({
             title: 'VALUES FILES',
             view: (source.helm && (source.helm.valueFiles || []).join(', ')) || 'No values files selected',

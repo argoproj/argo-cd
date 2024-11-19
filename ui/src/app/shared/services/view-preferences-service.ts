@@ -20,6 +20,7 @@ export interface AppDetailsPreferences {
     inlineDiff: boolean;
     compactDiff: boolean;
     hideManagedFields?: boolean;
+    hideSystemFields?: boolean;
     enableWordWrap?: boolean;
     orphanedResources: boolean;
     podView: PodViewPreferences;
@@ -115,6 +116,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         inlineDiff: false,
         compactDiff: false,
         hideManagedFields: true,
+        hideSystemFields: true,
         resourceView: 'manifest',
         orphanedResources: false,
         podView: {

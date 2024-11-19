@@ -230,7 +230,7 @@ export const ComparisonStatusIcon = ({
     noSpin
 }: {
     status: appModels.SyncStatusCode;
-    resource?: {requiresPruning?: boolean};
+    resource?: {requiresPruning?: boolean; pruningDisabled?: boolean; ignoreExtraneous?: boolean};
     label?: boolean;
     noSpin?: boolean;
 }) => {
@@ -245,19 +245,51 @@ export const ComparisonStatusIcon = ({
             title = 'Synced';
             break;
         case appModels.SyncStatuses.OutOfSync:
-            // eslint-disable-next-line no-case-declarations
-            const requiresPruning = resource && resource.requiresPruning;
-            className = requiresPruning ? 'fa fa-trash' : 'fa fa-arrow-alt-circle-up';
-            title = 'OutOfSync';
-            if (requiresPruning) {
-                title = `${title} (This resource is not present in the application's source. It will be deleted from Kubernetes if the prune option is enabled during sync.)`;
-            }
+            className = 'fa fa-arrow-alt-circle-up';
             color = COLORS.sync.out_of_sync;
+            title = 'OutOfSync';
             break;
         case appModels.SyncStatuses.Unknown:
             className = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}`;
             break;
     }
+
+    // if the resource requires pruning, there are 4 possible states:
+    //  - pruningDisabled=false, ignoreExtraneous=false
+    //     - ICON: yellow, trash can
+    //     - DESC: the resource will be pruned and is contributing to the out-of-sync status
+    //  - pruningDisabled=false, ignoreExtraneous=true
+    //     - ICON: grey, trash can
+    //     - DESC: the resource will be pruned, but is not contributing to the out-of-sync status
+    //  - pruningDisabled=true, ignoreExtraneous=false
+    //     - ICON: yellow, eye-slash
+    //     - DESC: the resource will not be pruned, but is contributing to the out-of-sync status
+    //  - pruningDisabled=true, ignoreExtraneous=true
+    //     - ICON: grey, eye-slash
+    //     - DESC: the resource will not be pruned, and is not contributing to the out-of-sync status
+    const requiresPruning = resource && resource.requiresPruning;
+    if (requiresPruning) {
+        title = `${title} // This resource is not present in the application's source.`;
+
+        // if the resource has the `Prune=false` sync-options annotation
+        const pruningDisabled = resource && resource.pruningDisabled;
+        if (pruningDisabled) {
+            className = 'fa fa-eye-slash';
+            title = `${title} // Pruning has been DISABLED for this resource, it will NOT be deleted from Kubernetes.`;
+        } else {
+            className = 'fa fa-trash';
+            title = `${title} // It will be DELETED from Kubernetes if prune is enabled during sync.`;
+        }
+
+        // if the resource has the `IgnoreExtraneous` compare-options annotation
+        const ignoreExtraneous = resource && resource.ignoreExtraneous;
+        if (ignoreExtraneous) {
+            color = COLORS.sync.ignored;
+        } else {
+            color = COLORS.sync.out_of_sync;
+        }
+    }
+
     return (
         <React.Fragment>
             <i qe-id='utils-sync-status-title' title={title} className={className} style={{color}} /> {label && title}
@@ -1471,3 +1503,27 @@ export const userMsgsList: {[key: string]: string} = {
     groupNodes: `Since the number of pods has surpassed the threshold pod count of 15, you will now be switched to the group node view.
                  If you prefer the tree view, you can simply click on the Group Nodes toolbar button to deselect the current view.`
 };
+
+export interface cleanStateOpts {
+    hideManagedFields?: boolean;
+    hideSystemFields?: boolean;
+}
+
+// cleanState removes fields from the resource state that are not needed for display purposes
+export function cleanState(state: any, {hideManagedFields, hideSystemFields}: cleanStateOpts): void {
+    if (!state) {
+        return;
+    }
+    if (hideManagedFields || hideSystemFields) {
+        delete state.metadata.managedFields;
+    }
+    if (hideSystemFields) {
+        delete state.metadata.selfLink;
+        delete state.metadata.uid;
+        delete state.metadata.resourceVersion;
+        delete state.metadata.creationTimestamp;
+        delete state.metadata.generation;
+        delete state.status;
+    }
+    return;
+}

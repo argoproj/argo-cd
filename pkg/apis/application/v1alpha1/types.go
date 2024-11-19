@@ -1484,7 +1484,13 @@ func (r ResourceResults) Find(group string, kind string, namespace string, name 
 func (r ResourceResults) PruningRequired() (num int) {
 	for _, res := range r {
 		if res.Status == synccommon.ResultCodePruneSkipped {
-			num++
+			// the same "PruneSkipped" status is used for both the case that a resource required pruning
+			// and was not pruned because the sync operation had pruning disabled, and the case that a
+			// resource was skipped from pruning due to its `Prune=false` annotation, so would never need pruning
+			// so should not count towards the total number of resources that require pruning
+			if res.Message != "ignored (no prune)" {
+				num++
+			}
 		}
 	}
 	return num
@@ -1841,6 +1847,8 @@ type ResourceStatus struct {
 	RequiresPruning              bool           `json:"requiresPruning,omitempty" protobuf:"bytes,9,opt,name=requiresPruning"`
 	SyncWave                     int64          `json:"syncWave,omitempty" protobuf:"bytes,10,opt,name=syncWave"`
 	RequiresDeletionConfirmation bool           `json:"requiresDeletionConfirmation,omitempty" protobuf:"bytes,11,opt,name=requiresDeletionConfirmation"`
+	PruningDisabled              bool           `json:"pruningDisabled,omitempty" protobuf:"bytes,12,opt,name=pruningDisabled"`
+	IgnoreExtraneous             bool           `json:"ignoreExtraneous,omitempty" protobuf:"bytes,13,opt,name=ignoreExtraneous"`
 }
 
 // GroupVersionKind returns the GVK schema type for given resource status
@@ -1869,6 +1877,9 @@ type ResourceDiff struct {
 	PredictedLiveState string `json:"predictedLiveState,omitempty" protobuf:"bytes,10,opt,name=predictedLiveState"`
 	ResourceVersion    string `json:"resourceVersion,omitempty" protobuf:"bytes,11,opt,name=resourceVersion"`
 	Modified           bool   `json:"modified,omitempty" protobuf:"bytes,12,opt,name=modified"`
+	RequiresPruning    bool   `json:"requiresPruning,omitempty" protobuf:"bytes,13,opt,name=requiresPruning"`
+	PruningDisabled    bool   `json:"pruningDisabled,omitempty" protobuf:"bytes,14,opt,name=pruningDisabled"`
+	IgnoreExtraneous   bool   `json:"ignoreExtraneous,omitempty" protobuf:"bytes,15,opt,name=ignoreExtraneous"`
 }
 
 // FullName returns full name of a node that was used for diffing in the format "group/kind/namespace/name"

@@ -1,6 +1,5 @@
 import {Checkbox, DataLoader, Tab, Tabs} from 'argo-ui';
 import classNames from 'classnames';
-import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 
 import {YamlEditor, ClipboardText} from '../../../shared/components';
@@ -9,9 +8,10 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
-import {ComparisonStatusIcon, formatCreationTimestamp, getPodReadinessGatesState, getPodStateReason, HealthStatusIcon} from '../utils';
+import {cleanState, ComparisonStatusIcon, formatCreationTimestamp, getPodReadinessGatesState, getPodStateReason, HealthStatusIcon} from '../utils';
 import './application-node-info.scss';
 import {ReadinessGatesNotPassedWarning} from './readiness-gates-not-passed-warning';
+import {cloneDeep} from 'lodash-es';
 
 const RenderContainerState = (props: {container: any}) => {
     const state = (props.container.state?.waiting && 'waiting') || (props.container.state?.terminated && 'terminated') || (props.container.state?.running && 'running');
@@ -207,13 +207,17 @@ export const ApplicationNodeInfo = (props: {
             content: (
                 <DataLoader load={() => services.viewPreferences.getPreferences()}>
                     {pref => {
-                        const live = deepMerge(props.live, {}) as any;
-                        if (Object.keys(live).length === 0) {
+                        let live = props.live;
+                        if (!live) {
                             showLiveState = false;
                         }
-
-                        if (live?.metadata?.managedFields && pref.appDetails.hideManagedFields) {
-                            delete live.metadata.managedFields;
+                        if (pref.appDetails.hideSystemFields || pref.appDetails.hideManagedFields) {
+                            // if we are removing fields, we need to clone the object
+                            live = cloneDeep(props.live);
+                            cleanState(live, {
+                                hideSystemFields: pref.appDetails.hideSystemFields,
+                                hideManagedFields: pref.appDetails.hideManagedFields
+                            });
                         }
                         return (
                             <React.Fragment>
@@ -221,8 +225,22 @@ export const ApplicationNodeInfo = (props: {
                                     <React.Fragment>
                                         <div className='application-node-info__checkboxes'>
                                             <Checkbox
+                                                id='hideSystemFields'
+                                                checked={!!pref.appDetails.hideSystemFields}
+                                                onChange={() =>
+                                                    services.viewPreferences.updatePreferences({
+                                                        appDetails: {
+                                                            ...pref.appDetails,
+                                                            hideSystemFields: !pref.appDetails.hideSystemFields
+                                                        }
+                                                    })
+                                                }
+                                            />
+                                            <label htmlFor='hideSystemFields'>Hide System Fields</label>
+                                            <Checkbox
                                                 id='hideManagedFields'
-                                                checked={!!pref.appDetails.hideManagedFields}
+                                                checked={!!pref.appDetails.hideManagedFields || !!pref.appDetails.hideSystemFields}
+                                                disabled={!!pref.appDetails.hideSystemFields}
                                                 onChange={() =>
                                                     services.viewPreferences.updatePreferences({
                                                         appDetails: {
@@ -250,7 +268,7 @@ export const ApplicationNodeInfo = (props: {
                                         <YamlEditor
                                             input={live}
                                             hideModeButtons={!live}
-                                            vScrollbar={live}
+                                            vScrollbar={true}
                                             enableWordWrap={pref.appDetails.enableWordWrap}
                                             onSave={(patch, patchType) =>
                                                 services.applications.patchResource(
@@ -289,7 +307,7 @@ export const ApplicationNodeInfo = (props: {
             key: 'diff',
             icon: 'fa fa-file-medical',
             title: 'Diff',
-            content: <ApplicationResourcesDiff states={[props.controlled.state]} />
+            content: <ApplicationResourcesDiff states={[props.controlled.state]} singleResource={true} />
         });
         tabs.push({
             key: 'desiredManifest',

@@ -356,6 +356,8 @@ export interface ResourceStatus {
     createdAt?: models.Time;
     hook?: boolean;
     requiresPruning?: boolean;
+    pruningDisabled?: boolean;
+    ignoreExtraneous?: boolean;
     requiresDeletionConfirmation?: boolean;
     syncWave?: number;
     orphaned?: boolean;
@@ -416,6 +418,9 @@ export interface ResourceDiff extends ResourceID {
     predictedLiveState: State;
     normalizedLiveState: State;
     hook: boolean;
+    requiresPruning: boolean;
+    pruningDisabled: boolean;
+    ignoreExtraneous: boolean;
 }
 
 export interface SyncStatus {
