@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=docker.io/library/ubuntu:24.04@sha256:278628f08d4979fb9af9ead44277dbc9c92c2465922310916ad0c46ec9999295
+ARG BASE_IMAGE=cgr.dev/chainguard/wolfi-base
 ####################################################################################################
 # Builder image
 # Initial stage which pulls prepares build dependencies and CLI tooling we need for our final image
@@ -80,7 +80,7 @@ RUN GIT_COMMIT=$GIT_COMMIT \
 ####################################################################################################
 # Final image
 ####################################################################################################
-FROM cgr.dev/chainguard/wolfi-base
+FROM $BASE_IMAGE
 
 LABEL org.opencontainers.image.source="https://github.com/argoproj/argo-cd"
 ENV ARGOCD_USER_ID=999
