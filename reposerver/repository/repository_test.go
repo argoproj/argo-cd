@@ -4178,8 +4178,9 @@ func Test_GenerateManifests_Commands(t *testing.T) {
 							Value: "false",
 						},
 					},
-					PassCredentials: true,
-					SkipCrds:        true,
+					PassCredentials:      true,
+					SkipCrds:             true,
+					SkipSchemaValidation: false,
 					ValueFiles: []string{
 						"my-chart-values.yaml",
 					},
