@@ -6,6 +6,8 @@
 
 Follow these steps to install `Kind` for local development and set it up with Argo CD.
 
+To run an Argo CD development environment [review the developer guide for running locally](../developer-guide/running-locally).
+
 ## Install Kind
 
 ```bash
