@@ -5,7 +5,7 @@ go 1.22.0
 require (
 	code.gitea.io/sdk/gitea v0.19.0
 	github.com/Azure/kubelogin v0.1.4
-	github.com/Masterminds/semver/v3 v3.3.0
+	github.com/Masterminds/semver/v3 v3.3.1
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/TomOnTime/utfutil v0.0.0-20180511104225-09c41003ee1d
 	github.com/alicebob/miniredis/v2 v2.33.0
