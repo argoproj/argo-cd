@@ -9,7 +9,7 @@ Follow these steps to install `Kind` for local development and set it up with Ar
 ## Install Kind
 
 ```bash
-curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/v0.18.0/kind-linux-amd64
+curl -Lo ./kind https://kind.sigs.k8s.io/dl/latest/kind-darwin-amd64  
 chmod +x ./kind
 sudo mv ./kind /usr/local/bin/kind
 ```
