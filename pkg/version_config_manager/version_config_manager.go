@@ -1,0 +1,80 @@
+package version_config_manager
+
+import (
+	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/v2/pkg/khulnasoft"
+	"github.com/argoproj/argo-cd/v2/reposerver/cache"
+)
+
+type VersionConfig struct {
+	JsonPath     string `json:"jsonPath"`
+	ResourceName string `json:"resourceName"`
+}
+
+const (
+	DefaultVersionSource = "Chart.yaml"
+	DefaultVersionPath   = "$.appVersion"
+)
+
+func (v *VersionConfigManager) GetVersionConfig(app *metav1.ObjectMeta) (*VersionConfig, error) {
+	var appConfig *khulnasoft.PromotionTemplate
+
+	// Get from cache
+	appConfig, err := v.cache.GetCfAppConfig(app.Namespace, app.Name)
+	if err == nil {
+		log.Infof("CfAppConfig cache hit: '%s'", cache.CfAppConfigCacheKey(app.Namespace, app.Name))
+		log.Infof("CfAppConfig. Use config from cache.  File: %s, jsonPath: %s", appConfig.VersionSource.File, appConfig.VersionSource.JsonPath)
+		return &VersionConfig{
+			JsonPath:     appConfig.VersionSource.JsonPath,
+			ResourceName: appConfig.VersionSource.File,
+		}, nil
+	}
+
+	if err != nil {
+		log.Errorf("CfAppConfig cache get error for '%s': %v", cache.CfAppConfigCacheKey(app.Namespace, app.Name), err)
+	}
+
+	// Get from Khulnasoft API
+	appConfig, err = v.requests.GetPromotionTemplate(app)
+	if err != nil {
+		log.Infof("Failed to get application config from API: %v", err)
+		return nil, err
+	}
+
+	if appConfig != nil {
+		log.Infof("CfAppConfig. Use config from API. File: %s, jsonPath: %s", appConfig.VersionSource.File, appConfig.VersionSource.JsonPath)
+		// Set to cache
+		err = v.cache.SetCfAppConfig(app.Namespace, app.Name, appConfig)
+		if err == nil {
+			log.Infof("CfAppConfig saved to cache hit: '%s'", cache.CfAppConfigCacheKey(app.Namespace, app.Name))
+		} else {
+			log.Errorf("CfAppConfig cache set error for '%s': %v", cache.CfAppConfigCacheKey(app.Namespace, app.Name), err)
+		}
+
+		return &VersionConfig{
+			JsonPath:     appConfig.VersionSource.JsonPath,
+			ResourceName: appConfig.VersionSource.File,
+		}, nil
+	}
+
+	// Default value
+	log.Infof("Used default CfAppConfig for: '%s'", cache.CfAppConfigCacheKey(app.Namespace, app.Name))
+	return &VersionConfig{
+		JsonPath:     DefaultVersionPath,
+		ResourceName: DefaultVersionSource,
+	}, nil
+}
+
+type VersionConfigManager struct {
+	requests khulnasoft.KhulnasoftGraphQLInterface
+	cache    *cache.Cache
+}
+
+func NewVersionConfigManager(requests khulnasoft.KhulnasoftGraphQLInterface, cache *cache.Cache) *VersionConfigManager {
+	return &VersionConfigManager{
+		requests,
+		cache,
+	}
+}

@@ -6,18 +6,15 @@
 
 These are the upcoming releases dates:
 
-| Release | Release Candidate 1   | General Availability | Release Champion                                      | Release Approver                                      | Checklist                                                     |
-|---------|-----------------------|----------------------|-------------------------------------------------------|-------------------------------------------------------|---------------------------------------------------------------|
-| v2.6    | Monday, Dec. 19, 2022 | Monday, Feb. 6, 2023 | [William Tam](https://github.com/wtam2018)            | [William Tam](https://github.com/wtam2018)            | [checklist](https://github.com/argoproj/argo-cd/issues/11563) |
-| v2.7    | Monday, Mar. 20, 2023 | Monday, May 1, 2023  | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/12762) |
-| v2.8    | Monday, Jun. 26, 2023 | Monday, Aug. 7, 2023 | [Keith Chong](https://github.com/keithchong)          | [Keith Chong](https://github.com/keithchong)          | [checklist](https://github.com/argoproj/argo-cd/issues/13742) |
-| v2.9    | Monday, Sep. 18, 2023 | Monday, Nov. 6, 2023 | [Leonardo Almeida](https://github.com/leoluz)         | [Leonardo Almeida](https://github.com/leoluz)         | [checklist](https://github.com/argoproj/argo-cd/issues/14078) |
-| v2.10   | Monday, Dec. 18, 2023 | Monday, Feb. 5, 2024 | [Katie Lamkin](https://github.com/kmlamkin9)          |                                                       | [checklist](https://github.com/argoproj/argo-cd/issues/16339) |
-| v2.11   | Friday, Apr. 5,  2024 | Monday, May 6, 2024  | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/17726) |
-| v2.12   | Monday, Jun. 17, 2024 | Monday, Aug. 5, 2024 | [Ishita Sequeira](https://github.com/ishitasequeira)  | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/19063) |
-| v2.13   | Monday, Sep. 16, 2024 | Monday, Nov. 4, 2024 | [Regina Voloshin](https://github.com/reggie-k)        | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/19513) |
-| v2.14   | Monday, Dec. 16, 2024 | Monday, Feb. 3, 2025 | [Ryan Umstead](https://github.com/rumstead)           | [Pavel Kostohrys](https://github.com/pasha-codefresh) | [checklist](https://github.com/argoproj/argo-cd/issues/20869) |
-| v2.15   | Monday, Mar. 17, 2025 | Monday, May 5, 2025  |                                                       |                                                       |                                                               |
+| Release | Release Candidate 1   | General Availability | Release Champion                                       | Release Approver                                       | Checklist                                                     |
+| ------- | --------------------- | -------------------- | ------------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------- |
+| v2.6    | Monday, Dec. 19, 2022 | Monday, Feb. 6, 2023 | [William Tam](https://github.com/wtam2018)             | [William Tam](https://github.com/wtam2018)             | [checklist](https://github.com/argoproj/argo-cd/issues/11563) |
+| v2.7    | Monday, Mar. 20, 2023 | Monday, May 1, 2023  | [Pavel Kostohrys](https://github.com/pasha-khulnasoft) | [Pavel Kostohrys](https://github.com/pasha-khulnasoft) | [checklist](https://github.com/argoproj/argo-cd/issues/12762) |
+| v2.8    | Monday, Jun. 26, 2023 | Monday, Aug. 7, 2023 | [Keith Chong](https://github.com/keithchong)           | [Keith Chong](https://github.com/keithchong)           | [checklist](https://github.com/argoproj/argo-cd/issues/13742) |
+| v2.9    | Monday, Sep. 18, 2023 | Monday, Nov. 6, 2023 | [Leonardo Almeida](https://github.com/leoluz)          | [Leonardo Almeida](https://github.com/leoluz)          | [checklist](https://github.com/argoproj/argo-cd/issues/14078) |
+| v2.10   | Monday, Dec. 18, 2023 | Monday, Feb. 5, 2024 | [Katie Lamkin](https://github.com/kmlamkin9)           |                                                        | [checklist](https://github.com/argoproj/argo-cd/issues/16339) |
+| v2.11   | Friday, Apr. 5, 2024  | Monday, May 6, 2024  | [Pavel Kostohrys](https://github.com/pasha-khulnasoft) | [Pavel Kostohrys](https://github.com/pasha-khulnasoft) | [checklist](https://github.com/argoproj/argo-cd/issues/17726) |
+| v2.12   | Monday, Jun. 17, 2024 | Monday, Aug. 5, 2024 |
 
 Actual release dates might differ from the plan by a few days.
 
@@ -31,10 +28,10 @@ effectively means that there is a seven-week feature freeze.
 
 These are the approximate release dates:
 
-* The first Monday of February
-* The first Monday of May
-* The first Monday of August
-* The first Monday of November
+- The first Monday of February
+- The first Monday of May
+- The first Monday of August
+- The first Monday of November
 
 Dates may be shifted slightly to accommodate holidays. Those shifts should be minimal.
 
@@ -64,10 +61,10 @@ that Proposal must be reviewed and merged.
 
 The feature PR must include:
 
-* Tests (passing)
-* Documentation
-* If necessary, a note in the Upgrading docs for the planned minor release
-* The PR must be reviewed, approved, and merged by an Approver.
+- Tests (passing)
+- Documentation
+- If necessary, a note in the Upgrading docs for the planned minor release
+- The PR must be reviewed, approved, and merged by an Approver.
 
 If these criteria are not met by the RC date, the feature will be ineligible for inclusion in the RC series or GA for
 that minor release. It will have to wait for the next minor release.
@@ -80,8 +77,8 @@ CVEs in Argo CD code will be patched for all supported versions. Read more about
 
 Dependencies are evaluated before being introduced to ensure they:
 
-1) are actively maintained
-2) are maintained by trustworthy maintainers
+1. are actively maintained
+2. are maintained by trustworthy maintainers
 
 These evaluations vary from dependency to dependencies.
 

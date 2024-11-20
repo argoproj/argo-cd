@@ -40,7 +40,7 @@ spec:
       serviceAccountName: argocd-redis        
       containers:
       - name: redis
-        image: redis:7.0.15-alpine
+        image: public.ecr.aws/docker/library/redis:7.0.15-alpine
         imagePullPolicy: Always
         args:
         - "--save"
@@ -77,5 +77,3 @@ spec:
                 matchLabels:
                   app.kubernetes.io/part-of: argocd
               topologyKey: kubernetes.io/hostname
-      nodeSelector:
-        kubernetes.io/os: linux

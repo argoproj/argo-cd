@@ -3,10 +3,13 @@ package managedfields
 import (
 	"bytes"
 	"fmt"
+	"reflect"
+	"sync"
 
-	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	k8smanagedfields "k8s.io/apimachinery/pkg/util/managedfields"
 	"sigs.k8s.io/structured-merge-diff/v4/fieldpath"
 	"sigs.k8s.io/structured-merge-diff/v4/typed"
 )
@@ -29,15 +32,12 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 
 	liveCopy := live.DeepCopy()
 	configCopy := config.DeepCopy()
-	normalized := false
-
 	results, err := newTypedResults(liveCopy, configCopy, pt)
-	// error might happen if the resources are not parsable and so cannot be normalized
 	if err != nil {
-		log.Debugf("error building typed results: %v", err)
-		return liveCopy, configCopy, nil
+		return nil, nil, fmt.Errorf("error building typed results: %w", err)
 	}
 
+	normalized := false
 	for _, mf := range live.GetManagedFields() {
 		if trustedManager(mf.Manager, trustedManagers) {
 			err := normalize(mf, results)
@@ -124,4 +124,63 @@ func trustedManager(curManager string, trustedManagers []string) bool {
 		}
 	}
 	return false
+}
+
+func ResolveParseableType(gvk schema.GroupVersionKind, parser *k8smanagedfields.GvkParser) *typed.ParseableType {
+	if parser == nil {
+		return &typed.DeducedParseableType
+	}
+	pt := resolverFromStaticParser(gvk, parser)
+	if pt == nil {
+		return parser.Type(gvk)
+	}
+	return pt
+}
+
+func resolverFromStaticParser(gvk schema.GroupVersionKind, parser *k8smanagedfields.GvkParser) *typed.ParseableType {
+	gvkNameMap := getGvkMap(parser)
+	name := gvkNameMap[gvk]
+
+	p := StaticParser()
+	if p == nil || name == "" {
+		return nil
+	}
+	pt := p.Type(name)
+	if pt.IsValid() {
+		return &pt
+	}
+	return nil
+}
+
+var (
+	gvkMap      map[schema.GroupVersionKind]string
+	extractOnce sync.Once
+)
+
+func getGvkMap(parser *k8smanagedfields.GvkParser) map[schema.GroupVersionKind]string {
+	extractOnce.Do(func() {
+		gvkMap = extractGvkMap(parser)
+	})
+	return gvkMap
+}
+
+func extractGvkMap(parser *k8smanagedfields.GvkParser) map[schema.GroupVersionKind]string {
+	results := make(map[schema.GroupVersionKind]string)
+
+	value := reflect.ValueOf(parser)
+	gvkValue := reflect.Indirect(value).FieldByName("gvks")
+	iter := gvkValue.MapRange()
+	for iter.Next() {
+		group := iter.Key().FieldByName("Group").String()
+		version := iter.Key().FieldByName("Version").String()
+		kind := iter.Key().FieldByName("Kind").String()
+		gvk := schema.GroupVersionKind{
+			Group:   group,
+			Version: version,
+			Kind:    kind,
+		}
+		name := iter.Value().String()
+		results[gvk] = name
+	}
+	return results
 }

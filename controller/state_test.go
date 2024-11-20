@@ -28,6 +28,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	mockrepoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 )
@@ -37,7 +38,7 @@ func TestCompareAppStateEmpty(t *testing.T) {
 	app := newFakeApp()
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -101,7 +102,7 @@ func TestCompareAppStateNamespaceMetadataDiffers(t *testing.T) {
 
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -148,7 +149,9 @@ func TestCompareAppStateNamespaceMetadataDiffersToManifest(t *testing.T) {
 
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{toJSON(t, liveNs)},
+			Manifests: []*apiclient.Manifest{
+				{CompiledManifest: toJSON(t, liveNs)},
+			},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -206,7 +209,7 @@ func TestCompareAppStateNamespaceMetadata(t *testing.T) {
 
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -267,7 +270,7 @@ func TestCompareAppStateNamespaceMetadataIsTheSame(t *testing.T) {
 
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -295,7 +298,11 @@ func TestCompareAppStateMissing(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{PodManifest},
+			Manifests: []*apiclient.Manifest{
+				{
+					CompiledManifest: PodManifest,
+				},
+			},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -325,7 +332,7 @@ func TestCompareAppStateExtra(t *testing.T) {
 	key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: app.Name}
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -358,7 +365,11 @@ func TestCompareAppStateHook(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{string(podBytes)},
+			Manifests: []*apiclient.Manifest{
+				{
+					CompiledManifest: string(podBytes),
+				},
+			},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -390,7 +401,11 @@ func TestCompareAppStateSkipHook(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{string(podBytes)},
+			Manifests: []*apiclient.Manifest{
+				{
+					CompiledManifest: string(podBytes),
+				},
+			},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -420,7 +435,7 @@ func TestCompareAppStateCompareOptionIgnoreExtraneous(t *testing.T) {
 	data := fakeData{
 		apps: []runtime.Object{app},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -452,7 +467,7 @@ func TestCompareAppStateExtraHook(t *testing.T) {
 	key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: app.Name}
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -483,7 +498,9 @@ func TestAppRevisionsSingleSource(t *testing.T) {
 	obj1.SetNamespace(test.FakeDestNamespace)
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{toJSON(t, obj1)},
+			Manifests: []*apiclient.Manifest{
+				{CompiledManifest: toJSON(t, obj1)},
+			},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -510,19 +527,23 @@ func TestAppRevisionsMultiSource(t *testing.T) {
 	data := fakeData{
 		manifestResponses: []*apiclient.ManifestResponse{
 			{
-				Manifests: []string{toJSON(t, obj1)},
+				Manifests: []*apiclient.Manifest{
+					{CompiledManifest: toJSON(t, obj1)},
+				},
 				Namespace: test.FakeDestNamespace,
 				Server:    test.FakeClusterURL,
 				Revision:  "abc123",
 			},
 			{
-				Manifests: []string{toJSON(t, obj1)},
+				Manifests: []*apiclient.Manifest{
+					{CompiledManifest: toJSON(t, obj1)},
+				},
 				Namespace: test.FakeDestNamespace,
 				Server:    test.FakeClusterURL,
 				Revision:  "def456",
 			},
 			{
-				Manifests: []string{},
+				Manifests: []*apiclient.Manifest{},
 				Namespace: test.FakeDestNamespace,
 				Server:    test.FakeClusterURL,
 				Revision:  "ghi789",
@@ -547,7 +568,6 @@ func TestAppRevisionsMultiSource(t *testing.T) {
 }
 
 func toJSON(t *testing.T, obj *unstructured.Unstructured) string {
-	t.Helper()
 	data, err := json.Marshal(obj)
 	require.NoError(t, err)
 	return string(data)
@@ -569,7 +589,13 @@ func TestCompareAppStateDuplicatedNamespacedResources(t *testing.T) {
 	app := newFakeApp()
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{toJSON(t, obj1), toJSON(t, obj2), toJSON(t, obj3), toJSON(t, obj4), toJSON(t, obj5)},
+			Manifests: []*apiclient.Manifest{
+				{CompiledManifest: toJSON(t, obj1)},
+				{CompiledManifest: toJSON(t, obj2)},
+				{CompiledManifest: toJSON(t, obj3)},
+				{CompiledManifest: toJSON(t, obj4)},
+				{CompiledManifest: toJSON(t, obj5)},
+			},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -611,7 +637,7 @@ func TestCompareAppStateManagedNamespaceMetadataWithLiveNsDoesNotGetPruned(t *te
 
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -664,7 +690,7 @@ func TestCompareAppStateWithManifestGeneratePath(t *testing.T) {
 
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -680,6 +706,7 @@ func TestCompareAppStateWithManifestGeneratePath(t *testing.T) {
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, "abc123", compRes.syncStatus.Revision)
+	ctrl.repoClientset.(*mockrepoclient.Clientset).RepoServerServiceClient.(*mockrepoclient.RepoServerServiceClient).AssertNumberOfCalls(t, "UpdateRevisionForPaths", 1)
 }
 
 func TestSetHealth(t *testing.T) {
@@ -697,7 +724,7 @@ func TestSetHealth(t *testing.T) {
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -733,7 +760,7 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -951,7 +978,7 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
+				Manifests:    []*apiclient.Manifest{},
 				Namespace:    test.FakeDestNamespace,
 				Server:       test.FakeClusterURL,
 				Revision:     "abc123",
@@ -978,7 +1005,7 @@ func TestSignedResponseNoSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
+				Manifests:    []*apiclient.Manifest{},
 				Namespace:    test.FakeDestNamespace,
 				Server:       test.FakeClusterURL,
 				Revision:     "abc123",
@@ -1010,7 +1037,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
+				Manifests:    []*apiclient.Manifest{},
 				Namespace:    test.FakeDestNamespace,
 				Server:       test.FakeClusterURL,
 				Revision:     "abc123",
@@ -1037,7 +1064,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
+				Manifests:    []*apiclient.Manifest{},
 				Namespace:    test.FakeDestNamespace,
 				Server:       test.FakeClusterURL,
 				Revision:     "abc123",
@@ -1064,7 +1091,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
+				Manifests:    []*apiclient.Manifest{},
 				Namespace:    test.FakeDestNamespace,
 				Server:       test.FakeClusterURL,
 				Revision:     "abc123",
@@ -1091,7 +1118,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
+				Manifests:    []*apiclient.Manifest{},
 				Namespace:    test.FakeDestNamespace,
 				Server:       test.FakeClusterURL,
 				Revision:     "abc123",
@@ -1119,7 +1146,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
+				Manifests:    []*apiclient.Manifest{},
 				Namespace:    test.FakeDestNamespace,
 				Server:       test.FakeClusterURL,
 				Revision:     "abc123",
@@ -1149,7 +1176,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
+				Manifests:    []*apiclient.Manifest{},
 				Namespace:    test.FakeDestNamespace,
 				Server:       test.FakeClusterURL,
 				Revision:     "abc123",
@@ -1181,7 +1208,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
+				Manifests:    []*apiclient.Manifest{},
 				Namespace:    test.FakeDestNamespace,
 				Server:       test.FakeClusterURL,
 				Revision:     "abc123",
@@ -1209,7 +1236,7 @@ func TestSignedResponseSignatureRequired(t *testing.T) {
 		app := newFakeApp()
 		data := fakeData{
 			manifestResponse: &apiclient.ManifestResponse{
-				Manifests:    []string{},
+				Manifests:    []*apiclient.Manifest{},
 				Namespace:    test.FakeDestNamespace,
 				Server:       test.FakeClusterURL,
 				Revision:     "abc123",
@@ -1348,7 +1375,7 @@ func TestIsLiveResourceManaged(t *testing.T) {
 	ctrl := newFakeController(&fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -1371,8 +1398,8 @@ func TestIsLiveResourceManaged(t *testing.T) {
 		configObj := managedObj.DeepCopy()
 
 		// then
-		assert.True(t, manager.isSelfReferencedObj(managedObj, configObj, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel, ""))
-		assert.True(t, manager.isSelfReferencedObj(managedObj, configObj, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation, ""))
+		assert.True(t, manager.isSelfReferencedObj(managedObj, configObj, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		assert.True(t, manager.isSelfReferencedObj(managedObj, configObj, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
 	})
 	t.Run("will return true if tracked with label", func(t *testing.T) {
 		// given
@@ -1380,43 +1407,43 @@ func TestIsLiveResourceManaged(t *testing.T) {
 		configObj := managedObjWithLabel.DeepCopy()
 
 		// then
-		assert.True(t, manager.isSelfReferencedObj(managedObjWithLabel, configObj, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel, ""))
+		assert.True(t, manager.isSelfReferencedObj(managedObjWithLabel, configObj, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
 	})
 	t.Run("will handle if trackingId has wrong resource name and config is nil", func(t *testing.T) {
 		// given
 		t.Parallel()
 
 		// then
-		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongName, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel, ""))
-		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongName, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation, ""))
+		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongName, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongName, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
 	})
 	t.Run("will handle if trackingId has wrong resource group and config is nil", func(t *testing.T) {
 		// given
 		t.Parallel()
 
 		// then
-		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel, ""))
-		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation, ""))
+		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongGroup, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
 	})
 	t.Run("will handle if trackingId has wrong kind and config is nil", func(t *testing.T) {
 		// given
 		t.Parallel()
 
 		// then
-		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel, ""))
-		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation, ""))
+		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongKind, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
 	})
 	t.Run("will handle if trackingId has wrong namespace and config is nil", func(t *testing.T) {
 		// given
 		t.Parallel()
 
 		// then
-		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel, ""))
-		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotationAndLabel, ""))
+		assert.True(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodLabel))
+		assert.False(t, manager.isSelfReferencedObj(unmanagedObjWrongNamespace, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotationAndLabel))
 	})
 	t.Run("will return true if live is nil", func(t *testing.T) {
 		t.Parallel()
-		assert.True(t, manager.isSelfReferencedObj(nil, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation, ""))
+		assert.True(t, manager.isSelfReferencedObj(nil, nil, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
 	})
 
 	t.Run("will handle upgrade in desired state APIGroup", func(t *testing.T) {
@@ -1426,13 +1453,11 @@ func TestIsLiveResourceManaged(t *testing.T) {
 		delete(config.GetAnnotations(), common.AnnotationKeyAppInstance)
 
 		// then
-		assert.True(t, manager.isSelfReferencedObj(managedWrongAPIGroup, config, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation, ""))
+		assert.True(t, manager.isSelfReferencedObj(managedWrongAPIGroup, config, appName, common.AnnotationKeyAppInstance, argo.TrackingMethodAnnotation))
 	})
 }
 
 func TestUseDiffCache(t *testing.T) {
-	t.Parallel()
-
 	type fixture struct {
 		testName             string
 		noCache              bool
@@ -1448,9 +1473,9 @@ func TestUseDiffCache(t *testing.T) {
 	manifestInfos := func(revision string) []*apiclient.ManifestResponse {
 		return []*apiclient.ManifestResponse{
 			{
-				Manifests: []string{
-					"{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"labels\":{\"app.kubernetes.io/instance\":\"httpbin\"},\"name\":\"httpbin-svc\",\"namespace\":\"httpbin\"},\"spec\":{\"ports\":[{\"name\":\"http-port\",\"port\":7777,\"targetPort\":80},{\"name\":\"test\",\"port\":333}],\"selector\":{\"app\":\"httpbin\"}}}",
-					"{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"labels\":{\"app.kubernetes.io/instance\":\"httpbin\"},\"name\":\"httpbin-deployment\",\"namespace\":\"httpbin\"},\"spec\":{\"replicas\":2,\"selector\":{\"matchLabels\":{\"app\":\"httpbin\"}},\"template\":{\"metadata\":{\"labels\":{\"app\":\"httpbin\"}},\"spec\":{\"containers\":[{\"image\":\"kennethreitz/httpbin\",\"imagePullPolicy\":\"Always\",\"name\":\"httpbin\",\"ports\":[{\"containerPort\":80}]}]}}}}",
+				Manifests: []*apiclient.Manifest{
+					{CompiledManifest: "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"labels\":{\"app.kubernetes.io/instance\":\"httpbin\"},\"name\":\"httpbin-svc\",\"namespace\":\"httpbin\"},\"spec\":{\"ports\":[{\"name\":\"http-port\",\"port\":7777,\"targetPort\":80},{\"name\":\"test\",\"port\":333}],\"selector\":{\"app\":\"httpbin\"}}}"},
+					{CompiledManifest: "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"labels\":{\"app.kubernetes.io/instance\":\"httpbin\"},\"name\":\"httpbin-deployment\",\"namespace\":\"httpbin\"},\"spec\":{\"replicas\":2,\"selector\":{\"matchLabels\":{\"app\":\"httpbin\"}},\"template\":{\"metadata\":{\"labels\":{\"app\":\"httpbin\"}},\"spec\":{\"containers\":[{\"image\":\"kennethreitz/httpbin\",\"imagePullPolicy\":\"Always\",\"name\":\"httpbin\",\"ports\":[{\"containerPort\":80}]}]}}}}"},
 				},
 				Namespace:    "",
 				Server:       "",
@@ -1527,10 +1552,6 @@ func TestUseDiffCache(t *testing.T) {
 			if err != nil {
 				t.Fatalf("error merging app: %s", err)
 			}
-		}
-		if app.Spec.Destination.Name != "" && app.Spec.Destination.Server != "" {
-			// Simulate the controller's process for populating both of these fields.
-			app.Spec.Destination.SetInferredServer(app.Spec.Destination.Server)
 		}
 		return app
 	}
@@ -1697,44 +1718,6 @@ func TestUseDiffCache(t *testing.T) {
 			expectedUseCache:     false,
 			serverSideDiff:       false,
 		},
-		{
-			// There are code paths that modify the ApplicationSpec and augment the destination field with both the
-			// destination server and name. Since both fields are populated in the app spec but not in the comparedTo,
-			// we need to make sure we correctly compare the fields and don't miss the cache.
-			testName:      "will return true if the app spec destination contains both server and name, but otherwise matches comparedTo",
-			noCache:       false,
-			manifestInfos: manifestInfos("rev1"),
-			sources:       sources(),
-			app: app("httpbin", "rev1", false, &argoappv1.Application{
-				Spec: argoappv1.ApplicationSpec{
-					Destination: argoappv1.ApplicationDestination{
-						Server:    "https://kubernetes.default.svc",
-						Name:      "httpbin",
-						Namespace: "httpbin",
-					},
-				},
-				Status: argoappv1.ApplicationStatus{
-					Resources: []argoappv1.ResourceStatus{},
-					Sync: argoappv1.SyncStatus{
-						Status: argoappv1.SyncStatusCodeSynced,
-						ComparedTo: argoappv1.ComparedTo{
-							Destination: argoappv1.ApplicationDestination{
-								Server:    "https://kubernetes.default.svc",
-								Namespace: "httpbin",
-							},
-						},
-						Revision: "rev1",
-					},
-					ReconciledAt: &metav1.Time{
-						Time: time.Now().Add(-time.Hour),
-					},
-				},
-			}),
-			manifestRevisions:    []string{"rev1"},
-			statusRefreshTimeout: time.Hour * 24,
-			expectedUseCache:     true,
-			serverSideDiff:       true,
-		},
 	}
 
 	for _, tc := range cases {
@@ -1758,7 +1741,7 @@ func TestCompareAppStateDefaultRevisionUpdated(t *testing.T) {
 	app := newFakeApp()
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",
@@ -1781,7 +1764,7 @@ func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
 	app := newFakeMultiSourceApp()
 	data := fakeData{
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
+			Manifests: []*apiclient.Manifest{},
 			Namespace: test.FakeDestNamespace,
 			Server:    test.FakeClusterURL,
 			Revision:  "abc123",

@@ -122,18 +122,8 @@ To do so, when the action if performed on an application's resource, the `<actio
 For instance, to grant access to `example-user` to only delete Pods in the `prod-app` Application, the policy could be:
 
 ```csv
-p, example-user, applications, delete/*/Pod/*/*, default/prod-app, allow
+p, example-user, applications, delete/*/Pod/*, default/prod-app, allow
 ```
-
-!!!warning "Understand glob pattern behavior"
-
-    Argo CD RBAC does not use `/` as a separator when evaluating glob patterns. So the pattern `delete/*/kind/*`
-    will match `delete/<group>/kind/<namespace>/<name>` but also `delete/<group>/<kind>/kind/<name>`.
-
-    The fact that both of these match will generally not be a problem, because resource kinds generally contain capital 
-    letters, and namespaces cannot contain capital letters. However, it is possible for a resource kind to be lowercase. 
-    So it is better to just always include all the parts of the resource in the pattern (in other words, always use four 
-    slashes).
 
 If we want to grant access to the user to update all resources of an application, but not the application itself:
 
@@ -145,7 +135,7 @@ If we want to explicitly deny delete of the application, but allow the user to d
 
 ```csv
 p, example-user, applications, delete, default/prod-app, deny
-p, example-user, applications, delete/*/Pod/*/*, default/prod-app, allow
+p, example-user, applications, delete/*/Pod/*, default/prod-app, allow
 ```
 
 !!! note
@@ -155,7 +145,7 @@ p, example-user, applications, delete/*/Pod/*/*, default/prod-app, allow
 
     ```csv
     p, example-user, applications, delete, default/prod-app, allow
-    p, example-user, applications, delete/*/Pod/*/*, default/prod-app, deny
+    p, example-user, applications, delete/*/Pod/*, default/prod-app, deny
     ```
 
 #### The `action` action
@@ -163,8 +153,6 @@ p, example-user, applications, delete/*/Pod/*/*, default/prod-app, allow
 The `action` action corresponds to either built-in resource customizations defined
 [in the Argo CD repository](https://github.com/argoproj/argo-cd/tree/master/resource_customizations),
 or to [custom resource actions](resource_actions.md#custom-resource-actions) defined by you.
-
-See the [resource actions documentation](resource_actions.md#built-in-actions) for a list of built-in actions.
 
 The `<action>` has the `action/<group>/<kind>/<action-name>` format.
 
@@ -365,6 +353,33 @@ g, my-local-user, role:admin
     ```yaml
     p, my-local-user, *, *, *, allow
     ```
+
+!!! note
+    The `scopes` field controls which OIDC scopes to examine during rbac
+    enforcement (in addition to `sub` scope). If omitted, defaults to:
+    `'[groups]'`. The scope value can be a string, or a list of strings.
+
+Following example shows targeting `email` as well as `groups` from your OIDC provider.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-rbac-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  policy.csv: |
+    p, my-org:team-alpha, applications, sync, my-project/*, allow
+    g, my-org:team-beta, role:admin
+    g, user@example.org, role:admin
+  policy.default: role:readonly
+  scopes: '[groups, email]'
+```
+
+For more information on `scopes` please review the [User Management Documentation](user-management/index.md).
 
 ## Policy CSV Composition
 

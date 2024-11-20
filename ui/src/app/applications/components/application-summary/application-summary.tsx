@@ -172,7 +172,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         },
         !hasMultipleSources && {
             title: 'REPO URL',
-            view: <Repo url={source?.repoURL} />,
+            view: <Repo url={source.repoURL} />,
             edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.repoURL' component={Text} />
         },
         ...(!hasMultipleSources
@@ -180,7 +180,11 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 ? [
                       {
                           title: 'CHART',
-                          view: <span>{source && `${source.chart}:${source.targetRevision}`}</span>,
+                          view: (
+                              <span>
+                                  {source.chart}:{source.targetRevision}
+                              </span>
+                          ),
                           edit: (formApi: FormApi) =>
                               hasMultipleSources ? (
                                   helpTip('CHART is not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')
@@ -259,12 +263,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             view: app.spec.revisionHistoryLimit,
             edit: (formApi: FormApi) => (
                 <div style={{position: 'relative'}}>
-                    <FormField
-                        formApi={formApi}
-                        field='spec.revisionHistoryLimit'
-                        componentProps={{style: {paddingRight: '1em', right: '1em'}, placeholder: '10'}}
-                        component={NumberField}
-                    />
+                    <FormField formApi={formApi} field='spec.revisionHistoryLimit' componentProps={{style: {paddingRight: '1em'}, placeholder: '10'}} component={NumberField} />
                     <div style={{position: 'absolute', right: '0', top: '0'}}>
                         <HelpIcon
                             title='This limits the number of items kept in the apps revision history.
@@ -341,17 +340,13 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             title: 'URLs',
             view: (
                 <React.Fragment>
-                    <div className='application-summary__links-rows'>
-                        {urls
-                            .map(item => item.split('|'))
-                            .map((parts, i) => (
-                                <div className='application-summary__links-row'>
-                                    <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='_blank'>
-                                        {parts[0]} &nbsp;
-                                    </a>
-                                </div>
-                            ))}
-                    </div>
+                    {urls
+                        .map(item => item.split('|'))
+                        .map((parts, i) => (
+                            <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='__blank'>
+                                {parts[0]} &nbsp;
+                            </a>
+                        ))}
                 </React.Fragment>
             )
         });

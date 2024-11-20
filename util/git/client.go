@@ -41,6 +41,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/proxy"
 )
 
+//go:generate go run github.com/vektra/mockery/v2@v2.40.2 --name=Client
+
 var ErrInvalidRepoURL = fmt.Errorf("repo URL is invalid")
 
 type RevisionMetadata struct {
@@ -80,6 +82,8 @@ type Client interface {
 	IsAnnotatedTag(string) bool
 	ChangedFiles(revision string, targetRevision string) ([]string, error)
 	IsRevisionPresent(revision string) bool
+	ListRevisions(revision string, targetRevision string) ([]string, error)
+	DiffTree(targetRevision string) ([]string, error)
 }
 
 type EventHandlers struct {
@@ -107,8 +111,6 @@ type nativeGitClient struct {
 	loadRefFromCache bool
 	// HTTP/HTTPS proxy used to access repository
 	proxy string
-	// list of targets that shouldn't use the proxy, applies only if the proxy is set
-	noProxy string
 }
 
 type runOpts struct {
@@ -154,7 +156,7 @@ func WithEventHandlers(handlers EventHandlers) ClientOpts {
 	}
 }
 
-func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
+func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, opts ...ClientOpts) (Client, error) {
 	r := regexp.MustCompile("(/|:)")
 	normalizedGitURL := NormalizeGitURL(rawRepoURL)
 	if normalizedGitURL == "" {
@@ -164,10 +166,10 @@ func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, pr
 	if root == os.TempDir() {
 		return nil, fmt.Errorf("repository %q cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
 	}
-	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, noProxy, opts...)
+	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, opts...)
 }
 
-func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
+func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, enableLfs bool, proxy string, opts ...ClientOpts) (Client, error) {
 	client := &nativeGitClient{
 		repoURL:   rawRepoURL,
 		root:      root,
@@ -175,7 +177,6 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 		insecure:  insecure,
 		enableLfs: enableLfs,
 		proxy:     proxy,
-		noProxy:   noProxy,
 	}
 	for i := range opts {
 		opts[i](client)
@@ -193,7 +194,7 @@ var gitClientTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15
 //     a client with those certificates in the list of root CAs used to verify
 //     the server's certificate.
 //   - Otherwise (and on non-fatal errors), a default HTTP client is returned.
-func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string, noProxy string) *http.Client {
+func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL string) *http.Client {
 	// Default HTTP client
 	customHTTPClient := &http.Client{
 		// 15 second timeout by default
@@ -204,7 +205,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 		},
 	}
 
-	proxyFunc := proxy.GetCallback(proxyURL, noProxy)
+	proxyFunc := proxy.GetCallback(proxyURL)
 
 	// Callback function to return any configured client certificate
 	// We never return err, but an empty cert instead.
@@ -551,7 +552,7 @@ func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
 	if err != nil {
 		return nil, err
 	}
-	res, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds, m.proxy, m.noProxy)
+	res, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds, m.proxy)
 	if err == nil && m.gitRefCache != nil {
 		if err := m.gitRefCache.SetGitReferences(m.repoURL, res); err != nil {
 			log.Warnf("Failed to store git references to cache: %v", err)
@@ -631,7 +632,11 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 		revision = "HEAD"
 	}
 
-	semverSha := m.resolveSemverRevision(revision, refs)
+	semverSha, err := m.resolveSemverRevision(revision, refs)
+	if err != nil {
+		return "", err
+	}
+
 	if semverSha != "" {
 		return semverSha, nil
 	}
@@ -653,7 +658,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 		// log.Debugf("%s\t%s", hash, refName)
 		if ref.Name().Short() == revision || refName == revision {
 			if ref.Type() == plumbing.HashReference {
-				log.Debugf("revision '%s' resolved to '%s'", revision, hash)
+				log.Infof("revision '%s' resolved to '%s'", revision, hash)
 				return hash, nil
 			}
 			if ref.Type() == plumbing.SymbolicReference {
@@ -679,29 +684,21 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 
 	// If we get here, revision string had non hexadecimal characters (indicating its a branch, tag,
 	// or symbolic ref) and we were unable to resolve it to a commit SHA.
-	return "", fmt.Errorf("unable to resolve '%s' to a commit SHA", revision)
+	return "", fmt.Errorf("Unable to resolve '%s' to a commit SHA", revision)
 }
 
 // resolveSemverRevision is a part of the lsRemote method workflow.
-// When the user correctly configures the Git repository revision, and that revision is a valid semver constraint, we
-// use this logic path rather than the standard lsRemote revision resolution loop.
-// Some examples to illustrate the actual behavior - if the revision is:
-// * "v0.1.2"/"0.1.2" or "v0.1"/"0.1", then this is not a constraint, it's a pinned version - so we fall back to the standard tag matching in the lsRemote loop.
-// * "v0.1.*"/"0.1.*", and there's a tag matching that constraint, then we find the latest matching version and return its commit hash.
-// * "v0.1.*"/"0.1.*", and there is *no* tag matching that constraint, then we fall back to the standard tag matching in the lsRemote loop.
-// * "custom-tag", only the lsRemote loop will run - because that revision is an invalid semver;
-// * "master-branch", only the lsRemote loop will run because that revision is an invalid semver;
-func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbing.Reference) string {
-	if _, err := semver.NewVersion(revision); err == nil {
-		// If the revision is a valid version, then we know it isn't a constraint; it's just a pin.
-		// In which case, we should use standard tag resolution mechanisms.
-		return ""
-	}
-
+// When the user configure correctly the Git repository revision and the revision is a valid semver constraint
+// only the for loop in this function will run, otherwise the lsRemote loop will try to resolve the revision.
+// Some examples to illustrate the actual behavior, if:
+// * The revision is "v0.1.*"/"0.1.*" or "v0.1.2"/"0.1.2" and there's a tag matching that constraint only this function loop will run;
+// * The revision is "v0.1.*"/"0.1.*" or "0.1.2"/"0.1.2" and there is no tag matching that constraint this function loop and lsRemote loop will run for backward compatibility;
+// * The revision is "custom-tag" only the lsRemote loop will run because that revision is an invalid semver;
+// * The revision is "master-branch" only the lsRemote loop will run because that revision is an invalid semver;
+func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbing.Reference) (string, error) {
 	constraint, err := semver.NewConstraint(revision)
 	if err != nil {
-		log.Debugf("Revision '%s' is not a valid semver constraint, skipping semver resolution.", revision)
-		return ""
+		return "", nil
 	}
 
 	maxVersion := semver.New(0, 0, 0, "", "")
@@ -714,9 +711,12 @@ func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbin
 		tag := ref.Name().Short()
 		version, err := semver.NewVersion(tag)
 		if err != nil {
-			log.Debugf("Error parsing version for tag: '%s': %v", tag, err)
-			// Skip this tag and continue to the next one
-			continue
+			if errors.Is(err, semver.ErrInvalidSemVer) {
+				log.Debugf("Invalid semantic version: %s", tag)
+				continue
+			}
+
+			return "", fmt.Errorf("error parsing version for tag: %w", err)
 		}
 
 		if constraint.Check(version) {
@@ -728,11 +728,10 @@ func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbin
 	}
 
 	if maxVersionHash.IsZero() {
-		return ""
+		return "", nil
 	}
 
-	log.Debugf("Semver constraint '%s' resolved to tag '%s', at reference '%s'", revision, maxVersion.Original(), maxVersionHash.String())
-	return maxVersionHash.String()
+	return maxVersionHash.String(), nil
 }
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
@@ -746,11 +745,11 @@ func (m *nativeGitClient) CommitSHA() (string, error) {
 
 // returns the meta-data for the commit
 func (m *nativeGitClient) RevisionMetadata(revision string) (*RevisionMetadata, error) {
-	out, err := m.runCmd("show", "-s", "--format=%an <%ae>%n%at%n%B", revision)
+	out, err := m.runCmd("show", "-s", "--format=%an <%ae>|%at|%B", revision)
 	if err != nil {
 		return nil, err
 	}
-	segments := strings.SplitN(out, "\n", 3)
+	segments := strings.SplitN(out, "|", 3)
 	if len(segments) != 3 {
 		return nil, fmt.Errorf("expected 3 segments, got %v", segments)
 	}
@@ -878,7 +877,7 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 			}
 		}
 	}
-	cmd.Env = proxy.UpsertEnv(cmd, m.proxy, m.noProxy)
+	cmd.Env = proxy.UpsertEnv(cmd, m.proxy)
 	opts := executil.ExecRunOpts{
 		TimeoutBehavior: argoexec.TimeoutBehavior{
 			Signal:     syscall.SIGTERM,
@@ -888,4 +887,60 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 		CaptureStderr:    ropts.CaptureStderr,
 	}
 	return executil.RunWithExecRunOpts(cmd, opts)
+}
+
+func (m *nativeGitClient) Diff(targetRevision string) ([]string, error) {
+	if !IsCommitSHA(targetRevision) {
+		return []string{}, fmt.Errorf("invalid revision provided, must be SHA")
+	}
+	out, err := m.runCmd("diff-tree", "--no-commit-id", "--name-only", "-r", targetRevision)
+	if err != nil {
+		return nil, fmt.Errorf("failed to diff %s: %w", targetRevision, err)
+	}
+
+	if out == "" {
+		return []string{}, nil
+	}
+
+	files := strings.Split(out, "\n")
+	return files, nil
+}
+
+func (m *nativeGitClient) ListRevisions(revision string, targetRevision string) ([]string, error) {
+	// it happens when app just created and there is no revision yet
+	if revision == "" {
+		return []string{targetRevision}, nil
+	}
+
+	if !IsCommitSHA(revision) || !IsCommitSHA(targetRevision) {
+		return nil, fmt.Errorf("invalid revision provided, must be SHA")
+	}
+
+	if revision == targetRevision {
+		return []string{revision}, nil
+	}
+
+	out, err := m.runCmd("rev-list", "--ancestry-path", fmt.Sprintf("%s..%s", revision, targetRevision))
+	if err != nil {
+		return nil, err
+	}
+	ss := strings.Split(out, "\n")
+	return ss, nil
+}
+
+func (m *nativeGitClient) DiffTree(targetRevision string) ([]string, error) {
+	if !IsCommitSHA(targetRevision) {
+		return []string{}, fmt.Errorf("invalid revision provided, must be SHA")
+	}
+	out, err := m.runCmd("diff-tree", "--no-commit-id", "--name-only", "-r", targetRevision)
+	if err != nil {
+		return nil, fmt.Errorf("failed to diff %s: %w", targetRevision, err)
+	}
+
+	if out == "" {
+		return []string{}, nil
+	}
+
+	files := strings.Split(out, "\n")
+	return files, nil
 }

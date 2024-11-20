@@ -15,7 +15,6 @@ spec:
       labels:
         app.kubernetes.io/name: argocd-repo-server
     spec:
-      serviceAccountName: argocd-repo-server
       automountServiceAccountToken: false
       containers:
       - name: argocd-repo-server
@@ -148,12 +147,6 @@ spec:
               configMapKeyRef:
                 name: argocd-cmd-params-cm
                 key: reposerver.plugin.tar.exclusions
-                optional: true
-          - name: ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS
-            valueFrom:
-              configMapKeyRef:
-                key: reposerver.plugin.use.manifest.generate.paths
-                name: argocd-cmd-params-cm
                 optional: true
           - name: ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS
             valueFrom:
@@ -336,5 +329,3 @@ spec:
                 matchLabels:
                   app.kubernetes.io/part-of: argocd
               topologyKey: kubernetes.io/hostname
-      nodeSelector:
-        kubernetes.io/os: linux

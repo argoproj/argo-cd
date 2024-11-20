@@ -4,8 +4,8 @@ import {Timestamp} from '../../../shared/components/timestamp';
 import {ApplicationSource, RevisionMetadata, ChartDetails} from '../../../shared/models';
 import {services} from '../../../shared/services';
 
-export const RevisionMetadataRows = (props: {applicationName: string; applicationNamespace: string; source: ApplicationSource; index: number; versionId: number | null}) => {
-    if (props?.source?.chart) {
+export const RevisionMetadataRows = (props: {applicationName: string; applicationNamespace: string; source: ApplicationSource; index: number; versionId: number}) => {
+    if (props.source.chart) {
         return (
             <DataLoader
                 input={props}

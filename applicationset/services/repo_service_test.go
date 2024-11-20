@@ -191,6 +191,6 @@ func TestNewArgoCDService(t *testing.T) {
 	service, err := NewArgoCDService(func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
 		return &v1alpha1.Repository{}, nil
 	}, false, &repo_mocks.Clientset{}, false)
-	require.NoError(t, err)
+	require.NoError(t, err, err)
 	assert.NotNil(t, service)
 }

@@ -77,7 +77,7 @@ func TestCreateServiceAccount(t *testing.T) {
 	}
 
 	t.Run("New SA", func(t *testing.T) {
-		cs := fake.NewClientset(ns)
+		cs := fake.NewSimpleClientset(ns)
 		err := CreateServiceAccount(cs, "argocd-manager", "kube-system")
 		require.NoError(t, err)
 		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
@@ -86,7 +86,7 @@ func TestCreateServiceAccount(t *testing.T) {
 	})
 
 	t.Run("SA exists already", func(t *testing.T) {
-		cs := fake.NewClientset(ns, sa)
+		cs := fake.NewSimpleClientset(ns, sa)
 		err := CreateServiceAccount(cs, "argocd-manager", "kube-system")
 		require.NoError(t, err)
 		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
@@ -94,8 +94,17 @@ func TestCreateServiceAccount(t *testing.T) {
 		assert.NotNil(t, rsa)
 	})
 
+	t.Run("Invalid name", func(t *testing.T) {
+		cs := fake.NewSimpleClientset(ns)
+		err := CreateServiceAccount(cs, "", "kube-system")
+		require.NoError(t, err)
+		rsa, err := cs.CoreV1().ServiceAccounts("kube-system").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
+		require.Error(t, err)
+		assert.Nil(t, rsa)
+	})
+
 	t.Run("Invalid namespace", func(t *testing.T) {
-		cs := fake.NewClientset()
+		cs := fake.NewSimpleClientset()
 		err := CreateServiceAccount(cs, "argocd-manager", "invalid")
 		require.NoError(t, err)
 		rsa, err := cs.CoreV1().ServiceAccounts("invalid").Get(context.Background(), "argocd-manager", metav1.GetOptions{})
@@ -138,7 +147,7 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 	}
 
 	t.Run("Cluster Scope - Success", func(t *testing.T) {
-		cs := fake.NewClientset(ns, secret, sa)
+		cs := fake.NewSimpleClientset(ns, secret, sa)
 		token, err := InstallClusterManagerRBAC(cs, "test", nil, testBearerTokenTimeout)
 		require.NoError(t, err)
 		assert.Equal(t, "foobar", token)
@@ -147,14 +156,14 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 	t.Run("Cluster Scope - Missing data in secret", func(t *testing.T) {
 		nsecret := secret.DeepCopy()
 		nsecret.Data = make(map[string][]byte)
-		cs := fake.NewClientset(ns, nsecret, sa)
+		cs := fake.NewSimpleClientset(ns, nsecret, sa)
 		token, err := InstallClusterManagerRBAC(cs, "test", nil, testBearerTokenTimeout)
 		require.Error(t, err)
 		assert.Empty(t, token)
 	})
 
 	t.Run("Namespace Scope - Success", func(t *testing.T) {
-		cs := fake.NewClientset(ns, secret, sa)
+		cs := fake.NewSimpleClientset(ns, secret, sa)
 		token, err := InstallClusterManagerRBAC(cs, "test", []string{"nsa"}, testBearerTokenTimeout)
 		require.NoError(t, err)
 		assert.Equal(t, "foobar", token)
@@ -163,7 +172,7 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 	t.Run("Namespace Scope - Missing data in secret", func(t *testing.T) {
 		nsecret := secret.DeepCopy()
 		nsecret.Data = make(map[string][]byte)
-		cs := fake.NewClientset(ns, nsecret, sa)
+		cs := fake.NewSimpleClientset(ns, nsecret, sa)
 		token, err := InstallClusterManagerRBAC(cs, "test", []string{"nsa"}, testBearerTokenTimeout)
 		require.Error(t, err)
 		assert.Empty(t, token)
@@ -172,14 +181,14 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 
 func TestUninstallClusterManagerRBAC(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		cs := fake.NewClientset(newServiceAccountSecret())
+		cs := fake.NewSimpleClientset(newServiceAccountSecret())
 		err := UninstallClusterManagerRBAC(cs)
 		require.NoError(t, err)
 	})
 }
 
 func TestGenerateNewClusterManagerSecret(t *testing.T) {
-	kubeclientset := fake.NewClientset(newServiceAccountSecret())
+	kubeclientset := fake.NewSimpleClientset(newServiceAccountSecret())
 	kubeclientset.ReactionChain = nil
 
 	generatedSecret := newServiceAccountSecret()
@@ -205,7 +214,7 @@ func TestRotateServiceAccountSecrets(t *testing.T) {
 		"token": []byte("fake-token"),
 	}
 
-	kubeclientset := fake.NewClientset(newServiceAccount(), newServiceAccountSecret(), generatedSecret)
+	kubeclientset := fake.NewSimpleClientset(newServiceAccount(), newServiceAccountSecret(), generatedSecret)
 
 	err := RotateServiceAccountSecrets(kubeclientset, &testClaims, generatedSecret)
 	require.NoError(t, err)
@@ -245,7 +254,7 @@ func TestGetServiceAccountBearerToken(t *testing.T) {
 			Namespace: tokenSecret.Namespace,
 		},
 	}
-	kubeclientset := fake.NewClientset(sa, dockercfgSecret, tokenSecret)
+	kubeclientset := fake.NewSimpleClientset(sa, dockercfgSecret, tokenSecret)
 
 	token, err := GetServiceAccountBearerToken(kubeclientset, "kube-system", sa.Name, testBearerTokenTimeout)
 	require.NoError(t, err)
@@ -264,7 +273,7 @@ func Test_getOrCreateServiceAccountTokenSecret_NoSecretForSA(t *testing.T) {
 			Namespace: ns.Name,
 		},
 	}
-	cs := fake.NewClientset(ns, saWithoutSecret)
+	cs := fake.NewSimpleClientset(ns, saWithoutSecret)
 	cs.PrependReactor("create", "secrets",
 		func(a kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			s, ok := a.(kubetesting.CreateAction).GetObject().(*corev1.Secret)
@@ -331,7 +340,7 @@ func Test_getOrCreateServiceAccountTokenSecret_SAHasSecret(t *testing.T) {
 		},
 	}
 
-	cs := fake.NewClientset(ns, saWithSecret, secret)
+	cs := fake.NewSimpleClientset(ns, saWithSecret, secret)
 
 	got, err := getOrCreateServiceAccountTokenSecret(cs, ArgoCDManagerServiceAccount, ns.Name)
 	require.NoError(t, err)

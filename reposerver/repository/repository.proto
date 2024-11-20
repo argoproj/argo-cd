@@ -3,6 +3,8 @@ option go_package = "github.com/argoproj/argo-cd/v2/reposerver/apiclient";
 
 package repository;
 
+import "k8s.io/api/core/v1/generated.proto";
+import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1/generated.proto";
 import "google/protobuf/empty.proto";
 
@@ -21,9 +23,7 @@ message ManifestRequest {
     // Deprecated: use sidecar plugins instead.
     repeated github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ConfigManagementPlugin plugins = 12;
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.KustomizeOptions kustomizeOptions = 13;
-    // KubeVersion is the Kubernetes API version from the destination cluster.
     string kubeVersion = 14;
-    // ApiVersions is the list of API versions from the destination cluster, used for rendering Helm charts.
     repeated string apiVersions = 15;
     // Request to verify the signature when generating the manifests (only for Git repositories)
     bool verifySignature = 16;
@@ -34,14 +34,11 @@ message ManifestRequest {
     github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.HelmOptions helmOptions = 21;
     bool hasMultipleSources = 22;
     map<string, github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RefTarget> refSources = 23;
+    k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta applicationMetadata = 24;
     // This is used to surface "source not permitted" errors for Helm repositories
-    repeated string projectSourceRepos = 24;
+    repeated string projectSourceRepos = 25;
     // This is used to surface "source not permitted" errors for Helm repositories
-    string projectName = 25;
-    // argocd.argoproj.io/manifest-generate-paths annotation value of the Application to allow optimize which resources propagated to cmpserver
-    string annotationManifestGeneratePaths = 26;
-    // Holds instance installation id
-    string installationID = 27;
+    string projectName = 26;
 }
 
 message ManifestRequestWithFiles {
@@ -89,8 +86,36 @@ message ResolveRevisionResponse {
     string ambiguousRevision = 2;
 }
 
+message Manifest {
+    // The processed manifest that needs to be applied to the cluster
+    string compiledManifest = 1;
+    // The pre-processed manifest (for example the kustomization.yaml
+    // when using kustmize or the values.yaml when using helm).
+    string rawManifest = 2;
+    // The path of the raw manifest inside the repo
+    string path = 3;
+    // The line in the file where the object starts
+    int32 line = 4;
+}
+
+message Dependencies {
+    // Content of Chart.lock
+	string lock = 1;
+    // Content of Cart.yaml/dependencies
+	string deps = 2;
+    // Content of requirements.yaml
+	string requirements = 3;
+}
+
+message ApplicationVersions {
+    // Application version presented by single value
+    string appVersion = 1;
+    // Yaml content of dependencies
+    Dependencies dependencies = 2;
+}
+
 message ManifestResponse {
-    repeated string manifests = 1;
+    repeated Manifest manifests = 1;
     string namespace = 2;
     string server = 3;
     // resolved revision
@@ -98,8 +123,11 @@ message ManifestResponse {
     string sourceType = 6;
     // Raw response of git verify-commit operation (always the empty string for Helm)
     string verifyResult = 7;
-    // Commands is the list of commands used to hydrate the manifests
-    repeated string commands = 8;
+    string commitMessage = 8;
+    string commitAuthor = 9;
+    k8s.io.apimachinery.pkg.apis.meta.v1.Time commitDate = 10;
+    // A version of the application and its dependencies
+    ApplicationVersions applicationVersions = 11;
 }
 
 message ListRefsRequest {
@@ -283,14 +311,26 @@ message UpdateRevisionForPathsRequest {
     string syncedRevision = 11;
     string revision = 12;
     repeated string paths = 13;
-
+    
     bool noRevisionCache = 14;
-    string installationID = 15;
 }
 
 message UpdateRevisionForPathsResponse {
     bool changes = 1;
     string revision = 2;
+}
+
+message ChangeRevisionRequest {
+    string appName = 1;
+    string namespace = 2;
+    string currentRevision = 3;
+    string previousRevision = 4;
+    repeated string paths = 5;
+    github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.Repository repo = 6;
+}
+
+message ChangeRevisionResponse {
+    string revision = 1;
 }
 
 // ManifestService
@@ -331,7 +371,7 @@ service RepoServerService {
     // Get the meta-data (author, date, tags, message) for a specific revision of the repo
     rpc GetRevisionMetadata(RepoServerRevisionMetadataRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.RevisionMetadata) {
     }
-    
+
     // Get the chart details (author, date, tags, message) for a specific revision of the repo
     rpc GetRevisionChartDetails(RepoServerRevisionChartDetailsRequest) returns (github.com.argoproj.argo_cd.v2.pkg.apis.application.v1alpha1.ChartDetails) {
     }
@@ -350,5 +390,8 @@ service RepoServerService {
 
     // UpdateRevisionForPaths will compare two revisions and update the cache with the new revision if no changes are detected in the provided paths
     rpc UpdateRevisionForPaths(UpdateRevisionForPathsRequest) returns (UpdateRevisionForPathsResponse) {
+    }
+
+    rpc GetChangeRevision(ChangeRevisionRequest) returns (ChangeRevisionResponse) {
     }
 }
