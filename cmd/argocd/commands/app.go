@@ -1738,6 +1738,9 @@ func formatConditionsSummary(app argoappv1.Application) string {
 	}
 	summary := "<none>"
 	if len(items) > 0 {
+		sort.Slice(items, func(i, j int) bool {
+			return items[i] < items[j]
+		})
 		summary = strings.Join(items, ",")
 	}
 	return summary
