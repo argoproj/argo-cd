@@ -11,8 +11,6 @@
 
 ## 1. Install Argo CD
 
-### Normal Install
-
 ```bash
 kubectl create namespace argocd
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
@@ -44,55 +42,6 @@ Use `argocd login --core` to [configure](./user-guide/commands/argocd_login.md) 
 
 !!! note
     This default installation for Redis is using password authentication. The Redis password is stored in Kubernetes secret `argocd-redis` with key `auth` in the namespace where Argo CD is installed.
-
-### Try it Locally:
-Follow these steps to install `Kind` for local development and set it up with Argo CD.
-
-#### Install Kind
-
-```bash
-curl -Lo ./kind https://github.com/kubernetes-sigs/kind/releases/download/v0.18.0/kind-linux-amd64
-chmod +x ./kind
-sudo mv ./kind /usr/local/bin/kind
-```
-
-#### Create a Kind Cluster
-Once Kind is installed, create a new Kubernetes cluster with:
-```bash
-kind create cluster --name argocd-cluster
-```
-This will create a local Kubernetes cluster named `argocd-cluster`.
-
-#### Set Up kubectl to Use the Kind Cluster
-After creating the cluster, set `kubectl` to use your new `kind` cluster:
-```bash
-kubectl cluster-info --context kind-argocd-cluster
-```
-This command verifies that `kubectl` is pointed to the right cluster.
-
-#### Install ArgoCD on the Cluster
-You can now install Argo CD on your `kind` cluster. First, apply the Argo CD manifest to create the necessary resources:
-```bash
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-```
-
-#### Expose ArgoCD API Server
-By default, Argo CD's API server is not exposed outside the cluster. You need to expose it to access the UI locally. For development purposes, you can use Kubectl 'port-forward'.
-```bash
-kubectl port-forward svc/argocd-server -n argocd 8080:443
-```
-This will forward port 8080 on your local machine to the ArgoCD API server’s port 443 inside the Kubernetes cluster.
-
-#### Access ArgoCD UI
-Now, you can open your browser and navigate to http://localhost:8080 to access the ArgoCD UI.
-
-#### Log in to ArgoCD
-To log in to the ArgoCD UI, you'll need the default admin password. You can retrieve it from the Kubernetes cluster:
-```bash
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
-```
-Use the admin username and the retrieved password to log in.
 
 ## 2. Download Argo CD CLI
 
@@ -211,7 +160,7 @@ argocd app create guestbook --repo https://github.com/argoproj/argocd-example-ap
 
 ### Creating Apps Via UI
 
-Open a browser to the Argo CD external UI, and login by visiting the IP/hostname in a browser and use the credentials set in step 4 or locally as explained in step 1.
+Open a browser to the Argo CD external UI, and login by visiting the IP/hostname in a browser and use the credentials set in step 4 or locally as explained in [Try Argo CD Locally](try_argo_cd_locally.md).
 
 After logging in, click the **+ New App** button as shown below:
 
