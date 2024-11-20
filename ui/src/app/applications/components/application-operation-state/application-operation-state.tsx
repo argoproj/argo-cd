@@ -182,8 +182,8 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                 pass = false;
             }
 
-            if (pass && messageFilters.length !== 0 && !messageFilters.includes(r.message)) {
-                pass = false;
+            if (pass && messageFilters.length !== 0) {
+                pass = messageFilters.some(filter => r.message?.toLowerCase().includes(filter.toLowerCase()));
             }
 
             return pass;
@@ -211,7 +211,6 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                             <Filter options={Statuses} filters={filters} setFilters={setFilters} title='STATUS' style={{marginRight: '5px'}} />
                             <Filter options={OperationPhases} filters={filters} setFilters={setFilters} title='HOOK' />
                             <Filter options={MessageStatuses} filters={messageFilters} setFilters={setMessageFilters} title='MESSAGE' />
-
                         </div>
                     </div>
                     <div className='argo-table-list'>
