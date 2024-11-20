@@ -1471,3 +1471,10 @@ export const userMsgsList: {[key: string]: string} = {
     groupNodes: `Since the number of pods has surpassed the threshold pod count of 15, you will now be switched to the group node view.
                  If you prefer the tree view, you can simply click on the Group Nodes toolbar button to deselect the current view.`
 };
+
+export function getAppUrl(app: appModels.Application): string {
+    if (typeof app.metadata.namespace === 'undefined') {
+        return `/applications/${app.metadata.name}`;
+    }
+    return `/applications/${app.metadata.namespace}/${app.metadata.name}`;
+}
