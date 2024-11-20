@@ -89,6 +89,10 @@ const config = {
                 {
                     from: 'node_modules/monaco-editor/min/vs/base/browser/ui/codicons/codicon',
                     to: 'assets/fonts'
+                },
+                {
+                    from: '../resource_customizations/*/*/icon.svg',
+                    to: 'assets/images/resources'
                 }
             ]
         }),

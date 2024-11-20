@@ -283,7 +283,7 @@ function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: n
         <React.Fragment>
             <div className='application-resource-tree__node' style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
                 <div className='application-resource-tree__node-kind-icon'>
-                    <ResourceIcon kind={node.kind} />
+                    <ResourceIcon group={node.group} kind={node.kind} />
                     <br />
                     <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>
                 </div>
@@ -460,7 +460,7 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
                     className={classNames('application-resource-tree__node-kind-icon', {
                         'application-resource-tree__node-kind-icon--big': rootNode
                     })}>
-                    <ResourceIcon kind={node.kind || 'Unknown'} />
+                    <ResourceIcon group={node.group} kind={node.kind || 'Unknown'} />
                     <br />
                     {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
                 </div>
@@ -740,7 +740,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 className={classNames('application-resource-tree__node-kind-icon', {
                     'application-resource-tree__node-kind-icon--big': rootNode
                 })}>
-                <ResourceIcon kind={node.kind} />
+                <ResourceIcon group={node.group} kind={node.kind} />
                 <br />
                 {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
             </div>
