@@ -704,6 +704,14 @@ func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbin
 		return ""
 	}
 
+	// check if prerelease
+	pre := ""
+	if strings.Contains(revision, "-") {
+		parts := strings.Split(revision, "-")
+		revision = parts[0]
+		pre = parts[1]
+	}
+
 	maxVersion := semver.New(0, 0, 0, "", "")
 	maxVersionHash := plumbing.ZeroHash
 	for _, ref := range refs {
@@ -716,6 +724,16 @@ func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbin
 		if err != nil {
 			log.Debugf("Error parsing version for tag: '%s': %v", tag, err)
 			// Skip this tag and continue to the next one
+			continue
+		}
+
+		// If we are specifically looking for pre-releases
+		// we should skip any versions that are not pre-releases
+		// unless the constraint is a wildcard we should not
+		// check for pre-releases
+		if version.Prerelease() != pre &&
+			pre != "0" &&
+			strings.Contains(constraint.String(), "*") {
 			continue
 		}
 

@@ -253,6 +253,11 @@ func TestLsRemote(t *testing.T) {
 			expectedCommit: "0fd6344537eb948cff602824a1d060421ceff40e",
 		},
 		{
+			name:           "should resolve to a pre-release tag with semantic versioning",
+			revision:       "v2.13.*-rc3", // it should resolve to v2.13.0-rc3
+			expectedCommit: "ec60abd4d810a2070930be09a4754ca73dd8be18",
+		},
+		{
 			name:     "should resolve a star range tag with semantic versioning",
 			revision: "*",
 		},
