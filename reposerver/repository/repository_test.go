@@ -1587,6 +1587,7 @@ func TestListApps(t *testing.T) {
 		"helm-with-dependencies-alias":      "Helm",
 		"helm-with-local-dependency":        "Helm",
 		"simple-chart":                      "Helm",
+		"broken-schema-verification":        "Helm",
 	}
 	assert.Equal(t, expectedApps, res.Apps)
 }
@@ -4324,5 +4325,45 @@ images:
 			"kustomize edit add component component",
 			"kustomize build .",
 		}, res.Commands)
+	})
+}
+
+func Test_SkipSchemaValidation(t *testing.T) {
+	t.Run("helm", func(t *testing.T) {
+		service := newService(t, "testdata/broken-schema-verification")
+
+		q := apiclient.ManifestRequest{
+			AppName: "test-app",
+			Repo:    &argoappv1.Repository{},
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: ".",
+				Helm: &argoappv1.ApplicationSourceHelm{
+					SkipSchemaValidation: true,
+				},
+			},
+		}
+
+		res, err := service.GenerateManifest(context.Background(), &q)
+
+		require.NoError(t, err)
+		assert.Equal(t, []string{"helm template . --name-template test-app --include-crds --skip-schema-validation"}, res.Commands)
+	})
+	t.Run("helm", func(t *testing.T) {
+		service := newService(t, "testdata/broken-schema-verification")
+
+		q := apiclient.ManifestRequest{
+			AppName: "test-app",
+			Repo:    &argoappv1.Repository{},
+			ApplicationSource: &argoappv1.ApplicationSource{
+				Path: ".",
+				Helm: &argoappv1.ApplicationSourceHelm{
+					SkipSchemaValidation: false,
+				},
+			},
+		}
+
+		_, err := service.GenerateManifest(context.Background(), &q)
+
+		require.ErrorContains(t, err, "values don't meet the specifications of the schema(s)")
 	})
 }
