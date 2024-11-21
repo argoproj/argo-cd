@@ -341,6 +341,8 @@ The filename can always be accessed using `{{.path.filename}}`.
 
 **Note**: The default behavior of the Git file generator is very greedy. Please see [Git File Generator Globbing](./Generators-Git-File-Globbing.md) for more information.
 
+**Note**: For YAML file you have to omit the initial dot (.) when referring to parameters. E.g.: {{cluster.address}}
+
 ### Pass additional key-value pairs via `values` field
 
 You may pass additional, arbitrary string key-value pairs via the `values` field of the git files generator. Values added via the `values` field are added as `values.(field)`.
