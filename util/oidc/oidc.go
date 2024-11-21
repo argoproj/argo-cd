@@ -43,6 +43,15 @@ const (
 	AccessTokenCachePrefix      = "access_token"
 )
 
+// Request Metadata for warning message
+type RequestMetadata struct {
+	ipAddr string
+}
+
+func (r *RequestMetadata) String() string {
+	return fmt.Sprintf("Client IP: %s", r.ipAddr)
+}
+
 // OIDCConfiguration holds a subset of interested fields from the OIDC configuration spec
 type OIDCConfiguration struct {
 	Issuer                 string   `json:"issuer"`
@@ -149,13 +158,16 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 }
 
 func (a *ClientApp) oauth2Config(request *http.Request, scopes []string) (*oauth2.Config, error) {
+	rMetadata := &RequestMetadata{
+		ipAddr: request.RemoteAddr,
+	}
 	endpoint, err := a.provider.Endpoint()
 	if err != nil {
 		return nil, err
 	}
 	redirectURL, err := a.settings.RedirectURLForRequest(request)
 	if err != nil {
-		log.Warnf("Unable to find ArgoCD URL from request, falling back to configured redirect URI: %v", err)
+		log.Warnf("Unable to find ArgoCD URL from request, falling back to configured redirect URI: %v. %s", err, rMetadata)
 		redirectURL = a.redirectURI
 	}
 	return &oauth2.Config{
@@ -197,6 +209,9 @@ func (a *ClientApp) generateAppState(returnURL string, w http.ResponseWriter) (s
 }
 
 func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state string) (string, error) {
+	rMetadata := &RequestMetadata{
+		ipAddr: r.RemoteAddr,
+	}
 	c, err := r.Cookie(common.StateCookieName)
 	if err != nil {
 		return "", err
@@ -219,7 +234,7 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 			if len(sanitizedUrl) > 100 {
 				sanitizedUrl = sanitizedUrl[:100]
 			}
-			log.Warnf("Failed to verify app state - got invalid redirectURL %q", sanitizedUrl)
+			log.Warnf("Failed to verify app state - got invalid redirectURL %q. %s", sanitizedUrl, rMetadata)
 			return "", fmt.Errorf("failed to verify app state: %w", InvalidRedirectURLError)
 		}
 		redirectURL = parts[1]
@@ -338,6 +353,9 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 // HandleCallback is the callback handler for an OAuth2 login flow
 func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
+	rMetadata := &RequestMetadata{
+		ipAddr: r.RemoteAddr,
+	}
 	oauth2Config, err := a.oauth2Config(r, nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -375,7 +393,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 
 	idToken, err := a.provider.Verify(idTokenRAW, a.settings)
 	if err != nil {
-		log.Warnf("Failed to verify token: %s", err)
+		log.Warnf("Failed to verify token: %s. %s", err, rMetadata)
 		http.Error(w, common.TokenVerificationError, http.StatusInternalServerError)
 		return
 	}
