@@ -89,6 +89,8 @@ message RepoAccessQuery {
 	string gcpServiceAccountKey = 18;
 	// Whether to force HTTP basic auth
 	bool forceHttpBasicAuth = 19;
+	// Whether https should be disabled for an OCI repo
+	bool insecureOciHttpOnly = 20;
 }
 
 message RepoResponse {}

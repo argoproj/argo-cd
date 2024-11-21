@@ -259,7 +259,7 @@ func TestRepoWithKnownType(ctx context.Context, repoClient apiclient.RepoServerS
 	repo = repo.DeepCopy()
 	if isHelm {
 		repo.Type = "helm"
-	} else {
+	} else if repo.Type != "oci" {
 		repo.Type = "git"
 	}
 	repo.EnableOCI = repo.EnableOCI || isHelmOci

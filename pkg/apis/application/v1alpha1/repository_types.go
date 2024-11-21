@@ -101,13 +101,13 @@ type Repository struct {
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty" protobuf:"bytes,22,opt,name=forceHttpBasicAuth"`
 	// NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
 	NoProxy string `json:"noProxy,omitempty" protobuf:"bytes,23,opt,name=noProxy"`
-	// InsecureHttpOnly specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. Applicable for OCI repos only atm.
-	InsecureHttpOnly bool `json:"insecureHttpOnly,omitempty" protobuf:"bytes,24,opt,name=insecureHttpOnly"`
+	// InsecureOCIHttpOnly specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
+	InsecureOCIHttpOnly bool `json:"insecureOCIHttpOnly,omitempty" protobuf:"bytes,24,opt,name=insecureOCIHttpOnly"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification or set to HTTP only
 func (repo *Repository) IsInsecure() bool {
-	return repo.InsecureIgnoreHostKey || repo.Insecure || repo.InsecureHttpOnly
+	return repo.InsecureIgnoreHostKey || repo.Insecure || repo.InsecureOCIHttpOnly
 }
 
 // IsLFSEnabled returns true if LFS support is enabled on repository
@@ -153,7 +153,7 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 		if repo.GCPServiceAccountKey == "" {
 			repo.GCPServiceAccountKey = source.GCPServiceAccountKey
 		}
-		repo.InsecureHttpOnly = source.InsecureHttpOnly
+		repo.InsecureOCIHttpOnly = source.InsecureOCIHttpOnly
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
 	}
 }
@@ -242,7 +242,7 @@ func (repo *Repository) GetOCICreds() oci.Creds {
 		CertData:           []byte(repo.TLSClientCertData),
 		KeyData:            []byte(repo.TLSClientCertKey),
 		InsecureSkipVerify: repo.Insecure,
-		InsecureHttpOnly:   repo.InsecureHttpOnly,
+		InsecureHttpOnly:   repo.InsecureOCIHttpOnly,
 	}
 }
 

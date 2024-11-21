@@ -3835,6 +3835,12 @@
             "description": "Whether to force HTTP basic auth.",
             "name": "forceHttpBasicAuth",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether https should be disabled for an OCI repo.",
+            "name": "insecureOciHttpOnly",
+            "in": "query"
           }
         ],
         "responses": {
@@ -9101,13 +9107,13 @@
           "type": "boolean",
           "title": "Insecure specifies whether the connection to the repository ignores any errors when verifying TLS certificates or SSH host keys"
         },
-        "insecureHttpOnly": {
-          "description": "InsecureHttpOnly specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. Applicable for OCI repos only atm.",
-          "type": "boolean"
-        },
         "insecureIgnoreHostKey": {
           "type": "boolean",
           "title": "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured\nUsed only for Git repos"
+        },
+        "insecureOCIHttpOnly": {
+          "description": "InsecureOCIHttpOnly specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.",
+          "type": "boolean"
         },
         "name": {
           "type": "string",

@@ -681,6 +681,7 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 		GitHubAppEnterpriseBaseURL: q.GithubAppEnterpriseBaseUrl,
 		Proxy:                      q.Proxy,
 		GCPServiceAccountKey:       q.GcpServiceAccountKey,
+		InsecureOCIHttpOnly:        q.InsecureOciHttpOnly,
 	}
 
 	// If repo does not have credentials, check if there are credentials stored

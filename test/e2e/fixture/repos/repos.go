@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -75,6 +76,18 @@ func AddHelmRepo(name string) {
 		"--tls-client-cert-key-path", CertKeyPath,
 		"--type", "helm",
 		"--name", name,
+	}
+	errors.FailOnErr(fixture.RunCli(args...))
+}
+
+func AddOCIRepo(name string) {
+	args := []string{
+		"repo",
+		"add",
+		fixture.OCIRegistryURL,
+		"--type", "oci",
+		"--name", name,
+		"--insecure-oci",
 	}
 	errors.FailOnErr(fixture.RunCli(args...))
 }
@@ -173,5 +186,18 @@ func PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) {
 		"push",
 		fmt.Sprintf("%s/%s-%s.tgz", tempDest, chartName, chartVersion),
 		"oci://"+fixture.HelmOCIRegistryURL,
+	))
+}
+
+// PushImageToOCIRegistry adds a helm chart to helm OCI registry
+func PushImageToOCIRegistry(pathName, tag string) {
+	imagePath := fmt.Sprintf("./testdata/%s", pathName)
+
+	errors.FailOnErr(fixture.Run(
+		imagePath,
+		"oras",
+		"push",
+		fmt.Sprintf("%s:%s", strings.TrimPrefix(fixture.OCIRegistryURL, "oci://"), tag),
+		".",
 	))
 }
