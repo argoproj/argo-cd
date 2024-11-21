@@ -3,6 +3,7 @@ package metrics
 import (
 	"fmt"
 	"net/http"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -23,6 +24,13 @@ type MetricsServer struct {
 }
 
 var (
+	buildInfo = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "build_info",
+			Help: "A metric with a constant '1' value labeled by version from which Argo-CD was built.",
+		},
+		[]string{"version", "goversion", "goarch", "commit"},
+	)
 	redisRequestCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_redis_request_total",
@@ -74,11 +82,14 @@ func NewMetricsServer(host string, port int) *MetricsServer {
 
 	profile.RegisterProfiler(mux)
 
+	registry.MustRegister(buildInfo)
 	registry.MustRegister(redisRequestCounter)
 	registry.MustRegister(redisRequestHistogram)
 	registry.MustRegister(extensionRequestCounter)
 	registry.MustRegister(extensionRequestDuration)
 	registry.MustRegister(argoVersion)
+
+	recordBuildInfo()
 
 	return &MetricsServer{
 		Server: &http.Server{
@@ -108,4 +119,10 @@ func (m *MetricsServer) IncExtensionRequestCounter(extension string, status int)
 
 func (m *MetricsServer) ObserveExtensionRequestDuration(extension string, duration time.Duration) {
 	m.extensionRequestDuration.WithLabelValues(extension).Observe(duration.Seconds())
+}
+
+// recordBuildInfo publishes information about Argo-CD version and runtime info through an info metric (gauge).
+func recordBuildInfo() {
+	vers := common.GetVersion()
+	buildInfo.WithLabelValues(vers.Version, runtime.Version(), runtime.GOARCH, vers.GitCommit).Set(1)
 }
