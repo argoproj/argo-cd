@@ -12,13 +12,17 @@ import (
 )
 
 // DoHttpRequest executes a http request against the Argo CD API server
-func DoHttpRequest(method string, path string, data ...byte) (*http.Response, error) {
+func DoHttpRequest(method string, path string, host string, data ...byte) (*http.Response, error) {
 	reqUrl, err := url.Parse(path)
 	if err != nil {
 		return nil, err
 	}
 	reqUrl.Scheme = "http"
-	reqUrl.Host = apiServerAddress
+	if host != "" {
+		reqUrl.Host = host
+	} else {
+		reqUrl.Host = apiServerAddress
+	}
 	var body io.Reader
 	if data != nil {
 		body = bytes.NewReader(data)
@@ -41,7 +45,7 @@ func DoHttpRequest(method string, path string, data ...byte) (*http.Response, er
 
 // DoHttpJsonRequest executes a http request against the Argo CD API server and unmarshals the response body as JSON
 func DoHttpJsonRequest(method string, path string, result interface{}, data ...byte) error {
-	resp, err := DoHttpRequest(method, path, data...)
+	resp, err := DoHttpRequest(method, path, "", data...)
 	if err != nil {
 		return err
 	}

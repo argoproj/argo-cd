@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -48,7 +49,7 @@ func TestPolicyInformer(t *testing.T) {
 	// update the configmap and update policy
 	delete(cm.Data, ConfigMapPolicyCSVKey)
 	err := enf.syncUpdate(cm, noOpUpdate)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, enf.Enforce("admin", "applications", "delete", "foo/bar"))
 }
 

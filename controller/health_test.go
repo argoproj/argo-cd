@@ -8,6 +8,7 @@ import (
 	synccommon "github.com/argoproj/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -53,7 +54,7 @@ func TestSetApplicationHealth(t *testing.T) {
 	resourceStatuses := initStatuses(resources)
 
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
 
 	assert.Equal(t, health.HealthStatusHealthy, resourceStatuses[0].Health.Status)
@@ -62,7 +63,7 @@ func TestSetApplicationHealth(t *testing.T) {
 	// now mark the job as a hook and retry. it should ignore the hook and consider the app healthy
 	failedJob.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
 	healthStatus, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
 }
 
@@ -75,7 +76,7 @@ func TestSetApplicationHealth_ResourceHealthNotPersisted(t *testing.T) {
 	resourceStatuses := initStatuses(resources)
 
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
 
 	assert.Nil(t, resourceStatuses[0].Health)
@@ -90,7 +91,7 @@ func TestSetApplicationHealth_MissingResource(t *testing.T) {
 	resourceStatuses := initStatuses(resources)
 
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusMissing, healthStatus.Status)
 }
 
@@ -104,7 +105,7 @@ func TestSetApplicationHealth_MissingResourceNoBuiltHealthCheck(t *testing.T) {
 
 	t.Run("NoOverride", func(t *testing.T) {
 		healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
 		assert.Equal(t, health.HealthStatusMissing, resourceStatuses[0].Health.Status)
 	})
@@ -115,7 +116,7 @@ func TestSetApplicationHealth_MissingResourceNoBuiltHealthCheck(t *testing.T) {
 				HealthLua: "some health check",
 			},
 		}, app, true)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, health.HealthStatusMissing, healthStatus.Status)
 	})
 }
@@ -166,7 +167,7 @@ return hs`,
 		resourceStatuses := initStatuses(resources)
 
 		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
 	})
 
@@ -178,7 +179,7 @@ return hs`,
 		resourceStatuses := initStatuses(resources)
 
 		healthStatus, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
 	})
 }

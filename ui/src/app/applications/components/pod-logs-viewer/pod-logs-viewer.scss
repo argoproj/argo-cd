@@ -6,14 +6,8 @@
     font-size: 14px;
     font-family: monospace;
     background-color: white;
-    @include themify($themes){
-        background-color: themed('background-2');
-    }
     padding: 0;
     color: black;
-    @include themify($themes){
-        color: themed('text-2');
-    }
 
     &--inverted {
         background-color: black;
@@ -26,6 +20,7 @@
         .argo-checkbox,
         .argo-checkbox input,
         .argo-checkbox input:focus {
+            appearance: none;
             outline: none !important;
             border: none !important;
             width: 12px;
@@ -38,6 +33,12 @@
             }
             .fa {
                 display: none;
+            }
+        }
+
+        .argo-field {
+            @include themify($themes){
+                background-color: themed('background-2');
             }
         }
 

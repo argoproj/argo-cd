@@ -7,6 +7,7 @@ import (
 
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/fake"
@@ -133,7 +134,7 @@ func TestInit(t *testing.T) {
 
 		err = nc.Init(ctx)
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 }
 
@@ -169,7 +170,7 @@ func TestInitTimeout(t *testing.T) {
 	err = nc.Init(ctx)
 
 	// Expect an error & add assertion for the error message
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, "Timed out waiting for caches to sync", err.Error())
 }
 

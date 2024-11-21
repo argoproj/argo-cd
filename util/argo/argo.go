@@ -27,6 +27,7 @@ import (
 	applicationsv1 "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/db"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
@@ -328,7 +329,11 @@ func ValidateRepo(
 		})
 		return conditions, nil
 	}
-	config := cluster.RESTConfig()
+	config, err := cluster.RESTConfig()
+	if err != nil {
+		return nil, fmt.Errorf("error getting cluster REST config: %w", err)
+	}
+	// nolint:staticcheck
 	cluster.ServerVersion, err = kubectl.GetServerVersion(config)
 	if err != nil {
 		return nil, fmt.Errorf("error getting k8s server version: %w", err)
@@ -421,17 +426,16 @@ func validateRepo(ctx context.Context,
 		db,
 		permittedHelmRepos,
 		helmOptions,
-		app.Name,
-		app.Spec.Destination,
+		app,
 		proj,
 		sources,
 		repoClient,
+		// nolint:staticcheck
 		cluster.ServerVersion,
 		APIResourcesToStrings(apiGroups, true),
 		permittedHelmCredentials,
 		enabledSourceTypes,
 		settingsMgr,
-		app.Spec.HasMultipleSources(),
 		refSources)...)
 
 	return conditions, nil
@@ -501,16 +505,14 @@ func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestina
 				return fmt.Errorf("application references destination cluster %s which does not exist", dest.Name)
 			}
 			dest.SetInferredServer(server)
-		} else {
-			if !dest.IsServerInferred() {
-				return fmt.Errorf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server)
-			}
+		} else if !dest.IsServerInferred() {
+			return fmt.Errorf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server)
 		}
 	}
 	return nil
 }
 
-func validateSourcePermissions(ctx context.Context, source argoappv1.ApplicationSource, proj *argoappv1.AppProject, project string, hasMultipleSources bool) []argoappv1.ApplicationCondition {
+func validateSourcePermissions(source argoappv1.ApplicationSource, hasMultipleSources bool) []argoappv1.ApplicationCondition {
 	var conditions []argoappv1.ApplicationCondition
 	if hasMultipleSources {
 		if source.RepoURL == "" || (source.Path == "" && source.Chart == "" && source.Ref == "") {
@@ -546,7 +548,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 
 	if spec.HasMultipleSources() {
 		for _, source := range spec.Sources {
-			condition := validateSourcePermissions(ctx, source, proj, spec.Project, spec.HasMultipleSources())
+			condition := validateSourcePermissions(source, spec.HasMultipleSources())
 			if len(condition) > 0 {
 				conditions = append(conditions, condition...)
 				return conditions, nil
@@ -560,7 +562,7 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 			}
 		}
 	} else {
-		conditions = validateSourcePermissions(ctx, spec.GetSource(), proj, spec.Project, spec.HasMultipleSources())
+		conditions = validateSourcePermissions(spec.GetSource(), spec.HasMultipleSources())
 		if len(conditions) > 0 {
 			return conditions, nil
 		}
@@ -705,8 +707,7 @@ func verifyGenerateManifests(
 	db db.ArgoDB,
 	helmRepos argoappv1.Repositories,
 	helmOptions *argoappv1.HelmOptions,
-	name string,
-	dest argoappv1.ApplicationDestination,
+	app *argoappv1.Application,
 	proj *argoappv1.AppProject,
 	sources []argoappv1.ApplicationSource,
 	repoClient apiclient.RepoServerServiceClient,
@@ -715,11 +716,10 @@ func verifyGenerateManifests(
 	repositoryCredentials []*argoappv1.RepoCreds,
 	enableGenerateManifests map[string]bool,
 	settingsMgr *settings.SettingsManager,
-	hasMultipleSources bool,
 	refSources argoappv1.RefTargetRevisionMapping,
 ) []argoappv1.ApplicationCondition {
 	var conditions []argoappv1.ApplicationCondition
-	if dest.Server == "" {
+	if app.Spec.Destination.Server == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
 			Message: errDestinationMissing,
@@ -752,30 +752,41 @@ func verifyGenerateManifests(
 			})
 			continue
 		}
+		installationID, err := settingsMgr.GetInstallationID()
+		if err != nil {
+			conditions = append(conditions, argoappv1.ApplicationCondition{
+				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Message: fmt.Sprintf("Error getting installation ID: %v", err),
+			})
+			continue
+		}
 		req := apiclient.ManifestRequest{
 			Repo: &argoappv1.Repository{
-				Repo:  source.RepoURL,
-				Type:  repoRes.Type,
-				Name:  repoRes.Name,
-				Proxy: repoRes.Proxy,
+				Repo:    source.RepoURL,
+				Type:    repoRes.Type,
+				Name:    repoRes.Name,
+				Proxy:   repoRes.Proxy,
+				NoProxy: repoRes.NoProxy,
 			},
-			Repos:              helmRepos,
-			Revision:           source.TargetRevision,
-			AppName:            name,
-			Namespace:          dest.Namespace,
-			ApplicationSource:  &source,
-			KustomizeOptions:   kustomizeOptions,
-			KubeVersion:        kubeVersion,
-			ApiVersions:        apiVersions,
-			HelmOptions:        helmOptions,
-			HelmRepoCreds:      repositoryCredentials,
-			TrackingMethod:     string(GetTrackingMethod(settingsMgr)),
-			EnabledSourceTypes: enableGenerateManifests,
-			NoRevisionCache:    true,
-			HasMultipleSources: hasMultipleSources,
-			RefSources:         refSources,
-			ProjectName:        proj.Name,
-			ProjectSourceRepos: proj.Spec.SourceRepos,
+			Repos:                           helmRepos,
+			Revision:                        source.TargetRevision,
+			AppName:                         app.Name,
+			Namespace:                       app.Spec.Destination.Namespace,
+			ApplicationSource:               &source,
+			KustomizeOptions:                kustomizeOptions,
+			KubeVersion:                     kubeVersion,
+			ApiVersions:                     apiVersions,
+			HelmOptions:                     helmOptions,
+			HelmRepoCreds:                   repositoryCredentials,
+			TrackingMethod:                  string(GetTrackingMethod(settingsMgr)),
+			EnabledSourceTypes:              enableGenerateManifests,
+			NoRevisionCache:                 true,
+			HasMultipleSources:              app.Spec.HasMultipleSources(),
+			RefSources:                      refSources,
+			ProjectName:                     proj.Name,
+			ProjectSourceRepos:              proj.Spec.SourceRepos,
+			AnnotationManifestGeneratePaths: app.GetAnnotation(argoappv1.AnnotationKeyManifestGeneratePaths),
+			InstallationID:                  installationID,
 		}
 		req.Repo.CopyCredentialsFromRepo(repoRes)
 		req.Repo.CopySettingsFrom(repoRes)
@@ -831,20 +842,42 @@ func ContainsSyncResource(name string, namespace string, gvk schema.GroupVersion
 	return false
 }
 
-// IncludeResource checks if an app resource matches atleast one of the filters, then it returns true.
+// IncludeResource The app resource is checked against the include or exclude filters.
+// If exclude filters are present, they are evaluated only after all include filters have been assessed.
 func IncludeResource(resourceName string, resourceNamespace string, gvk schema.GroupVersionKind,
 	syncOperationResources []*argoappv1.SyncOperationResource,
 ) bool {
+	includeResource := false
+	foundIncludeRule := false
+	// Evaluate include filters only in this loop.
 	for _, syncOperationResource := range syncOperationResources {
-		includeResource := syncOperationResource.Compare(resourceName, resourceNamespace, gvk)
 		if syncOperationResource.Exclude {
-			includeResource = !includeResource
+			continue
 		}
+		foundIncludeRule = true
+		includeResource = syncOperationResource.Compare(resourceName, resourceNamespace, gvk)
 		if includeResource {
-			return true
+			break
 		}
 	}
-	return false
+
+	// if a resource is present both in include and in exclude, the exclude wins.
+	// that including it here is a temporary decision for the use case when no include rules exist,
+	// but it still might be excluded later if it matches an exclude rule:
+	if !foundIncludeRule {
+		includeResource = true
+	}
+	// No needs to evaluate exclude filters when the resource is not included.
+	if !includeResource {
+		return false
+	}
+	// Evaluate exclude filters only in this loop.
+	for _, syncOperationResource := range syncOperationResources {
+		if syncOperationResource.Exclude && syncOperationResource.Compare(resourceName, resourceNamespace, gvk) {
+			return false
+		}
+	}
+	return true
 }
 
 // NormalizeApplicationSpec will normalize an application spec to a preferred state. This is used
@@ -858,7 +891,7 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 	if spec.SyncPolicy.IsZero() {
 		spec.SyncPolicy = nil
 	}
-	if spec.Sources != nil && len(spec.Sources) > 0 {
+	if len(spec.Sources) > 0 {
 		for _, source := range spec.Sources {
 			NormalizeSource(&source)
 		}
@@ -1005,7 +1038,7 @@ func GenerateSpecIsDifferentErrorMessage(entity string, a, b interface{}) string
 	if len(difference) == 0 {
 		return basicMsg
 	}
-	return fmt.Sprintf("%s; difference in keys \"%s\"", basicMsg, strings.Join(difference[:], ","))
+	return fmt.Sprintf("%s; difference in keys \"%s\"", basicMsg, strings.Join(difference, ","))
 }
 
 func GetDifferentPathsBetweenStructs(a, b interface{}) ([]string, error) {
@@ -1020,26 +1053,25 @@ func GetDifferentPathsBetweenStructs(a, b interface{}) ([]string, error) {
 	return difference, nil
 }
 
-// parseName will
-func parseName(appName string, defaultNs string, delim string) (string, string) {
-	var ns string
-	var name string
-	t := strings.SplitN(appName, delim, 2)
+// parseName will split the qualified name into its components, which are separated by the delimiter.
+// If delimiter is not contained in the string qualifiedName then returned namespace is defaultNs.
+func parseName(qualifiedName string, defaultNs string, delim string) (name string, namespace string) {
+	t := strings.SplitN(qualifiedName, delim, 2)
 	if len(t) == 2 {
-		ns = t[0]
+		namespace = t[0]
 		name = t[1]
 	} else {
-		ns = defaultNs
+		namespace = defaultNs
 		name = t[0]
 	}
-	return name, ns
+	return
 }
 
 // ParseAppNamespacedName parses a namespaced name in the format namespace/name
 // and returns the components. If name wasn't namespaced, defaultNs will be
 // returned as namespace component.
-func ParseFromQualifiedName(appName string, defaultNs string) (string, string) {
-	return parseName(appName, defaultNs, "/")
+func ParseFromQualifiedName(qualifiedAppName string, defaultNs string) (appName string, appNamespace string) {
+	return parseName(qualifiedAppName, defaultNs, "/")
 }
 
 // ParseInstanceName parses a namespaced name in the format namespace_name
@@ -1103,4 +1135,50 @@ func IsValidContainerName(name string) bool {
 	// https://github.com/kubernetes/kubernetes/blob/53a9d106c4aabcd550cc32ae4e8004f32fb0ae7b/pkg/api/validation/validation.go#L280
 	validationErrors := apimachineryvalidation.NameIsDNSLabel(name, false)
 	return len(validationErrors) == 0
+}
+
+// GetAppEventLabels returns a map of labels to add to a K8s event.
+// The Application and its AppProject labels are compared against the `resource.includeEventLabelKeys` key in argocd-cm.
+// If matched, the corresponding labels are returned to be added to the generated event. In case of a conflict
+// between labels on the Application and AppProject, the Application label values are prioritized and added to the event.
+// Furthermore, labels specified in `resource.excludeEventLabelKeys` in argocd-cm are removed from the event labels, if they were included.
+func GetAppEventLabels(app *argoappv1.Application, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB, ctx context.Context) map[string]string {
+	eventLabels := make(map[string]string)
+
+	// Get all app & app-project labels
+	labels := app.Labels
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+	proj, err := GetAppProject(app, projLister, ns, settingsManager, db, ctx)
+	if err == nil {
+		for k, v := range proj.Labels {
+			_, found := labels[k]
+			if !found {
+				labels[k] = v
+			}
+		}
+	} else {
+		log.Warn(err)
+	}
+
+	// Filter out event labels to include
+	inKeys := settingsManager.GetIncludeEventLabelKeys()
+	for k, v := range labels {
+		found := glob.MatchStringInList(inKeys, k, glob.GLOB)
+		if found {
+			eventLabels[k] = v
+		}
+	}
+
+	// Remove excluded event labels
+	exKeys := settingsManager.GetExcludeEventLabelKeys()
+	for k := range eventLabels {
+		found := glob.MatchStringInList(exKeys, k, glob.GLOB)
+		if found {
+			delete(eventLabels, k)
+		}
+	}
+
+	return eventLabels
 }

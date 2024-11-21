@@ -366,11 +366,9 @@ func (mgr *SessionManager) updateFailureCount(username string, failed bool) {
 		attempt.LastFailed = time.Now()
 		failures[username] = attempt
 		log.Warnf("User %s failed login %d time(s)", username, attempt.FailCount)
-	} else {
-		if attempt.FailCount > 0 {
-			// Forget username for cache size enforcement, since entry in cache was deleted
-			delete(failures, username)
-		}
+	} else if attempt.FailCount > 0 {
+		// Forget username for cache size enforcement, since entry in cache was deleted
+		delete(failures, username)
 	}
 
 	err := mgr.storage.SetLoginAttempts(failures)

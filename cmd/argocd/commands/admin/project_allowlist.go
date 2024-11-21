@@ -120,7 +120,7 @@ func generateProjectAllowList(serverResources []*metav1.APIResourceList, cluster
 
 	resourceList := make([]metav1.GroupKind, 0)
 	for _, rule := range clusterRole.Rules {
-		if len(rule.APIGroups) <= 0 {
+		if len(rule.APIGroups) == 0 {
 			continue
 		}
 

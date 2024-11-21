@@ -1,0 +1,25 @@
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  image: stefanprodan/podinfo-faulty
+  interval: 1h
+  provider: generic
+status:
+  conditions:
+  - lastTransitionTime: "2024-07-16T12:00:00Z"
+    message: 'scanning: new image name'
+    observedGeneration: 2
+    reason: ProgressingWithRetry
+    status: "True"
+    type: Reconciling
+  - lastTransitionTime: "2024-07-16T12:00:00Z"
+    message: 'scan failed: GET https://index.docker.io/v2/stefanprodan/podinfo-faulty/tags/list?n=1000:
+      UNAUTHORIZED: authentication required; [map[Action:pull Class: Name:stefanprodan/podinfo-faulty
+      Type:repository]]'
+    observedGeneration: 2
+    reason: ReadOperationFailed
+    status: "False"
+    type: Ready

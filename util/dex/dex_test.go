@@ -9,10 +9,13 @@ import (
 	"strings"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/yaml"
 
-	// "github.com/argoproj/argo-cd/common"
+	"github.com/argoproj/argo-cd/v2/common"
+	utillog "github.com/argoproj/argo-cd/v2/util/log"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -141,6 +144,33 @@ connectors:
       nameAttr: cn
 `
 
+var goodDexConfigWithLogger = `
+logger:
+  level: debug
+  other: value
+connectors:
+# GitHub example
+- type: github
+  id: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: $dex.github.clientSecret
+    orgs:
+    - name: your-github-org
+
+# GitHub enterprise example
+- type: github
+  id: acme-github
+  name: Acme GitHub
+  config:
+    hostName: github.acme.example.com
+    clientID: abcdefghijklmnopqrst
+    clientSecret: $dex.acme.clientSecret
+    orgs:
+    - name: your-github-org
+`
+
 var goodSecrets = map[string]string{
 	"dex.github.clientSecret": "foobar",
 	"dex.acme.clientSecret":   "barfoo",
@@ -155,7 +185,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 	t.Run("Empty settings", func(t *testing.T) {
 		s := settings.ArgoCDSettings{}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, config)
 	})
 
@@ -165,7 +195,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: goodDexConfig,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, config)
 	})
 
@@ -175,7 +205,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: "invalidyaml",
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, config)
 	})
 
@@ -185,7 +215,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: "invalidyaml",
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, config)
 	})
 
@@ -195,7 +225,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: malformedDexConfig,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, config)
 	})
 
@@ -205,7 +235,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: badDexConfig,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, config)
 	})
 
@@ -215,7 +245,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: goodDexConfig,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, config)
 	})
 
@@ -226,7 +256,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			Secrets:   goodSecrets,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
@@ -252,7 +282,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			Secrets:   goodSecretswithCRLF,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
@@ -271,6 +301,65 @@ func Test_GenerateDexConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("Logging level", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfig,
+		}
+		t.Setenv(common.EnvLogLevel, log.WarnLevel.String())
+		t.Setenv(common.EnvLogFormat, utillog.JsonFormat)
+
+		config, err := GenerateDexConfigYAML(&s, false)
+		require.NoError(t, err)
+		assert.NotNil(t, config)
+		var dexCfg map[string]interface{}
+		err = yaml.Unmarshal(config, &dexCfg)
+		if err != nil {
+			panic(err.Error())
+		}
+		loggerCfg, ok := dexCfg["logger"].(map[string]interface{})
+		assert.True(t, ok)
+
+		level, ok := loggerCfg["level"].(string)
+		assert.True(t, ok)
+		assert.Equal(t, "WARN", level)
+
+		format, ok := loggerCfg["format"].(string)
+		assert.True(t, ok)
+		assert.Equal(t, "json", format)
+	})
+
+	t.Run("Logging level with config", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfigWithLogger,
+		}
+		t.Setenv(common.EnvLogLevel, log.WarnLevel.String())
+		t.Setenv(common.EnvLogFormat, utillog.JsonFormat)
+
+		config, err := GenerateDexConfigYAML(&s, false)
+		require.NoError(t, err)
+		assert.NotNil(t, config)
+		var dexCfg map[string]interface{}
+		err = yaml.Unmarshal(config, &dexCfg)
+		if err != nil {
+			panic(err.Error())
+		}
+		loggerCfg, ok := dexCfg["logger"].(map[string]interface{})
+		assert.True(t, ok)
+
+		level, ok := loggerCfg["level"].(string)
+		assert.True(t, ok)
+		assert.Equal(t, "debug", level)
+
+		format, ok := loggerCfg["format"].(string)
+		assert.True(t, ok)
+		assert.Equal(t, "json", format)
+
+		_, ok = loggerCfg["other"].(string)
+		assert.True(t, ok)
+	})
+
 	t.Run("Redirect config", func(t *testing.T) {
 		types := []string{"oidc", "saml", "microsoft", "linkedin", "gitlab", "github", "bitbucket-cloud", "openshift", "gitea", "google", "oauth"}
 		for _, c := range types {
@@ -286,7 +375,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			Secrets:   goodSecretswithCRLF,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
@@ -308,7 +397,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			Secrets:   goodSecretswithCRLF,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
@@ -328,7 +417,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: goodDexConfigWithOauthOverrides,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
@@ -351,7 +440,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 			DexConfig: goodDexConfigWithEnabledApprovalScreen,
 		}
 		config, err := GenerateDexConfigYAML(&s, false)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, config)
 		var dexCfg map[string]interface{}
 		err = yaml.Unmarshal(config, &dexCfg)
@@ -385,7 +474,7 @@ func Test_DexReverseProxy(t *testing.T) {
 		target, _ := url.Parse(fakeDex.URL)
 		resp, err := http.Get(server.URL)
 		assert.NotNil(t, resp)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		assert.Equal(t, host, target.Host)
 		fmt.Printf("%s\n", resp.Status)
@@ -407,7 +496,7 @@ func Test_DexReverseProxy(t *testing.T) {
 		}
 		resp, err := client.Get(server.URL)
 		assert.NotNil(t, resp)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
 		location, _ := resp.Location()
 		fmt.Printf("%s %s\n", resp.Status, location.RequestURI())
@@ -429,9 +518,9 @@ func Test_DexReverseProxy(t *testing.T) {
 		rt := NewDexRewriteURLRoundTripper(server.URL, http.DefaultTransport)
 		assert.NotNil(t, rt)
 		req, err := http.NewRequest(http.MethodGet, "/", bytes.NewBuffer([]byte("")))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		_, err = rt.RoundTrip(req)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		target, _ := url.Parse(server.URL)
 		assert.Equal(t, req.Host, target.Host)
 	})

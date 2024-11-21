@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient"
@@ -29,7 +30,7 @@ func TestUserAgent(t *testing.T) {
 	s, closer := fakeServer(t)
 	defer closer()
 	lns, err := s.Listen()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	cancelInformer := test.StartInformer(s.projInformer)
 	defer cancelInformer()
@@ -44,7 +45,7 @@ func TestUserAgent(t *testing.T) {
 		errorMsg  string
 	}
 	currentVersionBytes, err := os.ReadFile("../VERSION")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	currentVersion := strings.TrimSpace(string(currentVersionBytes))
 	tests := []testData{
 		{
@@ -73,14 +74,14 @@ func TestUserAgent(t *testing.T) {
 			UserAgent:  test.userAgent,
 		}
 		clnt, err := apiclient.NewClient(&opts)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		conn, appClnt := clnt.NewApplicationClientOrDie()
 		_, err = appClnt.List(ctx, &applicationpkg.ApplicationQuery{})
 		if test.errorMsg != "" {
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Regexp(t, test.errorMsg, err.Error())
 		} else {
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		}
 		_ = conn.Close()
 	}
@@ -95,7 +96,7 @@ func Test_StaticHeaders(t *testing.T) {
 		s, closer := fakeServer(t)
 		defer closer()
 		lns, err := s.Listen()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
 		ctx, cancel := context.WithCancel(context.Background())
@@ -110,9 +111,9 @@ func Test_StaticHeaders(t *testing.T) {
 		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
 		req, err := http.NewRequest(http.MethodGet, url, nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		resp, err := client.Do(req)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "sameorigin", resp.Header.Get("X-Frame-Options"))
 		assert.Equal(t, "frame-ancestors 'self';", resp.Header.Get("Content-Security-Policy"))
 	}
@@ -126,7 +127,7 @@ func Test_StaticHeaders(t *testing.T) {
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
 		lns, err := s.Listen()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		s.Init(ctx)
@@ -139,9 +140,9 @@ func Test_StaticHeaders(t *testing.T) {
 		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
 		req, err := http.NewRequest(http.MethodGet, url, nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		resp, err := client.Do(req)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "deny", resp.Header.Get("X-Frame-Options"))
 		assert.Equal(t, "frame-ancestors 'none';", resp.Header.Get("Content-Security-Policy"))
 	}
@@ -155,7 +156,7 @@ func Test_StaticHeaders(t *testing.T) {
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
 		lns, err := s.Listen()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		s.Init(ctx)
@@ -163,7 +164,7 @@ func Test_StaticHeaders(t *testing.T) {
 		defer func() { time.Sleep(3 * time.Second) }()
 
 		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", s.ListenPort), 10*time.Second)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// Allow server startup
 		time.Sleep(1 * time.Second)
@@ -171,9 +172,9 @@ func Test_StaticHeaders(t *testing.T) {
 		client := http.Client{}
 		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
 		req, err := http.NewRequest(http.MethodGet, url, nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		resp, err := client.Do(req)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Empty(t, resp.Header.Get("X-Frame-Options"))
 		assert.Empty(t, resp.Header.Get("Content-Security-Policy"))
 	}

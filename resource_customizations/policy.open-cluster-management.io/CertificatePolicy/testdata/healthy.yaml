@@ -1,0 +1,24 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: CertificatePolicy
+metadata:
+  name: policy-certificate
+  namespace: local-cluster
+spec:
+  minimumDuration: 300h
+  namespaceSelector:
+    exclude:
+      - kube-*
+    include:
+      - default
+      - cert-manager-operator
+  remediationAction: inform
+  severity: low
+status:
+  compliancyDetails:
+    cert-manager-operator:
+      message: |
+        Found 0 non compliant certificates in the namespace cert-manager-operator.
+    default:
+      message: |
+        Found 0 non compliant certificates in the namespace default.
+  compliant: Compliant

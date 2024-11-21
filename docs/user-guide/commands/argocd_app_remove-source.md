@@ -2,7 +2,7 @@
 
 ## argocd app remove-source
 
-Remove a source from multiple sources application. Counting starts with 1. Default value is -1.
+Remove a source from multiple sources application.
 
 ```
 argocd app remove-source APPNAME [flags]
@@ -13,6 +13,9 @@ argocd app remove-source APPNAME [flags]
 ```
   # Remove the source at position 1 from application's sources. Counting starts at 1.
   argocd app remove-source myapplication --source-position 1
+  
+  # Remove the source named "test" from application's sources.
+  argocd app remove-source myapplication --source-name test
 ```
 
 ### Options
@@ -20,13 +23,15 @@ argocd app remove-source APPNAME [flags]
 ```
   -N, --app-namespace string   Namespace of the target application where the source will be appended
   -h, --help                   help for remove-source
+      --source-name string     Name of the source from the list of sources of the app.
       --source-position int    Position of the source from the list of sources of the app. Counting starts at 1. (default -1)
 ```
 
 ### Options inherited from parent commands
 
 ```
-      --auth-token string               Authentication token
+      --argocd-context string           The name of the Argo-CD server context to use
+      --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
@@ -43,6 +48,7 @@ argocd app remove-source APPNAME [flags]
       --plaintext                       Disable TLS
       --port-forward                    Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
+      --prompts-enabled                 Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
       --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
       --repo-server-name string         Name of the Argo CD Repo server; set this or the ARGOCD_REPO_SERVER_NAME environment variable when the server's name label differs from the default, for example when installing via the Helm chart (default "argocd-repo-server")

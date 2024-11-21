@@ -25,27 +25,27 @@ const (
 
 func Test_URIToSecretName(t *testing.T) {
 	name, err := URIToSecretName("cluster", "http://foo")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "cluster-foo-752281925", name)
 
 	name, err = URIToSecretName("cluster", "http://thelongestdomainnameintheworld.argocd-project.com:3000")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "cluster-thelongestdomainnameintheworld.argocd-project.com-2721640553", name)
 
 	name, err = URIToSecretName("cluster", "http://[fe80::1ff:fe23:4567:890a]")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "cluster-fe80--1ff-fe23-4567-890a-3877258831", name)
 
 	name, err = URIToSecretName("cluster", "http://[fe80::1ff:fe23:4567:890a]:8000")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "cluster-fe80--1ff-fe23-4567-890a-664858999", name)
 
 	name, err = URIToSecretName("cluster", "http://[FE80::1FF:FE23:4567:890A]:8000")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "cluster-fe80--1ff-fe23-4567-890a-682802007", name)
 
 	name, err = URIToSecretName("cluster", "http://:/abc")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "cluster--1969338796", name)
 }
 
@@ -108,7 +108,7 @@ func TestClusterToSecret(t *testing.T) {
 	}
 	s := &v1.Secret{}
 	err := clusterToSecret(cluster, s)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.Equal(t, []byte(cluster.Server), s.Data["server"])
 	assert.Equal(t, []byte(cluster.Name), s.Data["name"])
@@ -145,7 +145,7 @@ func Test_secretToCluster_NoConfig(t *testing.T) {
 		},
 	}
 	cluster, err := SecretToCluster(secret)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, v1alpha1.Cluster{
 		Name:        "test",
 		Server:      "http://mycluster",
@@ -193,14 +193,10 @@ func TestUpdateCluster(t *testing.T) {
 		Server:             "http://mycluster",
 		RefreshRequestedAt: &requestedAt,
 	})
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	secret, err := kubeclientset.CoreV1().Secrets(fakeNamespace).Get(context.Background(), "mycluster", metav1.GetOptions{})
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	assert.Equal(t, secret.Annotations[v1alpha1.AnnotationKeyRefresh], requestedAt.Format(time.RFC3339))
 }
@@ -255,10 +251,11 @@ func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
 		Server: appv1.KubernetesInternalAPIServerAddr,
 		Name:   "incluster-name",
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster)) {
+	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -423,4 +420,67 @@ func TestListClusters(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, clusters.Items, 1)
 	})
+}
+
+// TestClusterRaceConditionClusterSecrets reproduces a race condition
+// on the cluster secrets. The test isn't asserting anything because
+// before the fix it would cause a panic from concurrent map iteration and map write
+func TestClusterRaceConditionClusterSecrets(t *testing.T) {
+	clusterSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "mycluster",
+			Namespace: "default",
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"server": []byte("http://mycluster"),
+			"config": []byte("{}"),
+		},
+	}
+	kubeClient := fake.NewSimpleClientset(
+		&v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string]string{},
+		},
+		&v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			Data: map[string][]byte{
+				"admin.password":   nil,
+				"server.secretkey": nil,
+			},
+		},
+		clusterSecret,
+	)
+	settingsManager := settings.NewSettingsManager(context.Background(), kubeClient, "default")
+	db := NewDB("default", settingsManager, kubeClient)
+	cluster, _ := SecretToCluster(clusterSecret)
+	go func() {
+		for {
+			// create a copy so we dont act on the same argo cluster
+			clusterCopy := cluster.DeepCopy()
+			_, _ = db.UpdateCluster(context.Background(), clusterCopy)
+		}
+	}()
+	// yes, we will take 15 seconds to run this test
+	// but it reliably triggered the race condition
+	for i := 0; i < 30; i++ {
+		// create a copy so we dont act on the same argo cluster
+		clusterCopy := cluster.DeepCopy()
+		_, _ = db.UpdateCluster(context.Background(), clusterCopy)
+		time.Sleep(time.Millisecond * 500)
+	}
 }

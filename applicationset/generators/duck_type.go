@@ -7,6 +7,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v2/util/settings"
 
@@ -51,14 +52,14 @@ func (g *DuckTypeGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.
 		return time.Duration(*appSetGenerator.ClusterDecisionResource.RequeueAfterSeconds) * time.Second
 	}
 
-	return DefaultRequeueAfterSeconds
+	return getDefaultRequeueAfter()
 }
 
 func (g *DuckTypeGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
 	return &appSetGenerator.ClusterDecisionResource.Template
 }
 
-func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet) ([]map[string]interface{}, error) {
+func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator, appSet *argoprojiov1alpha1.ApplicationSet, _ client.Client) ([]map[string]interface{}, error) {
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -124,7 +125,7 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 	duckResources, err := g.dynClient.Resource(duckGVR).Namespace(g.namespace).List(g.ctx, listOptions)
 	if err != nil {
 		log.WithField("GVK", duckGVR).Warning("resources were not found")
-		return nil, err
+		return nil, fmt.Errorf("failed to get dynamic resources: %w", err)
 	}
 
 	if len(duckResources.Items) == 0 {
@@ -217,7 +218,7 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 			res = append(res, params)
 		}
 	} else {
-		log.Warningf("clusterDecisionResource status." + statusListKey + " missing")
+		log.Warningf("clusterDecisionResource status.%s missing", statusListKey)
 		return nil, nil
 	}
 

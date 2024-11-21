@@ -9,13 +9,14 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/common"
 )
 
 func TestAddCacheFlagsToCmd(t *testing.T) {
 	cache, err := AddCacheFlagsToCmd(&cobra.Command{})()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 24*time.Hour, cache.client.(*redisCache).expiration)
 }
 
@@ -38,46 +39,44 @@ func TestCacheClient(t *testing.T) {
 		cache := NewCache(client)
 		t.Run("SetItem", func(t *testing.T) {
 			err := cache.SetItem("foo", "bar", &CacheActionOpts{Expiration: 60 * time.Second, DisableOverwrite: true, Delete: false})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			var output string
 			err = cache.GetItem("foo", &output)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, "bar", output)
 		})
 		t.Run("SetCacheItem W/Disable Overwrite", func(t *testing.T) {
 			err := cache.SetItem("foo", "bar", &CacheActionOpts{Expiration: 60 * time.Second, DisableOverwrite: true, Delete: false})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			var output string
 			err = cache.GetItem("foo", &output)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, "bar", output)
 			err = cache.SetItem("foo", "bar", &CacheActionOpts{Expiration: 60 * time.Second, DisableOverwrite: true, Delete: false})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			err = cache.GetItem("foo", &output)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, "bar", output, "output should not have changed with DisableOverwrite set to true")
 		})
 		t.Run("GetItem", func(t *testing.T) {
 			var val string
 			err := cache.GetItem("foo", &val)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, "bar", val)
 		})
 		t.Run("DeleteItem", func(t *testing.T) {
 			err := cache.SetItem("foo", "bar", &CacheActionOpts{Expiration: 0, Delete: true})
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			var val string
 			err = cache.GetItem("foo", &val)
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Empty(t, val)
 		})
 		t.Run("Check for nil items", func(t *testing.T) {
 			err := cache.SetItem("foo", nil, &CacheActionOpts{Expiration: 0, Delete: true})
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "cannot set nil item")
+			require.ErrorContains(t, err, "cannot set nil item")
 			err = cache.GetItem("foo", nil)
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "cannot get item")
+			assert.ErrorContains(t, err, "cannot get item")
 		})
 	}
 }

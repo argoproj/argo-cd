@@ -188,7 +188,7 @@ func TestRenderTemplateParams(t *testing.T) {
 				assert.Equal(t, "default", newApplication.ObjectMeta.Namespace)
 				assert.Equal(t, newApplication.ObjectMeta.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
 				assert.Equal(t, newApplication.ObjectMeta.CreationTimestamp, application.ObjectMeta.CreationTimestamp)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -237,13 +237,13 @@ func TestRenderHelmValuesObjectJson(t *testing.T) {
 	render := Render{}
 	newApplication, err := render.RenderTemplateParams(application, nil, params, true, []string{})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, newApplication)
 
 	var unmarshaled interface{}
 	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject.Raw, &unmarshaled)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "Hello world", unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"])
 }
 
@@ -287,13 +287,13 @@ func TestRenderHelmValuesObjectYaml(t *testing.T) {
 	render := Render{}
 	newApplication, err := render.RenderTemplateParams(application, nil, params, true, []string{})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, newApplication)
 
 	var unmarshaled interface{}
 	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject.Raw, &unmarshaled)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "Hello world", unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"])
 }
 
@@ -621,10 +621,10 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 				// Retrieve the value of the target field from the newApplication, then verify that
 				// the target field has been templated into the expected value
 				if test.errorMessage != "" {
-					assert.Error(t, err)
+					require.Error(t, err)
 					assert.Equal(t, test.errorMessage, err.Error())
 				} else {
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					actualValue := *getPtrFunc(newApplication)
 					assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", fieldName, test.expectedVal, actualValue)
 					assert.Equal(t, "annotation-value", newApplication.ObjectMeta.Annotations["annotation-key"])
@@ -666,7 +666,7 @@ func TestRenderGeneratorParams_does_not_panic(t *testing.T) {
 		},
 	}
 	_, err := render.RenderGeneratorParams(generator, params, true, []string{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestRenderTemplateKeys(t *testing.T) {
@@ -716,7 +716,7 @@ func Test_Render_Replace_no_panic_on_missing_closing_brace(t *testing.T) {
 	r := &Render{}
 	assert.NotPanics(t, func() {
 		_, err := r.Replace("{{properly.closed}} {{improperly.closed}", nil, false, []string{})
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 }
 
@@ -812,7 +812,7 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 			render := Render{}
 
 			res, err := render.RenderTemplateParams(application, c.syncPolicy, params, true, nil)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 
 			assert.ElementsMatch(t, res.Finalizers, c.expectedFinalizers)
 		})
@@ -822,9 +822,9 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 func TestCheckInvalidGenerators(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := argoappsv1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = argoappsv1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	for _, c := range []struct {
 		testName    string
@@ -925,9 +925,9 @@ func TestCheckInvalidGenerators(t *testing.T) {
 func TestInvalidGenerators(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := argoappsv1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	err = argoappsv1.AddToScheme(scheme)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	for _, c := range []struct {
 		testName        string
@@ -1260,11 +1260,8 @@ func TestSlugify(t *testing.T) {
 }
 
 func TestGetTLSConfig(t *testing.T) {
-	// certParsed, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
-	// require.NoError(t, err)
-
 	temppath := t.TempDir()
-	cert := `
+	certFromFile := `
 -----BEGIN CERTIFICATE-----
 MIIFvTCCA6WgAwIBAgIUGrTmW3qc39zqnE08e3qNDhUkeWswDQYJKoZIhvcNAQEL
 BQAwbjELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAklMMRAwDgYDVQQHDAdDaGljYWdv
@@ -1300,48 +1297,94 @@ xO7Tr5lAo74vNUkF2EHNaI28/RGnJPm2TIxZqy4rNH6L
 -----END CERTIFICATE-----
 `
 
+	certFromCM := `
+-----BEGIN CERTIFICATE-----
+MIIDOTCCAiGgAwIBAgIQSRJrEpBGFc7tNb1fb5pKFzANBgkqhkiG9w0BAQsFADAS
+MRAwDgYDVQQKEwdBY21lIENvMCAXDTcwMDEwMTAwMDAwMFoYDzIwODQwMTI5MTYw
+MDAwWjASMRAwDgYDVQQKEwdBY21lIENvMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
+MIIBCgKCAQEA6Gba5tHV1dAKouAaXO3/ebDUU4rvwCUg/CNaJ2PT5xLD4N1Vcb8r
+bFSW2HXKq+MPfVdwIKR/1DczEoAGf/JWQTW7EgzlXrCd3rlajEX2D73faWJekD0U
+aUgz5vtrTXZ90BQL7WvRICd7FlEZ6FPOcPlumiyNmzUqtwGhO+9ad1W5BqJaRI6P
+YfouNkwR6Na4TzSj5BrqUfP0FwDizKSJ0XXmh8g8G9mtwxOSN3Ru1QFc61Xyeluk
+POGKBV/q6RBNklTNe0gI8usUMlYyoC7ytppNMW7X2vodAelSu25jgx2anj9fDVZu
+h7AXF5+4nJS4AAt0n1lNY7nGSsdZas8PbQIDAQABo4GIMIGFMA4GA1UdDwEB/wQE
+AwICpDATBgNVHSUEDDAKBggrBgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MB0GA1Ud
+DgQWBBStsdjh3/JCXXYlQryOrL4Sh7BW5TAuBgNVHREEJzAlggtleGFtcGxlLmNv
+bYcEfwAAAYcQAAAAAAAAAAAAAAAAAAAAATANBgkqhkiG9w0BAQsFAAOCAQEAxWGI
+5NhpF3nwwy/4yB4i/CwwSpLrWUa70NyhvprUBC50PxiXav1TeDzwzLx/o5HyNwsv
+cxv3HdkLW59i/0SlJSrNnWdfZ19oTcS+6PtLoVyISgtyN6DpkKpdG1cOkW3Cy2P2
++tK/tKHRP1Y/Ra0RiDpOAmqn0gCOFGz8+lqDIor/T7MTpibL3IxqWfPrvfVRHL3B
+grw/ZQTTIVjjh4JBSW3WyWgNo/ikC1lrVxzl4iPUGptxT36Cr7Zk2Bsg0XqwbOvK
+5d+NTDREkSnUbie4GeutujmX3Dsx88UiV6UY/4lHJa6I5leHUNOHahRbpbWeOfs/
+WkBKOclmOV2xlTVuPw==
+-----END CERTIFICATE-----
+`
+
 	rootCAPath := path.Join(temppath, "foo.example.com")
-	err := os.WriteFile(rootCAPath, []byte(cert), 0o666)
+	err := os.WriteFile(rootCAPath, []byte(certFromFile), 0o666)
 	if err != nil {
 		panic(err)
 	}
-
-	certPool := x509.NewCertPool()
-	ok := certPool.AppendCertsFromPEM([]byte(cert))
-	assert.True(t, ok)
 
 	testCases := []struct {
 		name                    string
 		scmRootCAPath           string
 		insecure                bool
+		caCerts                 []byte
 		validateCertInTlsConfig bool
 	}{
 		{
 			name:                    "Insecure mode configured, SCM Root CA Path not set",
 			scmRootCAPath:           "",
 			insecure:                true,
+			caCerts:                 nil,
 			validateCertInTlsConfig: false,
 		},
 		{
 			name:                    "SCM Root CA Path set, Insecure mode set to false",
 			scmRootCAPath:           rootCAPath,
 			insecure:                false,
+			caCerts:                 nil,
 			validateCertInTlsConfig: true,
 		},
 		{
 			name:                    "SCM Root CA Path set, Insecure mode set to true",
 			scmRootCAPath:           rootCAPath,
 			insecure:                true,
+			caCerts:                 nil,
+			validateCertInTlsConfig: true,
+		},
+		{
+			name:                    "Cert passed, Insecure mode set to false",
+			scmRootCAPath:           "",
+			insecure:                false,
+			caCerts:                 []byte(certFromCM),
+			validateCertInTlsConfig: true,
+		},
+		{
+			name:                    "SCM Root CA Path set, cert passed, Insecure mode set to false",
+			scmRootCAPath:           rootCAPath,
+			insecure:                false,
+			caCerts:                 []byte(certFromCM),
 			validateCertInTlsConfig: true,
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			tlsConfig := GetTlsConfig(testCase.scmRootCAPath, testCase.insecure)
+			certPool := x509.NewCertPool()
+			tlsConfig := GetTlsConfig(testCase.scmRootCAPath, testCase.insecure, testCase.caCerts)
 			assert.Equal(t, testCase.insecure, tlsConfig.InsecureSkipVerify)
+			if testCase.caCerts != nil {
+				ok := certPool.AppendCertsFromPEM([]byte(certFromCM))
+				assert.True(t, ok)
+			}
+			if testCase.scmRootCAPath != "" {
+				ok := certPool.AppendCertsFromPEM([]byte(certFromFile))
+				assert.True(t, ok)
+			}
+			assert.NotNil(t, tlsConfig)
 			if testCase.validateCertInTlsConfig {
-				assert.NotNil(t, tlsConfig)
 				assert.True(t, tlsConfig.RootCAs.Equal(certPool))
 			}
 		})

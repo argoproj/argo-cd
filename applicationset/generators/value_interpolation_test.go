@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestValueInterpolation(t *testing.T) {
@@ -55,7 +56,7 @@ func TestValueInterpolation(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			err := appendTemplatedValues(testCase.values, testCase.params, false, nil)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.EqualValues(t, testCase.expected, testCase.params)
 		})
 	}
@@ -116,7 +117,7 @@ func TestValueInterpolationWithGoTemplating(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			err := appendTemplatedValues(testCase.values, testCase.params, true, nil)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.EqualValues(t, testCase.expected, testCase.params)
 		})
 	}

@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -225,7 +226,7 @@ func TestGetShardByIndexModuloReplicasCountDistributionFunctionWhenClusterNumber
 	// The other implementation was giving almost linear time of 400ms up to 10'000 clusters
 	clusterPointers := []*v1alpha1.Cluster{}
 	for i := 0; i < 2048; i++ {
-		cluster := createCluster(fmt.Sprintf("cluster-%d", i), fmt.Sprintf("%d", i))
+		cluster := createCluster(fmt.Sprintf("cluster-%d", i), strconv.Itoa(i))
 		clusterPointers = append(clusterPointers, &cluster)
 	}
 	replicasCount := 2
@@ -410,16 +411,16 @@ func TestInferShard(t *testing.T) {
 	osHostnameError := errors.New("cannot resolve hostname")
 	osHostnameFunction = func() (string, error) { return "exampleshard", osHostnameError }
 	_, err := InferShard()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, err, osHostnameError)
 
 	osHostnameFunction = func() (string, error) { return "exampleshard", nil }
 	_, err = InferShard()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	osHostnameFunction = func() (string, error) { return "example-shard", nil }
 	_, err = InferShard()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func createTestClusters() (clusterAccessor, *dbmocks.ArgoDB, v1alpha1.Cluster, v1alpha1.Cluster, v1alpha1.Cluster, v1alpha1.Cluster, v1alpha1.Cluster) {
@@ -494,7 +495,7 @@ func Test_generateDefaultShardMappingCM_NoPredefinedShard(t *testing.T) {
 	}
 
 	expectedMappingCM, err := json.Marshal(expectedMapping)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	expectedShadingCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -508,7 +509,7 @@ func Test_generateDefaultShardMappingCM_NoPredefinedShard(t *testing.T) {
 	heartbeatCurrentTime = func() metav1.Time { return expectedTime }
 	osHostnameFunction = func() (string, error) { return "test-example", nil }
 	shardingCM, err := generateDefaultShardMappingCM("test", "test-example", replicas, -1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, expectedShadingCM, shardingCM)
 }
 
@@ -529,7 +530,7 @@ func Test_generateDefaultShardMappingCM_PredefinedShard(t *testing.T) {
 	}
 
 	expectedMappingCM, err := json.Marshal(expectedMapping)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	expectedShadingCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -543,7 +544,7 @@ func Test_generateDefaultShardMappingCM_PredefinedShard(t *testing.T) {
 	heartbeatCurrentTime = func() metav1.Time { return expectedTime }
 	osHostnameFunction = func() (string, error) { return "test-example", nil }
 	shardingCM, err := generateDefaultShardMappingCM("test", "test-example", replicas, 1)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, expectedShadingCM, shardingCM)
 }
 
@@ -835,6 +836,7 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Default sharding with statefulset",
 			envsSetter: func(t *testing.T) {
+				t.Helper()
 				t.Setenv(common.EnvControllerReplicas, "1")
 			},
 			cleanup:            func() {},
@@ -846,6 +848,7 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Default sharding with deployment",
 			envsSetter: func(t *testing.T) {
+				t.Helper()
 				t.Setenv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
 			},
 			cleanup:            func() {},
@@ -857,6 +860,7 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Default sharding with deployment and multiple replicas",
 			envsSetter: func(t *testing.T) {
+				t.Helper()
 				t.Setenv(common.EnvAppControllerName, "argocd-application-controller-multi-replicas")
 			},
 			cleanup:            func() {},
@@ -868,6 +872,7 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Statefulset multiple replicas",
 			envsSetter: func(t *testing.T) {
+				t.Helper()
 				t.Setenv(common.EnvControllerReplicas, "3")
 				osHostnameFunction = func() (string, error) { return "example-shard-3", nil }
 			},
@@ -882,6 +887,7 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Explicit shard with statefulset and 1 replica",
 			envsSetter: func(t *testing.T) {
+				t.Helper()
 				t.Setenv(common.EnvControllerReplicas, "1")
 				t.Setenv(common.EnvControllerShard, "3")
 			},
@@ -894,6 +900,7 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Explicit shard with statefulset and 2 replica - and to high shard",
 			envsSetter: func(t *testing.T) {
+				t.Helper()
 				t.Setenv(common.EnvControllerReplicas, "2")
 				t.Setenv(common.EnvControllerShard, "3")
 			},
@@ -906,6 +913,7 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Explicit shard with statefulset and 2 replica",
 			envsSetter: func(t *testing.T) {
+				t.Helper()
 				t.Setenv(common.EnvControllerReplicas, "2")
 				t.Setenv(common.EnvControllerShard, "1")
 			},
@@ -918,6 +926,7 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Explicit shard with deployment",
 			envsSetter: func(t *testing.T) {
+				t.Helper()
 				t.Setenv(common.EnvControllerShard, "3")
 			},
 			cleanup:            func() {},
@@ -929,6 +938,7 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Explicit shard with deployment and multiple replicas will read from configmap",
 			envsSetter: func(t *testing.T) {
+				t.Helper()
 				t.Setenv(common.EnvAppControllerName, "argocd-application-controller-multi-replicas")
 				t.Setenv(common.EnvControllerShard, "3")
 			},
@@ -941,6 +951,7 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Dynamic sharding but missing deployment",
 			envsSetter: func(t *testing.T) {
+				t.Helper()
 				t.Setenv(common.EnvAppControllerName, "missing-deployment")
 			},
 			cleanup:            func() {},
@@ -970,7 +981,7 @@ func TestGetClusterSharding(t *testing.T) {
 					t.Errorf("Expected error %v but got nil", tc.expectedErr)
 				}
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,8 +38,6 @@ var (
 )
 
 const (
-	// ASKPASS_NONCE_ENV is the environment variable that is used to pass the nonce to the askpass script
-	ASKPASS_NONCE_ENV = "ARGOCD_GIT_ASKPASS_NONCE"
 	// githubAccessTokenUsername is a username that is used to with the github access token
 	githubAccessTokenUsername = "x-access-token"
 	forceBasicAuthHeaderEnv   = "ARGOCD_GIT_AUTH_HEADER"
@@ -66,22 +65,19 @@ func (d NoopCredsStore) Add(username string, password string) string {
 func (d NoopCredsStore) Remove(id string) {
 }
 
+func (d NoopCredsStore) Environ(id string) []string {
+	return []string{}
+}
+
 type CredsStore interface {
 	Add(username string, password string) string
 	Remove(id string)
+	// Environ returns the environment variables that should be set to use the credentials for the given credential ID.
+	Environ(id string) []string
 }
 
 type Creds interface {
 	Environ() (io.Closer, []string, error)
-}
-
-func getGitAskPassEnv(id string) []string {
-	return []string{
-		fmt.Sprintf("GIT_ASKPASS=%s", "argocd"),
-		fmt.Sprintf("%s=%s", ASKPASS_NONCE_ENV, id),
-		"GIT_TERMINAL_PROMPT=0",
-		"ARGOCD_BINARY_NAME=argocd-git-ask-pass",
-	}
 }
 
 // nop implementation
@@ -124,13 +120,15 @@ type HTTPSCreds struct {
 	clientCertKey string
 	// HTTP/HTTPS proxy used to access repository
 	proxy string
+	// list of targets that shouldn't use the proxy, applies only if the proxy is set
+	noProxy string
 	// temporal credentials store
 	store CredsStore
 	// whether to force usage of basic auth
 	forceBasicAuth bool
 }
 
-func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool, proxy string, store CredsStore, forceBasicAuth bool) GenericHTTPSCreds {
+func NewHTTPSCreds(username string, password string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore, forceBasicAuth bool) GenericHTTPSCreds {
 	return HTTPSCreds{
 		username,
 		password,
@@ -138,6 +136,7 @@ func NewHTTPSCreds(username string, password string, clientCertData string, clie
 		clientCertData,
 		clientCertKey,
 		proxy,
+		noProxy,
 		store,
 		forceBasicAuth,
 	}
@@ -214,7 +213,7 @@ func (c HTTPSCreds) Environ() (io.Closer, []string, error) {
 		env = append(env, fmt.Sprintf("%s=%s", forceBasicAuthHeaderEnv, c.BasicAuthHeader()))
 	}
 	nonce := c.store.Add(text.FirstNonEmpty(c.username, githubAccessTokenUsername), c.password)
-	env = append(env, getGitAskPassEnv(nonce)...)
+	env = append(env, c.store.Environ(nonce)...)
 	return argoioutils.NewCloser(func() error {
 		c.store.Remove(nonce)
 		return httpCloser.Close()
@@ -240,10 +239,11 @@ type SSHCreds struct {
 	insecure      bool
 	store         CredsStore
 	proxy         string
+	noProxy       string
 }
 
-func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool, store CredsStore, proxy string) SSHCreds {
-	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey, store, proxy}
+func NewSSHCreds(sshPrivateKey string, caPath string, insecureIgnoreHostKey bool, store CredsStore, proxy string, noProxy string) SSHCreds {
+	return SSHCreds{sshPrivateKey, caPath, insecureIgnoreHostKey, store, proxy, noProxy}
 }
 
 type sshPrivateKeyFile string
@@ -340,12 +340,13 @@ type GitHubAppCreds struct {
 	clientCertKey  string
 	insecure       bool
 	proxy          string
+	noProxy        string
 	store          CredsStore
 }
 
 // NewGitHubAppCreds provide github app credentials
-func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, repoURL string, clientCertData string, clientCertKey string, insecure bool, proxy string, store CredsStore) GenericHTTPSCreds {
-	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, repoURL: repoURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, store: store}
+func NewGitHubAppCreds(appID int64, appInstallId int64, privateKey string, baseURL string, repoURL string, clientCertData string, clientCertKey string, insecure bool, proxy string, noProxy string, store CredsStore) GenericHTTPSCreds {
+	return GitHubAppCreds{appID: appID, appInstallId: appInstallId, privateKey: privateKey, baseURL: baseURL, repoURL: repoURL, clientCertData: clientCertData, clientCertKey: clientCertKey, insecure: insecure, proxy: proxy, noProxy: noProxy, store: store}
 }
 
 func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
@@ -407,7 +408,7 @@ func (g GitHubAppCreds) Environ() (io.Closer, []string, error) {
 		env = append(env, fmt.Sprintf("GIT_SSL_KEY=%s", keyFile.Name()))
 	}
 	nonce := g.store.Add(githubAccessTokenUsername, token)
-	env = append(env, getGitAskPassEnv(nonce)...)
+	env = append(env, g.store.Environ(nonce)...)
 	return argoioutils.NewCloser(func() error {
 		g.store.Remove(nonce)
 		return httpCloser.Close()
@@ -427,7 +428,7 @@ func (g GitHubAppCreds) getAccessToken() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	key := fmt.Sprintf("%x", h.Sum(nil))
+	key := hex.EncodeToString(h.Sum(nil))
 
 	// Check cache for GitHub transport which helps fetch an API token
 	t, found := githubAppTokenCache.Get(key)
@@ -444,7 +445,7 @@ func (g GitHubAppCreds) getAccessToken() (string, error) {
 	}
 
 	// Create a new GitHub transport
-	c := GetRepoHTTPClient(baseUrl, g.insecure, g, g.proxy)
+	c := GetRepoHTTPClient(baseUrl, g.insecure, g, g.proxy, g.noProxy)
 	itr, err := ghinstallation.New(c.Transport,
 		g.appID,
 		g.appInstallId,
@@ -500,7 +501,7 @@ func (c GoogleCloudCreds) Environ() (io.Closer, []string, error) {
 	}
 
 	nonce := c.store.Add(username, token)
-	env := getGitAskPassEnv(nonce)
+	env := c.store.Environ(nonce)
 
 	return argoioutils.NewCloser(func() error {
 		c.store.Remove(nonce)
@@ -543,7 +544,7 @@ func (c GoogleCloudCreds) getAccessToken() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	key := fmt.Sprintf("%x", h.Sum(nil))
+	key := hex.EncodeToString(h.Sum(nil))
 
 	t, found := googleCloudTokenSource.Get(key)
 	if found {

@@ -9,6 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
@@ -281,7 +282,7 @@ func TestRepositoryServer(t *testing.T) {
 		_, err := s.ValidateAccess(context.TODO(), &repository.RepoAccessQuery{
 			Repo: url,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
 	t.Run("Test_Get", func(t *testing.T) {
@@ -299,7 +300,7 @@ func TestRepositoryServer(t *testing.T) {
 		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
 			Repo: url,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, repo.Repo, url)
 	})
 
@@ -324,7 +325,7 @@ func TestRepositoryServer(t *testing.T) {
 		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
 			Repo: url,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		testRepo.ConnectionState = repo.ConnectionState // overwrite connection state on our test object to simplify comparison below
 
@@ -365,7 +366,69 @@ func TestRepositoryServer(t *testing.T) {
 			Repo: url,
 		})
 		assert.Nil(t, repo)
-		assert.Equal(t, "rpc error: code = NotFound desc = repo 'https://test' not found", err.Error())
+		assert.EqualError(t, err, "rpc error: code = NotFound desc = repo 'https://test' not found")
+	})
+
+	t.Run("Test_GetRepoIsSanitized", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+
+		url := "https://test"
+		db := &dbmocks.ArgoDB{}
+		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{{Repo: url, Username: "test", Password: "it's a secret"}}, nil)
+		db.On("GetRepository", context.TODO(), url, "").Return(&appsv1.Repository{Repo: url, Username: "test", Password: "it's a secret"}, nil)
+		db.On("RepositoryExists", context.TODO(), url, "").Return(true, nil)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
+		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
+			Repo: url,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "https://test", repo.Repo)
+		assert.Empty(t, repo.Password)
+	})
+
+	t.Run("Test_GetRepoIsNormalized", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+
+		url := "https://test"
+		db := &dbmocks.ArgoDB{}
+		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{{Repo: url}}, nil)
+		db.On("GetRepository", context.TODO(), url, "").Return(&appsv1.Repository{Repo: url, Username: "test"}, nil)
+		db.On("RepositoryExists", context.TODO(), url, "").Return(true, nil)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
+		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
+			Repo: url,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "https://test", repo.Repo)
+		assert.Equal(t, common.DefaultRepoType, repo.Type)
+	})
+
+	t.Run("Test_GetRepoHasConnectionState", func(t *testing.T) {
+		repoServerClient := mocks.RepoServerServiceClient{}
+		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{
+			VerifiedRepository: true,
+		}, nil)
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
+
+		url := "https://test"
+		db := &dbmocks.ArgoDB{}
+		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{{Repo: url}}, nil)
+		db.On("GetRepository", context.TODO(), url, "").Return(&appsv1.Repository{Repo: url}, nil)
+		db.On("RepositoryExists", context.TODO(), url, "").Return(true, nil)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
+		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
+			Repo: url,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, repo.ConnectionState)
+		assert.Equal(t, appsv1.ConnectionStatusSuccessful, repo.ConnectionState.Status)
 	})
 
 	t.Run("Test_CreateRepositoryWithoutUpsert", func(t *testing.T) {
@@ -387,7 +450,7 @@ func TestRepositoryServer(t *testing.T) {
 				Username: "test",
 			},
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "repo", repo.Repo)
 	})
 
@@ -413,7 +476,7 @@ func TestRepositoryServer(t *testing.T) {
 			Upsert: true,
 		})
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "test", repo.Repo)
 	})
 
@@ -431,7 +494,7 @@ func TestRepositoryServer(t *testing.T) {
 
 		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
 		resp, err := s.ListRepositories(context.TODO(), &repository.RepoQuery{})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, resp.Items, 2)
 	})
 }
@@ -487,7 +550,7 @@ func TestRepositoryServerListApps(t *testing.T) {
 			AppName:    "foo",
 			AppProject: "default",
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, resp.Items, 1)
 		assert.Equal(t, "path/to/dir", resp.Items[0].Path)
 		assert.Equal(t, "Kustomize", resp.Items[0].Type)
@@ -519,7 +582,7 @@ func TestRepositoryServerListApps(t *testing.T) {
 			AppProject: "default",
 		})
 		assert.Nil(t, resp)
-		assert.Error(t, err, "repository 'https://test' not permitted in project 'default'")
+		require.Error(t, err, "repository 'https://test' not permitted in project 'default'")
 	})
 }
 
@@ -547,7 +610,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppProject: "default",
 		})
 		assert.Nil(t, resp)
-		assert.Error(t, err, "rpc error: code = PermissionDenied desc = permission denied: repositories, get, https://test")
+		require.Error(t, err, "rpc error: code = PermissionDenied desc = permission denied: repositories, get, https://test")
 	})
 	t.Run("Test_WithoutAppReadPrivileges", func(t *testing.T) {
 		repoServerClient := mocks.RepoServerServiceClient{}
@@ -570,7 +633,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppProject: "default",
 		})
 		assert.Nil(t, resp)
-		assert.Error(t, err, "rpc error: code = PermissionDenied desc = permission denied: applications, get, default/newapp")
+		require.Error(t, err, "rpc error: code = PermissionDenied desc = permission denied: applications, get, default/newapp")
 	})
 	t.Run("Test_WithoutCreatePrivileges", func(t *testing.T) {
 		repoServerClient := mocks.RepoServerServiceClient{}
@@ -592,7 +655,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppProject: "default",
 		})
 		assert.Nil(t, resp)
-		assert.Error(t, err, "rpc error: code = PermissionDenied desc = permission denied: applications, create, default/newapp")
+		require.Error(t, err, "rpc error: code = PermissionDenied desc = permission denied: applications, create, default/newapp")
 	})
 	t.Run("Test_WithCreatePrivileges", func(t *testing.T) {
 		repoServerClient := mocks.RepoServerServiceClient{}
@@ -617,7 +680,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppName:    "newapp",
 			AppProject: "default",
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expectedResp, *resp)
 	})
 	t.Run("Test_RepoNotPermitted", func(t *testing.T) {
@@ -642,7 +705,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppName:    "newapp",
 			AppProject: "default",
 		})
-		assert.Error(t, err, "repository 'https://test' not permitted in project 'default'")
+		require.Error(t, err, "repository 'https://test' not permitted in project 'default'")
 		assert.Nil(t, resp)
 	})
 	t.Run("Test_ExistingApp", func(t *testing.T) {
@@ -666,7 +729,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppName:    "guestbook",
 			AppProject: "default",
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expectedResp, *resp)
 	})
 	t.Run("Test_ExistingMultiSourceApp001", func(t *testing.T) {
@@ -693,7 +756,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppName:    multiSourceApp001AppName,
 			AppProject: "default",
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expectedResp, *resp)
 		assert.Equal(t, "Helm", resp.Type)
 		// Next source
@@ -702,7 +765,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppName:    multiSourceApp001AppName,
 			AppProject: "default",
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expectedResp, *resp)
 		assert.Equal(t, "Helm", resp.Type)
 	})
@@ -735,7 +798,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppName:    multiSourceApp002AppName,
 			AppProject: "default",
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, "Plugin", resp.Type)
 		assert.Equal(t, expectedResp0, *resp)
 		// Next source
@@ -744,7 +807,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppName:    multiSourceApp002AppName,
 			AppProject: "default",
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expectedResp1, *resp)
 		assert.Equal(t, "Helm", resp.Type)
 	})
@@ -811,7 +874,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppName:    "guestbook",
 			AppProject: "default",
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expectedResp, *resp)
 	})
 
@@ -870,7 +933,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			SourceIndex: 0,
 			VersionId:   1,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expectedResp, *resp)
 	})
 }

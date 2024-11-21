@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -65,7 +66,7 @@ func TestDeploymentWithAnnotationTrackingMode(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			out, err := RunCli("app", "manifests", ctx.AppName())
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`annotations:
     argocd.argoproj.io/tracking-id: %s:apps/Deployment:%s/nginx-deployment
 `, ctx.AppName(), DeploymentNamespace()))
@@ -88,7 +89,7 @@ func TestDeploymentWithLabelTrackingMode(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			out, err := RunCli("app", "manifests", ctx.AppName())
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`labels:
     app: nginx
     app.kubernetes.io/instance: %s
@@ -111,7 +112,7 @@ func TestDeploymentWithoutTrackingMode(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			out, err := RunCli("app", "manifests", ctx.AppName())
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Contains(t, out, fmt.Sprintf(`labels:
     app: nginx
     app.kubernetes.io/instance: %s
@@ -258,6 +259,7 @@ func buildArgoCDClusterSecret(secretName, secretNamespace, clusterName, clusterS
 // - username = name of Namespace the simulated user is able to deploy to
 // - clusterScopedSecrets = whether the Service Account is namespace-scoped or cluster-scoped.
 func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecrets bool) {
+	t.Helper()
 	// Create a new Namespace for our simulated user
 	ns := corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
@@ -265,12 +267,12 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 		},
 	}
 	_, err := KubeClientset.CoreV1().Namespaces().Create(context.Background(), &ns, metav1.CreateOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Create a ServiceAccount in that Namespace, which will be used for the Argo CD Cluster SEcret
 	serviceAccountName := username + "-serviceaccount"
 	err = clusterauth.CreateServiceAccount(KubeClientset, serviceAccountName, ns.Name)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Create a Role that allows the ServiceAccount to read/write all within the Namespace
 	role := rbacv1.Role{
@@ -285,7 +287,7 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 		}},
 	}
 	_, err = KubeClientset.RbacV1().Roles(role.Namespace).Create(context.Background(), &role, metav1.CreateOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Bind the Role with the ServiceAccount in the Namespace
 	roleBinding := rbacv1.RoleBinding{
@@ -305,11 +307,11 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 		},
 	}
 	_, err = KubeClientset.RbacV1().RoleBindings(roleBinding.Namespace).Create(context.Background(), &roleBinding, metav1.CreateOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Retrieve the bearer token from the ServiceAccount
 	token, err := clusterauth.GetServiceAccountBearerToken(KubeClientset, ns.Name, serviceAccountName, time.Second*60)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, token)
 
 	// In order to test a cluster-scoped Argo CD Cluster Secret, we may optionally grant the ServiceAccount read-all permissions at cluster scope.
@@ -317,10 +319,10 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 		clusterRole, clusterRoleBinding := generateReadOnlyClusterRoleandBindingForServiceAccount(username, username)
 
 		_, err := KubeClientset.RbacV1().ClusterRoles().Create(context.Background(), &clusterRole, metav1.CreateOptions{})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		_, err = KubeClientset.RbacV1().ClusterRoleBindings().Create(context.Background(), &clusterRoleBinding, metav1.CreateOptions{})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	}
 
 	// Build the Argo CD Cluster Secret by using the service account token, and extracting needed values from kube config
@@ -332,10 +334,10 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 	}
 
 	jsonStringBytes, err := json.Marshal(clusterSecretConfigJSON)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	_, apiURL, err := extractKubeConfigValues()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	clusterResourcesField := ""
 	namespacesField := ""
@@ -353,7 +355,7 @@ func createNamespaceScopedUser(t *testing.T, username string, clusterScopedSecre
 
 	// Finally, create the Cluster secret in the Argo CD E2E namespace
 	_, err = KubeClientset.CoreV1().Secrets(secret.Namespace).Create(context.Background(), &secret, metav1.CreateOptions{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 // extractKubeConfigValues returns contents of the local environment's kubeconfig, using standard path resolution mechanism.

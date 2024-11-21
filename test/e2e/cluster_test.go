@@ -3,7 +3,6 @@ package e2e
 import (
 	"fmt"
 	"net/url"
-	"strings"
 	"testing"
 	"time"
 
@@ -91,7 +90,7 @@ func TestClusterAddPermissionDenied(t *testing.T) {
 		Create().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, err.Error(), "PermissionDenied desc = permission denied")
+			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied")
 		})
 }
 
@@ -171,8 +170,8 @@ func TestClusterSet(t *testing.T) {
 		GetByName("in-cluster").
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.True(t, strings.Contains(output, "namespace-edit-1"))
-			assert.True(t, strings.Contains(output, "namespace-edit-2"))
+			assert.Contains(t, output, "namespace-edit-1")
+			assert.Contains(t, output, "namespace-edit-2")
 		})
 }
 
@@ -256,7 +255,7 @@ func TestClusterDeleteDenied(t *testing.T) {
 		DeleteByName().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, err.Error(), "PermissionDenied desc = permission denied")
+			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied")
 		})
 
 	// Attempt to remove cluster creds by server
@@ -270,7 +269,7 @@ func TestClusterDeleteDenied(t *testing.T) {
 		DeleteByServer().
 		Then().
 		AndCLIOutput(func(output string, err error) {
-			assert.Contains(t, err.Error(), "PermissionDenied desc = permission denied")
+			assert.ErrorContains(t, err, "PermissionDenied desc = permission denied")
 		})
 }
 
@@ -309,19 +308,13 @@ func TestClusterDelete(t *testing.T) {
 
 	// Check that RBAC is created
 	_, err := fixture.Run("", "kubectl", "get", "serviceaccount", "argocd-manager", "-n", "kube-system")
-	if err != nil {
-		t.Errorf("Expected no error from not finding serviceaccount argocd-manager but got:\n%s", err.Error())
-	}
+	require.NoError(t, err, "Expected no error from not finding serviceaccount argocd-manager")
 
 	_, err = fixture.Run("", "kubectl", "get", "clusterrole", "argocd-manager-role")
-	if err != nil {
-		t.Errorf("Expected no error from not finding clusterrole argocd-manager-role but got:\n%s", err.Error())
-	}
+	require.NoError(t, err, "Expected no error from not finding clusterrole argocd-manager-role")
 
 	_, err = fixture.Run("", "kubectl", "get", "clusterrolebinding", "argocd-manager-role-binding")
-	if err != nil {
-		t.Errorf("Expected no error from not finding clusterrolebinding argocd-manager-role-binding but got:\n%s", err.Error())
-	}
+	require.NoError(t, err, "Expected no error from not finding clusterrolebinding argocd-manager-role-binding")
 
 	clstAction.DeleteByName().
 		Then().
@@ -331,17 +324,11 @@ func TestClusterDelete(t *testing.T) {
 
 	// Check that RBAC is removed after delete
 	output, err := fixture.Run("", "kubectl", "get", "serviceaccount", "argocd-manager", "-n", "kube-system")
-	if err == nil {
-		t.Errorf("Expected error from not finding serviceaccount argocd-manager but got:\n%s", output)
-	}
+	require.Error(t, err, "Expected error from not finding serviceaccount argocd-manager but got:\n%s", output)
 
 	output, err = fixture.Run("", "kubectl", "get", "clusterrole", "argocd-manager-role")
-	if err == nil {
-		t.Errorf("Expected error from not finding clusterrole argocd-manager-role but got:\n%s", output)
-	}
+	require.Error(t, err, "Expected error from not finding clusterrole argocd-manager-role but got:\n%s", output)
 
 	output, err = fixture.Run("", "kubectl", "get", "clusterrolebinding", "argocd-manager-role-binding")
-	if err == nil {
-		t.Errorf("Expected error from not finding clusterrolebinding argocd-manager-role-binding but got:\n%s", output)
-	}
+	assert.Error(t, err, "Expected error from not finding clusterrolebinding argocd-manager-role-binding but got:\n%s", output)
 }

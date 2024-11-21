@@ -5,6 +5,14 @@ Argo CD allows operators to define custom actions which users can perform on spe
 
 Operators can add actions to custom resources in form of a Lua script and expand those capabilities.
 
+## Built-in Actions
+
+The following are actions that are built-in to Argo CD. Each action name links to its Lua script definition:
+
+{!docs/operator-manual/resource_actions_builtin.md!}
+
+See the [RBAC documentation](rbac.md#the-action-action) for information on how to control access to these actions.
+
 ## Custom Resource Actions
 
 Argo CD supports custom resource actions written in [Lua](https://www.lua.org/). This is useful if you:
@@ -71,6 +79,20 @@ resource.customizations.actions.batch_CronJob: |
 The `discovery.lua` script must return a table where the key name represents the action name. You can optionally include logic to enable or disable certain actions based on the current object state.
 
 Each action name must be represented in the list of `definitions` with an accompanying `action.lua` script to control the resource modifications. The `obj` is a global variable which contains the resource. Each action script returns an optionally modified version of the resource. In this example, we are simply setting `.spec.suspend` to either `true` or `false`.
+
+By default, defining a resource action customization will override any built-in action for this resource kind. If you want to retain the built-in actions, you can set the `mergeBuiltinActions` key to `true`. Your custom actions will have precedence over the built-in actions.
+```yaml        
+resource.customizations.actions.argoproj.io_Rollout: |
+  mergeBuiltinActions: true
+  discovery.lua: |
+    actions = {}
+    actions["do-things"] = {}
+    return actions
+  definitions:
+  - name: do-things
+    action.lua: |
+      return obj		
+```
 
 #### Creating new resources with a custom action
 

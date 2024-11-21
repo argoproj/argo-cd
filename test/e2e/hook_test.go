@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -35,6 +36,7 @@ func TestPostSyncHookSuccessful(t *testing.T) {
 
 // make sure we can run a standard sync hook
 func testHookSuccessful(t *testing.T, hookType HookType) {
+	t.Helper()
 	Given(t).
 		Path("hook").
 		When().
@@ -67,7 +69,7 @@ func TestPostDeleteHook(t *testing.T) {
 		})
 }
 
-// make sure that that hooks do not appear in "argocd app diff"
+// make sure that hooks do not appear in "argocd app diff"
 func TestHookDiff(t *testing.T) {
 	Given(t).
 		Path("hook").
@@ -76,7 +78,7 @@ func TestHookDiff(t *testing.T) {
 		Then().
 		And(func(_ *Application) {
 			output, err := RunCli("app", "diff", Name())
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Contains(t, output, "name: pod")
 			assert.NotContains(t, output, "name: hook")
 		})

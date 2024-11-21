@@ -88,9 +88,9 @@ func TestMatchValues(t *testing.T) {
 			},
 				data,
 				emptyTemplate(),
-				&applicationSetInfo, nil)
+				&applicationSetInfo, nil, nil)
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.ElementsMatch(t, testCase.expected, results[0].Params)
 		})
 	}
@@ -172,9 +172,9 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 			},
 				data,
 				emptyTemplate(),
-				&applicationSetInfo, nil)
+				&applicationSetInfo, nil, nil)
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.ElementsMatch(t, testCase.expected, results[0].Params)
 		})
 	}
@@ -199,6 +199,7 @@ func TestTransForm(t *testing.T) {
 				"name":                                           "production_01/west",
 				"nameNormalized":                                 "production-01-west",
 				"server":                                         "https://production-01.example.com",
+				"project":                                        "",
 			}},
 		},
 		{
@@ -214,6 +215,7 @@ func TestTransForm(t *testing.T) {
 				"name":                                           "some-really-long-server-url",
 				"nameNormalized":                                 "some-really-long-server-url",
 				"server":                                         "https://some-really-long-url-that-will-exceed-63-characters.com",
+				"project":                                        "",
 			}},
 		},
 	}
@@ -242,9 +244,9 @@ func TestTransForm(t *testing.T) {
 				},
 				testGenerators,
 				emptyTemplate(),
-				&applicationSetInfo, nil)
+				&applicationSetInfo, nil, nil)
 
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.ElementsMatch(t, testCase.expected, results[0].Params)
 		})
 	}
@@ -346,7 +348,7 @@ func getMockClusterGenerator() Generator {
 func getMockGitGenerator() Generator {
 	argoCDServiceMock := mocks.Repos{}
 	argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything).Return([]string{"app1", "app2", "app_3", "p1/app4"}, nil)
-	gitGenerator := NewGitGenerator(&argoCDServiceMock)
+	gitGenerator := NewGitGenerator(&argoCDServiceMock, "namespace")
 	return gitGenerator
 }
 
@@ -555,7 +557,7 @@ func TestInterpolateGeneratorError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := InterpolateGenerator(tt.args.requestedGenerator, tt.args.params, tt.args.useGoTemplate, tt.args.goTemplateOptions)
 			if tt.expectedErrStr != "" {
-				assert.EqualError(t, err, tt.expectedErrStr)
+				require.EqualError(t, err, tt.expectedErrStr)
 			} else {
 				require.NoError(t, err)
 			}

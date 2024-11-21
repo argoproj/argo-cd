@@ -7,7 +7,7 @@ import {FormApi, Text} from 'react-form';
 import * as moment from 'moment';
 import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime, map} from 'rxjs/operators';
-import {Context, ContextApis} from '../../shared/context';
+import {AppContext, Context, ContextApis} from '../../shared/context';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
@@ -346,6 +346,46 @@ const deletePodAction = async (ctx: ContextApis, pod: appModels.ResourceNode, ap
     );
 };
 
+export const deleteSourceAction = (app: appModels.Application, source: appModels.ApplicationSource, appContext: AppContext) => {
+    appContext.apis.popup.prompt(
+        'Delete source',
+        () => (
+            <div>
+                <p>
+                    <>
+                        Are you sure you want to delete the source with URL: <kbd>{source.repoURL}</kbd>
+                        {source.path ? (
+                            <>
+                                {' '}
+                                and path: <kbd>{source.path}</kbd>?
+                            </>
+                        ) : (
+                            <>?</>
+                        )}
+                    </>
+                </p>
+            </div>
+        ),
+        {
+            submit: async (vals, _, close) => {
+                try {
+                    const i = app.spec.sources.indexOf(source);
+                    app.spec.sources.splice(i, 1);
+                    await services.applications.update(app);
+                    close();
+                } catch (e) {
+                    appContext.apis.notifications.show({
+                        content: <ErrorNotification title='Unable to delete source' e={e} />,
+                        type: NotificationType.Error
+                    });
+                }
+            }
+        },
+        {name: 'argo-icon-warning', color: 'warning'},
+        'yellow'
+    );
+};
+
 export const deletePopup = async (
     ctx: ContextApis,
     resource: ResourceTreeNode,
@@ -456,7 +496,7 @@ export const deletePopup = async (
     );
 };
 
-function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
+export function getResourceActionsMenuItems(resource: ResourceTreeNode, metadata: models.ObjectMeta, apis: ContextApis): Promise<ActionMenuItem[]> {
     return services.applications
         .getResourceActions(metadata.name, metadata.namespace, resource)
         .then(actions => {
@@ -643,30 +683,24 @@ export function renderResourceMenu(
     );
 }
 
-export function renderResourceActionMenu(resource: ResourceTreeNode, application: appModels.Application, apis: ContextApis): React.ReactNode {
-    const menuItems = getResourceActionsMenuItems(resource, application.metadata, apis);
-
+export function renderResourceActionMenu(menuItems: ActionMenuItem[]): React.ReactNode {
     return (
-        <DataLoader load={() => menuItems}>
-            {items => (
-                <ul>
-                    {items.map((item, i) => (
-                        <li
-                            className={classNames('application-details__action-menu', {disabled: item.disabled})}
-                            key={i}
-                            onClick={e => {
-                                e.stopPropagation();
-                                if (!item.disabled) {
-                                    item.action();
-                                    document.body.click();
-                                }
-                            }}>
-                            {item.iconClassName && <i className={item.iconClassName} />} {item.title}
-                        </li>
-                    ))}
-                </ul>
-            )}
-        </DataLoader>
+        <ul>
+            {menuItems.map((item, i) => (
+                <li
+                    className={classNames('application-details__action-menu', {disabled: item.disabled})}
+                    key={i}
+                    onClick={e => {
+                        e.stopPropagation();
+                        if (!item.disabled) {
+                            item.action();
+                            document.body.click();
+                        }
+                    }}>
+                    {item.iconClassName && <i className={item.iconClassName} />} {item.title}
+                </li>
+            ))}
+        </ul>
     );
 }
 
@@ -706,18 +740,16 @@ export function renderResourceButtons(
 export function syncStatusMessage(app: appModels.Application) {
     const source = getAppDefaultSource(app);
     const revision = getAppDefaultSyncRevision(app);
-    const rev = app.status.sync.revision || source.targetRevision || 'HEAD';
-    let message = source.targetRevision || 'HEAD';
+    const rev = app.status.sync.revision || (source ? source.targetRevision || 'HEAD' : 'Unknown');
+    let message = source ? source?.targetRevision || 'HEAD' : 'Unknown';
 
-    if (revision) {
+    if (revision && source) {
         if (source.chart) {
             message += ' (' + revision + ')';
         } else if (revision.length >= 7 && !revision.startsWith(source.targetRevision)) {
             message += ' (' + revision.substr(0, 7) + ')';
         }
     }
-
-    message += getAppDefaultSyncRevisionExtra(app);
 
     switch (app.status.sync.status) {
         case appModels.SyncStatuses.Synced:
@@ -726,7 +758,8 @@ export function syncStatusMessage(app: appModels.Application) {
                     to{' '}
                     <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
-                    </Revision>{' '}
+                    </Revision>
+                    {getAppDefaultSyncRevisionExtra(app)}{' '}
                 </span>
             );
         case appModels.SyncStatuses.OutOfSync:
@@ -735,7 +768,8 @@ export function syncStatusMessage(app: appModels.Application) {
                     from{' '}
                     <Revision repoUrl={source.repoURL} revision={rev}>
                         {message}
-                    </Revision>{' '}
+                    </Revision>
+                    {getAppDefaultSyncRevisionExtra(app)}{' '}
                 </span>
             );
         default:
@@ -773,7 +807,7 @@ export const HealthStatusIcon = ({state, noSpin}: {state: appModels.HealthStatus
     if (state.message) {
         title = `${state.status}: ${state.message}`;
     }
-    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} style={{color}} />;
+    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon + ' utils-health-status-icon'} style={{color}} />;
 };
 
 export const PodHealthIcon = ({state}: {state: appModels.HealthStatus}) => {
@@ -953,20 +987,62 @@ export const OperationState = ({app, quiet}: {app: appModels.Application; quiet?
     );
 };
 
+function isPodInitializedConditionTrue(status: any): boolean {
+    if (!status?.conditions) {
+        return false;
+    }
+
+    for (const condition of status.conditions) {
+        if (condition.type !== 'Initialized') {
+            continue;
+        }
+        return condition.status === 'True';
+    }
+
+    return false;
+}
+
+// isPodPhaseTerminal returns true if the pod's phase is terminal.
+function isPodPhaseTerminal(phase: appModels.PodPhase): boolean {
+    return phase === appModels.PodPhase.PodFailed || phase === appModels.PodPhase.PodSucceeded;
+}
+
 export function getPodStateReason(pod: appModels.State): {message: string; reason: string; netContainerStatuses: any[]} {
-    let reason = pod.status.phase;
+    if (!pod.status) {
+        return {reason: 'Unknown', message: '', netContainerStatuses: []};
+    }
+
+    const podPhase = pod.status.phase;
+    let reason = podPhase;
     let message = '';
     if (pod.status.reason) {
         reason = pod.status.reason;
     }
 
-    let initializing = false;
-
     let netContainerStatuses = pod.status.initContainerStatuses || [];
     netContainerStatuses = netContainerStatuses.concat(pod.status.containerStatuses || []);
 
-    for (const container of (pod.status.initContainerStatuses || []).slice().reverse()) {
+    for (const condition of pod.status.conditions || []) {
+        if (condition.type === 'PodScheduled' && condition.reason === 'SchedulingGated') {
+            reason = 'SchedulingGated';
+        }
+    }
+
+    const initContainers: Record<string, any> = {};
+
+    for (const container of pod.spec.initContainers ?? []) {
+        initContainers[container.name] = container;
+    }
+
+    let initializing = false;
+    const initContainerStatuses = pod.status.initContainerStatuses || [];
+    for (let i = 0; i < initContainerStatuses.length; i++) {
+        const container = initContainerStatuses[i];
         if (container.state.terminated && container.state.terminated.exitCode === 0) {
+            continue;
+        }
+
+        if (container.started && initContainers[container.name].restartPolicy === 'Always') {
             continue;
         }
 
@@ -981,13 +1057,13 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
             reason = `Init:${container.state.waiting.reason}`;
             message = `Init:${container.state.waiting.message}`;
         } else {
-            reason = `Init: ${(pod.spec.initContainers || []).length})`;
+            reason = `Init:${i}/${(pod.spec.initContainers || []).length}`;
         }
         initializing = true;
         break;
     }
 
-    if (!initializing) {
+    if (!initializing || isPodInitializedConditionTrue(pod.status)) {
         let hasRunning = false;
         for (const container of pod.status.containerStatuses || []) {
             if (container.state.waiting && container.state.waiting.reason) {
@@ -1019,7 +1095,7 @@ export function getPodStateReason(pod: appModels.State): {message: string; reaso
     if ((pod as any).metadata.deletionTimestamp && pod.status.reason === 'NodeLost') {
         reason = 'Unknown';
         message = '';
-    } else if ((pod as any).metadata.deletionTimestamp) {
+    } else if ((pod as any).metadata.deletionTimestamp && !isPodPhaseTerminal(podPhase)) {
         reason = 'Terminating';
         message = '';
     }
@@ -1044,7 +1120,7 @@ export const getPodReadinessGatesState = (pod: appModels.State): {nonExistingCon
     for (const condition of podStatusConditions) {
         existingConditions.set(condition.type, true);
         // priority order of conditions
-        // eg. if there are multiple conditions set with same name then the one which comes first is evaluated
+        // e.g. if there are multiple conditions set with same name then the one which comes first is evaluated
         if (podConditions.has(condition.type)) {
             continue;
         }
@@ -1091,10 +1167,10 @@ export function isAppNode(node: appModels.ResourceNode) {
 
 export function getAppOverridesCount(app: appModels.Application) {
     const source = getAppDefaultSource(app);
-    if (source.kustomize && source.kustomize.images) {
+    if (source?.kustomize?.images) {
         return source.kustomize.images.length;
     }
-    if (source.helm && source.helm.parameters) {
+    if (source?.helm?.parameters) {
         return source.helm.parameters.length;
     }
     return 0;
@@ -1118,11 +1194,22 @@ export function getAppDefaultSyncRevision(app?: appModels.Application) {
     return app.status.sync.revisions && app.status.sync.revisions.length > 0 ? app.status.sync.revisions[0] : app.status.sync.revision;
 }
 
+// getAppDefaultOperationSyncRevision gets the first app revisions from `status.operationState.syncResult.revisions` or, if that list is missing or empty, the `revision`
+// field.
+export function getAppDefaultOperationSyncRevision(app?: appModels.Application) {
+    if (!app || !app.status || !app.status.operationState || !app.status.operationState.syncResult) {
+        return '';
+    }
+    return app.status.operationState.syncResult.revisions && app.status.operationState.syncResult.revisions.length > 0
+        ? app.status.operationState.syncResult.revisions[0]
+        : app.status.operationState.syncResult.revision;
+}
+
 // getAppCurrentVersion gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
 // field.
-export function getAppCurrentVersion(app?: appModels.Application) {
-    if (!app || !app.status || !app.status.history) {
-        return 0;
+export function getAppCurrentVersion(app?: appModels.Application): number | null {
+    if (!app || !app.status || !app.status.history || app.status.history.length === 0) {
+        return null;
     }
     return app.status.history[app.status.history.length - 1].id;
 }
@@ -1137,6 +1224,19 @@ export function getAppDefaultSyncRevisionExtra(app?: appModels.Application) {
         return ` and (${app.status.sync.revisions.length - 1}) more`;
     }
 
+    return '';
+}
+
+// getAppDefaultOperationSyncRevisionExtra gets the first app revisions from `status.operationState.syncResult.revisions` or, if that list is missing or empty, the `revision`
+// field.
+export function getAppDefaultOperationSyncRevisionExtra(app?: appModels.Application) {
+    if (!app || !app.status || !app.status.operationState || !app.status.operationState.syncResult || !app.status.operationState.syncResult.revisions) {
+        return '';
+    }
+
+    if (app.status.operationState.syncResult.revisions.length > 0) {
+        return ` and (${app.status.operationState.syncResult.revisions.length - 1}) more`;
+    }
     return '';
 }
 
@@ -1371,3 +1471,10 @@ export const userMsgsList: {[key: string]: string} = {
     groupNodes: `Since the number of pods has surpassed the threshold pod count of 15, you will now be switched to the group node view.
                  If you prefer the tree view, you can simply click on the Group Nodes toolbar button to deselect the current view.`
 };
+
+export function getAppUrl(app: appModels.Application): string {
+    if (typeof app.metadata.namespace === 'undefined') {
+        return `/applications/${app.metadata.name}`;
+    }
+    return `/applications/${app.metadata.namespace}/${app.metadata.name}`;
+}

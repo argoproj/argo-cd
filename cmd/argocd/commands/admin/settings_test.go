@@ -13,6 +13,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/settings"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -96,22 +97,16 @@ metadata:
   name: argocd-cm
 data:
   url: https://myargocd.com`)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	defer utils.Close(closer)
 
 	opts := settingsOpts{argocdCMPath: f}
 	settingsManager, err := opts.createSettingsManager(ctx)
 
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	argoCDSettings, err := settingsManager.GetSettings()
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 
 	assert.Equal(t, "https://myargocd.com", argoCDSettings.URL)
 }
@@ -202,12 +197,10 @@ admissionregistration.k8s.io/MutatingWebhookConfiguration:
 			}
 			summary, err := validator(newSettingsManager(tc.data))
 			if tc.containsSummary != "" {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Contains(t, summary, tc.containsSummary)
 			} else if tc.containsError != "" {
-				if assert.Error(t, err) {
-					assert.Contains(t, err.Error(), tc.containsError)
-				}
+				assert.ErrorContains(t, err, tc.containsError)
 			}
 		})
 	}
@@ -272,10 +265,10 @@ func TestValidateSettingsCommand_NoErrors(t *testing.T) {
 	cmd := NewValidateSettingsCommand(newCmdContext(map[string]string{}))
 	out, err := captureStdout(func() {
 		err := cmd.Execute()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	for k := range validatorsByGroup {
 		assert.Contains(t, out, fmt.Sprintf("✅ %s", k))
 	}
@@ -283,9 +276,7 @@ func TestValidateSettingsCommand_NoErrors(t *testing.T) {
 
 func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 	f, closer, err := tempFile(testDeploymentYAML)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	defer utils.Close(closer)
 
 	t.Run("NoOverridesConfigured", func(t *testing.T) {
@@ -293,9 +284,9 @@ func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"ignore-differences", f})
 			err := cmd.Execute()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Contains(t, out, "Ignore differences are not configured for 'apps/Deployment'\n")
 	})
 
@@ -309,18 +300,16 @@ func TestResourceOverrideIgnoreDifferences(t *testing.T) {
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"ignore-differences", f})
 			err := cmd.Execute()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Contains(t, out, "< spec:")
 	})
 }
 
 func TestResourceOverrideHealth(t *testing.T) {
 	f, closer, err := tempFile(testCustomResourceYAML)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	defer utils.Close(closer)
 
 	t.Run("NoHealthAssessment", func(t *testing.T) {
@@ -330,9 +319,9 @@ func TestResourceOverrideHealth(t *testing.T) {
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"health", f})
 			err := cmd.Execute()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Contains(t, out, "Health script is not configured for 'example.com/ExampleResource'\n")
 	})
 
@@ -346,9 +335,9 @@ func TestResourceOverrideHealth(t *testing.T) {
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"health", f})
 			err := cmd.Execute()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Contains(t, out, "Progressing")
 	})
 
@@ -362,24 +351,20 @@ func TestResourceOverrideHealth(t *testing.T) {
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"health", f})
 			err := cmd.Execute()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Contains(t, out, "Progressing")
 	})
 }
 
 func TestResourceOverrideAction(t *testing.T) {
 	f, closer, err := tempFile(testDeploymentYAML)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	defer utils.Close(closer)
 
 	cronJobFile, closer, err := tempFile(testCronJobYAML)
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	defer utils.Close(closer)
 
 	t.Run("NoActions", func(t *testing.T) {
@@ -389,9 +374,9 @@ func TestResourceOverrideAction(t *testing.T) {
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"run-action", f, "test"})
 			err := cmd.Execute()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Contains(t, out, "Actions are not configured")
 	})
 
@@ -414,17 +399,17 @@ func TestResourceOverrideAction(t *testing.T) {
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"run-action", f, "test"})
 			err := cmd.Execute()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Contains(t, out, "test: updated")
 
 		out, err = captureStdout(func() {
 			cmd.SetArgs([]string{"list-actions", f})
 			err := cmd.Execute()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Contains(t, out, `NAME     DISABLED
 restart  false
 resume   false
@@ -459,19 +444,19 @@ resume   false
 		out, err := captureStdout(func() {
 			cmd.SetArgs([]string{"run-action", cronJobFile, "test"})
 			err := cmd.Execute()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Contains(t, out, "resource was created:")
 		assert.Contains(t, out, "hello-1")
 
 		out, err = captureStdout(func() {
 			cmd.SetArgs([]string{"list-actions", cronJobFile})
 			err := cmd.Execute()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 		})
 
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Contains(t, out, "NAME")
 		assert.Contains(t, out, "DISABLED")
 		assert.Contains(t, out, "create-a-job")

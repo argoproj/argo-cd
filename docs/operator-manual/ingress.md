@@ -471,7 +471,7 @@ Once we create this service, we can configure the Ingress to conditionally route
 ```
 
 ## [Istio](https://www.istio.io)
-You can put Argo CD behind Istio using following configurations. Here we will achive both serving Argo CD behind istio and using subpath on Istio
+You can put Argo CD behind Istio using following configurations. Here we will achieve both serving Argo CD behind istio and using subpath on Istio
 
 First we need to make sure that we can run Argo CD with subpath (ie /argocd). For this we have used install.yaml from argocd project as is
 
@@ -617,7 +617,7 @@ Edit the `--insecure` flag in the `argocd-server` command of the argocd-server d
 
 ### Creating a service
 
-Now you need an externally accessible service. This is practically the same as the internal service Argo CD has, but with Google Cloud annotations. Note that this service is annotated to use a [Network Endpoint Group](https://cloud.google.com/load-balancing/docs/negs) (NEG) to allow your load balancer to send traffic directly to your pods without using kube-proxy, so remove the `neg` annotation it that's not what you want.
+Now you need an externally accessible service. This is practically the same as the internal service Argo CD has, but with Google Cloud annotations. Note that this service is annotated to use a [Network Endpoint Group](https://cloud.google.com/load-balancing/docs/negs) (NEG) to allow your load balancer to send traffic directly to your pods without using kube-proxy, so remove the `neg` annotation if that's not what you want.
 
 The service:
 

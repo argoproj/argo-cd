@@ -51,7 +51,7 @@ func (ctrl *ApplicationController) executePostDeleteHooks(app *v1alpha1.Applicat
 		revisions = append(revisions, src.TargetRevision)
 	}
 
-	targets, _, err := ctrl.appStateManager.GetRepoObjs(app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, false)
+	targets, _, _, err := ctrl.appStateManager.GetRepoObjs(app, app.Spec.GetSources(), appLabelKey, revisions, false, false, false, proj, false)
 	if err != nil {
 		return false, err
 	}
@@ -98,6 +98,18 @@ func (ctrl *ApplicationController) executePostDeleteHooks(app *v1alpha1.Applicat
 		if err != nil {
 			return false, err
 		}
+		if hookHealth == nil {
+			logCtx.WithFields(log.Fields{
+				"group":     obj.GroupVersionKind().Group,
+				"version":   obj.GroupVersionKind().Version,
+				"kind":      obj.GetKind(),
+				"name":      obj.GetName(),
+				"namespace": obj.GetNamespace(),
+			}).Info("No health check defined for resource, considering it healthy")
+			hookHealth = &health.HealthStatus{
+				Status: health.HealthStatusHealthy,
+			}
+		}
 		if hookHealth.Status == health.HealthStatusProgressing {
 			progressingHooksCnt++
 		}
@@ -127,6 +139,11 @@ func (ctrl *ApplicationController) cleanupPostDeleteHooks(liveObjs map[kube.Reso
 		hookHealth, err := health.GetResourceHealth(obj, healthOverrides)
 		if err != nil {
 			return false, err
+		}
+		if hookHealth == nil {
+			hookHealth = &health.HealthStatus{
+				Status: health.HealthStatusHealthy,
+			}
 		}
 		if health.IsWorse(aggregatedHealth, hookHealth.Status) {
 			aggregatedHealth = hookHealth.Status

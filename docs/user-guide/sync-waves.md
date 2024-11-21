@@ -51,7 +51,5 @@ Because an application can have resources that are unhealthy in the first wave, 
 
 During pruning of resources, resources from higher waves are processed first before moving to lower waves. If, for any reason, a resource isn't removed/pruned in a wave, the resources in next waves won't be processed. This is to ensure proper resource cleanup between waves.
 
-Note that there's currently a delay between each sync wave in order give other controllers a chance to react to the spec change
-that we just applied. This also prevent Argo CD from assessing resource health too quickly (against the stale object), causing
-hooks to fire prematurely. The current delay between each sync wave is 2 seconds and can be configured via environment
-variable `ARGOCD_SYNC_WAVE_DELAY`.
+Note: there is a delay between each sync wave to give other controllers a chance to react to the applied spec change. This prevents Argo CD from assessing resource health too quickly (against a stale object), and firing
+hooks prematurely. The default delay between each sync wave is 2 seconds. This can be adjusted by setting the `ARGOCD_SYNC_WAVE_DELAY` environment variable in the argocd-application-controller deployment.

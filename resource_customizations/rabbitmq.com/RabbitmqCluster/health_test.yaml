@@ -1,0 +1,29 @@
+tests:
+- healthStatus:
+    status: Degraded
+    message: Unknown 'foo' parameter
+  inputPath: testdata/degraded_badconfig.yaml
+- healthStatus:
+    status: Degraded
+    message: No statefulset or endpoints found
+  inputPath: testdata/degraded_cluster_unknown.yaml
+- healthStatus:
+    status: Degraded
+    message: No statefulset or endpoints found
+  inputPath: testdata/degraded_replicas_unknown.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for RabbitMQ Operator
+  inputPath: testdata/progressing_no_status.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for RabbitMQ cluster formation
+  inputPath: testdata/progressing_cluster_unavailable.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for RabbitMQ instances ready
+  inputPath: testdata/progressing_pods_not_ready.yaml
+- healthStatus:
+    status: Healthy
+    message: RabbitMQ cluster ready
+  inputPath: testdata/healthy.yaml

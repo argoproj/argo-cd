@@ -132,10 +132,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
 					revision = app.Status.OperationState.SyncResult.Revision
 				}
-			} else {
-				if errors.IsNotFound(err) {
-					notFound = true
-				}
+			} else if errors.IsNotFound(err) {
+				notFound = true
 			}
 		} else {
 			w.WriteHeader(http.StatusBadRequest)

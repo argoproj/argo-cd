@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"net/http"
 	"net/url"
 	"path"
 	"reflect"
@@ -49,6 +50,9 @@ type ArgoCDSettings struct {
 	// URL is the externally facing URL users will visit to reach Argo CD.
 	// The value here is used when configuring SSO. Omitting this value will disable SSO.
 	URL string `json:"url,omitempty"`
+	// URLs is a list of externally facing URLs users will visit to reach Argo CD.
+	// The value here is used when configuring SSO reachable from multiple domains.
+	AdditionalURLs []string `json:"additionalUrls,omitempty"`
 	// Indicates if status badge is enabled or not.
 	StatusBadgeEnabled bool `json:"statusBadgeEnable"`
 	// Indicates if status badge custom root URL should be used.
@@ -119,9 +123,12 @@ type ArgoCDSettings struct {
 	OIDCTLSInsecureSkipVerify bool `json:"oidcTLSInsecureSkipVerify"`
 	// AppsInAnyNamespaceEnabled indicates whether applications are allowed to be created in any namespace
 	AppsInAnyNamespaceEnabled bool `json:"appsInAnyNamespaceEnabled"`
-	// ExtensionConfig configurations related to ArgoCD proxy extensions. The value
-	// is a yaml string defined in extension.ExtensionConfigs struct.
-	ExtensionConfig string `json:"extensionConfig,omitempty"`
+	// ExtensionConfig configurations related to ArgoCD proxy extensions. The keys are the extension name.
+	// The value is a yaml string defined in extension.ExtensionConfigs struct.
+	ExtensionConfig map[string]string `json:"extensionConfig,omitempty"`
+	// ImpersonationEnabled indicates whether Application sync privileges can be decoupled from control plane
+	// privileges using impersonation
+	ImpersonationEnabled bool `json:"impersonationEnabled"`
 }
 
 type GoogleAnalytics struct {
@@ -337,6 +344,8 @@ type Repository struct {
 	GithubAppEnterpriseBaseURL string `json:"githubAppEnterpriseBaseUrl,omitempty"`
 	// Proxy specifies the HTTP/HTTPS proxy used to access the repo
 	Proxy string `json:"proxy,omitempty"`
+	// NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
+	NoProxy string `json:"noProxy,omitempty"`
 	// GCPServiceAccountKey specifies the service account key in JSON format to be used for getting credentials to Google Cloud Source repos
 	GCPServiceAccountKey *apiv1.SecretKeySelector `json:"gcpServiceAccountKey,omitempty"`
 	// ForceHttpBasicAuth determines whether Argo CD should force use of basic auth for HTTP connected repositories
@@ -406,6 +415,8 @@ const (
 	settingServerPrivateKey = "tls.key"
 	// settingURLKey designates the key where Argo CD's external URL is set
 	settingURLKey = "url"
+	// settingAdditionalUrlsKey designates the key where Argo CD's additional external URLs are set
+	settingAdditionalUrlsKey = "additionalUrls"
 	// repositoriesKey designates the key where ArgoCDs repositories list is set
 	repositoriesKey = "repositories"
 	// repositoryCredentialsKey designates the key where ArgoCDs repositories credentials list is set
@@ -434,10 +445,14 @@ const (
 	settingsWebhookAzureDevOpsUsernameKey = "webhook.azuredevops.username"
 	// settingsWebhookAzureDevOpsPasswordKey is the key for Azure DevOps webhook password
 	settingsWebhookAzureDevOpsPasswordKey = "webhook.azuredevops.password"
+	// settingsWebhookMaxPayloadSize is the key for the maximum payload size for webhooks in MB
+	settingsWebhookMaxPayloadSizeMB = "webhook.maxPayloadSizeMB"
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
 	// settingsResourceTrackingMethodKey is the key to configure tracking method for application resources
 	settingsResourceTrackingMethodKey = "application.resourceTrackingMethod"
+	// settingsInstallationID holds the key for the instance installation ID
+	settingsInstallationID = "installationID"
 	// resourcesCustomizationsKey is the key to the map of resource overrides
 	resourceCustomizationsKey = "resource.customizations"
 	// resourceExclusions is the key to the list of excluded resources
@@ -446,8 +461,14 @@ const (
 	resourceInclusionsKey = "resource.inclusions"
 	// resourceIgnoreResourceUpdatesEnabledKey is the key to a boolean determining whether the resourceIgnoreUpdates feature is enabled
 	resourceIgnoreResourceUpdatesEnabledKey = "resource.ignoreResourceUpdatesEnabled"
+	// resourceSensitiveAnnotationsKey is the key to list of annotations to mask in secret resource
+	resourceSensitiveAnnotationsKey = "resource.sensitive.mask.annotations"
 	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
 	resourceCustomLabelsKey = "resource.customLabels"
+	// resourceIncludeEventLabelKeys is the key to labels to be added onto Application k8s events if present on an Application or it's AppProject. Supports wildcard.
+	resourceIncludeEventLabelKeys = "resource.includeEventLabelKeys"
+	// resourceExcludeEventLabelKeys is the key to labels to be excluded from adding onto Application's k8s events. Supports wildcard.
+	resourceExcludeEventLabelKeys = "resource.excludeEventLabelKeys"
 	// kustomizeBuildOptionsKey is a string of kustomize build parameters
 	kustomizeBuildOptionsKey = "kustomize.buildOptions"
 	// kustomizeVersionKeyPrefix is a kustomize version key prefix
@@ -511,6 +532,16 @@ const (
 	RespectRBAC            = "resource.respectRBAC"
 	RespectRBACValueStrict = "strict"
 	RespectRBACValueNormal = "normal"
+	// impersonationEnabledKey is the key to configure whether the application sync decoupling through impersonation feature is enabled
+	impersonationEnabledKey = "application.sync.impersonation.enabled"
+)
+
+const (
+	// default max webhook payload size is 1GB
+	defaultMaxWebhookPayloadSize = int64(1) * 1024 * 1024 * 1024
+
+	// application sync with impersonation feature is disabled by default.
+	defaultImpersonationEnabledFlag = false
 )
 
 var sourceTypeToEnableGenerationKey = map[v1alpha1.ApplicationSourceType]string{
@@ -757,11 +788,6 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 	if label == "" {
 		return common.LabelKeyAppInstance, nil
 	}
-	// return new label key if user is still using legacy key
-	if label == common.LabelKeyLegacyApplicationName {
-		log.Warnf("deprecated legacy application instance tracking key(%v) is present in configmap, new key(%v) will be used automatically", common.LabelKeyLegacyApplicationName, common.LabelKeyAppInstance)
-		return common.LabelKeyAppInstance, nil
-	}
 	return label, nil
 }
 
@@ -771,6 +797,14 @@ func (mgr *SettingsManager) GetTrackingMethod() (string, error) {
 		return "", err
 	}
 	return argoCDCM.Data[settingsResourceTrackingMethodKey], nil
+}
+
+func (mgr *SettingsManager) GetInstallationID() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	return argoCDCM.Data[settingsInstallationID], nil
 }
 
 func (mgr *SettingsManager) GetPasswordPattern() (string, error) {
@@ -887,7 +921,7 @@ func (mgr *SettingsManager) GetIsIgnoreResourceUpdatesEnabled() (bool, error) {
 	}
 
 	if argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey] == "" {
-		return false, nil
+		return true, nil
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey])
@@ -1305,6 +1339,10 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	if err != nil {
 		return nil, err
 	}
+	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
+	// Objects returned by the lister must be treated as read-only.
+	// To allow us to modify the secrets, make a copy
+	secrets = util.SecretCopy(secrets)
 	var settings ArgoCDSettings
 	var errs []error
 	updateSettingsFromConfigMap(&settings, argoCDCM)
@@ -1464,6 +1502,16 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	if err := validateExternalURL(argoCDCM.Data[settingUiBannerURLKey]); err != nil {
 		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
 	}
+	if argoCDCM.Data[settingAdditionalUrlsKey] != "" {
+		if err := yaml.Unmarshal([]byte(argoCDCM.Data[settingAdditionalUrlsKey]), &settings.AdditionalURLs); err != nil {
+			log.Warnf("Failed to decode all additional URLs in configmap: %v", err)
+		}
+	}
+	for _, url := range settings.AdditionalURLs {
+		if err := validateExternalURL(url); err != nil {
+			log.Warnf("Failed to validate external URL in configmap: %v", err)
+		}
+	}
 	settings.UiBannerURL = argoCDCM.Data[settingUiBannerURLKey]
 	settings.UserSessionDuration = time.Hour * 24
 	if userSessionDurationStr, ok := argoCDCM.Data[userSessionDurationKey]; ok {
@@ -1495,7 +1543,19 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.Confi
 	}
 	settings.TrackingMethod = argoCDCM.Data[settingsResourceTrackingMethodKey]
 	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"
-	settings.ExtensionConfig = argoCDCM.Data[extensionConfig]
+	settings.ExtensionConfig = getExtensionConfigs(argoCDCM.Data)
+	settings.ImpersonationEnabled = argoCDCM.Data[impersonationEnabledKey] == "true"
+}
+
+func getExtensionConfigs(cmData map[string]string) map[string]string {
+	result := make(map[string]string)
+	for k, v := range cmData {
+		if strings.HasPrefix(k, extensionConfig) {
+			extName := strings.TrimPrefix(strings.TrimPrefix(k, extensionConfig), ".")
+			result[extName] = v
+		}
+	}
+	return result
 }
 
 // validateExternalURL ensures the external URL that is set on the configmap is valid
@@ -1987,6 +2047,39 @@ func (a *ArgoCDSettings) RedirectURL() (string, error) {
 	return appendURLPath(a.URL, common.CallbackEndpoint)
 }
 
+func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
+	for _, candidateURL := range append([]string{a.URL}, a.AdditionalURLs...) {
+		u, err := url.Parse(candidateURL)
+		if err != nil {
+			return "", err
+		}
+		if u.Host == r.Host && strings.HasPrefix(r.URL.RequestURI(), u.RequestURI()) {
+			return candidateURL, nil
+		}
+	}
+	return a.URL, nil
+}
+
+func (a *ArgoCDSettings) RedirectURLForRequest(r *http.Request) (string, error) {
+	base, err := a.ArgoURLForRequest(r)
+	if err != nil {
+		return "", err
+	}
+	return appendURLPath(base, common.CallbackEndpoint)
+}
+
+func (a *ArgoCDSettings) RedirectAdditionalURLs() ([]string, error) {
+	RedirectAdditionalURLs := []string{}
+	for _, url := range a.AdditionalURLs {
+		redirectURL, err := appendURLPath(url, common.CallbackEndpoint)
+		if err != nil {
+			return []string{}, err
+		}
+		RedirectAdditionalURLs = append(RedirectAdditionalURLs, redirectURL)
+	}
+	return RedirectAdditionalURLs, nil
+}
+
 func (a *ArgoCDSettings) DexRedirectURL() (string, error) {
 	return appendURLPath(a.URL, common.DexCallbackEndpoint)
 }
@@ -2220,4 +2313,86 @@ func (mgr *SettingsManager) GetResourceCustomLabels() ([]string, error) {
 		return strings.Split(labels, ","), nil
 	}
 	return []string{}, nil
+}
+
+func (mgr *SettingsManager) GetIncludeEventLabelKeys() []string {
+	labelKeys := []string{}
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		log.Error(fmt.Errorf("failed getting configmap: %w", err))
+		return labelKeys
+	}
+	if value, ok := argoCDCM.Data[resourceIncludeEventLabelKeys]; ok {
+		if value != "" {
+			value = strings.ReplaceAll(value, " ", "")
+			labelKeys = strings.Split(value, ",")
+		}
+	}
+	return labelKeys
+}
+
+func (mgr *SettingsManager) GetExcludeEventLabelKeys() []string {
+	labelKeys := []string{}
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		log.Error(fmt.Errorf("failed getting configmap: %w", err))
+		return labelKeys
+	}
+	if value, ok := argoCDCM.Data[resourceExcludeEventLabelKeys]; ok {
+		if value != "" {
+			value = strings.ReplaceAll(value, " ", "")
+			labelKeys = strings.Split(value, ",")
+		}
+	}
+	return labelKeys
+}
+
+func (mgr *SettingsManager) GetSensitiveAnnotations() map[string]bool {
+	annotationKeys := make(map[string]bool)
+
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		log.Error(fmt.Errorf("failed getting configmap: %w", err))
+		return annotationKeys
+	}
+
+	value, ok := argoCDCM.Data[resourceSensitiveAnnotationsKey]
+	if !ok || value == "" {
+		return annotationKeys
+	}
+
+	value = strings.ReplaceAll(value, " ", "")
+	keys := strings.Split(value, ",")
+	for _, k := range keys {
+		annotationKeys[k] = true
+	}
+	return annotationKeys
+}
+
+func (mgr *SettingsManager) GetMaxWebhookPayloadSize() int64 {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return defaultMaxWebhookPayloadSize
+	}
+
+	if argoCDCM.Data[settingsWebhookMaxPayloadSizeMB] == "" {
+		return defaultMaxWebhookPayloadSize
+	}
+
+	maxPayloadSizeMB, err := strconv.ParseInt(argoCDCM.Data[settingsWebhookMaxPayloadSizeMB], 10, 64)
+	if err != nil {
+		log.Warnf("Failed to parse '%s' key: %v", settingsWebhookMaxPayloadSizeMB, err)
+		return defaultMaxWebhookPayloadSize
+	}
+
+	return maxPayloadSizeMB * 1024 * 1024
+}
+
+// IsImpersonationEnabled returns true if application sync with impersonation feature is enabled in argocd-cm configmap
+func (mgr *SettingsManager) IsImpersonationEnabled() (bool, error) {
+	cm, err := mgr.getConfigMap()
+	if err != nil {
+		return defaultImpersonationEnabledFlag, fmt.Errorf("error checking %s property in configmap: %w", impersonationEnabledKey, err)
+	}
+	return cm.Data[impersonationEnabledKey] == "true", nil
 }

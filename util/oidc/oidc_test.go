@@ -33,10 +33,10 @@ func TestInferGrantType(t *testing.T) {
 	for _, path := range []string{"dex", "okta", "auth0", "onelogin"} {
 		t.Run(path, func(t *testing.T) {
 			rawConfig, err := os.ReadFile("testdata/" + path + ".json")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			var config OIDCConfiguration
 			err = json.Unmarshal(rawConfig, &config)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			grantType := InferGrantType(&config)
 			assert.Equal(t, GrantTypeAuthorizationCode, grantType)
 
@@ -74,12 +74,12 @@ func TestIDTokenClaims(t *testing.T) {
 	assert.Len(t, opts, 1)
 
 	authCodeURL, err := url.Parse(oauth2Config.AuthCodeURL("TEST", opts...))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	values, err := url.ParseQuery(authCodeURL.RawQuery)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	assert.Equal(t, "{\"id_token\":{\"groups\":{\"essential\":true}}}", values.Get("claims"))
+	assert.JSONEq(t, "{\"id_token\":{\"groups\":{\"essential\":true}}}", values.Get("claims"))
 }
 
 type fakeProvider struct{}
@@ -97,7 +97,7 @@ func (p *fakeProvider) Verify(_ string, _ *settings.ArgoCDSettings) (*gooidc.IDT
 }
 
 func TestHandleCallback(t *testing.T) {
-	app := ClientApp{provider: &fakeProvider{}}
+	app := ClientApp{provider: &fakeProvider{}, settings: &settings.ArgoCDSettings{}}
 
 	req := httptest.NewRequest(http.MethodGet, "http://example.com/foo", nil)
 	req.Form = url.Values{
@@ -190,6 +190,104 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 		assert.NotContains(t, w.Body.String(), "certificate is not trusted")
 		assert.NotContains(t, w.Body.String(), "certificate signed by unknown authority")
+	})
+
+	t.Run("with additional base URL", func(t *testing.T) {
+		cdSettings := &settings.ArgoCDSettings{
+			URL:                       "https://argocd.example.com",
+			AdditionalURLs:            []string{"https://localhost:8080", "https://other.argocd.example.com"},
+			OIDCTLSInsecureSkipVerify: true,
+			DexConfig: `connectors:
+			- type: github
+			  name: GitHub
+			  config:
+			    clientID: aabbccddeeff00112233
+			    clientSecret: aabbccddeeff00112233`,
+			OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: xxx
+clientSecret: yyy
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+		}
+		cert, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
+		require.NoError(t, err)
+		cdSettings.Certificate = &cert
+
+		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		t.Run("should accept login redirecting on the main domain", func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "https://argocd.example.com/auth/login", nil)
+
+			req.URL.RawQuery = url.Values{
+				"return_url": []string{"https://argocd.example.com/applications"},
+			}.Encode()
+
+			w := httptest.NewRecorder()
+
+			app.HandleLogin(w, req)
+
+			assert.Equal(t, http.StatusSeeOther, w.Code)
+			location, err := url.Parse(w.Header().Get("Location"))
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("%s://%s", location.Scheme, location.Host), oidcTestServer.URL)
+			assert.Equal(t, "/auth", location.Path)
+			assert.Equal(t, "https://argocd.example.com/auth/callback", location.Query().Get("redirect_uri"))
+		})
+
+		t.Run("should accept login redirecting on the alternative domains", func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "https://localhost:8080/auth/login", nil)
+
+			req.URL.RawQuery = url.Values{
+				"return_url": []string{"https://localhost:8080/applications"},
+			}.Encode()
+
+			w := httptest.NewRecorder()
+
+			app.HandleLogin(w, req)
+
+			assert.Equal(t, http.StatusSeeOther, w.Code)
+			location, err := url.Parse(w.Header().Get("Location"))
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("%s://%s", location.Scheme, location.Host), oidcTestServer.URL)
+			assert.Equal(t, "/auth", location.Path)
+			assert.Equal(t, "https://localhost:8080/auth/callback", location.Query().Get("redirect_uri"))
+		})
+
+		t.Run("should accept login redirecting on the alternative domains", func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "https://other.argocd.example.com/auth/login", nil)
+
+			req.URL.RawQuery = url.Values{
+				"return_url": []string{"https://other.argocd.example.com/applications"},
+			}.Encode()
+
+			w := httptest.NewRecorder()
+
+			app.HandleLogin(w, req)
+
+			assert.Equal(t, http.StatusSeeOther, w.Code)
+			location, err := url.Parse(w.Header().Get("Location"))
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("%s://%s", location.Scheme, location.Host), oidcTestServer.URL)
+			assert.Equal(t, "/auth", location.Path)
+			assert.Equal(t, "https://other.argocd.example.com/auth/callback", location.Query().Get("redirect_uri"))
+		})
+
+		t.Run("should deny login redirecting on the alternative domains", func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "https://not-argocd.example.com/auth/login", nil)
+
+			req.URL.RawQuery = url.Values{
+				"return_url": []string{"https://not-argocd.example.com/applications"},
+			}.Encode()
+
+			w := httptest.NewRecorder()
+
+			app.HandleLogin(w, req)
+
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+			assert.Empty(t, w.Header().Get("Location"))
+		})
 	})
 }
 
@@ -421,7 +519,7 @@ func TestGenerateAppState(t *testing.T) {
 		}
 
 		returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), state)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, expectedReturnURL, returnURL)
 	})
 
@@ -432,7 +530,7 @@ func TestGenerateAppState(t *testing.T) {
 		}
 
 		_, err := app.verifyAppState(req, httptest.NewRecorder(), "wrong state")
-		assert.Error(t, err)
+		require.Error(t, err)
 	})
 }
 
@@ -465,7 +563,7 @@ func TestGenerateAppState_XSS(t *testing.T) {
 		}
 
 		returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), state)
-		assert.ErrorIs(t, err, InvalidRedirectURLError)
+		require.ErrorIs(t, err, InvalidRedirectURLError)
 		assert.Empty(t, returnURL)
 	})
 
@@ -481,7 +579,7 @@ func TestGenerateAppState_XSS(t *testing.T) {
 		}
 
 		returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), state)
-		assert.NoError(t, err, InvalidRedirectURLError)
+		require.NoError(t, err)
 		assert.Equal(t, expectedReturnURL, returnURL)
 	})
 }
@@ -502,7 +600,7 @@ func TestGenerateAppState_NoReturnURL(t *testing.T) {
 
 	req.AddCookie(&http.Cookie{Name: common.StateCookieName, Value: hex.EncodeToString(encrypted)})
 	returnURL, err := app.verifyAppState(req, httptest.NewRecorder(), "123")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "/argo-cd", returnURL)
 }
 
@@ -541,7 +639,7 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, "randomUser"),
+					key:         formatUserInfoResponseCacheKey("randomUser"),
 					expectError: true,
 				},
 			},
@@ -556,7 +654,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey(AccessTokenCachePrefix, "randomUser"),
+					key:     formatAccessTokenCacheKey("randomUser"),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -575,7 +673,7 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, "randomUser"),
+					key:         formatUserInfoResponseCacheKey("randomUser"),
 					expectError: true,
 				},
 			},
@@ -590,7 +688,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey(AccessTokenCachePrefix, "randomUser"),
+					key:     formatAccessTokenCacheKey("randomUser"),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -609,7 +707,7 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, "randomUser"),
+					key:         formatUserInfoResponseCacheKey("randomUser"),
 					expectError: true,
 				},
 			},
@@ -632,7 +730,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey(AccessTokenCachePrefix, "randomUser"),
+					key:     formatAccessTokenCacheKey("randomUser"),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -651,7 +749,7 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:         formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, "randomUser"),
+					key:         formatUserInfoResponseCacheKey("randomUser"),
 					expectError: true,
 				},
 			},
@@ -684,7 +782,7 @@ func TestGetUserInfo(t *testing.T) {
 				expectError     bool
 			}{
 				{
-					key:             formatUserInfoResponseCacheKey(UserInfoResponseCachePrefix, "randomUser"),
+					key:             formatUserInfoResponseCacheKey("randomUser"),
 					value:           "{\"groups\":[\"githubOrg:engineers\"]}",
 					expectEncrypted: true,
 					expectError:     false,
@@ -711,7 +809,7 @@ func TestGetUserInfo(t *testing.T) {
 				encrypt bool
 			}{
 				{
-					key:     formatAccessTokenCacheKey(AccessTokenCachePrefix, "randomUser"),
+					key:     formatAccessTokenCacheKey("randomUser"),
 					value:   "FakeAccessToken",
 					encrypt: true,
 				},
@@ -728,7 +826,7 @@ func TestGetUserInfo(t *testing.T) {
 			require.NoError(t, err)
 			cdSettings := &settings.ArgoCDSettings{ServerSignature: signature}
 			encryptionKey, err := cdSettings.GetServerEncryptionKey()
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			a, _ := NewClientApp(cdSettings, "", nil, "/argo-cd", tt.cache)
 
 			for _, item := range tt.cacheItems {
@@ -736,7 +834,7 @@ func TestGetUserInfo(t *testing.T) {
 				newValue = []byte(item.value)
 				if item.encrypt {
 					newValue, err = crypto.Encrypt([]byte(item.value), encryptionKey)
-					assert.NoError(t, err)
+					require.NoError(t, err)
 				}
 				err := a.clientCache.Set(&cache.Item{
 					Key:    item.key,
@@ -749,9 +847,9 @@ func TestGetUserInfo(t *testing.T) {
 			assert.Equal(t, tt.expectedOutput, got)
 			assert.Equal(t, tt.expectUnauthenticated, unauthenticated)
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 			for _, item := range tt.expectedCacheItems {
 				var tmpValue []byte

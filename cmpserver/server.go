@@ -111,7 +111,7 @@ func (a *ArgoCDCMPServer) CreateGRPC() (*grpc.Server, error) {
 	pluginService := plugin.NewService(a.initConstants)
 	err := pluginService.Init(common.GetCMPWorkDir())
 	if err != nil {
-		return nil, fmt.Errorf("error initializing plugin service: %s", err)
+		return nil, fmt.Errorf("error initializing plugin service: %w", err)
 	}
 	apiclient.RegisterConfigManagementPluginServiceServer(server, pluginService)
 

@@ -90,6 +90,19 @@ spec:
       # and decide which Helm binary to use automatically. This field can be either 'v2' or 'v3'.
       version: v2
 
+      # You can specify the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD uses
+      # the Kubernetes version of the target cluster. The value must be semver formatted. Do not prefix with `v`.
+      kubeVersion: 1.30.0
+
+      # You can specify the Kubernetes resource API versions to pass to Helm when templating manifests. By default, Argo
+      # CD uses the API versions of the target cluster. The format is [group/]version/kind.
+      apiVersions:
+        - traefik.io/v1alpha1/TLSOption
+        - v1/Service
+
+      # Optional namespace to template with. If left empty, defaults to the app's destination namespace.
+      namespace: custom-namespace
+
     # kustomize specific config
     kustomize:
       # Optional kustomize version. Note: version must be configured in argocd-cm ConfigMap
@@ -103,6 +116,8 @@ spec:
         beep: boop-${ARGOCD_APP_REVISION}
       # Toggle which enables/disables env variables substitution in commonAnnotations
       commonAnnotationsEnvsubst: true
+      forceCommonLabels: false
+      forceCommonAnnotations: false
       images:
       - gcr.io/heptio-images/ks-guestbook-demo:0.2
       - my-app=gcr.io/my-repo/my-app:0.1
@@ -110,6 +125,27 @@ spec:
       replicas:
       - name: kustomize-guestbook-ui
         count: 4
+      components:
+        - ../component  # relative to the kustomization.yaml (`source.path`).
+      patches:
+        - target:
+            kind: Deployment
+            name: guestbook-ui
+          patch: |-
+            - op: add # Add new element to manifest
+              path: /spec/template/spec/nodeSelector/
+              value:
+                env: "pro"
+
+      # You can specify the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD uses
+      # the Kubernetes version of the target cluster. The value must be semver formatted. Do not prefix with `v`.
+      kubeVersion: 1.30.0
+
+      # You can specify the Kubernetes resource API versions to pass to Helm when templating manifests. By default, Argo
+      # CD uses the API versions of the target cluster. The format is [group/]version/kind.
+      apiVersions:
+        - traefik.io/v1alpha1/TLSOption
+        - v1/Service
 
     # directory
     directory:
