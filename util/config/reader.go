@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -13,7 +14,7 @@ import (
 func UnmarshalReader(reader io.Reader, obj interface{}) error {
 	data, err := io.ReadAll(reader)
 	if err != nil {
-		return err
+		return fmt.Errorf("error reading manifests: %w", err)
 	}
 	return unmarshalObject(data, obj)
 }
@@ -28,29 +29,40 @@ func unmarshalObject(data []byte, obj interface{}) error {
 	// This may have unintended effects or hard-to-catch issues when populating our application object.
 	jsonData, err := yaml.YAMLToJSON(data)
 	if err != nil {
-		return err
+		return fmt.Errorf("error converting yaml to json: %w", err)
 	}
-	return json.Unmarshal(jsonData, &obj)
+	err = json.Unmarshal(jsonData, &obj)
+	if err != nil {
+		return fmt.Errorf("unable to unmarshal json: %w", err)
+	}
+
+	return nil
 }
 
 // MarshalLocalYAMLFile writes JSON or YAML to a file on disk.
 // The caller is responsible for checking error return values.
 func MarshalLocalYAMLFile(path string, obj interface{}) error {
 	yamlData, err := yaml.Marshal(obj)
-	if err == nil {
-		err = os.WriteFile(path, yamlData, 0o600)
+	if err != nil {
+		return fmt.Errorf("unable to marshal resource to yaml: %w", err)
 	}
-	return err
+
+	err = os.WriteFile(path, yamlData, 0600)
+	if err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
 }
 
 // UnmarshalLocalFile retrieves JSON or YAML from a file on disk.
 // The caller is responsible for checking error return values.
 func UnmarshalLocalFile(path string, obj interface{}) error {
 	data, err := os.ReadFile(path)
-	if err == nil {
-		err = unmarshalObject(data, obj)
+	if err != nil {
+		return fmt.Errorf("error reading file: %w", err)
 	}
-	return err
+	return unmarshalObject(data, obj)
 }
 
 func Unmarshal(data []byte, obj interface{}) error {
@@ -61,22 +73,25 @@ func Unmarshal(data []byte, obj interface{}) error {
 // The caller is responsible for checking error return values.
 func UnmarshalRemoteFile(url string, obj interface{}) error {
 	data, err := ReadRemoteFile(url)
-	if err == nil {
-		err = unmarshalObject(data, obj)
+	if err != nil {
+		return err
 	}
-	return err
+	return unmarshalObject(data, obj)
 }
 
 // ReadRemoteFile issues a GET request to retrieve the contents of the specified URL as a byte array.
 // The caller is responsible for checking error return values.
 func ReadRemoteFile(url string) ([]byte, error) {
-	var data []byte
 	resp, err := http.Get(url)
-	if err == nil {
-		defer func() {
-			_ = resp.Body.Close()
-		}()
-		data, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed getting contents by URL: %w", err)
 	}
-	return data, err
+	defer resp.Body.Close()
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading URL contents: %w", err)
+	}
+
+	return data, nil
 }
