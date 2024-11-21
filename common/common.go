@@ -185,6 +185,10 @@ const (
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
 	AnnotationCompareOptions = "argocd.argoproj.io/compare-options"
 
+	// AnnotationIgnoreHealthCheck when set on an Application's immediate child indicates that its health check
+	// can be disregarded.
+	AnnotationIgnoreHealthCheck = "argocd.argoproj.io/ignore-healthcheck"
+
 	// AnnotationKeyManagedBy is annotation name which indicates that k8s resource is managed by an application.
 	AnnotationKeyManagedBy = "managed-by"
 	// AnnotationValueManagedByArgoCD is a 'managed-by' annotation value for resources managed by Argo CD
