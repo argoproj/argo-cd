@@ -1790,8 +1790,8 @@ message Repository {
   // NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
   optional string noProxy = 23;
 
-  // InsecureHttpOnly specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. Applicable for OCI repos only atm.
-  optional bool insecureHttpOnly = 24;
+  // InsecureOCIHttpOnly specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
+  optional bool insecureOCIHttpOnly = 24;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

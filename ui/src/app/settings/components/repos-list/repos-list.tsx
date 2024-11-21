@@ -42,7 +42,7 @@ export interface NewHTTPSRepoParams {
     project?: string;
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
-    insecureHttpOnly: boolean;
+    insecureOCIHttpOnly: boolean;
     // write should be true if saving as a write credential.
     write: boolean;
 }
@@ -717,7 +717,7 @@ export class ReposList extends React.Component<
                                                         {formApi.getFormState().values.type !== 'oci' ? (
                                                             <FormField formApi={formApi} label='Enable OCI' field='enableOCI' component={CheckboxField} />
                                                         ) : (
-                                                            <FormField formApi={formApi} label='Insecure HTTP Only' field='insecureHttpOnly' component={CheckboxField} />
+                                                            <FormField formApi={formApi} label='Insecure HTTP Only' field='insecureOCIHttpOnly' component={CheckboxField} />
                                                         )}
                                                     </div>
                                                 </div>
