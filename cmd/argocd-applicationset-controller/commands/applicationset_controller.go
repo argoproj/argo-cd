@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -42,6 +43,9 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/errors"
 	argosettings "github.com/argoproj/argo-cd/v2/util/settings"
+
+	"github.com/argoproj/argo-cd/v2/util/healthz"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
 var gitSubmoduleEnabled = env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, true)
@@ -192,7 +196,7 @@ func NewCommand() *cobra.Command {
 				log.Error(err, "failed to create webhook handler")
 			}
 			if webhookHandler != nil {
-				startWebhookServer(webhookHandler, webhookAddr)
+				startWebhookServer(webhookHandler, webhookAddr, namespace, argoSettingsMgr, k8sClient)
 			}
 
 			metrics := appsetmetrics.NewApplicationsetMetrics(
@@ -265,9 +269,20 @@ func NewCommand() *cobra.Command {
 	return &command
 }
 
-func startWebhookServer(webhookHandler *webhook.WebhookHandler, webhookAddr string) {
+func startWebhookServer(webhookHandler *webhook.WebhookHandler, webhookAddr string, namespace string, settingsMgr *settings.SettingsManager, kubeClient kubernetes.Interface) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/webhook", webhookHandler.Handler)
+	healthz.ServeHealthCheck(mux, func(r *http.Request) error {
+		if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
+			argoDB := db.NewDB(namespace, settingsMgr, kubeClient)
+			_, err := argoDB.ListClusters(r.Context())
+			if err != nil && strings.Contains(err.Error(), healthz.NotObjectErrMsg) {
+				return err
+			}
+			return nil
+		}
+		return nil
+	})
 	go func() {
 		log.Infof("Starting webhook server %s", webhookAddr)
 		err := http.ListenAndServe(webhookAddr, mux)
