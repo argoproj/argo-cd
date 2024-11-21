@@ -180,6 +180,11 @@ func (c *Context) HelmOCIRepoAdded(name string) *Context {
 	return c
 }
 
+func (c *Context) PushImageToOCIRegistry(pathName, tag string) *Context {
+	repos.PushImageToOCIRegistry(pathName, tag)
+	return c
+}
+
 func (c *Context) PushChartToOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
 	repos.PushChartToOCIRegistry(chartPathName, chartName, chartVersion)
 	return c
@@ -207,6 +212,11 @@ func (c *Context) HTTPSCredentialsTLSClientCertAdded() *Context {
 
 func (c *Context) SSHCredentialsAdded() *Context {
 	repos.AddSSHCredentials()
+	return c
+}
+
+func (c *Context) OCIRepoAdded(name string) *Context {
+	repos.AddOCIRepo(name)
 	return c
 }
 
