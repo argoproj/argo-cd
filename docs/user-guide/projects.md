@@ -189,7 +189,8 @@ JWT=<value from command above>
 argocd proj role list $PROJ
 argocd proj role get $PROJ $ROLE
 
-# This command will fail because the JWT Token associated with the project role does not have a policy to allow access to the application
+# This command will fail because the JWT Token associated with the project role
+# does not have a policy to allow access to the application
 argocd app get $APP --auth-token $JWT
 # Adding a policy to grant access to the application for the new role
 argocd proj role add-policy $PROJ $ROLE --action get --permission allow --object $APP
@@ -352,7 +353,8 @@ metadata:
   name: "some-ns"
 spec:
   destination:
-    # This destination might not actually be a cluster which belongs to `foo-project`
+    # This destination might not actually be a cluster which belongs to
+    # `foo-project`
     server: https://some-k8s-server/
     namespace: "some-ns"
   project: foo-project

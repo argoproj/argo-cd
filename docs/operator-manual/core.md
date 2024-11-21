@@ -84,7 +84,8 @@ flag with the `login` subcommand.
 Example:
 
 ```bash
-kubectl config set-context --current --namespace=argocd # change current kube context to argocd namespace
+# change current kube context to argocd namespace
+kubectl config set-context --current --namespace=argocd
 argocd login --core
 ```
 

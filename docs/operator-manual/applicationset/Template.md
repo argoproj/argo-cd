@@ -103,7 +103,8 @@ spec:
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        # This 'default' value is not used: it is replaced by the generator's template path, above
+        # This 'default' value is not used: it is replaced by the generator's
+        # template path, above
         path: applicationset/examples/template-override/default
       destination:
         server: '{{ .server }}'

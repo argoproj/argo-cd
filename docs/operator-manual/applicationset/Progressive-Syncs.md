@@ -82,7 +82,8 @@ spec:
               operator: In
               values:
                 - env-dev
-          #maxUpdate: 100%  # if undefined, all applications matched are updated together (default is 100%)
+          #maxUpdate: 100%  # if undefined, all applications matched are updated
+                            # together (default is 100%)
         - matchExpressions:
             - key: envLabel
               operator: In
@@ -94,7 +95,9 @@ spec:
               operator: In
               values:
                 - env-prod
-          maxUpdate: 10%    # maxUpdate supports both integer and percentage string values (rounds down, but floored at 1 Application for >0%)
+          maxUpdate: 10%    # maxUpdate supports both integer and percentage
+                            # string values (rounds down, but floored at 1
+                            # Application for >0%)
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
   template:

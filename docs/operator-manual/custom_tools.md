@@ -24,7 +24,8 @@ the helm binary with a different version than what is bundled in Argo CD:
       volumes:
       - name: custom-tools
         emptyDir: {}
-      # 2. Use an init container to download/copy custom binaries into the emptyDir
+      # 2. Use an init container to download/copy custom binaries into the
+      # emptyDir
       initContainers:
       - name: download-tools
         image: alpine:3.8
@@ -35,7 +36,8 @@ the helm binary with a different version than what is bundled in Argo CD:
         volumeMounts:
         - mountPath: /custom-tools
           name: custom-tools
-      # 3. Volume mount the custom binary to the bin directory (overriding the existing version)
+      # 3. Volume mount the custom binary to the bin directory (overriding the
+      # existing version)
       containers:
       - name: argocd-repo-server
         volumeMounts:
@@ -56,8 +58,8 @@ FROM argoproj/argocd:v2.5.4 # Replace tag with the appropriate argo version
 # Switch to root for the ability to perform install
 USER root
 
-# Install tools needed for your repo-server to retrieve & decrypt secrets, render manifests 
-# (e.g. curl, awscli, gpg, sops)
+# Install tools needed for your repo-server to retrieve & decrypt secrets,
+# render manifests (e.g. curl, awscli, gpg, sops)
 RUN apt-get update && \
     apt-get install -y \
         curl \

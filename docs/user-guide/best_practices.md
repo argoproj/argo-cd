@@ -42,7 +42,8 @@ kind: Deployment
 metadata:
   name: nginx-deployment
 spec:
-  # do not include replicas in the manifests if you want replicas to be controlled by HPA
+  # do not include replicas in the manifests if you want replicas to be
+  # controlled by HPA
   # replicas: 1
   template:
     spec:

@@ -71,7 +71,8 @@
                p, role:org-admin, repositories, create, *, allow
                p, role:org-admin, repositories, update, *, allow
                p, role:org-admin, repositories, delete, *, allow
-               g, "84ce98d1-e359-4f3b-85af-985b458de3c6", role:org-admin # (azure group assigned to role)
+               # (azure group assigned to role)
+               g, "84ce98d1-e359-4f3b-85af-985b458de3c6", role:org-admin
 
 ## Entra ID App Registration Auth using OIDC
 ### Configure a new Entra ID App registration
@@ -124,7 +125,8 @@
             ConfigMap -> argocd-cm
 
             data:
-               url: https://argocd.example.com/ # Replace with the external base URL of your Argo CD
+               # Replace with the external base URL of your Argo CD
+               url: https://argocd.example.com/
                oidc.config: |
                      name: Azure
                      issuer: https://login.microsoftonline.com/{directory_tenant_id}/v2.0

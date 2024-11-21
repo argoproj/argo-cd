@@ -75,8 +75,8 @@ The `make start` command of the virtualized toolchain runs the build and program
 Docker should be installed already. Assuming you manage installed software using [Homebrew](https://brew.sh/), you can install other prerequisites like this:
 
 ```sh
-# goreman is used to start all needed processes to get a working Argo CD development
-# environment (defined in `Procfile`)
+# goreman is used to start all needed processes to get a working Argo CD
+# development environment (defined in `Procfile`)
 brew install goreman
 
 # You can use `kind` to run Kubernetes inside Docker. But pointing to any other
@@ -151,7 +151,8 @@ export ARGOCD_OPTS="--plaintext --insecure"
 After making a code change, ensure to rebuild and restart the respective service:
 
 ```sh
-# Example for working on the repo server Go code, see other service names in `Procfile`
+# Example for working on the repo server Go code, see other service names in
+# `Procfile`
 goreman run restart repo-server
 ```
 

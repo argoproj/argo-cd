@@ -46,7 +46,8 @@ dex.config: |
     id: aws
     name: "AWS IAM Identity Center"
     config:
-      # You need value of Identity Center APP SAML (IAM Identity Center sign-in URL)
+      # You need value of Identity Center APP SAML (IAM Identity Center sign-in
+      # URL)
       ssoURL: https://portal.sso.yourregion.amazonaws.com/saml/assertion/id
       # You need `caData` _OR_ `ca`, but not both.
       caData: <CA cert (IAM Identity Center Certificate of Identity Center APP SAML) passed through base64 encoding>

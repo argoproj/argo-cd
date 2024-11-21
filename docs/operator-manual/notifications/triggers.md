@@ -57,7 +57,8 @@ kind: ConfigMap
 metadata:
   name: argocd-notifications-cm
 data:
-  # Optional 'oncePer' property ensure that notification is sent only once per specified field value
+  # Optional 'oncePer' property ensure that notification is sent only once per
+  # specified field value
   # E.g. following is triggered once per sync revision
   trigger.on-deployed: |
     when: app.status.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
@@ -95,7 +96,8 @@ kind: ConfigMap
 metadata:
   name: argocd-notifications-cm
 data:
-  # Holds list of triggers that are used by default if trigger is not specified explicitly in the subscription
+  # Holds list of triggers that are used by default if trigger is not specified
+  # explicitly in the subscription
   defaultTriggers: |
     - on-sync-status-unknown
 

@@ -112,14 +112,17 @@ metadata:
 data:
   resource.customizations.ignoreResourceUpdates.argoproj.io_Application: |
     jsonPointers:
-    # Ignore when ownerReferences change, for example when a parent ApplicationSet changes often.
+    # Ignore when ownerReferences change, for example when a parent
+    # ApplicationSet changes often.
     - /metadata/ownerReferences
-    # Ignore reconciledAt, since by itself it doesn't indicate any important change.
+    # Ignore reconciledAt, since by itself it doesn't indicate any important
+    # change.
     - /status/reconciledAt
     jqPathExpressions:
-    # Ignore lastTransitionTime for conditions; helpful when SharedResourceWarnings are being regularly updated but not
-    # actually changing in content.
-    - .status?.conditions[]?.lastTransitionTime
+    # Ignore lastTransitionTime for conditions; helpful when
+    # SharedResourceWarnings are being regularly updated but not actually
+    # changing in content.
+    - .status.conditions[].lastTransitionTime
 ```
 
 ## Ignoring updates for untracked resources

@@ -267,7 +267,8 @@ metadata:
   name: guestbook
   namespace: argocd
   annotations:
-    # resolves to any file matching the pattern of *-secret.yaml in the top level shared folder
+    # resolves to any file matching the pattern of *-secret.yaml in the top level
+    # shared folder
     argocd.argoproj.io/manifest-generate-paths: "/shared/*-secret.yaml"
 spec:
   source:
