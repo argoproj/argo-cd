@@ -318,7 +318,13 @@ func (m *ManifestResponse) GetSourceType() string {
 }
 
 type RepositoryResponse struct {
-	IsSupported          bool     `protobuf:"varint,1,opt,name=isSupported,proto3" json:"isSupported,omitempty"`
+	IsSupported bool `protobuf:"varint,1,opt,name=isSupported,proto3" json:"isSupported,omitempty"`
+	// IsDiscoveryEnabled is a flag that indicates if the CMP supports discovery.
+	//
+	// Deprecated: Use the IsDiscoveryConfigured field from the CheckPluginConfigurationResponse instead. Argo CD no
+	//             longer uses an expensive MatchRepository service to determine if discovery is enabled. Instead, we
+	//             make a relatively cheap pre-flight request to the CheckPluginConfiguration service. We'll leave this
+	//             field here to avoid errors on mismatched repo-server and cmp-server versions.
 	IsDiscoveryEnabled   bool     `protobuf:"varint,2,opt,name=isDiscoveryEnabled,proto3" json:"isDiscoveryEnabled,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`

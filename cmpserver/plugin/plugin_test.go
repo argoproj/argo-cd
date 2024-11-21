@@ -100,12 +100,11 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		require.NoError(t, err)
 		assert.True(t, match)
-		assert.True(t, discovery)
 	})
 	t.Run("will not match plugin by filename if file not found", func(t *testing.T) {
 		// given
@@ -115,12 +114,11 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		require.NoError(t, err)
 		assert.False(t, match)
-		assert.True(t, discovery)
 	})
 	t.Run("will not match a pattern with a syntax error", func(t *testing.T) {
 		// given
@@ -130,7 +128,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		_, _, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		_, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		require.ErrorContains(t, err, "syntax error")
@@ -145,12 +143,11 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		require.NoError(t, err)
 		assert.True(t, match)
-		assert.True(t, discovery)
 	})
 	t.Run("will not match plugin by glob if not found", func(t *testing.T) {
 		// given
@@ -162,12 +159,11 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		require.NoError(t, err)
 		assert.False(t, match)
-		assert.True(t, discovery)
 	})
 	t.Run("will throw an error for a bad pattern", func(t *testing.T) {
 		// given
@@ -179,7 +175,7 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		_, _, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		_, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		require.ErrorContains(t, err, "error finding glob match for pattern")
@@ -196,12 +192,11 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		require.NoError(t, err)
 		assert.True(t, match)
-		assert.True(t, discovery)
 	})
 	t.Run("will not match plugin by command when returns no output", func(t *testing.T) {
 		// given
@@ -215,11 +210,10 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 		// then
 		require.NoError(t, err)
 		assert.False(t, match)
-		assert.True(t, discovery)
 	})
 	t.Run("will match plugin because env var defined", func(t *testing.T) {
 		// given
@@ -233,12 +227,11 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		require.NoError(t, err)
 		assert.True(t, match)
-		assert.True(t, discovery)
 	})
 	t.Run("will not match plugin because no env var defined", func(t *testing.T) {
 		// given
@@ -253,12 +246,11 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		require.NoError(t, err)
 		assert.False(t, match)
-		assert.True(t, discovery)
 	})
 	t.Run("will not match plugin by command when command fails", func(t *testing.T) {
 		// given
@@ -272,12 +264,11 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		require.Error(t, err)
 		assert.False(t, match)
-		assert.True(t, discovery)
 	})
 	t.Run("will not match plugin as discovery is not set", func(t *testing.T) {
 		// given
@@ -285,12 +276,11 @@ func TestMatchRepository(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		match, discovery, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
+		match, err := f.service.matchRepository(context.Background(), f.path, f.env, ".")
 
 		// then
 		require.NoError(t, err)
 		assert.False(t, match)
-		assert.False(t, discovery)
 	})
 }
 
