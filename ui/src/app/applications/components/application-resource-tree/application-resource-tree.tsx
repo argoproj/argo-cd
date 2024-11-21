@@ -445,8 +445,6 @@ function renderPodGroup(props: ApplicationResourceTreeProps, id: string, node: R
     return (
         <div
             className={classNames('application-resource-tree__node', {
-                'application-resource-tree__node__fullName': props.nameWrap,
-                'application-resource-tree__wrappedname': !props.nameWrap,
                 'active': fullName === props.selectedNodeFullName,
                 'application-resource-tree__node--orphaned': node.orphaned
             })}
@@ -733,8 +731,6 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
             onClick={() => props.onNodeClick && props.onNodeClick(fullName)}
             className={classNames('application-resource-tree__node', 'application-resource-tree__node--' + node.kind.toLowerCase(), {
                 'active': fullName === props.selectedNodeFullName,
-                'application-resource-tree__node__fullName': props.nameWrap,
-                'application-resource-tree__wrappedname': !props.nameWrap,
                 'application-resource-tree__node--orphaned': node.orphaned
             })}
             title={describeNode(node)}
