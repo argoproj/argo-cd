@@ -93,7 +93,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 	if err != nil {
 		log.Warnf("Unable to init the Azure DevOps webhook")
 	}
-	scmmWebhook, err := goscm.New(goscm.Options.Secret(set.WebhookScmSecret))
+	scmmWebhook, err := goscm.New(goscm.Options.Secret(set.WebhookScmmSecret))
 	if err != nil {
 		log.Warnf("Unable to init the SCM-Manager Webhook")
 	}
