@@ -324,24 +324,6 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	return command
 }
 
-// NewApplicationSetSetCommand returns a new instance of an `argocd appset set` command
-//func NewApplicationSetSetCommand(clientOpts *argocdclient.Client) *cobra.Command {
-//	command := &cobra.Command{
-//		Use:     "set",
-//		Short:   "Set ApplicationSets Parameters",
-//		Example: templates.Examples(""),
-//		Run: func(c *cobra.Command, args []string) {
-//			ctx := c.Context()
-//
-//			if len(args) != 1 {
-//				c.HelpFunc()(c, args)
-//				os.Exit(1)
-//			}
-//
-//		},
-//	}
-//}
-
 // NewApplicationSetDeleteCommand returns a new instance of an `argocd appset delete` command
 func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var noPrompt bool
