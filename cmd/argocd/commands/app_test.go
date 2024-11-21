@@ -493,6 +493,27 @@ func TestFormatConditionSummary(t *testing.T) {
 		summary := formatConditionsSummary(app)
 		require.Equalf(t, "type1(2),type2", summary, "Incorrect summary %q, should be type1(2),type2", summary)
 	})
+
+	t.Run("Conditions are sorted for idempotent summary", func(t *testing.T) {
+		app := v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Conditions: []v1alpha1.ApplicationCondition{
+					{
+						Type: "type2",
+					},
+					{
+						Type: "type1",
+					},
+					{
+						Type: "type1",
+					},
+				},
+			},
+		}
+
+		summary := formatConditionsSummary(app)
+		require.Equalf(t, "type1(2),type2", summary, "Incorrect summary %q, should be type1(2),type2", summary)
+	})
 }
 
 func TestPrintOperationResult(t *testing.T) {
