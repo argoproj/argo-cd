@@ -145,6 +145,26 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 			},
 		},
 	}
+	appsetSpecSource := baseAppSet.DeepCopy()
+	appsetSpecSource.Spec.Template.Spec.Source = &v1alpha1.ApplicationSource{
+		RepoURL:        "test1",
+		TargetRevision: "master1",
+		Path:           "/test1",
+	}
+
+	appsetSpecSources := baseAppSet.DeepCopy()
+	appsetSpecSources.Spec.Template.Spec.Sources = v1alpha1.ApplicationSources{
+		{
+			RepoURL:        "test1",
+			TargetRevision: "master1",
+			Path:           "/test1",
+		},
+		{
+			RepoURL:        "test2",
+			TargetRevision: "master2",
+			Path:           "/test2",
+		},
+	}
 
 	appsetSpecSyncPolicy := baseAppSet.DeepCopy()
 	appsetSpecSyncPolicy.Spec.SyncPolicy = &v1alpha1.ApplicationSetSyncPolicy{
@@ -173,6 +193,37 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 		appSet         *v1alpha1.ApplicationSet
 		expectedOutput string
 	}{
+		{
+			name:   "appset with a single source",
+			appSet: appsetSpecSource,
+			expectedOutput: `Name:               app-name
+Project:            default
+Server:             
+Namespace:          
+Source:
+- Repo:             test1
+  Target:           master1
+  Path:             /test1
+SyncPolicy:         <none>
+`,
+		},
+		{
+			name:   "appset with a multiple sources",
+			appSet: appsetSpecSources,
+			expectedOutput: `Name:               app-name
+Project:            default
+Server:             
+Namespace:          
+Sources:
+- Repo:             test1
+  Target:           master1
+  Path:             /test1
+- Repo:             test2
+  Target:           master2
+  Path:             /test2
+SyncPolicy:         <none>
+`,
+		},
 		{
 			name:   "appset with only spec.syncPolicy set",
 			appSet: appsetSpecSyncPolicy,

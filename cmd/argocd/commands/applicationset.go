@@ -93,7 +93,6 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				errors.CheckError(err)
 			case "wide", "":
 				printAppSetSummaryTable(appSet)
-
 				if len(appSet.Status.Conditions) > 0 {
 					fmt.Println()
 					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -325,6 +324,24 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	return command
 }
 
+// NewApplicationSetSetCommand returns a new instance of an `argocd appset set` command
+//func NewApplicationSetSetCommand(clientOpts *argocdclient.Client) *cobra.Command {
+//	command := &cobra.Command{
+//		Use:     "set",
+//		Short:   "Set ApplicationSets Parameters",
+//		Example: templates.Examples(""),
+//		Run: func(c *cobra.Command, args []string) {
+//			ctx := c.Context()
+//
+//			if len(args) != 1 {
+//				c.HelpFunc()(c, args)
+//				os.Exit(1)
+//			}
+//
+//		},
+//	}
+//}
+
 // NewApplicationSetDeleteCommand returns a new instance of an `argocd appset delete` command
 func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var noPrompt bool
@@ -435,7 +452,6 @@ func getServerForAppSet(appSet *arogappsetv1.ApplicationSet) string {
 }
 
 func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
-	source := appSet.Spec.Template.Spec.GetSource()
 	fmt.Printf(printOpFmtStr, "Name:", appSet.QualifiedName())
 	fmt.Printf(printOpFmtStr, "Project:", appSet.Spec.Template.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", getServerForAppSet(appSet))
@@ -445,7 +461,9 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 	} else {
 		fmt.Println("Sources:")
 	}
-	printAppSourceDetails(&source)
+	for _, source := range appSet.Spec.Template.Spec.GetSources() {
+		printAppSourceDetails(&source)
+	}
 
 	var (
 		syncPolicyStr string
