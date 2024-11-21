@@ -23,7 +23,8 @@ import {PKCEVerification} from './login/components/pkce-verify';
 services.viewPreferences.init();
 const bases = document.getElementsByTagName('base');
 const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
-export const history = createBrowserHistory({basename: base});
+const basePath = new URL(base, window.location.origin).pathname;
+export const history = createBrowserHistory({basename: basePath});
 requests.setBaseHRef(base);
 
 type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}};
