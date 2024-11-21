@@ -83,7 +83,8 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 		// given
 		t.Parallel()
 		secret := &corev1.Secret{}
-		repositoryToSecret(repo, secret)
+		s := secretsRepositoryBackend{}
+		s.repositoryToSecret(repo, secret)
 		delete(secret.Labels, common.LabelKeySecretType)
 		f := setupWithK8sObjects(secret)
 		f.clientSet.ReactionChain = nil
@@ -119,7 +120,8 @@ func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 				Namespace: "default",
 			},
 		}
-		repositoryToSecret(repo, secret)
+		s := secretsRepositoryBackend{}
+		s.repositoryToSecret(repo, secret)
 		f := setupWithK8sObjects(secret)
 		f.clientSet.ReactionChain = nil
 		f.clientSet.WatchReactionChain = nil

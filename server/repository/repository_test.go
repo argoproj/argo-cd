@@ -551,7 +551,7 @@ func TestRepositoryServerListApps(t *testing.T) {
 			AppProject: "default",
 		})
 		require.NoError(t, err)
-		assert.Len(t, resp.Items, 1)
+		require.Len(t, resp.Items, 1)
 		assert.Equal(t, "path/to/dir", resp.Items[0].Path)
 		assert.Equal(t, "Kustomize", resp.Items[0].Type)
 	})

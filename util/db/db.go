@@ -61,6 +61,9 @@ type ArgoDB interface {
 	// DeleteRepository deletes a repository from config
 	DeleteRepository(ctx context.Context, name, project string) error
 
+	// GetWriteRepository returns a repository by URL with write credentials
+	GetWriteRepository(ctx context.Context, url, project string) (*appv1.Repository, error)
+
 	// ListRepositoryCredentials list all repo credential sets URL patterns
 	ListRepositoryCredentials(ctx context.Context) ([]string, error)
 	// GetRepositoryCredentials gets repo credentials for given URL
@@ -80,6 +83,9 @@ type ArgoDB interface {
 	RemoveRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
 	// GetAllHelmRepositoryCredentials gets all repo credentials
 	GetAllHelmRepositoryCredentials(ctx context.Context) ([]*appv1.RepoCreds, error)
+
+	// GetWriteCredentials gets repo credentials specific to the hydrator for given URL
+	GetWriteCredentials(ctx context.Context, repoURL string) (*appv1.Repository, error)
 
 	// ListHelmRepositories lists repositories
 	ListHelmRepositories(ctx context.Context) ([]*appv1.Repository, error)
