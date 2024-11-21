@@ -1,7 +1,9 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -87,13 +89,24 @@ func HandlePluginCommand(pluginHandler PluginHandler, cmdArgs []string, minArgs 
 	return foundPluginPath, nil
 }
 
-// LookForPlugin implements PluginHandler
+// LookForPlugin implements PluginHandler. searches for an executable plugin with a given filename
+// and valid prefixes. If the plugin is not found (ErrNotFound), it continues to the next prefix.
+// Unexpected errors (e.g., permission issues) are logged for debugging but do not stop the search.
 func (h *DefaultPluginHandler) LookForPlugin(filename string) (string, bool) {
 	for _, prefix := range h.ValidPrefixes {
 		path, err := exec.LookPath(fmt.Sprintf("%s-%s", prefix, filename))
 		if err == nil {
 			return path, true
 		}
+		log.Warnf("Unexpected error while looking for plugin %s: %v", filename, err)
+
+		// Handle specific errors
+		if errors.Is(err, exec.ErrNotFound) {
+			continue // Expected case: Plugin not found, try the next prefix
+		}
+
+		// Log unexpected errors for debugging purposes
+		log.Warnf("Unexpected error while looking for plugin %s: %v", filename, err)
 	}
 	return "", false
 }

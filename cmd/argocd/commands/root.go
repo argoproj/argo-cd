@@ -102,6 +102,8 @@ func NewCommand() *cobra.Command {
 // error but we are doing it to cover various test scenarios.
 func HandleCommandExecutionError(err error, isArgocdCLI bool, o ArgoCDCLIOptions) error {
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "Debug: err type = %T\n", err)
+		fmt.Fprintf(os.Stderr, "Debug: err value = %v\n", err)
 		// If it's an unknown command error, attempt to handle it as a plugin.
 		// Unfortunately, cobra doesn't handle this error, so we need to assume
 		// that error consists of substring "unknown command".

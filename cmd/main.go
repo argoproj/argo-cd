@@ -74,11 +74,11 @@ func main() {
 	// silence errors and usages since we'll be printing them manually.
 	// This is because if we execute a plugin, the initial
 	// errors and usage are always going to get printed that we don't want.
-	if isArgocdCLI {
-		command.SilenceErrors = true
-		command.SilenceUsage = true
-	}
+	//if isArgocdCLI {
+	//	command.SilenceErrors = true
+	//	command.SilenceUsage = true
+	//}
 
 	err := command.Execute()
-	_ = cli.HandleCommandExecutionError(err, isArgocdCLI, o)
+	err = cli.HandleCommandExecutionError(err, isArgocdCLI, o)
 }
