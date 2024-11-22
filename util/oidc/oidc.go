@@ -297,6 +297,7 @@ func isValidRedirectURL(redirectURL string, allowedURLs []string) bool {
 // HandleLogin formulates the proper OAuth2 URL (auth code or implicit) and redirects the user to
 // the IDp login & consent page
 func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
+	logger := getReqLogger(r)
 	oidcConf, err := a.provider.ParseConfig()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -321,7 +322,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	stateNonce, err := a.generateAppState(returnURL, w)
 	if err != nil {
-		log.Errorf("Failed to initiate login flow: %v", err)
+		logger.Errorf("Failed to initiate login flow: %v", err)
 		http.Error(w, "Failed to initiate login flow", http.StatusInternalServerError)
 		return
 	}
@@ -333,7 +334,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	case GrantTypeImplicit:
 		url, err = ImplicitFlowURL(oauth2Config, stateNonce, opts...)
 		if err != nil {
-			log.Errorf("Failed to initiate implicit login flow: %v", err)
+			logger.Errorf("Failed to initiate implicit login flow: %v", err)
 			http.Error(w, "Failed to initiate implicit login flow", http.StatusInternalServerError)
 			return
 		}
@@ -341,7 +342,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Unsupported grant type: %v", grantType), http.StatusInternalServerError)
 		return
 	}
-	log.Infof("Performing %s flow login: %s", grantType, url)
+	logger.Infof("Performing %s flow login: %s", grantType, url)
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
@@ -353,7 +354,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	log.Infof("Callback: %s", r.URL)
+	logger.Infof("Callback: %s", r.URL)
 	if errMsg := r.FormValue("error"); errMsg != "" {
 		errorDesc := r.FormValue("error_description")
 		http.Error(w, html.EscapeString(errMsg)+": "+html.EscapeString(errorDesc), http.StatusBadRequest)
@@ -409,7 +410,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		claimsJSON, _ := json.Marshal(claims)
 		http.Error(w, "failed encrypting token", http.StatusInternalServerError)
-		log.Errorf("cannot encrypt accessToken: %v (claims=%s)", err, claimsJSON)
+		logger.Errorf("cannot encrypt accessToken: %v (claims=%s)", err, claimsJSON)
 		return
 	}
 	sub := jwtutil.StringField(claims, "sub")
@@ -440,7 +441,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	claimsJSON, _ := json.Marshal(claims)
-	log.Infof("Web login successful. Claims: %s", claimsJSON)
+	logger.Infof("Web login successful. Claims: %s", claimsJSON)
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
 		claimsJSON, _ := json.MarshalIndent(claims, "", "  ")
 		renderToken(w, a.redirectURI, idTokenRAW, token.RefreshToken, claimsJSON)
