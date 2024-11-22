@@ -54,6 +54,7 @@ import (
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/settings"
+	utilTest "github.com/argoproj/argo-cd/v3/util/test"
 )
 
 var testEnableEventList []string = argo.DefaultEnableEventList()
@@ -1316,21 +1317,8 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 	assert.True(t, patched)
 }
 
-type logHook struct {
-	entries []logrus.Entry
-}
-
-func (h *logHook) Levels() []logrus.Level {
-	return []logrus.Level{logrus.WarnLevel}
-}
-
-func (h *logHook) Fire(entry *logrus.Entry) error {
-	h.entries = append(h.entries, *entry)
-	return nil
-}
-
 func TestSetOperationStateLogRetries(t *testing.T) {
-	hook := logHook{}
+	hook := utilTest.LogHook{}
 	logrus.AddHook(&hook)
 	t.Cleanup(func() {
 		logrus.StandardLogger().ReplaceHooks(logrus.LevelHooks{})
@@ -1348,7 +1336,7 @@ func TestSetOperationStateLogRetries(t *testing.T) {
 	})
 	ctrl.setOperationState(newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
-	assert.Contains(t, hook.entries[0].Message, "fake error")
+	assert.Contains(t, hook.Entries[0].Message, "fake error")
 }
 
 func TestNeedRefreshAppStatus(t *testing.T) {
