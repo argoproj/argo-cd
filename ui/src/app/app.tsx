@@ -22,10 +22,10 @@ import {AuthSettings} from './shared/models';
 import {PKCEVerification} from './login/components/pkce-verify';
 import {getPKCERedirectURI, pkceLogin} from './login/components/utils';
 import {SystemLevelExtension} from './shared/services/extensions-service';
+import {getBase} from './utils';
 
 services.viewPreferences.init();
-const bases = document.getElementsByTagName('base');
-const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
+const base = getBase();
 export const history = createBrowserHistory({basename: base});
 requests.setBaseHRef(base);
 

@@ -8,6 +8,7 @@ import {AppContext} from '../../shared/context';
 import {AuthSettings} from '../../shared/models';
 import {services} from '../../shared/services';
 import {getPKCERedirectURI, pkceLogin} from './utils';
+import {getBase} from '../../utils';
 
 require('./login.scss');
 
@@ -135,7 +136,8 @@ export class Login extends React.Component<RouteComponentProps<{}>, State> {
             this.setState({loginInProgress: false});
             if (returnURL) {
                 const url = new URL(returnURL);
-                this.appContext.apis.navigation.goto(url.pathname + url.search);
+                const base = getBase();
+                this.appContext.apis.navigation.goto(url.pathname.slice(base.length - 1) + url.search);
             } else {
                 this.appContext.apis.navigation.goto('/applications');
             }
