@@ -48,6 +48,24 @@ spec:
                   key: notificationscontroller.log.level
                   name: argocd-cmd-params-cm
                   optional: true
+            - name: ARGOCD_APPLICATION_NAMESPACES
+              valueFrom:
+                configMapKeyRef:
+                  key: application.namespaces
+                  name: argocd-cmd-params-cm
+                  optional: true
+            - name: ARGOCD_NOTIFICATION_CONTROLLER_SELF_SERVICE_NOTIFICATION_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  key: notificationscontroller.selfservice.enabled
+                  name: argocd-cmd-params-cm
+                  optional: true
+            - name: ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_PLAINTEXT
+              valueFrom:
+                configMapKeyRef:
+                  key: notificationscontroller.repo.server.plaintext
+                  name: argocd-cmd-params-cm
+                  optional: true
           workingDir: /app
           livenessProbe:
             tcpSocket:
@@ -71,3 +89,5 @@ spec:
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
+      nodeSelector:
+        kubernetes.io/os: linux

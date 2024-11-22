@@ -15,7 +15,7 @@ $deselected-text: #818d94;
     color: white;
     background-color: #0f2733;
     overflow: auto;
-    z-index: 0;
+    z-index: 2;
 
     &__container {
         padding: 0 5px;
@@ -58,6 +58,13 @@ $deselected-text: #818d94;
         text-overflow: ellipsis;
     }
 
+    &__tooltip {
+        max-width: 300px;
+        @media screen and (max-width: 590px) {
+            max-width: 250px;
+        }
+    }
+
     &__nav-item {
         cursor: pointer;
         display: flex;
@@ -81,6 +88,7 @@ $deselected-text: #818d94;
             margin-left: 2px;
             margin-right: -2px;
             margin-top: 12px;
+            width: 32px;           
         }
 
         &--active {

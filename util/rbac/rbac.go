@@ -14,10 +14,10 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/glob"
 	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
 
-	"github.com/Knetic/govaluate"
 	"github.com/casbin/casbin/v2"
 	"github.com/casbin/casbin/v2/model"
 	"github.com/casbin/casbin/v2/util"
+	"github.com/casbin/govaluate"
 	"github.com/golang-jwt/jwt/v4"
 	gocache "github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
@@ -50,7 +50,7 @@ type CasbinEnforcer interface {
 	LoadPolicy() error
 	EnableEnforce(bool)
 	AddFunction(name string, function govaluate.ExpressionFunction)
-	GetGroupingPolicy() [][]string
+	GetGroupingPolicy() ([][]string, error)
 }
 
 // Enforcer is a wrapper around an Casbin enforcer that:
@@ -363,7 +363,7 @@ func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *apiv1
 
 func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.ConfigMap) error) {
 	cmInformer := e.newInformer()
-	cmInformer.AddEventHandler(
+	_, err := cmInformer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				if cm, ok := obj.(*apiv1.ConfigMap); ok {
@@ -390,6 +390,9 @@ func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *apiv1.Con
 			},
 		},
 	)
+	if err != nil {
+		log.Error(err)
+	}
 	log.Info("Starting rbac config informer")
 	cmInformer.Run(ctx.Done())
 	log.Info("rbac configmap informer cancelled")
@@ -419,7 +422,6 @@ func PolicyCSV(data map[string]string) string {
 		if strings.HasPrefix(key, "policy.") &&
 			strings.HasSuffix(key, ".csv") &&
 			key != ConfigMapPolicyCSVKey {
-
 			strBuilder.WriteString("\n")
 			strBuilder.WriteString(value)
 		}

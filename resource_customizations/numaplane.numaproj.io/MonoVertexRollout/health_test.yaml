@@ -1,0 +1,25 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Not yet reconciled"
+  inputPath: testdata/MonoVertexRollout/progressing-observedgen.yaml
+- healthStatus:
+    status: Healthy
+    message: "Successful"
+  inputPath: testdata/MonoVertexRollout/healthy.yaml
+- healthStatus:
+    status: Suspended
+    message: "MonoVertex paused"
+  inputPath: testdata/MonoVertexRollout/paused.yaml
+- healthStatus:
+    status: Degraded
+    message: "MonoVertex Failed"
+  inputPath: testdata/MonoVertexRollout/degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: "Progressing"
+  inputPath: testdata/MonoVertexRollout/progressing-reason.yaml
+- healthStatus:
+    status: Progressing
+    message: "Phase=Pending"
+  inputPath: testdata/MonoVertexRollout/pending-upgrade-in-progress.yaml

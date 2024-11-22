@@ -3,7 +3,7 @@ package rbacpolicy
 import (
 	"strings"
 
-	jwt "github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -46,8 +46,11 @@ var (
 		ResourceApplicationSets,
 		ResourceRepositories,
 		ResourceCertificates,
+		ResourceAccounts,
+		ResourceGPGKeys,
 		ResourceLogs,
 		ResourceExec,
+		ResourceExtensions,
 	}
 	Actions = []string{
 		ActionGet,
@@ -56,6 +59,8 @@ var (
 		ActionDelete,
 		ActionSync,
 		ActionOverride,
+		ActionAction,
+		ActionInvoke,
 	}
 )
 
@@ -141,7 +146,11 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface
 	groups := jwtutil.GetScopeValues(mapClaims, scopes)
 
 	// Get groups to reduce the amount to checking groups
-	groupingPolicies := enforcer.GetGroupingPolicy()
+	groupingPolicies, err := enforcer.GetGroupingPolicy()
+	if err != nil {
+		log.WithError(err).Error("failed to get grouping policy")
+		return false
+	}
 	for gidx := range groups {
 		for gpidx := range groupingPolicies {
 			// Prefilter user groups by groups defined in the model
@@ -154,7 +163,7 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...interface
 			}
 		}
 	}
-	logCtx := log.WithField("claims", claims).WithField("rval", rvals)
+	logCtx := log.WithFields(log.Fields{"claims": claims, "rval": rvals, "subject": subject, "groups": groups, "project": projName, "scopes": scopes})
 	logCtx.Debug("enforce failed")
 	return false
 }

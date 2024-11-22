@@ -1,12 +1,15 @@
 package e2e
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/gitops-engine/pkg/health"
 	. "github.com/argoproj/gitops-engine/pkg/sync/common"
@@ -33,6 +36,7 @@ func TestPostSyncHookSuccessful(t *testing.T) {
 
 // make sure we can run a standard sync hook
 func testHookSuccessful(t *testing.T, hookType HookType) {
+	t.Helper()
 	Given(t).
 		Path("hook").
 		When().
@@ -48,7 +52,24 @@ func testHookSuccessful(t *testing.T, hookType HookType) {
 		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: DeploymentNamespace(), Name: "hook", Message: "pod/hook created", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
 }
 
-// make sure that that hooks do not appear in "argocd app diff"
+func TestPostDeleteHook(t *testing.T) {
+	Given(t).
+		Path("post-delete-hook").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Delete(true).
+		Then().
+		Expect(DoesNotExist()).
+		AndAction(func() {
+			hooks, err := KubeClientset.CoreV1().Pods(DeploymentNamespace()).List(context.Background(), metav1.ListOptions{})
+			CheckError(err)
+			assert.Len(t, hooks.Items, 1)
+			assert.Equal(t, "hook", hooks.Items[0].Name)
+		})
+}
+
+// make sure that hooks do not appear in "argocd app diff"
 func TestHookDiff(t *testing.T) {
 	Given(t).
 		Path("hook").
@@ -57,7 +78,7 @@ func TestHookDiff(t *testing.T) {
 		Then().
 		And(func(_ *Application) {
 			output, err := RunCli("app", "diff", Name())
-			assert.Error(t, err)
+			require.Error(t, err)
 			assert.Contains(t, output, "name: pod")
 			assert.NotContains(t, output, "name: hook")
 		})
@@ -400,7 +421,7 @@ func TestAutomaticallyNamingUnnamedHook(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			resources := app.Status.OperationState.SyncResult.Resources
-			assert.Equal(t, 3, len(resources))
+			assert.Len(t, resources, 3)
 			// make sure we don't use the same name
 			assert.Contains(t, resources[0].Name, "presync")
 			assert.Contains(t, resources[2].Name, "postsync")

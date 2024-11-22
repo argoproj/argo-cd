@@ -17,6 +17,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	accountpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
@@ -26,12 +27,26 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/localconfig"
 	sessionutil "github.com/argoproj/argo-cd/v2/util/session"
+	"github.com/argoproj/argo-cd/v2/util/templates"
 )
 
 func NewAccountCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "account",
 		Short: "Manage account settings",
+		Example: templates.Examples(`
+			# List accounts
+			argocd account list
+
+			# Update the current user's password
+			argocd account update-password
+
+			# Can I sync any app?
+			argocd account can-i sync applications '*'
+
+			# Get User information
+			argocd account get-user-info
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
 			os.Exit(1)
@@ -54,7 +69,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 		currentPassword string
 		newPassword     string
 	)
-	var command = &cobra.Command{
+	command := &cobra.Command{
 		Use:   "update-password",
 		Short: "Update an account's password",
 		Long: `
@@ -130,19 +145,24 @@ has appropriate RBAC permissions to change other accounts.
 		},
 	}
 
-	command.Flags().StringVar(&currentPassword, "current-password", "", "password of the currently logged on user")
-	command.Flags().StringVar(&newPassword, "new-password", "", "new password you want to update to")
-	command.Flags().StringVar(&account, "account", "", "an account name that should be updated. Defaults to current user account")
+	command.Flags().StringVar(&currentPassword, "current-password", "", "Password of the currently logged on user")
+	command.Flags().StringVar(&newPassword, "new-password", "", "New password you want to update to")
+	command.Flags().StringVar(&account, "account", "", "An account name that should be updated. Defaults to current user account")
 	return command
 }
 
 func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		output string
-	)
-	var command = &cobra.Command{
+	var output string
+	command := &cobra.Command{
 		Use:   "get-user-info",
 		Short: "Get user info",
+		Example: templates.Examples(`
+			# Get User information for the currently logged-in user (see 'argocd login')
+			argocd account get-user-info
+
+			# Get User information in yaml format
+			argocd account get-user-info -o yaml
+		`),
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -237,9 +257,7 @@ func printAccountsTable(items []*accountpkg.Account) {
 }
 
 func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		output string
-	)
+	var output string
 	cmd := &cobra.Command{
 		Use:     "list",
 		Short:   "List accounts",
@@ -391,9 +409,7 @@ argocd account generate-token --account <account-name>`,
 }
 
 func NewAccountDeleteTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	var (
-		account string
-	)
+	var account string
 	cmd := &cobra.Command{
 		Use:   "delete-token",
 		Short: "Deletes account token",
@@ -417,8 +433,14 @@ argocd account delete-token --account <account-name> ID`,
 			if account == "" {
 				account = getCurrentAccount(ctx, clientset).Username
 			}
-			_, err := client.DeleteToken(ctx, &accountpkg.DeleteTokenRequest{Name: account, Id: id})
-			errors.CheckError(err)
+			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
+			canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to delete '%s' token? [y/n]", id))
+			if canDelete {
+				_, err := client.DeleteToken(ctx, &accountpkg.DeleteTokenRequest{Name: account, Id: id})
+				errors.CheckError(err)
+			} else {
+				fmt.Printf("The command to delete '%s' was cancelled.\n", id)
+			}
 		},
 	}
 	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Defaults to the current account.")

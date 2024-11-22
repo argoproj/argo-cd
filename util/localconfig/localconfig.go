@@ -2,12 +2,13 @@ package localconfig
 
 import (
 	"fmt"
-	"github.com/golang-jwt/jwt/v4"
 	"os"
-	"os/user"
 	"path"
 	"strings"
 
+	"github.com/golang-jwt/jwt/v4"
+
+	"github.com/argoproj/argo-cd/v2/util/config"
 	configUtil "github.com/argoproj/argo-cd/v2/util/config"
 )
 
@@ -17,6 +18,7 @@ type LocalConfig struct {
 	Contexts       []ContextRef `json:"contexts"`
 	Servers        []Server     `json:"servers"`
 	Users          []User       `json:"users"`
+	PromptsEnabled bool         `json:"prompts-enabled"`
 }
 
 // ContextRef is a reference to a Server and User for an API client
@@ -103,7 +105,7 @@ func ValidateLocalConfig(config LocalConfig) error {
 		return nil
 	}
 	if _, err := config.ResolveContext(config.CurrentContext); err != nil {
-		return fmt.Errorf("Local config invalid: %s", err)
+		return fmt.Errorf("Local config invalid: %w", err)
 	}
 	return nil
 }
@@ -281,14 +283,9 @@ func DefaultConfigDir() (string, error) {
 }
 
 func getHomeDir() (string, error) {
-	homeDir := os.Getenv("HOME")
-	if homeDir == "" {
-		usr, err := user.Current()
-		if err != nil {
-			return "", err
-		}
-
-		homeDir = usr.HomeDir
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
 	}
 
 	return homeDir, nil
@@ -310,4 +307,28 @@ func GetUsername(subject string) string {
 		return parts[0]
 	}
 	return subject
+}
+
+func GetPromptsEnabled(useCLIOpts bool) bool {
+	if useCLIOpts {
+		forcePromptsEnabled := config.GetFlag("prompts-enabled", "")
+
+		if forcePromptsEnabled != "" {
+			return forcePromptsEnabled == "true"
+		}
+	}
+
+	defaultLocalConfigPath, err := DefaultLocalConfigPath()
+	if err != nil {
+		return false
+	}
+
+	localConfigPath := config.GetFlag("config", defaultLocalConfigPath)
+
+	localConfig, err := ReadLocalConfig(localConfigPath)
+	if localConfig == nil || err != nil {
+		return false
+	}
+
+	return localConfig.PromptsEnabled
 }

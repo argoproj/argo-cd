@@ -1,0 +1,25 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Not yet reconciled"
+  inputPath: testdata/PipelineRollout/progressing-observedGen.yaml
+- healthStatus:
+    status: Healthy
+    message: "Successful"
+  inputPath: testdata/PipelineRollout/healthy.yaml
+- healthStatus:
+    status: Suspended
+    message: "Pipeline paused"
+  inputPath: testdata/PipelineRollout/paused.yaml
+- healthStatus:
+    status: Degraded
+    message: "Pipeline Failed"
+  inputPath: testdata/PipelineRollout/degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: "Progressing"
+  inputPath: testdata/PipelineRollout/progressing-reason.yaml
+- healthStatus:
+    status: Progressing
+    message: "Phase=Pending"
+  inputPath: testdata/PipelineRollout/pending-upgrade-in-progress.yaml

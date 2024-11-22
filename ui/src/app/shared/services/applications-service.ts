@@ -53,18 +53,26 @@ export class ApplicationsService {
             .then(res => res.body as models.ApplicationSyncWindowState);
     }
 
-    public revisionMetadata(name: string, appNamespace: string, revision: string): Promise<models.RevisionMetadata> {
-        return requests
-            .get(`/applications/${name}/revisions/${revision || 'HEAD'}/metadata`)
-            .query({appNamespace})
-            .then(res => res.body as models.RevisionMetadata);
+    public revisionMetadata(name: string, appNamespace: string, revision: string, sourceIndex: number | null, versionId: number | null): Promise<models.RevisionMetadata> {
+        let r = requests.get(`/applications/${name}/revisions/${revision || 'HEAD'}/metadata`).query({appNamespace});
+        if (sourceIndex !== null) {
+            r = r.query({sourceIndex});
+        }
+        if (versionId !== null) {
+            r = r.query({versionId});
+        }
+        return r.then(res => res.body as models.RevisionMetadata);
     }
 
-    public revisionChartDetails(name: string, appNamespace: string, revision: string): Promise<models.ChartDetails> {
-        return requests
-            .get(`/applications/${name}/revisions/${revision || 'HEAD'}/chartdetails`)
-            .query({appNamespace})
-            .then(res => res.body as models.ChartDetails);
+    public revisionChartDetails(name: string, appNamespace: string, revision: string, sourceIndex: number, versionId: number | null): Promise<models.ChartDetails> {
+        let r = requests.get(`/applications/${name}/revisions/${revision || 'HEAD'}/chartdetails`).query({appNamespace});
+        if (sourceIndex !== null) {
+            r = r.query({sourceIndex});
+        }
+        if (versionId !== null) {
+            r = r.query({versionId});
+        }
+        return r.then(res => res.body as models.ChartDetails);
     }
 
     public resourceTree(name: string, appNamespace: string): Promise<models.ApplicationTree> {
@@ -108,13 +116,14 @@ export class ApplicationsService {
     public getManifest(name: string, appNamespace: string, revision: string): Promise<models.ManifestResponse> {
         return requests
             .get(`/applications/${name}/manifests`)
-            .query({name, revision})
+            .query({name, revision, appNamespace})
             .then(res => res.body as models.ManifestResponse);
     }
 
     public updateSpec(appName: string, appNamespace: string, spec: models.ApplicationSpec): Promise<models.ApplicationSpec> {
         return requests
             .put(`/applications/${appName}/spec`)
+            .query({appNamespace})
             .send(spec)
             .then(res => res.body as models.ApplicationSpec);
     }

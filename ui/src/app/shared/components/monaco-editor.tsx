@@ -1,7 +1,8 @@
 import * as React from 'react';
 
 import * as monacoEditor from 'monaco-editor';
-import {configure, LanguageSettings} from 'monaco-kubernetes';
+import {services} from '../services';
+import {getTheme, useSystemTheme} from '../utils';
 
 export interface EditorInput {
     text: string;
@@ -12,7 +13,7 @@ export interface MonacoProps {
     minHeight?: number;
     vScrollBar: boolean;
     editor?: {
-        options?: monacoEditor.editor.IEditorOptions & {settings?: LanguageSettings};
+        options?: monacoEditor.editor.IEditorOptions;
         input: EditorInput;
         getApi?: (api: monacoEditor.editor.IEditor) => any;
     };
@@ -26,12 +27,33 @@ const DEFAULT_LINE_HEIGHT = 18;
 
 const MonacoEditorLazy = React.lazy(() =>
     import('monaco-editor').then(monaco => {
-        const component = (props: MonacoProps) => {
+        const Component = (props: MonacoProps) => {
             const [height, setHeight] = React.useState(0);
+            const [theme, setTheme] = React.useState('dark');
 
             React.useEffect(() => {
-                configure(props.editor.options.settings);
-            }, [props.editor.options.settings]);
+                const destroySystemThemeListener = useSystemTheme(systemTheme => {
+                    if (theme === 'auto') {
+                        monaco.editor.setTheme(systemTheme === 'dark' ? 'vs-dark' : 'vs');
+                    }
+                });
+
+                return () => {
+                    destroySystemThemeListener();
+                };
+            }, [theme]);
+
+            React.useEffect(() => {
+                const subscription = services.viewPreferences.getPreferences().subscribe(preferences => {
+                    setTheme(preferences.theme);
+
+                    monaco.editor.setTheme(getTheme(preferences.theme) === 'dark' ? 'vs-dark' : 'vs');
+                });
+
+                return () => {
+                    subscription.unsubscribe();
+                };
+            }, []);
 
             return (
                 <div
@@ -50,7 +72,6 @@ const MonacoEditorLazy = React.lazy(() =>
                                     const editor = monaco.editor.create(el, {
                                         ...props.editor.options,
                                         scrollBeyondLastLine: props.vScrollBar,
-                                        renderValidationDecorations: 'on',
                                         scrollbar: {
                                             handleMouseWheel: false,
                                             vertical: props.vScrollBar ? 'visible' : 'hidden'
@@ -81,7 +102,7 @@ const MonacoEditorLazy = React.lazy(() =>
         };
 
         return {
-            default: component
+            default: Component
         };
     })
 );

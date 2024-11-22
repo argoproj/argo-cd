@@ -3,14 +3,15 @@ package sharding
 import (
 	"fmt"
 	"math"
-	"os"
+	"strconv"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func TestLargeShuffle(t *testing.T) {
@@ -18,18 +19,19 @@ func TestLargeShuffle(t *testing.T) {
 	db := dbmocks.ArgoDB{}
 	clusterList := &v1alpha1.ClusterList{Items: []v1alpha1.Cluster{}}
 	for i := 0; i < math.MaxInt/4096; i += 256 {
-		//fmt.Fprintf(os.Stdout, "%d", i)
-		cluster := createCluster(fmt.Sprintf("cluster-%d", i), fmt.Sprintf("%d", i))
+		// fmt.Fprintf(os.Stdout, "%d", i)
+		cluster := createCluster(fmt.Sprintf("cluster-%d", i), strconv.Itoa(i))
 		clusterList.Items = append(clusterList.Items, cluster)
 	}
 	db.On("ListClusters", mock.Anything).Return(clusterList, nil)
+	clusterAccessor := getClusterAccessor(clusterList.Items)
 	// Test with replicas set to 256
-	os.Setenv(common.EnvControllerReplicas, "256")
-	distributionFunction := RoundRobinDistributionFunction(&db)
+	replicasCount := 256
+	t.Setenv(common.EnvControllerReplicas, strconv.Itoa(replicasCount))
+	distributionFunction := RoundRobinDistributionFunction(clusterAccessor, replicasCount)
 	for i, c := range clusterList.Items {
 		assert.Equal(t, i%2567, distributionFunction(&c))
 	}
-
 }
 
 func TestShuffle(t *testing.T) {
@@ -45,10 +47,11 @@ func TestShuffle(t *testing.T) {
 
 	clusterList := &v1alpha1.ClusterList{Items: []v1alpha1.Cluster{cluster1, cluster2, cluster3, cluster4, cluster5, cluster6}}
 	db.On("ListClusters", mock.Anything).Return(clusterList, nil)
-
+	clusterAccessor := getClusterAccessor(clusterList.Items)
 	// Test with replicas set to 3
-	os.Setenv(common.EnvControllerReplicas, "3")
-	distributionFunction := RoundRobinDistributionFunction(&db)
+	t.Setenv(common.EnvControllerReplicas, "3")
+	replicasCount := 3
+	distributionFunction := RoundRobinDistributionFunction(clusterAccessor, replicasCount)
 	assert.Equal(t, 0, distributionFunction(nil))
 	assert.Equal(t, 0, distributionFunction(&cluster1))
 	assert.Equal(t, 1, distributionFunction(&cluster2))
@@ -75,7 +78,6 @@ func TestShuffle(t *testing.T) {
 	assert.Equal(t, 0, distributionFunction(&cluster4))
 	assert.Equal(t, 1, distributionFunction(&cluster5))
 	assert.Equal(t, 2, distributionFunction(&cluster6))
-
 }
 
 func Remove(slice []v1alpha1.Cluster, s int) []v1alpha1.Cluster {

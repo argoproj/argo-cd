@@ -14,14 +14,6 @@ func ensurePrefix(s, prefix string) string {
 	return s
 }
 
-// removeSuffix idempotently removes a given suffix
-func removeSuffix(s, suffix string) string {
-	if strings.HasSuffix(s, suffix) {
-		return s[0 : len(s)-len(suffix)]
-	}
-	return s
-}
-
 var (
 	commitSHARegex = regexp.MustCompile("^[0-9A-Fa-f]{40}$")
 	sshURLRegex    = regexp.MustCompile("^(ssh://)?([^/:]*?)@[^@]+$")
@@ -62,7 +54,7 @@ func NormalizeGitURL(repo string) string {
 			repo = ensurePrefix(repo, "ssh://")
 		}
 	}
-	repo = removeSuffix(repo, ".git")
+	repo = strings.TrimSuffix(repo, ".git")
 	repoURL, err := url.Parse(repo)
 	if err != nil {
 		return ""
@@ -91,8 +83,8 @@ func IsHTTPURL(url string) bool {
 }
 
 // TestRepo tests if a repo exists and is accessible with the given credentials
-func TestRepo(repo string, creds Creds, insecure bool, enableLfs bool, proxy string) error {
-	clnt, err := NewClient(repo, creds, insecure, enableLfs, proxy)
+func TestRepo(repo string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string) error {
+	clnt, err := NewClient(repo, creds, insecure, enableLfs, proxy, noProxy)
 	if err != nil {
 		return err
 	}

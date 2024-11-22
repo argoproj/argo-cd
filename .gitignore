@@ -1,6 +1,7 @@
 .vscode/
 .idea/
 .DS_Store
+.run/
 vendor/
 dist/*
 ui/dist/app/*
@@ -19,6 +20,7 @@ node_modules/
 ./test/cmp/*.sock
 .envrc.remote
 .*.swp
+rerunreport.txt
 
 # ignore built binaries
 cmd/argocd/argocd

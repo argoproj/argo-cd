@@ -80,7 +80,7 @@ func TestSelectiveSyncWithoutNamespace(t *testing.T) {
 		Expect(ResourceSyncStatusWithNamespaceIs("Deployment", "guestbook-ui", fixture.DeploymentNamespace(), SyncStatusCodeSynced))
 }
 
-//In selectedResource to sync, namespace is provided
+// In selectedResource to sync, namespace is provided
 func TestSelectiveSyncWithNamespace(t *testing.T) {
 	selectedResourceNamespace := getNewNamespace(t)
 	defer func() {
@@ -111,6 +111,7 @@ func TestSelectiveSyncWithNamespace(t *testing.T) {
 }
 
 func getNewNamespace(t *testing.T) string {
+	t.Helper()
 	randStr, err := rand.String(5)
 	require.NoError(t, err)
 	postFix := "-" + strings.ToLower(randStr)

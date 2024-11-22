@@ -10,6 +10,9 @@ func init() {
 	knownTypes["core/v1/Affinity"] = func() interface{} {
 		return &corev1.Affinity{}
 	}
+	knownTypes["core/v1/AppArmorProfile"] = func() interface{} {
+		return &corev1.AppArmorProfile{}
+	}
 	knownTypes["core/v1/AttachedVolume"] = func() interface{} {
 		return &corev1.AttachedVolume{}
 	}
@@ -52,6 +55,9 @@ func init() {
 	knownTypes["core/v1/ClientIPConfig"] = func() interface{} {
 		return &corev1.ClientIPConfig{}
 	}
+	knownTypes["core/v1/ClusterTrustBundleProjection"] = func() interface{} {
+		return &corev1.ClusterTrustBundleProjection{}
+	}
 	knownTypes["core/v1/ComponentCondition"] = func() interface{} {
 		return &corev1.ComponentCondition{}
 	}
@@ -91,6 +97,9 @@ func init() {
 	knownTypes["core/v1/ContainerPort"] = func() interface{} {
 		return &corev1.ContainerPort{}
 	}
+	knownTypes["core/v1/ContainerResizePolicy"] = func() interface{} {
+		return &corev1.ContainerResizePolicy{}
+	}
 	knownTypes["core/v1/ContainerState"] = func() interface{} {
 		return &corev1.ContainerState{}
 	}
@@ -105,6 +114,9 @@ func init() {
 	}
 	knownTypes["core/v1/ContainerStatus"] = func() interface{} {
 		return &corev1.ContainerStatus{}
+	}
+	knownTypes["core/v1/ContainerUser"] = func() interface{} {
+		return &corev1.ContainerUser{}
 	}
 	knownTypes["core/v1/DaemonEndpoint"] = func() interface{} {
 		return &corev1.DaemonEndpoint{}
@@ -205,6 +217,9 @@ func init() {
 	knownTypes["core/v1/HostAlias"] = func() interface{} {
 		return &corev1.HostAlias{}
 	}
+	knownTypes["core/v1/HostIP"] = func() interface{} {
+		return &corev1.HostIP{}
+	}
 	knownTypes["core/v1/HostPathVolumeSource"] = func() interface{} {
 		return &corev1.HostPathVolumeSource{}
 	}
@@ -213,6 +228,9 @@ func init() {
 	}
 	knownTypes["core/v1/ISCSIVolumeSource"] = func() interface{} {
 		return &corev1.ISCSIVolumeSource{}
+	}
+	knownTypes["core/v1/ImageVolumeSource"] = func() interface{} {
+		return &corev1.ImageVolumeSource{}
 	}
 	knownTypes["core/v1/KeyToPath"] = func() interface{} {
 		return &corev1.KeyToPath{}
@@ -235,6 +253,9 @@ func init() {
 	knownTypes["core/v1/LimitRangeSpec"] = func() interface{} {
 		return &corev1.LimitRangeSpec{}
 	}
+	knownTypes["core/v1/LinuxContainerUser"] = func() interface{} {
+		return &corev1.LinuxContainerUser{}
+	}
 	knownTypes["core/v1/List"] = func() interface{} {
 		return &corev1.List{}
 	}
@@ -249,6 +270,9 @@ func init() {
 	}
 	knownTypes["core/v1/LocalVolumeSource"] = func() interface{} {
 		return &corev1.LocalVolumeSource{}
+	}
+	knownTypes["core/v1/ModifyVolumeStatus"] = func() interface{} {
+		return &corev1.ModifyVolumeStatus{}
 	}
 	knownTypes["core/v1/NFSVolumeSource"] = func() interface{} {
 		return &corev1.NFSVolumeSource{}
@@ -289,14 +313,20 @@ func init() {
 	knownTypes["core/v1/NodeDaemonEndpoints"] = func() interface{} {
 		return &corev1.NodeDaemonEndpoints{}
 	}
+	knownTypes["core/v1/NodeFeatures"] = func() interface{} {
+		return &corev1.NodeFeatures{}
+	}
 	knownTypes["core/v1/NodeList"] = func() interface{} {
 		return &corev1.NodeList{}
 	}
 	knownTypes["core/v1/NodeProxyOptions"] = func() interface{} {
 		return &corev1.NodeProxyOptions{}
 	}
-	knownTypes["core/v1/NodeResources"] = func() interface{} {
-		return &corev1.NodeResources{}
+	knownTypes["core/v1/NodeRuntimeHandler"] = func() interface{} {
+		return &corev1.NodeRuntimeHandler{}
+	}
+	knownTypes["core/v1/NodeRuntimeHandlerFeatures"] = func() interface{} {
+		return &corev1.NodeRuntimeHandlerFeatures{}
 	}
 	knownTypes["core/v1/NodeSelector"] = func() interface{} {
 		return &corev1.NodeSelector{}
@@ -409,6 +439,15 @@ func init() {
 	knownTypes["core/v1/PodReadinessGate"] = func() interface{} {
 		return &corev1.PodReadinessGate{}
 	}
+	knownTypes["core/v1/PodResourceClaim"] = func() interface{} {
+		return &corev1.PodResourceClaim{}
+	}
+	knownTypes["core/v1/PodResourceClaimStatus"] = func() interface{} {
+		return &corev1.PodResourceClaimStatus{}
+	}
+	knownTypes["core/v1/PodSchedulingGate"] = func() interface{} {
+		return &corev1.PodSchedulingGate{}
+	}
 	knownTypes["core/v1/PodSecurityContext"] = func() interface{} {
 		return &corev1.PodSecurityContext{}
 	}
@@ -484,8 +523,14 @@ func init() {
 	knownTypes["core/v1/ReplicationControllerStatus"] = func() interface{} {
 		return &corev1.ReplicationControllerStatus{}
 	}
+	knownTypes["core/v1/ResourceClaim"] = func() interface{} {
+		return &corev1.ResourceClaim{}
+	}
 	knownTypes["core/v1/ResourceFieldSelector"] = func() interface{} {
 		return &corev1.ResourceFieldSelector{}
+	}
+	knownTypes["core/v1/ResourceHealth"] = func() interface{} {
+		return &corev1.ResourceHealth{}
 	}
 	knownTypes["core/v1/ResourceList"] = func() interface{} {
 		return &corev1.ResourceList{}
@@ -504,6 +549,9 @@ func init() {
 	}
 	knownTypes["core/v1/ResourceRequirements"] = func() interface{} {
 		return &corev1.ResourceRequirements{}
+	}
+	knownTypes["core/v1/ResourceStatus"] = func() interface{} {
+		return &corev1.ResourceStatus{}
 	}
 	knownTypes["core/v1/SELinuxOptions"] = func() interface{} {
 		return &corev1.SELinuxOptions{}
@@ -580,6 +628,9 @@ func init() {
 	knownTypes["core/v1/SessionAffinityConfig"] = func() interface{} {
 		return &corev1.SessionAffinityConfig{}
 	}
+	knownTypes["core/v1/SleepAction"] = func() interface{} {
+		return &corev1.SleepAction{}
+	}
 	knownTypes["core/v1/StorageOSPersistentVolumeSource"] = func() interface{} {
 		return &corev1.StorageOSPersistentVolumeSource{}
 	}
@@ -610,6 +661,9 @@ func init() {
 	knownTypes["core/v1/TypedLocalObjectReference"] = func() interface{} {
 		return &corev1.TypedLocalObjectReference{}
 	}
+	knownTypes["core/v1/TypedObjectReference"] = func() interface{} {
+		return &corev1.TypedObjectReference{}
+	}
 	knownTypes["core/v1/Volume"] = func() interface{} {
 		return &corev1.Volume{}
 	}
@@ -619,11 +673,17 @@ func init() {
 	knownTypes["core/v1/VolumeMount"] = func() interface{} {
 		return &corev1.VolumeMount{}
 	}
+	knownTypes["core/v1/VolumeMountStatus"] = func() interface{} {
+		return &corev1.VolumeMountStatus{}
+	}
 	knownTypes["core/v1/VolumeNodeAffinity"] = func() interface{} {
 		return &corev1.VolumeNodeAffinity{}
 	}
 	knownTypes["core/v1/VolumeProjection"] = func() interface{} {
 		return &corev1.VolumeProjection{}
+	}
+	knownTypes["core/v1/VolumeResourceRequirements"] = func() interface{} {
+		return &corev1.VolumeResourceRequirements{}
 	}
 	knownTypes["core/v1/VolumeSource"] = func() interface{} {
 		return &corev1.VolumeSource{}

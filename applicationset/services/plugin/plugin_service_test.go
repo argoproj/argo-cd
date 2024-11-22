@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPlugin(t *testing.T) {
@@ -23,30 +24,21 @@ func TestPlugin(t *testing.T) {
 			return
 		}
 		_, err := w.Write([]byte(expectedJSON))
-
 		if err != nil {
-			assert.NoError(t, fmt.Errorf("Error Write %v", err))
+			assert.NoError(t, fmt.Errorf("Error Write %w", err))
 		}
 	})
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
 	client, err := NewPluginService(context.Background(), "plugin-test", ts.URL, token, 0)
-
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
 	data, err := client.List(context.Background(), nil)
-
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
 	var expectedData ServiceResponse
 	err = json.Unmarshal([]byte(expectedJSON), &expectedData)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	assert.Equal(t, &expectedData, data)
 }

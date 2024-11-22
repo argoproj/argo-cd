@@ -40,7 +40,7 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
         },
         {
             title: 'CLUSTERS',
-            value: new Set(applications.map(app => app.spec.destination.server)).size
+            value: new Set(applications.map(app => app.spec.destination.server || app.spec.destination.name)).size
         },
         {
             title: 'NAMESPACES',

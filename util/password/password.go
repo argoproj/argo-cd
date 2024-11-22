@@ -21,8 +21,10 @@ type BcryptPasswordHasher struct {
 	Cost int
 }
 
-var _ PasswordHasher = DummyPasswordHasher{}
-var _ PasswordHasher = BcryptPasswordHasher{0}
+var (
+	_ PasswordHasher = DummyPasswordHasher{}
+	_ PasswordHasher = BcryptPasswordHasher{0}
+)
 
 // PreferredHashers holds the list of preferred hashing algorithms, in order of most to least preferred.  Any password that does not validate with the primary algorithm will be considered "stale."  DO NOT ADD THE DUMMY HASHER FOR USE IN PRODUCTION.
 var preferredHashers = []PasswordHasher{

@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
@@ -14,6 +15,8 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
+
+	util_session "github.com/argoproj/argo-cd/v2/util/session"
 
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
@@ -30,26 +33,32 @@ import (
 type terminalHandler struct {
 	appLister         applisters.ApplicationLister
 	db                db.ArgoDB
-	enf               *rbac.Enforcer
 	cache             *servercache.Cache
 	appResourceTreeFn func(ctx context.Context, app *appv1.Application) (*appv1.ApplicationTree, error)
 	allowedShells     []string
 	namespace         string
 	enabledNamespaces []string
+	sessionManager    *util_session.SessionManager
+	terminalOptions   *TerminalOptions
+}
+
+type TerminalOptions struct {
+	DisableAuth bool
+	Enf         *rbac.Enforcer
 }
 
 // NewHandler returns a new terminal handler.
-func NewHandler(appLister applisters.ApplicationLister, namespace string, enabledNamespaces []string, db db.ArgoDB, enf *rbac.Enforcer, cache *servercache.Cache,
-	appResourceTree AppResourceTreeFn, allowedShells []string) *terminalHandler {
+func NewHandler(appLister applisters.ApplicationLister, namespace string, enabledNamespaces []string, db db.ArgoDB, cache *servercache.Cache, appResourceTree AppResourceTreeFn, allowedShells []string, sessionManager *sessionmgr.SessionManager, terminalOptions *TerminalOptions) *terminalHandler {
 	return &terminalHandler{
 		appLister:         appLister,
 		db:                db,
-		enf:               enf,
 		cache:             cache,
 		appResourceTreeFn: appResourceTree,
 		allowedShells:     allowedShells,
 		namespace:         namespace,
 		enabledNamespaces: enabledNamespaces,
+		sessionManager:    sessionManager,
+		terminalOptions:   terminalOptions,
 	}
 }
 
@@ -61,7 +70,11 @@ func (s *terminalHandler) getApplicationClusterRawConfig(ctx context.Context, a 
 	if err != nil {
 		return nil, err
 	}
-	return clst.RawRestConfig(), nil
+	rawConfig, err := clst.RawRestConfig()
+	if err != nil {
+		return nil, err
+	}
+	return rawConfig, nil
 }
 
 type GetSettingsFunc func() (*settings.ArgoCDSettings, error)
@@ -139,19 +152,21 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	appRBACName := security.AppRBACName(s.namespace, project, appNamespace, app)
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
+	appRBACName := security.RBACName(s.namespace, project, appNamespace, app)
+	if err := s.terminalOptions.Enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceApplications, rbacpolicy.ActionGet, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceExec, rbacpolicy.ActionCreate, appRBACName); err != nil {
+	if err := s.terminalOptions.Enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceExec, rbacpolicy.ActionCreate, appRBACName); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
 
-	fieldLog := log.WithFields(log.Fields{"application": app, "userName": sessionmgr.Username(ctx), "container": container,
-		"podName": podName, "namespace": namespace, "project": project, "appNamespace": appNamespace})
+	fieldLog := log.WithFields(log.Fields{
+		"application": app, "userName": sessionmgr.Username(ctx), "container": container,
+		"podName": podName, "namespace": namespace, "project": project, "appNamespace": appNamespace,
+	})
 
 	a, err := s.appLister.Applications(ns).Get(app)
 	if err != nil {
@@ -221,12 +236,16 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	fieldLog.Info("terminal session starting")
 
-	session, err := newTerminalSession(w, r, nil)
+	session, err := newTerminalSession(ctx, w, r, nil, s.sessionManager, appRBACName, s.terminalOptions)
 	if err != nil {
 		http.Error(w, "Failed to start terminal session", http.StatusBadRequest)
 		return
 	}
 	defer session.Done()
+
+	// send pings across the WebSocket channel at regular intervals to keep it alive through
+	// load balancers which may close an idle connection after some period of time
+	go session.StartKeepalives(time.Second * 5)
 
 	if isValidShell(s.allowedShells, shell) {
 		cmd := []string{shell}
@@ -277,6 +296,11 @@ type TerminalMessage struct {
 	Cols      uint16 `json:"cols"`
 }
 
+// TerminalCommand is the struct for websocket commands,For example you need ask client to reconnect
+type TerminalCommand struct {
+	Code int
+}
+
 // startProcess executes specified commands in the container and connects it up with the ptyHandler (a session)
 func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, namespace, podName, containerName string, cmd []string, ptyHandler PtyHandler) error {
 	req := k8sClient.CoreV1().RESTClient().Post().
@@ -299,7 +323,7 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, namespace, p
 		return err
 	}
 
-	return exec.Stream(remotecommand.StreamOptions{
+	return exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
 		Stdin:             ptyHandler,
 		Stdout:            ptyHandler,
 		Stderr:            ptyHandler,

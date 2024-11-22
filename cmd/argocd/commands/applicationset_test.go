@@ -5,9 +5,11 @@ import (
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func TestPrintApplicationSetNames(t *testing.T) {
@@ -17,13 +19,17 @@ func TestPrintApplicationSetNames(t *testing.T) {
 				Name: "test",
 			},
 		}
-		printApplicationSetNames([]v1alpha1.ApplicationSet{*appSet, *appSet})
+		appSet2 := &v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "team-one",
+				Name:      "test",
+			},
+		}
+		printApplicationSetNames([]v1alpha1.ApplicationSet{*appSet, *appSet2})
 		return nil
 	})
-	expectation := "test\ntest\n"
-	if output != expectation {
-		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
-	}
+	expectation := "test\nteam-one/test\n"
+	require.Equalf(t, output, expectation, "Incorrect print params output %q, should be %q", output, expectation)
 }
 
 func TestPrintApplicationSetTable(t *testing.T) {
@@ -34,12 +40,12 @@ func TestPrintApplicationSetTable(t *testing.T) {
 			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Generators: []v1alpha1.ApplicationSetGenerator{
-					v1alpha1.ApplicationSetGenerator{
+					{
 						Git: &v1alpha1.GitGenerator{
 							RepoURL:  "https://github.com/argoproj/argo-cd.git",
 							Revision: "head",
 							Directories: []v1alpha1.GitDirectoryGeneratorItem{
-								v1alpha1.GitDirectoryGeneratorItem{
+								{
 									Path: "applicationset/examples/git-generator-directory/cluster-addons/*",
 								},
 							},
@@ -54,7 +60,42 @@ func TestPrintApplicationSetTable(t *testing.T) {
 			},
 			Status: v1alpha1.ApplicationSetStatus{
 				Conditions: []v1alpha1.ApplicationSetCondition{
-					v1alpha1.ApplicationSetCondition{
+					{
+						Status: v1alpha1.ApplicationSetConditionStatusTrue,
+						Type:   v1alpha1.ApplicationSetConditionResourcesUpToDate,
+					},
+				},
+			},
+		}
+
+		app2 := &v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "app-name",
+				Namespace: "team-two",
+			},
+			Spec: v1alpha1.ApplicationSetSpec{
+				Generators: []v1alpha1.ApplicationSetGenerator{
+					{
+						Git: &v1alpha1.GitGenerator{
+							RepoURL:  "https://github.com/argoproj/argo-cd.git",
+							Revision: "head",
+							Directories: []v1alpha1.GitDirectoryGeneratorItem{
+								{
+									Path: "applicationset/examples/git-generator-directory/cluster-addons/*",
+								},
+							},
+						},
+					},
+				},
+				Template: v1alpha1.ApplicationSetTemplate{
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+					},
+				},
+			},
+			Status: v1alpha1.ApplicationSetStatus{
+				Conditions: []v1alpha1.ApplicationSetCondition{
+					{
 						Status: v1alpha1.ApplicationSetConditionStatusTrue,
 						Type:   v1alpha1.ApplicationSetConditionResourcesUpToDate,
 					},
@@ -62,11 +103,11 @@ func TestPrintApplicationSetTable(t *testing.T) {
 			},
 		}
 		output := "table"
-		printApplicationSetTable([]v1alpha1.ApplicationSet{*app, *app}, &output)
+		printApplicationSetTable([]v1alpha1.ApplicationSet{*app, *app2}, &output)
 		return nil
 	})
-	assert.NoError(t, err)
-	expectation := "NAME      NAMESPACE  PROJECT  SYNCPOLICY  CONDITIONS\napp-name             default  nil         [{ResourcesUpToDate  <nil> True }]\napp-name             default  nil         [{ResourcesUpToDate  <nil> True }]\n"
+	require.NoError(t, err)
+	expectation := "NAME               PROJECT  SYNCPOLICY  CONDITIONS\napp-name           default  nil         [{ResourcesUpToDate  <nil> True }]\nteam-two/app-name  default  nil         [{ResourcesUpToDate  <nil> True }]\n"
 	assert.Equal(t, expectation, output)
 }
 
@@ -77,12 +118,12 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 		},
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{
-				v1alpha1.ApplicationSetGenerator{
+				{
 					Git: &v1alpha1.GitGenerator{
 						RepoURL:  "https://github.com/argoproj/argo-cd.git",
 						Revision: "head",
 						Directories: []v1alpha1.GitDirectoryGeneratorItem{
-							v1alpha1.GitDirectoryGeneratorItem{
+							{
 								Path: "applicationset/examples/git-generator-directory/cluster-addons/*",
 							},
 						},
@@ -97,11 +138,31 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 		},
 		Status: v1alpha1.ApplicationSetStatus{
 			Conditions: []v1alpha1.ApplicationSetCondition{
-				v1alpha1.ApplicationSetCondition{
+				{
 					Status: v1alpha1.ApplicationSetConditionStatusTrue,
 					Type:   v1alpha1.ApplicationSetConditionResourcesUpToDate,
 				},
 			},
+		},
+	}
+	appsetSpecSource := baseAppSet.DeepCopy()
+	appsetSpecSource.Spec.Template.Spec.Source = &v1alpha1.ApplicationSource{
+		RepoURL:        "test1",
+		TargetRevision: "master1",
+		Path:           "/test1",
+	}
+
+	appsetSpecSources := baseAppSet.DeepCopy()
+	appsetSpecSources.Spec.Template.Spec.Sources = v1alpha1.ApplicationSources{
+		{
+			RepoURL:        "test1",
+			TargetRevision: "master1",
+			Path:           "/test1",
+		},
+		{
+			RepoURL:        "test2",
+			TargetRevision: "master2",
+			Path:           "/test2",
 		},
 	}
 
@@ -139,9 +200,9 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 Project:            default
 Server:             
 Namespace:          
-Repo:               
-Target:             
-Path:               
+Source:
+- Repo:             
+  Target:           
 SyncPolicy:         <none>
 `,
 		},
@@ -152,9 +213,9 @@ SyncPolicy:         <none>
 Project:            default
 Server:             
 Namespace:          
-Repo:               
-Target:             
-Path:               
+Source:
+- Repo:             
+  Target:           
 SyncPolicy:         Automated
 `,
 		},
@@ -165,10 +226,41 @@ SyncPolicy:         Automated
 Project:            default
 Server:             
 Namespace:          
-Repo:               
-Target:             
-Path:               
+Source:
+- Repo:             
+  Target:           
 SyncPolicy:         Automated
+`,
+		},
+		{
+			name:   "appset with a single source",
+			appSet: appsetSpecSource,
+			expectedOutput: `Name:               app-name
+Project:            default
+Server:             
+Namespace:          
+Source:
+- Repo:             test1
+  Target:           master1
+  Path:             /test1
+SyncPolicy:         <none>
+`,
+		},
+		{
+			name:   "appset with a multiple sources",
+			appSet: appsetSpecSources,
+			expectedOutput: `Name:               app-name
+Project:            default
+Server:             
+Namespace:          
+Sources:
+- Repo:             test1
+  Target:           master1
+  Path:             /test1
+- Repo:             test2
+  Target:           master2
+  Path:             /test2
+SyncPolicy:         <none>
 `,
 		},
 	} {
@@ -185,7 +277,7 @@ SyncPolicy:         Automated
 			w.Close()
 
 			out, err := io.ReadAll(r)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.expectedOutput, string(out))
 		})
 	}

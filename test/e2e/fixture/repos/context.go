@@ -20,6 +20,7 @@ type Context struct {
 }
 
 func Given(t *testing.T, sameState bool) *Context {
+	t.Helper()
 	if !sameState {
 		fixture.EnsureCleanState(t)
 	}

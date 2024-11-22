@@ -30,7 +30,7 @@ in one of the following ways:
 ## Authorization
 
 Authorization is performed by iterating the list of group membership in a user's JWT groups claims,
-and comparing each group against the roles/rules in the [RBAC](../rbac) policy. Any matched rule
+and comparing each group against the roles/rules in the [RBAC](./rbac.md) policy. Any matched rule
 permits access to the API request.
 
 ## TLS
@@ -45,7 +45,7 @@ Communication with Redis is performed over plain HTTP by default. TLS can be set
 Git and helm repositories are managed by a stand-alone service, called the repo-server. The
 repo-server does not carry any Kubernetes privileges and does not store credentials to any services
 (including git). The repo-server is responsible for cloning repositories which have been permitted
-and trusted by Argo CD operators, and generating kubernetes manifests at a given path in the
+and trusted by Argo CD operators, and generating Kubernetes manifests at a given path in the
 repository. For performance and bandwidth efficiency, the repo-server maintains local clones of
 these repositories so that subsequent commits to the repository are efficiently downloaded.
 
@@ -109,7 +109,7 @@ The information is used to reconstruct a REST config and kubeconfig to the clust
 services.
 
 To rotate the bearer token used by Argo CD, the token can be deleted (e.g. using kubectl) which
-causes kubernetes to generate a new secret with a new bearer token. The new token can be re-inputted
+causes Kubernetes to generate a new secret with a new bearer token. The new token can be re-inputted
 to Argo CD by re-running `argocd cluster add`. Run the following commands against the *_managed_*
 cluster:
 
@@ -144,7 +144,7 @@ argocd cluster rm https://your-kubernetes-cluster-addr
 
 ## Cluster RBAC
 
-By default, Argo CD uses a [clusteradmin level role](https://github.com/argoproj/argo-cd/blob/master/manifests/base/application-controller/argocd-application-controller-role.yaml)
+By default, Argo CD uses a [clusteradmin level role](https://github.com/argoproj/argo-cd/blob/master/manifests/base/application-controller-roles/argocd-application-controller-role.yaml)
 in order to:
 
 1. watch & operate on cluster state
@@ -173,7 +173,7 @@ kubectl edit clusterrole argocd-application-controller
 ```
 
 !!! tip
-    If you want to deny ArgoCD access to a kind of resource then add it as an [excluded resource](declarative-setup.md#resource-exclusion).
+    If you want to deny Argo CD access to a kind of resource then add it as an [excluded resource](declarative-setup.md#resource-exclusion).
 
 ## Auditing
 

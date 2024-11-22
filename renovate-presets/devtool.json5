@@ -1,0 +1,72 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Rules specific to the devtool (CI, dev environment...)",
+  "packageRules": [
+    {
+      "description": "Enable updates from specified datasources",
+      "matchDatasources": [
+        "node-version",
+        "golang-version"
+      ],
+      "enabled": true
+    },
+    {
+      "description": "Enable updates from specified go modules",
+      "matchDatasources": [
+        "go"
+      ],
+      "matchPackageNames": [
+        "github.com/golangci/golangci-lint"
+      ],
+      "enabled": true
+    },
+    {
+      "description": "Enable updates from specified docker images",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "docker.io/library/node",
+        "docker.io/library/golang"
+      ],
+      "enabled": true
+    },
+    {
+      "description": "Group golang-version packages",
+      "groupName": "group golang",
+      "matchDatasources": [
+        "docker",
+        "golang-version"
+      ],
+      "matchPackageNames": [
+        "/(?:^|/)golang$/"
+      ]
+    },
+    {
+      "description": "Group node-version packages",
+      "groupName": "group node",
+      "matchDatasources": [
+        "docker",
+        "node-version"
+      ],
+      "matchPackageNames": [
+        "/(?:^|/)node$/",
+        "!calico/node",
+        "!docker.io/calico/node",
+        "!kindest/node"
+      ]
+    },
+    {
+      "description": "Example to reduce noise with the automerge features.",
+      "matchDatasources": [
+        "golang-version"
+      ],
+      "matchUpdateTypes": [
+        "patch",
+        "pin",
+        "digest"
+      ],
+      "automerge": false
+    }
+  ]
+}
