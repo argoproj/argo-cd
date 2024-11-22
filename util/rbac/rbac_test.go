@@ -271,6 +271,28 @@ func TestNoPolicy(t *testing.T) {
 	assert.False(t, enf.Enforce("admin", "applications", "delete", "foo/bar"))
 }
 
+func TestCheckUserDefinedPolicyReferentialIntegrity(t *testing.T) {
+	kubeclientset := fake.NewSimpleClientset(fakeConfigMap())
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+
+	policy := `
+p, role:depA, *, get, foo/obj, allow
+p, role:depB, *, get, foo/obj, deny
+g, depA, role:depA
+g, depB, role:depB
+`
+	assert.NoError(t, enf.SetUserPolicy(policy))
+	assert.NoError(t, enf.CheckUserDefinedRoleReferentialIntegrity())
+
+	policy = `
+p, role:depA, *, get, foo/obj, allow
+p, role:depB, *, get, foo/obj, deny
+g, depC, role:depC
+`
+	assert.NoError(t, enf.SetUserPolicy(policy))
+	assert.Error(t, enf.CheckUserDefinedRoleReferentialIntegrity())
+}
+
 // TestClaimsEnforcerFunc tests
 func TestClaimsEnforcerFunc(t *testing.T) {
 	kubeclientset := fake.NewClientset()

@@ -52,6 +52,8 @@ type CasbinEnforcer interface {
 	EnableEnforce(bool)
 	AddFunction(name string, function govaluate.ExpressionFunction)
 	GetGroupingPolicy() ([][]string, error)
+	GetAllRoles() ([]string, error)
+	GetAllSubjects() ([]string, error)
 }
 
 // Enforcer is a wrapper around an Casbin enforcer that:
@@ -91,16 +93,16 @@ func (e *Enforcer) invalidateCache(actions ...func()) {
 	e.enforcerCache.Flush()
 }
 
-func (e *Enforcer) getCabinEnforcer(project string, policy string) CasbinEnforcer {
-	res, err := e.tryGetCabinEnforcer(project, policy)
+func (e *Enforcer) getCasbinEnforcer(project string, policy string) CasbinEnforcer {
+	res, err := e.tryGetCasbinEnforcer(project, policy)
 	if err != nil {
 		panic(err)
 	}
 	return res
 }
 
-// tryGetCabinEnforcer returns the cached enforcer for the given optional project and project policy.
-func (e *Enforcer) tryGetCabinEnforcer(project string, policy string) (CasbinEnforcer, error) {
+// tryGetCasbinEnforcer returns the cached enforcer for the given optional project and project policy.
+func (e *Enforcer) tryGetCasbinEnforcer(project string, policy string) (CasbinEnforcer, error) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 	var cached *cachedEnforcer
@@ -189,8 +191,41 @@ func (e *Enforcer) EnableEnforce(s bool) {
 
 // LoadPolicy executes casbin.Enforcer functionality and will invalidate cache if required.
 func (e *Enforcer) LoadPolicy() error {
-	_, err := e.tryGetCabinEnforcer("", "")
+	_, err := e.tryGetCasbinEnforcer("", "")
 	return err
+}
+
+// CheckUserDefinedRoleReferentialIntegrity iterates over roles and policies to validate the existence of a matching policy subject for every defined role
+func (e *Enforcer) CheckUserDefinedRoleReferentialIntegrity() error {
+	casbinEnforcer, err := e.tryGetCasbinEnforcer("", "")
+	if err != nil {
+		return err
+	}
+	allRoles, err := casbinEnforcer.GetAllRoles()
+	if err != nil {
+		return err
+	}
+	allSubjects, err := casbinEnforcer.GetAllSubjects()
+	if err != nil {
+		return err
+	}
+	notFound := make([]string, 0)
+	for _, role := range allRoles {
+		found := false
+		for _, subj := range allSubjects {
+			if role == subj {
+				found = true
+				break
+			}
+		}
+		if !found {
+			notFound = append(notFound, role)
+		}
+	}
+	if len(notFound) > 0 {
+		return fmt.Errorf("user defined roles not found in policies: %s", strings.Join(notFound, ","))
+	}
+	return nil
 }
 
 // Glob match func
@@ -238,7 +273,7 @@ func (e *Enforcer) SetClaimsEnforcerFunc(claimsEnforcer ClaimsEnforcerFunc) {
 // Enforce is a wrapper around casbin.Enforce to additionally enforce a default role and a custom
 // claims function
 func (e *Enforcer) Enforce(rvals ...any) bool {
-	return enforce(e.getCabinEnforcer("", ""), e.defaultRole, e.claimsEnforcerFunc, rvals...)
+	return enforce(e.getCasbinEnforcer("", ""), e.defaultRole, e.claimsEnforcerFunc, rvals...)
 }
 
 // EnforceErr is a convenience helper to wrap a failed enforcement with a detailed error about the request
@@ -285,7 +320,7 @@ func (e *Enforcer) EnforceRuntimePolicy(project string, policy string, rvals ...
 // user-defined policy. This allows any explicit denies of the built-in, and user-defined policies
 // to override the run-time policy. Runs normal enforcement if run-time policy is empty.
 func (e *Enforcer) CreateEnforcerWithRuntimePolicy(project string, policy string) CasbinEnforcer {
-	return e.getCabinEnforcer(project, policy)
+	return e.getCasbinEnforcer(project, policy)
 }
 
 // EnforceWithCustomEnforcer wraps enforce with an custom enforcer
@@ -335,7 +370,14 @@ func (e *Enforcer) SetUserPolicy(policy string) error {
 	e.invalidateCache(func() {
 		e.adapter.userDefinedPolicy = policy
 	})
-	return e.LoadPolicy()
+	err := e.LoadPolicy()
+	if err != nil {
+		return err
+	}
+	if err := e.CheckUserDefinedRoleReferentialIntegrity(); err != nil {
+		log.Warning(err.Error())
+	}
+	return nil
 }
 
 // newInformers returns an informer which watches updates on the rbac configmap
