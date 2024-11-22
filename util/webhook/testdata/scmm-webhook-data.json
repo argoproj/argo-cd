@@ -1,0 +1,7 @@
+{
+  "HTMLURL": "github.com/scm-manager/argocd-test",
+  "Branch": {
+    "Name": "testrepo",
+    "DefaultBranch": true
+  }
+}

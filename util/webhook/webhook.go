@@ -18,6 +18,7 @@ import (
 	"github.com/go-playground/webhooks/v6/gitlab"
 	"github.com/go-playground/webhooks/v6/gogs"
 	gogsclient "github.com/gogits/go-gogs-client"
+	"github.com/scm-manager/goscm"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -31,7 +32,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/glob"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-	"github.com/scm-manager/goscm"
 )
 
 type settingsSource interface {
