@@ -194,37 +194,6 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 		expectedOutput string
 	}{
 		{
-			name:   "appset with a single source",
-			appSet: appsetSpecSource,
-			expectedOutput: `Name:               app-name
-Project:            default
-Server:             
-Namespace:          
-Source:
-- Repo:             test1
-  Target:           master1
-  Path:             /test1
-SyncPolicy:         <none>
-`,
-		},
-		{
-			name:   "appset with a multiple sources",
-			appSet: appsetSpecSources,
-			expectedOutput: `Name:               app-name
-Project:            default
-Server:             
-Namespace:          
-Sources:
-- Repo:             test1
-  Target:           master1
-  Path:             /test1
-- Repo:             test2
-  Target:           master2
-  Path:             /test2
-SyncPolicy:         <none>
-`,
-		},
-		{
 			name:   "appset with only spec.syncPolicy set",
 			appSet: appsetSpecSyncPolicy,
 			expectedOutput: `Name:               app-name
@@ -261,6 +230,37 @@ Source:
 - Repo:             
   Target:           
 SyncPolicy:         Automated
+`,
+		},
+		{
+			name:   "appset with a single source",
+			appSet: appsetSpecSource,
+			expectedOutput: `Name:               app-name
+Project:            default
+Server:             
+Namespace:          
+Source:
+- Repo:             test1
+  Target:           master1
+  Path:             /test1
+SyncPolicy:         <none>
+`,
+		},
+		{
+			name:   "appset with a multiple sources",
+			appSet: appsetSpecSources,
+			expectedOutput: `Name:               app-name
+Project:            default
+Server:             
+Namespace:          
+Sources:
+- Repo:             test1
+  Target:           master1
+  Path:             /test1
+- Repo:             test2
+  Target:           master2
+  Path:             /test2
+SyncPolicy:         <none>
 `,
 		},
 	} {
