@@ -254,16 +254,29 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	return &cacheSettings{clusterSettings, appInstanceLabelKey, argo.GetTrackingMethod(c.settingsMgr), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
 }
 
-func asResourceNode(r *clustercache.Resource) appv1.ResourceNode {
+func asResourceNode(r *clustercache.Resource, parent *clustercache.Resource) appv1.ResourceNode {
 	gv, err := schema.ParseGroupVersion(r.Ref.APIVersion)
 	if err != nil {
 		gv = schema.GroupVersion{}
 	}
+
 	parentRefs := make([]appv1.ResourceRef, len(r.OwnerRefs))
-	for i, ownerRef := range r.OwnerRefs {
-		ownerGvk := schema.FromAPIVersionAndKind(ownerRef.APIVersion, ownerRef.Kind)
-		ownerKey := kube.NewResourceKey(ownerGvk.Group, ownerRef.Kind, r.Ref.Namespace, ownerRef.Name)
-		parentRefs[i] = appv1.ResourceRef{Name: ownerRef.Name, Kind: ownerKey.Kind, Namespace: r.Ref.Namespace, Group: ownerKey.Group, UID: string(ownerRef.UID)}
+
+	if parent != nil {
+		parentRefs = append(parentRefs, appv1.ResourceRef{
+			Name:      parent.Ref.Name,
+			Kind:      parent.Ref.Kind,
+			Namespace: parent.Ref.Namespace,
+			Group:     schema.FromAPIVersionAndKind(parent.Ref.APIVersion, parent.Ref.Kind).Group,
+			UID:       string(parent.Ref.UID),
+		})
+	} else {
+		for i, ownerRef := range r.OwnerRefs {
+			ownerGvk := schema.FromAPIVersionAndKind(ownerRef.APIVersion, ownerRef.Kind)
+			ownerKey := kube.NewResourceKey(ownerGvk.Group, ownerRef.Kind, r.Ref.Namespace, ownerRef.Name)
+
+			parentRefs[i] = appv1.ResourceRef{Name: ownerRef.Name, Kind: ownerKey.Kind, Namespace: r.Ref.Namespace, Group: ownerKey.Group, UID: string(ownerRef.UID)}
+		}
 	}
 	var resHealth *appv1.HealthStatus
 	resourceInfo := resInfo(r)
@@ -652,7 +665,7 @@ func (c *liveStateCache) IterateHierarchy(server string, key kube.ResourceKey, a
 		return err
 	}
 	clusterInfo.IterateHierarchy(key, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
-		return action(asResourceNode(resource), getApp(resource, namespaceResources))
+		return action(asResourceNode(resource, nil), getApp(resource, namespaceResources))
 	})
 	return nil
 }
@@ -663,7 +676,7 @@ func (c *liveStateCache) IterateHierarchyV2(server string, keys []kube.ResourceK
 		return err
 	}
 	clusterInfo.IterateHierarchyV2(keys, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
-		return action(asResourceNode(resource), getApp(resource, namespaceResources))
+		return action(asResourceNode(resource, extractParent(clusterInfo, resource)), getApp(resource, namespaceResources))
 	})
 	return nil
 }
@@ -690,7 +703,7 @@ func (c *liveStateCache) GetNamespaceTopLevelResources(server string, namespace 
 	resources := clusterInfo.FindResources(namespace, clustercache.TopLevelResource)
 	res := make(map[kube.ResourceKey]appv1.ResourceNode)
 	for k, r := range resources {
-		res[k] = asResourceNode(r)
+		res[k] = asResourceNode(r, nil)
 	}
 	return res, nil
 }
@@ -891,4 +904,41 @@ func (c *liveStateCache) GetClustersInfo() []clustercache.ClusterInfo {
 
 func (c *liveStateCache) GetClusterCache(server string) (clustercache.ClusterCache, error) {
 	return c.getSyncedCluster(server)
+}
+
+func extractParent(clusterInfo clustercache.ClusterCache, resource *clustercache.Resource) *clustercache.Resource {
+	if resource == nil || resource.Resource == nil || resource.Resource.Object == nil {
+		return nil
+	}
+
+	metadata, ok := resource.Resource.Object["metadata"].(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	annotations, ok := metadata["annotations"].(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	ownerName, _ := annotations["argocd.argoproj.io/ownerName"].(string)
+	ownerKind, _ := annotations["argocd.argoproj.io/ownerKind"].(string)
+	ownerApiVersion, _ := annotations["argocd.argoproj.io/ownerApiVersion"].(string)
+	ownerNamespace, _ := annotations["argocd.argoproj.io/ownerNamespace"].(string)
+
+	if ownerKind == "" || ownerName == "" || ownerApiVersion == "" {
+		return nil
+	}
+
+	foundResources := clusterInfo.FindResources(ownerNamespace, func(r *clustercache.Resource) bool {
+		return r.Ref.Kind == ownerKind &&
+			r.Ref.APIVersion == ownerApiVersion &&
+			r.Ref.Name == ownerName &&
+			(r.Ref.Namespace == ownerNamespace || ownerNamespace == "")
+	})
+
+	for _, resource := range foundResources {
+		return resource
+	}
+	return nil
 }

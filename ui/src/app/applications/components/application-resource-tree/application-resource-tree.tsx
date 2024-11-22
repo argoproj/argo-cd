@@ -1051,7 +1051,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         if (props.getNodeExpansion(appNode.uid)) {
             nodes.forEach(node => {
                 allChildNodes = [];
-                if ((node.parentRefs || []).length === 0 || managedKeys.has(nodeKey(node))) {
+                if ((node.parentRefs || []).length === 0) {
                     roots.push(node);
                 } else {
                     if (orphanedKeys.has(nodeKey(node))) {
@@ -1088,7 +1088,11 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         }
         roots.sort(compareNodes).forEach(node => {
             processNode(node, node);
-            graph.setEdge(appNodeKey(props.app), treeNodeKey(node));
+            // skip setting the relation between app and nodes
+            // containing explicit parent references
+            if (!node.parentRefs || node.parentRefs.length == 0) {
+                graph.setEdge(appNodeKey(props.app), treeNodeKey(node));
+             }
         });
         orphans.sort(compareNodes).forEach(node => {
             processNode(node, node);
@@ -1117,7 +1121,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             if (treeNodeKey(child) === treeNodeKey(root)) {
                 return;
             }
-            if (node.namespace === child.namespace) {
+            // Allow edges between cluster-scoped and namespaced resources
+            if (node.namespace === child.namespace || !node.namespace || !child.namespace) {
                 graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors});
             }
             processNode(child, root, colors);
