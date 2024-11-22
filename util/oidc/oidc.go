@@ -163,7 +163,7 @@ func (a *ClientApp) oauth2Config(request *http.Request, scopes []string) (*oauth
 	}
 	redirectURL, err := a.settings.RedirectURLForRequest(request)
 	if err != nil {
-		logger.Warnf("Unable to find ArgoCD URL from request, falling back to configured redirect URI: %v. %s", err)
+		logger.Warnf("Unable to find ArgoCD URL from request, falling back to configured redirect URI: %v", err)
 		redirectURL = a.redirectURI
 	}
 	return &oauth2.Config{
@@ -228,7 +228,7 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 			if len(sanitizedUrl) > 100 {
 				sanitizedUrl = sanitizedUrl[:100]
 			}
-			logger.Warnf("Failed to verify app state - got invalid redirectURL %q. %s", sanitizedUrl)
+			logger.Warnf("Failed to verify app state - got invalid redirectURL %q", sanitizedUrl)
 			return "", fmt.Errorf("failed to verify app state: %w", InvalidRedirectURLError)
 		}
 		redirectURL = parts[1]
@@ -386,7 +386,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 
 	idToken, err := a.provider.Verify(idTokenRAW, a.settings)
 	if err != nil {
-		logger.Warnf("Failed to verify token: %s. %s", err)
+		logger.Warnf("Failed to verify token: %s", err)
 		http.Error(w, common.TokenVerificationError, http.StatusInternalServerError)
 		return
 	}
