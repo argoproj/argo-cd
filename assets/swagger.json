@@ -6529,6 +6529,10 @@
         "kustomize": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceKustomize"
         },
+        "name": {
+          "description": "Name is used to refer to a source and is displayed in the UI. It is used in multi-source Applications.",
+          "type": "string"
+        },
         "path": {
           "description": "Path is a directory path within the Git repository, and is only valid for applications sourced from Git.",
           "type": "string"

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/go-openapi/loads"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/util/assets"
 )
@@ -38,21 +39,12 @@ func TestSwaggerUI(t *testing.T) {
 	server := "http://" + address
 
 	specDoc, err := loads.Spec(server + "/swagger.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	_, err = json.MarshalIndent(specDoc.Spec(), "", "  ")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	resp, err := http.Get(server + "/swagger-ui")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("Was expecting status code 200 from swagger-ui, but got %d instead", resp.StatusCode)
-	}
+	require.NoError(t, err)
+	require.Equalf(t, http.StatusOK, resp.StatusCode, "Was expecting status code 200 from swagger-ui, but got %d instead", resp.StatusCode)
 }

@@ -229,7 +229,7 @@ spec:
 			require.NoError(t, err)
 			yamlExpected, err := yaml.Marshal(tc.expectedApp)
 			require.NoError(t, err)
-			assert.Equal(t, string(yamlExpected), string(yamlFound))
+			assert.YAMLEq(t, string(yamlExpected), string(yamlFound))
 		})
 	}
 }

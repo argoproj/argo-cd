@@ -79,7 +79,7 @@ func TestIDTokenClaims(t *testing.T) {
 	values, err := url.ParseQuery(authCodeURL.RawQuery)
 	require.NoError(t, err)
 
-	assert.Equal(t, "{\"id_token\":{\"groups\":{\"essential\":true}}}", values.Get("claims"))
+	assert.JSONEq(t, "{\"id_token\":{\"groups\":{\"essential\":true}}}", values.Get("claims"))
 }
 
 type fakeProvider struct{}

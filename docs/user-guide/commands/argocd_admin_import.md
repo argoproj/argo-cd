@@ -23,13 +23,13 @@ argocd admin import SOURCE [flags]
       --context string                      The name of the kubeconfig context to use
       --disable-compression                 If true, opt-out of response compression for all requests to the server
       --dry-run                             Print what will be performed
-      --force-prompts-enabled               Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
   -h, --help                                help for import
       --ignore-tracking                     Do not update the tracking annotation if the resource is already tracked
       --insecure-skip-tls-verify            If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                   Path to a kube config. Only required if out-of-cluster
   -n, --namespace string                    If present, the namespace scope for this CLI request
       --password string                     Password for basic authentication to the API server
+      --prompts-enabled                     Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --proxy-url string                    If provided, this URL will be used to connect via proxy
       --prune                               Prune secrets, applications and projects which do not appear in the backup
       --request-timeout string              The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")

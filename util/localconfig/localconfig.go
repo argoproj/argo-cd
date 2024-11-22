@@ -311,7 +311,7 @@ func GetUsername(subject string) string {
 
 func GetPromptsEnabled(useCLIOpts bool) bool {
 	if useCLIOpts {
-		forcePromptsEnabled := config.GetFlag("force-prompts-enabled", "")
+		forcePromptsEnabled := config.GetFlag("prompts-enabled", "")
 
 		if forcePromptsEnabled != "" {
 			return forcePromptsEnabled == "true"

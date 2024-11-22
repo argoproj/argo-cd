@@ -210,6 +210,8 @@ export interface ApplicationSource {
     directory?: ApplicationSourceDirectory;
 
     ref?: string;
+
+    name?: string;
 }
 
 export interface ApplicationSourceHelm {

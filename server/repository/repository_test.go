@@ -366,7 +366,7 @@ func TestRepositoryServer(t *testing.T) {
 			Repo: url,
 		})
 		assert.Nil(t, repo)
-		assert.Equal(t, "rpc error: code = NotFound desc = repo 'https://test' not found", err.Error())
+		assert.EqualError(t, err, "rpc error: code = NotFound desc = repo 'https://test' not found")
 	})
 
 	t.Run("Test_GetRepoIsSanitized", func(t *testing.T) {

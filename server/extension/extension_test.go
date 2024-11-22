@@ -28,9 +28,7 @@ func TestValidateHeaders(t *testing.T) {
 	t.Run("will build RequestResources successfully", func(t *testing.T) {
 		// given
 		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
-		if err != nil {
-			t.Fatalf("error initializing request: %s", err)
-		}
+		require.NoError(t, err, "error initializing request")
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:app-name")
 		r.Header.Add(extension.HeaderArgoCDProjectName, "project-name")
 
@@ -47,9 +45,7 @@ func TestValidateHeaders(t *testing.T) {
 	t.Run("will return error if application is malformatted", func(t *testing.T) {
 		// given
 		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
-		if err != nil {
-			t.Fatalf("error initializing request: %s", err)
-		}
+		require.NoError(t, err, "error initializing request")
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "no-namespace")
 
 		// when
@@ -62,9 +58,7 @@ func TestValidateHeaders(t *testing.T) {
 	t.Run("will return error if application header is missing", func(t *testing.T) {
 		// given
 		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
-		if err != nil {
-			t.Fatalf("error initializing request: %s", err)
-		}
+		require.NoError(t, err, "error initializing request")
 		r.Header.Add(extension.HeaderArgoCDProjectName, "project-name")
 
 		// when
@@ -77,9 +71,7 @@ func TestValidateHeaders(t *testing.T) {
 	t.Run("will return error if project header is missing", func(t *testing.T) {
 		// given
 		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
-		if err != nil {
-			t.Fatalf("error initializing request: %s", err)
-		}
+		require.NoError(t, err, "error initializing request")
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:app-name")
 
 		// when
@@ -92,9 +84,7 @@ func TestValidateHeaders(t *testing.T) {
 	t.Run("will return error if invalid namespace", func(t *testing.T) {
 		// given
 		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
-		if err != nil {
-			t.Fatalf("error initializing request: %s", err)
-		}
+		require.NoError(t, err, "error initializing request")
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "bad%namespace:app-name")
 		r.Header.Add(extension.HeaderArgoCDProjectName, "project-name")
 
@@ -108,9 +98,7 @@ func TestValidateHeaders(t *testing.T) {
 	t.Run("will return error if invalid app name", func(t *testing.T) {
 		// given
 		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
-		if err != nil {
-			t.Fatalf("error initializing request: %s", err)
-		}
+		require.NoError(t, err, "error initializing request")
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:bad@app")
 		r.Header.Add(extension.HeaderArgoCDProjectName, "project-name")
 
@@ -124,9 +112,7 @@ func TestValidateHeaders(t *testing.T) {
 	t.Run("will return error if invalid project name", func(t *testing.T) {
 		// given
 		r, err := http.NewRequest(http.MethodGet, "http://null", nil)
-		if err != nil {
-			t.Fatalf("error initializing request: %s", err)
-		}
+		require.NoError(t, err, "error initializing request")
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:app")
 		r.Header.Add(extension.HeaderArgoCDProjectName, "bad^project")
 
@@ -379,9 +365,7 @@ func TestCallExtension(t *testing.T) {
 	startTestServer := func(t *testing.T, f *fixture) *httptest.Server {
 		t.Helper()
 		err := f.manager.RegisterExtensions()
-		if err != nil {
-			t.Fatalf("error starting test server: %s", err)
-		}
+		require.NoError(t, err, "error starting test server")
 		return httptest.NewServer(f.mux)
 	}
 
@@ -396,9 +380,7 @@ func TestCallExtension(t *testing.T) {
 	newExtensionRequest := func(t *testing.T, method, url string) *http.Request {
 		t.Helper()
 		r, err := http.NewRequest(method, url, nil)
-		if err != nil {
-			t.Fatalf("error initializing request: %s", err)
-		}
+		require.NoError(t, err, "error initializing request")
 		r.Header.Add(extension.HeaderArgoCDApplicationName, "namespace:app-name")
 		r.Header.Add(extension.HeaderArgoCDProjectName, defaultProjectName)
 		return r

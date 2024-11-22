@@ -2300,9 +2300,7 @@ func testServerWithPort(t *testing.T, port int, handler http.Handler) *httptest.
 	t.Helper()
 	// Use mocked API response to avoid rate-limiting.
 	l, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
-	if err != nil {
-		t.Error(fmt.Errorf("Unable to start server %w", err))
-	}
+	require.NoError(t, err, "Unable to start server")
 
 	ts := httptest.NewUnstartedServer(handler)
 
