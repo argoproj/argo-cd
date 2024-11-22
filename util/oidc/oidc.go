@@ -297,7 +297,6 @@ func isValidRedirectURL(redirectURL string, allowedURLs []string) bool {
 // HandleLogin formulates the proper OAuth2 URL (auth code or implicit) and redirects the user to
 // the IDp login & consent page
 func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
-	logger := getReqLogger(r)
 	oidcConf, err := a.provider.ParseConfig()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
