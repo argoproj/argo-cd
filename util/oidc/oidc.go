@@ -43,19 +43,11 @@ const (
 	AccessTokenCachePrefix      = "access_token"
 )
 
-// Request Metadata for warning message
-type RequestMetadata struct {
-	ipAddr string
-}
-
-func (r *RequestMetadata) String() string {
-	return fmt.Sprintf("Client IP: %s", r.ipAddr)
-}
-
-func newRequestMetadata(r *http.Request) *RequestMetadata {
-	return &RequestMetadata{
-		ipAddr: r.RemoteAddr,
-	}
+// getReqLogger returns a logger entry with request metadata for consistent logging
+func getReqLogger(r *http.Request) *log.Entry {
+	return log.WithFields(log.Fields{
+		"ip_addr": r.RemoteAddr,
+	})
 }
 
 // OIDCConfiguration holds a subset of interested fields from the OIDC configuration spec
@@ -164,14 +156,14 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 }
 
 func (a *ClientApp) oauth2Config(request *http.Request, scopes []string) (*oauth2.Config, error) {
-	rMetadata := newRequestMetadata(request)
+	logger := getReqLogger(request)
 	endpoint, err := a.provider.Endpoint()
 	if err != nil {
 		return nil, err
 	}
 	redirectURL, err := a.settings.RedirectURLForRequest(request)
 	if err != nil {
-		log.Warnf("Unable to find ArgoCD URL from request, falling back to configured redirect URI: %v. %s", err, rMetadata)
+		logger.Warnf("Unable to find ArgoCD URL from request, falling back to configured redirect URI: %v. %s", err)
 		redirectURL = a.redirectURI
 	}
 	return &oauth2.Config{
@@ -213,7 +205,7 @@ func (a *ClientApp) generateAppState(returnURL string, w http.ResponseWriter) (s
 }
 
 func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state string) (string, error) {
-	rMetadata := newRequestMetadata(r)
+	logger := getReqLogger(r)
 	c, err := r.Cookie(common.StateCookieName)
 	if err != nil {
 		return "", err
@@ -236,7 +228,7 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 			if len(sanitizedUrl) > 100 {
 				sanitizedUrl = sanitizedUrl[:100]
 			}
-			log.Warnf("Failed to verify app state - got invalid redirectURL %q. %s", sanitizedUrl, rMetadata)
+			logger.Warnf("Failed to verify app state - got invalid redirectURL %q. %s", sanitizedUrl)
 			return "", fmt.Errorf("failed to verify app state: %w", InvalidRedirectURLError)
 		}
 		redirectURL = parts[1]
@@ -305,6 +297,7 @@ func isValidRedirectURL(redirectURL string, allowedURLs []string) bool {
 // HandleLogin formulates the proper OAuth2 URL (auth code or implicit) and redirects the user to
 // the IDp login & consent page
 func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
+	logger := getReqLogger(r)
 	oidcConf, err := a.provider.ParseConfig()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -355,7 +348,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 // HandleCallback is the callback handler for an OAuth2 login flow
 func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
-	rMetadata := newRequestMetadata(r)
+	logger := getReqLogger(r)
 	oauth2Config, err := a.oauth2Config(r, nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -393,7 +386,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 
 	idToken, err := a.provider.Verify(idTokenRAW, a.settings)
 	if err != nil {
-		log.Warnf("Failed to verify token: %s. %s", err, rMetadata)
+		logger.Warnf("Failed to verify token: %s. %s", err)
 		http.Error(w, common.TokenVerificationError, http.StatusInternalServerError)
 		return
 	}
