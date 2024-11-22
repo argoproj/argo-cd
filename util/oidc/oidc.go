@@ -52,6 +52,12 @@ func (r *RequestMetadata) String() string {
 	return fmt.Sprintf("Client IP: %s", r.ipAddr)
 }
 
+func newRequestMetadata(r *http.Request) *RequestMetadata {
+	return &RequestMetadata{
+		ipAddr: r.RemoteAddr,
+	}
+}
+
 // OIDCConfiguration holds a subset of interested fields from the OIDC configuration spec
 type OIDCConfiguration struct {
 	Issuer                 string   `json:"issuer"`
@@ -158,9 +164,7 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTl
 }
 
 func (a *ClientApp) oauth2Config(request *http.Request, scopes []string) (*oauth2.Config, error) {
-	rMetadata := &RequestMetadata{
-		ipAddr: request.RemoteAddr,
-	}
+	rMetadata := newRequestMetadata(request)
 	endpoint, err := a.provider.Endpoint()
 	if err != nil {
 		return nil, err
@@ -209,9 +213,7 @@ func (a *ClientApp) generateAppState(returnURL string, w http.ResponseWriter) (s
 }
 
 func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state string) (string, error) {
-	rMetadata := &RequestMetadata{
-		ipAddr: r.RemoteAddr,
-	}
+	rMetadata := newRequestMetadata(r)
 	c, err := r.Cookie(common.StateCookieName)
 	if err != nil {
 		return "", err
@@ -353,9 +355,7 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 // HandleCallback is the callback handler for an OAuth2 login flow
 func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
-	rMetadata := &RequestMetadata{
-		ipAddr: r.RemoteAddr,
-	}
+	rMetadata := newRequestMetadata(r)
 	oauth2Config, err := a.oauth2Config(r, nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
