@@ -429,9 +429,7 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 				}
 				return err
 			})
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 	})
 	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, repopath)
 	var gitClient git.Client
@@ -2196,15 +2194,10 @@ func TestGenerateManifestWithAnnotatedAndRegularGitTagHashes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			manifestResponse, err := tt.service.GenerateManifest(tt.ctx, tt.manifestRequest)
 			if !tt.wantError {
-				if err == nil {
-					assert.Equal(t, manifestResponse.Revision, actualCommitSHA)
-				} else {
-					t.Errorf("unexpected error")
-				}
+				require.NoError(t, err)
+				assert.Equal(t, manifestResponse.Revision, actualCommitSHA)
 			} else {
-				if err == nil {
-					t.Errorf("expected an error but did not throw one")
-				}
+				assert.Errorf(t, err, "expected an error but did not throw one")
 			}
 		})
 	}
@@ -2239,13 +2232,8 @@ func TestGenerateManifestWithAnnotatedTagsAndMultiSourceApp(t *testing.T) {
 	}
 
 	response, err := service.GenerateManifest(context.Background(), manifestRequest)
-	if err != nil {
-		t.Errorf("unexpected %s", err)
-	}
-
-	if response.Revision != annotatedGitTaghash {
-		t.Errorf("returned SHA %s is different from expected annotated tag %s", response.Revision, annotatedGitTaghash)
-	}
+	require.NoError(t, err)
+	assert.Equalf(t, response.Revision, annotatedGitTaghash, "returned SHA %s is different from expected annotated tag %s", response.Revision, annotatedGitTaghash)
 }
 
 func TestGenerateMultiSourceHelmWithFileParameter(t *testing.T) {
@@ -4099,7 +4087,6 @@ func TestVerifyCommitSignature(t *testing.T) {
 		mockGitClient := &gitmocks.Client{}
 		mockGitClient.On("VerifyCommitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(testSignature, nil)
-
 		err := verifyCommitSignature(true, mockGitClient, "abcd1234", repo)
 		require.NoError(t, err)
 	})
@@ -4109,10 +4096,8 @@ func TestVerifyCommitSignature(t *testing.T) {
 		mockGitClient := &gitmocks.Client{}
 		mockGitClient.On("VerifyCommitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return("", nil)
-
 		err := verifyCommitSignature(true, mockGitClient, "abcd1234", repo)
-		require.Error(t, err)
-		assert.Equal(t, "revision abcd1234 is not signed", err.Error())
+		assert.EqualError(t, err, "revision abcd1234 is not signed")
 	})
 
 	t.Run("VerifyCommitSignature with unknown signature", func(t *testing.T) {
@@ -4120,10 +4105,8 @@ func TestVerifyCommitSignature(t *testing.T) {
 		mockGitClient := &gitmocks.Client{}
 		mockGitClient.On("VerifyCommitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return("", fmt.Errorf("UNKNOWN signature: gpg: Unknown signature from ABCDEFGH"))
-
 		err := verifyCommitSignature(true, mockGitClient, "abcd1234", repo)
-		require.Error(t, err)
-		assert.Equal(t, "UNKNOWN signature: gpg: Unknown signature from ABCDEFGH", err.Error())
+		assert.EqualError(t, err, "UNKNOWN signature: gpg: Unknown signature from ABCDEFGH")
 	})
 
 	t.Run("VerifyCommitSignature with error verifying signature", func(t *testing.T) {
@@ -4131,10 +4114,8 @@ func TestVerifyCommitSignature(t *testing.T) {
 		mockGitClient := &gitmocks.Client{}
 		mockGitClient.On("VerifyCommitSignature", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return("", fmt.Errorf("error verifying signature of commit 'abcd1234' in repo 'https://github.com/example/repo.git': failed to verify signature"))
-
 		err := verifyCommitSignature(true, mockGitClient, "abcd1234", repo)
-		require.Error(t, err)
-		assert.Equal(t, "error verifying signature of commit 'abcd1234' in repo 'https://github.com/example/repo.git': failed to verify signature", err.Error())
+		assert.EqualError(t, err, "error verifying signature of commit 'abcd1234' in repo 'https://github.com/example/repo.git': failed to verify signature")
 	})
 
 	t.Run("VerifyCommitSignature with signature verification disabled", func(t *testing.T) {
