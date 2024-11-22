@@ -470,34 +470,6 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 	fmt.Printf(printOpFmtStr, "SyncPolicy:", syncPolicyStr)
 }
 
-func printAppSetSummaryTables(appSet *arogappsetv1.ApplicationSet) {
-	source := appSet.Spec.Template.Spec.GetSource()
-	fmt.Printf(printOpFmtStr, "Name:", appSet.QualifiedName())
-	fmt.Printf(printOpFmtStr, "Project:", appSet.Spec.Template.Spec.GetProject())
-	fmt.Printf(printOpFmtStr, "Server:", getServerForAppSet(appSet))
-	fmt.Printf(printOpFmtStr, "Namespace:", appSet.Spec.Template.Spec.Destination.Namespace)
-	if !appSet.Spec.Template.Spec.HasMultipleSources() {
-		fmt.Println("Source:")
-	} else {
-		fmt.Println("Sources:")
-	}
-	printAppSourceDetails(&source)
-
-	var (
-		syncPolicyStr string
-		syncPolicy    = appSet.Spec.Template.Spec.SyncPolicy
-	)
-	if syncPolicy != nil && syncPolicy.Automated != nil {
-		syncPolicyStr = "Automated"
-		if syncPolicy.Automated.Prune {
-			syncPolicyStr += " (Prune)"
-		}
-	} else {
-		syncPolicyStr = "<none>"
-	}
-	fmt.Printf(printOpFmtStr, "SyncPolicy:", syncPolicyStr)
-}
-
 func printAppSetConditions(w io.Writer, appSet *arogappsetv1.ApplicationSet) {
 	_, _ = fmt.Fprintf(w, "CONDITION\tSTATUS\tMESSAGE\tLAST TRANSITION\n")
 	for _, item := range appSet.Status.Conditions {
