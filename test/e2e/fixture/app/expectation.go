@@ -50,6 +50,13 @@ func OperationMessageContains(text string) Expectation {
 	}
 }
 
+func OperationStateIsNil() Expectation {
+	return func(c *Consequences) (state, string) {
+		actual := c.app().Status.OperationState
+		return simple(actual == nil, fmt.Sprintf("operation state should be nil, is %s", actual))
+	}
+}
+
 func simple(success bool, message string) (state, string) {
 	if success {
 		return succeeded, message

@@ -1972,6 +1972,39 @@ func TestAppJsonPatch(t *testing.T) {
 	app, err = appServer.Patch(ctx, &application.ApplicationPatchRequest{Name: &testApp.Name, Patch: ptr.To(`[{"op": "remove", "path": "/metadata/annotations/test.annotation"}]`)})
 	require.NoError(t, err)
 	assert.NotContains(t, app.Annotations, "test.annotation")
+
+	app, err = appServer.Patch(
+		ctx,
+		&application.ApplicationPatchRequest{
+			Name: &testApp.Name,
+			Patch: ptr.To(fmt.Sprintf(
+				`[
+					{
+						"op": "add",
+						"path": "/metadata/annotations",
+						"value": {
+							"%s": "true"
+						}
+					},
+					{
+						"op": "add",
+						"path": "/operation",
+						"value": {
+							"sync": {
+								"revisions": ["test"]
+							},
+							"initiatedBy": {
+								"username": "test"
+							}
+						}
+					}
+				]`,
+				common.AnnotationAllowPatchingOperationTestOnly,
+			)),
+		},
+	)
+	require.NoError(t, err)
+	assert.NotNil(t, app.Operation)
 }
 
 func TestAppMergePatch(t *testing.T) {

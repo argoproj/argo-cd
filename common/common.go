@@ -189,6 +189,11 @@ const (
 	// can be disregarded.
 	AnnotationIgnoreHealthCheck = "argocd.argoproj.io/ignore-healthcheck"
 
+	// AnnotationAllowPatchingOperationTestOnly when set the patch operations also can update the operation field.
+	// Intended for use in tests only. Keep in sync with tests using argocd.argoproj.io~1allow-patching-operation-test-only or
+	// argocd.argoproj.io/allow-patching-operation-test-only directly.
+	AnnotationAllowPatchingOperationTestOnly = "argocd.argoproj.io/allow-patching-operation-test-only"
+
 	// AnnotationKeyManagedBy is annotation name which indicates that k8s resource is managed by an application.
 	AnnotationKeyManagedBy = "managed-by"
 	// AnnotationValueManagedByArgoCD is a 'managed-by' annotation value for resources managed by Argo CD

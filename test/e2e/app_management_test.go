@@ -3001,3 +3001,43 @@ func TestDeletionConfirmation(t *testing.T) {
 		When().ConfirmDeletion().
 		Then().Expect(DoesNotExist())
 }
+
+func TestNewOperationTriggeredByUpdatingAppObject(t *testing.T) {
+	Given(t).
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().
+		// Keep annotation value in sync with common.AnnotationAllowPatchingOperationTestOnly
+		PatchApp(fmt.Sprintf(
+			`[
+				{
+					"op": "add",
+					"path": "/metadata/annotations",
+					"value": {
+						"%s": "true"
+					}
+				},
+				{
+					"op": "add",
+					"path": "/operation",
+					"value": {
+						"sync": {
+							"revisions": ["test"]
+						},
+						"initiatedBy": {
+							"username": "test"
+						}
+					}
+				}
+			]`,
+			common.AnnotationAllowPatchingOperationTestOnly,
+		)).
+		Then().
+		Expect(OperationStateIsNil())
+}

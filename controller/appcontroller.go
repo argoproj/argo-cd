@@ -1927,6 +1927,27 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	return patchMs
 }
 
+// resetAppStatusOperationState updates the app status operation state to be nil. If no changes were made, it is a no-op
+func (ctrl *ApplicationController) resetAppStatusOperationState(orig *appv1.Application) {
+	logCtx := getAppLog(orig).WithField("method", "resetAppStatusOperationState")
+	if orig.Status.OperationState == nil {
+		return
+	}
+	newStatus := orig.Status.DeepCopy()
+	newStatus.OperationState = nil
+	patch, _, err := createMergePatch(
+		&appv1.Application{Status: orig.Status},
+		&appv1.Application{Status: *newStatus})
+	if err != nil {
+		logCtx.Errorf("Error constructing app status patch: %v", err)
+		return
+	}
+	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
+	if err != nil {
+		logCtx.Warnf("Error updating application: %v", err)
+	}
+}
+
 // autoSync will initiate a sync operation for an application configured with automated sync
 func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus, revisionUpdated bool) (*appv1.ApplicationCondition, time.Duration) {
 	logCtx := getAppLog(app)
@@ -2317,6 +2338,11 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 						// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
 						jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
 						delay = &jitter
+					}
+					// Something updated application operation state bypassing the controller and
+					// operation state in status still reflects the old sync. Reset it.
+					if oldApp.Operation == nil && newApp.Operation != nil && newApp.Status.OperationState != nil {
+						ctrl.resetAppStatusOperationState(newApp)
 					}
 				}
 

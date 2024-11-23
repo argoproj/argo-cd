@@ -937,12 +937,14 @@ func (s *Server) updateApp(app *appv1.Application, newApp *appv1.Application, ct
 			app.Labels = newApp.Labels
 			app.Annotations = newApp.Annotations
 		}
-
+		if app.Annotations[argocommon.AnnotationAllowPatchingOperationTestOnly] == "true" {
+			app.Operation = newApp.Operation
+		}
 		app.Finalizers = newApp.Finalizers
 
 		res, err := s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Update(ctx, app, metav1.UpdateOptions{})
 		if err == nil {
-			s.logAppEvent(app, ctx, argo.EventReasonResourceUpdated, "updated application spec")
+			s.logAppEvent(app, ctx, argo.EventReasonResourceUpdated, "updated application")
 			s.waitSync(res)
 			return res, nil
 		}
