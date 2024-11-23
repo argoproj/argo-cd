@@ -79,18 +79,29 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         },
         {
             title: 'LABELS',
-            view: Object.keys(app.metadata.labels || {})
-                .map(label => `${label}=${app.metadata.labels[label]}`)
-                .join(' '),
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='metadata.labels' component={MapInputField} />
+            view: (
+                <div className='application-summary__labels'>
+                    {Object.keys(app.metadata.labels).map(label => (
+                        <span className='application-summary__label' key={label}>
+                            {label}: {app.metadata.labels[label]}
+                        </span>
+                  ))}
+                </div>
+            ),
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field="metadata.labels"
+                                                   component={MapInputField} />
         },
         {
             title: 'ANNOTATIONS',
             view: (
                 <Expandable height={48}>
-                    {Object.keys(app.metadata.annotations || {})
-                        .map(annotation => `${annotation}=${app.metadata.annotations[annotation]}`)
-                        .join(' ')}
+                    <div className='application-summary__labels' style={{paddingRight: '30px'}}>
+                        {Object.keys(app.metadata.annotations || {}).map(annotation => (
+                            <span className='application-summary__label' key={annotation}>
+                                {annotation}: {app.metadata.annotations[annotation]}
+                            </span>
+                        ))}
+                    </div>
                 </Expandable>
             ),
             edit: (formApi: FormApi) => <EditAnnotations formApi={formApi} app={app} />
