@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">November 10th 2024, 12:21:27 am (UTC+00:00)</p>
+                <p class="timestamp">November 24th 2024, 12:23:58 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -871,9 +871,43 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.20</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: Calling the OpenSSL API function SSL_free_buffers may cause
+        memory to be accessed that was previously freed in some situations</p>
+        <p>Impact summary: A use after free can have a range of potential consequences such
+        as the corruption of valid data, crashes or execution of arbitrary code.
+        However, only applications that directly call the SSL_free_buffers function are
+        affected by this issue. Applications that do not call this function are not
+        vulnerable. Our investigations indicate that this function is rarely used by
+        applications.</p>
+        <p>The SSL_free_buffers function is used to free the internal OpenSSL buffer used
+        when processing an incoming record from the network. The call is only expected
+        to succeed if the buffer is not currently in use. However, two scenarios have
+        been identified where the buffer is freed even when still in use.</p>
+        <p>The first scenario occurs where a record header has been received from the
+        network and processed by OpenSSL, but the full record body has not yet arrived.
+        In this case calling SSL_free_buffers will succeed even though a record has only
+        been partially processed and the buffer is still in use.</p>
+        <p>The second scenario occurs where a full record containing application data has
+        been received and processed by OpenSSL but the application has only read part of
+        this data. Again a call to SSL_free_buffers will succeed even though the buffer
+        is still in use.</p>
+        <p>While these scenarios could occur accidentally during normal operation a
+        malicious attacker could attempt to engineer a stituation where this occurs.
+        We are not aware of this issue being actively exploited.</p>
+        <p>The FIPS modules in 3.3, 3.2, 3.1 and 3.0 are not affected by this issue.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Alpine:3.20</code> <code>openssl</code> to version 3.3.0-r3 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/704f725b96aa373ee45ecfb23f6abfe8be8d9177">https://github.com/openssl/openssl/commit/704f725b96aa373ee45ecfb23f6abfe8be8d9177</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/b3f0eb0a295f58f16ba43ba99dad70d4ee5c437d">https://github.com/openssl/openssl/commit/b3f0eb0a295f58f16ba43ba99dad70d4ee5c437d</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/c88c3de51020c37e8706bf7a682a162593053aac">https://github.com/openssl/openssl/commit/c88c3de51020c37e8706bf7a682a162593053aac</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/e5093133c35ca82874ad83697af76f4b0f7e3bd8">https://github.com/openssl/openssl/commit/e5093133c35ca82874ad83697af76f4b0f7e3bd8</a></li>
+        <li><a href="https://github.openssl.org/openssl/extended-releases/commit/f7a045f3143fc6da2ee66bf52d8df04829590dd4">https://github.openssl.org/openssl/extended-releases/commit/f7a045f3143fc6da2ee66bf52d8df04829590dd4</a></li>
+        <li><a href="https://www.openssl.org/news/secadv/20240528.txt">https://www.openssl.org/news/secadv/20240528.txt</a></li>
+        </ul>
         
               <hr/>
         
@@ -1091,16 +1125,17 @@
         <p>Upgrade <code>Alpine:3.20</code> <code>openssl</code> to version 3.3.1-r1 or higher.</p>
         <h2 id="references">References</h2>
         <ul>
+        <li><a href="http://www.openwall.com/lists/oss-security/2024/08/15/1">http://www.openwall.com/lists/oss-security/2024/08/15/1</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2024/06/27/1">http://www.openwall.com/lists/oss-security/2024/06/27/1</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2024/06/28/4">http://www.openwall.com/lists/oss-security/2024/06/28/4</a></li>
         <li><a href="https://github.com/openssl/openssl/commit/4ada436a1946cbb24db5ab4ca082b69c1bc10f37">https://github.com/openssl/openssl/commit/4ada436a1946cbb24db5ab4ca082b69c1bc10f37</a></li>
         <li><a href="https://github.com/openssl/openssl/commit/99fb785a5f85315b95288921a321a935ea29a51e">https://github.com/openssl/openssl/commit/99fb785a5f85315b95288921a321a935ea29a51e</a></li>
         <li><a href="https://github.com/openssl/openssl/commit/cf6f91f6121f4db167405db2f0de410a456f260c">https://github.com/openssl/openssl/commit/cf6f91f6121f4db167405db2f0de410a456f260c</a></li>
         <li><a href="https://github.com/openssl/openssl/commit/e86ac436f0bd54d4517745483e2315650fae7b2c">https://github.com/openssl/openssl/commit/e86ac436f0bd54d4517745483e2315650fae7b2c</a></li>
         <li><a href="https://github.openssl.org/openssl/extended-releases/commit/9947251413065a05189a63c9b7a6c1d4e224c21c">https://github.openssl.org/openssl/extended-releases/commit/9947251413065a05189a63c9b7a6c1d4e224c21c</a></li>
         <li><a href="https://github.openssl.org/openssl/extended-releases/commit/b78ec0824da857223486660177d3b1f255c65d87">https://github.openssl.org/openssl/extended-releases/commit/b78ec0824da857223486660177d3b1f255c65d87</a></li>
-        <li><a href="https://www.openssl.org/news/secadv/20240627.txt">https://www.openssl.org/news/secadv/20240627.txt</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2024/06/27/1">http://www.openwall.com/lists/oss-security/2024/06/27/1</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2024/06/28/4">http://www.openwall.com/lists/oss-security/2024/06/28/4</a></li>
         <li><a href="https://security.netapp.com/advisory/ntap-20240712-0005/">https://security.netapp.com/advisory/ntap-20240712-0005/</a></li>
+        <li><a href="https://www.openssl.org/news/secadv/20240627.txt">https://www.openssl.org/news/secadv/20240627.txt</a></li>
         </ul>
         
               <hr/>
@@ -1288,6 +1323,9 @@
         <li><a href="https://github.com/openssl/openssl/commit/621f3729831b05ee828a3203eddb621d014ff2b2">https://github.com/openssl/openssl/commit/621f3729831b05ee828a3203eddb621d014ff2b2</a></li>
         <li><a href="https://github.com/openssl/openssl/commit/7dfcee2cd2a63b2c64b9b4b0850be64cb695b0a0">https://github.com/openssl/openssl/commit/7dfcee2cd2a63b2c64b9b4b0850be64cb695b0a0</a></li>
         <li><a href="https://openssl-library.org/news/secadv/20240903.txt">https://openssl-library.org/news/secadv/20240903.txt</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2024/09/03/4">http://www.openwall.com/lists/oss-security/2024/09/03/4</a></li>
+        <li><a href="https://lists.freebsd.org/archives/freebsd-security/2024-September/000303.html">https://lists.freebsd.org/archives/freebsd-security/2024-September/000303.html</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20240912-0001/">https://security.netapp.com/advisory/ntap-20240912-0001/</a></li>
         </ul>
         
               <hr/>
@@ -1480,6 +1518,10 @@
         <li><a href="https://github.openssl.org/openssl/extended-releases/commit/8efc0cbaa8ebba8e116f7b81a876a4123594d86a">https://github.openssl.org/openssl/extended-releases/commit/8efc0cbaa8ebba8e116f7b81a876a4123594d86a</a></li>
         <li><a href="https://github.openssl.org/openssl/extended-releases/commit/9d576994cec2b7aa37a91740ea7e680810957e41">https://github.openssl.org/openssl/extended-releases/commit/9d576994cec2b7aa37a91740ea7e680810957e41</a></li>
         <li><a href="https://openssl-library.org/news/secadv/20241016.txt">https://openssl-library.org/news/secadv/20241016.txt</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2024/10/16/1">http://www.openwall.com/lists/oss-security/2024/10/16/1</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2024/10/23/1">http://www.openwall.com/lists/oss-security/2024/10/23/1</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2024/10/24/1">http://www.openwall.com/lists/oss-security/2024/10/24/1</a></li>
+        <li><a href="https://security.netapp.com/advisory/ntap-20241101-0001/">https://security.netapp.com/advisory/ntap-20241101-0001/</a></li>
         </ul>
         
               <hr/>
