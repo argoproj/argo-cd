@@ -85,11 +85,10 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                         <span className='application-summary__label' key={label}>
                             {label}: {app.metadata.labels[label]}
                         </span>
-                  ))}
+                    ))}
                 </div>
             ),
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field="metadata.labels"
-                                                   component={MapInputField} />
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='metadata.labels' component={MapInputField} />
         },
         {
             title: 'ANNOTATIONS',
