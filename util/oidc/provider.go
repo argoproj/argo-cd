@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"encoding/json"
+	"sync"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v4"
@@ -41,6 +42,11 @@ type providerImpl struct {
 	issuerURL      string
 	client         *http.Client
 	goOIDCProvider *gooidc.Provider
+
+	jwksCache       *jose.JSONWebKeySet
+	jwksExpiry      time.Time
+	jwksCacheMux    sync.Mutex
+	defaultCacheTTL time.Duration
 }
 
 var _ Provider = &providerImpl{}
@@ -48,8 +54,9 @@ var _ Provider = &providerImpl{}
 // NewOIDCProvider initializes an OIDC provider
 func NewOIDCProvider(issuerURL string, client *http.Client) Provider {
 	return &providerImpl{
-		issuerURL: issuerURL,
-		client:    client,
+		issuerURL:       issuerURL,
+		client:          client,
+		defaultCacheTTL: 5 * time.Minute,
 	}
 }
 
@@ -162,41 +169,31 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 		return nil, fmt.Errorf("JWT configuration not found")
 	}
 
-	// Parse duration for cache TTL (you can implement caching if needed)
+	cacheTTL := p.defaultCacheTTL
 	if argoSettings.JWTConfig.CacheTTL != "" {
-		_, err := time.ParseDuration(argoSettings.JWTConfig.CacheTTL)
+		ttl, err := time.ParseDuration(argoSettings.JWTConfig.CacheTTL)
 		if err != nil {
 			log.Warnf("Invalid JWT cache TTL %q, using default", argoSettings.JWTConfig.CacheTTL)
+		} else {
+			cacheTTL = ttl
 		}
 	}
 
-	// Fetch the JWKS from the provided URL
-	resp, err := http.Get(argoSettings.JWTConfig.JWKSetURL)
+	jwks, err := p.getJWKS(argoSettings.JWTConfig.JWKSetURL, cacheTTL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch JWKS: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var jwks jose.JSONWebKeySet
-	err = json.NewDecoder(resp.Body).Decode(&jwks)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode JWKS: %w", err)
+		return nil, fmt.Errorf("failed to get JWKS: %w", err)
 	}
 
-	// Parse and verify the token
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// Check the signing method
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 
-		// Extract the kid from the token header
 		kid, ok := token.Header["kid"].(string)
 		if !ok {
 			return nil, fmt.Errorf("kid header not found in token")
 		}
 
-		// Find the key with the matching kid in the JWKS
 		var key *jose.JSONWebKey
 		for _, k := range jwks.Keys {
 			if k.KeyID == kid {
@@ -208,19 +205,16 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 			return nil, fmt.Errorf("no key found for kid %q", kid)
 		}
 
-		// Ensure the key is of the expected type
 		if key.Algorithm != "" && key.Algorithm != token.Header["alg"] {
 			return nil, fmt.Errorf("algorithm mismatch for kid %q: expected %v, got %v", kid, key.Algorithm, token.Header["alg"])
 		}
 
-		// Return the public key for verification
 		return key.Key, nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse/verify JWT: %w", err)
 	}
 
-	// Verify required claims
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
 		return nil, fmt.Errorf("invalid token claims")
@@ -239,6 +233,32 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 	}
 
 	return token, nil
+}
+
+func (p *providerImpl) getJWKS(jwksURL string, cacheTTL time.Duration) (*jose.JSONWebKeySet, error) {
+	p.jwksCacheMux.Lock()
+	defer p.jwksCacheMux.Unlock()
+
+	if p.jwksCache != nil && time.Now().Before(p.jwksExpiry) {
+		return p.jwksCache, nil
+	}
+
+	resp, err := http.Get(jwksURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch JWKS: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var jwks jose.JSONWebKeySet
+	err = json.NewDecoder(resp.Body).Decode(&jwks)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode JWKS: %w", err)
+	}
+
+	p.jwksCache = &jwks
+	p.jwksExpiry = time.Now().Add(cacheTTL)
+
+	return &jwks, nil
 }
 
 func (p *providerImpl) verify(clientID, tokenString string, skipClientIDCheck bool) (*gooidc.IDToken, error) {
