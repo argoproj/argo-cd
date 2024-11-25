@@ -72,7 +72,8 @@ func TestVerifyJWT(t *testing.T) {
 
 			// Serve the JWKS
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(jwks)
+			err := json.NewEncoder(w).Encode(jwks)
+			require.NoError(t, err)
 			return
 		}
 		http.NotFound(w, r)
