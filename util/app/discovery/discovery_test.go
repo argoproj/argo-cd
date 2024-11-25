@@ -33,19 +33,19 @@ func TestAppType(t *testing.T) {
 	assert.Equal(t, "Helm", appType)
 
 	appType, err = AppType(context.Background(), "./testdata/foo2", "./testdata", map[string]bool{}, []string{}, []string{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "Directory", appType)
 
 	appType, err = AppType(context.Background(), "./testdata/foo3", "./testdata", map[string]bool{}, []string{}, []string{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "Directory", appType)
 
 	appType, err = AppType(context.Background(), "./testdata/baz2", "./testdata", map[string]bool{}, []string{}, []string{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "Directory", appType)
 
 	appType, err = AppType(context.Background(), "./testdata/baz3", "./testdata", map[string]bool{}, []string{}, []string{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "Helm", appType)
 
 	appType, err = AppType(context.Background(), "./testdata", "./testdata", map[string]bool{}, []string{}, []string{})
@@ -63,19 +63,19 @@ func TestAppType_Disabled(t *testing.T) {
 	assert.Equal(t, "Directory", appType)
 
 	appType, err = AppType(context.Background(), "./testdata/foo2", "./testdata", enableManifestGeneration, []string{}, []string{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "Directory", appType)
 
 	appType, err = AppType(context.Background(), "./testdata/foo3", "./testdata", enableManifestGeneration, []string{}, []string{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "Directory", appType)
 
 	appType, err = AppType(context.Background(), "./testdata/baz2", "./testdata", enableManifestGeneration, []string{}, []string{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "Directory", appType)
 
 	appType, err = AppType(context.Background(), "./testdata/baz3", "./testdata", enableManifestGeneration, []string{}, []string{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "Directory", appType)
 
 	appType, err = AppType(context.Background(), "./testdata/baz", "./testdata", enableManifestGeneration, []string{}, []string{})
