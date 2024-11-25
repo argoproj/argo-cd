@@ -1500,7 +1500,7 @@ func getDownloadBinaryUrlsFromConfigMap(argoCDCM *apiv1.ConfigMap) map[string]st
 func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *apiv1.ConfigMap) {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
-	
+
 	// Parse JWT config if present
 	if jwtConfigStr, ok := argoCDCM.Data["jwt.config"]; ok && jwtConfigStr != "" {
 		var jwtConfig JWTConfig
