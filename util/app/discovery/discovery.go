@@ -75,7 +75,7 @@ func Discover(ctx context.Context, appPath, repoPath string, enableGenerateManif
 
 			// handling for helm app templates/ directory, if yaml
 			grandParentDirPath, err := filepath.Rel(appPath, filepath.Dir(filepath.Dir(path)))
-			if grandParentDirPath != "" && apps[grandParentDirPath] == string(v1alpha1.ApplicationSourceTypeHelm) {
+			if err != nil && grandParentDirPath != "" && apps[grandParentDirPath] == string(v1alpha1.ApplicationSourceTypeHelm) {
 				return nil
 			}
 
