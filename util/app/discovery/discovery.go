@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"gopkg.in/yaml.v2"
 
 	"github.com/argoproj/argo-cd/v2/util/io/files"
 
@@ -63,6 +64,24 @@ func Discover(ctx context.Context, appPath, repoPath string, enableGenerateManif
 		}
 		if kustomize.IsKustomization(base) && IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeKustomize, enableGenerateManifests) {
 			apps[dir] = string(v1alpha1.ApplicationSourceTypeKustomize)
+		}
+
+		if IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeDirectory, enableGenerateManifests) {
+			isK8sManifestDir, err := IsK8sManifestDir(path)
+			if err != nil {
+				// can happen on decode errors, EOF, etc.
+				return nil
+			}
+
+			// handling for helm app templates/ directory, if yaml
+			grandParentDirPath, err := filepath.Rel(appPath, filepath.Dir(filepath.Dir(path)))
+			if grandParentDirPath != "" && apps[grandParentDirPath] == string(v1alpha1.ApplicationSourceTypeHelm) {
+				return nil
+			}
+
+			if isK8sManifestDir && (apps[dir] != string(v1alpha1.ApplicationSourceTypeKustomize)) && (apps[dir] != string(v1alpha1.ApplicationSourceTypeHelm)) {
+				apps[dir] = string(v1alpha1.ApplicationSourceTypeDirectory)
+			}
 		}
 		return nil
 	})
@@ -206,4 +225,34 @@ func cmpSupports(ctx context.Context, pluginSockFilePath, appPath, repoPath, fil
 		return nil, nil, false
 	}
 	return conn, cmpClient, true
+}
+
+// IsK8sManifestDir will determine if given file is a plain k8s manifest file
+func IsK8sManifestDir(filePath string) (bool, error) {
+	if !strings.HasSuffix(filePath, ".yaml") && !strings.HasSuffix(filePath, ".yml") {
+		return false, nil
+	}
+	f, err := os.Open(filePath)
+	if err != nil {
+		log.Errorf("failed to open %s: %v", filePath, err)
+		return false, fmt.Errorf("failed to open file %s: %w", filePath, err)
+	}
+	defer func(f *os.File) {
+		err = f.Close()
+		if err != nil {
+			return
+		}
+	}(f)
+	decoder := yaml.NewDecoder(f)
+	obj := make(map[string]interface{})
+	err = decoder.Decode(&obj)
+	if err != nil {
+		// this can occur on broken yaml files too
+		return false, fmt.Errorf("failed to decode file %s: %w", filePath, err)
+	}
+
+	if obj["kind"] != nil && obj["apiVersion"] != nil && obj["metadata"] != nil {
+		return true, nil
+	}
+	return false, nil
 }
