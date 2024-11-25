@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="18 known vulnerabilities found in 72 vulnerable dependency paths.">
+  <meta name="description" content="20 known vulnerabilities found in 100 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -456,7 +456,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">October 27th 2024, 12:19:58 am (UTC+00:00)</p>
+                <p class="timestamp">November 24th 2024, 12:21:49 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -470,8 +470,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>18</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>72 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>20</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>100 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2359</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -480,6 +480,478 @@
 
     <div class="layout-container" style="padding-top: 35px;">
       <div class="cards--vuln filter--patch filter--ignore">
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Insecure Storage of Sensitive Information</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            pam/libpam0g
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@latest and pam/libpam0g@1.5.3-5ubuntu5.1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam0g@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/login@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam0g@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        util-linux@2.39.3-9ubuntu6.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam0g@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.7.14build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        adduser@3.137ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam0g@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.7.14build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        adduser@3.137ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam0g@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.7.14build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        adduser@3.137ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules-bin@1.5.3-5ubuntu5.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam0g@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules-bin@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.7.14build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        adduser@3.137ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules-bin@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-runtime@1.5.3-5ubuntu5.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/login@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.7.14build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        adduser@3.137ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-runtime@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/login@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-runtime@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>pam</code> package and not the <code>pam</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>A vulnerability was found in PAM. The secret information is stored in memory, where the attacker can trigger the victim program to execute by sending characters to its standard input (stdin). As this occurs, the attacker can train the branch predictor to execute an ROP chain speculatively. This flaw could result in leaked passwords, such as those found in /etc/shadow while performing authentications.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:24.04</code> <code>pam</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-10041">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-10041</a></li>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2024-10041">https://access.redhat.com/security/cve/CVE-2024-10041</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2319212">https://bugzilla.redhat.com/show_bug.cgi?id=2319212</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-PAM-8303372">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Improper Authentication</h2>
+            <div class="card__section">
+        
+                <div class="label label--medium">
+                    <span class="label__text">medium severity</span>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:24.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            pam/libpam0g
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@latest and pam/libpam0g@1.5.3-5ubuntu5.1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam0g@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/login@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam0g@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        util-linux@2.39.3-9ubuntu6.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam0g@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.7.14build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        adduser@3.137ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam0g@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.7.14build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        adduser@3.137ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam0g@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.7.14build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        adduser@3.137ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules-bin@1.5.3-5ubuntu5.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam0g@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules-bin@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.7.14build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        adduser@3.137ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules-bin@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-runtime@1.5.3-5ubuntu5.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/login@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apt@2.7.14build2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        adduser@3.137ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/passwd@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-modules@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-runtime@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        shadow/login@1:4.13+dfsg1-4ubuntu3.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pam/libpam-runtime@1.5.3-5ubuntu5.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>pam</code> package and not the <code>pam</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:24.04</code> relevant fixed versions and status.</em></p>
+        <p>A flaw was found in pam_access, where certain rules in its configuration file are mistakenly treated as hostnames. This vulnerability allows attackers to trick the system by pretending to be a trusted hostname, gaining unauthorized access. This issue poses a risk for systems that rely on this feature to control who can access certain services or terminals.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:24.04</code> <code>pam</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-10963">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2024-10963</a></li>
+        <li><a href="https://access.redhat.com/security/cve/CVE-2024-10963">https://access.redhat.com/security/cve/CVE-2024-10963</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2324291">https://bugzilla.redhat.com/show_bug.cgi?id=2324291</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2404-PAM-8352843">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Information Exposure</h2>
             <div class="card__section">
@@ -634,6 +1106,7 @@
         <li><a href="https://access.redhat.com/security/cve/CVE-2024-2236">https://access.redhat.com/security/cve/CVE-2024-2236</a></li>
         <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2268268">https://bugzilla.redhat.com/show_bug.cgi?id=2268268</a></li>
         <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2245218">https://bugzilla.redhat.com/show_bug.cgi?id=2245218</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2024:9404">https://access.redhat.com/errata/RHSA-2024:9404</a></li>
         </ul>
         
               <hr/>
@@ -685,11 +1158,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libk5crypto3@1.20.1-6ubuntu2.1
+                                        krb5/libk5crypto3@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -700,13 +1173,13 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libk5crypto3@1.20.1-6ubuntu2.1
+                                        krb5/libk5crypto3@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -717,11 +1190,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5support0@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5support0@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -732,13 +1205,13 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5support0@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5support0@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -749,15 +1222,15 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libk5crypto3@1.20.1-6ubuntu2.1
+                                        krb5/libk5crypto3@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5support0@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5support0@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -768,11 +1241,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -783,7 +1256,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssh/openssh-client@1:9.6p1-3ubuntu13.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -794,9 +1267,9 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -807,11 +1280,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
                                         libssh/libssh-4@0.10.6-2build2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -820,7 +1293,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/krb5-locales@1.20.1-6ubuntu2.1
+                                        krb5/krb5-locales@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -1524,7 +1997,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
                                         libssh/libssh-4@0.10.6-2build2
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1539,11 +2012,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssl/libssl3t64@3.0.13-0ubuntu3.4
                                         
@@ -1556,9 +2029,9 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        openldap/libldap2@2.6.7+dfsg-1~exp1ubuntu8
+                                        openldap/libldap2@2.6.7+dfsg-1~exp1ubuntu8.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         cyrus-sasl2/libsasl2-2@2.1.28+dfsg1-5ubuntu3.1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -1656,11 +2129,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libk5crypto3@1.20.1-6ubuntu2.1
+                                        krb5/libk5crypto3@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -1671,13 +2144,13 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libk5crypto3@1.20.1-6ubuntu2.1
+                                        krb5/libk5crypto3@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -1688,11 +2161,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5support0@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5support0@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -1703,13 +2176,13 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5support0@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5support0@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -1720,15 +2193,15 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libk5crypto3@1.20.1-6ubuntu2.1
+                                        krb5/libk5crypto3@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5support0@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5support0@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -1739,11 +2212,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -1754,7 +2227,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssh/openssh-client@1:9.6p1-3ubuntu13.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -1765,9 +2238,9 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -1778,11 +2251,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
                                         libssh/libssh-4@0.10.6-2build2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -1791,7 +2264,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/krb5-locales@1.20.1-6ubuntu2.1
+                                        krb5/krb5-locales@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -1864,11 +2337,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libk5crypto3@1.20.1-6ubuntu2.1
+                                        krb5/libk5crypto3@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -1879,13 +2352,13 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libk5crypto3@1.20.1-6ubuntu2.1
+                                        krb5/libk5crypto3@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -1896,11 +2369,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5support0@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5support0@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -1911,13 +2384,13 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5support0@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5support0@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -1928,15 +2401,15 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libk5crypto3@1.20.1-6ubuntu2.1
+                                        krb5/libk5crypto3@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5support0@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5support0@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -1947,11 +2420,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libkrb5-3@1.20.1-6ubuntu2.1
+                                        krb5/libkrb5-3@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -1962,7 +2435,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         openssh/openssh-client@1:9.6p1-3ubuntu13.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -1973,9 +2446,9 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -1986,11 +2459,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.4
+                                        curl/libcurl3t64-gnutls@8.5.0-2ubuntu10.5
                                          <span class="list-paths__item__arrow">›</span> 
                                         libssh/libssh-4@0.10.6-2build2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.1
+                                        krb5/libgssapi-krb5-2@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -1999,7 +2472,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        krb5/krb5-locales@1.20.1-6ubuntu2.1
+                                        krb5/krb5-locales@1.20.1-6ubuntu2.2
                                         
                                 </span>
         
@@ -2317,7 +2790,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        git-lfs@3.4.1-1ubuntu0.1
+                                        git-lfs@3.4.1-1ubuntu0.2
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.43.0-1ubuntu7.1
                                         

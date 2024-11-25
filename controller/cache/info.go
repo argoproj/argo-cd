@@ -453,7 +453,7 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Node", Value: pod.Spec.NodeName})
 	res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Containers", Value: fmt.Sprintf("%d/%d", readyContainers, totalContainers)})
 	if restarts > 0 {
-		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Restart Count", Value: fmt.Sprintf("%d", restarts)})
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Restart Count", Value: strconv.Itoa(restarts)})
 	}
 
 	// requests will be released for terminated pods either with success or failed state termination.

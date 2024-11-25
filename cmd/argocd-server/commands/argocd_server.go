@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -118,6 +119,13 @@ func NewCommand() *cobra.Command {
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
 			cli.SetGLogLevel(glogLevel)
+
+			// Recover from panic and log the error using the configured logger instead of the default.
+			defer func() {
+				if r := recover(); r != nil {
+					log.WithField("trace", string(debug.Stack())).Fatal("Recovered from panic: ", r)
+				}
+			}()
 
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)

@@ -331,6 +331,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -563,6 +565,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -959,6 +963,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -1191,6 +1197,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -1586,6 +1594,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -1818,6 +1828,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -2193,6 +2205,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -2425,6 +2439,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -2825,6 +2841,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -3057,6 +3075,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -3453,6 +3473,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -3685,6 +3707,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -4080,6 +4104,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -4312,6 +4338,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -4687,6 +4715,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -4919,6 +4949,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -5302,6 +5334,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -5534,6 +5568,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -6136,6 +6172,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -6368,6 +6406,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -6965,6 +7005,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -7197,6 +7239,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -7589,6 +7633,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -7821,6 +7867,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -8223,6 +8271,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -8455,6 +8505,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -8851,6 +8903,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -9083,6 +9137,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -9478,6 +9534,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -9710,6 +9768,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -10085,6 +10145,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -10317,6 +10379,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -10700,6 +10764,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -10932,6 +10998,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -11534,6 +11602,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -11766,6 +11836,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -12363,6 +12435,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -12595,6 +12669,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -12991,6 +13067,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -13223,6 +13301,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -13605,6 +13685,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -13837,6 +13919,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -14439,6 +14523,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -14671,6 +14757,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -15268,6 +15356,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -15500,6 +15590,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -15967,6 +16059,8 @@ spec:
                               version:
                                 type: string
                             type: object
+                          name:
+                            type: string
                           path:
                             type: string
                           plugin:
@@ -16199,6 +16293,8 @@ spec:
                                 version:
                                   type: string
                               type: object
+                            name:
+                              type: string
                             path:
                               type: string
                             plugin:
