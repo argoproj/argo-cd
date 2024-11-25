@@ -2,11 +2,35 @@ package oidc
 
 import (
 	"testing"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
+
+func generateTestToken(claims map[string]interface{}) string {
+	// Using github.com/golang-jwt/jwt/v5
+	token := jwt.New(jwt.SigningMethodHS256)
+	defaultClaims := map[string]interface{}{
+		"sub":   "test-user",
+		"email": "test@example.com",
+		"exp":   time.Now().Add(time.Hour).Unix(),
+		"iat":   time.Now().Unix(),
+	}
+
+	// Merge provided claims with defaults
+	for k, v := range claims {
+		defaultClaims[k] = v
+	}
+
+	token.Claims = jwt.MapClaims(defaultClaims)
+
+	// Sign with test key - real validation will be mocked
+	tokenString, _ := token.SignedString([]byte("test-key"))
+	return tokenString
+}
 
 func TestVerifyJWT(t *testing.T) {
 	tests := []struct {
@@ -24,13 +48,13 @@ func TestVerifyJWT(t *testing.T) {
 				JWKSetURL:     "https://test.example.com/.well-known/jwks.json",
 				CacheTTL:      "1h",
 			},
-			token:       "valid.jwt.token",
+			token:       generateTestToken(nil), // for default claims
 			expectError: false,
 		},
 		{
 			name:        "Missing JWT Config",
 			jwtConfig:   nil,
-			token:       "valid.jwt.token",
+			token:       generateTestToken(nil), // for default claims
 			expectError: true,
 		},
 		{
@@ -40,7 +64,9 @@ func TestVerifyJWT(t *testing.T) {
 				JWKSetURL:  "https://test.example.com/.well-known/jwks.json",
 				CacheTTL:   "invalid",
 			},
-			token:       "valid.jwt.token",
+			token: generateTestToken(map[string]interface{}{
+				"email": "custom@example.com",
+			}),
 			expectError: false, // Should use default TTL
 		},
 	}
