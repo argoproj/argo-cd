@@ -93,7 +93,6 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				errors.CheckError(err)
 			case "wide", "":
 				printAppSetSummaryTable(appSet)
-
 				if len(appSet.Status.Conditions) > 0 {
 					fmt.Println()
 					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -435,7 +434,6 @@ func getServerForAppSet(appSet *arogappsetv1.ApplicationSet) string {
 }
 
 func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
-	source := appSet.Spec.Template.Spec.GetSource()
 	fmt.Printf(printOpFmtStr, "Name:", appSet.QualifiedName())
 	fmt.Printf(printOpFmtStr, "Project:", appSet.Spec.Template.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", getServerForAppSet(appSet))
@@ -445,7 +443,17 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 	} else {
 		fmt.Println("Sources:")
 	}
-	printAppSourceDetails(&source)
+
+	// if no source has been defined, print the default value for a source
+	if len(appSet.Spec.Template.Spec.GetSources()) == 0 {
+		src := appSet.Spec.Template.Spec.GetSource()
+		printAppSourceDetails(&src)
+	} else {
+		// otherwise range over the sources and print each source details
+		for _, source := range appSet.Spec.Template.Spec.GetSources() {
+			printAppSourceDetails(&source)
+		}
+	}
 
 	var (
 		syncPolicyStr string
