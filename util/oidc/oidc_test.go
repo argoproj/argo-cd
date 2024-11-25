@@ -96,6 +96,10 @@ func (p *fakeProvider) Verify(_ string, _ *settings.ArgoCDSettings) (*gooidc.IDT
 	return nil, nil
 }
 
+func (p *fakeProvider) VerifyJWT(_ string, _ *settings.ArgoCDSettings) (*jwt.Token, error) {
+	return nil, nil
+}
+
 func TestHandleCallback(t *testing.T) {
 	app := ClientApp{provider: &fakeProvider{}, settings: &settings.ArgoCDSettings{}}
 

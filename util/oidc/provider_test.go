@@ -2,9 +2,7 @@ package oidc
 
 import (
 	"testing"
-	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -20,8 +18,8 @@ func TestVerifyJWT(t *testing.T) {
 		{
 			name: "Valid JWT",
 			jwtConfig: &settings.JWTConfig{
-				HeaderName:     "X-Test-JWT",
-				EmailClaim:     "email",
+				HeaderName:    "X-Test-JWT",
+				EmailClaim:    "email",
 				UsernameClaim: "sub",
 				JWKSetURL:     "https://test.example.com/.well-known/jwks.json",
 				CacheTTL:      "1h",
@@ -38,9 +36,9 @@ func TestVerifyJWT(t *testing.T) {
 		{
 			name: "Invalid Cache TTL",
 			jwtConfig: &settings.JWTConfig{
-				HeaderName:     "X-Test-JWT", 
-				JWKSetURL:     "https://test.example.com/.well-known/jwks.json",
-				CacheTTL:      "invalid",
+				HeaderName: "X-Test-JWT",
+				JWKSetURL:  "https://test.example.com/.well-known/jwks.json",
+				CacheTTL:   "invalid",
 			},
 			token:       "valid.jwt.token",
 			expectError: false, // Should use default TTL

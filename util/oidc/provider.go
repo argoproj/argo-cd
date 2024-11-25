@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
+	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 
@@ -158,13 +160,10 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 	}
 
 	// Parse duration for cache TTL
-	cacheTTL := 60 * time.Minute // default 1 hour
 	if argoSettings.JWTConfig.CacheTTL != "" {
-		parsed, err := time.ParseDuration(argoSettings.JWTConfig.CacheTTL)
+		_, err := time.ParseDuration(argoSettings.JWTConfig.CacheTTL)
 		if err != nil {
 			log.Warnf("Invalid JWT cache TTL %q, using default", argoSettings.JWTConfig.CacheTTL)
-		} else {
-			cacheTTL = parsed
 		}
 	}
 
@@ -176,7 +175,7 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 
-		kid, ok := token.Header["kid"].(string)
+		_, ok := token.Header["kid"].(string)
 		if !ok {
 			return nil, fmt.Errorf("kid header not found")
 		}
