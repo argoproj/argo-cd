@@ -316,6 +316,144 @@ func Test_SemverTags(t *testing.T) {
 	}
 }
 
+// repeat the above tests, but with a tag path prefix
+func Test_SemverTagsPathPrefix(t *testing.T) {
+	tempDir := t.TempDir()
+
+	client, err := NewClientExt(fmt.Sprintf("file://%s", tempDir), tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	err = client.Init()
+	require.NoError(t, err)
+
+	mapTagRefs := map[string]string{}
+	for _, tag := range []string{
+		"foo/bar/v1.0.0-rc1",
+		"foo/bar/v1.0.0-rc2",
+		"foo/bar/v1.0.0",
+		"foo/bar/v1.0",
+		"foo/bar/v1.0.1",
+		"foo/bar/v1.1.0",
+		"foo/bar/2024-apple",
+		"foo/bar/2024-banana",
+	} {
+		err = runCmd(client.Root(), "git", "commit", "-m", tag+" commit", "--allow-empty")
+		require.NoError(t, err)
+
+		// Create an rc semver tag
+		err = runCmd(client.Root(), "git", "tag", tag)
+		require.NoError(t, err)
+
+		sha, err := client.LsRemote("HEAD")
+		require.NoError(t, err)
+
+		mapTagRefs[tag] = sha
+	}
+
+	for _, tc := range []struct {
+		name     string
+		ref      string
+		expected string
+		error    bool
+	}{{
+		name:     "pinned rc version",
+		ref:      "foo/bar/v1.0.0-rc1",
+		expected: mapTagRefs["foo/bar/v1.0.0-rc1"],
+	}, {
+		name:     "lt rc constraint",
+		ref:      "< foo/bar/v1.0.0-rc3",
+		expected: mapTagRefs["foo/bar/v1.0.0-rc2"],
+	}, {
+		name:     "pinned major version",
+		ref:      "foo/bar/v1.0.0",
+		expected: mapTagRefs["foo/bar/v1.0.0"],
+	}, {
+		name:     "pinned patch version",
+		ref:      "foo/bar/v1.0.1",
+		expected: mapTagRefs["foo/bar/v1.0.1"],
+	}, {
+		name:     "pinned minor version",
+		ref:      "foo/bar/v1.1.0",
+		expected: mapTagRefs["foo/bar/v1.1.0"],
+	}, {
+		name:     "patch wildcard constraint",
+		ref:      "foo/bar/v1.0.*",
+		expected: mapTagRefs["foo/bar/v1.0.1"],
+	}, {
+		name:     "patch tilde constraint",
+		ref:      "~foo/bar/v1.0.0",
+		expected: mapTagRefs["foo/bar/v1.0.1"],
+	}, {
+		name:     "minor wildcard constraint",
+		ref:      "foo/bar/v1.*",
+		expected: mapTagRefs["foo/bar/v1.1.0"],
+	}, {
+		// The semver library allows for using both * and x as the wildcard modifier.
+		name:     "alternative minor wildcard constraint",
+		ref:      "foo/bar/v1.x",
+		expected: mapTagRefs["foo/bar/v1.1.0"],
+	}, {
+		name:     "minor gte constraint",
+		ref:      ">= foo/bar/v1.0.0",
+		expected: mapTagRefs["foo/bar/v1.1.0"],
+	}, {
+		name:     "multiple constraints",
+		ref:      "> foo/bar/v1.0.0 < foo/bar/v1.1.0",
+		expected: mapTagRefs["foo/bar/v1.0.1"],
+	}, {
+		name:  "multiple constraints, wrong prefix",
+		ref:   "> foo/bar/v1.0.0 < foo/bizz/v1.1.0",
+		error: true,
+	}, {
+		name:  "multiple constraints, mismatched prefix",
+		ref:   "> foo/bar/v1.0.0 < v1.1.0",
+		error: true,
+	}, {
+		// We treat non-specific semver versions as regular tags, rather than constraints.
+		name:     "non-specific version",
+		ref:      "foo/bar/v1.0",
+		expected: mapTagRefs["foo/bar/v1.0"],
+	}, {
+		// Which means a missing tag will raise an error.
+		name:  "missing non-specific version",
+		ref:   "foo/bar/v1.1",
+		error: true,
+	}, {
+		name:     "apple non-semver tag",
+		ref:      "foo/bar/2024-apple",
+		expected: mapTagRefs["foo/bar/2024-apple"],
+	}, {
+		name:     "banana non-semver tag",
+		ref:      "foo/bar/2024-banana",
+		expected: mapTagRefs["foo/bar/2024-banana"],
+	}, {
+		// A semver version (without constraints) should ONLY match itself.
+		// We do not want "2024-apple" to get "semver-ish'ed" into matching "2024.0.0-apple"; they're different tags.
+		name:  "no semver tag coercion",
+		ref:   "foo/bar/2024.0.0-apple",
+		error: true,
+	}, {
+		name:  "semver constraints on non-semver tags",
+		ref:   "> foo/bar/2024-apple",
+		error: true,
+	}, {
+		name:     "semver constraints on non-semver tags",
+		ref:      "> foo/bar/2024.0.0-apple",
+		expected: mapTagRefs["foo/bar/2024-banana"],
+	}} {
+		t.Run(tc.name, func(t *testing.T) {
+			commitSHA, err := client.LsRemote(tc.ref)
+			if tc.error {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.True(t, IsCommitSHA(commitSHA))
+			assert.Equal(t, tc.expected, commitSHA)
+		})
+	}
+}
+
 func Test_nativeGitClient_Submodule(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "")
 	require.NoError(t, err)

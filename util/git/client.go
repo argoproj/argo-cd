@@ -682,6 +682,23 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	return "", fmt.Errorf("unable to resolve '%s' to a commit SHA", revision)
 }
 
+var (
+	tagRegexString = `[a-zA-Z0-9-_\.\/]+`
+	tagPrefixRegex = regexp.MustCompile(`([a-zA-Z0-9-_\.\/]+\/)` + tagRegexString)
+	tagRegex       = regexp.MustCompile(tagRegexString)
+)
+
+func extractPrefixes(revision string) (string, string) {
+	allMatches := tagRegex.FindAllString(revision, -1)
+	submatches := tagPrefixRegex.FindStringSubmatch(revision)
+
+	// we should find exactly 1 prefix and each tag should contain that prefix
+	if len(submatches) == 2 && strings.Count(revision, submatches[1]) == len(allMatches) {
+		return submatches[1], strings.ReplaceAll(revision, submatches[1], "")
+	}
+	return "", revision
+}
+
 // resolveSemverRevision is a part of the lsRemote method workflow.
 // When the user correctly configures the Git repository revision, and that revision is a valid semver constraint, we
 // use this logic path rather than the standard lsRemote revision resolution loop.
@@ -692,13 +709,14 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 // * "custom-tag", only the lsRemote loop will run - because that revision is an invalid semver;
 // * "master-branch", only the lsRemote loop will run because that revision is an invalid semver;
 func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbing.Reference) string {
-	if _, err := semver.NewVersion(revision); err == nil {
+	constraintPrefix, constraintStripped := extractPrefixes(revision)
+	if _, err := semver.NewVersion(constraintStripped); err == nil {
 		// If the revision is a valid version, then we know it isn't a constraint; it's just a pin.
 		// In which case, we should use standard tag resolution mechanisms.
 		return ""
 	}
 
-	constraint, err := semver.NewConstraint(revision)
+	constraint, err := semver.NewConstraint(constraintStripped)
 	if err != nil {
 		log.Debugf("Revision '%s' is not a valid semver constraint, skipping semver resolution.", revision)
 		return ""
@@ -711,7 +729,8 @@ func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbin
 			continue
 		}
 
-		tag := ref.Name().Short()
+		tagRaw := ref.Name().Short()
+		tagPrefix, tag := extractPrefixes(tagRaw)
 		version, err := semver.NewVersion(tag)
 		if err != nil {
 			log.Debugf("Error parsing version for tag: '%s': %v", tag, err)
@@ -719,7 +738,7 @@ func (m *nativeGitClient) resolveSemverRevision(revision string, refs []*plumbin
 			continue
 		}
 
-		if constraint.Check(version) {
+		if constraint.Check(version) && constraintPrefix == tagPrefix {
 			if version.GreaterThan(maxVersion) {
 				maxVersion = version
 				maxVersionHash = ref.Hash()
