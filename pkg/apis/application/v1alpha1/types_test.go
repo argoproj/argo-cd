@@ -1130,9 +1130,9 @@ func TestAppProjectSpec_DestinationClusters(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := AppProjectSpec{Destinations: tt.destinations}
-			if got := d.DestinationClusters(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("AppProjectSpec.DestinationClusters() = %v, want %v", got, tt.want)
-			}
+			got := d.DestinationClusters()
+			ok := reflect.DeepEqual(got, tt.want)
+			require.Truef(t, ok, "AppProjectSpec.DestinationClusters() = %v, want %v", got, tt.want)
 		})
 	}
 }
@@ -1176,9 +1176,7 @@ func TestRepository_HasCredentials(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.repo.HasCredentials(); got != tt.want {
-				t.Errorf("Repository.HasCredentials() = %v, want %v", got, tt.want)
-			}
+			assert.Equalf(t, tt.want, tt.repo.HasCredentials(), "Repository.HasCredentials()")
 		})
 	}
 }
@@ -1217,9 +1215,7 @@ func TestRepository_IsInsecure(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.repo.IsInsecure(); got != tt.want {
-				t.Errorf("Repository.IsInsecure() = %v, want %v", got, tt.want)
-			}
+			assert.Equalf(t, tt.want, tt.repo.IsInsecure(), "Repository.IsInsecure()")
 		})
 	}
 }
@@ -1258,9 +1254,7 @@ func TestRepository_IsLFSEnabled(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.repo.IsLFSEnabled(); got != tt.want {
-				t.Errorf("Repository.IsLFSEnabled() = %v, want %v", got, tt.want)
-			}
+			assert.Equalf(t, tt.want, tt.repo.IsLFSEnabled(), "Repository.IsLFSEnabled()")
 		})
 	}
 }
@@ -1376,9 +1370,7 @@ func TestSyncStrategy_Force(t *testing.T) {
 				Apply: tt.fields.Apply,
 				Hook:  tt.fields.Hook,
 			}
-			if got := m.Force(); got != tt.want {
-				t.Errorf("SyncStrategy.Force() = %v, want %v", got, tt.want)
-			}
+			assert.Equalf(t, tt.want, m.Force(), "SyncStrategy.Force()")
 		})
 	}
 }
@@ -1401,9 +1393,7 @@ func TestSyncOperation_IsApplyStrategy(t *testing.T) {
 			o := &SyncOperation{
 				SyncStrategy: tt.fields.SyncStrategy,
 			}
-			if got := o.IsApplyStrategy(); got != tt.want {
-				t.Errorf("SyncOperation.IsApplyStrategy() = %v, want %v", got, tt.want)
-			}
+			assert.Equalf(t, tt.want, o.IsApplyStrategy(), "SyncOperation.IsApplyStrategy()")
 		})
 	}
 }
@@ -1435,12 +1425,8 @@ func TestResourceResults_Find(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, got1 := tt.r.Find(tt.args.group, tt.args.kind, tt.args.namespace, tt.args.name, tt.args.phase)
-			if got != tt.want {
-				t.Errorf("ResourceResults.Find() got = %v, want %v", got, tt.want)
-			}
-			if !reflect.DeepEqual(got1, tt.want1) {
-				t.Errorf("ResourceResults.Find() got1 = %v, want %v", got1, tt.want1)
-			}
+			assert.Equalf(t, tt.want, got, "ResourceResults.Find() got = %v, want %v", got, tt.want)
+			assert.Truef(t, reflect.DeepEqual(got1, tt.want1), "ResourceResults.Find() got1 = %v, want %v", got1, tt.want1)
 		})
 	}
 }
@@ -1458,9 +1444,7 @@ func TestResourceResults_PruningRequired(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if gotNum := tt.r.PruningRequired(); gotNum != tt.wantNum {
-				t.Errorf("ResourceResults.PruningRequired() = %v, want %v", gotNum, tt.wantNum)
-			}
+			assert.Equalf(t, tt.wantNum, tt.r.PruningRequired(), "ResourceResults.PruningRequired()")
 		})
 	}
 }
