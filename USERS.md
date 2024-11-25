@@ -17,6 +17,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [AirQo](https://airqo.net/)
 1. [Akuity](https://akuity.io/)
 1. [Alarm.com](https://alarm.com/)
+1. [Alauda](https://alauda.io/)
 1. [Albert Heijn](https://ah.nl/)
 1. [Alibaba Group](https://www.alibabagroup.com/)
 1. [Allianz Direct](https://www.allianzdirect.de/)
