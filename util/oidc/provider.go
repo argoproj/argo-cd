@@ -28,6 +28,8 @@ type Provider interface {
 	ParseConfig() (*OIDCConfiguration, error)
 
 	Verify(tokenString string, argoSettings *settings.ArgoCDSettings) (*gooidc.IDToken, error)
+
+	VerifyJWT(tokenString string, argoSettings *settings.ArgoCDSettings) (*jwt.Token, error)
 }
 
 type providerImpl struct {
@@ -147,6 +149,69 @@ func (p *providerImpl) Verify(tokenString string, argoSettings *settings.ArgoCDS
 	}
 
 	return idToken, nil
+}
+
+// VerifyJWT verifies a JWT token using the configured JWK Set URL
+func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.ArgoCDSettings) (*jwt.Token, error) {
+	if argoSettings.JWTConfig == nil || argoSettings.JWTConfig.JWKSetURL == "" {
+		return nil, fmt.Errorf("JWT configuration not found")
+	}
+
+	// Parse duration for cache TTL
+	cacheTTL := 60 * time.Minute // default 1 hour
+	if argoSettings.JWTConfig.CacheTTL != "" {
+		parsed, err := time.ParseDuration(argoSettings.JWTConfig.CacheTTL)
+		if err != nil {
+			log.Warnf("Invalid JWT cache TTL %q, using default", argoSettings.JWTConfig.CacheTTL)
+		} else {
+			cacheTTL = parsed
+		}
+	}
+
+	// Create a JWKS client for verifying tokens
+	keySet := gooidc.NewRemoteKeySet(context.Background(), argoSettings.JWTConfig.JWKSetURL)
+
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		kid, ok := token.Header["kid"].(string)
+		if !ok {
+			return nil, fmt.Errorf("kid header not found")
+		}
+
+		key, err := keySet.VerifySignature(context.Background(), tokenString)
+		if err != nil {
+			return nil, fmt.Errorf("failed to verify signature: %w", err)
+		}
+
+		return key, nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse/verify JWT: %w", err)
+	}
+
+	// Verify required claims
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, fmt.Errorf("invalid token claims")
+	}
+
+	if argoSettings.JWTConfig.EmailClaim != "" {
+		if _, ok := claims[argoSettings.JWTConfig.EmailClaim]; !ok {
+			return nil, fmt.Errorf("required email claim %q not found", argoSettings.JWTConfig.EmailClaim)
+		}
+	}
+
+	if argoSettings.JWTConfig.UsernameClaim != "" {
+		if _, ok := claims[argoSettings.JWTConfig.UsernameClaim]; !ok {
+			return nil, fmt.Errorf("required username claim %q not found", argoSettings.JWTConfig.UsernameClaim)
+		}
+	}
+
+	return token, nil
 }
 
 func (p *providerImpl) verify(clientID, tokenString string, skipClientIDCheck bool) (*gooidc.IDToken, error) {
