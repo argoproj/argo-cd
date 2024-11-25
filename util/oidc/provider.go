@@ -8,10 +8,13 @@ import (
 	"strings"
 	"time"
 
+	"encoding/json"
+
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v4"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
+	"gopkg.in/square/go-jose.v2"
 
 	"github.com/argoproj/argo-cd/v2/util/security"
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -159,7 +162,7 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 		return nil, fmt.Errorf("JWT configuration not found")
 	}
 
-	// Parse duration for cache TTL
+	// Parse duration for cache TTL (you can implement caching if needed)
 	if argoSettings.JWTConfig.CacheTTL != "" {
 		_, err := time.ParseDuration(argoSettings.JWTConfig.CacheTTL)
 		if err != nil {
@@ -167,25 +170,51 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 		}
 	}
 
-	// Create a JWKS client for verifying tokens
-	keySet := gooidc.NewRemoteKeySet(context.Background(), argoSettings.JWTConfig.JWKSetURL)
+	// Fetch the JWKS from the provided URL
+	resp, err := http.Get(argoSettings.JWTConfig.JWKSetURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch JWKS: %w", err)
+	}
+	defer resp.Body.Close()
 
+	var jwks jose.JSONWebKeySet
+	err = json.NewDecoder(resp.Body).Decode(&jwks)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode JWKS: %w", err)
+	}
+
+	// Parse and verify the token
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Check the signing method
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 
-		_, ok := token.Header["kid"].(string)
+		// Extract the kid from the token header
+		kid, ok := token.Header["kid"].(string)
 		if !ok {
-			return nil, fmt.Errorf("kid header not found")
+			return nil, fmt.Errorf("kid header not found in token")
 		}
 
-		key, err := keySet.VerifySignature(context.Background(), tokenString)
-		if err != nil {
-			return nil, fmt.Errorf("failed to verify signature: %w", err)
+		// Find the key with the matching kid in the JWKS
+		var key *jose.JSONWebKey
+		for _, k := range jwks.Keys {
+			if k.KeyID == kid {
+				key = &k
+				break
+			}
+		}
+		if key == nil {
+			return nil, fmt.Errorf("no key found for kid %q", kid)
 		}
 
-		return key, nil
+		// Ensure the key is of the expected type
+		if key.Algorithm != "" && key.Algorithm != token.Header["alg"] {
+			return nil, fmt.Errorf("algorithm mismatch for kid %q: expected %v, got %v", kid, key.Algorithm, token.Header["alg"])
+		}
+
+		// Return the public key for verification
+		return key.Key, nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse/verify JWT: %w", err)
