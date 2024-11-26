@@ -2,7 +2,8 @@ package commands
 
 import (
 	"fmt"
-
+	"os"
+	"strings"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -93,4 +94,39 @@ func NewCommand() *cobra.Command {
 	command.PersistentFlags().StringVar(&clientOpts.KubeOverrides.CurrentContext, "kube-context", "", "Directs the command to the given kube-context")
 
 	return command
+}
+
+// HandleCommandExecutionError processes the error returned from executing the command.
+// It handles both standard Argo CD commands and plugin commands. We don't require to return
+// error but we are doing it to cover various test scenarios.
+func HandleCommandExecutionError(err error, isArgocdCLI bool, o ArgoCDCLIOptions) error {
+	if err != nil {
+		// If it's an unknown command error, attempt to handle it as a plugin.
+		// Unfortunately, cobra doesn't handle this error, so we need to assume
+		// that error consists of substring "unknown command".
+		// https://github.com/spf13/cobra/pull/2167
+		if isArgocdCLI && strings.Contains(err.Error(), "unknown command") {
+			// The PluginPath is important to be returned since it
+			// helps us understanding the logic for handling errors.
+			PluginPath, pluginErr := HandlePluginCommand(o.PluginHandler, o.Arguments[1:], 1)
+			// IMP: If a plugin doesn't exist, the returned path will be empty along with nil error
+			// This means the command is neither a normal Argo CD Command nor a plugin.
+			if pluginErr == nil {
+				if PluginPath == "" {
+					fmt.Fprintf(os.Stderr, "Error: %v\nRun 'argocd --help' for usage.\n", err)
+					return err
+				}
+			} else {
+				// If plugin handling fails, report the plugin error and exit
+				fmt.Fprintf(os.Stderr, "Error: %v\n", pluginErr)
+				return pluginErr
+			}
+		} else {
+			// If it's any other error (not an unknown command), report it directly and exit
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			return err
+		}
+	}
+
+	return nil
 }
