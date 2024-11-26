@@ -170,7 +170,7 @@ Give your app the name `guestbook`, use the project `default`, and leave the syn
 
 ![app information](assets/app-ui-information.png)
 
-Connect the [https://github.com/argoproj/argocd-example-apps.git](https://github.com/argoproj/argocd-example-apps.git) repo to Argo CD by setting repository url to the github repo url, leave revision as `HEAD`, and set the path to `guestbook`:
+Connect the [https://github.com/argoproj/argocd-example-apps.git](https://github.com/argoproj/argocd-example-apps.git) repo to Argo CD by setting repository url to the github repo url, leave revision as `HEAD`, and set the path to either `helm-guestbook` or `kustomize-guestbook`:
 
 ![connect repo](assets/connect-repo.png)
 
