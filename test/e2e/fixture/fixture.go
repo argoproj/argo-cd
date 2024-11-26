@@ -17,6 +17,7 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -34,6 +35,7 @@ import (
 	grpcutil "github.com/argoproj/argo-cd/v2/util/grpc"
 	"github.com/argoproj/argo-cd/v2/util/io"
 	"github.com/argoproj/argo-cd/v2/util/rand"
+	"github.com/argoproj/argo-cd/v2/util/rbac"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -368,6 +370,46 @@ func updateRBACConfigMap(updater func(cm *corev1.ConfigMap) error) {
 	updateGenericConfigMap(common.ArgoCDRBACConfigMapName, updater)
 }
 
+const (
+	extraRBACConfigMapName = "an-extra-rbac-configmap"
+)
+
+// Convenience wrapper for creating/updating an extra rbac config map
+func createOrUpdateExtraRBACConfigMap(updater func(cm *corev1.ConfigMap) error) {
+	cm, err := KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Get(context.Background(), extraRBACConfigMapName, v1.GetOptions{})
+	missing := apierr.IsNotFound(err)
+	if missing {
+		log.Infof("extra rbac cm doesn't exist: %s", err.Error())
+		cm = &corev1.ConfigMap{
+			ObjectMeta: v1.ObjectMeta{
+				Namespace: TestNamespace(),
+				Name:      extraRBACConfigMapName,
+				Labels: map[string]string{
+					rbac.ExtraConfigMapLabelKey: rbac.ExtraConfigMapLabelValue,
+				},
+			},
+			Data: make(map[string]string),
+		}
+	} else {
+		errors.CheckError(err)
+	}
+	err = updater(cm)
+	errors.CheckError(err)
+	if missing {
+		_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Create(context.Background(), cm, v1.CreateOptions{})
+	} else {
+		_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Update(context.Background(), cm, v1.UpdateOptions{})
+	}
+	errors.CheckError(err)
+}
+
+func deleteExtraRBACConfigMap() {
+	err := KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Delete(context.Background(), extraRBACConfigMapName, v1.DeleteOptions{})
+	if !apierr.IsNotFound(err) {
+		errors.CheckError(err)
+	}
+}
+
 // Updates a given config map in argocd-e2e namespace
 func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) error) {
 	cm, err := KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Get(context.Background(), name, v1.GetOptions{})
@@ -489,6 +531,25 @@ func SetPermissions(permissions []ACL, username string, roleName string) {
 
 		return nil
 	})
+}
+
+func SetExtraPermissions(permissions []ACL, username string, roleName string) {
+	createOrUpdateExtraRBACConfigMap(func(cm *corev1.ConfigMap) error {
+		var aclstr string
+
+		for _, permission := range permissions {
+			aclstr += fmt.Sprintf("p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope)
+		}
+
+		aclstr += fmt.Sprintf("g, %s, role:%s", username, roleName)
+		cm.Data["policy.csv"] = aclstr
+
+		return nil
+	})
+}
+
+func ClearExtraPermissions() {
+	deleteExtraRBACConfigMap()
 }
 
 func SetResourceFilter(filters settings.ResourcesFilter) {
@@ -626,6 +687,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		cm.Data = map[string]string{}
 		return nil
 	})
+	deleteExtraRBACConfigMap()
 
 	// We can switch user and as result in previous state we will have non-admin user, this case should be reset
 	LoginAs(adminUsername)

@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/argoproj/pkg/errors"
@@ -93,6 +94,71 @@ func TestCanIGetLogsAllowSwitchOn(t *testing.T) {
 		Then().
 		AndCLIOutput(func(output string, err error) {
 			assert.Contains(t, output, "yes")
+		})
+}
+
+func TestCanIGetLogsAllowSwitchOnInExtraConfigMap(t *testing.T) {
+	ctx := accountFixture.Given(t)
+	ctx.
+		Name("test").
+		Project(ProjectName).
+		When().
+		Create().
+		Login().
+		SetExtraPermissions([]ACL{
+			{
+				Resource: "logs",
+				Action:   "get",
+				Scope:    ProjectName + "/*",
+			},
+			{
+				Resource: "apps",
+				Action:   "get",
+				Scope:    ProjectName + "/*",
+			},
+		}, "log-viewer").
+		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
+		CanIGetLogs().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.True(t, strings.Contains(output, "yes"))
+		})
+
+	accountFixture.GivenWithSameState(t).
+		When().
+		ClearExtraPermissions().
+		CanIGetLogs().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.True(t, strings.Contains(output, "no"))
+		})
+}
+
+func TestCanIGetLogsDenyAfterDeleteExtraConfigMap(t *testing.T) {
+	ctx := accountFixture.Given(t)
+	ctx.
+		Name("test").
+		Project(ProjectName).
+		When().
+		Create().
+		Login().
+		SetExtraPermissions([]ACL{
+			{
+				Resource: "logs",
+				Action:   "get",
+				Scope:    ProjectName + "/*",
+			},
+			{
+				Resource: "apps",
+				Action:   "get",
+				Scope:    ProjectName + "/*",
+			},
+		}, "log-viewer").
+		SetParamInSettingConfigMap("server.rbac.log.enforce.enable", "true").
+		CanIGetLogs().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			assert.True(t, strings.Contains(output, "yes"))
 		})
 }
 

@@ -58,6 +58,16 @@ func (a *Actions) SetPermissions(permissions []fixture.ACL, roleName string) *Ac
 	return a
 }
 
+func (a *Actions) SetExtraPermissions(permissions []fixture.ACL, roleName string) *Actions {
+	fixture.SetExtraPermissions(permissions, a.context.name, roleName)
+	return a
+}
+
+func (a *Actions) ClearExtraPermissions() *Actions {
+	fixture.ClearExtraPermissions()
+	return a
+}
+
 func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
 	fixture.SetParamInSettingConfigMap(key, value)
 	return a
