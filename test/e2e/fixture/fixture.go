@@ -126,6 +126,7 @@ const (
 	GpgGoodKeyID                    = "D56C4FCA57A46444"
 	HelmOCIRegistryURL              = "localhost:5000/myrepo"
 	OCIRegistryURL                  = "oci://localhost:5000/my-oci-repo"
+	OCIHostURL                      = "oci://localhost:5000"
 )
 
 // TestNamespace returns the namespace where Argo CD E2E test instance will be

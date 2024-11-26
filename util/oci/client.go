@@ -307,7 +307,7 @@ func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) (*TagsList,
 func (c *nativeOCIClient) resolveDigest(ctx context.Context, revision string) (string, error) {
 	descriptor, err := c.repo.Resolve(ctx, revision)
 	if err != nil {
-		return "", fmt.Errorf("cannot get digest: %w", err)
+		return "", fmt.Errorf("cannot get digest for revision %s: %w", revision, err)
 	}
 
 	return descriptor.Digest.String(), nil

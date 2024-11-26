@@ -80,11 +80,11 @@ func AddHelmRepo(name string) {
 	errors.FailOnErr(fixture.RunCli(args...))
 }
 
-func AddOCIRepo(name string) {
+func AddOCIRepo(name, imagePath string) {
 	args := []string{
 		"repo",
 		"add",
-		fixture.OCIRegistryURL,
+		fmt.Sprintf("%s/%s", fixture.OCIHostURL, imagePath),
 		"--type", "oci",
 		"--name", name,
 		"--insecure-oci",
@@ -197,7 +197,7 @@ func PushImageToOCIRegistry(pathName, tag string) {
 		imagePath,
 		"oras",
 		"push",
-		fmt.Sprintf("%s:%s", strings.TrimPrefix(fixture.OCIRegistryURL, "oci://"), tag),
+		fmt.Sprintf("%s:%s", fmt.Sprintf("%s/%s", strings.TrimPrefix(fixture.OCIHostURL, "oci://"), pathName), tag),
 		".",
 	))
 }
