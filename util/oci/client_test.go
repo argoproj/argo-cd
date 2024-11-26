@@ -377,7 +377,7 @@ func Test_nativeOCIClient_ResolveRevision(t *testing.T) {
 			fields: fields{repo: store, tagsFunc: func(context.Context, string) (tags []string, err error) {
 				return []string{"1.0.0", "1.1.0", "1.2.0", "2.0.0"}, nil
 			}},
-			expectedError: fmt.Errorf("cannot get digest: not found"),
+			expectedError: fmt.Errorf("cannot get digest for revision sha256:abc123: not found"),
 		},
 		// new tests
 		{

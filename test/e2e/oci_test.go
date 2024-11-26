@@ -13,11 +13,12 @@ import (
 
 func TestOCIImage(t *testing.T) {
 	Given(t).
-		PushImageToOCIRegistry("guestbook", "1.0.0").
-		Path(guestbookPath).
-		OCIRepoAdded("guestbook").
 		RepoURLType(fixture.RepoURLTypeOCI).
+		PushImageToOCIRegistry("guestbook", "1.0.0").
+		OCIRepoAdded("guestbook", "guestbook").
 		Revision("1.0.0").
+		OCIRegistryPath("guestbook").
+		Path(".").
 		When().
 		CreateApp().
 		Then().
@@ -30,4 +31,24 @@ func TestOCIImage(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+func TestOCIWithOCIHelmRegistryDependencies(t *testing.T) {
+	Given(t).
+		RepoURLType(fixture.RepoURLTypeOCI).
+		PushChartToOCIRegistry("helm-values", "helm-values", "1.0.0").
+		PushImageToOCIRegistry("helm-oci-with-dependencies", "1.0.0").
+		OCIRepoAdded("helm-oci-with-dependencies", "helm-oci-with-dependencies").
+		OCIRegistryPath("helm-oci-with-dependencies").
+		Revision("1.0.0").
+		Path(".").
+		When().
+		CreateApp().
+		Then().
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
