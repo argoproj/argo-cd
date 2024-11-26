@@ -155,6 +155,7 @@ func NewCommand() *cobra.Command {
 			controllerClient, err := client.New(config, client.Options{Scheme: scheme})
 			errors.CheckError(err)
 			controllerClient = client.NewDryRunClient(controllerClient)
+			controllerClient = client.NewNamespacedClient(controllerClient, namespace)
 
 			// Load CA information to use for validating connections to the
 			// repository server, if strict TLS validation was requested.
