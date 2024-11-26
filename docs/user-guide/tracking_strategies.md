@@ -32,6 +32,7 @@ For Git, all versions are Git references but tags [Semantic Versions](https://se
 | Pin to a version (e.g. in production) | Either (a) tag the commit with (e.g. `v1.2.0`) and use that tag, or (b) using commit SHA. | See [commit pinning](#commit-pinning). |
 | Track patches (e.g. in pre-production) | Use a range (e.g. `1.2.*` or `>=1.2.0 <1.3.0`)                                           | See [tag tracking](#tag-tracking) |
 | Track minor releases (e.g. in QA) | Use a range (e.g. `1.*` or `>=1.0.0 <2.0.0`)                                             | See [tag tracking](#tag-tracking) |
+| Use hierarchical tags to organize releases | Specify a tag path prefix (`app1/1.0.0` and `app2/2.0.0`) | See [tag tracking](#tag-tracking) |
 | Use the latest (e.g. in local development) | Use `HEAD` or `master` (assuming `master` is your master branch).                        | See [HEAD / Branch Tracking](#head-branch-tracking) |
 | Use the latest including pre-releases | Use star range with `-0` suffix | `*-0` or `>=0.0.0-0` |
 
