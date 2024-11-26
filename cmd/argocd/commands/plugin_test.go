@@ -3,11 +3,14 @@ package commands
 import (
 	"bytes"
 	"fmt"
-	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
+
+	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
+
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type testPluginHandler struct {
@@ -120,6 +123,12 @@ func Test_ArgoCD_Plugin_Successful_Execution(t *testing.T) {
 
 // Test_CommandIsNeitherNormalCommandNorExistsAsPlugin checks when a command is neither a normal Argo CD CLI command nor Plugin
 func Test_CommandIsNeitherNormalCommandNorExistsAsPlugin(t *testing.T) {
+	buf := new(bytes.Buffer)
+	logrus.SetOutput(buf)
+	defer func() {
+		logrus.SetOutput(os.Stderr)
+	}()
+
 	cmd := NewCommand()
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
@@ -129,6 +138,7 @@ func Test_CommandIsNeitherNormalCommandNorExistsAsPlugin(t *testing.T) {
 		validPrefixes:      []string{"argocd"},
 		executedPluginPath: "",
 	}
+
 	o := ArgoCDCLIOptions{
 		PluginHandler: pluginsHandler,
 		Arguments:     []string{"argocd", "nonexistent"},
@@ -138,6 +148,41 @@ func Test_CommandIsNeitherNormalCommandNorExistsAsPlugin(t *testing.T) {
 	err := cmd.Execute()
 	require.Error(t, err, "unknown command \"nonexistent\" for \"argocd\"")
 
-	pluginError := HandleCommandExecutionError(err, true, o)
-	require.Equal(t, pluginError, err)
+	pluginErr := HandleCommandExecutionError(err, true, o)
+	require.Equal(t, pluginErr, err)
+
+	// check for error logs
+	logOutput := buf.String()
+	assert.Contains(t, logOutput, "Error: unknown command \\\"nonexistent\\\" for \\\"argocd\\\"\\nRun 'argocd --help' for usage.\\n")
+}
+
+func Test_CommandWithInvalidArguments(t *testing.T) {
+	buf := new(bytes.Buffer)
+	logrus.SetOutput(buf)
+	defer func() {
+		logrus.SetOutput(os.Stderr)
+	}()
+
+	cmd := NewCommand()
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+
+	o := ArgoCDCLIOptions{
+		Arguments: []string{"argocd", "--invalid-flag"},
+	}
+	cmd.SetArgs(o.Arguments[1:])
+
+	err := cmd.Execute()
+	require.Error(t, err, "unknown flag: --invalid-flag")
+
+	pluginErr := HandleCommandExecutionError(err, true, o)
+	require.Equal(t, pluginErr, err)
+
+	// Ensure appropriate error logs
+	logOutput := buf.String()
+	assert.Contains(t, logOutput, "Error: unknown flag: --invalid-flag")
+}
+
+// TODO
+func Test_LookForPluginError(t *testing.T) {
 }

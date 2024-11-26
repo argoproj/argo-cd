@@ -3,11 +3,12 @@ package commands
 import (
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type ArgoCDCLIOptions struct {
@@ -92,22 +93,35 @@ func HandlePluginCommand(pluginHandler PluginHandler, cmdArgs []string, minArgs 
 // LookForPlugin implements PluginHandler. searches for an executable plugin with a given filename
 // and valid prefixes. If the plugin is not found (ErrNotFound), it continues to the next prefix.
 // Unexpected errors (e.g., permission issues) are logged for debugging but do not stop the search.
+// This doesn't care about the plugin execution errors since those errors are handled separately by
+// the execute function.
 func (h *DefaultPluginHandler) LookForPlugin(filename string) (string, bool) {
 	for _, prefix := range h.ValidPrefixes {
-		path, err := exec.LookPath(fmt.Sprintf("%s-%s", prefix, filename))
-		if err == nil {
-			return path, true
-		}
-		log.Warnf("Unexpected error while looking for plugin %s: %v", filename, err)
+		pluginName := fmt.Sprintf("%s-%s", prefix, filename) // Combine prefix and filename
+		path, err := exec.LookPath(pluginName)
+		if err != nil {
+			if errors.Is(err, exec.ErrNotFound) {
+				log.Warnf("Plugin %s not found or not executable. Ensure it exists in the PATH and has executable permissions.", pluginName)
+				continue
+			}
 
-		// Handle specific errors
-		if errors.Is(err, exec.ErrNotFound) {
-			continue // Expected case: Plugin not found, try the next prefix
+			if errors.Is(err, exec.ErrDot) {
+				log.Warnf("Plugin %s cannot be executed because relative paths (e.g., './%s') are not allowed. Ensure the plugin is in a directory listed in the PATH.", pluginName, pluginName)
+				continue
+			}
+
+			if errors.Is(err, exec.ErrWaitDelay) {
+				log.Warnf("Execution of plugin %s is delayed. The system is waiting before launching the process. Please try again later.", pluginName)
+				continue
+			}
+
+			log.Errorf("Unexpected error while looking for plugin %s: %v", pluginName, err)
+			continue
 		}
 
-		// Log unexpected errors for debugging purposes
-		log.Warnf("Unexpected error while looking for plugin %s: %v", filename, err)
+		return path, true
 	}
+
 	return "", false
 }
 

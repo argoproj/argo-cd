@@ -2,8 +2,9 @@ package commands
 
 import (
 	"fmt"
-	"os"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
@@ -101,9 +102,9 @@ func NewCommand() *cobra.Command {
 // It handles both standard Argo CD commands and plugin commands. We don't require to return
 // error but we are doing it to cover various test scenarios.
 func HandleCommandExecutionError(err error, isArgocdCLI bool, o ArgoCDCLIOptions) error {
+	cli.SetLogFormat("text")
+	cli.SetLogLevel("info")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Debug: err type = %T\n", err)
-		fmt.Fprintf(os.Stderr, "Debug: err value = %v\n", err)
 		// If it's an unknown command error, attempt to handle it as a plugin.
 		// Unfortunately, cobra doesn't handle this error, so we need to assume
 		// that error consists of substring "unknown command".
@@ -116,17 +117,17 @@ func HandleCommandExecutionError(err error, isArgocdCLI bool, o ArgoCDCLIOptions
 			// This means the command is neither a normal Argo CD Command nor a plugin.
 			if pluginErr == nil {
 				if PluginPath == "" {
-					fmt.Fprintf(os.Stderr, "Error: %v\nRun 'argocd --help' for usage.\n", err)
+					log.Errorf("Error: %v\nRun 'argocd --help' for usage.\n", err)
 					return err
 				}
 			} else {
 				// If plugin handling fails, report the plugin error and exit
-				fmt.Fprintf(os.Stderr, "Error: %v\n", pluginErr)
+				log.Errorf("Error: %v\n", pluginErr)
 				return pluginErr
 			}
 		} else {
 			// If it's any other error (not an unknown command), report it directly and exit
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			log.Errorf("Error: %v\n", err)
 			return err
 		}
 	}
