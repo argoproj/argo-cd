@@ -2205,7 +2205,7 @@ func TestSelfHealExponentialBackoff(t *testing.T) {
 	ctrl.selfHealBackOff = &wait.Backoff{
 		Factor:   3,
 		Duration: 2 * time.Second,
-		Cap:      5 * time.Minute,
+		Cap:      2 * time.Minute,
 	}
 
 	app := &v1alpha1.Application{
@@ -2242,6 +2242,21 @@ func TestSelfHealExponentialBackoff(t *testing.T) {
 		attempts:         3,
 		finishedAt:       nil,
 		expectedDuration: 18 * time.Second,
+		shouldSelfHeal:   false,
+	}, {
+		attempts:         4,
+		finishedAt:       nil,
+		expectedDuration: 54 * time.Second,
+		shouldSelfHeal:   false,
+	}, {
+		attempts:         5,
+		finishedAt:       nil,
+		expectedDuration: 120 * time.Second,
+		shouldSelfHeal:   false,
+	}, {
+		attempts:         6,
+		finishedAt:       nil,
+		expectedDuration: 120 * time.Second,
 		shouldSelfHeal:   false,
 	}}
 
