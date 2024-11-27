@@ -569,6 +569,7 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 			managedResourcesKeys = append(managedResourcesKeys, kube.GetResourceKey(live))
 		}
 	}
+	nodesMap := make(map[kube.ResourceKey]appv1.ResourceNode)
 	err = ctrl.stateCache.IterateHierarchyV2(a.Spec.Destination.Server, managedResourcesKeys, func(child appv1.ResourceNode, appName string) bool {
 		permitted, _ := proj.IsResourcePermitted(schema.GroupKind{Group: child.ResourceRef.Group, Kind: child.ResourceRef.Kind}, child.Namespace, a.Spec.Destination, func(project string) ([]*appv1.Cluster, error) {
 			clusters, err := ctrl.db.GetProjectClusters(context.TODO(), project)
@@ -580,6 +581,12 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 		if !permitted {
 			return false
 		}
+		// To fix node duplication caused by having multiple Onwerreferences for some resources.
+		// See https://github.com/argoproj/argo-cd/issues/19910.
+		if _, nodeExisted := nodesMap[kube.NewResourceKey(child.Group, child.Kind, child.Namespace, child.Name)]; nodeExisted {
+			return false
+		}
+		nodesMap[kube.NewResourceKey(child.Group, child.Kind, child.Namespace, child.Name)] = child
 		nodes = append(nodes, child)
 		return true
 	})
