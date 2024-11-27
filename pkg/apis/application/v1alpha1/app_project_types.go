@@ -594,11 +594,10 @@ func jwtTokensCombine(tokens1 []JWTToken, tokens2 []JWTToken) []JWTToken {
 // this AppProject is allowed by comparing the Application's namespace with
 // the list of allowed namespaces in the AppProject.
 //
-// Applications in the installation namespace are always permitted. Also, at
-// application creation time, its namespace may yet be empty to indicate that
+// At application creation time, its namespace may yet be empty to indicate that
 // the application will be created in the controller's namespace.
 func (p AppProject) IsAppNamespacePermitted(app *Application, controllerNs string) bool {
-	if app.Namespace == "" || app.Namespace == controllerNs {
+	if app.Namespace == "" || (app.Namespace == controllerNs && len(p.Spec.SourceNamespaces) == 0) {
 		return true
 	}
 

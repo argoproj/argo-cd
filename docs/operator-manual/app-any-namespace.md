@@ -61,6 +61,8 @@ kubectl rollout restart -n argocd deployment argocd-server
 kubectl rollout restart -n argocd statefulset argocd-application-controller
 ```
 
+Please note that if you want to deploy `Applications` in the Argo CD namespace, you have to list this namespace in this list.
+
 #### Adapt Kubernetes RBAC
 
 We decided to not extend the Kubernetes RBAC for the `argocd-server` workload by default for the time being. If you want `Applications` in other namespaces to be managed by the Argo CD API (i.e. the CLI and UI), you need to extend the Kubernetes permissions for the `argocd-server` ServiceAccount.
@@ -110,7 +112,7 @@ spec:
   - namespace-two
 ```
 
-In order for an Application to set `.spec.project` to `project-one`, it would have to be created in either namespace `namespace-one` or `argocd`. Likewise, in order for an Application to set `.spec.project` to `project-two`, it would have to be created in either namespace `namespace-two` or `argocd`.
+In order for an Application to set `.spec.project` to `project-one`, it would have to be created in either namespace `namespace-one`. Likewise, in order for an Application to set `.spec.project` to `project-two`, it would have to be created in either namespace `namespace-two`.
 
 If an Application in `namespace-two` would set their `.spec.project` to `project-one` or an Application in `namespace-one` would set their `.spec.project` to `project-two`, Argo CD would consider this as a permission violation and refuse to reconcile the Application.
 
@@ -122,7 +124,7 @@ The `.spec.sourceNamespaces` field of the `AppProject` is a list that can contai
     Do not add user controlled namespaces in the `.spec.sourceNamespaces` field of any privileged AppProject like the `default` project. Always make sure that the AppProject follows the principle of granting least required privileges. Never grant access to the `argocd` namespace within the AppProject.
 
 !!! note
-    For backwards compatibility, Applications in the Argo CD control plane's namespace (`argocd`) are allowed to set their `.spec.project` field to reference any AppProject, regardless of the restrictions placed by the AppProject's `.spec.sourceNamespaces` field.
+    When starting to setup restrictions inside the AppProject's `.spec.sourceNamespaces` field, the `argocd` namespace is no longer allowed by default. To grant access to this namespace, you shoud add it in the list as well.
   
 ### Application names
 

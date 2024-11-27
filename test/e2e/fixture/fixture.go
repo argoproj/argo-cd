@@ -641,7 +641,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
 		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
-		SourceNamespaces:         []string{AppNamespace()},
+		SourceNamespaces:         []string{"*"},
 	})
 
 	// Create separate project for testing gpg signature verification
@@ -652,7 +652,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
 		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
 		SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
-		SourceNamespaces:         []string{AppNamespace()},
+		SourceNamespaces:         []string{"*"},
 	})
 
 	// Recreate temp dir
