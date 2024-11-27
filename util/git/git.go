@@ -35,8 +35,8 @@ func IsTruncatedCommitSHA(sha string) bool {
 
 // SameURL returns whether or not the two repository URLs are equivalent in location
 func SameURL(leftRepo, rightRepo string) bool {
-	normalLeft := NormalizeGitURL(leftRepo)
-	normalRight := NormalizeGitURL(rightRepo)
+	normalLeft := NormalizeGitURLAllowInvalid(leftRepo)
+	normalRight := NormalizeGitURLAllowInvalid(rightRepo)
 	return normalLeft != "" && normalRight != "" && normalLeft == normalRight
 }
 
@@ -45,6 +45,16 @@ func SameURL(leftRepo, rightRepo string) bool {
 // Prefer using SameURL() over this function when possible. This algorithm may change over time
 // and should not be considered stable from release to release
 func NormalizeGitURL(repo string) string {
+	return normalizeGitURL(repo, false)
+}
+
+// Similar to NormalizeGitURL, except returning a not fully normalized string when the url is invalid.
+// Needed to allow a deletion of repos with invalid urls. See https://github.com/argoproj/argo-cd/issues/20921.
+func NormalizeGitURLAllowInvalid(repo string) string {
+	return normalizeGitURL(repo, true)
+}
+
+func normalizeGitURL(repo string, allowInvalid bool) string {
 	repo = strings.ToLower(strings.TrimSpace(repo))
 	if yes, _ := IsSSHURL(repo); yes {
 		if !strings.HasPrefix(repo, "ssh://") {
@@ -57,7 +67,11 @@ func NormalizeGitURL(repo string) string {
 	repo = strings.TrimSuffix(repo, ".git")
 	repoURL, err := url.Parse(repo)
 	if err != nil {
-		return ""
+		if allowInvalid {
+			return repo
+		} else {
+			return ""
+		}
 	}
 	normalized := repoURL.String()
 	return strings.TrimPrefix(normalized, "ssh://")
