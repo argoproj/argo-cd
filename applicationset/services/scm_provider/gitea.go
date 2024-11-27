@@ -27,11 +27,13 @@ func NewGiteaProvider(ctx context.Context, owner, token, url string, allBranches
 	if insecure {
 		cookieJar, _ := cookiejar.New(nil)
 
+		tr := http.DefaultTransport.(*http.Transport).Clone()
+		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+
 		httpClient = &http.Client{
-			Jar: cookieJar,
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			}}
+			Jar:       cookieJar,
+			Transport: tr,
+		}
 	}
 	client, err := gitea.NewClient(url, gitea.SetToken(token), gitea.SetHTTPClient(httpClient))
 	if err != nil {
@@ -126,7 +128,7 @@ func (g *GiteaProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]
 
 func (g *GiteaProvider) RepoHasPath(ctx context.Context, repo *Repository, path string) (bool, error) {
 	_, resp, err := g.client.GetContents(repo.Organization, repo.Repository, repo.Branch, path)
-	if resp != nil && resp.StatusCode == 404 {
+	if resp != nil && resp.StatusCode == http.StatusNotFound {
 		return false, nil
 	}
 	if fmt.Sprint(err) == "expect file, got directory" {

@@ -1,12 +1,15 @@
 package app
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	client "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v2/util/errors"
@@ -104,6 +107,7 @@ func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 	a.runCli(args...)
 	return a
 }
+
 func (a *Actions) CreateFromFile(handler func(app *Application), flags ...string) *Actions {
 	a.context.t.Helper()
 	app := &Application{
@@ -266,6 +270,9 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	if a.context.helmSkipCrds {
 		args = append(args, "--helm-skip-crds")
 	}
+	if a.context.helmSkipTests {
+		args = append(args, "--helm-skip-tests")
+	}
 	return args
 }
 
@@ -295,6 +302,28 @@ func (a *Actions) PatchApp(patch string) *Actions {
 	return a
 }
 
+func (a *Actions) PatchAppHttp(patch string) *Actions {
+	a.context.t.Helper()
+	var application Application
+	patchType := "merge"
+	appName := a.context.AppQualifiedName()
+	appNamespace := a.context.AppNamespace()
+	patchRequest := &client.ApplicationPatchRequest{
+		Name:         &appName,
+		PatchType:    &patchType,
+		Patch:        &patch,
+		AppNamespace: &appNamespace,
+	}
+	jsonBytes, err := json.MarshalIndent(patchRequest, "", "  ")
+	errors.CheckError(err)
+	err = fixture.DoHttpJsonRequest("PATCH",
+		fmt.Sprintf("/api/v1/applications/%v", appName),
+		&application,
+		jsonBytes...)
+	errors.CheckError(err)
+	return a
+}
+
 func (a *Actions) AppSet(flags ...string) *Actions {
 	a.context.t.Helper()
 	args := []string{"app", "set", a.context.AppQualifiedName()}
@@ -317,7 +346,7 @@ func (a *Actions) Sync(args ...string) *Actions {
 	if a.context.name != "" {
 		args = append(args, a.context.AppQualifiedName())
 	}
-	args = append(args, "--timeout", fmt.Sprintf("%v", a.context.timeout))
+	args = append(args, "--timeout", strconv.Itoa(a.context.timeout))
 
 	if a.context.async {
 		args = append(args, "--async")
@@ -342,6 +371,10 @@ func (a *Actions) Sync(args ...string) *Actions {
 		args = append(args, "--force")
 	}
 
+	if a.context.applyOutOfSyncOnly {
+		args = append(args, "--apply-out-of-sync-only")
+	}
+
 	if a.context.replace {
 		args = append(args, "--replace")
 	}
@@ -349,6 +382,14 @@ func (a *Actions) Sync(args ...string) *Actions {
 	//  are you adding new context values? if you only use them for this func, then use args instead
 
 	a.runCli(args...)
+
+	return a
+}
+
+func (a *Actions) ConfirmDeletion() *Actions {
+	a.context.t.Helper()
+
+	a.runCli("app", "confirm-deletion", a.context.AppQualifiedName())
 
 	return a
 }
@@ -389,13 +430,19 @@ func (a *Actions) DeleteBySelector(selector string) *Actions {
 	return a
 }
 
+func (a *Actions) DeleteBySelectorWithWait(selector string) *Actions {
+	a.context.t.Helper()
+	a.runCli("app", "delete", fmt.Sprintf("--selector=%s", selector), "--yes", "--wait")
+	return a
+}
+
 func (a *Actions) Wait(args ...string) *Actions {
 	a.context.t.Helper()
 	args = append([]string{"app", "wait"}, args...)
 	if a.context.name != "" {
 		args = append(args, a.context.AppQualifiedName())
 	}
-	args = append(args, "--timeout", fmt.Sprintf("%v", a.context.timeout))
+	args = append(args, "--timeout", strconv.Itoa(a.context.timeout))
 	a.runCli(args...)
 	return a
 }
@@ -431,6 +478,11 @@ func (a *Actions) verifyAction() {
 
 func (a *Actions) SetTrackingMethod(trackingMethod string) *Actions {
 	fixture.SetTrackingMethod(trackingMethod)
+	return a
+}
+
+func (a *Actions) SetInstallationID(installationID string) *Actions {
+	fixture.SetInstallationID(installationID)
 	return a
 }
 

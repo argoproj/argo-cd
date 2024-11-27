@@ -6,7 +6,7 @@ in the `argocd-server` Pods that are placed in the `/tmp/extensions` directory a
 ```
 /tmp/extensions
 ├── example1
-│   └── extension-1.js
+│   └── extension-1.js
 └── example2
     └── extension-2.js
 ```
@@ -36,7 +36,7 @@ registerResourceExtension(component: ExtensionComponent, group: string, kind: st
 - `component: ExtensionComponent` is a React component that receives the following properties:
 
   - application: Application - Argo CD Application resource;
-  - resource: State - the kubernetes resource object;
+  - resource: State - the Kubernetes resource object;
   - tree: ApplicationTree - includes list of all resources that comprise the application;
 
   See properties interfaces in [models.ts](https://github.com/argoproj/argo-cd/blob/master/ui/src/app/shared/models.ts)
@@ -73,7 +73,7 @@ registerSystemLevelExtension(component: ExtensionComponent, title: string, optio
 
 Below is an example of a simple system level extension:
 
-```typescript
+```javascript
 ((window) => {
   const component = () => {
     return React.createElement(
@@ -95,3 +95,129 @@ Below is an example of a simple system level extension:
 
 Since the Argo CD Application is a Kubernetes resource, application tabs can be the same as any other resource tab.
 Make sure to use 'argoproj.io'/'Application' as group/kind and an extension will be used to render the application-level tab.
+
+## Application Status Panel Extensions
+
+The status panel is the bar at the top of the application view where the sync status is displayed. Argo CD allows you to add new items to the status panel of an application. The extension should be registered using the `extensionsAPI.registerStatusPanelExtension` method:
+
+```typescript
+registerStatusPanelExtension(component: StatusPanelExtensionComponent, title: string, id: string, flyout?: ExtensionComponent)
+```
+
+Below is an example of a simple extension:
+
+```javascript
+((window) => {
+  const component = () => {
+    return React.createElement(
+      "div",
+      { style: { padding: "10px" } },
+      "Hello World"
+    );
+  };
+  window.extensionsAPI.registerStatusPanelExtension(
+    component,
+    "My Extension",
+    "my_extension"
+  );
+})(window);
+```
+
+### Flyout widget
+
+It is also possible to add an optional flyout widget to your extension. It can be opened by calling `openFlyout()` from your extension's component. Your flyout component will then be rendered in a sliding panel, similar to the panel that opens when clicking on `History and rollback`.
+
+Below is an example of an extension using the flyout widget:
+
+
+```javascript
+((window) => {
+  const component = (props: {
+    openFlyout: () => any
+  }) => {
+    return React.createElement(
+            "div",
+            {
+              style: { padding: "10px" },
+              onClick: () => props.openFlyout()
+            },
+            "Hello World"
+    );
+  };
+  const flyout = () => {
+    return React.createElement(
+            "div",
+            { style: { padding: "10px" } },
+            "This is a flyout"
+    );
+  };
+  window.extensionsAPI.registerStatusPanelExtension(
+          component,
+          "My Extension",
+          "my_extension",
+          flyout
+  );
+})(window);
+```
+
+## Top Bar Action Menu Extensions
+
+The top bar panel is the action menu at the top of the application view where the action buttons are displayed like Details, Sync, Refresh. Argo CD allows you to add new button to the top bar action menu of an application.
+When the extension button is clicked, the custom widget will be rendered in a flyout panel.
+
+The extension should be registered using the `extensionsAPI.registerTopBarActionMenuExt` method:
+
+```typescript
+registerTopBarActionMenuExt(
+  component: TopBarActionMenuExtComponent,
+  title: string,
+  id: string,
+  flyout?: ExtensionComponent,
+  shouldDisplay: (app?: Application) => boolean = () => true,
+  iconClassName?: string,
+  isMiddle = false
+)
+```
+
+The callback function `shouldDisplay` should return true if the extension should be displayed and false otherwise:
+
+```typescript
+const shouldDisplay = (app: Application) => {
+  return application.metadata?.labels?.['application.environmentLabelKey'] === "prd";
+};
+```
+
+Below is an example of a simple extension with a flyout widget:
+
+```javascript
+((window) => {
+  const shouldDisplay = () => {
+    return true;
+  };
+  const flyout = () => {
+    return React.createElement(
+            "div",
+            { style: { padding: "10px" } },
+            "This is a flyout"
+    );
+  };
+  const component = () => {
+    return React.createElement(
+            "div",
+            {
+              onClick: () => flyout()
+            },
+            "Toolbar Extension Test"
+    );
+  };
+  window.extensionsAPI.registerTopBarActionMenuExt(
+          component,
+          "Toolbar Extension Test",
+          "Toolbar_Extension_Test",
+          flyout,
+          shouldDisplay,
+          '',
+          true
+  );
+})(window);
+```

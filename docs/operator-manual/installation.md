@@ -21,6 +21,9 @@ Not recommended for production use. This type of installation is typically used 
   in (i.e. kubernetes.svc.default). It will still be able to deploy to external clusters with inputted
   credentials.
 
+  > Note: The ClusterRoleBinding in the installation manifest is bound to a ServiceAccount in the argocd namespace. 
+  > Be cautious when modifying the namespace, as changing it may cause permission-related errors unless the ClusterRoleBinding is correctly adjusted to reflect the new namespace.
+
 * [namespace-install.yaml](https://github.com/argoproj/argo-cd/blob/master/manifests/namespace-install.yaml) - Installation of Argo CD which requires only
   namespace level privileges (does not need cluster roles). Use this manifest set if you do not
   need Argo CD to deploy applications in the same cluster that Argo CD runs in, and will rely solely
@@ -78,6 +81,29 @@ resources:
 For an example of this, see the [kustomization.yaml](https://github.com/argoproj/argoproj-deployments/blob/master/argocd/kustomization.yaml)
 used to deploy the [Argoproj CI/CD infrastructure](https://github.com/argoproj/argoproj-deployments#argoproj-deployments).
 
+#### Installing Argo CD in a Custom Namespace
+If you want to install Argo CD in a namespace other than the default argocd, you can use Kustomize to apply a patch that updates the ClusterRoleBinding to reference the correct namespace for the ServiceAccount. This ensures that the necessary permissions are correctly set in your custom namespace.
+
+Below is an example of how to configure your kustomization.yaml to install Argo CD in a custom namespace:
+```yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: <your-custom-namespace>
+resources:
+  - https://raw.githubusercontent.com/argoproj/argo-cd/v2.7.2/manifests/install.yaml
+
+patches:
+  - patch: |-
+      - op: replace
+        path: /subjects/0/namespace
+        value: <your-custom-namespace>
+    target:
+      kind: ClusterRoleBinding
+```
+
+This patch ensures that the ClusterRoleBinding correctly maps to the ServiceAccount in your custom namespace, preventing any permission-related issues during the deployment.
+
 ## Helm
 
 The Argo CD can be installed using [Helm](https://helm.sh/). The Helm chart is currently community maintained and available at
@@ -85,20 +111,7 @@ The Argo CD can be installed using [Helm](https://helm.sh/). The Helm chart is c
 
 ## Supported versions
 
-Similar to the Kubernetes project, the supported versions of Argo CD at any given point in time are the latest patch releases for the N 
-and N - 1 minor versions.
-These Argo CD versions are supported on the same versions of Kubernetes that are supported by Kubernetes itself (normally the last 3 released versions).
-
-Essentially the Argo CD project follows the same support scheme as Kubernetes but for N, N-1 while Kubernetes supports N, N-1, N-2 versions.
-
-For example if the latest minor version of ArgoCD are 2.4.3 and 2.3.5  while supported Kubernetes versions are 1.24, 1.23 and 1.22 then the following combinations are supported:
-
-* Argo CD 2.4.3 on Kubernetes 1.24
-* Argo CD 2.4.3 on Kubernetes 1.23
-* Argo CD 2.4.3 on Kubernetes 1.22
-* Argo CD 2.3.5 on Kubernetes 1.24
-* Argo CD 2.3.5 on Kubernetes 1.23
-* Argo CD 2.3.5 on Kubernetes 1.22
+For detailed information regarding Argo CD's version support policy, please refer to the [Release Process and Cadence documentation](https://argo-cd.readthedocs.io/en/stable/developer-guide/release-process-and-cadence/).
 
 ## Tested versions
 

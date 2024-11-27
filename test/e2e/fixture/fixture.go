@@ -46,6 +46,9 @@ const (
 	ArgoCDNamespace         = "argocd-e2e"
 	ArgoCDAppNamespace      = "argocd-e2e-external"
 
+	// notifications controller, metrics server port
+	defaultNotificationServer = "localhost:9001"
+
 	// ensure all repos are in one directory tree, so we can easily clean them up
 	TmpDir             = "/tmp/argo-e2e"
 	repoDir            = "testdata.git"
@@ -58,28 +61,40 @@ const (
 
 	// cmp plugin sock file path
 	PluginSockFilePath = "/app/config/plugin"
+
+	E2ETestPrefix = "e2e-test-"
 )
 
 const (
-	EnvAdminUsername = "ARGOCD_E2E_ADMIN_USERNAME"
-	EnvAdminPassword = "ARGOCD_E2E_ADMIN_PASSWORD"
+	EnvAdminUsername           = "ARGOCD_E2E_ADMIN_USERNAME"
+	EnvAdminPassword           = "ARGOCD_E2E_ADMIN_PASSWORD"
+	EnvArgoCDServerName        = "ARGOCD_E2E_SERVER_NAME"
+	EnvArgoCDRedisHAProxyName  = "ARGOCD_E2E_REDIS_HAPROXY_NAME"
+	EnvArgoCDRedisName         = "ARGOCD_E2E_REDIS_NAME"
+	EnvArgoCDRepoServerName    = "ARGOCD_E2E_REPO_SERVER_NAME"
+	EnvArgoCDAppControllerName = "ARGOCD_E2E_APPLICATION_CONTROLLER_NAME"
 )
 
 var (
-	id                  string
-	deploymentNamespace string
-	name                string
-	KubeClientset       kubernetes.Interface
-	KubeConfig          *rest.Config
-	DynamicClientset    dynamic.Interface
-	AppClientset        appclientset.Interface
-	ArgoCDClientset     apiclient.Client
-	adminUsername       string
-	AdminPassword       string
-	apiServerAddress    string
-	token               string
-	plainText           bool
-	testsRun            map[string]bool
+	id                      string
+	deploymentNamespace     string
+	name                    string
+	KubeClientset           kubernetes.Interface
+	KubeConfig              *rest.Config
+	DynamicClientset        dynamic.Interface
+	AppClientset            appclientset.Interface
+	ArgoCDClientset         apiclient.Client
+	adminUsername           string
+	AdminPassword           string
+	apiServerAddress        string
+	token                   string
+	plainText               bool
+	testsRun                map[string]bool
+	argoCDServerName        string
+	argoCDRedisHAProxyName  string
+	argoCDRedisName         string
+	argoCDRepoServerName    string
+	argoCDAppControllerName string
 )
 
 type RepoURLType string
@@ -167,11 +182,26 @@ func init() {
 	adminUsername = GetEnvWithDefault(EnvAdminUsername, defaultAdminUsername)
 	AdminPassword = GetEnvWithDefault(EnvAdminPassword, defaultAdminPassword)
 
+	argoCDServerName = GetEnvWithDefault(EnvArgoCDServerName, common.DefaultServerName)
+	argoCDRedisHAProxyName = GetEnvWithDefault(EnvArgoCDRedisHAProxyName, common.DefaultRedisHaProxyName)
+	argoCDRedisName = GetEnvWithDefault(EnvArgoCDRedisName, common.DefaultRedisName)
+	argoCDRepoServerName = GetEnvWithDefault(EnvArgoCDRepoServerName, common.DefaultRepoServerName)
+	argoCDAppControllerName = GetEnvWithDefault(EnvArgoCDAppControllerName, common.DefaultApplicationControllerName)
+
 	dialTime := 30 * time.Second
 	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress, dialTime)
 	CheckError(err)
 
-	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{Insecure: true, ServerAddr: apiServerAddress, PlainText: !tlsTestResult.TLS})
+	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{
+		Insecure:          true,
+		ServerAddr:        apiServerAddress,
+		PlainText:         !tlsTestResult.TLS,
+		ServerName:        argoCDServerName,
+		RedisHaProxyName:  argoCDRedisHAProxyName,
+		RedisName:         argoCDRedisName,
+		RepoServerName:    argoCDRepoServerName,
+		AppControllerName: argoCDAppControllerName,
+	})
 	CheckError(err)
 
 	plainText = !tlsTestResult.TLS
@@ -204,7 +234,6 @@ func init() {
 	for scanner.Scan() {
 		testsRun[scanner.Text()] = true
 	}
-
 }
 
 func loginAs(username, password string) {
@@ -217,10 +246,15 @@ func loginAs(username, password string) {
 	token = sessionResponse.Token
 
 	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{
-		Insecure:   true,
-		ServerAddr: apiServerAddress,
-		AuthToken:  token,
-		PlainText:  plainText,
+		Insecure:          true,
+		ServerAddr:        apiServerAddress,
+		AuthToken:         token,
+		PlainText:         plainText,
+		ServerName:        argoCDServerName,
+		RedisHaProxyName:  argoCDRedisHAProxyName,
+		RedisName:         argoCDRedisName,
+		RepoServerName:    argoCDRepoServerName,
+		AppControllerName: argoCDAppControllerName,
 	})
 	CheckError(err)
 }
@@ -370,6 +404,13 @@ func SetResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) {
 	})
 
 	SetResourceOverridesSplitKeys(overrides)
+}
+
+func SetInstallationID(installationID string) {
+	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["installationID"] = installationID
+		return nil
+	})
 }
 
 func SetTrackingMethod(trackingMethod string) {
@@ -533,10 +574,11 @@ func WithTestData(testdata string) TestOption {
 }
 
 func EnsureCleanState(t *testing.T, opts ...TestOption) {
+	t.Helper()
 	opt := newTestOption(opts...)
 	// In large scenarios, we can skip tests that already run
 	SkipIfAlreadyRun(t)
-	// Register this test after it has been run & was successfull
+	// Register this test after it has been run & was successful
 	t.Cleanup(func() {
 		RecordTestRun(t)
 	})
@@ -653,7 +695,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	// set-up tmp repo, must have unique name
 	FailOnErr(Run("", "cp", "-Rf", opt.testdata, repoDirectory()))
 	FailOnErr(Run(repoDirectory(), "chmod", "777", "."))
-	FailOnErr(Run(repoDirectory(), "git", "init"))
+	FailOnErr(Run(repoDirectory(), "git", "init", "-b", "master"))
 	FailOnErr(Run(repoDirectory(), "git", "add", "."))
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-q", "-m", "initial commit"))
 
@@ -665,6 +707,33 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	// create namespace
 	FailOnErr(Run("", "kubectl", "create", "ns", DeploymentNamespace()))
 	FailOnErr(Run("", "kubectl", "label", "ns", DeploymentNamespace(), TestingLabel+"=true"))
+
+	// delete old namespaces used by E2E tests
+	namespaces, err := KubeClientset.CoreV1().Namespaces().List(context.Background(), v1.ListOptions{})
+	CheckError(err)
+	for _, namespace := range namespaces.Items {
+		if strings.HasPrefix(namespace.Name, E2ETestPrefix) {
+			FailOnErr(Run("", "kubectl", "delete", "ns", namespace.Name))
+		}
+	}
+
+	// delete old ClusterRoles that begin with "e2e-test-" prefix (E2ETestPrefix), which were created by tests
+	clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(context.Background(), v1.ListOptions{})
+	CheckError(err)
+	for _, clusterRole := range clusterRoles.Items {
+		if strings.HasPrefix(clusterRole.Name, E2ETestPrefix) {
+			FailOnErr(Run("", "kubectl", "delete", "clusterrole", clusterRole.Name))
+		}
+	}
+
+	// delete old ClusterRoleBindings that begin with "e2e-test-prefix", which were created by E2E tests
+	clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(context.Background(), v1.ListOptions{})
+	CheckError(err)
+	for _, clusterRoleBinding := range clusterRoleBindings.Items {
+		if strings.HasPrefix(clusterRoleBinding.Name, E2ETestPrefix) {
+			FailOnErr(Run("", "kubectl", "delete", "clusterrolebinding", clusterRoleBinding.Name))
+		}
+	}
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
@@ -683,21 +752,25 @@ func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
 }
 
 func RunCli(args ...string) (string, error) {
-	return RunCliWithStdin("", args...)
+	return RunCliWithStdin("", false, args...)
 }
 
-func RunCliWithStdin(stdin string, args ...string) (string, error) {
+func RunCliWithStdin(stdin string, isKubeConextOnlyCli bool, args ...string) (string, error) {
 	if plainText {
 		args = append(args, "--plaintext")
 	}
 
-	args = append(args, "--server", apiServerAddress, "--auth-token", token, "--insecure")
+	// For commands executed with Kubernetes context server argument causes a conflict (for those commands server argument is for KubeAPI server), also authentication is not required
+	if !isKubeConextOnlyCli {
+		args = append(args, "--server", apiServerAddress, "--auth-token", token)
+	}
+
+	args = append(args, "--insecure")
 
 	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
 }
 
 func Patch(path string, jsonPatch string) {
-
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
 
 	filename := filepath.Join(repoDirectory(), path)
@@ -725,7 +798,7 @@ func Patch(path string, jsonPatch string) {
 		CheckError(err)
 	}
 
-	CheckError(os.WriteFile(filename, bytes, 0644))
+	CheckError(os.WriteFile(filename, bytes, 0o644))
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
 	FailOnErr(Run(repoDirectory(), "git", "commit", "-am", "patch"))
 	if IsRemote() {
@@ -734,7 +807,6 @@ func Patch(path string, jsonPatch string) {
 }
 
 func Delete(path string) {
-
 	log.WithFields(log.Fields{"path": path}).Info("deleting")
 
 	CheckError(os.Remove(filepath.Join(repoDirectory(), path)))
@@ -749,11 +821,10 @@ func Delete(path string) {
 func WriteFile(path, contents string) {
 	log.WithFields(log.Fields{"path": path}).Info("adding")
 
-	CheckError(os.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0644))
+	CheckError(os.WriteFile(filepath.Join(repoDirectory(), path), []byte(contents), 0o644))
 }
 
 func AddFile(path, contents string) {
-
 	WriteFile(path, contents)
 
 	FailOnErr(Run(repoDirectory(), "git", "diff"))
@@ -801,7 +872,6 @@ func AddTag(name string) {
 
 // create the resource by creating using "kubectl apply", with bonus templating
 func Declarative(filename string, values interface{}) (string, error) {
-
 	bytes, err := os.ReadFile(path.Join("testdata", filename))
 	CheckError(err)
 
@@ -814,13 +884,10 @@ func Declarative(filename string, values interface{}) (string, error) {
 }
 
 func CreateSubmoduleRepos(repoType string) {
-	oldEnv := os.Getenv("GIT_ALLOW_PROTOCOL")
-	CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", "file"))
-
 	// set-up submodule repo
 	FailOnErr(Run("", "cp", "-Rf", "testdata/git-submodule/", submoduleDirectory()))
 	FailOnErr(Run(submoduleDirectory(), "chmod", "777", "."))
-	FailOnErr(Run(submoduleDirectory(), "git", "init"))
+	FailOnErr(Run(submoduleDirectory(), "git", "init", "-b", "master"))
 	FailOnErr(Run(submoduleDirectory(), "git", "add", "."))
 	FailOnErr(Run(submoduleDirectory(), "git", "commit", "-q", "-m", "initial commit"))
 
@@ -832,9 +899,20 @@ func CreateSubmoduleRepos(repoType string) {
 	// set-up submodule parent repo
 	FailOnErr(Run("", "mkdir", submoduleParentDirectory()))
 	FailOnErr(Run(submoduleParentDirectory(), "chmod", "777", "."))
-	FailOnErr(Run(submoduleParentDirectory(), "git", "init"))
+	FailOnErr(Run(submoduleParentDirectory(), "git", "init", "-b", "master"))
 	FailOnErr(Run(submoduleParentDirectory(), "git", "add", "."))
-	FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
+	if IsRemote() {
+		FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE"), "submodule/test"))
+	} else {
+		oldAllowProtocol, isAllowProtocolSet := os.LookupEnv("GIT_ALLOW_PROTOCOL")
+		CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", "file"))
+		FailOnErr(Run(submoduleParentDirectory(), "git", "submodule", "add", "-b", "master", "../submodule.git", "submodule/test"))
+		if isAllowProtocolSet {
+			CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", oldAllowProtocol))
+		} else {
+			CheckError(os.Unsetenv("GIT_ALLOW_PROTOCOL"))
+		}
+	}
 	if repoType == "ssh" {
 		FailOnErr(Run(submoduleParentDirectory(), "git", "config", "--file=.gitmodules", "submodule.submodule/test.url", RepoURL(RepoURLTypeSSHSubmodule)))
 	} else if repoType == "https" {
@@ -847,8 +925,6 @@ func CreateSubmoduleRepos(repoType string) {
 		FailOnErr(Run(submoduleParentDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE_SUBMODULE_PARENT")))
 		FailOnErr(Run(submoduleParentDirectory(), "git", "push", "origin", "master", "-f"))
 	}
-
-	CheckError(os.Setenv("GIT_ALLOW_PROTOCOL", oldEnv))
 }
 
 func RemoveSubmodule() {
@@ -873,8 +949,8 @@ func RestartRepoServer() {
 		if prefix != "" {
 			workload = prefix + "-repo-server"
 		}
-		FailOnErr(Run("", "kubectl", "rollout", "restart", "deployment", workload))
-		FailOnErr(Run("", "kubectl", "rollout", "status", "deployment", workload))
+		FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "restart", "deployment", workload))
+		FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "status", "deployment", workload))
 		// wait longer to avoid error on s390x
 		time.Sleep(10 * time.Second)
 	}
@@ -890,8 +966,8 @@ func RestartAPIServer() {
 		if prefix != "" {
 			workload = prefix + "-server"
 		}
-		FailOnErr(Run("", "kubectl", "rollout", "restart", "deployment", workload))
-		FailOnErr(Run("", "kubectl", "rollout", "status", "deployment", workload))
+		FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "restart", "deployment", workload))
+		FailOnErr(Run("", "kubectl", "rollout", "-n", TestNamespace(), "status", "deployment", workload))
 	}
 }
 
@@ -909,6 +985,7 @@ func LocalOrRemotePath(base string) string {
 // Environment variable names follow the ARGOCD_E2E_SKIP_<suffix> pattern,
 // and must be set to the string value 'true' in order to skip a test.
 func SkipOnEnv(t *testing.T, suffixes ...string) {
+	t.Helper()
 	for _, suffix := range suffixes {
 		e := os.Getenv("ARGOCD_E2E_SKIP_" + suffix)
 		if e == "true" {
@@ -920,6 +997,7 @@ func SkipOnEnv(t *testing.T, suffixes ...string) {
 // SkipIfAlreadyRun skips a test if it has been already run by a previous
 // test cycle and was recorded.
 func SkipIfAlreadyRun(t *testing.T) {
+	t.Helper()
 	if _, ok := testsRun[t.Name()]; ok {
 		t.Skip()
 	}
@@ -928,6 +1006,7 @@ func SkipIfAlreadyRun(t *testing.T) {
 // RecordTestRun records a test that has been run successfully to a text file,
 // so that it can be automatically skipped if requested.
 func RecordTestRun(t *testing.T) {
+	t.Helper()
 	if t.Skipped() || t.Failed() {
 		return
 	}
@@ -936,7 +1015,7 @@ func RecordTestRun(t *testing.T) {
 		return
 	}
 	log.Infof("Registering test execution at %s", rf)
-	f, err := os.OpenFile(rf, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(rf, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		t.Fatalf("could not open record file %s: %v", rf, err)
 	}
@@ -949,4 +1028,16 @@ func RecordTestRun(t *testing.T) {
 	if _, err := f.WriteString(fmt.Sprintf("%s\n", t.Name())); err != nil {
 		t.Fatalf("could not write to %s: %v", rf, err)
 	}
+}
+
+func GetApiServerAddress() string {
+	return apiServerAddress
+}
+
+func GetNotificationServerAddress() string {
+	return defaultNotificationServer
+}
+
+func GetToken() string {
+	return token
 }

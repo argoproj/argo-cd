@@ -28,6 +28,7 @@ var syncTestSources = map[string]string{
 
 // Helper function to create temporary GNUPGHOME
 func initTempDir(t *testing.T) string {
+	t.Helper()
 	// Intentionally avoid using t.TempDir. That function creates really long paths, which can exceed the socket file
 	// path length on some OSes. The GPG tests rely on sockets.
 	p, err := os.MkdirTemp(os.TempDir(), "")
@@ -67,13 +68,13 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 
 	// First run should initialize fine
 	err := InitializeGnuPG()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// We should have exactly one public key with ultimate trust (our own) in the keyring
 	keys, err := GetInstalledPGPKeys(nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, keys, 1)
-	assert.Equal(t, keys[0].Trust, "ultimate")
+	assert.Equal(t, "ultimate", keys[0].Trust)
 
 	// During unit-tests, we need to also kill gpg-agent so we can create a new key.
 	// In real world scenario -- i.e. container crash -- gpg-agent is not running yet.
@@ -86,20 +87,19 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 	err = InitializeGnuPG()
 	require.NoError(t, err)
 	keys, err = GetInstalledPGPKeys(nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, keys, 1)
-	assert.Equal(t, keys[0].Trust, "ultimate")
+	assert.Equal(t, "ultimate", keys[0].Trust)
 
 	t.Run("GNUPGHOME is a file", func(t *testing.T) {
 		f, err := os.CreateTemp("", "gpg-test")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		defer os.Remove(f.Name())
 
 		// we need to error out
 		t.Setenv(common.EnvGnuPGHome, f.Name())
 		err = InitializeGnuPG()
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "does not point to a directory")
+		assert.ErrorContains(t, err, "does not point to a directory")
 	})
 
 	t.Run("Unaccessible GNUPGHOME", func(t *testing.T) {
@@ -114,7 +114,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 		}
 		t.Setenv(common.EnvGnuPGHome, fp)
 		err := InitializeGnuPG()
-		assert.Error(t, err)
+		require.Error(t, err)
 		// Restore permissions so path can be deleted
 		err = os.Chmod(fp, 0o700)
 		if err != nil {
@@ -132,7 +132,7 @@ func Test_GPG_InitializeGnuPG(t *testing.T) {
 		}
 		t.Setenv(common.EnvGnuPGHome, p)
 		err = InitializeGnuPG()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	})
 }
 
@@ -140,11 +140,11 @@ func Test_GPG_KeyManagement(t *testing.T) {
 	initTempDir(t)
 
 	err := InitializeGnuPG()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Import a single good key
 	keys, err := ImportPGPKeys("testdata/github.asc")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, keys, 1)
 	assert.Equal(t, "4AEE18F83AFDEB23", keys[0].KeyID)
 	assert.Contains(t, keys[0].Owner, "noreply@github.com")
@@ -157,14 +157,14 @@ func Test_GPG_KeyManagement(t *testing.T) {
 	// We should have a total of 2 keys in the keyring now
 	{
 		keys, err := GetInstalledPGPKeys(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, keys, 2)
 	}
 
 	// We should now have that key in our keyring with unknown trust (trustdb not updated)
 	{
 		keys, err := GetInstalledPGPKeys([]string{importedKeyId})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, keys, 1)
 		assert.Equal(t, "4AEE18F83AFDEB23", keys[0].KeyID)
 		assert.Contains(t, keys[0].Owner, "noreply@github.com")
@@ -178,9 +178,9 @@ func Test_GPG_KeyManagement(t *testing.T) {
 	// Set trust level for our key and check the result
 	{
 		err := SetPGPTrustLevelById(kids, "ultimate")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		keys, err := GetInstalledPGPKeys(kids)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, keys, 1)
 		assert.Equal(t, kids[0], keys[0].Fingerprint)
 		assert.Equal(t, "ultimate", keys[0].Trust)
@@ -188,35 +188,35 @@ func Test_GPG_KeyManagement(t *testing.T) {
 
 	// Import garbage - error expected
 	keys, err = ImportPGPKeys("testdata/garbage.asc")
-	assert.Error(t, err)
-	assert.Len(t, keys, 0)
+	require.Error(t, err)
+	assert.Empty(t, keys)
 
 	// We should still have a total of 2 keys in the keyring now
 	{
 		keys, err := GetInstalledPGPKeys(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, keys, 2)
 	}
 
 	// Delete previously imported public key
 	{
 		err := DeletePGPKey(importedKeyId)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		keys, err := GetInstalledPGPKeys(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, keys, 1)
 	}
 
 	// Delete non-existing key
 	{
 		err := DeletePGPKey(importedKeyId)
-		assert.Error(t, err)
+		require.Error(t, err)
 	}
 
 	// Import multiple keys
 	{
 		keys, err := ImportPGPKeys("testdata/multi.asc")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, keys, 2)
 		assert.Contains(t, keys[0].Owner, "john.doe@example.com")
 		assert.Contains(t, keys[1].Owner, "jane.doe@example.com")
@@ -225,7 +225,7 @@ func Test_GPG_KeyManagement(t *testing.T) {
 	// Check if they were really imported
 	{
 		keys, err := GetInstalledPGPKeys(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, keys, 3)
 	}
 }
@@ -234,11 +234,11 @@ func Test_ImportPGPKeysFromString(t *testing.T) {
 	initTempDir(t)
 
 	err := InitializeGnuPG()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Import a single good key
 	keys, err := ImportPGPKeysFromString(test.MustLoadFileToString("testdata/github.asc"))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, keys, 1)
 	assert.Equal(t, "4AEE18F83AFDEB23", keys[0].KeyID)
 	assert.Contains(t, keys[0].Owner, "noreply@github.com")
@@ -250,19 +250,19 @@ func Test_ValidateGPGKeysFromString(t *testing.T) {
 	initTempDir(t)
 
 	err := InitializeGnuPG()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	{
 		keyData := test.MustLoadFileToString("testdata/github.asc")
 		keys, err := ValidatePGPKeysFromString(keyData)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, keys, 1)
 	}
 
 	{
 		keyData := test.MustLoadFileToString("testdata/multi.asc")
 		keys, err := ValidatePGPKeysFromString(keyData)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, keys, 2)
 	}
 }
@@ -271,12 +271,12 @@ func Test_ValidateGPGKeys(t *testing.T) {
 	initTempDir(t)
 
 	err := InitializeGnuPG()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Validation good case - 1 key
 	{
 		keys, err := ValidatePGPKeys("testdata/github.asc")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, keys, 1)
 		assert.Contains(t, keys, "4AEE18F83AFDEB23")
 	}
@@ -284,14 +284,14 @@ func Test_ValidateGPGKeys(t *testing.T) {
 	// Validation bad case
 	{
 		keys, err := ValidatePGPKeys("testdata/garbage.asc")
-		assert.Error(t, err)
-		assert.Len(t, keys, 0)
+		require.Error(t, err)
+		assert.Empty(t, keys)
 	}
 
 	// We should still have a total of 1 keys in the keyring now
 	{
 		keys, err := GetInstalledPGPKeys(nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, keys, 1)
 	}
 }
@@ -300,10 +300,10 @@ func Test_GPG_ParseGitCommitVerification(t *testing.T) {
 	initTempDir(t)
 
 	err := InitializeGnuPG()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	keys, err := ImportPGPKeys("testdata/github.asc")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, keys, 1)
 
 	// Good case
@@ -519,23 +519,23 @@ func Test_IsSecretKey(t *testing.T) {
 
 	// First run should initialize fine
 	err := InitializeGnuPG()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// We should have exactly one public key with ultimate trust (our own) in the keyring
 	keys, err := GetInstalledPGPKeys(nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, keys, 1)
-	assert.Equal(t, keys[0].Trust, "ultimate")
+	assert.Equal(t, "ultimate", keys[0].Trust)
 
 	{
 		secret, err := IsSecretKey(keys[0].KeyID)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.True(t, secret)
 	}
 
 	{
 		secret, err := IsSecretKey("invalid")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.False(t, secret)
 	}
 }
@@ -545,15 +545,15 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 
 	// First run should initialize fine
 	err := InitializeGnuPG()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	tempDir := t.TempDir()
 
 	{
 		new, removed, err := SyncKeyRingFromDirectory(tempDir)
-		assert.NoError(t, err)
-		assert.Len(t, new, 0)
-		assert.Len(t, removed, 0)
+		require.NoError(t, err)
+		assert.Empty(t, new)
+		assert.Empty(t, removed)
 	}
 
 	{
@@ -576,12 +576,12 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 		}
 
 		new, removed, err := SyncKeyRingFromDirectory(tempDir)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, new, 3)
-		assert.Len(t, removed, 0)
+		assert.Empty(t, removed)
 
 		installed, err := GetInstalledPGPKeys(new)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		for _, k := range installed {
 			assert.Contains(t, new, k.KeyID)
 		}
@@ -593,12 +593,12 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 			panic(err.Error())
 		}
 		new, removed, err := SyncKeyRingFromDirectory(tempDir)
-		assert.NoError(t, err)
-		assert.Len(t, new, 0)
+		require.NoError(t, err)
+		assert.Empty(t, new)
 		assert.Len(t, removed, 1)
 
 		installed, err := GetInstalledPGPKeys(new)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		for _, k := range installed {
 			assert.NotEqual(t, k.KeyID, removed[0])
 		}

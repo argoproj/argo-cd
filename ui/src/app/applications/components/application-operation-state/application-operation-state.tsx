@@ -1,4 +1,4 @@
-import {Checkbox, DropDown, Duration, NotificationType, Ticker} from 'argo-ui';
+import {Checkbox, DropDown, Duration, NotificationType, Ticker, HelpIcon} from 'argo-ui';
 import * as moment from 'moment';
 import * as PropTypes from 'prop-types';
 import * as React from 'react';
@@ -15,6 +15,8 @@ interface Props {
     application: models.Application;
     operationState: models.OperationState;
 }
+const buildResourceUniqueId = (res: Omit<models.ResourceRef, 'uid'>) => `${res.group}-${res.kind}-${res.version}-${res.namespace}-${res.name}`;
+const FilterableMessageStatuses = ['configured', 'unchanged'];
 
 const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; options: string[]; title: string; style?: React.CSSProperties}) => {
     const {filters, setFilters, options, title, style} = props;
@@ -51,6 +53,8 @@ const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; op
 };
 
 export const ApplicationOperationState: React.StatelessComponent<Props> = ({application, operationState}, ctx: AppContext) => {
+    const [messageFilters, setMessageFilters] = React.useState([]);
+
     const operationAttributes = [
         {title: 'OPERATION', value: utils.getOperationType(application)},
         {title: 'PHASE', value: operationState.phase},
@@ -60,7 +64,9 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
             title: 'DURATION',
             value: (
                 <Ticker>
-                    {time => <Duration durationMs={((operationState.finishedAt && moment(operationState.finishedAt)) || time).diff(moment(operationState.startedAt)) / 1000} />}
+                    {time => (
+                        <Duration durationS={((operationState.finishedAt && moment(operationState.finishedAt)) || moment(time)).diff(moment(operationState.startedAt)) / 1000} />
+                    )}
                 </Ticker>
             )
         }
@@ -93,7 +99,15 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
         });
     }
     if (operationState.syncResult) {
-        operationAttributes.push({title: 'REVISION', value: <Revision repoUrl={utils.getAppDefaultSource(application).repoURL} revision={operationState.syncResult.revision} />});
+        operationAttributes.push({
+            title: 'REVISION',
+            value: (
+                <div>
+                    <Revision repoUrl={utils.getAppDefaultSource(application).repoURL} revision={utils.getAppDefaultOperationSyncRevision(application)} />
+                    {utils.getAppDefaultOperationSyncRevisionExtra(application)}
+                </div>
+            )
+        });
     }
     let initiator = '';
     if (operationState.operation.initiatedBy) {
@@ -118,18 +132,64 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
         }
     }
     const [filters, setFilters] = React.useState([]);
+    const [healthFilters, setHealthFilters] = React.useState([]);
 
+    const Healths = Object.keys(models.HealthStatuses);
     const Statuses = Object.keys(models.ResultCodes);
     const OperationPhases = Object.keys(models.OperationPhases);
     // const syncPhases = ['PreSync', 'Sync', 'PostSync', 'SyncFail'];
     // const hookPhases = ['Running', 'Terminating', 'Failed', 'Error', 'Succeeded'];
+    const resourceHealth = application.status.resources.reduce(
+        (acc, res) => {
+            if (res.health) {
+                acc[buildResourceUniqueId(res)] = res.health;
+            }
 
-    let filtered: models.ResourceResult[] = [];
-    if (syncResult) {
-        if (syncResult.resources && syncResult.resources.length > 0) {
-            filtered = syncResult.resources.filter(r => filters.length === 0 || filters.includes(getStatus(r)));
+            return acc;
+        },
+        {} as Record<string, models.HealthStatus>
+    );
+
+    const combinedHealthSyncResult: models.SyncResourceResult[] = syncResult?.resources?.map(syncResultItem => {
+        const uniqueResourceName = buildResourceUniqueId(syncResultItem);
+
+        const healthStatus = resourceHealth[uniqueResourceName];
+
+        const syncResultWithHealth: models.SyncResourceResult = {
+            ...syncResultItem
+        };
+
+        if (healthStatus) {
+            syncResultWithHealth.health = healthStatus;
         }
+
+        return syncResultWithHealth;
+    });
+    let filtered: models.SyncResourceResult[] = [];
+
+    if (combinedHealthSyncResult && combinedHealthSyncResult.length > 0) {
+        filtered = combinedHealthSyncResult.filter(r => {
+            if (filters.length === 0 && healthFilters.length === 0 && messageFilters.length === 0) {
+                return true;
+            }
+
+            let pass = true;
+            if (filters.length !== 0 && !filters.includes(getStatus(r))) {
+                pass = false;
+            }
+
+            if (pass && healthFilters.length !== 0 && !healthFilters.includes(r.health?.status)) {
+                pass = false;
+            }
+
+            if (pass && messageFilters.length !== 0) {
+                pass = messageFilters.some(filter => r.message?.toLowerCase().includes(filter.toLowerCase()));
+            }
+
+            return pass;
+        });
     }
+
     return (
         <div>
             <div className='white-box'>
@@ -147,8 +207,10 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                     <div style={{display: 'flex'}}>
                         <label style={{display: 'block', marginBottom: '1em'}}>RESULT</label>
                         <div style={{marginLeft: 'auto'}}>
+                            <Filter options={Healths} filters={healthFilters} setFilters={setHealthFilters} title='HEALTH' style={{marginRight: '5px'}} />
                             <Filter options={Statuses} filters={filters} setFilters={setFilters} title='STATUS' style={{marginRight: '5px'}} />
                             <Filter options={OperationPhases} filters={filters} setFilters={setFilters} title='HOOK' />
+                            <Filter options={FilterableMessageStatuses} filters={messageFilters} setFilters={setMessageFilters} title='MESSAGE' />
                         </div>
                     </div>
                     <div className='argo-table-list'>
@@ -158,6 +220,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                 <div className='columns large-2 show-for-large'>NAMESPACE</div>
                                 <div className='columns large-2 small-2'>NAME</div>
                                 <div className='columns large-1 small-2'>STATUS</div>
+                                <div className='columns large-1 small-2'>HEALTH</div>
                                 <div className='columns large-1 show-for-large'>HOOK</div>
                                 <div className='columns large-4 small-8'>MESSAGE</div>
                             </div>
@@ -180,6 +243,16 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                         </div>
                                         <div className='columns large-1 small-2' title={getStatus(resource)}>
                                             <utils.ResourceResultIcon resource={resource} /> {getStatus(resource)}
+                                        </div>
+                                        <div className='columns large-1 small-2'>
+                                            {resource.health ? (
+                                                <div>
+                                                    <utils.HealthStatusIcon state={resource?.health} /> {resource.health?.status}
+                                                    {resource.health.message && <HelpIcon title={resource.health.message} />}
+                                                </div>
+                                            ) : (
+                                                <>{'-'}</>
+                                            )}
                                         </div>
                                         <div className='columns large-1 show-for-large' title={resource.hookType}>
                                             {resource.hookType}

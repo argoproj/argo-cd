@@ -7,13 +7,15 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/common"
 )
 
-const Test_Cert1CN = "CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US"
-const Test_Cert2CN = "CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE"
-const Test_TLSValidSingleCert = `
+const (
+	Test_Cert1CN            = "CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US"
+	Test_Cert2CN            = "CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE"
+	Test_TLSValidSingleCert = `
 -----BEGIN CERTIFICATE-----
 MIIFvTCCA6WgAwIBAgIUGrTmW3qc39zqnE08e3qNDhUkeWswDQYJKoZIhvcNAQEL
 BQAwbjELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAklMMRAwDgYDVQQHDAdDaGljYWdv
@@ -48,6 +50,7 @@ r2AaraPFgrprnxUibP4L7jxdr+iiw5bWN9/B81PodrS7n5TNtnfnpZD6X6rThqOP
 xO7Tr5lAo74vNUkF2EHNaI28/RGnJPm2TIxZqy4rNH6L
 -----END CERTIFICATE-----
 `
+)
 
 const Test_TLSInvalidPEMData = `
 MIIF1zCCA7+gAwIBAgIUQdTcSHY2Sxd3Tq/v1eIEZPCNbOowDQYJKoZIhvcNAQEL
@@ -204,60 +207,60 @@ vs-ssh.visualstudio.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7Hr1oTWqNqOlzGJOf
 func Test_TLSCertificate_ValidPEM_ValidCert(t *testing.T) {
 	// Valid PEM data, single certificate, expect array of length 1
 	certificates, err := ParseTLSCertificatesFromData(Test_TLSValidSingleCert)
-	assert.Nil(t, err)
-	assert.Equal(t, len(certificates), 1)
+	require.NoError(t, err)
+	assert.Len(t, certificates, 1)
 	// Expect good decode
 	x509Cert, err := DecodePEMCertificateToX509(certificates[0])
-	assert.Nil(t, err)
-	assert.Equal(t, x509Cert.Subject.String(), Test_Cert1CN)
+	require.NoError(t, err)
+	assert.Equal(t, Test_Cert1CN, x509Cert.Subject.String())
 }
 
 func Test_TLSCertificate_ValidPEM_InvalidCert(t *testing.T) {
 	// Valid PEM data, but invalid certificate
 	certificates, err := ParseTLSCertificatesFromData(Test_TLSInvalidSingleCert)
-	assert.Nil(t, err)
-	assert.Equal(t, len(certificates), 1)
+	require.NoError(t, err)
+	assert.Len(t, certificates, 1)
 	// Expect bad decode
 	_, err = DecodePEMCertificateToX509(certificates[0])
-	assert.NotNil(t, err)
+	require.Error(t, err)
 }
 
 func Test_TLSCertificate_InvalidPEM(t *testing.T) {
 	// Invalid PEM data, expect array of length 0
 	certificates, err := ParseTLSCertificatesFromData(Test_TLSInvalidPEMData)
-	assert.Nil(t, err)
-	assert.Equal(t, len(certificates), 0)
+	require.NoError(t, err)
+	assert.Empty(t, certificates)
 }
 
 func Test_TLSCertificate_ValidPEM_ValidCert_Multi(t *testing.T) {
 	// Valid PEM data, two certificates, expect array of length 2
 	certificates, err := ParseTLSCertificatesFromData(Test_TLSValidMultiCert)
-	assert.Nil(t, err)
-	assert.Equal(t, len(certificates), 2)
+	require.NoError(t, err)
+	assert.Len(t, certificates, 2)
 	// Expect good decode
 	x509Cert, err := DecodePEMCertificateToX509(certificates[0])
-	assert.Nil(t, err)
-	assert.Equal(t, x509Cert.Subject.String(), Test_Cert1CN)
+	require.NoError(t, err)
+	assert.Equal(t, Test_Cert1CN, x509Cert.Subject.String())
 	x509Cert, err = DecodePEMCertificateToX509(certificates[1])
-	assert.Nil(t, err)
-	assert.Equal(t, x509Cert.Subject.String(), Test_Cert2CN)
+	require.NoError(t, err)
+	assert.Equal(t, Test_Cert2CN, x509Cert.Subject.String())
 }
 
 func Test_TLSCertificate_ValidPEM_ValidCert_FromFile(t *testing.T) {
 	// Valid PEM data, single certificate from file, expect array of length 1
 	certificates, err := ParseTLSCertificatesFromPath("../../test/certificates/cert1.pem")
-	assert.Nil(t, err)
-	assert.Equal(t, len(certificates), 1)
+	require.NoError(t, err)
+	assert.Len(t, certificates, 1)
 	// Expect good decode
 	x509Cert, err := DecodePEMCertificateToX509(certificates[0])
-	assert.Nil(t, err)
-	assert.Equal(t, x509Cert.Subject.String(), Test_Cert1CN)
+	require.NoError(t, err)
+	assert.Equal(t, Test_Cert1CN, x509Cert.Subject.String())
 }
 
 func Test_TLSCertPool(t *testing.T) {
 	certificates, err := ParseTLSCertificatesFromData(Test_TLSValidMultiCert)
-	assert.Nil(t, err)
-	assert.Equal(t, len(certificates), 2)
+	require.NoError(t, err)
+	assert.Len(t, certificates, 2)
 	certPool := GetCertPoolFromPEMData(certificates)
 	assert.NotNil(t, certPool)
 }
@@ -265,27 +268,27 @@ func Test_TLSCertPool(t *testing.T) {
 func Test_TLSCertificate_CertFromNonExistingFile(t *testing.T) {
 	// Non-existing file, expect err
 	_, err := ParseTLSCertificatesFromPath("../../test/certificates/cert_nonexisting.pem")
-	assert.NotNil(t, err)
+	require.Error(t, err)
 }
 
 func Test_SSHKnownHostsData_ParseData(t *testing.T) {
 	// Expect valid data with 7 known host entries
 	entries, err := ParseSSHKnownHostsFromData(Test_ValidSSHKnownHostsData)
-	assert.Nil(t, err)
-	assert.Equal(t, len(entries), 7)
+	require.NoError(t, err)
+	assert.Len(t, entries, 7)
 }
 
 func Test_SSHKnownHostsData_ParseFile(t *testing.T) {
 	// Expect valid data with 7 known host entries
 	entries, err := ParseSSHKnownHostsFromPath("../../test/certificates/ssh_known_hosts")
-	assert.Nil(t, err)
-	assert.Equal(t, len(entries), 7)
+	require.NoError(t, err)
+	assert.Len(t, entries, 7)
 }
 
 func Test_SSHKnownHostsData_ParseNonExistingFile(t *testing.T) {
 	// Expect valid data with 7 known host entries
 	entries, err := ParseSSHKnownHostsFromPath("../../test/certificates/ssh_known_hosts_invalid")
-	assert.NotNil(t, err)
+	require.Error(t, err)
 	assert.Nil(t, entries)
 }
 
@@ -293,30 +296,30 @@ func Test_SSHKnownHostsData_Tokenize(t *testing.T) {
 	// All entries should parse to valid SSH public keys
 	// All entries should be tokenizable, and tokens should be feedable to decoder
 	entries, err := ParseSSHKnownHostsFromData(Test_ValidSSHKnownHostsData)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	for _, entry := range entries {
 		hosts, _, err := KnownHostsLineToPublicKey(entry)
-		assert.Nil(t, err)
-		assert.Equal(t, len(hosts), 1)
+		require.NoError(t, err)
+		assert.Len(t, hosts, 1)
 		hoststring, subtype, certdata, err := TokenizeSSHKnownHostsEntry(entry)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		hosts, _, err = TokenizedDataToPublicKey(hoststring, subtype, string(certdata))
-		assert.Nil(t, err)
-		assert.Equal(t, len(hosts), 1)
+		require.NoError(t, err)
+		assert.Len(t, hosts, 1)
 	}
 }
 
 func Test_MatchHostName(t *testing.T) {
 	matchHostName := "foo.example.com"
-	assert.Equal(t, MatchHostName(matchHostName, "*"), true)
-	assert.Equal(t, MatchHostName(matchHostName, "*.example.com"), true)
-	assert.Equal(t, MatchHostName(matchHostName, "foo.*"), true)
-	assert.Equal(t, MatchHostName(matchHostName, "foo.*.com"), true)
-	assert.Equal(t, MatchHostName(matchHostName, "fo?.example.com"), true)
-	assert.Equal(t, MatchHostName(matchHostName, "foo?.example.com"), false)
-	assert.Equal(t, MatchHostName(matchHostName, "bar.example.com"), false)
-	assert.Equal(t, MatchHostName(matchHostName, "*.otherexample.com"), false)
-	assert.Equal(t, MatchHostName(matchHostName, "foo.otherexample.*"), false)
+	assert.True(t, MatchHostName(matchHostName, "*"))
+	assert.True(t, MatchHostName(matchHostName, "*.example.com"))
+	assert.True(t, MatchHostName(matchHostName, "foo.*"))
+	assert.True(t, MatchHostName(matchHostName, "foo.*.com"))
+	assert.True(t, MatchHostName(matchHostName, "fo?.example.com"))
+	assert.False(t, MatchHostName(matchHostName, "foo?.example.com"))
+	assert.False(t, MatchHostName(matchHostName, "bar.example.com"))
+	assert.False(t, MatchHostName(matchHostName, "*.otherexample.com"))
+	assert.False(t, MatchHostName(matchHostName, "foo.otherexample.*"))
 }
 
 func Test_SSHFingerprintSHA256(t *testing.T) {
@@ -331,11 +334,11 @@ func Test_SSHFingerprintSHA256(t *testing.T) {
 		"ohD8VZEXGWo6Ez8GSEJQ9WpafgLFsOfLOtGGQCQo6Og",
 	}
 	entries, err := ParseSSHKnownHostsFromData(Test_ValidSSHKnownHostsData)
-	assert.Nil(t, err)
-	assert.Equal(t, len(entries), 7)
+	require.NoError(t, err)
+	assert.Len(t, entries, 7)
 	for idx, entry := range entries {
 		_, pubKey, err := KnownHostsLineToPublicKey(entry)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 		fp := SSHFingerprintSHA256(pubKey)
 		assert.Equal(t, fp, fingerprints[idx])
 	}
@@ -353,8 +356,8 @@ func Test_SSHFingerPrintSHA256FromString(t *testing.T) {
 		"ohD8VZEXGWo6Ez8GSEJQ9WpafgLFsOfLOtGGQCQo6Og",
 	}
 	entries, err := ParseSSHKnownHostsFromData(Test_ValidSSHKnownHostsData)
-	assert.Nil(t, err)
-	assert.Equal(t, len(entries), 7)
+	require.NoError(t, err)
+	assert.Len(t, entries, 7)
 	for idx, entry := range entries {
 		fp := SSHFingerprintSHA256FromString(entry)
 		assert.Equal(t, fp, fingerprints[idx])
@@ -435,7 +438,7 @@ func Test_EscapeBracketPattern(t *testing.T) {
 	}
 
 	for original, expected := range patternList {
-		assert.Equal(t, nonBracketedPattern(original), expected)
+		assert.Equal(t, expected, nonBracketedPattern(original))
 	}
 }
 
@@ -474,13 +477,13 @@ func TestGetCertificateForConnect(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		err = os.WriteFile(path.Join(temppath, "127.0.0.1"), cert, 0666)
+		err = os.WriteFile(path.Join(temppath, "127.0.0.1"), cert, 0o666)
 		if err != nil {
 			panic(err)
 		}
 		t.Setenv(common.EnvVarTLSDataPath, temppath)
 		certs, err := GetCertificateForConnect("127.0.0.1")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, certs, 1)
 	})
 
@@ -488,23 +491,22 @@ func TestGetCertificateForConnect(t *testing.T) {
 		temppath := t.TempDir()
 		t.Setenv(common.EnvVarTLSDataPath, temppath)
 		certs, err := GetCertificateForConnect("127.0.0.1")
-		assert.NoError(t, err)
-		assert.Len(t, certs, 0)
+		require.NoError(t, err)
+		assert.Empty(t, certs)
 	})
 
 	t.Run("No valid cert in file", func(t *testing.T) {
 		temppath := t.TempDir()
-		err := os.WriteFile(path.Join(temppath, "127.0.0.1"), []byte("foobar"), 0666)
+		err := os.WriteFile(path.Join(temppath, "127.0.0.1"), []byte("foobar"), 0o666)
 		if err != nil {
 			panic(err)
 		}
 		t.Setenv(common.EnvVarTLSDataPath, temppath)
 		certs, err := GetCertificateForConnect("127.0.0.1")
-		assert.Error(t, err)
-		assert.Len(t, certs, 0)
-		assert.Contains(t, err.Error(), "no certificates found")
+		require.Error(t, err)
+		assert.Empty(t, certs)
+		assert.ErrorContains(t, err, "no certificates found")
 	})
-
 }
 
 func TestGetCertBundlePathForRepository(t *testing.T) {
@@ -514,13 +516,13 @@ func TestGetCertBundlePathForRepository(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
-		err = os.WriteFile(path.Join(temppath, "127.0.0.1"), cert, 0666)
+		err = os.WriteFile(path.Join(temppath, "127.0.0.1"), cert, 0o666)
 		if err != nil {
 			panic(err)
 		}
 		t.Setenv(common.EnvVarTLSDataPath, temppath)
 		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, certpath, path.Join(temppath, "127.0.0.1"))
 	})
 
@@ -528,20 +530,19 @@ func TestGetCertBundlePathForRepository(t *testing.T) {
 		temppath := t.TempDir()
 		t.Setenv(common.EnvVarTLSDataPath, temppath)
 		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Empty(t, certpath)
 	})
 
 	t.Run("No valid cert in file", func(t *testing.T) {
 		temppath := t.TempDir()
-		err := os.WriteFile(path.Join(temppath, "127.0.0.1"), []byte("foobar"), 0666)
+		err := os.WriteFile(path.Join(temppath, "127.0.0.1"), []byte("foobar"), 0o666)
 		if err != nil {
 			panic(err)
 		}
 		t.Setenv(common.EnvVarTLSDataPath, temppath)
 		certpath, err := GetCertBundlePathForRepository("127.0.0.1")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Empty(t, certpath)
 	})
-
 }

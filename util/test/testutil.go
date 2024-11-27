@@ -8,9 +8,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-jose/go-jose/v3"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/square/go-jose.v2"
 )
 
 // Cert is a certificate for tests. It was generated like this:
@@ -108,6 +108,7 @@ B3XwyYtAFsaO5r7oEc1Bv6oNSbE+FNJzRdjkWEIhdLVKlepil/w=
 -----END RSA PRIVATE KEY-----`)
 
 func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
@@ -137,6 +138,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 }
 
 func GetDexTestServer(t *testing.T) *httptest.Server {
+	t.Helper()
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Start with a placeholder. We need the server URL before setting up the real handler.
 	}))
@@ -147,6 +149,7 @@ func GetDexTestServer(t *testing.T) *httptest.Server {
 }
 
 func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
@@ -169,6 +172,16 @@ func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.R
   "claims_supported": ["sub", "aud", "exp"]
 }`, url))
 			require.NoError(t, err)
+		case "/userinfo":
+			w.Header().Set("content-type", "application/json")
+			_, err := io.WriteString(w, fmt.Sprintf(`
+{
+	"groups":["githubOrg:engineers"],
+	"iss": "%[1]s",
+	"sub": "randomUser"
+}`, url))
+
+			require.NoError(t, err)
 		case "/keys":
 			pubKey, err := jwt.ParseRSAPublicKeyFromPEM(Cert)
 			require.NoError(t, err)
@@ -181,7 +194,7 @@ func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.R
 			}
 			out, err := json.Marshal(jwks)
 			require.NoError(t, err)
-			_, err = io.WriteString(w, string(out))
+			_, err = w.Write(out)
 			require.NoError(t, err)
 		default:
 			w.WriteHeader(http.StatusNotFound)
@@ -190,6 +203,7 @@ func oidcMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.R
 }
 
 func GetOIDCTestServer(t *testing.T) *httptest.Server {
+	t.Helper()
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Start with a placeholder. We need the server URL before setting up the real handler.
 	}))

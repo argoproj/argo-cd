@@ -2,6 +2,7 @@ package application
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"strings"
 	"sync"
@@ -22,13 +23,13 @@ func parseLogsStream(podName string, stream io.ReadCloser, ch chan logEntry) {
 	eof := false
 	for !eof {
 		line, err := bufReader.ReadString('\n')
-		if err == io.EOF {
+		if err != nil && errors.Is(err, io.EOF) {
 			eof = true
 			// stop if we reached end of stream and the next line is empty
 			if line == "" {
 				break
 			}
-		} else if err != nil && err != io.EOF {
+		} else if err != nil && !errors.Is(err, io.EOF) {
 			ch <- logEntry{err: err}
 			break
 		}
@@ -46,7 +47,6 @@ func parseLogsStream(podName string, stream io.ReadCloser, ch chan logEntry) {
 		for _, line := range strings.Split(lines, "\r") {
 			ch <- logEntry{line: line, timeStamp: logTime, podName: podName}
 		}
-
 	}
 }
 
@@ -144,8 +144,8 @@ func mergeLogStreams(streams []chan logEntry, bufferingDuration time.Duration) c
 
 		_ = send(true)
 
-		close(merged)
 		ticker.Stop()
+		close(merged)
 	}()
 	return merged
 }

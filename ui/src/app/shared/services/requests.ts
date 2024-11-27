@@ -51,19 +51,19 @@ export default {
     },
 
     post(url: string) {
-        return initHandlers(agent.post(`${apiRoot()}${url}`));
+        return initHandlers(agent.post(`${apiRoot()}${url}`)).set('Content-Type', 'application/json');
     },
 
     put(url: string) {
-        return initHandlers(agent.put(`${apiRoot()}${url}`));
+        return initHandlers(agent.put(`${apiRoot()}${url}`)).set('Content-Type', 'application/json');
     },
 
     patch(url: string) {
-        return initHandlers(agent.patch(`${apiRoot()}${url}`));
+        return initHandlers(agent.patch(`${apiRoot()}${url}`)).set('Content-Type', 'application/json');
     },
 
     delete(url: string) {
-        return initHandlers(agent.del(`${apiRoot()}${url}`));
+        return initHandlers(agent.del(`${apiRoot()}${url}`)).set('Content-Type', 'application/json');
     },
 
     loadEventSource(url: string): Observable<string> {

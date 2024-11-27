@@ -8,11 +8,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func githubMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
+	t.Helper()
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
@@ -244,9 +246,9 @@ func TestGithubListRepos(t *testing.T) {
 			provider, _ := NewGithubProvider(context.Background(), "argoproj", "", ts.URL, c.allBranches)
 			rawRepos, err := ListRepos(context.Background(), provider, c.filters, c.proto)
 			if c.hasError {
-				assert.Error(t, err)
+				require.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				// Just check that this one project shows up. Not a great test but better thing nothing?
 				repos := []*Repository{}
 				branches := []string{}
@@ -278,11 +280,11 @@ func TestGithubHasPath(t *testing.T) {
 		Branch:       "master",
 	}
 	ok, err := host.RepoHasPath(context.Background(), repo, "pkg/")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.True(t, ok)
 
 	ok, err = host.RepoHasPath(context.Background(), repo, "notathing/")
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.False(t, ok)
 }
 
@@ -299,26 +301,26 @@ func TestGithubGetBranches(t *testing.T) {
 	}
 	repos, err := host.GetBranches(context.Background(), repo)
 	if err != nil {
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	} else {
-		assert.Equal(t, repos[0].Branch, "master")
+		assert.Equal(t, "master", repos[0].Branch)
 	}
-	//Branch Doesn't exists instead of error will return no error
+	// Branch Doesn't exists instead of error will return no error
 	repo2 := &Repository{
 		Organization: "argoproj",
 		Repository:   "applicationset",
 		Branch:       "main",
 	}
 	_, err = host.GetBranches(context.Background(), repo2)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Get all branches
 	host.allBranches = true
 	repos, err = host.GetBranches(context.Background(), repo)
 	if err != nil {
-		assert.NoError(t, err)
+		require.NoError(t, err)
 	} else {
 		// considering master  branch to  exist.
-		assert.Equal(t, len(repos), 1)
+		assert.Len(t, repos, 1)
 	}
 }

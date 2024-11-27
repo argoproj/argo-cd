@@ -1,14 +1,13 @@
 import {DataLoader} from 'argo-ui';
 import * as classNames from 'classnames';
 import * as React from 'react';
-import {useEffect, useState} from 'react';
+import {useEffect, useState, useRef} from 'react';
 import {bufferTime, delay, retryWhen} from 'rxjs/operators';
 
 import {LogEntry} from '../../../shared/models';
 import {services, ViewPreferences} from '../../../shared/services';
 
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
-import Grid from 'react-virtualized/dist/commonjs/Grid';
 
 import './pod-logs-viewer.scss';
 import {CopyLogsButton} from './copy-logs-button';
@@ -24,9 +23,9 @@ import {LogMessageFilter} from './log-message-filter';
 import {SinceSecondsSelector} from './since-seconds-selector';
 import {TailSelector} from './tail-selector';
 import {PodNamesToggleButton} from './pod-names-toggle-button';
-import Ansi from 'ansi-to-react';
 import {AutoScrollButton} from './auto-scroll-button';
-import {GridCellProps} from 'react-virtualized/dist/es/Grid';
+import {WrapLinesButton} from './wrap-lines-button';
+import Ansi from 'ansi-to-react';
 
 export interface PodLogsProps {
     namespace: string;
@@ -40,6 +39,11 @@ export interface PodLogsProps {
     timestamp?: string;
     containerGroups?: any[];
     onClickContainer?: (group: any, i: number, tab: string) => void;
+    fullscreen?: boolean;
+    viewPodNames?: boolean;
+    viewTimestamps?: boolean;
+    follow?: boolean;
+    showPreviousLogs?: boolean;
 }
 
 // ansi colors, see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
@@ -65,7 +69,7 @@ function stringHashCode(str: string) {
 
 // ansi color for pod name
 function podColor(podName: string) {
-    return colors[stringHashCode(podName) % colors.length];
+    return colors[Math.abs(stringHashCode(podName) % colors.length)];
 }
 
 // https://2ality.com/2012/09/empty-regexp.html
@@ -84,16 +88,34 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const [highlight, setHighlight] = useState<RegExp>(matchNothing);
     const [scrollToBottom, setScrollToBottom] = useState(true);
     const [logs, setLogs] = useState<LogEntry[]>([]);
+    const logsContainerRef = useRef(null);
 
-    useEffect(() => {
-        if (viewPodNames) {
-            setViewTimestamps(false);
+    const setWithQueryParams = <T extends (val: any) => void>(key: string, cb: T) => {
+        return (val => {
+            cb(val);
+            queryParams.set(key, val.toString());
+            history.replaceState(null, '', `${location.pathname}?${queryParams}`);
+        }) as T;
+    };
+
+    const setViewPodNamesWithQueryParams = setWithQueryParams('viewPodNames', setViewPodNames);
+    const setViewTimestampsWithQueryParams = setWithQueryParams('viewTimestamps', setViewTimestamps);
+    const setFollowWithQueryParams = setWithQueryParams('follow', setFollow);
+    const setPreviousLogsWithQueryParams = setWithQueryParams('showPreviousLogs', setPreviousLogs);
+    const setTailWithQueryParams = setWithQueryParams('tail', setTail);
+    const setFilterWithQueryParams = setWithQueryParams('filterText', setFilter);
+
+    const onToggleViewPodNames = (val: boolean) => {
+        setViewPodNamesWithQueryParams(val);
+        if (val) {
+            setViewTimestampsWithQueryParams(false);
         }
-    }, [viewPodNames]);
+    };
 
     useEffect(() => {
         // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
         // matchNothing this is chosen instead of empty regexp, because that would match everything and break colored logs
+        // eslint-disable-next-line no-useless-escape
         setHighlight(filter === '' ? matchNothing : new RegExp(filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g'));
     }, [filter]);
 
@@ -102,6 +124,15 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     }
 
     useEffect(() => setScrollToBottom(true), [follow]);
+
+    useEffect(() => {
+        if (scrollToBottom) {
+            const element = logsContainerRef.current;
+            if (element) {
+                element.scrollTop = element.scrollHeight;
+            }
+        }
+    }, [logs, scrollToBottom]);
 
     useEffect(() => {
         setLogs([]);
@@ -126,29 +157,26 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         return () => logsSource.unsubscribe();
     }, [applicationName, applicationNamespace, namespace, podName, group, kind, name, containerName, tail, follow, sinceSeconds, filter, previous]);
 
+    const handleScroll = (event: React.WheelEvent<HTMLDivElement>) => {
+        if (event.deltaY < 0) setScrollToBottom(false);
+    };
+
     const renderLog = (log: LogEntry, lineNum: number) =>
         // show the pod name if there are multiple pods, pad with spaces to align
         (viewPodNames ? (lineNum === 0 || logs[lineNum - 1].podName !== log.podName ? podColor(podName) + log.podName + reset : ' '.repeat(log.podName.length)) + ' ' : '') +
         // show the timestamp if requested, pad with spaces to align
-        (viewTimestamps ? (lineNum === 0 || (logs[lineNum - 1].timeStamp !== log.timeStamp ? log.timeStampStr : '').padEnd(30)) + ' ' : '') +
+        (viewTimestamps ? (lineNum === 0 || logs[lineNum - 1].timeStamp !== log.timeStamp ? log.timeStampStr : '').padEnd(30) + ' ' : '') +
         // show the log content, highlight the filter text
         log.content?.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
-
-    const cellRenderer = ({rowIndex, key, style}: GridCellProps) => {
-        return (
-            <pre key={key} style={style} className='noscroll'>
-                <Ansi>{renderLog(logs[rowIndex], rowIndex)}</Ansi>
-            </pre>
-        );
-    };
-
-    // calculate the width of the grid based on the longest log line
-    const maxWidth =
-        14 *
-        logs
-            .map(renderLog)
-            .map(v => v.length)
-            .reduce((a, b) => Math.max(a, b), 0);
+    const logsContent = (width: number, height: number, isWrapped: boolean) => (
+        <div ref={logsContainerRef} onScroll={handleScroll} style={{width, height, overflow: 'scroll'}}>
+            {logs.map((log, lineNum) => (
+                <div key={lineNum} style={{whiteSpace: isWrapped ? 'normal' : 'pre', lineHeight: '16px'}} className='noscroll'>
+                    <Ansi>{renderLog(log, lineNum)}</Ansi>
+                </div>
+            ))}
+        </div>
+    );
 
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
@@ -157,52 +185,36 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                     <React.Fragment>
                         <div className='pod-logs-viewer__settings'>
                             <span>
-                                <FollowToggleButton follow={follow} setFollow={setFollow} />
+                                <FollowToggleButton follow={follow} setFollow={setFollowWithQueryParams} />
                                 {follow && <AutoScrollButton scrollToBottom={scrollToBottom} setScrollToBottom={setScrollToBottom} />}
-                                <ShowPreviousLogsToggleButton setPreviousLogs={setPreviousLogs} showPreviousLogs={previous} />
+                                <ShowPreviousLogsToggleButton setPreviousLogs={setPreviousLogsWithQueryParams} showPreviousLogs={previous} />
                                 <Spacer />
                                 <ContainerSelector containerGroups={containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
                                 <Spacer />
                                 {!follow && (
                                     <>
                                         <SinceSecondsSelector sinceSeconds={sinceSeconds} setSinceSeconds={n => setSinceSeconds(n)} />
-                                        <TailSelector tail={tail} setTail={setTail} />
+                                        <TailSelector tail={tail} setTail={setTailWithQueryParams} />
                                     </>
                                 )}
-                                <LogMessageFilter filterText={filter} setFilterText={setFilter} />
+                                <LogMessageFilter filterText={filter} setFilterText={setFilterWithQueryParams} />
                             </span>
                             <Spacer />
                             <span>
-                                <PodNamesToggleButton viewPodNames={viewPodNames} setViewPodNames={setViewPodNames} />
-                                <TimestampsToggleButton setViewTimestamps={setViewTimestamps} viewTimestamps={viewTimestamps} timestamp={timestamp} />
+                                <WrapLinesButton prefs={prefs} />
+                                <PodNamesToggleButton viewPodNames={viewPodNames} setViewPodNames={onToggleViewPodNames} />
+                                <TimestampsToggleButton setViewTimestamps={setViewTimestampsWithQueryParams} viewTimestamps={viewTimestamps} timestamp={timestamp} />
                                 <DarkModeToggleButton prefs={prefs} />
                             </span>
                             <Spacer />
                             <span>
                                 <CopyLogsButton logs={logs} />
                                 <DownloadLogsButton {...props} />
-                                <FullscreenButton {...props} />
+                                <FullscreenButton {...props} viewPodNames={viewPodNames} viewTimestamps={viewTimestamps} follow={follow} showPreviousLogs={previous} />
                             </span>
                         </div>
-                        <div
-                            className={classNames('pod-logs-viewer', {'pod-logs-viewer--inverted': prefs.appDetails.darkMode})}
-                            onWheel={e => {
-                                if (e.deltaY < 0) setScrollToBottom(false);
-                            }}>
-                            <AutoSizer>
-                                {({width, height}: {width: number; height: number}) => (
-                                    <Grid
-                                        cellRenderer={cellRenderer}
-                                        columnCount={1}
-                                        columnWidth={Math.max(width, maxWidth)}
-                                        height={height}
-                                        rowCount={logs.length}
-                                        rowHeight={18}
-                                        width={width}
-                                        scrollToRow={scrollToBottom ? logs.length - 1 : undefined}
-                                    />
-                                )}
-                            </AutoSizer>
+                        <div className={classNames('pod-logs-viewer', {'pod-logs-viewer--inverted': prefs.appDetails.darkMode})} onWheel={handleScroll}>
+                            <AutoSizer>{({width, height}: {width: number; height: number}) => logsContent(width, height, prefs.appDetails.wrapLines)}</AutoSizer>
                         </div>
                     </React.Fragment>
                 );

@@ -1,0 +1,63 @@
+apiVersion: numaplane.numaproj.io/v1alpha1
+kind: PipelineRollout
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"numaplane.numaproj.io/v1alpha1","kind":"PipelineRollout","metadata":{"annotations":{},"name":"my-pipeline","namespace":"example-namespace"},"spec":{"pipeline":{"spec":{"edges":[{"from":"in","to":"cat"},{"from":"cat","to":"out"}],"interStepBufferServiceName":"my-isbsvc","vertices":[{"name":"in","source":{"generator":{"duration":"1s","rpu":5}}},{"name":"cat","udf":{"builtin":{"name":"cat"}}},{"name":"out","sink":{"log":{}}}]}}}}
+  creationTimestamp: "2024-09-26T20:54:55Z"
+  finalizers:
+  - numaplane.numaproj.io/numaplane-controller
+  generation: 1
+  name: my-pipeline
+  namespace: example-namespace
+  resourceVersion: "14008"
+  uid: ab9286a1-f453-433e-846e-48900ab2068a
+spec:
+  pipeline:
+    spec:
+      lifecycle:
+        desiredPhase: Running
+      edges:
+      - from: in
+        to: cat
+      - from: cat
+        to: out
+      interStepBufferServiceName: my-isbsvc
+      vertices:
+      - name: in
+        source:
+          generator:
+            duration: 1s
+            rpu: 5
+      - name: cat
+        udf:
+          builtin:
+            name: cat
+      - name: out
+        sink:
+          log: {}
+status:
+  conditions:
+  - lastTransitionTime: "2024-09-26T20:54:55Z"
+    message: Successful
+    observedGeneration: 1
+    reason: Successful
+    status: "True"
+    type: ChildResourceDeployed
+  - lastTransitionTime: "2024-09-26T20:55:07Z"
+    message: Pipeline Phase=Failed
+    observedGeneration: 1
+    reason: PipelineFailed
+    status: "False"
+    type: ChildResourcesHealthy
+  - lastTransitionTime: "2024-09-26T20:54:55Z"
+    message: Pipeline unpaused
+    observedGeneration: 1
+    reason: Unpaused
+    status: "False"
+    type: PipelinePausingOrPaused
+  message: Deployed
+  nameCount: 0
+  observedGeneration: 1
+  pauseStatus: {}
+  phase: Deployed

@@ -1,3 +1,5 @@
+# `argocd-dex` Command Reference
+
 ## argocd-dex
 
 argocd-dex tools used by Argo CD

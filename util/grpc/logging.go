@@ -46,7 +46,7 @@ func (j *jsonpbMarshalleble) MarshalJSON() ([]byte, error) {
 	m := &jsonpb.Marshaler{}
 	err := m.Marshal(&b, j.Message)
 	if err != nil {
-		return nil, fmt.Errorf("jsonpb serializer failed: %v", err)
+		return nil, fmt.Errorf("jsonpb serializer failed: %w", err)
 	}
 	return b.Bytes(), nil
 }

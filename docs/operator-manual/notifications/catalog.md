@@ -1,4 +1,9 @@
 # Triggers and Templates Catalog
+## Getting Started
+* Install Triggers and Templates from the catalog
+  ```bash
+  kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/notifications_catalog/install.yaml
+  ```
 ## Triggers
 |          NAME          |                          DESCRIPTION                          |                      TEMPLATE                       |
 |------------------------|---------------------------------------------------------------|-----------------------------------------------------|
@@ -52,8 +57,8 @@ slack:
         "short": true
       },
       {
-        "title": "Repository",
-        "value": "{{.app.spec.source.repoURL}}",
+        "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+        "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
         "short": true
       },
       {
@@ -62,8 +67,7 @@ slack:
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "title": "{{$c.type}}",
         "value": "{{$c.message}}",
@@ -82,23 +86,22 @@ teams:
       "value": "{{.app.status.sync.status}}"
     },
     {
-      "name": "Repository",
-      "value": "{{.app.spec.source.repoURL}}"
+      "name": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+      "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
     },
     {
       "name": "Revision",
       "value": "{{.app.status.sync.revision}}"
     }
     {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "name": "{{$c.type}}",
         "value": "{{$c.message}}"
       }
     {{end}}
     ]
-  potentialAction: |-
+  potentialAction: |
     [{
       "@type":"OpenUri",
       "name":"Operation Application",
@@ -112,7 +115,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri":"{{.app.spec.source.repoURL | call .repo.RepoURLToHTTPS}}"
+        "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
       }]
     }]
   themeColor: '#000080'
@@ -140,13 +143,12 @@ slack:
         "short": true
       },
       {
-        "title": "Repository",
-        "value": "{{.app.spec.source.repoURL}}",
+        "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+        "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "title": "{{$c.type}}",
         "value": "{{$c.message}}",
@@ -165,12 +167,11 @@ teams:
       "value": "{{.app.status.health.status}}"
     },
     {
-      "name": "Repository",
-      "value": "{{.app.spec.source.repoURL}}"
+      "name": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+      "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
     }
     {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "name": "{{$c.type}}",
         "value": "{{$c.message}}"
@@ -191,7 +192,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri":"{{.app.spec.source.repoURL | call .repo.RepoURLToHTTPS}}"
+        "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
       }]
     }]
   themeColor: '#FF0000'
@@ -219,13 +220,12 @@ slack:
         "short": true
       },
       {
-        "title": "Repository",
-        "value": "{{.app.spec.source.repoURL}}",
+        "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+        "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "title": "{{$c.type}}",
         "value": "{{$c.message}}",
@@ -248,19 +248,18 @@ teams:
       "value": "{{.app.status.operationState.finishedAt}}"
     },
     {
-      "name": "Repository",
-      "value": "{{.app.spec.source.repoURL}}"
+      "name": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+      "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
     }
     {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "name": "{{$c.type}}",
         "value": "{{$c.message}}"
       }
     {{end}}
     ]
-  potentialAction: |-
+  potentialAction: |
     [{
       "@type":"OpenUri",
       "name":"Open Operation",
@@ -274,7 +273,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri":"{{.app.spec.source.repoURL | call .repo.RepoURLToHTTPS}}"
+        "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
       }]
     }]
   themeColor: '#FF0000'
@@ -302,13 +301,12 @@ slack:
         "short": true
       },
       {
-        "title": "Repository",
-        "value": "{{.app.spec.source.repoURL}}",
+        "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+        "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "title": "{{$c.type}}",
         "value": "{{$c.message}}",
@@ -331,19 +329,18 @@ teams:
       "value": "{{.app.status.operationState.startedAt}}"
     },
     {
-      "name": "Repository",
-      "value": "{{.app.spec.source.repoURL}}"
+      "name": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+      "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
     }
     {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "name": "{{$c.type}}",
         "value": "{{$c.message}}"
       }
     {{end}}
     ]
-  potentialAction: |-
+  potentialAction: |
     [{
       "@type":"OpenUri",
       "name":"Open Operation",
@@ -357,7 +354,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri":"{{.app.spec.source.repoURL | call .repo.RepoURLToHTTPS}}"
+        "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
       }]
     }]
   title: Start syncing application {{.app.metadata.name}}.
@@ -389,13 +386,12 @@ slack:
         "short": true
       },
       {
-        "title": "Repository",
-        "value": "{{.app.spec.source.repoURL}}",
+        "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+        "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "title": "{{$c.type}}",
         "value": "{{$c.message}}",
@@ -414,19 +410,18 @@ teams:
       "value": "{{.app.status.sync.status}}"
     },
     {
-      "name": "Repository",
-      "value": "{{.app.spec.source.repoURL}}"
+      "name": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+      "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
     }
     {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "name": "{{$c.type}}",
         "value": "{{$c.message}}"
       }
     {{end}}
     ]
-  potentialAction: |-
+  potentialAction: |
     [{
       "@type":"OpenUri",
       "name":"Open Application",
@@ -440,7 +435,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri":"{{.app.spec.source.repoURL | call .repo.RepoURLToHTTPS}}"
+        "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
       }]
     }]
   title: Application {{.app.metadata.name}} sync status is 'Unknown'
@@ -467,13 +462,12 @@ slack:
         "short": true
       },
       {
-        "title": "Repository",
-        "value": "{{.app.spec.source.repoURL}}",
+        "title": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+        "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
         "short": true
       }
       {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "title": "{{$c.type}}",
         "value": "{{$c.message}}",
@@ -496,19 +490,18 @@ teams:
       "value": "{{.app.status.operationState.finishedAt}}"
     },
     {
-      "name": "Repository",
-      "value": "{{.app.spec.source.repoURL}}"
+      "name": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
+      "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
     }
     {{range $index, $c := .app.status.conditions}}
-      {{if not $index}},{{end}}
-      {{if $index}},{{end}}
+      ,
       {
         "name": "{{$c.type}}",
         "value": "{{$c.message}}"
       }
     {{end}}
     ]
-  potentialAction: |-
+  potentialAction: |
     [{
       "@type":"OpenUri",
       "name":"Operation Details",
@@ -522,7 +515,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri":"{{.app.spec.source.repoURL | call .repo.RepoURLToHTTPS}}"
+        "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }},
       }]
     }]
   themeColor: '#000080'

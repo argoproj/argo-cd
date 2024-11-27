@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	testutil "github.com/argoproj/argo-cd/v2/test"
 	argo "github.com/argoproj/argo-cd/v2/util/argo/diff"
+	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
 	appstatecache "github.com/argoproj/argo-cd/v2/util/cache/appstate"
 )
@@ -40,7 +41,7 @@ func TestStateDiff(t *testing.T) {
 	diffConfig := func(t *testing.T, params *diffConfigParams) argo.DiffConfig {
 		t.Helper()
 		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithDiffSettings(params.ignores, params.overrides, params.ignoreRoles).
+			WithDiffSettings(params.ignores, params.overrides, params.ignoreRoles, normalizers.IgnoreNormalizerOpts{}).
 			WithTracking(params.label, params.trackingMethod).
 			WithNoCache().
 			Build()
@@ -139,22 +140,23 @@ func TestStateDiff(t *testing.T) {
 			result, err := argo.StateDiff(tc.liveState, tc.desiredState, dc)
 
 			// then
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.NotNil(t, result)
 			assert.True(t, result.Modified)
 			normalized := testutil.YamlToUnstructured(string(result.NormalizedLive))
 			replicas, found, err := unstructured.NestedFloat64(normalized.Object, "spec", "replicas")
 			require.NoError(t, err)
 			assert.True(t, found)
-			assert.Equal(t, float64(tc.expectedNormalizedReplicas), replicas)
+			assert.InEpsilon(t, float64(tc.expectedNormalizedReplicas), replicas, 0.0001)
 			predicted := testutil.YamlToUnstructured(string(result.PredictedLive))
 			predictedReplicas, found, err := unstructured.NestedFloat64(predicted.Object, "spec", "replicas")
 			require.NoError(t, err)
 			assert.True(t, found)
-			assert.Equal(t, float64(tc.expectedPredictedReplicas), predictedReplicas)
+			assert.InEpsilon(t, float64(tc.expectedPredictedReplicas), predictedReplicas, 0.0001)
 		})
 	}
 }
+
 func TestDiffConfigBuilder(t *testing.T) {
 	type fixture struct {
 		ignores        []v1alpha1.ResourceIgnoreDifferences
@@ -177,7 +179,6 @@ func TestDiffConfigBuilder(t *testing.T) {
 			appName:        "application-name",
 			stateCache:     &appstatecache.Cache{},
 		}
-
 	}
 	t.Run("will build diff config successfully", func(t *testing.T) {
 		// given
@@ -185,7 +186,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 
 		// when
 		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles).
+			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles, normalizers.IgnoreNormalizerOpts{}).
 			WithTracking(f.label, f.trackingMethod).
 			WithNoCache().
 			Build()
@@ -193,8 +194,8 @@ func TestDiffConfigBuilder(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.NotNil(t, diffConfig)
-		assert.Equal(t, 0, len(diffConfig.Ignores()))
-		assert.Equal(t, 0, len(diffConfig.Overrides()))
+		assert.Empty(t, diffConfig.Ignores())
+		assert.Empty(t, diffConfig.Overrides())
 		assert.Equal(t, f.label, diffConfig.AppLabelKey())
 		assert.Equal(t, f.overrides, diffConfig.Overrides())
 		assert.Equal(t, f.trackingMethod, diffConfig.TrackingMethod())
@@ -209,7 +210,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 
 		// when
 		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithDiffSettings(nil, nil, f.ignoreRoles).
+			WithDiffSettings(nil, nil, f.ignoreRoles, normalizers.IgnoreNormalizerOpts{}).
 			WithTracking(f.label, f.trackingMethod).
 			WithNoCache().
 			Build()
@@ -217,8 +218,8 @@ func TestDiffConfigBuilder(t *testing.T) {
 		// then
 		require.NoError(t, err)
 		require.NotNil(t, diffConfig)
-		assert.Equal(t, 0, len(diffConfig.Ignores()))
-		assert.Equal(t, 0, len(diffConfig.Overrides()))
+		assert.Empty(t, diffConfig.Ignores())
+		assert.Empty(t, diffConfig.Overrides())
 		assert.Equal(t, f.label, diffConfig.AppLabelKey())
 		assert.Equal(t, f.overrides, diffConfig.Overrides())
 		assert.Equal(t, f.trackingMethod, diffConfig.TrackingMethod())
@@ -231,7 +232,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 
 		// when
 		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles).
+			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles, normalizers.IgnoreNormalizerOpts{}).
 			WithTracking(f.label, f.trackingMethod).
 			WithCache(&appstatecache.Cache{}, "").
 			Build()
@@ -246,7 +247,7 @@ func TestDiffConfigBuilder(t *testing.T) {
 
 		// when
 		diffConfig, err := argo.NewDiffConfigBuilder().
-			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles).
+			WithDiffSettings(f.ignores, f.overrides, f.ignoreRoles, normalizers.IgnoreNormalizerOpts{}).
 			WithTracking(f.label, f.trackingMethod).
 			WithCache(nil, f.appName).
 			Build()
@@ -255,5 +256,4 @@ func TestDiffConfigBuilder(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, diffConfig)
 	})
-
 }

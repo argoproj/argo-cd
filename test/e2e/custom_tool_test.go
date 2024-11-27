@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 	. "github.com/argoproj/argo-cd/v2/util/errors"
@@ -42,7 +43,7 @@ func TestCustomToolWithGitCreds(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, "argocd", output)
 		})
 }
@@ -72,19 +73,78 @@ func TestCustomToolWithGitCredsTemplate(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitAskpass}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, "argocd", output)
 		}).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitUsername}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Empty(t, output)
 		}).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.GitPassword}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Empty(t, output)
 		})
+}
+
+// make sure we can read the Git creds stored in a temporary file
+func TestCustomToolWithSSHGitCreds(t *testing.T) {
+	ctx := Given(t)
+	// path does not matter, we ignore it
+	ctx.
+		And(func() {
+			go startCMPServer(t, "./testdata/cmp-gitsshcreds")
+			time.Sleep(1 * time.Second)
+			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		// add the private repo with ssh credentials
+		CustomSSHKnownHostsAdded().
+		SSHRepoURLAdded(true).
+		RepoURLType(fixture.RepoURLTypeSSH).
+		Path("cmp-gitsshcreds").
+		When().
+		CreateApp().
+		Sync().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitSSHCommand}")
+			require.NoError(t, err)
+			assert.Regexp(t, `-i [^ ]+`, output, "test plugin expects $GIT_SSH_COMMAND to contain the option '-i <path to ssh private key>'")
+		}).
+		And(func(app *Application) {
+			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", Name(), "-o", "jsonpath={.metadata.annotations.GitSSHCredsFileSHA}")
+			require.NoError(t, err)
+			assert.Regexp(t, `\w+\s+[\/\w]+`, output, "git ssh credentials file should be able to be read, hashing the contents")
+		})
+}
+
+func TestCustomToolWithSSHGitCredsDisabled(t *testing.T) {
+	ctx := Given(t)
+	// path does not matter, we ignore it
+	ctx.
+		And(func() {
+			go startCMPServer(t, "./testdata/cmp-gitsshcreds-disable-provide")
+			time.Sleep(1 * time.Second)
+			t.Setenv("ARGOCD_BINARY_NAME", "argocd")
+		}).
+		CustomCACertAdded().
+		// add the private repo with ssh credentials
+		CustomSSHKnownHostsAdded().
+		SSHRepoURLAdded(true).
+		RepoURLType(RepoURLTypeSSH).
+		Path("cmp-gitsshcreds").
+		When().
+		IgnoreErrors().
+		CreateApp("--validate=false").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown))
 }
 
 // make sure we can echo back the env
@@ -117,18 +177,18 @@ func TestCustomToolWithEnv(t *testing.T) {
 		}).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.Bar}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, "baz", output)
 		}).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.Foo}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, "bar", output)
 		}).
 		And(func(app *Application) {
 			expectedKubeVersion := GetVersions().ServerVersion.Format("%s.%s")
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, expectedKubeVersion, output)
 		}).
 		And(func(app *Application) {
@@ -137,7 +197,7 @@ func TestCustomToolWithEnv(t *testing.T) {
 			sort.Strings(expectedApiVersionSlice)
 
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeApiVersion}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			outputSlice := strings.Split(output, ",")
 			sort.Strings(outputSlice)
 
@@ -178,13 +238,14 @@ func TestCustomToolSyncAndDiffLocal(t *testing.T) {
 }
 
 func startCMPServer(t *testing.T, configFile string) {
+	t.Helper()
 	pluginSockFilePath := TmpDir + PluginSockFilePath
 	t.Setenv("ARGOCD_BINARY_NAME", "argocd-cmp-server")
 	// ARGOCD_PLUGINSOCKFILEPATH should be set as the same value as repo server env var
 	t.Setenv("ARGOCD_PLUGINSOCKFILEPATH", pluginSockFilePath)
 	if _, err := os.Stat(pluginSockFilePath); os.IsNotExist(err) {
 		// path/to/whatever does not exist
-		err := os.Mkdir(pluginSockFilePath, 0700)
+		err := os.Mkdir(pluginSockFilePath, 0o700)
 		require.NoError(t, err)
 	}
 	FailOnErr(RunWithStdin("", "", "../../dist/argocd", "--config-dir-path", configFile))
@@ -271,13 +332,13 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 		}).
 		And(func(app *Application) {
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.Bar}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, "baz", output)
 		}).
 		And(func(app *Application) {
 			expectedKubeVersion := GetVersions().ServerVersion.Format("%s.%s")
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeVersion}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, expectedKubeVersion, output)
 		}).
 		And(func(app *Application) {
@@ -286,7 +347,7 @@ func TestCMPDiscoverWithFindCommandWithEnv(t *testing.T) {
 			sort.Strings(expectedApiVersionSlice)
 
 			output, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "cm", ctx.AppName(), "-o", "jsonpath={.metadata.annotations.KubeApiVersion}")
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			outputSlice := strings.Split(output, ",")
 			sort.Strings(outputSlice)
 
@@ -313,7 +374,7 @@ func TestPruneResourceFromCMP(t *testing.T) {
 		Expect(DoesNotExist()).
 		AndAction(func() {
 			_, err := Run("", "kubectl", "-n", DeploymentNamespace(), "get", "deployment", "guestbook-ui")
-			assert.Error(t, err)
+			require.Error(t, err)
 		})
 }
 

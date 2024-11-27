@@ -27,6 +27,18 @@ spec:
             - containerPort: 8080
               name: metrics
           env:
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS
+              valueFrom:
+                configMapKeyRef:
+                  key: applicationsetcontroller.global.preserved.annotations
+                  name: argocd-cmd-params-cm
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS
+              valueFrom:
+                configMapKeyRef:
+                  key: applicationsetcontroller.global.preserved.labels
+                  name: argocd-cmd-params-cm
+                  optional: true
             - name: NAMESPACE
               valueFrom:
                 fieldRef:
@@ -91,6 +103,12 @@ spec:
                   key: applicationsetcontroller.enable.progressive.syncs
                   name: argocd-cmd-params-cm
                   optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE
+              valueFrom:
+                configMapKeyRef:
+                  key: applicationsetcontroller.enable.tokenref.strict.mode
+                  name: argocd-cmd-params-cm
+                  optional: true
             - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING
               valueFrom:
                 configMapKeyRef:
@@ -132,6 +150,30 @@ spec:
                 configMapKeyRef:
                   key: applicationsetcontroller.scm.root.ca.path
                   name: argocd-cmd-params-cm
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.allowed.scm.providers
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.enable.scm.providers
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.webhook.parallelism.limit
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_REQUEUE_AFTER
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.requeue.after
                   optional: true
           volumeMounts:
             - mountPath: /app/config/ssh
@@ -181,3 +223,5 @@ spec:
                 path: tls.key
               - key: ca.crt
                 path: ca.crt
+      nodeSelector:
+        kubernetes.io/os: linux

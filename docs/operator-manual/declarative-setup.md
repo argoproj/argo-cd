@@ -12,7 +12,7 @@ All resources, including `Application` and `AppProject` specs, have to be instal
 |-----------------------------------------------------------------------|------------------------------------------------------------------------------------|-----------|--------------------------------------------------------------------------------------|
 | [`argocd-cm.yaml`](argocd-cm-yaml.md)                                 | argocd-cm                                                                          | ConfigMap | General Argo CD configuration                                                        |
 | [`argocd-repositories.yaml`](argocd-repositories-yaml.md)             | my-private-repo / istio-helm-repo / private-helm-repo / private-repo               | Secrets   | Sample repository connection details                                                 |
-| [`argocd-repo-creds.yaml`](argocd-repo-creds.yaml)                    | argoproj-https-creds / argoproj-ssh-creds / github-creds / github-enterprise-creds | Secrets   | Sample repository credential templates                                               |
+| [`argocd-repo-creds.yaml`](argocd-repo-creds-yaml.md)                    | argoproj-https-creds / argoproj-ssh-creds / github-creds / github-enterprise-creds | Secrets   | Sample repository credential templates                                               |
 | [`argocd-cmd-params-cm.yaml`](argocd-cmd-params-cm-yaml.md)           | argocd-cmd-params-cm                                                               | ConfigMap | Argo CD env variables configuration                                                  |
 | [`argocd-secret.yaml`](argocd-secret-yaml.md)                         | argocd-secret                                                                      | Secret    | User Passwords, Certificates (deprecated), Signing Key, Dex secrets, Webhook secrets |
 | [`argocd-rbac-cm.yaml`](argocd-rbac-cm-yaml.md)                       | argocd-rbac-cm                                                                     | ConfigMap | RBAC Configuration                                                                   |
@@ -30,7 +30,7 @@ For each specific kind of ConfigMap and Secret resource, there is only a single 
 |------------------------------------------------------------------|-------------|--------------------------|
 | [`application.yaml`](../user-guide/application-specification.md) | Application | Example application spec |
 | [`project.yaml`](./project-specification.md)                     | AppProject  | Example project spec     |
-| -                                                                | Secret      | Repository credentials   |
+| [`argocd-repositories.yaml`](./argocd-repositories-yaml.md)                                                                | Secret      | Repository credentials   |
 
 For `Application` and `AppProject` resources, the name of the resource equals the name of the application or project within Argo CD. This also means that application and project names are unique within a given Argo CD installation - you cannot have the same application name for two different applications.
 
@@ -98,7 +98,7 @@ The AppProject CRD is the Kubernetes resource object representing a logical grou
 It is defined by the following key pieces of information:
 
 * `sourceRepos` reference to the repositories that applications within the project can pull manifests from.
-* `destinations` reference to clusters and namespaces that applications within the project can deploy into (don't use the `name` field, only the `server` field is matched).
+* `destinations` reference to clusters and namespaces that applications within the project can deploy into.
 * `roles` list of entities with definitions of their access to resources within the project.
 
 !!!warning "Projects which can deploy to the Argo CD namespace grant admin access"
@@ -176,6 +176,7 @@ spec:
 Repository details are stored in secrets. To configure a repo, create a secret which contains repository details.
 Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store an encrypted secret definition as a Kubernetes manifest.
 Each repository must have a `url` field and, depending on whether you connect using HTTPS, SSH, or GitHub App, `username` and `password` (for HTTPS), `sshPrivateKey` (for SSH), or `githubAppPrivateKey` (for GitHub App).
+Credentials can be scoped to a project using the optional `project` field. When omitted, the credential will be used as the default for all projects without a scoped credential.
 
 !!!warning
     When using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) the labels will be removed and have to be readded as described here: https://github.com/bitnami-labs/sealed-secrets#sealedsecrets-as-templates-for-secrets
@@ -195,6 +196,7 @@ stringData:
   url: https://github.com/argoproj/private-repo
   password: my-password
   username: my-username
+  project: my-project
 ```
 
 Example for SSH:
@@ -266,7 +268,7 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   type: git
-  repo: https://source.developers.google.com/p/my-google-project/r/my-repo
+  url: https://source.developers.google.com/p/my-google-project/r/my-repo
   gcpServiceAccountKey: |
     {
       "type": "service_account",
@@ -468,9 +470,9 @@ data:
 
 ### Configure repositories with proxy
 
-Proxy for your repository can be specified in the `proxy` field of the repository secret, along with other repository configurations. Argo CD uses this proxy to access the repository. Argo CD looks for the standard proxy environment variables in the repository server if the custom proxy is absent.
+Proxy for your repository can be specified in the `proxy` field of the repository secret, along with a corresponding `noProxy` config. Argo CD uses this proxy/noProxy config to access the repository and do related helm/kustomize operations. Argo CD looks for the standard proxy environment variables in the repository server if the custom proxy config is absent.
 
-An example repository with proxy:
+An example repository with proxy and noProxy:
 
 ```yaml
 apiVersion: v1
@@ -484,13 +486,16 @@ stringData:
   type: git
   url: https://github.com/argoproj/private-repo
   proxy: https://proxy-server-url:8888
+  noProxy: ".internal.example.com,company.org,10.123.0.0/16"
   password: my-password
   username: my-username
 ```
 
+A note on noProxy: Argo CD uses exec to interact with different tools such as helm and kustomize. Not all of these tools support the same noProxy syntax as the [httpproxy go package](https://cs.opensource.google/go/x/net/+/internal-branch.go1.21-vendor:http/httpproxy/proxy.go;l=38-50) does. In case you run in trouble with noProxy not beeing respected you might want to try using the full domain instead of a wildcard pattern or IP range to find a common syntax that all tools support.
+
 ### Legacy behaviour
 
-In Argo CD version 2.0 and earlier, repositories where stored as part of the `argocd-cm` config map. For
+In Argo CD version 2.0 and earlier, repositories were stored as part of the `argocd-cm` config map. For
 backward-compatibility, Argo CD will still honor repositories in the config map, but this style of repository
 configuration is deprecated and support for it will be removed in a future version.
 
@@ -549,6 +554,7 @@ bearerToken: string
 awsAuthConfig:
     clusterName: string
     roleARN: string
+    profile: string
 # Configure external command to supply client credentials
 # See https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
 execProviderConfig:
@@ -561,6 +567,8 @@ execProviderConfig:
     }
     apiVersion: string
     installHint: string
+# Proxy URL for the kubernetes client to use when connecting to the cluster api server
+proxyUrl: string
 # Transport layer security configuration settings
 tlsClientConfig:
     # Base64 encoded PEM-encoded bytes (typically read from a client certificate file).
@@ -575,6 +583,8 @@ tlsClientConfig:
     # certificates against. If ServerName is empty, the hostname used to contact the
     # server is used.
     serverName: string
+# Disable automatic compression for requests to the cluster 
+disableCompression: boolean
 ```
 
 Note that if you specify a command to run under `execProviderConfig`, that command must be available in the Argo CD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
@@ -590,8 +600,8 @@ metadata:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
 stringData:
-  name: mycluster.com
-  server: https://mycluster.com
+  name: mycluster.example.com
+  server: https://mycluster.example.com
   config: |
     {
       "bearerToken": "<authentication token>",
@@ -601,6 +611,8 @@ stringData:
       }
     }
 ```
+
+### EKS
 
 EKS cluster secret example using argocd-k8s-auth and [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html):
 
@@ -613,8 +625,8 @@ metadata:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
 stringData:
-  name: "mycluster.com"
-  server: "https://mycluster.com"
+  name: "eks-cluster-name-for-argo"
+  server: "https://xxxyyyzzz.xyz.some-region.eks.amazonaws.com"
   config: |
     {
       "awsAuthConfig": {
@@ -628,19 +640,48 @@ stringData:
     }
 ```
 
-Note that you should have IRSA enabled on your EKS cluster, create an appropriate IAM role which allows it to assume 
-other IAM roles (whichever `roleARN`s that Argo CD needs to assume) and have an assume role policy which allows 
-the argocd-application-controller and argocd-server pods to assume said role via OIDC.
+This setup requires:
 
-Example trust relationship config for `<arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>`, which 
-is required for Argo CD to perform actions via IAM. Ensure that the cluster has an [IAM OIDC provider configured](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) 
-for it.  
+1. [IRSA enabled](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html) on your Argo CD EKS cluster
+2. An IAM role ("management role") for your Argo CD EKS cluster that has an appropriate trust policy and permission policies (see below)
+3. A role created for each cluster being added to Argo CD that is assumable by the Argo CD management role
+4. An [Access Entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) within each EKS cluster added to Argo CD that gives the cluster's role (from point 3) RBAC permissions
+to perform actions within the cluster
+    - Or, alternatively, an entry within the `aws-auth` ConfigMap within the cluster added to Argo CD ([depreciated by EKS](https://docs.aws.amazon.com/eks/latest/userguide/auth-configmap.html))
+
+#### Argo CD Management Role
+
+The role created for Argo CD (the "management role") will need to have a trust policy suitable for assumption by certain 
+Argo CD Service Accounts *and by itself*.
+
+The service accounts that need to assume this role are:
+
+- `argocd-application-controller`,
+- `argocd-applicationset-controller`
+- `argocd-server`
+
+If we create role `arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>` for this purpose, the following
+is an example trust policy suitable for this need. Ensure that the Argo CD cluster has an [IAM OIDC provider configured](https://docs.aws.amazon.com/eks/latest/userguide/enable-iam-roles-for-service-accounts.html).
 
 ```json
 {
     "Version": "2012-10-17",
     "Statement": [
         {
+            "Sid": "ExplicitSelfRoleAssumption",
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "*"
+            },
+            "Action": "sts:AssumeRole",
+            "Condition": {
+                "ArnLike": {
+                  "aws:PrincipalArn": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
+                }
+            }
+        },
+        {
+            "Sid": "ServiceAccountRoleAssumption",
             "Effect": "Allow",
             "Principal": {
                 "Federated": "arn:aws:iam::<AWS_ACCOUNT_ID>:oidc-provider/oidc.eks.<AWS_REGION>.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE"
@@ -648,7 +689,11 @@ for it.
             "Action": "sts:AssumeRoleWithWebIdentity",
             "Condition": {
                 "StringEquals": {
-                    "oidc.eks.<AWS_REGION>.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:sub": ["system:serviceaccount:argocd:argocd-application-controller", "system:serviceaccount:argocd:argocd-server"],
+                    "oidc.eks.<AWS_REGION>.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:sub": [
+                        "system:serviceaccount:argocd:argocd-application-controller",
+                        "system:serviceaccount:argocd:argocd-applicationset-controller",
+                        "system:serviceaccount:argocd:argocd-server"
+                    ],
                     "oidc.eks.<AWS_REGION>.amazonaws.com/id/EXAMPLED539D4633E53DE1B71EXAMPLE:aud": "sts.amazonaws.com"
                 }
             }
@@ -657,25 +702,14 @@ for it.
 }
 ```
 
-The Argo CD management role also needs to be allowed to assume other roles, in this case we want it to assume 
-`arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>` so that it can manage the cluster mapped to that role. This can be 
-extended to allow assumption of multiple roles, either as an explicit array of role ARNs or by using `*` where appropriate.
+#### Argo CD Service Accounts
 
-```json
-{
-    "Version" : "2012-10-17",
-    "Statement" : {
-      "Effect" : "Allow",
-      "Action" : "sts:AssumeRole",
-      "Principal" : {
-        "AWS" : "<arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"
-      }
-    }
-  }
-```
+The 3 service accounts need to be modified to include an annotation with the Argo CD management role ARN.
 
-Example service account configs for `argocd-application-controller` and `argocd-server`. Note that once the annotations
-have been set on the service accounts, both the application controller and server pods need to be restarted.
+Here's an example service account configurations for `argocd-application-controller`, `argocd-applicationset-controller`, and `argocd-server`.
+
+!!! warning
+Once the annotations has been set on the service accounts, the application controller and server pods need to be restarted.
 
 ```yaml
 apiVersion: v1
@@ -690,14 +724,107 @@ kind: ServiceAccount
 metadata:
   annotations:
     eks.amazonaws.com/role-arn: "<arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
+  name: argocd-applicationset-controller
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    eks.amazonaws.com/role-arn: "<arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
   name: argocd-server
 ```
 
-In turn, the `roleARN` of each managed cluster needs to be added to each respective cluster's `aws-auth` config map (see
+#### IAM Permission Policy
+
+The Argo CD management role (`arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>` in our example) additionally
+needs to be allowed to assume a role for each cluster added to Argo CD.
+
+If we create a role named `<IAM_CLUSTER_ROLE>` for an EKS cluster we are adding to Argo CD, we would update the permission 
+policy of the Argo CD management role to include the following:
+
+```json
+{
+    "Version" : "2012-10-17",
+    "Statement" : {
+      "Effect" : "Allow",
+      "Action" : "sts:AssumeRole",
+      "Resource" : [
+        "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_CLUSTER_ROLE>"
+      ]
+    }
+  }
+```
+
+This allows the Argo CD management role to assume the cluster role.
+
+You can add permissions like above to the Argo CD management role for each cluster being managed by Argo CD (assuming you
+create a new role per cluster).
+
+#### Cluster Role Trust Policies
+
+As stated, each EKS cluster being added to Argo CD should have its own corresponding role. This role should not have any
+permission policies. Instead, it will be used to authenticate against the EKS cluster's API. The Argo CD management role
+assumes this role, and calls the AWS API to get an auth token via argocd-k8s-auth. That token is used when connecting to
+the added cluster's API endpoint.
+
+If we create role `arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_CLUSTER_ROLE>` for a cluster being added to Argo CD, we should
+set its trust policy to give the Argo CD management role permission to assume it. Note that we're granting the Argo CD 
+management role permission to assume this role above, but we also need to permit that action via the cluster role's
+trust policy.
+
+A suitable trust policy allowing the `IAM_CLUSTER_ROLE` to be assumed by the `ARGO_CD_MANAGEMENT_IAM_ROLE_NAME` role looks like this:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<ARGO_CD_MANAGEMENT_IAM_ROLE_NAME>"
+            },
+            "Action": "sts:AssumeRole"
+        }
+    ]
+}
+```
+
+#### Access Entries
+
+Each cluster's role (e.g. `arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_CLUSTER_ROLE>`) has no permission policy. Instead, we
+associate that role with an EKS permission policy, which grants that role the ability to generate authentication tokens
+to the cluster's API. This EKS permission policy decides what RBAC permissions are granted in that process.
+
+An [access entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) (and the policy associated to the role) can be created using the following commands:
+
+```bash
+# For each cluster being added to Argo CD
+aws eks create-access-entry \
+    --cluster-name my-eks-cluster-name \
+    --principal-arn arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_CLUSTER_ROLE> \
+    --type STANDARD \
+    --kubernetes-groups [] # No groups needed
+
+aws eks associate-access-policy \
+    --cluster-name my-eks-cluster-name \
+    --policy-arn arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy \
+    --access-scope type=cluster \
+    --principal-arn arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_CLUSTER_ROLE>
+```
+
+The above role is granted cluster admin permissions via `AmazonEKSClusterAdminPolicy`. The Argo CD management role that
+assume this role is therefore granted the same cluster admin permissions when it generates an API token when adding the 
+associated EKS cluster.
+
+**AWS Auth (Depreciated)**
+
+Instead of using Access Entries, you may need to use the depreciated `aws-auth`.
+
+If so, the `roleARN` of each managed cluster needs to be added to each respective cluster's `aws-auth` config map (see
 [Enabling IAM principal access to your cluster](https://docs.aws.amazon.com/eks/latest/userguide/add-user-role.html)), as
 well as having an assume role policy which allows it to be assumed by the Argo CD pod role.
 
-Example assume role policy for a cluster which is managed by Argo CD:
+An example assume role policy for a cluster which is managed by Argo CD:
 
 ```json
 {
@@ -724,9 +851,146 @@ data:
   mapRoles: |
     - "groups":
       - "<GROUP-NAME-IN-K8S-RBAC>"
-      "rolearn": "<arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"
-      "username": "<some-username>"
+      "rolearn": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_CLUSTER_ROLE>"
+      "username": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_CLUSTER_ROLE>"
 ```
+
+Use the role ARN for both `rolearn` and `username`.
+
+#### Alternative EKS Authentication Methods
+In some scenarios it may not be possible to use IRSA, such as when the Argo CD cluster is running on a different cloud
+provider's platform. In this case, there are two options:
+1. Use `execProviderConfig` to call the AWS authentication mechanism which enables the injection of environment variables to supply credentials
+2. Leverage the new AWS profile option available in Argo CD release 2.10
+
+Both of these options will require the steps involving IAM and the `aws-auth` config map (defined above) to provide the 
+principal with access to the cluster.
+
+##### Using execProviderConfig with Environment Variables
+```yaml
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mycluster-secret
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+type: Opaque
+stringData:
+  name: mycluster
+  server: https://mycluster.example.com
+  namespaces: "my,managed,namespaces"
+  clusterResources: "true"
+  config: |
+    {
+      "execProviderConfig": {
+        "command": "argocd-k8s-auth",
+        "args": ["aws", "--cluster-name", "my-eks-cluster"],
+        "apiVersion": "client.authentication.k8s.io/v1beta1",
+        "env": {
+          "AWS_REGION": "xx-east-1",
+          "AWS_ACCESS_KEY_ID": "{{ .aws_key_id }}",
+          "AWS_SECRET_ACCESS_KEY": "{{ .aws_key_secret }}",
+          "AWS_SESSION_TOKEN": "{{ .aws_token }}"
+        }
+      },
+      "tlsClientConfig": {
+        "insecure": false,
+        "caData": "{{ .cluster_cert }}"
+      }
+    }
+```
+
+This example assumes that the role being attached to the credentials that have been supplied, if this is not the case
+the role can be appended to the `args` section like so:
+
+```yaml
+...
+    "args": ["aws", "--cluster-name", "my-eks-cluster", "--role-arn", "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"],
+...
+```
+This construct can be used in conjunction with something like the External Secrets Operator to avoid storing the keys in
+plain text and additionally helps to provide a foundation for key rotation.
+
+##### Using An AWS Profile For Authentication
+The option to use profiles, added in release 2.10, provides a method for supplying credentials while still using the
+standard Argo CD EKS cluster declaration with an additional command flag that points to an AWS credentials file:
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mycluster-secret
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+type: Opaque
+stringData:
+  name: "mycluster.com"
+  server: "https://mycluster.com"
+  config: |
+    {
+      "awsAuthConfig": {
+        "clusterName": "my-eks-cluster-name",
+        "roleARN": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>",
+        "profile": "/mount/path/to/my-profile-file"
+      },
+      "tlsClientConfig": {
+        "insecure": false,
+        "caData": "<base64 encoded certificate>"
+      }        
+    }
+```
+This will instruct Argo CD to read the file at the provided path and use the credentials defined within to authenticate to AWS. 
+The profile must be mounted in both the `argocd-server` and `argocd-application-controller` components in order for this to work.
+For example, the following values can be defined in a Helm-based Argo CD deployment:
+
+```yaml
+controller:
+  extraVolumes:
+    - name: my-profile-volume
+      secret:
+        secretName: my-aws-profile
+        items:
+          - key: my-profile-file
+            path: my-profile-file
+  extraVolumeMounts:
+    - name: my-profile-mount
+      mountPath: /mount/path/to
+      readOnly: true
+
+server:
+  extraVolumes:
+    - name: my-profile-volume
+      secret:
+        secretName: my-aws-profile
+        items:
+          - key: my-profile-file
+            path: my-profile-file
+  extraVolumeMounts:
+    - name: my-profile-mount
+      mountPath: /mount/path/to
+      readOnly: true
+```
+
+Where the secret is defined as follows:
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-aws-profile
+type: Opaque
+stringData:
+  my-profile-file: |
+    [default]
+    region = <aws_region>
+    aws_access_key_id = <aws_access_key_id>
+    aws_secret_access_key = <aws_secret_access_key>
+    aws_session_token = <aws_session_token>
+```
+
+> ⚠️ Secret mounts are updated on an interval, not real time. If rotation is a requirement ensure the token lifetime outlives the mount update interval and the rotation process doesn't immediately invalidate the existing token
+
+
+### GKE
 
 GKE cluster secret example using argocd-k8s-auth and [Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity):
 
@@ -739,8 +1003,8 @@ metadata:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
 stringData:
-  name: mycluster.com
-  server: https://mycluster.com
+  name: mycluster.example.com
+  server: https://mycluster.example.com
   config: |
     {
       "execProviderConfig": {
@@ -756,6 +1020,110 @@ stringData:
 ```
 
 Note that you must enable Workload Identity on your GKE cluster, create GCP service account with appropriate IAM role and bind it to Kubernetes service account for argocd-application-controller and argocd-server (showing Pod logs on UI). See [Use Workload Identity](https://cloud.google.com/kubernetes-engine/docs/how-to/workload-identity) and [Authenticating to the Kubernetes API server](https://cloud.google.com/kubernetes-engine/docs/how-to/api-server-authentication).
+
+### AKS
+
+Azure cluster secret example using argocd-k8s-auth and [kubelogin](https://github.com/Azure/kubelogin).  The option *azure* to the argocd-k8s-auth execProviderConfig encapsulates the *get-token* command for kubelogin.  Depending upon which authentication flow is desired (devicecode, spn, ropc, msi, azurecli, workloadidentity), set the environment variable AAD_LOGIN_METHOD with this value.  Set other appropriate environment variables depending upon which authentication flow is desired.
+
+|Variable Name|Description|
+|-------------|-----------|
+|AAD_LOGIN_METHOD|One of devicecode, spn, ropc, msi, azurecli, or workloadidentity|
+|AAD_SERVICE_PRINCIPAL_CLIENT_CERTIFICATE|AAD client cert in pfx.  Used in spn login|
+|AAD_SERVICE_PRINCIPAL_CLIENT_ID|AAD client application ID|
+|AAD_SERVICE_PRINCIPAL_CLIENT_SECRET|AAD client application secret|
+|AAD_USER_PRINCIPAL_NAME|Used in the ropc flow|
+|AAD_USER_PRINCIPAL_PASSWORD|Used in the ropc flow|
+|AZURE_TENANT_ID|The AAD tenant ID.|
+|AZURE_AUTHORITY_HOST|Used in the WorkloadIdentityLogin flow|
+|AZURE_FEDERATED_TOKEN_FILE|Used in the WorkloadIdentityLogin flow|
+|AZURE_CLIENT_ID|Used in the WorkloadIdentityLogin flow|
+
+In addition to the environment variables above, argocd-k8s-auth accepts two extra environment variables to set the AAD environment, and to set the AAD server application ID.  The AAD server application ID will default to 6dae42f8-4368-4678-94ff-3960e28e3630 if not specified.  See [here](https://github.com/azure/kubelogin#exec-plugin-format) for details.
+
+|Variable Name|Description|
+|-------------|-----------|
+|AAD_ENVIRONMENT_NAME|The azure environment to use, default of AzurePublicCloud|
+|AAD_SERVER_APPLICATION_ID|The optional AAD server application ID, defaults to 6dae42f8-4368-4678-94ff-3960e28e3630|
+
+This is an example of using the [federated workload login flow](https://github.com/Azure/kubelogin#azure-workload-federated-identity-non-interactive).  The federated token file needs to be mounted as a secret into argoCD, so it can be used in the flow.  The location of the token file needs to be set in the environment variable AZURE_FEDERATED_TOKEN_FILE.
+
+If your AKS cluster utilizes the [Mutating Admission Webhook](https://azure.github.io/azure-workload-identity/docs/installation/mutating-admission-webhook.html) from the Azure Workload Identity project, follow these steps to enable the `argocd-application-controller` and `argocd-server` pods to use the federated identity:
+
+1. **Label the Pods**: Add the `azure.workload.identity/use: "true"` label to the `argocd-application-controller` and `argocd-server` pods.
+
+2. **Create Federated Identity Credential**: Generate an Azure federated identity credential for the `argocd-application-controller` and `argocd-server` service accounts. Refer to the [Federated Identity Credential](https://azure.github.io/azure-workload-identity/docs/topics/federated-identity-credential.html) documentation for detailed instructions.
+
+3. **Add Annotations to Service Account** Add `"azure.workload.identity/client-id": "$CLIENT_ID"` and `"azure.workload.identity/tenant-id": "$TENANT_ID"` annotations to the `argocd-application-controller` and `argocd-server` service accounts using the details from the federated credential.
+
+4. **Set the AZURE_CLIENT_ID**: Update the `AZURE_CLIENT_ID` in the cluster secret to match the client id of the newly created federated identity credential.
+
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mycluster-secret
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+type: Opaque
+stringData:
+  name: mycluster.example.com
+  server: https://mycluster.example.com
+  config: |
+    {
+      "execProviderConfig": {
+        "command": "argocd-k8s-auth",
+        "env": {
+          "AAD_ENVIRONMENT_NAME": "AzurePublicCloud",
+          "AZURE_CLIENT_ID": "fill in client id",
+          "AZURE_TENANT_ID": "fill in tenant id", # optional, injected by workload identity mutating admission webhook if enabled
+          "AZURE_FEDERATED_TOKEN_FILE": "/opt/path/to/federated_file.json", # optional, injected by workload identity mutating admission webhook if enabled
+          "AZURE_AUTHORITY_HOST": "https://login.microsoftonline.com/", # optional, injected by workload identity mutating admission webhook if enabled
+          "AAD_LOGIN_METHOD": "workloadidentity"
+        },
+        "args": ["azure"],
+        "apiVersion": "client.authentication.k8s.io/v1beta1"
+      },
+      "tlsClientConfig": {
+        "insecure": false,
+        "caData": "<base64 encoded certificate>"
+      }
+    }
+```
+
+This is an example of using the spn (service principal name) flow.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mycluster-secret
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+type: Opaque
+stringData:
+  name: mycluster.example.com
+  server: https://mycluster.example.com
+  config: |
+    {
+      "execProviderConfig": {
+        "command": "argocd-k8s-auth",
+        "env": {
+          "AAD_ENVIRONMENT_NAME": "AzurePublicCloud",
+          "AAD_SERVICE_PRINCIPAL_CLIENT_SECRET": "fill in your service principal client secret",
+          "AZURE_TENANT_ID": "fill in tenant id",
+          "AAD_SERVICE_PRINCIPAL_CLIENT_ID": "fill in your service principal client id",
+          "AAD_LOGIN_METHOD": "spn"
+        },
+        "args": ["azure"],
+        "apiVersion": "client.authentication.k8s.io/v1beta1"
+      },
+      "tlsClientConfig": {
+        "insecure": false,
+        "caData": "<base64 encoded certificate>"
+      }
+    }
+```
 
 ## Helm Chart Repositories
 
@@ -797,7 +1165,7 @@ stringData:
 
 ## Resource Exclusion/Inclusion
 
-Resources can be excluded from discovery and sync so that Argo CD is unaware of them. For example, the apiGroup/kind `events.k8s.io/*`, `metrics.k8s.io/*`, `coordination.k8s.io/Lease`, and `""/Endpoints` are always excluded. Use cases:
+Resources can be excluded from discovery and sync so that Argo CD is unaware of them. For example, the apiGroup/kind `events.k8s.io/*`, `metrics.k8s.io/*` and `coordination.k8s.io/Lease` are always excluded. Use cases:
 
 * You have temporal issues and you want to exclude problematic resources.
 * There are many of a kind of resources that impacts Argo CD's performance.
@@ -857,9 +1225,60 @@ Notes:
 * Invalid globs result in the whole rule being ignored.
 * If you add a rule that matches existing resources, these will appear in the interface as `OutOfSync`.
 
+## Mask sensitive Annotations on Secrets
+
+An optional comma-separated list of `metadata.annotations` keys can be configured with `resource.sensitive.mask.annotations` to mask their values in UI/CLI on Secrets.
+
+```yaml
+  resource.sensitive.mask.annotations: openshift.io/token-secret.value, api-key
+```
+
+## Auto respect RBAC for controller
+
+Argocd controller can be restricted from discovering/syncing specific resources using just controller rbac, without having to manually configure resource exclusions.
+This feature can be enabled by setting `resource.respectRBAC` key in argocd cm, once it is set the controller will automatically stop watching for resources 
+that it does not have the permission to list/access. Possible values for `resource.respectRBAC` are:
+    - `strict` : This setting checks whether the list call made by controller is forbidden/unauthorized and if it is, it will cross-check the permission by making a `SelfSubjectAccessReview` call for the resource.
+    - `normal` : This will only check whether the list call response is forbidden/unauthorized and skip `SelfSubjectAccessReview` call, to minimize any extra api-server calls.
+    - unset/empty (default) : This will disable the feature and controller will continue to monitor all resources.
+
+Users who are comfortable with an increase in kube api-server calls can opt for `strict` option while users who are concerned with higher api calls and are willing to compromise on the accuracy can opt for the `normal` option.
+
+Notes:
+
+* When set to use `strict` mode controller must have rbac permission to `create` a `SelfSubjectAccessReview` resource 
+* The `SelfSubjectAccessReview` request will be only made for the `list` verb, it is assumed that if `list` is allowed for a resource then all other permissions are also available to the controller.
+
+Example argocd cm with `resource.respectRBAC` set to `strict`:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  resource.respectRBAC: "strict"
+```
+
 ## Resource Custom Labels
 
 Custom Labels configured with `resource.customLabels` (comma separated string) will be displayed in the UI (for any resource that defines them).
+
+## Labels on Application Events
+
+An optional comma-separated list of `metadata.labels` keys can be configured with `resource.includeEventLabelKeys` to add to Kubernetes events generated for Argo CD Applications. When events are generated for Applications containing the specified labels, the controller adds the matching labels to the event. This establishes an easy link between the event and the application, allowing for filtering using labels. In case of conflict between labels on the Application and AppProject, the Application label values are prioritized and added to the event.
+
+```yaml
+  resource.includeEventLabelKeys: team,env*
+```
+
+To exclude certain labels from events, use the `resource.excludeEventLabelKeys` key, which takes a comma-separated list of `metadata.labels` keys.
+
+```yaml
+  resource.excludeEventLabelKeys: environment,bu
+```
+
+Both `resource.includeEventLabelKeys` and `resource.excludeEventLabelKeys` support wildcards.
 
 ## SSO & RBAC
 
@@ -876,7 +1295,7 @@ Example of `kustomization.yaml`:
 ```yaml
 # additional resources like ingress rules, cluster and repository secrets.
 resources:
-- github.com/argoproj/argo-cd//manifests/cluster-install?ref=v1.0.1
+- github.com/argoproj/argo-cd//manifests/cluster-install?ref=stable
 - clusters-secrets.yaml
 - repos-secrets.yaml
 

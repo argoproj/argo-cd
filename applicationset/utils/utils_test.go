@@ -2,6 +2,7 @@ package utils
 
 import (
 	"crypto/x509"
+	"encoding/json"
 	"os"
 	"path"
 	"testing"
@@ -20,7 +21,6 @@ import (
 )
 
 func TestRenderTemplateParams(t *testing.T) {
-
 	// Believe it or not, this is actually less complex than the equivalent solution using reflection
 	fieldMap := map[string]func(app *argoappsv1.Application) *string{}
 	fieldMap["Path"] = func(app *argoappsv1.Application) *string { return &app.Spec.Source.Path }
@@ -164,11 +164,8 @@ func TestRenderTemplateParams(t *testing.T) {
 	}
 
 	for _, test := range tests {
-
 		t.Run(test.name, func(t *testing.T) {
-
 			for fieldName, getPtrFunc := range fieldMap {
-
 				// Clone the template application
 				application := emptyApplication.DeepCopy()
 
@@ -183,23 +180,124 @@ func TestRenderTemplateParams(t *testing.T) {
 				// the target field has been templated into the expected value
 				actualValue := *getPtrFunc(newApplication)
 				assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", fieldName, test.expectedVal, actualValue)
-				assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key"], "annotation-value")
-				assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key2"], "annotation-value2")
-				assert.Equal(t, newApplication.ObjectMeta.Labels["label-key"], "label-value")
-				assert.Equal(t, newApplication.ObjectMeta.Labels["label-key2"], "label-value2")
-				assert.Equal(t, newApplication.ObjectMeta.Name, "application-one")
-				assert.Equal(t, newApplication.ObjectMeta.Namespace, "default")
+				assert.Equal(t, "annotation-value", newApplication.ObjectMeta.Annotations["annotation-key"])
+				assert.Equal(t, "annotation-value2", newApplication.ObjectMeta.Annotations["annotation-key2"])
+				assert.Equal(t, "label-value", newApplication.ObjectMeta.Labels["label-key"])
+				assert.Equal(t, "label-value2", newApplication.ObjectMeta.Labels["label-key2"])
+				assert.Equal(t, "application-one", newApplication.ObjectMeta.Name)
+				assert.Equal(t, "default", newApplication.ObjectMeta.Namespace)
 				assert.Equal(t, newApplication.ObjectMeta.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
 				assert.Equal(t, newApplication.ObjectMeta.CreationTimestamp, application.ObjectMeta.CreationTimestamp)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
+}
 
+func TestRenderHelmValuesObjectJson(t *testing.T) {
+	params := map[string]interface{}{
+		"test": "Hello world",
+	}
+
+	application := &argoappsv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
+			Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
+			CreationTimestamp: metav1.NewTime(time.Now()),
+			UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
+			Name:              "application-one",
+			Namespace:         "default",
+		},
+		Spec: argoappsv1.ApplicationSpec{
+			Source: &argoappsv1.ApplicationSource{
+				Path:           "",
+				RepoURL:        "",
+				TargetRevision: "",
+				Chart:          "",
+				Helm: &argoappsv1.ApplicationSourceHelm{
+					ValuesObject: &runtime.RawExtension{
+						Raw: []byte(`{
+								"some": {
+									"string": "{{.test}}"
+								}
+							  }`),
+					},
+				},
+			},
+			Destination: argoappsv1.ApplicationDestination{
+				Server:    "",
+				Namespace: "",
+				Name:      "",
+			},
+			Project: "",
+		},
+	}
+
+	// Render the cloned application, into a new application
+	render := Render{}
+	newApplication, err := render.RenderTemplateParams(application, nil, params, true, []string{})
+
+	require.NoError(t, err)
+	assert.NotNil(t, newApplication)
+
+	var unmarshaled interface{}
+	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject.Raw, &unmarshaled)
+
+	require.NoError(t, err)
+	assert.Equal(t, "Hello world", unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"])
+}
+
+func TestRenderHelmValuesObjectYaml(t *testing.T) {
+	params := map[string]interface{}{
+		"test": "Hello world",
+	}
+
+	application := &argoappsv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
+			Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
+			CreationTimestamp: metav1.NewTime(time.Now()),
+			UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
+			Name:              "application-one",
+			Namespace:         "default",
+		},
+		Spec: argoappsv1.ApplicationSpec{
+			Source: &argoappsv1.ApplicationSource{
+				Path:           "",
+				RepoURL:        "",
+				TargetRevision: "",
+				Chart:          "",
+				Helm: &argoappsv1.ApplicationSourceHelm{
+					ValuesObject: &runtime.RawExtension{
+						Raw: []byte(`some:
+  string: "{{.test}}"`),
+					},
+				},
+			},
+			Destination: argoappsv1.ApplicationDestination{
+				Server:    "",
+				Namespace: "",
+				Name:      "",
+			},
+			Project: "",
+		},
+	}
+
+	// Render the cloned application, into a new application
+	render := Render{}
+	newApplication, err := render.RenderTemplateParams(application, nil, params, true, []string{})
+
+	require.NoError(t, err)
+	assert.NotNil(t, newApplication)
+
+	var unmarshaled interface{}
+	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject.Raw, &unmarshaled)
+
+	require.NoError(t, err)
+	assert.Equal(t, "Hello world", unmarshaled.(map[string]interface{})["some"].(map[string]interface{})["string"])
 }
 
 func TestRenderTemplateParamsGoTemplate(t *testing.T) {
-
 	// Believe it or not, this is actually less complex than the equivalent solution using reflection
 	fieldMap := map[string]func(app *argoappsv1.Application) *string{}
 	fieldMap["Path"] = func(app *argoappsv1.Application) *string { return &app.Spec.Source.Path }
@@ -447,14 +545,69 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 			templateOptions: []string{"missingkey=error"},
 			errorMessage:    `failed to execute go template --> {{.doesnotexist}} <--: template: :1:6: executing "" at <.doesnotexist>: map has no entry for key "doesnotexist"`,
 		},
+		{
+			name:        "toYaml",
+			fieldVal:    `{{ toYaml . | indent 2 }}`,
+			expectedVal: "  foo:\n    bar:\n      bool: true\n      number: 2\n      str: Hello world",
+			params: map[string]interface{}{
+				"foo": map[string]interface{}{
+					"bar": map[string]interface{}{
+						"bool":   true,
+						"number": 2,
+						"str":    "Hello world",
+					},
+				},
+			},
+		},
+		{
+			name:         "toYaml Error",
+			fieldVal:     `{{ toYaml . | indent 2 }}`,
+			expectedVal:  "  foo:\n    bar:\n      bool: true\n      number: 2\n      str: Hello world",
+			errorMessage: "failed to execute go template {{ toYaml . | indent 2 }}: template: :1:3: executing \"\" at <toYaml .>: error calling toYaml: error marshaling into JSON: json: unsupported type: func(*string)",
+			params: map[string]interface{}{
+				"foo": func(test *string) {
+				},
+			},
+		},
+		{
+			name:        "fromYaml",
+			fieldVal:    `{{ get (fromYaml .value) "hello" }}`,
+			expectedVal: "world",
+			params: map[string]interface{}{
+				"value": "hello: world",
+			},
+		},
+		{
+			name:         "fromYaml error",
+			fieldVal:     `{{ get (fromYaml .value) "hello" }}`,
+			expectedVal:  "world",
+			errorMessage: "failed to execute go template {{ get (fromYaml .value) \"hello\" }}: template: :1:8: executing \"\" at <fromYaml .value>: error calling fromYaml: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}",
+			params: map[string]interface{}{
+				"value": "non\n compliant\n yaml",
+			},
+		},
+		{
+			name:        "fromYamlArray",
+			fieldVal:    `{{ fromYamlArray .value | last }}`,
+			expectedVal: "bonjour tout le monde",
+			params: map[string]interface{}{
+				"value": "- hello world\n- bonjour tout le monde",
+			},
+		},
+		{
+			name:         "fromYamlArray error",
+			fieldVal:     `{{ fromYamlArray .value | last }}`,
+			expectedVal:  "bonjour tout le monde",
+			errorMessage: "failed to execute go template {{ fromYamlArray .value | last }}: template: :1:3: executing \"\" at <fromYamlArray .value>: error calling fromYamlArray: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type []interface {}",
+			params: map[string]interface{}{
+				"value": "non\n compliant\n yaml",
+			},
+		},
 	}
 
 	for _, test := range tests {
-
 		t.Run(test.name, func(t *testing.T) {
-
 			for fieldName, getPtrFunc := range fieldMap {
-
 				// Clone the template application
 				application := emptyApplication.DeepCopy()
 
@@ -468,18 +621,18 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 				// Retrieve the value of the target field from the newApplication, then verify that
 				// the target field has been templated into the expected value
 				if test.errorMessage != "" {
-					assert.Error(t, err)
+					require.Error(t, err)
 					assert.Equal(t, test.errorMessage, err.Error())
 				} else {
-					assert.NoError(t, err)
+					require.NoError(t, err)
 					actualValue := *getPtrFunc(newApplication)
 					assert.Equal(t, test.expectedVal, actualValue, "Field '%s' had an unexpected value. expected: '%s' value: '%s'", fieldName, test.expectedVal, actualValue)
-					assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key"], "annotation-value")
-					assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-key2"], "annotation-value2")
-					assert.Equal(t, newApplication.ObjectMeta.Labels["label-key"], "label-value")
-					assert.Equal(t, newApplication.ObjectMeta.Labels["label-key2"], "label-value2")
-					assert.Equal(t, newApplication.ObjectMeta.Name, "application-one")
-					assert.Equal(t, newApplication.ObjectMeta.Namespace, "default")
+					assert.Equal(t, "annotation-value", newApplication.ObjectMeta.Annotations["annotation-key"])
+					assert.Equal(t, "annotation-value2", newApplication.ObjectMeta.Annotations["annotation-key2"])
+					assert.Equal(t, "label-value", newApplication.ObjectMeta.Labels["label-key"])
+					assert.Equal(t, "label-value2", newApplication.ObjectMeta.Labels["label-key2"])
+					assert.Equal(t, "application-one", newApplication.ObjectMeta.Name)
+					assert.Equal(t, "default", newApplication.ObjectMeta.Namespace)
 					assert.Equal(t, newApplication.ObjectMeta.UID, types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"))
 					assert.Equal(t, newApplication.ObjectMeta.CreationTimestamp, application.ObjectMeta.CreationTimestamp)
 				}
@@ -513,7 +666,7 @@ func TestRenderGeneratorParams_does_not_panic(t *testing.T) {
 		},
 	}
 	_, err := render.RenderGeneratorParams(generator, params, true, []string{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestRenderTemplateKeys(t *testing.T) {
@@ -535,7 +688,7 @@ func TestRenderTemplateKeys(t *testing.T) {
 		newApplication, err := render.RenderTemplateParams(application, nil, params, false, nil)
 		require.NoError(t, err)
 		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
-		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
+		assert.Equal(t, "annotation-some-value", newApplication.ObjectMeta.Annotations["annotation-some-key"])
 	})
 	t.Run("gotemplate", func(t *testing.T) {
 		application := &argoappsv1.Application{
@@ -555,12 +708,19 @@ func TestRenderTemplateKeys(t *testing.T) {
 		newApplication, err := render.RenderTemplateParams(application, nil, params, true, nil)
 		require.NoError(t, err)
 		require.Contains(t, newApplication.ObjectMeta.Annotations, "annotation-some-key")
-		assert.Equal(t, newApplication.ObjectMeta.Annotations["annotation-some-key"], "annotation-some-value")
+		assert.Equal(t, "annotation-some-value", newApplication.ObjectMeta.Annotations["annotation-some-key"])
+	})
+}
+
+func Test_Render_Replace_no_panic_on_missing_closing_brace(t *testing.T) {
+	r := &Render{}
+	assert.NotPanics(t, func() {
+		_, err := r.Replace("{{properly.closed}} {{improperly.closed}", nil, false, []string{})
+		require.Error(t, err)
 	})
 }
 
 func TestRenderTemplateParamsFinalizers(t *testing.T) {
-
 	emptyApplication := &argoappsv1.Application{
 		Spec: argoappsv1.ApplicationSpec{
 			Source: &argoappsv1.ApplicationSource{
@@ -639,9 +799,7 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 			expectedFinalizers: []string{"resources-finalizer.argocd.argoproj.io/background"},
 		},
 	} {
-
 		t.Run(c.testName, func(t *testing.T) {
-
 			// Clone the template application
 			application := emptyApplication.DeepCopy()
 			application.Finalizers = c.existingFinalizers
@@ -654,23 +812,19 @@ func TestRenderTemplateParamsFinalizers(t *testing.T) {
 			render := Render{}
 
 			res, err := render.RenderTemplateParams(application, c.syncPolicy, params, true, nil)
-			assert.Nil(t, err)
+			require.NoError(t, err)
 
 			assert.ElementsMatch(t, res.Finalizers, c.expectedFinalizers)
-
 		})
-
 	}
-
 }
 
 func TestCheckInvalidGenerators(t *testing.T) {
-
 	scheme := runtime.NewScheme()
 	err := argoappsv1.AddToScheme(scheme)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	err = argoappsv1.AddToScheme(scheme)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	for _, c := range []struct {
 		testName    string
@@ -758,7 +912,7 @@ func TestCheckInvalidGenerators(t *testing.T) {
 		hook := logtest.NewGlobal()
 
 		_ = CheckInvalidGenerators(&c.appSet)
-		assert.True(t, len(hook.Entries) >= 1, c.testName)
+		assert.GreaterOrEqual(t, len(hook.Entries), 1, c.testName)
 		assert.NotNil(t, hook.LastEntry(), c.testName)
 		if hook.LastEntry() != nil {
 			assert.Equal(t, logrus.WarnLevel, hook.LastEntry().Level, c.testName)
@@ -769,12 +923,11 @@ func TestCheckInvalidGenerators(t *testing.T) {
 }
 
 func TestInvalidGenerators(t *testing.T) {
-
 	scheme := runtime.NewScheme()
 	err := argoappsv1.AddToScheme(scheme)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	err = argoappsv1.AddToScheme(scheme)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	for _, c := range []struct {
 		testName        string
@@ -1069,12 +1222,46 @@ func TestNormalizeBitbucketBasePath(t *testing.T) {
 	}
 }
 
-func TestGetTLSConfig(t *testing.T) {
-	// certParsed, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
-	// require.NoError(t, err)
+func TestSlugify(t *testing.T) {
+	for _, c := range []struct {
+		branch           string
+		smartTruncate    bool
+		length           int
+		expectedBasePath string
+	}{
+		{
+			branch:           "feat/a_really+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
+			smartTruncate:    false,
+			length:           50,
+			expectedBasePath: "feat-a-really-long-pull-request-name-to-test-argo",
+		},
+		{
+			branch:           "feat/a_really+long_pull_request_name_to_test_argo_slugification_and_branch_name_shortening_feature",
+			smartTruncate:    true,
+			length:           53,
+			expectedBasePath: "feat-a-really-long-pull-request-name-to-test-argo",
+		},
+		{
+			branch:           "feat/areallylongpullrequestnametotestargoslugificationandbranchnameshorteningfeature",
+			smartTruncate:    true,
+			length:           50,
+			expectedBasePath: "feat",
+		},
+		{
+			branch:           "feat/areallylongpullrequestnametotestargoslugificationandbranchnameshorteningfeature",
+			smartTruncate:    false,
+			length:           50,
+			expectedBasePath: "feat-areallylongpullrequestnametotestargoslugifica",
+		},
+	} {
+		result := SlugifyName(c.length, c.smartTruncate, c.branch)
+		assert.Equal(t, c.expectedBasePath, result, c.branch)
+	}
+}
 
+func TestGetTLSConfig(t *testing.T) {
 	temppath := t.TempDir()
-	cert := `
+	certFromFile := `
 -----BEGIN CERTIFICATE-----
 MIIFvTCCA6WgAwIBAgIUGrTmW3qc39zqnE08e3qNDhUkeWswDQYJKoZIhvcNAQEL
 BQAwbjELMAkGA1UEBhMCVVMxCzAJBgNVBAgMAklMMRAwDgYDVQQHDAdDaGljYWdv
@@ -1110,48 +1297,94 @@ xO7Tr5lAo74vNUkF2EHNaI28/RGnJPm2TIxZqy4rNH6L
 -----END CERTIFICATE-----
 `
 
+	certFromCM := `
+-----BEGIN CERTIFICATE-----
+MIIDOTCCAiGgAwIBAgIQSRJrEpBGFc7tNb1fb5pKFzANBgkqhkiG9w0BAQsFADAS
+MRAwDgYDVQQKEwdBY21lIENvMCAXDTcwMDEwMTAwMDAwMFoYDzIwODQwMTI5MTYw
+MDAwWjASMRAwDgYDVQQKEwdBY21lIENvMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
+MIIBCgKCAQEA6Gba5tHV1dAKouAaXO3/ebDUU4rvwCUg/CNaJ2PT5xLD4N1Vcb8r
+bFSW2HXKq+MPfVdwIKR/1DczEoAGf/JWQTW7EgzlXrCd3rlajEX2D73faWJekD0U
+aUgz5vtrTXZ90BQL7WvRICd7FlEZ6FPOcPlumiyNmzUqtwGhO+9ad1W5BqJaRI6P
+YfouNkwR6Na4TzSj5BrqUfP0FwDizKSJ0XXmh8g8G9mtwxOSN3Ru1QFc61Xyeluk
+POGKBV/q6RBNklTNe0gI8usUMlYyoC7ytppNMW7X2vodAelSu25jgx2anj9fDVZu
+h7AXF5+4nJS4AAt0n1lNY7nGSsdZas8PbQIDAQABo4GIMIGFMA4GA1UdDwEB/wQE
+AwICpDATBgNVHSUEDDAKBggrBgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MB0GA1Ud
+DgQWBBStsdjh3/JCXXYlQryOrL4Sh7BW5TAuBgNVHREEJzAlggtleGFtcGxlLmNv
+bYcEfwAAAYcQAAAAAAAAAAAAAAAAAAAAATANBgkqhkiG9w0BAQsFAAOCAQEAxWGI
+5NhpF3nwwy/4yB4i/CwwSpLrWUa70NyhvprUBC50PxiXav1TeDzwzLx/o5HyNwsv
+cxv3HdkLW59i/0SlJSrNnWdfZ19oTcS+6PtLoVyISgtyN6DpkKpdG1cOkW3Cy2P2
++tK/tKHRP1Y/Ra0RiDpOAmqn0gCOFGz8+lqDIor/T7MTpibL3IxqWfPrvfVRHL3B
+grw/ZQTTIVjjh4JBSW3WyWgNo/ikC1lrVxzl4iPUGptxT36Cr7Zk2Bsg0XqwbOvK
+5d+NTDREkSnUbie4GeutujmX3Dsx88UiV6UY/4lHJa6I5leHUNOHahRbpbWeOfs/
+WkBKOclmOV2xlTVuPw==
+-----END CERTIFICATE-----
+`
+
 	rootCAPath := path.Join(temppath, "foo.example.com")
-	err := os.WriteFile(rootCAPath, []byte(cert), 0666)
+	err := os.WriteFile(rootCAPath, []byte(certFromFile), 0o666)
 	if err != nil {
 		panic(err)
 	}
-
-	certPool := x509.NewCertPool()
-	ok := certPool.AppendCertsFromPEM([]byte(cert))
-	assert.True(t, ok)
 
 	testCases := []struct {
 		name                    string
 		scmRootCAPath           string
 		insecure                bool
+		caCerts                 []byte
 		validateCertInTlsConfig bool
 	}{
 		{
 			name:                    "Insecure mode configured, SCM Root CA Path not set",
 			scmRootCAPath:           "",
 			insecure:                true,
+			caCerts:                 nil,
 			validateCertInTlsConfig: false,
 		},
 		{
 			name:                    "SCM Root CA Path set, Insecure mode set to false",
 			scmRootCAPath:           rootCAPath,
 			insecure:                false,
+			caCerts:                 nil,
 			validateCertInTlsConfig: true,
 		},
 		{
 			name:                    "SCM Root CA Path set, Insecure mode set to true",
 			scmRootCAPath:           rootCAPath,
 			insecure:                true,
+			caCerts:                 nil,
+			validateCertInTlsConfig: true,
+		},
+		{
+			name:                    "Cert passed, Insecure mode set to false",
+			scmRootCAPath:           "",
+			insecure:                false,
+			caCerts:                 []byte(certFromCM),
+			validateCertInTlsConfig: true,
+		},
+		{
+			name:                    "SCM Root CA Path set, cert passed, Insecure mode set to false",
+			scmRootCAPath:           rootCAPath,
+			insecure:                false,
+			caCerts:                 []byte(certFromCM),
 			validateCertInTlsConfig: true,
 		},
 	}
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			tlsConfig := GetTlsConfig(testCase.scmRootCAPath, testCase.insecure)
+			certPool := x509.NewCertPool()
+			tlsConfig := GetTlsConfig(testCase.scmRootCAPath, testCase.insecure, testCase.caCerts)
 			assert.Equal(t, testCase.insecure, tlsConfig.InsecureSkipVerify)
+			if testCase.caCerts != nil {
+				ok := certPool.AppendCertsFromPEM([]byte(certFromCM))
+				assert.True(t, ok)
+			}
+			if testCase.scmRootCAPath != "" {
+				ok := certPool.AppendCertsFromPEM([]byte(certFromFile))
+				assert.True(t, ok)
+			}
+			assert.NotNil(t, tlsConfig)
 			if testCase.validateCertInTlsConfig {
-				assert.NotNil(t, tlsConfig)
 				assert.True(t, tlsConfig.RootCAs.Equal(certPool))
 			}
 		})

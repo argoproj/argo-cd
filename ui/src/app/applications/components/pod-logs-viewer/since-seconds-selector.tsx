@@ -4,7 +4,14 @@ import {Tooltip} from 'argo-ui';
 // SinceSelector is a component that renders a dropdown menu of time ranges
 export const SinceSecondsSelector = ({sinceSeconds, setSinceSeconds}: {sinceSeconds: number; setSinceSeconds: (value: number) => void}) => (
     <Tooltip content='Show logs since a given time'>
-        <select className='argo-field' style={{marginRight: '1em'}} value={sinceSeconds} onChange={e => setSinceSeconds(parseInt(e.target.value, 10))}>
+        <select
+            className='argo-field'
+            style={{marginRight: '1em'}}
+            value={sinceSeconds}
+            onChange={e => {
+                const v = parseInt(e.target.value, 10);
+                setSinceSeconds(!isNaN(v) ? v : null);
+            }}>
             <option value='60'>1m ago</option>
             <option value='300'>5m ago</option>
             <option value='600'>10m ago</option>

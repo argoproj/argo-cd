@@ -27,12 +27,22 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 }
 
 func (c *Consequences) ExpectWithDuration(e Expectation, timeout time.Duration) *Consequences {
-
 	// this invocation makes sure this func is not reported as the cause of the failure - we are a "test helper"
 	c.context.t.Helper()
 	var message string
 	var state state
-	for start := time.Now(); time.Since(start) < timeout; time.Sleep(3 * time.Second) {
+	sleepIntervals := []time.Duration{
+		10 * time.Millisecond,
+		20 * time.Millisecond,
+		50 * time.Millisecond,
+		100 * time.Millisecond,
+		200 * time.Millisecond,
+		300 * time.Millisecond,
+		500 * time.Millisecond,
+		1 * time.Second,
+	}
+	sleepIntervalsIdx := -1
+	for start := time.Now(); time.Since(start) < timeout; time.Sleep(sleepIntervals[sleepIntervalsIdx]) {
 		state, message = e(c)
 		switch state {
 		case succeeded:
@@ -43,6 +53,9 @@ func (c *Consequences) ExpectWithDuration(e Expectation, timeout time.Duration) 
 			return c
 		}
 		log.Infof("expectation pending: %s", message)
+		if sleepIntervalsIdx < len(sleepIntervals)-1 {
+			sleepIntervalsIdx++
+		}
 	}
 	c.context.t.Fatal("timeout waiting for: " + message)
 	return c
@@ -75,10 +88,9 @@ func (c *Consequences) app(name string) *v1alpha1.Application {
 }
 
 func (c *Consequences) apps() []v1alpha1.Application {
-
 	var namespace string
-	if c.context.useExternalNamespace {
-		namespace = utils.ArgoCDExternalNamespace
+	if c.context.switchToNamespace != "" {
+		namespace = string(c.context.switchToNamespace)
 	} else {
 		namespace = fixture.TestNamespace()
 	}
@@ -95,13 +107,12 @@ func (c *Consequences) apps() []v1alpha1.Application {
 }
 
 func (c *Consequences) applicationSet(applicationSetName string) *v1alpha1.ApplicationSet {
-
 	fixtureClient := utils.GetE2EFixtureK8sClient()
 
 	var appSetClientSet dynamic.ResourceInterface
 
-	if c.context.useExternalNamespace {
-		appSetClientSet = fixtureClient.ExternalAppSetClientset
+	if c.context.switchToNamespace != "" {
+		appSetClientSet = fixtureClient.ExternalAppSetClientsets[c.context.switchToNamespace]
 	} else {
 		appSetClientSet = fixtureClient.AppSetClientset
 	}

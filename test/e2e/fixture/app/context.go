@@ -38,10 +38,12 @@ type Context struct {
 	project                string
 	revision               string
 	force                  bool
+	applyOutOfSyncOnly     bool
 	directoryRecurse       bool
 	replace                bool
 	helmPassCredentials    bool
 	helmSkipCrds           bool
+	helmSkipTests          bool
 	trackingMethod         v1alpha1.TrackingMethod
 	sources                []v1alpha1.ApplicationSource
 }
@@ -51,20 +53,23 @@ type ContextArgs struct {
 }
 
 func Given(t *testing.T, opts ...fixture.TestOption) *Context {
+	t.Helper()
 	fixture.EnsureCleanState(t, opts...)
 	return GivenWithSameState(t)
 }
 
 func GivenWithNamespace(t *testing.T, namespace string) *Context {
+	t.Helper()
 	ctx := Given(t)
 	ctx.appNamespace = namespace
 	return ctx
 }
 
 func GivenWithSameState(t *testing.T) *Context {
+	t.Helper()
 	// ARGOCE_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
 	// for any context.
-	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 10, 0, 180)
+	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 20, 0, 180)
 	return &Context{
 		t:              t,
 		destServer:     v1alpha1.KubernetesInternalAPIServerAddr,
@@ -99,7 +104,7 @@ func (c *Context) AppNamespace() string {
 
 func (c *Context) SetAppNamespace(namespace string) *Context {
 	c.appNamespace = namespace
-	//fixture.SetParamInSettingConfigMap("application.resourceTrackingMethod", "annotation")
+	// fixture.SetParamInSettingConfigMap("application.resourceTrackingMethod", "annotation")
 	return c
 }
 
@@ -341,6 +346,11 @@ func (c *Context) Force() *Context {
 	return c
 }
 
+func (c *Context) ApplyOutOfSyncOnly() *Context {
+	c.applyOutOfSyncOnly = true
+	return c
+}
+
 func (c *Context) HelmPassCredentials() *Context {
 	c.helmPassCredentials = true
 	return c
@@ -351,8 +361,18 @@ func (c *Context) HelmSkipCrds() *Context {
 	return c
 }
 
+func (c *Context) HelmSkipTests() *Context {
+	c.helmSkipTests = true
+	return c
+}
+
 func (c *Context) SetTrackingMethod(trackingMethod string) *Context {
 	fixture.SetTrackingMethod(trackingMethod)
+	return c
+}
+
+func (c *Context) SetInstallationID(installationID string) *Context {
+	fixture.SetTrackingMethod(installationID)
 	return c
 }
 
