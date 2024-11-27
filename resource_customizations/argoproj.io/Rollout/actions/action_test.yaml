@@ -43,7 +43,7 @@ discoveryTests:
     - name: promote-full
       disabled: true
     - name: pause
-      disabled: true
+      disabled: false
 - inputPath: testdata/has_pause_condition_rollout.yaml
   result:
     - name: restart
