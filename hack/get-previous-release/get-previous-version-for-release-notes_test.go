@@ -86,7 +86,7 @@ func TestFindPreviousTagRules(t *testing.T) {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
-				assert.Equalf(t, test.expected, test.expected, "for proposed tag %s expected %s but got %s", test.proposedTag, test.expected, result)
+				assert.Equalf(t, test.expected, result, "for proposed tag %s expected %s but got %s", test.proposedTag, test.expected, result)
 			}
 		})
 	}

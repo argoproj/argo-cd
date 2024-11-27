@@ -460,6 +460,10 @@ spec:
                               to use for rendering manifests
                             type: string
                         type: object
+                      name:
+                        description: Name is used to refer to a source and is displayed
+                          in the UI. It is used in multi-source Applications.
+                        type: string
                       path:
                         description: Path is a directory path within the Git repository,
                           and is only valid for applications sourced from Git.
@@ -832,6 +836,10 @@ spec:
                                 to use for rendering manifests
                               type: string
                           type: object
+                        name:
+                          description: Name is used to refer to a source and is displayed
+                            in the UI. It is used in multi-source Applications.
+                          type: string
                         path:
                           description: Path is a directory path within the Git repository,
                             and is only valid for applications sourced from Git.
@@ -1314,6 +1322,10 @@ spec:
                           use for rendering manifests
                         type: string
                     type: object
+                  name:
+                    description: Name is used to refer to a source and is displayed
+                      in the UI. It is used in multi-source Applications.
+                    type: string
                   path:
                     description: Path is a directory path within the Git repository,
                       and is only valid for applications sourced from Git.
@@ -1676,6 +1688,10 @@ spec:
                             to use for rendering manifests
                           type: string
                       type: object
+                    name:
+                      description: Name is used to refer to a source and is displayed
+                        in the UI. It is used in multi-source Applications.
+                      type: string
                     path:
                       description: Path is a directory path within the Git repository,
                         and is only valid for applications sourced from Git.
@@ -2204,6 +2220,10 @@ spec:
                                 to use for rendering manifests
                               type: string
                           type: object
+                        name:
+                          description: Name is used to refer to a source and is displayed
+                            in the UI. It is used in multi-source Applications.
+                          type: string
                         path:
                           description: Path is a directory path within the Git repository,
                             and is only valid for applications sourced from Git.
@@ -2579,6 +2599,10 @@ spec:
                                   to use for rendering manifests
                                 type: string
                             type: object
+                          name:
+                            description: Name is used to refer to a source and is
+                              displayed in the UI. It is used in multi-source Applications.
+                            type: string
                           path:
                             description: Path is a directory path within the Git repository,
                               and is only valid for applications sourced from Git.
@@ -3103,6 +3127,11 @@ spec:
                                       Kustomize to use for rendering manifests
                                     type: string
                                 type: object
+                              name:
+                                description: Name is used to refer to a source and
+                                  is displayed in the UI. It is used in multi-source
+                                  Applications.
+                                type: string
                               path:
                                 description: Path is a directory path within the Git
                                   repository, and is only valid for applications sourced
@@ -3497,6 +3526,11 @@ spec:
                                         of Kustomize to use for rendering manifests
                                       type: string
                                   type: object
+                                name:
+                                  description: Name is used to refer to a source and
+                                    is displayed in the UI. It is used in multi-source
+                                    Applications.
+                                  type: string
                                 path:
                                   description: Path is a directory path within the
                                     Git repository, and is only valid for applications
@@ -4001,6 +4035,10 @@ spec:
                                   to use for rendering manifests
                                 type: string
                             type: object
+                          name:
+                            description: Name is used to refer to a source and is
+                              displayed in the UI. It is used in multi-source Applications.
+                            type: string
                           path:
                             description: Path is a directory path within the Git repository,
                               and is only valid for applications sourced from Git.
@@ -4387,6 +4425,10 @@ spec:
                                     to use for rendering manifests
                                   type: string
                               type: object
+                            name:
+                              description: Name is used to refer to a source and is
+                                displayed in the UI. It is used in multi-source Applications.
+                              type: string
                             path:
                               description: Path is a directory path within the Git
                                 repository, and is only valid for applications sourced
@@ -4917,6 +4959,10 @@ spec:
                                   to use for rendering manifests
                                 type: string
                             type: object
+                          name:
+                            description: Name is used to refer to a source and is
+                              displayed in the UI. It is used in multi-source Applications.
+                            type: string
                           path:
                             description: Path is a directory path within the Git repository,
                               and is only valid for applications sourced from Git.
@@ -5303,6 +5349,10 @@ spec:
                                     to use for rendering manifests
                                   type: string
                               type: object
+                            name:
+                              description: Name is used to refer to a source and is
+                                displayed in the UI. It is used in multi-source Applications.
+                              type: string
                             path:
                               description: Path is a directory path within the Git
                                 repository, and is only valid for applications sourced
@@ -5739,6 +5789,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -5971,6 +6023,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -6367,6 +6421,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -6599,6 +6655,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -6994,6 +7052,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -7226,6 +7286,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -7601,6 +7663,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -7833,6 +7897,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -8233,6 +8299,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -8465,6 +8533,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -8861,6 +8931,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -9093,6 +9165,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -9488,6 +9562,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -9720,6 +9796,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -10095,6 +10173,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -10327,6 +10407,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -10710,6 +10792,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -10942,6 +11026,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -11544,6 +11630,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -11776,6 +11864,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -12373,6 +12463,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -12605,6 +12697,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -12997,6 +13091,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -13229,6 +13325,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -13631,6 +13729,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -13863,6 +13963,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -14259,6 +14361,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -14491,6 +14595,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -14886,6 +14992,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -15118,6 +15226,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -15493,6 +15603,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -15725,6 +15837,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -16108,6 +16222,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -16340,6 +16456,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -16942,6 +17060,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -17174,6 +17294,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -17771,6 +17893,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -18003,6 +18127,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -18399,6 +18525,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -18631,6 +18759,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -19013,6 +19143,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -19245,6 +19377,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -19847,6 +19981,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -20079,6 +20215,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -20676,6 +20814,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -20908,6 +21048,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -21375,6 +21517,8 @@ spec:
                               version:
                                 type: string
                             type: object
+                          name:
+                            type: string
                           path:
                             type: string
                           plugin:
@@ -21607,6 +21751,8 @@ spec:
                                 version:
                                   type: string
                               type: object
+                            name:
+                              type: string
                             path:
                               type: string
                             plugin:
@@ -22630,7 +22776,6 @@ rules:
   - delete
   - get
   - patch
-  - list
 - apiGroups:
   - ""
   resources:
@@ -25452,6 +25597,8 @@ spec:
               key: controller.ignore.normalizer.jq.timeout
               name: argocd-cmd-params-cm
               optional: true
+        - name: KUBECACHEDIR
+          value: /tmp/kubecache
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller
@@ -25479,6 +25626,8 @@ spec:
           name: argocd-home
         - mountPath: /home/argocd/params
           name: argocd-cmd-params-cm
+        - mountPath: /tmp
+          name: argocd-application-controller-tmp
         workingDir: /home/argocd
       nodeSelector:
         kubernetes.io/os: linux
@@ -25486,6 +25635,8 @@ spec:
       volumes:
       - emptyDir: {}
         name: argocd-home
+      - emptyDir: {}
+        name: argocd-application-controller-tmp
       - name: argocd-repo-server-tls
         secret:
           items:
