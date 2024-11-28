@@ -1043,7 +1043,6 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         }
     } else {
         // Tree view
-        const managedKeys = new Set(props.app.status.resources.map(nodeKey));
         const orphanedKeys = new Set(props.tree.orphanedNodes?.map(nodeKey));
         const orphans: ResourceTreeNode[] = [];
         let allChildNodes: ResourceTreeNode[] = [];
@@ -1092,7 +1091,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             // containing explicit parent references
             if (!node.parentRefs || node.parentRefs.length == 0) {
                 graph.setEdge(appNodeKey(props.app), treeNodeKey(node));
-             }
+            }
         });
         orphans.sort(compareNodes).forEach(node => {
             processNode(node, node);

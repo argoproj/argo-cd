@@ -367,10 +367,10 @@ func Test_asResourceNodeInferParents(t *testing.T) {
 					Object: map[string]any{
 						"metadata": map[string]any{
 							"annotations": map[string]any{
-								"argocd.argoproj.io/ownerName":       "parent-resource",
-								"argocd.argoproj.io/ownerKind":       "Parent",
-								"argocd.argoproj.io/ownerApiVersion": "custom-api.example.org/v1alpha1",
-								"argocd.argoproj.io/ownerNamespace":  "parentns",
+								"argocd.argoproj.io/parentName":       "parent-resource",
+								"argocd.argoproj.io/parentKind":       "Parent",
+								"argocd.argoproj.io/parentApiVersion": "custom-api.example.org/v1alpha1",
+								"argocd.argoproj.io/parentNamespace":  "parentns",
 							},
 						},
 					},
@@ -427,9 +427,9 @@ func Test_asResourceNodeInferParents(t *testing.T) {
 					Object: map[string]any{
 						"metadata": map[string]any{
 							"annotations": map[string]any{
-								"argocd.argoproj.io/ownerName":       "parent-resource",
-								"argocd.argoproj.io/ownerKind":       "Parent",
-								"argocd.argoproj.io/ownerApiVersion": "custom-api.example.org/v1alpha1",
+								"argocd.argoproj.io/parentName":       "parent-resource",
+								"argocd.argoproj.io/parentKind":       "Parent",
+								"argocd.argoproj.io/parentApiVersion": "custom-api.example.org/v1alpha1",
 							},
 						},
 					},
@@ -487,9 +487,9 @@ func Test_asResourceNodeInferParents(t *testing.T) {
 					Object: map[string]any{
 						"metadata": map[string]any{
 							"annotations": map[string]any{
-								"argocd.argoproj.io/ownerName":       "parent-resource",
-								"argocd.argoproj.io/ownerKind":       "Parent",
-								"argocd.argoproj.io/ownerApiVersion": "custom-api.example.org/v1alpha1",
+								"argocd.argoproj.io/parentName":       "parent-resource",
+								"argocd.argoproj.io/parentKind":       "Parent",
+								"argocd.argoproj.io/parentApiVersion": "custom-api.example.org/v1alpha1",
 							},
 						},
 					},
@@ -528,10 +528,10 @@ func Test_asResourceNodeInferParents(t *testing.T) {
 					Object: map[string]any{
 						"metadata": map[string]any{
 							"annotations": map[string]any{
-								"argocd.argoproj.io/ownerName":       "missing-deploy",
-								"argocd.argoproj.io/ownerKind":       "Deployment",
-								"argocd.argoproj.io/ownerApiVersion": "apps/v1",
-								"argocd.argoproj.io/ownerNamespace":  "orphans",
+								"argocd.argoproj.io/parentName":       "missing-deploy",
+								"argocd.argoproj.io/parentKind":       "Deployment",
+								"argocd.argoproj.io/parentApiVersion": "apps/v1",
+								"argocd.argoproj.io/parentNamespace":  "orphans",
 							},
 						},
 					},
@@ -562,6 +562,7 @@ func Test_asResourceNodeInferParents(t *testing.T) {
 		})
 	}
 }
+
 func Test_getAppRecursive(t *testing.T) {
 	for _, tt := range []struct {
 		name     string

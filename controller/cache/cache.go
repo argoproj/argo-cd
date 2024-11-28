@@ -921,10 +921,10 @@ func extractParent(clusterInfo clustercache.ClusterCache, resource *clustercache
 		return nil
 	}
 
-	ownerName, _ := annotations["argocd.argoproj.io/ownerName"].(string)
-	ownerKind, _ := annotations["argocd.argoproj.io/ownerKind"].(string)
-	ownerApiVersion, _ := annotations["argocd.argoproj.io/ownerApiVersion"].(string)
-	ownerNamespace, _ := annotations["argocd.argoproj.io/ownerNamespace"].(string)
+	ownerName, _ := annotations["argocd.argoproj.io/parentName"].(string)
+	ownerKind, _ := annotations["argocd.argoproj.io/parentKind"].(string)
+	ownerApiVersion, _ := annotations["argocd.argoproj.io/parentApiVersion"].(string)
+	ownerNamespace, _ := annotations["argocd.argoproj.io/parentNamespace"].(string)
 
 	if ownerKind == "" || ownerName == "" || ownerApiVersion == "" {
 		return nil
