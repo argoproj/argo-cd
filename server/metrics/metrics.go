@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 	"sync"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -119,7 +119,6 @@ func (m *MetricsServer) IncExtensionRequestCounter(extension string, status int)
 func (m *MetricsServer) ObserveExtensionRequestDuration(extension string, duration time.Duration) {
 	m.extensionRequestDuration.WithLabelValues(extension).Observe(duration.Seconds())
 }
-
 
 func InitDAUMetrics(duration time.Duration) {
 	DAUMetricsInstance = &DAUMetrics{
