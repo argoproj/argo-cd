@@ -19,11 +19,16 @@ type Context struct {
 	project string
 }
 
-func Given(t *testing.T, sameState bool) *Context {
+func Given(t *testing.T) *Context {
 	t.Helper()
-	if !sameState {
-		fixture.EnsureCleanState(t)
-	}
+	fixture.EnsureCleanState(t)
+	return GivenWithSameState(t)
+}
+
+// GivenWithSameState skips cleaning state. Use this when you've already ensured you have a clean
+// state in your test setup don't want to waste time by doing so again.
+func GivenWithSameState(t *testing.T) *Context {
+	t.Helper()
 	// ARGOCE_E2E_DEFAULT_TIMEOUT can be used to override the default timeout
 	// for any context.
 	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 10, 0, 180)
