@@ -656,12 +656,24 @@ export function renderResourceMenu(
                     {items.map((item, i) => (
                         <li
                             className={classNames('application-details__action-menu', {disabled: item.disabled})}
+                            tabIndex={0}
                             key={i}
                             onClick={e => {
                                 e.stopPropagation();
                                 if (!item.disabled) {
                                     item.action();
                                     document.body.click();
+                                }
+                            }}
+                            onKeyDown={e => {
+                                if (e.keyCode === 13 || e.key === 'Enter') {
+                                    e.stopPropagation();
+                                    if (!item.disabled) {
+                                        setTimeout(() => {
+                                            item.action();
+                                            document.body.click();
+                                        });
+                                    }
                                 }
                             }}>
                             {item.tooltip ? (
