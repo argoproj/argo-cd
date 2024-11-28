@@ -124,10 +124,20 @@ func LegacyDistributionFunction(replicas int) DistributionFunction {
 		} else {
 			h := fnv.New32a()
 			_, _ = h.Write([]byte(id))
-			shard := int32(h.Sum32() % uint32(replicas))
-			log.Debugf("Cluster with id=%s will be processed by shard %d", id, shard)
-			return int(shard)
+			shard := h.Sum32()
+
+			// Check if the shard value exceeds the maximum value for int32
+			if shard > uint32(math.MaxInt32) {
+				log.Errorf("Shard value exceeds int32 limit: %d", shard)
+				shard = 0
+			} else {
+				shard = shard % uint32(replicas)
+				log.Debugf("Cluster with id=%s will be processed by shard %d", id, shard)
+			}
+
+			shardInt := int(shard)
 		}
+
 	}
 }
 
