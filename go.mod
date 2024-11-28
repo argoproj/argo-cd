@@ -70,7 +70,7 @@ require (
 	github.com/r3labs/diff v1.1.0
 	github.com/redis/go-redis/v9 v9.7.0
 	github.com/robfig/cron/v3 v3.0.1
-	github.com/scm-manager/goscm v0.0.7
+	github.com/scm-manager/goscm v0.0.8
 	github.com/sirupsen/logrus v1.9.3
 	github.com/skratchdot/open-golang v0.0.0-20160302144031-75fb7ed4208c
 	github.com/soheilhy/cmux v0.1.5

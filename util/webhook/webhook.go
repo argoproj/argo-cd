@@ -249,7 +249,7 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 		}
 
 	case goscm.PushEventPayload:
-		webURLs = append(webURLs, payload.HTMLURL)
+		webURLs = append(webURLs, payload.SourceUrl)
 		touchedHead = payload.Branch.DefaultBranch
 		revision = payload.Branch.Name
 	}

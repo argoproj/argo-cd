@@ -133,7 +133,7 @@ func TestScmmWebhook(t *testing.T) {
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusOK, w.Code)
-	expectedLogResult := "Received push event repo: github.com/scm-manager/argocd-test, revision: testrepo, touchedHead: true"
+	expectedLogResult := "Received push event repo: https://scm-manager.org/scm/scm-manager/argocd-test, revision: develop, touchedHead: true"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	hook.Reset()
 }
