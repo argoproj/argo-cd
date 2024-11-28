@@ -129,6 +129,7 @@ func InitDAUMetrics(duration time.Duration) {
 			Help: "Number of daily active users in the last 24 hours",
 		}),
 	}
+
 	prometheus.MustRegister(DAUMetricsInstance.gauge)
 }
 
