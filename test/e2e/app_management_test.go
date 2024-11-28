@@ -195,7 +195,7 @@ func TestGetLogsAllowSwitchOff(t *testing.T) {
 			},
 		}, "app-creator")
 
-	Given(t).
+	GivenWithSameState(t).
 		Path("guestbook-logs").
 		When().
 		CreateApp().
@@ -1519,7 +1519,7 @@ func TestPermissions(t *testing.T) {
 	appCtx := Given(t)
 	projName := "argo-project"
 	projActions := projectFixture.
-		Given(t).
+		GivenWithSameState(t).
 		Name(projName).
 		When().
 		Create()
@@ -1603,7 +1603,7 @@ func TestPermissionWithScopedRepo(t *testing.T) {
 		Create().
 		AddSource("*")
 
-	repoFixture.Given(t, true).
+	repoFixture.GivenWithSameState(t).
 		When().
 		Path(RepoURL(RepoURLTypeFile)).
 		Project(projName).
@@ -1640,7 +1640,7 @@ func TestPermissionDeniedWithScopedRepo(t *testing.T) {
 		When().
 		Create()
 
-	repoFixture.Given(t, true).
+	repoFixture.GivenWithSameState(t).
 		When().
 		Path(RepoURL(RepoURLTypeFile)).
 		Create()
@@ -1666,7 +1666,7 @@ func TestPermissionDeniedWithNegatedNamespace(t *testing.T) {
 		When().
 		Create()
 
-	repoFixture.Given(t, true).
+	repoFixture.GivenWithSameState(t).
 		When().
 		Path(RepoURL(RepoURLTypeFile)).
 		Project(projName).
@@ -1693,7 +1693,7 @@ func TestPermissionDeniedWithNegatedServer(t *testing.T) {
 		When().
 		Create()
 
-	repoFixture.Given(t, true).
+	repoFixture.GivenWithSameState(t).
 		When().
 		Path(RepoURL(RepoURLTypeFile)).
 		Project(projName).

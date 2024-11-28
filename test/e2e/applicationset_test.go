@@ -1405,7 +1405,6 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 	}
 	project := "gpg"
 
-	fixture.EnsureCleanState(t)
 	Given(t).
 		Project(project).
 		When().
@@ -1724,7 +1723,6 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 		generateExpectedApp("engineering-prod-guestbook"),
 	}
 
-	fixture.EnsureCleanState(t)
 	Given(t).
 		Project(project).
 		When().
@@ -1826,7 +1824,6 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 		generateExpectedApp("engineering-prod-guestbook"),
 	}
 
-	fixture.EnsureCleanState(t)
 	Given(t).
 		Project(project).
 		Path(guestbookPath).
