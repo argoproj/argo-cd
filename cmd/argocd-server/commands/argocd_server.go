@@ -257,22 +257,25 @@ func NewCommand() *cobra.Command {
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
 			argocd := server.NewServer(ctx, argoCDOpts, appsetOpts)
-			argocd.Init(ctx)
-			lns, err := argocd.Listen()
-			errors.CheckError(err)
 			for {
 				var closer func()
-				ctx, cancel := context.WithCancel(ctx)
+				serverCtx, cancel := context.WithCancel(ctx)
+				argocd.Init(serverCtx)
+				lns, err := argocd.Listen()
+				errors.CheckError(err)
 				if otlpAddress != "" {
-					closer, err = traceutil.InitTracer(ctx, "argocd-server", otlpAddress, otlpInsecure, otlpHeaders, otlpAttrs)
+					closer, err = traceutil.InitTracer(serverCtx, "argocd-server", otlpAddress, otlpInsecure, otlpHeaders, otlpAttrs)
 					if err != nil {
 						log.Fatalf("failed to initialize tracing: %v", err)
 					}
 				}
-				argocd.Run(ctx, lns)
-				cancel()
+				argocd.Run(serverCtx, lns)
 				if closer != nil {
 					closer()
+				}
+				cancel()
+				if argocd.TerminateRequested() {
+					break
 				}
 			}
 		},
