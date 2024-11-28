@@ -53,6 +53,10 @@ func (f fakeSettingsSrc) GetInstallationID() (string, error) {
 	return "", nil
 }
 
+func (f fakeSettingsSrc) GetRepositorySecretAccessToken(string) (string, error) {
+	return "", nil
+}
+
 type reactorDef struct {
 	verb     string
 	resource string

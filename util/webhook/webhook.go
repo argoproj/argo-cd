@@ -2,9 +2,11 @@ package webhook
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -37,6 +39,7 @@ type settingsSource interface {
 	GetAppInstanceLabelKey() (string, error)
 	GetTrackingMethod() (string, error)
 	GetInstallationID() (string, error)
+	GetRepositorySecretAccessToken(string) (string, error)
 }
 
 // https://www.rfc-editor.org/rfc/rfc3986#section-3.2.1
@@ -132,13 +135,24 @@ func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
 }
 
 func ParseRevision(ref string) string {
+	if ref == "HEAD" {
+		return ref
+	}
 	refParts := strings.SplitN(ref, "/", 3)
 	return refParts[len(refParts)-1]
 }
 
 // affectedRevisionInfo examines a payload from a webhook event, and extracts the repo web URL,
 // the revision, and whether or not this affected origin/HEAD (the default branch of the repository)
-func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
+func affectedRevisionInfo(payloadIf interface{}, optionalHandler ...interface{}) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
+	// Check if a handler was passed
+	var webhookHandler *ArgoCDWebhookHandler
+	if len(optionalHandler) > 0 {
+		if handler, ok := optionalHandler[0].(*ArgoCDWebhookHandler); ok {
+			webhookHandler = handler
+		}
+	}
+
 	switch payload := payloadIf.(type) {
 	case azuredevops.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
@@ -191,9 +205,32 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 		webURLs = append(webURLs, payload.Repository.Links.HTML.Href)
 		// TODO: bitbucket includes multiple changes as part of a single event.
 		// We only pick the first but need to consider how to handle multiple
-		for _, change := range payload.Push.Changes {
-			revision = change.New.Name
-			break
+		fullName := strings.Split(payload.Repository.FullName, "/")
+		workspace := fullName[0]
+		repoSlug := payload.Repository.Name
+
+		for _, changes := range payload.Push.Changes {
+			revision = changes.New.Name
+			change.shaBefore = changes.Old.Target.Hash
+			change.shaAfter = changes.New.Target.Hash
+
+			if webhookHandler != nil {
+				spec := change.shaAfter + ".." + change.shaBefore
+				accessToken, err := webhookHandler.settingsSrc.GetRepositorySecretAccessToken(webURLs[0])
+				if err != nil {
+					log.Warnf("Failed to retrieve repository secret access token: %v", err)
+					break
+				}
+
+				if accessToken != "" {
+					var err error
+					changedFiles, err = fetchDiffstatFromBitbucket(workspace, repoSlug, spec, accessToken)
+					if err != nil {
+						log.Warnf("Error fetching diffstat: %v", err)
+					}
+				}
+				break
+			}
 		}
 		// Not actually sure how to check if the incoming change affected HEAD just by examining the
 		// payload alone. To be safe, we just return true and let the controller check for himself.
@@ -244,6 +281,59 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 	return webURLs, revision, change, touchedHead, changedFiles
 }
 
+func fetchDiffstatFromBitbucket(workspace, repoSlug, spec, accessToken string) ([]string, error) {
+	// Getting the files changed from diff API:
+	// https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-diffstat-spec-get
+
+	url := fmt.Sprintf("https://api.bitbucket.org/2.0/repositories/%s/%s/diffstat/%s",
+		workspace, repoSlug, spec)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error creating request: %w", err)
+	}
+
+	trimmedAccessToken := strings.TrimSpace(accessToken)
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", trimmedAccessToken))
+	req.Header.Set("Accept", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error sending request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading response body: %w", err)
+	}
+
+	var diffstatResp struct {
+		Values []struct {
+			New struct {
+				Path string `json:"path"`
+			} `json:"new"`
+		} `json:"values"`
+	}
+
+	if err := json.Unmarshal(body, &diffstatResp); err != nil {
+		return nil, fmt.Errorf("error parsing JSON response: %w", err)
+	}
+
+	changedFiles := make([]string, len(diffstatResp.Values))
+	for i, value := range diffstatResp.Values {
+		changedFiles[i] = value.New.Path
+	}
+
+	return changedFiles, nil
+}
+
 type changeInfo struct {
 	shaBefore string
 	shaAfter  string
@@ -251,7 +341,7 @@ type changeInfo struct {
 
 // HandleEvent handles webhook events for repo push events
 func (a *ArgoCDWebhookHandler) HandleEvent(payload interface{}) {
-	webURLs, revision, change, touchedHead, changedFiles := affectedRevisionInfo(payload)
+	webURLs, revision, change, touchedHead, changedFiles := affectedRevisionInfo(payload, a)
 	// NOTE: the webURL does not include the .git extension
 	if len(webURLs) == 0 {
 		log.Info("Ignoring webhook event")
