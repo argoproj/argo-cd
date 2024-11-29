@@ -57,13 +57,7 @@ const colors = [red, green, yellow, blue, magenta, cyan];
 const reset = '\u001b[0m';
 const whiteOnYellow = '\u001b[1m\u001b[43;1m\u001b[37m';
 
-const POD_BACKGROUND_COLORS = [
-    'rgba(230, 243, 255, 0.7)',
-    'rgba(255, 243, 230, 0.7)',
-    'rgba(230, 255, 230, 0.7)',
-    'rgba(255, 230, 230, 0.7)',
-    'rgba(243, 230, 255, 0.7)',
-];
+const POD_BACKGROUND_COLORS = ['rgba(230, 243, 255, 0.7)', 'rgba(255, 243, 230, 0.7)', 'rgba(230, 255, 230, 0.7)', 'rgba(255, 230, 230, 0.7)', 'rgba(243, 230, 255, 0.7)'];
 
 // cheap string hash function
 function stringHashCode(str: string) {
@@ -90,10 +84,7 @@ const PodLegend: React.FC<{logs: LogEntry[]}> = ({logs}) => {
         <div className='pod-logs-viewer__legend'>
             {uniquePods.map(podName => (
                 <div key={podName} className='pod-logs-viewer__legend-item'>
-                    <span 
-                        className='color-box'
-                        style={{backgroundColor: getPodBackgroundColor(podName)}}
-                    />
+                    <span className='color-box' style={{backgroundColor: getPodBackgroundColor(podName)}} />
                     <span className='pod-name'>{podName}</span>
                 </div>
             ))}
@@ -198,23 +189,23 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         log.content?.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
     const logsContent = (width: number, height: number, isWrapped: boolean) => (
         <div ref={logsContainerRef} onScroll={handleScroll} style={{width, height, overflow: 'scroll'}}>
-        {logs.map((log, lineNum) => (
-            <div 
-                key={lineNum} 
-                style={{
-                    whiteSpace: isWrapped ? 'normal' : 'pre', 
-                    lineHeight: '16px',
-                    backgroundColor: viewPodNames ? getPodBackgroundColor(log.podName) : 'transparent',
-                    transition: 'background-color 0.2s',
-                    padding: '1px 8px'
-                }} 
-                className='noscroll'
-            >
-                <Ansi>{renderLog(log, lineNum)}</Ansi>
-            </div>
-        ))}
-    </div>
-);
+            {logs.map((log, lineNum) => (
+                <div
+                    key={lineNum}
+                    style={{
+                        whiteSpace: isWrapped ? 'normal' : 'pre',
+                        lineHeight: '16px',
+                        backgroundColor: viewPodNames ? getPodBackgroundColor(log.podName) : 'transparent',
+                        transition: 'background-color 0.2s',
+                        padding: '1px 8px'
+                    }}
+                    className='noscroll'
+                >
+                    <Ansi>{renderLog(log, lineNum)}</Ansi>
+                </div>
+            ))}
+        </div>
+    );
 
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
