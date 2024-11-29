@@ -144,13 +144,11 @@ func ParseRevision(ref string) string {
 
 // affectedRevisionInfo examines a payload from a webhook event, and extracts the repo web URL,
 // the revision, and whether or not this affected origin/HEAD (the default branch of the repository)
-func affectedRevisionInfo(payloadIf interface{}, optionalHandler ...interface{}) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
+func affectedRevisionInfo(payloadIf interface{}, optionalHandler *ArgoCDWebhookHandler) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
 	// Check if a handler was passed
 	var webhookHandler *ArgoCDWebhookHandler
-	if len(optionalHandler) > 0 {
-		if handler, ok := optionalHandler[0].(*ArgoCDWebhookHandler); ok {
-			webhookHandler = handler
-		}
+	if optionalHandler != nil {
+		webhookHandler = optionalHandler
 	}
 
 	switch payload := payloadIf.(type) {
@@ -285,8 +283,7 @@ func fetchDiffstatFromBitbucket(workspace, repoSlug, spec, accessToken string) (
 	// Getting the files changed from diff API:
 	// https://developer.atlassian.com/cloud/bitbucket/rest/api-group-commits/#api-repositories-workspace-repo-slug-diffstat-spec-get
 
-	url := fmt.Sprintf("https://api.bitbucket.org/2.0/repositories/%s/%s/diffstat/%s",
-		workspace, repoSlug, spec)
+	url := fmt.Sprintf("https://api.bitbucket.org/2.0/repositories/%s/%s/diffstat/%s", workspace, repoSlug, spec)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {

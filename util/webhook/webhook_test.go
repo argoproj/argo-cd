@@ -600,7 +600,7 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		testCopy := testCase
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
-			_, revisionFromHook, _, _, _ := affectedRevisionInfo(testCopy.hookPayload)
+			_, revisionFromHook, _, _, _ := affectedRevisionInfo(testCopy.hookPayload, nil)
 			if got := sourceRevisionHasChanged(sourceWithRevision(testCopy.targetRevision), revisionFromHook, false); got != testCopy.hasChanged {
 				t.Errorf("sourceRevisionHasChanged() = %v, want %v", got, testCopy.hasChanged)
 			}
