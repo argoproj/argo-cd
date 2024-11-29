@@ -68,18 +68,18 @@ func Discover(ctx context.Context, appPath, repoPath string, enableGenerateManif
 
 		if IsManifestGenerationEnabled(v1alpha1.ApplicationSourceTypeDirectory, enableGenerateManifests) {
 			isK8sManifestDir, err := IsK8sManifestDir(path)
-			if err != nil {
+			if err != nil || !isK8sManifestDir {
 				// can happen on decode errors, EOF, etc.
 				return nil
 			}
 
 			// handling for helm app templates/ directory, if yaml
-			grandParentDirPath, err := filepath.Rel(appPath, filepath.Dir(filepath.Dir(path)))
-			if err != nil && grandParentDirPath != "" && apps[grandParentDirPath] == string(v1alpha1.ApplicationSourceTypeHelm) {
+			parentDir := filepath.Dir(dir) // apppath = ./testdata dir= baz3/templates
+			if parentDir != "" && apps[parentDir] == string(v1alpha1.ApplicationSourceTypeHelm) {
 				return nil
 			}
 
-			if isK8sManifestDir && (apps[dir] != string(v1alpha1.ApplicationSourceTypeKustomize)) && (apps[dir] != string(v1alpha1.ApplicationSourceTypeHelm)) {
+			if (apps[dir] != string(v1alpha1.ApplicationSourceTypeKustomize)) && (apps[dir] != string(v1alpha1.ApplicationSourceTypeHelm)) {
 				apps[dir] = string(v1alpha1.ApplicationSourceTypeDirectory)
 			}
 		}
