@@ -57,6 +57,14 @@ const colors = [red, green, yellow, blue, magenta, cyan];
 const reset = '\u001b[0m';
 const whiteOnYellow = '\u001b[1m\u001b[43;1m\u001b[37m';
 
+const POD_BACKGROUND_COLORS = [
+    'rgba(230, 243, 255, 0.7)',
+    'rgba(255, 243, 230, 0.7)',
+    'rgba(230, 255, 230, 0.7)',
+    'rgba(255, 230, 230, 0.7)',
+    'rgba(243, 230, 255, 0.7)',
+];
+
 // cheap string hash function
 function stringHashCode(str: string) {
     let hash = 0;
@@ -67,11 +75,31 @@ function stringHashCode(str: string) {
     return hash;
 }
 
+function getPodBackgroundColor(podName: string) {
+    return POD_BACKGROUND_COLORS[Math.abs(stringHashCode(podName) % POD_BACKGROUND_COLORS.length)];
+}
+
 // ansi color for pod name
 function podColor(podName: string) {
     return colors[Math.abs(stringHashCode(podName) % colors.length)];
 }
 
+const PodLegend: React.FC<{logs: LogEntry[]}> = ({logs}) => {
+    const uniquePods = Array.from(new Set(logs.map(log => log.podName)));
+    return (
+        <div className='pod-logs-viewer__legend'>
+            {uniquePods.map(podName => (
+                <div key={podName} className='pod-logs-viewer__legend-item'>
+                    <span 
+                        className='color-box'
+                        style={{backgroundColor: getPodBackgroundColor(podName)}}
+                    />
+                    <span className='pod-name'>{podName}</span>
+                </div>
+            ))}
+        </div>
+    );
+};
 // https://2ality.com/2012/09/empty-regexp.html
 const matchNothing = /.^/;
 
@@ -170,13 +198,23 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         log.content?.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
     const logsContent = (width: number, height: number, isWrapped: boolean) => (
         <div ref={logsContainerRef} onScroll={handleScroll} style={{width, height, overflow: 'scroll'}}>
-            {logs.map((log, lineNum) => (
-                <div key={lineNum} style={{whiteSpace: isWrapped ? 'normal' : 'pre', lineHeight: '16px'}} className='noscroll'>
-                    <Ansi>{renderLog(log, lineNum)}</Ansi>
-                </div>
-            ))}
-        </div>
-    );
+        {logs.map((log, lineNum) => (
+            <div 
+                key={lineNum} 
+                style={{
+                    whiteSpace: isWrapped ? 'normal' : 'pre', 
+                    lineHeight: '16px',
+                    backgroundColor: viewPodNames ? getPodBackgroundColor(log.podName) : 'transparent',
+                    transition: 'background-color 0.2s',
+                    padding: '1px 8px'
+                }} 
+                className='noscroll'
+            >
+                <Ansi>{renderLog(log, lineNum)}</Ansi>
+            </div>
+        ))}
+    </div>
+);
 
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
@@ -213,6 +251,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 <FullscreenButton {...props} viewPodNames={viewPodNames} viewTimestamps={viewTimestamps} follow={follow} showPreviousLogs={previous} />
                             </span>
                         </div>
+                        {viewPodNames && <PodLegend logs={logs} />}
                         <div className={classNames('pod-logs-viewer', {'pod-logs-viewer--inverted': prefs.appDetails.darkMode})} onWheel={handleScroll}>
                             <AutoSizer>{({width, height}: {width: number; height: number}) => logsContent(width, height, prefs.appDetails.wrapLines)}</AutoSizer>
                         </div>
