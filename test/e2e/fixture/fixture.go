@@ -591,56 +591,56 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	policy := v1.DeletePropagationBackground
 
 	cleanupFunctions := map[string]func(){
-		"delete apps in test namespace": func() {
+		"delete_apps_in_test_namespace": func() {
 			// kubectl delete apps ...
 			CheckError(AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(
 				context.Background(),
 				v1.DeleteOptions{PropagationPolicy: &policy},
 				v1.ListOptions{}))
 		},
-		"delete apps in app namespace": func() {
+		"delete_apps_in_app_namespace": func() {
 			// kubectl delete apps ...
 			CheckError(AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).DeleteCollection(
 				context.Background(),
 				v1.DeleteOptions{PropagationPolicy: &policy},
 				v1.ListOptions{}))
 		},
-		"delete appprojects in test namespace": func() {
+		"delete_appprojects_in_test_namespace": func() {
 			// kubectl delete appprojects --field-selector metadata.name!=default
 			CheckError(AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).DeleteCollection(
 				context.Background(),
 				v1.DeleteOptions{PropagationPolicy: &policy},
 				v1.ListOptions{FieldSelector: "metadata.name!=default"}))
 		},
-		"delete repo config secrets in test namespace": func() {
+		"delete_repo_config_secrets_in_test_namespace": func() {
 			// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-config
 			CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
 				context.Background(),
 				v1.DeleteOptions{PropagationPolicy: &policy},
 				v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepository}))
 		},
-		"delete repo creds secrets in test namespace": func() {
+		"delete_repo_creds_secrets_in_test_namespace": func() {
 			// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-creds
 			CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
 				context.Background(),
 				v1.DeleteOptions{PropagationPolicy: &policy},
 				v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCreds}))
 		},
-		"delete cluster secrets in test namespace": func() {
+		"delete_cluster_secrets_in_test_namespace": func() {
 			// kubectl delete secrets -l argocd.argoproj.io/secret-type=cluster
 			CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
 				context.Background(),
 				v1.DeleteOptions{PropagationPolicy: &policy},
 				v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster}))
 		},
-		"delete secrets created by tests in test namespace": func() {
+		"delete_secrets_created_by_tests_in_test_namespace": func() {
 			// kubectl delete secrets -l e2e.argoproj.io=true
 			CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
 				context.Background(),
 				v1.DeleteOptions{PropagationPolicy: &policy},
 				v1.ListOptions{LabelSelector: TestingLabel + "=true"}))
 		},
-		"delete namespaces created by tests": func() {
+		"delete_namespaces_created_by_tests": func() {
 			// delete old namespaces which were created by tests
 			namespaces, err := KubeClientset.CoreV1().Namespaces().List(
 				context.Background(),
@@ -658,11 +658,11 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				FailOnErr(Run("", "kubectl", args...))
 			}
 		},
-		"delete crds created by tests": func() {
+		"delete_crds_created_by_tests": func() {
 			// delete old CRDs which were created by tests, doesn't seem to have kube api to get items
 			FailOnErr(Run("", "kubectl", "delete", "crd", "-l", TestingLabel+"=true", "--wait=false"))
 		},
-		"delete cluster roles created by tests": func() {
+		"delete_cluster_roles_created_by_tests": func() {
 			// delete old ClusterRoles which were created by tests
 			clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(
 				context.Background(),
@@ -680,7 +680,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			}
 		},
 		// Need to wait on these, since they can be re-used by a current test.
-		"delete namespaces with test prefix": func() {
+		"delete_namespaces_with_test_prefix": func() {
 			// delete old namespaces which were created by tests
 			namespaces, err := KubeClientset.CoreV1().Namespaces().List(context.Background(), v1.ListOptions{})
 			CheckError(err)
@@ -696,7 +696,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				FailOnErr(Run("", "kubectl", args...))
 			}
 		},
-		"delete cluster roles with test prefix": func() {
+		"delete_cluster_roles_with_test_prefix": func() {
 			// delete old ClusterRoles which were created by tests
 			clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(context.Background(), v1.ListOptions{})
 			CheckError(err)
@@ -712,7 +712,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				FailOnErr(Run("", "kubectl", args...))
 			}
 		},
-		"delete cluster role bindings with test prefix": func() {
+		"delete_cluster_role_bindings_with_test_prefix": func() {
 			// delete old ClusterRoleBindings which were created by tests
 			clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(context.Background(), v1.ListOptions{})
 			CheckError(err)
@@ -728,38 +728,38 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				FailOnErr(Run("", "kubectl", args...))
 			}
 		},
-		"reset settings config map": func() {
+		"reset_settings_config_map": func() {
 			// reset settings
 			updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
 				return nil
 			})
 		},
-		"reset notifications config map": func() {
+		"reset_notifications_config_map": func() {
 			updateNotificationsConfigMap(func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
 				return nil
 			})
 		},
-		"reset rbac config map": func() {
+		"reset_rbac_config_map": func() {
 			// reset rbac
 			updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
 				return nil
 			})
 		},
-		"login as admin": func() {
+		"login_as_admin": func() {
 			// We can switch user and as result in previous state we will have non-admin user, this case should be reset
 			LoginAs(adminUsername)
 		},
-		"update gpg keys config map": func() {
+		"update_gpg_keys_config_map": func() {
 			// reset gpg-keys config map
 			updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
 				return nil
 			})
 		},
-		"remove temp dir": func() {
+		"remove_temp_dir": func() {
 			CheckError(os.RemoveAll(TmpDir))
 		},
 	}
@@ -780,7 +780,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	wg.Wait()
 
 	createFunctions := map[string]func(){
-		"create gpg appproject in test namespace": func() {
+		"setup_default_and_gpg_appprojects": func() {
 			SetProjectSpec("default", v1alpha1.AppProjectSpec{
 				OrphanedResources:        nil,
 				SourceRepos:              []string{"*"},
@@ -808,7 +808,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				v1.CreateOptions{},
 			))
 		},
-		"create directories and prepare git": func() {
+		"create_directories_and_prepare_git": func() {
 			FailOnErr(Run("", "mkdir", "-p", TmpDir))
 
 			// create TLS and SSH certificate directories
@@ -848,7 +848,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				FailOnErr(Run(repoDirectory(), "git", "push", "origin", "master", "-f"))
 			}
 		},
-		"create deployment namespace": func() {
+		"create_deployment_namespace": func() {
 			// random id - unique across test runs
 			randString, err := rand.String(5)
 			CheckError(err)
