@@ -41,6 +41,13 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 		}
 	}
 	switch un.GetKind() {
+	case "MachineDeployment", "KubeadmControlPlane":
+		err := unstructured.SetNestedField(un.Object, "0001-01-01T00:00:00Z", "spec", "rolloutAfter")
+		if err != nil {
+			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+		}
+	}
+	switch un.GetKind() {
 	case "Deployment":
 		err := unstructured.SetNestedField(un.Object, nil, "status")
 		if err != nil {
