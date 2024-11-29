@@ -144,13 +144,7 @@ func ParseRevision(ref string) string {
 
 // affectedRevisionInfo examines a payload from a webhook event, and extracts the repo web URL,
 // the revision, and whether or not this affected origin/HEAD (the default branch of the repository)
-func affectedRevisionInfo(payloadIf interface{}, optionalHandler *ArgoCDWebhookHandler) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
-	// Check if a handler was passed
-	var webhookHandler *ArgoCDWebhookHandler
-	if optionalHandler != nil {
-		webhookHandler = optionalHandler
-	}
-
+func affectedRevisionInfo(payloadIf interface{}, webhookHandler *ArgoCDWebhookHandler) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
 	switch payload := payloadIf.(type) {
 	case azuredevops.GitPushEvent:
 		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
