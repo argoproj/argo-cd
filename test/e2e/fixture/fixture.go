@@ -878,14 +878,14 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	wg.Wait()
 
 	log.WithFields(log.Fields{
-		"duration":                   time.Since(start),
-		"name":                       t.Name(),
-		"id":                         id,
-		"username":                   "admin",
-		"password":                   "password",
-		"cleanup_durations_parallel": cleanupDurations,
-		"create_durations_parallel":  createDurations,
+		"duration": time.Since(start),
+		"name":     t.Name(),
+		"id":       id,
+		"username": "admin",
+		"password": "password",
 	}).Info("clean state")
+	log.WithField("cleanup_durations_parallel", cleanupDurations).Info("clean state cleanup timings")
+	log.WithField("create_durations_parallel", createDurations).Info("clean state create timings")
 }
 
 func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
