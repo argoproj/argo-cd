@@ -611,7 +611,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	start := time.Now()
 	policy := v1.DeletePropagationBackground
 
-	cleanupFunctionsWave1 := map[string]func(){
+	functionsWave1 := map[string]func(){
 		"delete_apps_in_test_namespace": func() {
 			// kubectl delete apps ...
 			CheckError(AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(
@@ -663,9 +663,9 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		},
 	}
 
-	cleanupDurationsWave1 := runFunctionsInParallelWithTimingInfo(t, cleanupFunctionsWave1)
+	durationsWave1 := runFunctionsInParallelWithTimingInfo(t, functionsWave1)
 
-	cleanupFunctionsWave2 := map[string]func(){
+	functionsWave2 := map[string]func(){
 		"delete_namespaces_created_by_tests": func() {
 			// delete old namespaces which were created by tests
 			namespaces, err := KubeClientset.CoreV1().Namespaces().List(
@@ -771,14 +771,11 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			// We can switch user and as result in previous state we will have non-admin user, this case should be reset
 			LoginAs(adminUsername)
 		},
-		"remove_temp_dir": func() {
-			CheckError(os.RemoveAll(TmpDir))
-		},
 	}
 
-	cleanupDurationsWave2 := runFunctionsInParallelWithTimingInfo(t, cleanupFunctionsWave2)
+	durationsWave2 := runFunctionsInParallelWithTimingInfo(t, functionsWave2)
 
-	createFunctionsWave3 := map[string]func(){
+	functionsWave3 := map[string]func(){
 		"setup_default_and_gpg_appprojects": func() {
 			SetProjectSpec("default", v1alpha1.AppProjectSpec{
 				OrphanedResources:        nil,
@@ -807,7 +804,8 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				v1.CreateOptions{},
 			))
 		},
-		"create_directories_and_prepare_git": func() {
+		"recreate_directories_and_prepare_git": func() {
+			CheckError(os.RemoveAll(TmpDir))
 			FailOnErr(Run("", "mkdir", "-p", TmpDir))
 
 			// create TLS and SSH certificate directories
@@ -861,7 +859,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		},
 	}
 
-	createDurationsWave3 := runFunctionsInParallelWithTimingInfo(t, createFunctionsWave3)
+	durationsWave3 := runFunctionsInParallelWithTimingInfo(t, functionsWave3)
 
 	log.WithFields(log.Fields{
 		"duration": time.Since(start),
@@ -870,9 +868,9 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		"username": "admin",
 		"password": "password",
 	}).Info("clean state")
-	log.WithField("durations", cleanupDurationsWave1).Info("clean state cleanup timings in parallel wave 1")
-	log.WithField("durations", cleanupDurationsWave2).Info("clean state cleanup timings in parallel wave 2")
-	log.WithField("durations", createDurationsWave3).Info("clean state create timings in parallel wave 3")
+	log.WithField("durations", durationsWave1).Info("clean state timings in parallel wave 1")
+	log.WithField("durations", durationsWave2).Info("clean state timings in parallel wave 2")
+	log.WithField("durations", durationsWave3).Info("clean state timings in parallel wave 3")
 }
 
 func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
