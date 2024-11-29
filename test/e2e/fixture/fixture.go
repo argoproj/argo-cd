@@ -668,22 +668,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	cleanupFunctionsWave2 := map[string]func(){
 		"delete_namespaces_created_by_tests": func() {
 			// delete old namespaces which were created by tests
-			// delete old namespaces which were created by tests
-			namespaces, err := KubeClientset.CoreV1().Namespaces().List(context.Background(), v1.ListOptions{})
-			CheckError(err)
-			testNamespaceNames := []string{}
-			for _, namespace := range namespaces.Items {
-				if strings.HasPrefix(namespace.Name, E2ETestPrefix) {
-					testNamespaceNames = append(testNamespaceNames, namespace.Name)
-				}
-			}
-			if len(testNamespaceNames) > 0 {
-				args := []string{"delete", "ns"}
-				args = append(args, testNamespaceNames...)
-				FailOnErr(Run("", "kubectl", args...))
-			}
-
-			namespaces, err = KubeClientset.CoreV1().Namespaces().List(
+			namespaces, err := KubeClientset.CoreV1().Namespaces().List(
 				context.Background(),
 				v1.ListOptions{
 					LabelSelector: TestingLabel + "=true",
@@ -698,6 +683,20 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				}
 				FailOnErr(Run("", "kubectl", args...))
 			}
+
+			namespaces, err = KubeClientset.CoreV1().Namespaces().List(context.Background(), v1.ListOptions{})
+			CheckError(err)
+			testNamespaceNames := []string{}
+			for _, namespace := range namespaces.Items {
+				if strings.HasPrefix(namespace.Name, E2ETestPrefix) {
+					testNamespaceNames = append(testNamespaceNames, namespace.Name)
+				}
+			}
+			if len(testNamespaceNames) > 0 {
+				args := []string{"delete", "ns"}
+				args = append(args, testNamespaceNames...)
+				FailOnErr(Run("", "kubectl", args...))
+			}
 		},
 		"delete_crds_created_by_tests": func() {
 			// delete old CRDs which were created by tests, doesn't seem to have kube api to get items
@@ -705,21 +704,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		},
 		"delete_cluster_roles_created_by_tests": func() {
 			// delete old ClusterRoles which were created by tests
-			clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(context.Background(), v1.ListOptions{})
-			CheckError(err)
-			testClusterRoleNames := []string{}
-			for _, clusterRole := range clusterRoles.Items {
-				if strings.HasPrefix(clusterRole.Name, E2ETestPrefix) {
-					testClusterRoleNames = append(testClusterRoleNames, clusterRole.Name)
-				}
-			}
-			if len(testClusterRoleNames) > 0 {
-				args := []string{"delete", "clusterrole"}
-				args = append(args, testClusterRoleNames...)
-				FailOnErr(Run("", "kubectl", args...))
-			}
-
-			clusterRoles, err = KubeClientset.RbacV1().ClusterRoles().List(
+			clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(
 				context.Background(),
 				v1.ListOptions{
 					LabelSelector: fmt.Sprintf("%s=%s", TestingLabel, "true"),
@@ -731,6 +716,20 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				for _, clusterRole := range clusterRoles.Items {
 					args = append(args, clusterRole.Name)
 				}
+				FailOnErr(Run("", "kubectl", args...))
+			}
+
+			clusterRoles, err = KubeClientset.RbacV1().ClusterRoles().List(context.Background(), v1.ListOptions{})
+			CheckError(err)
+			testClusterRoleNames := []string{}
+			for _, clusterRole := range clusterRoles.Items {
+				if strings.HasPrefix(clusterRole.Name, E2ETestPrefix) {
+					testClusterRoleNames = append(testClusterRoleNames, clusterRole.Name)
+				}
+			}
+			if len(testClusterRoleNames) > 0 {
+				args := []string{"delete", "clusterrole"}
+				args = append(args, testClusterRoleNames...)
 				FailOnErr(Run("", "kubectl", args...))
 			}
 		},
@@ -751,7 +750,6 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			}
 		},
 		"reset_config_maps": func() {
-			// reset settings
 			updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
 				return nil
@@ -760,12 +758,10 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				cm.Data = map[string]string{}
 				return nil
 			})
-			// reset rbac
 			updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
 				return nil
 			})
-			// reset gpg-keys config map
 			updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
 				return nil
