@@ -411,6 +411,9 @@ type GitGenerator struct {
 
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values map[string]string `json:"values,omitempty" protobuf:"bytes,8,name=values"`
+
+	// List of files containing parameters to add on top to the template
+	ExtraParameterFiles []string `json:"extraParameterFiles,omitempty" protobuf:"bytes,9,name=extraParameterFiles"`
 }
 
 type GitDirectoryGeneratorItem struct {
