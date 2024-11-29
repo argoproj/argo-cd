@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -583,218 +584,308 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		RecordTestRun(t)
 	})
 
+	var wg sync.WaitGroup
+	var mutex sync.Mutex
+
 	start := time.Now()
-
 	policy := v1.DeletePropagationBackground
-	// delete resources
-	// kubectl delete apps --all
-	CheckError(AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
-	CheckError(AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{}))
-	// kubectl delete appprojects --field-selector metadata.name!=default
-	CheckError(AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).DeleteCollection(context.Background(),
-		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{FieldSelector: "metadata.name!=default"}))
-	// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-config
-	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
-		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepository}))
-	// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-creds
-	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
-		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCreds}))
-	// kubectl delete secrets -l argocd.argoproj.io/secret-type=cluster
-	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
-		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster}))
-	// kubectl delete secrets -l e2e.argoproj.io=true
-	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
-		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: TestingLabel + "=true"}))
 
-	// delete old namespaces which were created by tests
-	namespaces, err := KubeClientset.CoreV1().Namespaces().List(
-		context.Background(),
-		v1.ListOptions{
-			LabelSelector: TestingLabel + "=true",
-			FieldSelector: "status.phase=Active",
+	cleanupFunctions := map[string]func(){
+		"delete apps in test namespace": func() {
+			// kubectl delete apps ...
+			CheckError(AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(
+				context.Background(),
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{}))
 		},
-	)
-	CheckError(err)
-	if len(namespaces.Items) > 0 {
-		args := []string{"delete", "ns", "--wait=false"}
-		for _, namespace := range namespaces.Items {
-			args = append(args, namespace.Name)
-		}
-		FailOnErr(Run("", "kubectl", args...))
-	}
-
-	// delete old CRDs which were created by tests, doesn't seem to have kube api to get items
-	FailOnErr(Run("", "kubectl", "delete", "crd", "-l", TestingLabel+"=true", "--wait=false"))
-
-	// delete old ClusterRoles which were created by tests
-	clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(
-		context.Background(),
-		v1.ListOptions{
-			LabelSelector: fmt.Sprintf("%s=%s", TestingLabel, "true"),
+		"delete apps in app namespace": func() {
+			// kubectl delete apps ...
+			CheckError(AppClientset.ArgoprojV1alpha1().Applications(AppNamespace()).DeleteCollection(
+				context.Background(),
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{}))
 		},
-	)
-	CheckError(err)
-	if len(clusterRoles.Items) > 0 {
-		args := []string{"delete", "clusterrole", "--wait=false"}
-		for _, clusterRole := range clusterRoles.Items {
-			args = append(args, clusterRole.Name)
-		}
-		FailOnErr(Run("", "kubectl", args...))
+		"delete appprojects in test namespace": func() {
+			// kubectl delete appprojects --field-selector metadata.name!=default
+			CheckError(AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).DeleteCollection(
+				context.Background(),
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{FieldSelector: "metadata.name!=default"}))
+		},
+		"delete repo config secrets in test namespace": func() {
+			// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-config
+			CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
+				context.Background(),
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepository}))
+		},
+		"delete repo creds secrets in test namespace": func() {
+			// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-creds
+			CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
+				context.Background(),
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCreds}))
+		},
+		"delete cluster secrets in test namespace": func() {
+			// kubectl delete secrets -l argocd.argoproj.io/secret-type=cluster
+			CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
+				context.Background(),
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster}))
+		},
+		"delete secrets created by tests in test namespace": func() {
+			// kubectl delete secrets -l e2e.argoproj.io=true
+			CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
+				context.Background(),
+				v1.DeleteOptions{PropagationPolicy: &policy},
+				v1.ListOptions{LabelSelector: TestingLabel + "=true"}))
+		},
+		"delete namespaces created by tests": func() {
+			// delete old namespaces which were created by tests
+			namespaces, err := KubeClientset.CoreV1().Namespaces().List(
+				context.Background(),
+				v1.ListOptions{
+					LabelSelector: TestingLabel + "=true",
+					FieldSelector: "status.phase=Active",
+				},
+			)
+			CheckError(err)
+			if len(namespaces.Items) > 0 {
+				args := []string{"delete", "ns", "--wait=false"}
+				for _, namespace := range namespaces.Items {
+					args = append(args, namespace.Name)
+				}
+				FailOnErr(Run("", "kubectl", args...))
+			}
+		},
+		"delete crds created by tests": func() {
+			// delete old CRDs which were created by tests, doesn't seem to have kube api to get items
+			FailOnErr(Run("", "kubectl", "delete", "crd", "-l", TestingLabel+"=true", "--wait=false"))
+		},
+		"delete cluster roles created by tests": func() {
+			// delete old ClusterRoles which were created by tests
+			clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(
+				context.Background(),
+				v1.ListOptions{
+					LabelSelector: fmt.Sprintf("%s=%s", TestingLabel, "true"),
+				},
+			)
+			CheckError(err)
+			if len(clusterRoles.Items) > 0 {
+				args := []string{"delete", "clusterrole", "--wait=false"}
+				for _, clusterRole := range clusterRoles.Items {
+					args = append(args, clusterRole.Name)
+				}
+				FailOnErr(Run("", "kubectl", args...))
+			}
+		},
+		// Need to wait on these, since they can be re-used by a current test.
+		"delete namespaces with test prefix": func() {
+			// delete old namespaces which were created by tests
+			namespaces, err := KubeClientset.CoreV1().Namespaces().List(context.Background(), v1.ListOptions{})
+			CheckError(err)
+			testNamespaceNames := []string{}
+			for _, namespace := range namespaces.Items {
+				if strings.HasPrefix(namespace.Name, E2ETestPrefix) {
+					testNamespaceNames = append(testNamespaceNames, namespace.Name)
+				}
+			}
+			if len(testNamespaceNames) > 0 {
+				args := []string{"delete", "ns"}
+				args = append(args, testNamespaceNames...)
+				FailOnErr(Run("", "kubectl", args...))
+			}
+		},
+		"delete cluster roles with test prefix": func() {
+			// delete old ClusterRoles which were created by tests
+			clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(context.Background(), v1.ListOptions{})
+			CheckError(err)
+			testClusterRoleNames := []string{}
+			for _, clusterRole := range clusterRoles.Items {
+				if strings.HasPrefix(clusterRole.Name, E2ETestPrefix) {
+					testClusterRoleNames = append(testClusterRoleNames, clusterRole.Name)
+				}
+			}
+			if len(testClusterRoleNames) > 0 {
+				args := []string{"delete", "clusterrole"}
+				args = append(args, testClusterRoleNames...)
+				FailOnErr(Run("", "kubectl", args...))
+			}
+		},
+		"delete cluster role bindings with test prefix": func() {
+			// delete old ClusterRoleBindings which were created by tests
+			clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(context.Background(), v1.ListOptions{})
+			CheckError(err)
+			testClusterRoleBindingNames := []string{}
+			for _, clusterRoleBinding := range clusterRoleBindings.Items {
+				if strings.HasPrefix(clusterRoleBinding.Name, E2ETestPrefix) {
+					testClusterRoleBindingNames = append(testClusterRoleBindingNames, clusterRoleBinding.Name)
+				}
+			}
+			if len(testClusterRoleBindingNames) > 0 {
+				args := []string{"delete", "clusterrolebinding"}
+				args = append(args, testClusterRoleBindingNames...)
+				FailOnErr(Run("", "kubectl", args...))
+			}
+		},
+		"reset settings config map": func() {
+			// reset settings
+			updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+				cm.Data = map[string]string{}
+				return nil
+			})
+		},
+		"reset notifications config map": func() {
+			updateNotificationsConfigMap(func(cm *corev1.ConfigMap) error {
+				cm.Data = map[string]string{}
+				return nil
+			})
+		},
+		"reset rbac config map": func() {
+			// reset rbac
+			updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
+				cm.Data = map[string]string{}
+				return nil
+			})
+		},
+		"login as admin": func() {
+			// We can switch user and as result in previous state we will have non-admin user, this case should be reset
+			LoginAs(adminUsername)
+		},
+		"update gpg keys config map": func() {
+			// reset gpg-keys config map
+			updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {
+				cm.Data = map[string]string{}
+				return nil
+			})
+		},
+		"remove temp dir": func() {
+			CheckError(os.RemoveAll(TmpDir))
+		},
 	}
 
-	// Need to wait on these, since they can be re-used by a current test.
-	// delete old namespaces which were created by tests
-	namespaces, err = KubeClientset.CoreV1().Namespaces().List(context.Background(), v1.ListOptions{})
-	CheckError(err)
-	testNamespaceNames := []string{}
-	for _, namespace := range namespaces.Items {
-		if strings.HasPrefix(namespace.Name, E2ETestPrefix) {
-			testNamespaceNames = append(testNamespaceNames, namespace.Name)
-		}
+	cleanupDurations := map[string]time.Duration{}
+	for name, function := range cleanupFunctions {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			start := time.Now()
+			function()
+			end := time.Now()
+			mutex.Lock()
+			defer mutex.Unlock()
+			cleanupDurations[name] = end.Sub(start)
+		}()
 	}
-	if len(testNamespaceNames) > 0 {
-		args := []string{"delete", "ns"}
-		args = append(args, testNamespaceNames...)
-		FailOnErr(Run("", "kubectl", args...))
-	}
+	wg.Wait()
 
-	// delete old ClusterRoles which were created by tests
-	clusterRoles, err = KubeClientset.RbacV1().ClusterRoles().List(context.Background(), v1.ListOptions{})
-	CheckError(err)
-	testClusterRoleNames := []string{}
-	for _, clusterRole := range clusterRoles.Items {
-		if strings.HasPrefix(clusterRole.Name, E2ETestPrefix) {
-			testClusterRoleNames = append(testClusterRoleNames, clusterRole.Name)
-		}
-	}
-	if len(testClusterRoleNames) > 0 {
-		args := []string{"delete", "clusterrole"}
-		args = append(args, testClusterRoleNames...)
-		FailOnErr(Run("", "kubectl", args...))
-	}
-
-	// delete old ClusterRoleBindings which were created by tests
-	clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(context.Background(), v1.ListOptions{})
-	CheckError(err)
-	testClusterRoleBindingNames := []string{}
-	for _, clusterRoleBinding := range clusterRoleBindings.Items {
-		if strings.HasPrefix(clusterRoleBinding.Name, E2ETestPrefix) {
-			testClusterRoleBindingNames = append(testClusterRoleBindingNames, clusterRoleBinding.Name)
-		}
-	}
-	if len(testClusterRoleBindingNames) > 0 {
-		args := []string{"delete", "clusterrolebinding"}
-		args = append(args, testClusterRoleBindingNames...)
-		FailOnErr(Run("", "kubectl", args...))
-	}
-
-	// reset settings
-	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-		cm.Data = map[string]string{}
-		return nil
-	})
-
-	updateNotificationsConfigMap(func(cm *corev1.ConfigMap) error {
-		cm.Data = map[string]string{}
-		return nil
-	})
-
-	// reset rbac
-	updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
-		cm.Data = map[string]string{}
-		return nil
-	})
-
-	// We can switch user and as result in previous state we will have non-admin user, this case should be reset
-	LoginAs(adminUsername)
-
-	// reset gpg-keys config map
-	updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {
-		cm.Data = map[string]string{}
-		return nil
-	})
-
-	SetProjectSpec("default", v1alpha1.AppProjectSpec{
-		OrphanedResources:        nil,
-		SourceRepos:              []string{"*"},
-		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
-		SourceNamespaces:         []string{AppNamespace()},
-	})
-
-	// Create separate project for testing gpg signature verification
-	FailOnErr(AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Create(
-		context.Background(),
-		&v1alpha1.AppProject{
-			ObjectMeta: v1.ObjectMeta{
-				Name: "gpg",
-			},
-			Spec: v1alpha1.AppProjectSpec{
+	createFunctions := map[string]func(){
+		"create gpg appproject in test namespace": func() {
+			SetProjectSpec("default", v1alpha1.AppProjectSpec{
 				OrphanedResources:        nil,
 				SourceRepos:              []string{"*"},
 				Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
 				ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
-				SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
 				SourceNamespaces:         []string{AppNamespace()},
-			},
+			})
+
+			// Create separate project for testing gpg signature verification
+			FailOnErr(AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Create(
+				context.Background(),
+				&v1alpha1.AppProject{
+					ObjectMeta: v1.ObjectMeta{
+						Name: "gpg",
+					},
+					Spec: v1alpha1.AppProjectSpec{
+						OrphanedResources:        nil,
+						SourceRepos:              []string{"*"},
+						Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
+						ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+						SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
+						SourceNamespaces:         []string{AppNamespace()},
+					},
+				},
+				v1.CreateOptions{},
+			))
 		},
-		v1.CreateOptions{},
-	))
+		"create directories and prepare git": func() {
+			FailOnErr(Run("", "mkdir", "-p", TmpDir))
 
-	// Recreate temp dir
-	CheckError(os.RemoveAll(TmpDir))
-	FailOnErr(Run("", "mkdir", "-p", TmpDir))
+			// create TLS and SSH certificate directories
+			if IsLocal() {
+				FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/tls"))
+				FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/ssh"))
+			}
 
-	// random id - unique across test runs
-	randString, err := rand.String(5)
-	CheckError(err)
-	postFix := "-" + strings.ToLower(randString)
-	id = t.Name() + postFix
-	name = DnsFriendly(t.Name(), "")
-	deploymentNamespace = DnsFriendly(fmt.Sprintf("argocd-e2e-%s", t.Name()), postFix)
+			// For signing during the tests
+			FailOnErr(Run("", "mkdir", "-p", TmpDir+"/gpg"))
+			FailOnErr(Run("", "chmod", "0700", TmpDir+"/gpg"))
+			prevGnuPGHome := os.Getenv("GNUPGHOME")
+			os.Setenv("GNUPGHOME", TmpDir+"/gpg")
+			// nolint:errcheck
+			Run("", "pkill", "-9", "gpg-agent")
+			FailOnErr(Run("", "gpg", "--import", "../fixture/gpg/signingkey.asc"))
+			os.Setenv("GNUPGHOME", prevGnuPGHome)
 
-	// create TLS and SSH certificate directories
-	if IsLocal() {
-		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/tls"))
-		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/ssh"))
+			// recreate GPG directories
+			if IsLocal() {
+				FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/source"))
+				FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/keys"))
+				FailOnErr(Run("", "chmod", "0700", TmpDir+"/app/config/gpg/keys"))
+				FailOnErr(Run("", "mkdir", "-p", TmpDir+PluginSockFilePath))
+				FailOnErr(Run("", "chmod", "0700", TmpDir+PluginSockFilePath))
+			}
+
+			// set-up tmp repo, must have unique name
+			FailOnErr(Run("", "cp", "-Rf", opt.testdata, repoDirectory()))
+			FailOnErr(Run(repoDirectory(), "chmod", "777", "."))
+			FailOnErr(Run(repoDirectory(), "git", "init", "-b", "master"))
+			FailOnErr(Run(repoDirectory(), "git", "add", "."))
+			FailOnErr(Run(repoDirectory(), "git", "commit", "-q", "-m", "initial commit"))
+
+			if IsRemote() {
+				FailOnErr(Run(repoDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE")))
+				FailOnErr(Run(repoDirectory(), "git", "push", "origin", "master", "-f"))
+			}
+		},
+		"create deployment namespace": func() {
+			// random id - unique across test runs
+			randString, err := rand.String(5)
+			CheckError(err)
+			postFix := "-" + strings.ToLower(randString)
+			id = t.Name() + postFix
+			name = DnsFriendly(t.Name(), "")
+			deploymentNamespace = DnsFriendly(fmt.Sprintf("argocd-e2e-%s", t.Name()), postFix)
+			// create namespace
+			FailOnErr(Run("", "kubectl", "create", "ns", DeploymentNamespace()))
+			FailOnErr(Run("", "kubectl", "label", "ns", DeploymentNamespace(), TestingLabel+"=true"))
+		},
 	}
 
-	// For signing during the tests
-	FailOnErr(Run("", "mkdir", "-p", TmpDir+"/gpg"))
-	FailOnErr(Run("", "chmod", "0700", TmpDir+"/gpg"))
-	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	os.Setenv("GNUPGHOME", TmpDir+"/gpg")
-	// nolint:errcheck
-	Run("", "pkill", "-9", "gpg-agent")
-	FailOnErr(Run("", "gpg", "--import", "../fixture/gpg/signingkey.asc"))
-	os.Setenv("GNUPGHOME", prevGnuPGHome)
-
-	// recreate GPG directories
-	if IsLocal() {
-		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/source"))
-		FailOnErr(Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/keys"))
-		FailOnErr(Run("", "chmod", "0700", TmpDir+"/app/config/gpg/keys"))
-		FailOnErr(Run("", "mkdir", "-p", TmpDir+PluginSockFilePath))
-		FailOnErr(Run("", "chmod", "0700", TmpDir+PluginSockFilePath))
+	createDurations := map[string]time.Duration{}
+	for name, function := range createFunctions {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			start := time.Now()
+			function()
+			end := time.Now()
+			mutex.Lock()
+			defer mutex.Unlock()
+			createDurations[name] = end.Sub(start)
+		}()
 	}
+	wg.Wait()
 
-	// set-up tmp repo, must have unique name
-	FailOnErr(Run("", "cp", "-Rf", opt.testdata, repoDirectory()))
-	FailOnErr(Run(repoDirectory(), "chmod", "777", "."))
-	FailOnErr(Run(repoDirectory(), "git", "init", "-b", "master"))
-	FailOnErr(Run(repoDirectory(), "git", "add", "."))
-	FailOnErr(Run(repoDirectory(), "git", "commit", "-q", "-m", "initial commit"))
-
-	if IsRemote() {
-		FailOnErr(Run(repoDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE")))
-		FailOnErr(Run(repoDirectory(), "git", "push", "origin", "master", "-f"))
-	}
-
-	// create namespace
-	FailOnErr(Run("", "kubectl", "create", "ns", DeploymentNamespace()))
-	FailOnErr(Run("", "kubectl", "label", "ns", DeploymentNamespace(), TestingLabel+"=true"))
-
-	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
+	log.WithFields(log.Fields{
+		"duration":                   time.Since(start),
+		"name":                       t.Name(),
+		"id":                         id,
+		"username":                   "admin",
+		"password":                   "password",
+		"cleanup_durations_parallel": cleanupDurations,
+		"create_durations_parallel":  createDurations,
+	}).Info("clean state")
 }
 
 func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
