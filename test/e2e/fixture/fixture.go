@@ -245,7 +245,7 @@ func loginAs(username, password string) {
 
 	userInfoResponse, err := client.GetUserInfo(context.Background(), &sessionpkg.GetUserInfoRequest{})
 	CheckError(err)
-	if userInfoResponse.Username == username {
+	if userInfoResponse.Username == username && userInfoResponse.LoggedIn {
 		return
 	}
 
