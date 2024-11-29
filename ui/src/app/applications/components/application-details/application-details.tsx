@@ -240,7 +240,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                             <div className='columns small-9'>{aRevision}</div>
                         </div>
                         <div className='row white-box__details-row'>
-                            <div className='columns small-3'>Chart Source:</div>
+                            <div className='columns small-3'>OCI Image:</div>
                             <div className='columns small-9'>{aRepoUrl}</div>
                         </div>
                     </>
