@@ -9,9 +9,7 @@ export const RevisionMetadataRows = (props: {applicationName: string; applicatio
         return (
             <DataLoader
                 input={props}
-                load={input =>
-                    services.applications.ociMetadata(input.applicationName, input.applicationNamespace, input.source.targetRevision, input.index, input.versionId)
-                }>
+                load={input => services.applications.ociMetadata(input.applicationName, input.applicationNamespace, input.source.targetRevision, input.index, input.versionId)}>
                 {(m: OCIMetadata) => (
                     <div>
                         <div className='row'>
