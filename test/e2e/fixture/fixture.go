@@ -376,6 +376,15 @@ func updateRBACConfigMap(updater func(cm *corev1.ConfigMap) error) {
 	updateGenericConfigMap(common.ArgoCDRBACConfigMapName, updater)
 }
 
+func configMapsEquivalent(a *corev1.ConfigMap, b *corev1.ConfigMap) bool {
+	return reflect.DeepEqual(a.Immutable, b.Immutable) &&
+		reflect.DeepEqual(a.TypeMeta, b.TypeMeta) &&
+		reflect.DeepEqual(a.ObjectMeta, b.ObjectMeta) &&
+		// Covers cases when one map is nil and another is empty map
+		(len(a.Data) == 0 && len(b.Data) == 0 || reflect.DeepEqual(a.Data, b.Data)) &&
+		(len(a.BinaryData) == 0 && len(b.BinaryData) == 0 || reflect.DeepEqual(a.BinaryData, b.BinaryData))
+}
+
 // Updates a given config map in argocd-e2e namespace
 func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) error) {
 	cm, err := KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Get(context.Background(), name, v1.GetOptions{})
@@ -385,7 +394,7 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 		cm.Data = make(map[string]string)
 	}
 	errors.CheckError(updater(cm))
-	if !reflect.DeepEqual(cm, oldCm) {
+	if !configMapsEquivalent(cm, oldCm) {
 		_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Update(context.Background(), cm, v1.UpdateOptions{})
 		errors.CheckError(err)
 	}
