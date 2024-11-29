@@ -257,10 +257,10 @@ func NewCommand() *cobra.Command {
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
 			argocd := server.NewServer(ctx, argoCDOpts, appsetOpts)
+			argocd.Init(ctx)
 			for {
 				var closer func()
 				serverCtx, cancel := context.WithCancel(ctx)
-				argocd.Init(serverCtx)
 				lns, err := argocd.Listen()
 				errors.CheckError(err)
 				if otlpAddress != "" {
