@@ -199,8 +199,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                         transition: 'background-color 0.2s',
                         padding: '1px 8px'
                     }}
-                    className='noscroll'
-                >
+                    className='noscroll'>
                     <Ansi>{renderLog(log, lineNum)}</Ansi>
                 </div>
             ))}
