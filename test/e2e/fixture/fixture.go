@@ -593,28 +593,19 @@ func WithTestData(testdata string) TestOption {
 	}
 }
 
-func runFunctionsInParallelWithTimingInfo(t *testing.T, functions map[string]func()) map[string]time.Duration {
+func runFunctionsInParallel(t *testing.T, functions map[string]func()) {
 	t.Helper()
 
 	var wg sync.WaitGroup
-	var mutex sync.Mutex
 
-	durations := map[string]time.Duration{}
-	for name, function := range functions {
+	for _, function := range functions {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			start := time.Now()
 			function()
-			end := time.Now()
-			mutex.Lock()
-			defer mutex.Unlock()
-			durations[name] = end.Sub(start)
 		}()
 	}
 	wg.Wait()
-
-	return durations
 }
 
 func EnsureCleanState(t *testing.T, opts ...TestOption) {
@@ -630,7 +621,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	start := time.Now()
 	policy := v1.DeletePropagationBackground
 
-	functionsWave1 := map[string]func(){
+	runFunctionsInParallel(t, map[string]func(){
 		"delete_apps_in_test_namespace": func() {
 			// kubectl delete apps ...
 			CheckError(AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(
@@ -680,11 +671,9 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				v1.DeleteOptions{PropagationPolicy: &policy},
 				v1.ListOptions{LabelSelector: TestingLabel + "=true"}))
 		},
-	}
+	})
 
-	durationsWave1 := runFunctionsInParallelWithTimingInfo(t, functionsWave1)
-
-	functionsWave2 := map[string]func(){
+	runFunctionsInParallel(t, map[string]func(){
 		"delete_namespaces_created_by_tests": func() {
 			// delete old namespaces which were created by tests
 			namespaces, err := KubeClientset.CoreV1().Namespaces().List(
@@ -790,11 +779,9 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			// We can switch user and as result in previous state we will have non-admin user, this case should be reset
 			LoginAs(adminUsername)
 		},
-	}
+	})
 
-	durationsWave2 := runFunctionsInParallelWithTimingInfo(t, functionsWave2)
-
-	functionsWave3 := map[string]func(){
+	runFunctionsInParallel(t, map[string]func(){
 		"setup_default_and_gpg_appprojects": func() {
 			SetProjectSpec("default", v1alpha1.AppProjectSpec{
 				OrphanedResources:        nil,
@@ -876,9 +863,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			FailOnErr(Run("", "kubectl", "create", "ns", DeploymentNamespace()))
 			FailOnErr(Run("", "kubectl", "label", "ns", DeploymentNamespace(), TestingLabel+"=true"))
 		},
-	}
-
-	durationsWave3 := runFunctionsInParallelWithTimingInfo(t, functionsWave3)
+	})
 
 	log.WithFields(log.Fields{
 		"duration": time.Since(start),
@@ -887,9 +872,6 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		"username": "admin",
 		"password": "password",
 	}).Info("clean state")
-	log.WithField("durations", durationsWave1).Info("clean state timings in parallel wave 1")
-	log.WithField("durations", durationsWave2).Info("clean state timings in parallel wave 2")
-	log.WithField("durations", durationsWave3).Info("clean state timings in parallel wave 3")
 }
 
 func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
