@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -242,6 +243,12 @@ func loginAs(username, password string) {
 	CheckError(err)
 	defer io.Close(closer)
 
+	userInfoResponse, err := client.GetUserInfo(context.Background(), &sessionpkg.GetUserInfoRequest{})
+	CheckError(err)
+	if userInfoResponse.Username == username {
+		return
+	}
+
 	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: username, Password: password})
 	CheckError(err)
 	token = sessionResponse.Token
@@ -373,12 +380,15 @@ func updateRBACConfigMap(updater func(cm *corev1.ConfigMap) error) {
 func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) error) {
 	cm, err := KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Get(context.Background(), name, v1.GetOptions{})
 	errors.CheckError(err)
+	oldCm := cm.DeepCopy()
 	if cm.Data == nil {
 		cm.Data = make(map[string]string)
 	}
 	errors.CheckError(updater(cm))
-	_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Update(context.Background(), cm, v1.UpdateOptions{})
-	errors.CheckError(err)
+	if !reflect.DeepEqual(cm, oldCm) {
+		_, err = KubeClientset.CoreV1().ConfigMaps(TestNamespace()).Update(context.Background(), cm, v1.UpdateOptions{})
+		errors.CheckError(err)
+	}
 }
 
 func SetEnableManifestGeneration(val map[v1alpha1.ApplicationSourceType]bool) {
