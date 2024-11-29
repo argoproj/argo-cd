@@ -750,22 +750,23 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				FailOnErr(Run("", "kubectl", args...))
 			}
 		},
-		"reset_settings_config_map": func() {
+		"reset_config_maps": func() {
 			// reset settings
 			updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
 				return nil
 			})
-		},
-		"reset_notifications_config_map": func() {
 			updateNotificationsConfigMap(func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
 				return nil
 			})
-		},
-		"reset_rbac_config_map": func() {
 			// reset rbac
 			updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
+				cm.Data = map[string]string{}
+				return nil
+			})
+			// reset gpg-keys config map
+			updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
 				return nil
 			})
@@ -773,13 +774,6 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		"login_as_admin": func() {
 			// We can switch user and as result in previous state we will have non-admin user, this case should be reset
 			LoginAs(adminUsername)
-		},
-		"update_gpg_keys_config_map": func() {
-			// reset gpg-keys config map
-			updateGenericConfigMap(common.ArgoCDGPGKeysConfigMapName, func(cm *corev1.ConfigMap) error {
-				cm.Data = map[string]string{}
-				return nil
-			})
 		},
 		"remove_temp_dir": func() {
 			CheckError(os.RemoveAll(TmpDir))
