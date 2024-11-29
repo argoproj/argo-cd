@@ -119,7 +119,7 @@ func (m *MetricsServer) ObserveExtensionRequestDuration(extension string, durati
 	m.extensionRequestDuration.WithLabelValues(extension).Observe(duration.Seconds())
 }
 
-// IncrementDailyActiveUsers increments the counter for daily active users of a specific type.
+// IncrementDailyActiveUsers increments the counter for daily active users of a specific type
 func (m *MetricsServer) IncrementDailyActiveUsers(userType string) {
 	m.dailyActiveUsersCounter.WithLabelValues(userType).Inc()
 }
