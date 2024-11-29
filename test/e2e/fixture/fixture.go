@@ -574,6 +574,30 @@ func WithTestData(testdata string) TestOption {
 	}
 }
 
+func runFunctionsInParallelWithTimingInfo(t *testing.T, functions map[string]func()) map[string]time.Duration {
+	t.Helper()
+
+	var wg sync.WaitGroup
+	var mutex sync.Mutex
+
+	durations := map[string]time.Duration{}
+	for name, function := range functions {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			start := time.Now()
+			function()
+			end := time.Now()
+			mutex.Lock()
+			defer mutex.Unlock()
+			durations[name] = end.Sub(start)
+		}()
+	}
+	wg.Wait()
+
+	return durations
+}
+
 func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	t.Helper()
 	opt := newTestOption(opts...)
@@ -584,13 +608,10 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		RecordTestRun(t)
 	})
 
-	var wg sync.WaitGroup
-	var mutex sync.Mutex
-
 	start := time.Now()
 	policy := v1.DeletePropagationBackground
 
-	cleanupFunctions := map[string]func(){
+	cleanupFunctionsWave1 := map[string]func(){
 		"delete_apps_in_test_namespace": func() {
 			// kubectl delete apps ...
 			CheckError(AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(
@@ -640,9 +661,29 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				v1.DeleteOptions{PropagationPolicy: &policy},
 				v1.ListOptions{LabelSelector: TestingLabel + "=true"}))
 		},
+	}
+
+	cleanupDurationsWave1 := runFunctionsInParallelWithTimingInfo(t, cleanupFunctionsWave1)
+
+	cleanupFunctionsWave2 := map[string]func(){
 		"delete_namespaces_created_by_tests": func() {
 			// delete old namespaces which were created by tests
-			namespaces, err := KubeClientset.CoreV1().Namespaces().List(
+			// delete old namespaces which were created by tests
+			namespaces, err := KubeClientset.CoreV1().Namespaces().List(context.Background(), v1.ListOptions{})
+			CheckError(err)
+			testNamespaceNames := []string{}
+			for _, namespace := range namespaces.Items {
+				if strings.HasPrefix(namespace.Name, E2ETestPrefix) {
+					testNamespaceNames = append(testNamespaceNames, namespace.Name)
+				}
+			}
+			if len(testNamespaceNames) > 0 {
+				args := []string{"delete", "ns"}
+				args = append(args, testNamespaceNames...)
+				FailOnErr(Run("", "kubectl", args...))
+			}
+
+			namespaces, err = KubeClientset.CoreV1().Namespaces().List(
 				context.Background(),
 				v1.ListOptions{
 					LabelSelector: TestingLabel + "=true",
@@ -664,40 +705,6 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		},
 		"delete_cluster_roles_created_by_tests": func() {
 			// delete old ClusterRoles which were created by tests
-			clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(
-				context.Background(),
-				v1.ListOptions{
-					LabelSelector: fmt.Sprintf("%s=%s", TestingLabel, "true"),
-				},
-			)
-			CheckError(err)
-			if len(clusterRoles.Items) > 0 {
-				args := []string{"delete", "clusterrole", "--wait=false"}
-				for _, clusterRole := range clusterRoles.Items {
-					args = append(args, clusterRole.Name)
-				}
-				FailOnErr(Run("", "kubectl", args...))
-			}
-		},
-		// Need to wait on these, since they can be re-used by a current test.
-		"delete_namespaces_with_test_prefix": func() {
-			// delete old namespaces which were created by tests
-			namespaces, err := KubeClientset.CoreV1().Namespaces().List(context.Background(), v1.ListOptions{})
-			CheckError(err)
-			testNamespaceNames := []string{}
-			for _, namespace := range namespaces.Items {
-				if strings.HasPrefix(namespace.Name, E2ETestPrefix) {
-					testNamespaceNames = append(testNamespaceNames, namespace.Name)
-				}
-			}
-			if len(testNamespaceNames) > 0 {
-				args := []string{"delete", "ns"}
-				args = append(args, testNamespaceNames...)
-				FailOnErr(Run("", "kubectl", args...))
-			}
-		},
-		"delete_cluster_roles_with_test_prefix": func() {
-			// delete old ClusterRoles which were created by tests
 			clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(context.Background(), v1.ListOptions{})
 			CheckError(err)
 			testClusterRoleNames := []string{}
@@ -709,6 +716,21 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			if len(testClusterRoleNames) > 0 {
 				args := []string{"delete", "clusterrole"}
 				args = append(args, testClusterRoleNames...)
+				FailOnErr(Run("", "kubectl", args...))
+			}
+
+			clusterRoles, err = KubeClientset.RbacV1().ClusterRoles().List(
+				context.Background(),
+				v1.ListOptions{
+					LabelSelector: fmt.Sprintf("%s=%s", TestingLabel, "true"),
+				},
+			)
+			CheckError(err)
+			if len(clusterRoles.Items) > 0 {
+				args := []string{"delete", "clusterrole", "--wait=false"}
+				for _, clusterRole := range clusterRoles.Items {
+					args = append(args, clusterRole.Name)
+				}
 				FailOnErr(Run("", "kubectl", args...))
 			}
 		},
@@ -764,22 +786,9 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		},
 	}
 
-	cleanupDurations := map[string]time.Duration{}
-	for name, function := range cleanupFunctions {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			start := time.Now()
-			function()
-			end := time.Now()
-			mutex.Lock()
-			defer mutex.Unlock()
-			cleanupDurations[name] = end.Sub(start)
-		}()
-	}
-	wg.Wait()
+	cleanupDurationsWave2 := runFunctionsInParallelWithTimingInfo(t, cleanupFunctionsWave2)
 
-	createFunctions := map[string]func(){
+	createFunctionsWave3 := map[string]func(){
 		"setup_default_and_gpg_appprojects": func() {
 			SetProjectSpec("default", v1alpha1.AppProjectSpec{
 				OrphanedResources:        nil,
@@ -862,20 +871,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		},
 	}
 
-	createDurations := map[string]time.Duration{}
-	for name, function := range createFunctions {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			start := time.Now()
-			function()
-			end := time.Now()
-			mutex.Lock()
-			defer mutex.Unlock()
-			createDurations[name] = end.Sub(start)
-		}()
-	}
-	wg.Wait()
+	createDurationsWave3 := runFunctionsInParallelWithTimingInfo(t, createFunctionsWave3)
 
 	log.WithFields(log.Fields{
 		"duration": time.Since(start),
@@ -884,8 +880,9 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		"username": "admin",
 		"password": "password",
 	}).Info("clean state")
-	log.WithField("cleanup_durations_parallel", cleanupDurations).Info("clean state cleanup timings")
-	log.WithField("create_durations_parallel", createDurations).Info("clean state create timings")
+	log.WithField("durations", cleanupDurationsWave1).Info("clean state cleanup timings in parallel wave 1")
+	log.WithField("durations", cleanupDurationsWave2).Info("clean state cleanup timings in parallel wave 2")
+	log.WithField("durations", createDurationsWave3).Info("clean state create timings in parallel wave 3")
 }
 
 func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
