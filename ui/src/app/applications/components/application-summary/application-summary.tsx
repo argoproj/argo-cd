@@ -81,7 +81,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             title: 'LABELS',
             view: (
                 <div className='application-summary__labels'>
-                    {Object.keys(app.metadata.labels).map(label => (
+                    {Object.keys(app.metadata.labels || {}).map(label => (
                         <span className='application-summary__label_light' key={label}>
                             {label}: {app.metadata.labels[label]}
                         </span>
