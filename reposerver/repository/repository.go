@@ -2851,7 +2851,7 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 			return s.checkoutRevision(gitClient, syncedRevision, false)
 		})
 		if err != nil {
-			return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
+			return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with syncedRevision %s: %v", repo.Repo, syncedRevision, err)
 		}
 		io.Close(closer)
 	}
