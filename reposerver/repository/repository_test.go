@@ -3761,12 +3761,43 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
 			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
 		}, wantErr: assert.NoError},
-		{name: "ChangedFilesDoNothing", fields: func() fields {
+		{name: "ChangedFilesDoNothingWithoutSyncRevisionCache", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Init").Return(nil)
 				gitClient.On("IsRevisionPresent", mock.Anything).Return(false)
 				gitClient.On("Fetch", mock.Anything).Return(nil)
-				gitClient.On("Checkout", mock.Anything, mock.Anything).Return(nil)
+				gitClient.On("Checkout", "632039659e542ed7de0c170a4fcc1c571b288fc0", mock.Anything).Once().Return(nil)
+				gitClient.On("Checkout", "1e67a504d03def3a6a1125d934cb511680f72555", mock.Anything).Once().Return(nil)
+				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
+				paths.On("GetPath", mock.Anything).Return(".", nil)
+				paths.On("GetPathIfExists", mock.Anything).Return(".", nil)
+				gitClient.On("Root").Return("")
+				gitClient.On("ChangedFiles", mock.Anything, mock.Anything).Return([]string{"app.yaml"}, nil)
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: context.TODO(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:           &argoappv1.Repository{Repo: "a-url.com"},
+				Revision:       "HEAD",
+				SyncedRevision: "SYNCEDHEAD",
+				Paths:          []string{"."},
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
+			Changes:  true,
+		}, wantErr: assert.NoError},
+		{name: "ChangedFilesDoNothingWithSyncRevisionCache", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
+				gitClient.On("Init").Return(nil)
+				gitClient.On("IsRevisionPresent", mock.Anything).Once().Return(true)
+				gitClient.On("IsRevisionPresent", mock.Anything).Once().Return(false)
+				gitClient.On("Fetch", mock.Anything).Return(nil)
+				gitClient.On("Checkout", "632039659e542ed7de0c170a4fcc1c571b288fc0", mock.Anything).Once().Return(nil)
 				gitClient.On("LsRemote", "HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 				gitClient.On("LsRemote", "SYNCEDHEAD").Once().Return("1e67a504d03def3a6a1125d934cb511680f72555", nil)
 				paths.On("GetPath", mock.Anything).Return(".", nil)
