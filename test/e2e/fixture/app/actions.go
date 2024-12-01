@@ -448,7 +448,7 @@ func (a *Actions) Wait(args ...string) *Actions {
 }
 
 func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
-	fixture.SetParamInSettingConfigMap(key, value)
+	errors.CheckError(fixture.SetParamInSettingConfigMap(key, value))
 	return a
 }
 
@@ -477,16 +477,16 @@ func (a *Actions) verifyAction() {
 }
 
 func (a *Actions) SetTrackingMethod(trackingMethod string) *Actions {
-	fixture.SetTrackingMethod(trackingMethod)
+	errors.CheckError(fixture.SetTrackingMethod(trackingMethod))
 	return a
 }
 
 func (a *Actions) SetInstallationID(installationID string) *Actions {
-	fixture.SetInstallationID(installationID)
+	errors.CheckError(fixture.SetInstallationID(installationID))
 	return a
 }
 
 func (a *Actions) SetTrackingLabel(trackingLabel string) *Actions {
-	fixture.SetTrackingLabel(trackingLabel)
+	errors.CheckError(fixture.SetTrackingLabel(trackingLabel))
 	return a
 }
