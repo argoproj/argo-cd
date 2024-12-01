@@ -34,110 +34,203 @@ exports[`ComparisonStatusIcon.Synced 1`] = `
 
 exports[`ComparisonStatusIcon.Unknown 1`] = `
 [
-  <i
-    className="fa fa-circle-notch fa-spin"
+  <svg
+    aria-labelledby="svg-inline--fa-title-000000000000"
+    className="svg-inline--fa fa-circle-notch fa-spin "
+    data-icon="circle-notch"
+    data-prefix="fas"
     qe-id="utils-sync-status-title"
-    style={
-      {
-        "color": "#CCD6DD",
-      }
-    }
-    title="Unknown"
-  />,
+    role="img"
+    style={{}}
+    viewBox="0 0 512 512"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title
+      id="svg-inline--fa-title-000000000000"
+      style={{}}
+    >
+      Unknown
+    </title>
+    <path
+      d="M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z"
+      fill="currentColor"
+      style={{}}
+    />
+  </svg>,
   " ",
 ]
 `;
 
 exports[`HealthStatusIcon.Degraded 1`] = `
-<i
-  className="fa fa-heart-broken utils-health-status-icon"
-  qe-id="utils-health-status-title"
-  style={
-    {
-      "color": "#E96D76",
+<span
+  className="utils-health-status-icon"
+>
+  <i
+    className="fa fa-heart-broken"
+    style={
+      {
+        "color": "#E96D76",
+      }
     }
-  }
-  title="Degraded"
-/>
+  />
+</span>
 `;
 
 exports[`HealthStatusIcon.Healthy 1`] = `
-<i
-  className="fa fa-heart utils-health-status-icon"
-  qe-id="utils-health-status-title"
-  style={
-    {
-      "color": "#18BE94",
+<span
+  className="utils-health-status-icon"
+>
+  <i
+    className="fa fa-heart"
+    style={
+      {
+        "color": "#18BE94",
+      }
     }
-  }
-  title="Healthy"
-/>
+  />
+</span>
 `;
 
 exports[`HealthStatusIcon.Missing 1`] = `
-<i
-  className="fa fa-ghost utils-health-status-icon"
-  qe-id="utils-health-status-title"
-  style={
-    {
-      "color": "#f4c030",
+<span
+  className="utils-health-status-icon"
+>
+  <svg
+    aria-labelledby="svg-inline--fa-title-000000000000"
+    className="svg-inline--fa fa-ghost "
+    data-icon="ghost"
+    data-prefix="fas"
+    role="img"
+    style={
+      {
+        "color": "#f4c030",
+      }
     }
-  }
-  title="Missing"
-/>
+    viewBox="0 0 384 512"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title
+      id="svg-inline--fa-title-000000000000"
+      style={{}}
+    >
+      Missing
+    </title>
+    <path
+      d="M40.1 467.1l-11.2 9c-3.2 2.5-7.1 3.9-11.1 3.9C8 480 0 472 0 462.2L0 192C0 86 86 0 192 0S384 86 384 192l0 270.2c0 9.8-8 17.8-17.8 17.8c-4 0-7.9-1.4-11.1-3.9l-11.2-9c-13.4-10.7-32.8-9-44.1 3.9L269.3 506c-3.3 3.8-8.2 6-13.3 6s-9.9-2.2-13.3-6l-26.6-30.5c-12.7-14.6-35.4-14.6-48.2 0L141.3 506c-3.3 3.8-8.2 6-13.3 6s-9.9-2.2-13.3-6L84.2 471c-11.3-12.9-30.7-14.6-44.1-3.9zM160 192a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zm96 32a32 32 0 1 0 0-64 32 32 0 1 0 0 64z"
+      fill="currentColor"
+      style={{}}
+    />
+  </svg>
+</span>
 `;
 
 exports[`HealthStatusIcon.Progressing 1`] = `
-<i
-  className="fa fa fa-circle-notch fa-spin utils-health-status-icon"
-  qe-id="utils-health-status-title"
-  style={
-    {
-      "color": "#0DADEA",
-    }
-  }
-  title="Progressing"
-/>
-`;
-
-exports[`HealthStatusIcon.Suspended 1`] = `
-<i
-  className="fa fa-pause-circle utils-health-status-icon"
-  qe-id="utils-health-status-title"
-  style={
-    {
-      "color": "#766f94",
-    }
-  }
-  title="Suspended"
-/>
-`;
-
-exports[`HealthStatusIcon.Unknown 1`] = `
-<i
-  className="fa fa-question-circle utils-health-status-icon"
-  qe-id="utils-health-status-title"
-  style={
-    {
-      "color": "#CCD6DD",
-    }
-  }
-  title="Unknown"
-/>
-`;
-
-exports[`OperationState.Deleting 1`] = `
-[
-  <i
-    className="fa fa-circle-notch fa-spin"
-    qe-id="utils-operations-status-title"
+<span
+  className="utils-health-status-icon"
+>
+  <svg
+    aria-labelledby="svg-inline--fa-title-000000000000"
+    className="svg-inline--fa fa-circle-notch fa-spin "
+    data-icon="circle-notch"
+    data-prefix="fas"
+    role="img"
     style={
       {
         "color": "#0DADEA",
       }
     }
-    title="Deleting"
-  />,
+    viewBox="0 0 512 512"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title
+      id="svg-inline--fa-title-000000000000"
+      style={{}}
+    >
+      Processing
+    </title>
+    <path
+      d="M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z"
+      fill="currentColor"
+      style={{}}
+    />
+  </svg>
+</span>
+`;
+
+exports[`HealthStatusIcon.Suspended 1`] = `
+<span
+  className="utils-health-status-icon"
+>
+  <i
+    className="fa fa-pause-circle"
+    style={
+      {
+        "color": "#766f94",
+      }
+    }
+  />
+</span>
+`;
+
+exports[`HealthStatusIcon.Unknown 1`] = `
+<span
+  className="utils-health-status-icon"
+>
+  <svg
+    aria-labelledby="svg-inline--fa-title-000000000000"
+    className="svg-inline--fa fa-circle-question "
+    data-icon="circle-question"
+    data-prefix="fas"
+    role="img"
+    style={
+      {
+        "color": "#CCD6DD",
+      }
+    }
+    viewBox="0 0 512 512"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title
+      id="svg-inline--fa-title-000000000000"
+      style={{}}
+    >
+      Unknown
+    </title>
+    <path
+      d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM169.8 165.3c7.9-22.3 29.1-37.3 52.8-37.3l58.3 0c34.9 0 63.1 28.3 63.1 63.1c0 22.6-12.1 43.5-31.7 54.8L280 264.4c-.2 13-10.9 23.6-24 23.6c-13.3 0-24-10.7-24-24l0-13.5c0-8.6 4.6-16.5 12.1-20.8l44.3-25.4c4.7-2.7 7.6-7.7 7.6-13.1c0-8.4-6.8-15.1-15.1-15.1l-58.3 0c-3.4 0-6.4 2.1-7.5 5.3l-.4 1.2c-4.4 12.5-18.2 19-30.6 14.6s-19-18.2-14.6-30.6l.4-1.2zM224 352a32 32 0 1 1 64 0 32 32 0 1 1 -64 0z"
+      fill="currentColor"
+      style={{}}
+    />
+  </svg>
+</span>
+`;
+
+exports[`OperationState.Deleting 1`] = `
+[
+  <svg
+    aria-labelledby="svg-inline--fa-title-000000000000"
+    className="svg-inline--fa fa-circle-notch fa-spin "
+    color="#0DADEA"
+    data-icon="circle-notch"
+    data-prefix="fas"
+    qe-id="utils-operations-status-title"
+    role="img"
+    style={{}}
+    viewBox="0 0 512 512"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title
+      id="svg-inline--fa-title-000000000000"
+      style={{}}
+    >
+      Deleting
+    </title>
+    <path
+      d="M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z"
+      fill="currentColor"
+      style={{}}
+    />
+  </svg>,
   " ",
   "Deleting",
 ]
@@ -196,16 +289,30 @@ exports[`OperationState.Sync failed 1`] = `
 
 exports[`OperationState.Syncing 1`] = `
 [
-  <i
-    className="fa fa-circle-notch fa-spin"
+  <svg
+    aria-labelledby="svg-inline--fa-title-000000000000"
+    className="svg-inline--fa fa-circle-notch fa-spin "
+    color="#0DADEA"
+    data-icon="circle-notch"
+    data-prefix="fas"
     qe-id="utils-operations-status-title"
-    style={
-      {
-        "color": "#0DADEA",
-      }
-    }
-    title="Syncing"
-  />,
+    role="img"
+    style={{}}
+    viewBox="0 0 512 512"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title
+      id="svg-inline--fa-title-000000000000"
+      style={{}}
+    >
+      Syncing
+    </title>
+    <path
+      d="M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z"
+      fill="currentColor"
+      style={{}}
+    />
+  </svg>,
   " ",
   "Syncing",
 ]
@@ -213,16 +320,30 @@ exports[`OperationState.Syncing 1`] = `
 
 exports[`OperationState.Unknown 1`] = `
 [
-  <i
-    className="fa fa-circle-notch fa-spin"
+  <svg
+    aria-labelledby="svg-inline--fa-title-000000000000"
+    className="svg-inline--fa fa-circle-notch fa-spin "
+    color="#0DADEA"
+    data-icon="circle-notch"
+    data-prefix="fas"
     qe-id="utils-operations-status-title"
-    style={
-      {
-        "color": "#0DADEA",
-      }
-    }
-    title="Unknown"
-  />,
+    role="img"
+    style={{}}
+    viewBox="0 0 512 512"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title
+      id="svg-inline--fa-title-000000000000"
+      style={{}}
+    >
+      Unknown
+    </title>
+    <path
+      d="M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z"
+      fill="currentColor"
+      style={{}}
+    />
+  </svg>,
   " ",
   "Unknown",
 ]
@@ -255,15 +376,28 @@ exports[`ResourceResultIcon.Hook.Failed 1`] = `
 `;
 
 exports[`ResourceResultIcon.Hook.Running 1`] = `
-<i
-  className="fa fa-circle-notch fa-spin"
-  style={
-    {
-      "color": "#0DADEA",
-    }
-  }
-  title="Running: my-message"
-/>
+<svg
+  aria-labelledby="svg-inline--fa-title-000000000000"
+  className="svg-inline--fa fa-circle-notch fa-spin "
+  data-icon="circle-notch"
+  data-prefix="fas"
+  role="img"
+  style={{}}
+  viewBox="0 0 512 512"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <title
+    id="svg-inline--fa-title-000000000000"
+    style={{}}
+  >
+    my-message
+  </title>
+  <path
+    d="M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z"
+    fill="currentColor"
+    style={{}}
+  />
+</svg>
 `;
 
 exports[`ResourceResultIcon.Hook.Succeeded 1`] = `
@@ -278,14 +412,27 @@ exports[`ResourceResultIcon.Hook.Succeeded 1`] = `
 `;
 
 exports[`ResourceResultIcon.Hook.Terminating 1`] = `
-<i
-  className="fa fa-circle-notch fa-spin"
+<svg
+  aria-hidden="true"
+  className="svg-inline--fa fa-circle-notch fa-spin "
+  data-icon="circle-notch"
+  data-prefix="fas"
+  focusable="false"
+  role="img"
   style={
     {
       "color": "#DE303D",
     }
   }
-/>
+  viewBox="0 0 512 512"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <path
+    d="M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z"
+    fill="currentColor"
+    style={{}}
+  />
+</svg>
 `;
 
 exports[`ResourceResultIcon.Pruned 1`] = `
