@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -119,6 +120,13 @@ func NewCommand() *cobra.Command {
 			cli.SetLogLevel(cmdutil.LogLevel)
 			cli.SetGLogLevel(glogLevel)
 
+			// Recover from panic and log the error using the configured logger instead of the default.
+			defer func() {
+				if r := recover(); r != nil {
+					log.WithField("trace", string(debug.Stack())).Fatal("Recovered from panic: ", r)
+				}
+			}()
+
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			errors.CheckError(v1alpha1.SetK8SConfigDefaults(config))
@@ -155,6 +163,7 @@ func NewCommand() *cobra.Command {
 			controllerClient, err := client.New(config, client.Options{Scheme: scheme})
 			errors.CheckError(err)
 			controllerClient = client.NewDryRunClient(controllerClient)
+			controllerClient = client.NewNamespacedClient(controllerClient, namespace)
 
 			// Load CA information to use for validating connections to the
 			// repository server, if strict TLS validation was requested.

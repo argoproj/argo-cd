@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"time"
 
 	"github.com/argoproj/pkg/stats"
@@ -99,6 +100,13 @@ func NewCommand() *cobra.Command {
 			cli.SetLogLevel(cmdutil.LogLevel)
 
 			ctrl.SetLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()))
+
+			// Recover from panic and log the error using the configured logger instead of the default.
+			defer func() {
+				if r := recover(); r != nil {
+					log.WithField("trace", string(debug.Stack())).Fatal("Recovered from panic: ", r)
+				}
+			}()
 
 			restConfig, err := clientConfig.ClientConfig()
 			errors.CheckError(err)

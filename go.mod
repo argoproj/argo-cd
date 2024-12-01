@@ -75,7 +75,7 @@ require (
 	github.com/soheilhy/cmux v0.1.5
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/xanzy/go-gitlab v0.114.0
 	github.com/yuin/gopher-lua v1.1.1
@@ -107,7 +107,7 @@ require (
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
 	oras.land/oras-go/v2 v2.5.0
-	sigs.k8s.io/controller-runtime v0.19.1
+	sigs.k8s.io/controller-runtime v0.19.2
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1
 	sigs.k8s.io/yaml v1.4.0
 )
