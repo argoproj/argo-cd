@@ -120,9 +120,9 @@ func TestCreateAndUseAccountCLI(t *testing.T) {
 	assert.Equal(t, `NAME   ENABLED  CAPABILITIES
 admin  true     login`, output)
 
-	SetAccounts(map[string][]string{
+	errors.CheckError(SetAccounts(map[string][]string{
 		"test": {"login", "apiKey"},
-	})
+	}))
 
 	output, err = RunCli("account", "list")
 	errors.CheckError(err)
