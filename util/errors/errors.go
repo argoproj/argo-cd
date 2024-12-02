@@ -4,6 +4,7 @@ import (
 	"os"
 
 	log "github.com/sirupsen/logrus"
+	apierr "k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
@@ -49,4 +50,8 @@ func Fatalf(exitcode int, format string, args ...interface{}) {
 	}
 	log.RegisterExitHandler(exitfunc)
 	log.Fatalf(format, args...)
+}
+
+func IsNotFound(err error) bool {
+	return apierr.IsNotFound(err)
 }
