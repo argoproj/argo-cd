@@ -998,14 +998,14 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		When().
 		And(func() {
-			SetResourceOverrides(map[string]ResourceOverride{
+			CheckError(SetResourceOverrides(map[string]ResourceOverride{
 				"argoproj.io/Dummy": {
 					KnownTypeFields: []KnownTypeField{{
 						Field: "spec",
 						Type:  "core/v1/ResourceList",
 					}},
 				},
-			})
+			}))
 		}).
 		Refresh(RefreshTypeNormal).
 		Then().
@@ -2360,14 +2360,14 @@ definitions:
 	Given(t).
 		Path("crd-subresource").
 		And(func() {
-			SetResourceOverrides(map[string]ResourceOverride{
+			CheckError(SetResourceOverrides(map[string]ResourceOverride{
 				"argoproj.io/StatusSubResource": {
 					Actions: actions,
 				},
 				"argoproj.io/NonStatusSubResource": {
 					Actions: actions,
 				},
-			})
+			}))
 		}).
 		When().CreateApp().Sync().Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -2445,14 +2445,14 @@ func TestAppWaitOperationInProgress(t *testing.T) {
 	ctx := Given(t)
 	ctx.
 		And(func() {
-			SetResourceOverrides(map[string]ResourceOverride{
+			CheckError(SetResourceOverrides(map[string]ResourceOverride{
 				"batch/Job": {
 					HealthLua: `return { status = 'Running' }`,
 				},
 				"apps/Deployment": {
 					HealthLua: `return { status = 'Suspended' }`,
 				},
-			})
+			}))
 		}).
 		Async(true).
 		Path("hook-and-deployment").
@@ -2554,9 +2554,9 @@ func TestDisableManifestGeneration(t *testing.T) {
 		}).
 		When().
 		And(func() {
-			SetEnableManifestGeneration(map[ApplicationSourceType]bool{
+			CheckError(SetEnableManifestGeneration(map[ApplicationSourceType]bool{
 				ApplicationSourceTypeKustomize: false,
-			})
+			}))
 		}).
 		Refresh(RefreshTypeHard).
 		Then().
@@ -2758,7 +2758,7 @@ func TestSwitchTrackingLabel(t *testing.T) {
 func TestAnnotationTrackingExtraResources(t *testing.T) {
 	ctx := Given(t)
 
-	SetTrackingMethod(string(argo.TrackingMethodAnnotation))
+	CheckError(SetTrackingMethod(string(argo.TrackingMethodAnnotation)))
 	ctx.
 		Path("deployment").
 		When().

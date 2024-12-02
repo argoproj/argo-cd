@@ -2,6 +2,7 @@ package notification
 
 import (
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 // this implements the "when" part of given/when/then
@@ -15,7 +16,7 @@ type Actions struct {
 }
 
 func (a *Actions) SetParamInNotificationConfigMap(key, value string) *Actions {
-	fixture.SetParamInNotificationsConfigMap(key, value)
+	errors.CheckError(fixture.SetParamInNotificationsConfigMap(key, value))
 	return a
 }
 
