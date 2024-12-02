@@ -67,21 +67,24 @@ func TestSetApplicationHealth(t *testing.T) {
 	healthStatus, err := setApplicationHealth(resources, resourceStatuses, lua.ResourceHealthOverrides{}, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusDegraded, healthStatus.Status)
-	assert.NotNil(t, healthStatus.LastTransitionTime)
-	previousLastTransitionTime := healthStatus.LastTransitionTime
-
-	// Health.LastTransitionTime is set only for app health and not at individual resource level
 	assert.Equal(t, health.HealthStatusHealthy, resourceStatuses[0].Health.Status)
-	assert.Nil(t, resourceStatuses[0].Health.LastTransitionTime)
 	assert.Equal(t, health.HealthStatusDegraded, resourceStatuses[1].Health.Status)
+	// Health.LastTransitionTime is set only for app health and not at individual resource level
+	assert.NotNil(t, healthStatus.LastTransitionTime)
+	assert.Nil(t, resourceStatuses[0].Health.LastTransitionTime)
 	assert.Nil(t, resourceStatuses[1].Health.LastTransitionTime)
+	previousLastTransitionTime := healthStatus.LastTransitionTime
+	app.Status.Health = *healthStatus
 
 	// now mark the job as a hook and retry. it should ignore the hook and consider the app healthy
 	failedJob.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync"})
 	healthStatus, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
+	// change in health, timestamp should change
 	assert.NotEqual(t, *previousLastTransitionTime, *healthStatus.LastTransitionTime)
+	previousLastTransitionTime = healthStatus.LastTransitionTime
+	app.Status.Health = *healthStatus
 
 	// now we set the `argocd.argoproj.io/ignore-healthcheck: "true"` annotation on the job's target.
 	// The app is considered healthy
@@ -91,6 +94,8 @@ func TestSetApplicationHealth(t *testing.T) {
 	healthStatus, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
+	// no change in health, timestamp shouldn't change
+	assert.Equal(t, *previousLastTransitionTime, *healthStatus.LastTransitionTime)
 }
 
 func TestSetApplicationHealth_ResourceHealthNotPersisted(t *testing.T) {
