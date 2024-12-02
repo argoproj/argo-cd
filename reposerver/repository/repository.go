@@ -2527,8 +2527,8 @@ func fetch(gitClient git.Client, targetRevisions []string) error {
 			break
 		}
 	}
+	// Fetching can be skipped if the revision is already present locally.
 	if revisionPresent {
-		// Fetching can be skipped if the revision is already present locally.
 		return nil
 	}
 	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
