@@ -237,6 +237,10 @@ clidocsgen:
 actionsdocsgen:
 	hack/generate-actions-list.sh
 
+.PHONY: resourceiconsgen
+resourceiconsgen:
+	hack/generate-icons-typescript.sh
+
 .PHONY: codegen-local
 codegen-local: mod-vendor-local mockgen gogen protogen clientgen openapigen clidocsgen actionsdocsgen manifests-local notification-docs notification-catalog
 	rm -rf vendor/
