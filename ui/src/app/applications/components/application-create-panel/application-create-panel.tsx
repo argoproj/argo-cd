@@ -234,8 +234,8 @@ export const ApplicationCreatePanel = (props: {
                                                 <p>SOURCES</p>
 
                                                 {sourcesIndexList.map(index => (
-                                                    <SourcePanel key={'create_source_' + index} index={index} api={api} reposInfo={reposInfo} appCurrent={props.app} />))
-                                                }
+                                                    <SourcePanel key={'create_source_' + index} index={index} api={api} reposInfo={reposInfo} appCurrent={props.app} />
+                                                ))}
                                                 <div className='source-panel-buttons'>
                                                     <button key={'add_source_button'} onClick={() => addSource()} disabled={false} className='argo-button argo-button--base'>
                                                         <i className='fa fa-plus' style={{marginLeft: '-5px', marginRight: '5px'}} />

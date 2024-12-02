@@ -23,7 +23,7 @@ const appTypes = new Array<{field: string; type: models.AppSourceType}>(
 
 // This is similar to the same function in application-create-panel.tsx. If the create panel
 // is modified to support multi-source apps, then we should refactor and common these up
-function normalizeAppSource(index: number, app: models.Application, repoType : string, type: string): boolean {
+function normalizeAppSource(index: number, app: models.Application, repoType: string, type: string): boolean {
     const source = app.spec.sources[index];
     if (repoType !== type) {
         if (type === 'git') {
@@ -66,14 +66,13 @@ const DEFAULT_APP: Partial<models.Application> = {
     }
 };
 
-export const SourcePanel = (
-    props: {
-    index: number,
-    api: ReactForm.FormApi,
-    reposInfo: models.Repository[],
+export const SourcePanel = (props: {
+    index: number;
+    api: ReactForm.FormApi;
+    reposInfo: models.Repository[];
     appCurrent: models.Application;
-    onSubmitFailure?: (error: string) => any,
-    updateApp?: (app: models.Application) => any,
+    onSubmitFailure?: (error: string) => any;
+    updateApp?: (app: models.Application) => any;
     getFormApi?: (api: FormApi) => any;
 }) => {
     const [explicitPathType, setExplicitPathType] = React.useState<{path: string; type: models.AppSourceType}>(null);
