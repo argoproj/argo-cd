@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -40,6 +39,46 @@ func NewDefaultPluginHandler(validPrefixes []string) *DefaultPluginHandler {
 	return &DefaultPluginHandler{
 		ValidPrefixes: validPrefixes,
 	}
+}
+
+// HandleCommandExecutionError processes the error returned from executing the command.
+// It handles both standard Argo CD commands and plugin commands. We don't require to return
+// error but we are doing it to cover various test scenarios.
+func HandleCommandExecutionError(err error, isArgocdCLI bool, o ArgoCDCLIOptions) error {
+	// the log level needs to be setup manually here since the initConfig()
+	// set by the cobra.OnInitialize() was never executed because cmd.Execute()
+	// gave us a non-nil error.
+	initConfig()
+	if err != nil {
+		// If it's an unknown command error, attempt to handle it as a plugin.
+		// Unfortunately, cobra doesn't handle this error, so we need to assume
+		// that error consists of substring "unknown command".
+		// https://github.com/spf13/cobra/pull/2167
+		if isArgocdCLI && strings.Contains(err.Error(), "unknown command") {
+			// The PluginPath is important to be returned since it
+			// helps us understanding the logic for handling errors.
+			log.Println("command does not exist, looking for a plugin...")
+			PluginPath, pluginErr := HandlePluginCommand(o.PluginHandler, o.Arguments[1:], 1)
+			// IMP: If a plugin doesn't exist, the returned path will be empty along with nil error
+			// This means the command is neither a normal Argo CD Command nor a plugin.
+			if pluginErr == nil {
+				if PluginPath == "" {
+					log.Errorf("Error: %v\nRun 'argocd --help' for usage.\n", err)
+					return err
+				}
+			} else {
+				// If plugin handling fails, report the plugin error and exit
+				log.Errorf("Error: %v\n", pluginErr)
+				return pluginErr
+			}
+		} else {
+			// If it's any other error (not an unknown command), report it directly and exit
+			log.Errorf("Error: %v\n", err)
+			return err
+		}
+	}
+
+	return nil
 }
 
 // HandlePluginCommand is  responsible for finding and executing a plugin when a command isn't recognized as a built-in command
@@ -99,26 +138,9 @@ func (h *DefaultPluginHandler) LookForPlugin(filename string) (string, bool) {
 	for _, prefix := range h.ValidPrefixes {
 		pluginName := fmt.Sprintf("%s-%s", prefix, filename) // Combine prefix and filename
 		path, err := exec.LookPath(pluginName)
-		if err != nil {
-			if errors.Is(err, exec.ErrNotFound) {
-				log.Warnf("Plugin %s not found or not executable. Ensure it exists in the PATH and has executable permissions.", pluginName)
-				continue
-			}
-
-			if errors.Is(err, exec.ErrDot) {
-				log.Warnf("Plugin %s cannot be executed because relative paths (e.g., './%s') are not allowed. Ensure the plugin is in a directory listed in the PATH.", pluginName, pluginName)
-				continue
-			}
-
-			if errors.Is(err, exec.ErrWaitDelay) {
-				log.Warnf("Execution of plugin %s is delayed. The system is waiting before launching the process. Please try again later.", pluginName)
-				continue
-			}
-
-			log.Errorf("Unexpected error while looking for plugin %s: %v", pluginName, err)
+		if err != nil || len(path) == 0 {
 			continue
 		}
-
 		return path, true
 	}
 

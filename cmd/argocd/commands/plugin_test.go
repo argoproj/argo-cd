@@ -185,4 +185,5 @@ func Test_CommandWithInvalidArguments(t *testing.T) {
 
 // TODO
 func Test_LookForPluginError(t *testing.T) {
+
 }
