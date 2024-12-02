@@ -25,4 +25,16 @@
     .row.argo-form-row .columns {
         padding-left: 0;
     }
+
+    &__add-source {
+        margin-top: 0.75em;
+    }
+
+    &__multi-source-block {
+        margin-bottom: 0.5em;
+    }
+
+    &__multi-source-title {
+        font-weight: 600;
+    }
 }
