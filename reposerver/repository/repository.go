@@ -2507,6 +2507,37 @@ func (s *Service) checkoutRevision(gitClient git.Client, revision string, submod
 	return closer, err
 }
 
+// fetch is a convenience function to fetch revisions
+// We assumed that the caller has already initialized the git repo, i.e. gitClient.Init() has been called
+func (s *Service) fetch(gitClient git.Client, targetRevisions []string) error {
+	if err := fetch(gitClient, targetRevisions); err != nil {
+		for _, revision := range targetRevisions {
+			s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
+		}
+	}
+	return nil
+}
+
+func fetch(gitClient git.Client, targetRevisions []string) error {
+	err := gitClient.Fetch("")
+	if err != nil {
+		return err
+	}
+	for _, revision := range targetRevisions {
+		if !gitClient.IsRevisionPresent(revision) {
+			// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If fetch fails
+			// for the given revision, try explicitly fetching it.
+			log.Infof("Failed to fetch revision %s: %v", revision, err)
+			log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
+
+			if err := gitClient.Fetch(revision); err != nil {
+				return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
+			}
+		}
+	}
+	return nil
+}
+
 func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bool) error {
 	err := gitClient.Init()
 	if err != nil {
@@ -2843,19 +2874,6 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	s.metricsServer.IncPendingRepoRequest(repo.Repo)
 	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
-	// Check if the synced revision is present in the repo. If not, checkout the revision
-	// Note that fetching with an explicit version can cause repo bloat [https://github.com/argoproj/argo-cd/issues/8845],
-	// so we should take lock (theoretically not necessary) and checkout.
-	if !gitClient.IsRevisionPresent(syncedRevision) {
-		closer, err := s.repoLock.Lock(gitClient.Root(), syncedRevision, true, func() (goio.Closer, error) {
-			return s.checkoutRevision(gitClient, syncedRevision, false)
-		})
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with syncedRevision %s: %v", repo.Repo, syncedRevision, err)
-		}
-		io.Close(closer)
-	}
-
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func() (goio.Closer, error) {
 		return s.checkoutRevision(gitClient, revision, false)
 	})
@@ -2863,6 +2881,10 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
 	defer io.Close(closer)
+
+	if err := s.fetch(gitClient, []string{syncedRevision, revision}); err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to fetch git repo %s with revisions (%s, %s): %v", repo.Repo, syncedRevision, revision, err)
+	}
 
 	files, err := gitClient.ChangedFiles(syncedRevision, revision)
 	if err != nil {
