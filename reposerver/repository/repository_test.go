@@ -1568,6 +1568,12 @@ func TestListApps(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedApps := map[string]string{
+		"app-include-exclude":               "Directory",
+		"app-include-exclude/subdir":        "Directory",
+		"concatenated":                      "Directory",
+		"utf-16":                            "Directory",
+		"invalid-metadata":                  "Directory",
+		"nil-metadata-accessors":            "Directory",
 		"Kustomization":                     "Kustomize",
 		"app-parameters/multi":              "Kustomize",
 		"app-parameters/single-app-only":    "Kustomize",
