@@ -12,6 +12,9 @@ PROJECT_ROOT=$(
 PATH="${PROJECT_ROOT}/dist:${PATH}"
 GOPATH=$(go env GOPATH)
 GOPATH_PROJECT_ROOT="${GOPATH}/src/github.com/argoproj/argo-cd"
+# Really need advanced Yaml tools to fix https://github.com/argoproj/argo-cd/issues/20532.
+PYTHON=python3
+NORMALIZER="$PROJECT_ROOT/hack/update-manifests-normalizer.py"
 
 VERSION="v1alpha1"
 
@@ -31,3 +34,10 @@ openapi-gen \
 export GO111MODULE=on
 go build -o ./dist/gen-crd-spec "${PROJECT_ROOT}/hack/gen-crd-spec"
 ./dist/gen-crd-spec
+
+CRD_FILE="$PROJECT_ROOT/manifests/crds/application-crd.yaml"
+$PYTHON $NORMALIZER $CRD_FILE $CRD_FILE
+CRD_FILE="$PROJECT_ROOT/manifests/crds/applicationset-crd.yaml"
+$PYTHON $NORMALIZER $CRD_FILE $CRD_FILE
+CRD_FILE="$PROJECT_ROOT/manifests/crds/appproject-crd.yaml"
+$PYTHON $NORMALIZER $CRD_FILE $CRD_FILE
