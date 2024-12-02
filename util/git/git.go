@@ -40,21 +40,21 @@ func SameURL(leftRepo, rightRepo string) bool {
 	return normalLeft != "" && normalRight != "" && normalLeft == normalRight
 }
 
+// Similar to NormalizeGitURL, except returning an original url if the url is invalid.
+// Needed to allow a deletion of repos with invalid urls. See https://github.com/argoproj/argo-cd/issues/20921.
+func NormalizeGitURLAllowInvalid(repo string) string {
+	normalized := NormalizeGitURL(repo)
+	if normalized == "" {
+		return repo
+	}
+	return normalized
+}
+
 // NormalizeGitURL normalizes a git URL for purposes of comparison, as well as preventing redundant
 // local clones (by normalizing various forms of a URL to a consistent location).
 // Prefer using SameURL() over this function when possible. This algorithm may change over time
 // and should not be considered stable from release to release
 func NormalizeGitURL(repo string) string {
-	return normalizeGitURL(repo, false)
-}
-
-// Similar to NormalizeGitURL, except returning a not fully normalized string when the url is invalid.
-// Needed to allow a deletion of repos with invalid urls. See https://github.com/argoproj/argo-cd/issues/20921.
-func NormalizeGitURLAllowInvalid(repo string) string {
-	return normalizeGitURL(repo, true)
-}
-
-func normalizeGitURL(repo string, allowInvalid bool) string {
 	repo = strings.ToLower(strings.TrimSpace(repo))
 	if yes, _ := IsSSHURL(repo); yes {
 		if !strings.HasPrefix(repo, "ssh://") {
@@ -67,11 +67,7 @@ func normalizeGitURL(repo string, allowInvalid bool) string {
 	repo = strings.TrimSuffix(repo, ".git")
 	repoURL, err := url.Parse(repo)
 	if err != nil {
-		if allowInvalid {
-			return repo
-		} else {
-			return ""
-		}
+		return ""
 	}
 	normalized := repoURL.String()
 	return strings.TrimPrefix(normalized, "ssh://")
