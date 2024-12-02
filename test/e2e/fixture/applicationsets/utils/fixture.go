@@ -117,7 +117,7 @@ func EnsureCleanState(t *testing.T) {
 		"delete_applications_resources_namespace": func() error {
 			// Delete the applicationset-e2e namespace, if it exists
 			err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), ApplicationsResourcesNamespace, v1.DeleteOptions{PropagationPolicy: &policy})
-			if err != nil && !strings.Contains(err.Error(), "not found") { // 'not found' error is expected
+			if err != nil && !errors.IsNotFound(err) { // 'not found' error is expected
 				return err
 			}
 			return nil
@@ -125,7 +125,7 @@ func EnsureCleanState(t *testing.T) {
 		"delete_argocd_external_namespace": func() error {
 			// Delete the argocd-e2e-external namespace, if it exists
 			err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), string(ArgoCDExternalNamespace), v1.DeleteOptions{PropagationPolicy: &policy})
-			if err != nil && !strings.Contains(err.Error(), "not found") { // 'not found' error is expected
+			if err != nil && !errors.IsNotFound(err) { // 'not found' error is expected
 				return err
 			}
 			return nil
@@ -133,7 +133,7 @@ func EnsureCleanState(t *testing.T) {
 		"delete_argocd_external_namespace2": func() error {
 			// Delete the argocd-e2e-external namespace, if it exists
 			err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), string(ArgoCDExternalNamespace2), v1.DeleteOptions{PropagationPolicy: &policy})
-			if err != nil && !strings.Contains(err.Error(), "not found") { // 'not found' error is expected
+			if err != nil && !errors.IsNotFound(err) { // 'not found' error is expected
 				return err
 			}
 			return nil
@@ -275,7 +275,7 @@ func cleanUpNamespace(fixtureClient *E2EFixtureK8sClient, namespace string) erro
 		msg = fmt.Sprintf("namespace '%s' still exists, after delete", namespace)
 	}
 
-	if msg == "" && err != nil && strings.Contains(err.Error(), "not found") {
+	if msg == "" && err != nil && errors.IsNotFound(err) {
 		// Success is an error containing 'applicationset-e2e' not found.
 		return nil
 	}
@@ -293,6 +293,18 @@ func cleanUpNamespace(fixtureClient *E2EFixtureK8sClient, namespace string) erro
 func waitForSuccess(condition func() error, expireTime time.Time) error {
 	var mostRecentError error
 
+	sleepIntervals := []time.Duration{
+		10 * time.Millisecond,
+		20 * time.Millisecond,
+		50 * time.Millisecond,
+		100 * time.Millisecond,
+		200 * time.Millisecond,
+		300 * time.Millisecond,
+		500 * time.Millisecond,
+		1 * time.Second,
+	}
+	sleepIntervalsIdx := -1
+
 	for {
 		if time.Now().After(expireTime) {
 			break
@@ -308,8 +320,11 @@ func waitForSuccess(condition func() error, expireTime time.Time) error {
 			break
 		}
 
-		// Wait 0.5 seconds on fail
-		time.Sleep(500 * time.Millisecond)
+		// Wait on fail
+		if sleepIntervalsIdx < len(sleepIntervals)-1 {
+			sleepIntervalsIdx++
+		}
+		time.Sleep(sleepIntervals[sleepIntervalsIdx])
 	}
 	return mostRecentError
 }
