@@ -283,7 +283,7 @@ export interface Info {
 
 export interface ApplicationSpec {
     project: string;
-    source: ApplicationSource;
+    source?: ApplicationSource;
     sources: ApplicationSource[];
     destination: ApplicationDestination;
     syncPolicy?: SyncPolicy;
