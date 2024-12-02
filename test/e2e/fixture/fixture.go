@@ -11,7 +11,6 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -611,30 +610,6 @@ func WithTestData(testdata string) TestOption {
 	}
 }
 
-func runFunctionsInParallelAndCheckErrors(t *testing.T, functions map[string]func() error) {
-	t.Helper()
-
-	var wg sync.WaitGroup
-	var mutex sync.Mutex
-	errors := map[string]error{}
-
-	for name, function := range functions {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err := function()
-			mutex.Lock()
-			defer mutex.Unlock()
-			errors[name] = err
-		}()
-	}
-	wg.Wait()
-
-	for _, err := range errors {
-		CheckError(err)
-	}
-}
-
 func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	t.Helper()
 	opt := newTestOption(opts...)
@@ -648,7 +623,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	start := time.Now()
 	policy := v1.DeletePropagationBackground
 
-	runFunctionsInParallelAndCheckErrors(t, map[string]func() error{
+	RunFunctionsInParallelAndCheckErrors(t, map[string]func() error{
 		"delete_apps_in_test_namespace": func() error {
 			// kubectl delete apps ...
 			return AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(
@@ -700,7 +675,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		},
 	})
 
-	runFunctionsInParallelAndCheckErrors(t, map[string]func() error{
+	RunFunctionsInParallelAndCheckErrors(t, map[string]func() error{
 		"delete_namespaces_created_by_tests": func() error {
 			// delete old namespaces which were created by tests
 			namespaces, err := KubeClientset.CoreV1().Namespaces().List(
@@ -846,7 +821,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		},
 	})
 
-	runFunctionsInParallelAndCheckErrors(t, map[string]func() error{
+	RunFunctionsInParallelAndCheckErrors(t, map[string]func() error{
 		"setup_default_and_gpg_appprojects": func() error {
 			err := SetProjectSpec("default", v1alpha1.AppProjectSpec{
 				OrphanedResources:        nil,
