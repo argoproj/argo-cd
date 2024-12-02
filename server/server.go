@@ -129,6 +129,7 @@ const (
 	maxConcurrentLoginRequestsCountEnv = "ARGOCD_MAX_CONCURRENT_LOGIN_REQUESTS_COUNT"
 	replicasCountEnv                   = "ARGOCD_API_SERVER_REPLICAS"
 	renewTokenKey                      = "renew-token"
+	extensionsSharedPathEnv            = "ARGOCD_EXTENSIONS_SHARED_PATH"
 )
 
 // ErrNoSession indicates no auth token was supplied as part of a request
@@ -1100,7 +1101,7 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	registerDownloadHandlers(mux, "/download")
 
 	// Serve extensions
-	extensionsSharedPath := "/tmp/extensions/"
+	extensionsSharedPath := env.StringFromEnv(extensionsSharedPathEnv, "/tmp/extensions/")
 
 	var extensionsHandler http.Handler = http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		a.serveExtensions(extensionsSharedPath, writer)
