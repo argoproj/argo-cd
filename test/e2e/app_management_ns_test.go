@@ -1251,7 +1251,7 @@ func TestNamespacedPermissionWithScopedRepo(t *testing.T) {
 		When().
 		Create()
 
-	repoFixture.Given(t, true).
+	repoFixture.GivenWithSameState(t).
 		When().
 		Path(RepoURL(RepoURLTypeFile)).
 		Project(projName).
@@ -1291,7 +1291,7 @@ func TestNamespacedPermissionDeniedWithScopedRepo(t *testing.T) {
 		When().
 		Create()
 
-	repoFixture.Given(t, true).
+	repoFixture.GivenWithSameState(t).
 		When().
 		Path(RepoURL(RepoURLTypeFile)).
 		Create()

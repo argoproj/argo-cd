@@ -23,7 +23,7 @@ func TestCreateRepositoryWithProject(t *testing.T) {
 		Then()
 
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.Given(t, true).
+	repoFixture.GivenWithSameState(t).
 		When().
 		Path(path).
 		Project("argo-project").
@@ -48,7 +48,7 @@ func TestCreateRepositoryNonAdminUserPermissionDenied(t *testing.T) {
 		Login()
 
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.Given(t, true).
+	repoFixture.GivenWithSameState(t).
 		When().
 		Path(path).
 		Project("argo-project").
@@ -75,7 +75,7 @@ func TestCreateRepositoryNonAdminUserWithWrongProject(t *testing.T) {
 		}, "org-admin")
 
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.Given(t, true).
+	repoFixture.GivenWithSameState(t).
 		When().
 		Path(path).
 		Project("argo-project").
@@ -112,7 +112,7 @@ func TestDeleteRepositoryRbacAllowed(t *testing.T) {
 		}, "org-admin")
 
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.Given(t, true).
+	repoFixture.GivenWithSameState(t).
 		When().
 		Path(path).
 		Project("argo-project").
@@ -155,7 +155,7 @@ func TestDeleteRepositoryRbacDenied(t *testing.T) {
 		}, "org-admin")
 
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.Given(t, true).
+	repoFixture.GivenWithSameState(t).
 		When().
 		Path(path).
 		Project("argo-project").
@@ -176,7 +176,7 @@ func TestDeleteRepositoryRbacDenied(t *testing.T) {
 
 func TestDeleteRepository(t *testing.T) {
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.Given(t, false).
+	repoFixture.Given(t).
 		When().
 		Path(path).
 		Project("argo-project").
@@ -195,7 +195,7 @@ func TestDeleteRepository(t *testing.T) {
 
 func TestListRepoCLIOutput(t *testing.T) {
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.Given(t, false).
+	repoFixture.Given(t).
 		When().
 		Path(path).
 		Project("argo-project").
@@ -215,7 +215,7 @@ git         https://github.com/argoproj/argo-cd.git  false     false  false  fal
 
 func TestGetRepoCLIOutput(t *testing.T) {
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.Given(t, false).
+	repoFixture.Given(t).
 		When().
 		Path(path).
 		Project("argo-project").

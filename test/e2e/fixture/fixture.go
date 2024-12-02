@@ -606,9 +606,87 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	CheckError(KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(context.Background(),
 		v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{LabelSelector: TestingLabel + "=true"}))
 
-	FailOnErr(Run("", "kubectl", "delete", "ns", "-l", TestingLabel+"=true", "--field-selector", "status.phase=Active", "--wait=false"))
+	// delete old namespaces which were created by tests
+	namespaces, err := KubeClientset.CoreV1().Namespaces().List(
+		context.Background(),
+		v1.ListOptions{
+			LabelSelector: TestingLabel + "=true",
+			FieldSelector: "status.phase=Active",
+		},
+	)
+	CheckError(err)
+	if len(namespaces.Items) > 0 {
+		args := []string{"delete", "ns", "--wait=false"}
+		for _, namespace := range namespaces.Items {
+			args = append(args, namespace.Name)
+		}
+		FailOnErr(Run("", "kubectl", args...))
+	}
+
+	// delete old CRDs which were created by tests, doesn't seem to have kube api to get items
 	FailOnErr(Run("", "kubectl", "delete", "crd", "-l", TestingLabel+"=true", "--wait=false"))
-	FailOnErr(Run("", "kubectl", "delete", "clusterroles", "-l", TestingLabel+"=true", "--wait=false"))
+
+	// delete old ClusterRoles which were created by tests
+	clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(
+		context.Background(),
+		v1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", TestingLabel, "true"),
+		},
+	)
+	CheckError(err)
+	if len(clusterRoles.Items) > 0 {
+		args := []string{"delete", "clusterrole", "--wait=false"}
+		for _, clusterRole := range clusterRoles.Items {
+			args = append(args, clusterRole.Name)
+		}
+		FailOnErr(Run("", "kubectl", args...))
+	}
+
+	// Need to wait on these, since they can be re-used by a current test.
+	// delete old namespaces which were created by tests
+	namespaces, err = KubeClientset.CoreV1().Namespaces().List(context.Background(), v1.ListOptions{})
+	CheckError(err)
+	testNamespaceNames := []string{}
+	for _, namespace := range namespaces.Items {
+		if strings.HasPrefix(namespace.Name, E2ETestPrefix) {
+			testNamespaceNames = append(testNamespaceNames, namespace.Name)
+		}
+	}
+	if len(testNamespaceNames) > 0 {
+		args := []string{"delete", "ns"}
+		args = append(args, testNamespaceNames...)
+		FailOnErr(Run("", "kubectl", args...))
+	}
+
+	// delete old ClusterRoles which were created by tests
+	clusterRoles, err = KubeClientset.RbacV1().ClusterRoles().List(context.Background(), v1.ListOptions{})
+	CheckError(err)
+	testClusterRoleNames := []string{}
+	for _, clusterRole := range clusterRoles.Items {
+		if strings.HasPrefix(clusterRole.Name, E2ETestPrefix) {
+			testClusterRoleNames = append(testClusterRoleNames, clusterRole.Name)
+		}
+	}
+	if len(testClusterRoleNames) > 0 {
+		args := []string{"delete", "clusterrole"}
+		args = append(args, testClusterRoleNames...)
+		FailOnErr(Run("", "kubectl", args...))
+	}
+
+	// delete old ClusterRoleBindings which were created by tests
+	clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(context.Background(), v1.ListOptions{})
+	CheckError(err)
+	testClusterRoleBindingNames := []string{}
+	for _, clusterRoleBinding := range clusterRoleBindings.Items {
+		if strings.HasPrefix(clusterRoleBinding.Name, E2ETestPrefix) {
+			testClusterRoleBindingNames = append(testClusterRoleBindingNames, clusterRoleBinding.Name)
+		}
+	}
+	if len(testClusterRoleBindingNames) > 0 {
+		args := []string{"delete", "clusterrolebinding"}
+		args = append(args, testClusterRoleBindingNames...)
+		FailOnErr(Run("", "kubectl", args...))
+	}
 
 	// reset settings
 	updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
@@ -645,15 +723,23 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	})
 
 	// Create separate project for testing gpg signature verification
-	FailOnErr(RunCli("proj", "create", "gpg"))
-	SetProjectSpec("gpg", v1alpha1.AppProjectSpec{
-		OrphanedResources:        nil,
-		SourceRepos:              []string{"*"},
-		Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-		ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
-		SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
-		SourceNamespaces:         []string{AppNamespace()},
-	})
+	FailOnErr(AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Create(
+		context.Background(),
+		&v1alpha1.AppProject{
+			ObjectMeta: v1.ObjectMeta{
+				Name: "gpg",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				OrphanedResources:        nil,
+				SourceRepos:              []string{"*"},
+				Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
+				ClusterResourceWhitelist: []v1.GroupKind{{Group: "*", Kind: "*"}},
+				SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
+				SourceNamespaces:         []string{AppNamespace()},
+			},
+		},
+		v1.CreateOptions{},
+	))
 
 	// Recreate temp dir
 	CheckError(os.RemoveAll(TmpDir))
@@ -707,33 +793,6 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	// create namespace
 	FailOnErr(Run("", "kubectl", "create", "ns", DeploymentNamespace()))
 	FailOnErr(Run("", "kubectl", "label", "ns", DeploymentNamespace(), TestingLabel+"=true"))
-
-	// delete old namespaces used by E2E tests
-	namespaces, err := KubeClientset.CoreV1().Namespaces().List(context.Background(), v1.ListOptions{})
-	CheckError(err)
-	for _, namespace := range namespaces.Items {
-		if strings.HasPrefix(namespace.Name, E2ETestPrefix) {
-			FailOnErr(Run("", "kubectl", "delete", "ns", namespace.Name))
-		}
-	}
-
-	// delete old ClusterRoles that begin with "e2e-test-" prefix (E2ETestPrefix), which were created by tests
-	clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(context.Background(), v1.ListOptions{})
-	CheckError(err)
-	for _, clusterRole := range clusterRoles.Items {
-		if strings.HasPrefix(clusterRole.Name, E2ETestPrefix) {
-			FailOnErr(Run("", "kubectl", "delete", "clusterrole", clusterRole.Name))
-		}
-	}
-
-	// delete old ClusterRoleBindings that begin with "e2e-test-prefix", which were created by E2E tests
-	clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(context.Background(), v1.ListOptions{})
-	CheckError(err)
-	for _, clusterRoleBinding := range clusterRoleBindings.Items {
-		if strings.HasPrefix(clusterRoleBinding.Name, E2ETestPrefix) {
-			FailOnErr(Run("", "kubectl", "delete", "clusterrolebinding", clusterRoleBinding.Name))
-		}
-	}
 
 	log.WithFields(log.Fields{"duration": time.Since(start), "name": t.Name(), "id": id, "username": "admin", "password": "password"}).Info("clean state")
 }
