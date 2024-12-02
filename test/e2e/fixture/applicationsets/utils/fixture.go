@@ -113,8 +113,8 @@ func EnsureCleanState(t *testing.T) {
 
 	policy := v1.DeletePropagationForeground
 
-	fixture.RunFunctionsInParallelAndCheckErrors(t, map[string]func() error{
-		"delete_applications_resources_namespace": func() error {
+	fixture.RunFunctionsInParallelAndCheckErrors(t, []func() error{
+		func() error {
 			// Delete the applicationset-e2e namespace, if it exists
 			err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), ApplicationsResourcesNamespace, v1.DeleteOptions{PropagationPolicy: &policy})
 			if err != nil && !errors.IsNotFound(err) { // 'not found' error is expected
@@ -122,7 +122,7 @@ func EnsureCleanState(t *testing.T) {
 			}
 			return nil
 		},
-		"delete_argocd_external_namespace": func() error {
+		func() error {
 			// Delete the argocd-e2e-external namespace, if it exists
 			err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), string(ArgoCDExternalNamespace), v1.DeleteOptions{PropagationPolicy: &policy})
 			if err != nil && !errors.IsNotFound(err) { // 'not found' error is expected
@@ -130,7 +130,7 @@ func EnsureCleanState(t *testing.T) {
 			}
 			return nil
 		},
-		"delete_argocd_external_namespace2": func() error {
+		func() error {
 			// Delete the argocd-e2e-external namespace, if it exists
 			err := fixtureClient.KubeClientset.CoreV1().Namespaces().Delete(context.Background(), string(ArgoCDExternalNamespace2), v1.DeleteOptions{PropagationPolicy: &policy})
 			if err != nil && !errors.IsNotFound(err) { // 'not found' error is expected
@@ -139,15 +139,15 @@ func EnsureCleanState(t *testing.T) {
 			return nil
 		},
 		// delete resources
-		"delete_appplication_sets": func() error {
+		func() error {
 			// kubectl delete applicationsets --all
 			return fixtureClient.AppSetClientset.DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{})
 		},
-		"delete_applications_in_test_namespace": func() error {
+		func() error {
 			// kubectl delete apps --all
 			return fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(TestNamespace()).DeleteCollection(context.Background(), v1.DeleteOptions{PropagationPolicy: &policy}, v1.ListOptions{})
 		},
-		"delete_test_secrets": func() error {
+		func() error {
 			// kubectl delete secrets -l e2e.argoproj.io=true
 			return fixtureClient.KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
 				context.Background(),

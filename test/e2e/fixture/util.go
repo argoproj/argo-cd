@@ -27,7 +27,7 @@ func DnsFriendly(str string, postfix string) string {
 	return str + postfix
 }
 
-func RunFunctionsInParallelAndCheckErrors(t *testing.T, functions map[string]func() error) {
+func RunFunctionsInParallelAndCheckErrors(t *testing.T, functions []func() error) {
 	t.Helper()
 	var eg errgroup.Group
 	for _, function := range functions {
