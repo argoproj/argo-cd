@@ -2510,12 +2510,13 @@ func (s *Service) checkoutRevision(gitClient git.Client, revision string, submod
 // fetch is a convenience function to fetch revisions
 // We assumed that the caller has already initialized the git repo, i.e. gitClient.Init() has been called
 func (s *Service) fetch(gitClient git.Client, targetRevisions []string) error {
-	if err := fetch(gitClient, targetRevisions); err != nil {
+	err := fetch(gitClient, targetRevisions)
+	if err != nil {
 		for _, revision := range targetRevisions {
 			s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
 		}
 	}
-	return nil
+	return err
 }
 
 func fetch(gitClient git.Client, targetRevisions []string) error {
