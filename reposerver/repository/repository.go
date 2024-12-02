@@ -2520,6 +2520,17 @@ func (s *Service) fetch(gitClient git.Client, targetRevisions []string) error {
 }
 
 func fetch(gitClient git.Client, targetRevisions []string) error {
+	revisionPresent := true
+	for _, revision := range targetRevisions {
+		revisionPresent = gitClient.IsRevisionPresent(revision)
+		if !revisionPresent {
+			break
+		}
+	}
+	if revisionPresent {
+		// Fetching can be skipped if the revision is already present locally.
+		return nil
+	}
 	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
 	err := gitClient.Fetch("")
 	if err != nil {
@@ -2884,8 +2895,8 @@ func (s *Service) UpdateRevisionForPaths(_ context.Context, request *apiclient.U
 	}
 	defer io.Close(closer)
 
-	if err := s.fetch(gitClient, []string{syncedRevision, revision}); err != nil {
-		return nil, status.Errorf(codes.Internal, "unable to fetch git repo %s with revisions (%s, %s): %v", repo.Repo, syncedRevision, revision, err)
+	if err := s.fetch(gitClient, []string{syncedRevision}); err != nil {
+		return nil, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
 	}
 
 	files, err := gitClient.ChangedFiles(syncedRevision, revision)
