@@ -3115,7 +3115,8 @@ func TestFetchRevisionCanGetNonstandardRefs(t *testing.T) {
 	require.NoError(t, err)
 
 	// We should initialize repository
-	gitClient.Init()
+	err = gitClient.Init()
+	require.NoError(t, err)
 
 	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
 	require.NoError(t, err)
