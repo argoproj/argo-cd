@@ -290,6 +290,24 @@ func (_m *LiveStateCache) Run(ctx context.Context) error {
 	return r0
 }
 
+// UpdateShard provides a mock function with given fields: shard
+func (_m *LiveStateCache) UpdateShard(shard int) bool {
+	ret := _m.Called(shard)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateShard")
+	}
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func(int) bool); ok {
+		r0 = rf(shard)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
 // NewLiveStateCache creates a new instance of LiveStateCache. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewLiveStateCache(t interface {
