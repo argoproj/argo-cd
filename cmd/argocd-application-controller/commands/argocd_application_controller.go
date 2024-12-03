@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime/debug"
-	"sync"
 	"syscall"
 	"time"
 
@@ -206,8 +205,7 @@ func NewCommand() *cobra.Command {
 				enableK8sEvent,
 			)
 			errors.CheckError(err)
-			var lock sync.RWMutex
-			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer(), &lock)
+			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer(), nil)
 
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)

@@ -205,7 +205,6 @@ type ArgoCDServer struct {
 	shutdown           func()
 	terminateRequested atomic.Bool
 	available          atomic.Bool
-	storageLock        *gosync.RWMutex
 }
 
 type ArgoCDServerOpts struct {

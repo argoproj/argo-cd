@@ -203,7 +203,9 @@ func (redisHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.Proce
 // CollectMetrics add transport wrapper that pushes metrics into the specified metrics registry
 // Lock should be shared between functions that can add/process a Redis hook.
 func CollectMetrics(client *redis.Client, registry MetricsRegistry, lock *sync.RWMutex) {
-	lock.Lock()
-	defer lock.Unlock()
+	if lock != nil {
+		lock.Lock()
+		defer lock.Unlock()
+	}
 	client.AddHook(&redisHook{registry: registry})
 }

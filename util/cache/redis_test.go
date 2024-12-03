@@ -6,7 +6,6 @@ import (
 	"context"
 	"io"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 
@@ -137,9 +136,8 @@ func TestRedisMetrics(t *testing.T) {
 	ms := NewMockMetricsServer()
 	redisClient := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	faultyRedisClient := redis.NewClient(&redis.Options{Addr: "invalidredishost.invalid:12345"})
-	var lock sync.RWMutex
-	CollectMetrics(redisClient, ms, &lock)
-	CollectMetrics(faultyRedisClient, ms, &lock)
+	CollectMetrics(redisClient, ms, nil)
+	CollectMetrics(faultyRedisClient, ms, nil)
 
 	client := NewRedisCache(redisClient, 60*time.Second, RedisCompressionNone)
 	faultyClient := NewRedisCache(faultyRedisClient, 60*time.Second, RedisCompressionNone)
