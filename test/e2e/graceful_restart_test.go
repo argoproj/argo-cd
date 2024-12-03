@@ -38,7 +38,7 @@ func TestAPIServerGracefulRestart(t *testing.T) {
 	// Should be healthy.
 	checkHealth(t, true)
 	// Should trigger API server restart.
-	errors.CheckError(fixture.SetParamInSettingConfigMap("additionalUrls", "- http://test"))
+	errors.CheckError(fixture.SetParamInSettingConfigMap("url", "http://test"))
 
 	// Wait for ~5 seconds
 	for i := 0; i < 50; i++ {
@@ -54,5 +54,5 @@ func TestAPIServerGracefulRestart(t *testing.T) {
 	require.NoError(t, err)
 	settings, err := settingsClient.Get(context.Background(), &settings.SettingsQuery{})
 	require.NoError(t, err)
-	require.Equal(t, []string{"http://test"}, settings.AdditionalURLs)
+	require.Equal(t, "http://test", settings.URL)
 }

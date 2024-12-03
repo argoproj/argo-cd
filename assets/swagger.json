@@ -4691,12 +4691,6 @@
     "clusterSettings": {
       "type": "object",
       "properties": {
-        "additionalUrls": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
         "appLabelKey": {
           "type": "string"
         },

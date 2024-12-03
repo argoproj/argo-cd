@@ -44,7 +44,6 @@ message Settings {
     bool appsInAnyNamespaceEnabled = 24;
     bool impersonationEnabled = 25;
     string installationID = 26;
-    repeated string additionalUrls = 27 [(gogoproto.customname) = "AdditionalURLs"];
 }
 
 message GoogleAnalyticsConfig {
