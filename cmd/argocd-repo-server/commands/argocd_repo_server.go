@@ -130,7 +130,8 @@ func NewCommand() *cobra.Command {
 
 			askPassServer := askpass.NewServer(askpass.SocketPath)
 			metricsServer := metrics.NewMetricsServer()
-			cacheutil.CollectMetrics(redisClient, metricsServer)
+			var lock sync.RWMutex
+			cacheutil.CollectMetrics(redisClient, metricsServer, &lock)
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
 				ParallelismLimit: parallelismLimit,
 				PauseGenerationAfterFailedGenerationAttempts: pauseGenerationAfterFailedGenerationAttempts,

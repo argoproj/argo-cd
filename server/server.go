@@ -205,6 +205,7 @@ type ArgoCDServer struct {
 	shutdown           func()
 	terminateRequested atomic.Bool
 	available          atomic.Bool
+	storageLock        *gosync.RWMutex
 }
 
 type ArgoCDServerOpts struct {
@@ -545,7 +546,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 
 	metricsServ := metrics.NewMetricsServer(a.MetricsHost, a.MetricsPort)
 	if a.RedisClient != nil {
-		cacheutil.CollectMetrics(a.RedisClient, metricsServ)
+		cacheutil.CollectMetrics(a.RedisClient, metricsServ, a.userStateStorage.GetLockObject())
 	}
 
 	svcSet := newArgoCDServiceSet(a)
