@@ -43,6 +43,9 @@ func (c *Consequences) ExpectWithDuration(e Expectation, timeout time.Duration) 
 	}
 	sleepIntervalsIdx := -1
 	for start := time.Now(); time.Since(start) < timeout; time.Sleep(sleepIntervals[sleepIntervalsIdx]) {
+		if sleepIntervalsIdx < len(sleepIntervals)-1 {
+			sleepIntervalsIdx++
+		}
 		state, message = e(c)
 		switch state {
 		case succeeded:
@@ -53,9 +56,6 @@ func (c *Consequences) ExpectWithDuration(e Expectation, timeout time.Duration) 
 			return c
 		}
 		log.Infof("expectation pending: %s", message)
-		if sleepIntervalsIdx < len(sleepIntervals)-1 {
-			sleepIntervalsIdx++
-		}
 	}
 	c.context.t.Fatal("timeout waiting for: " + message)
 	return c
