@@ -1,0 +1,37 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.new-source-panel {
+
+    .checkbox-container {
+        margin: 0.5em ;
+    }
+
+    pre {
+        font-family: monospace;
+        line-height: normal;
+        white-space: pre;
+    }
+
+    .row.argo-form-row .columns {
+        padding-left: 0;
+    }
+
+    .row.argo-form-row .columns {
+        padding-left: 0;
+    }
+}
+
+.application-parameters {
+    position: relative;
+    left: -45px;
+    box-shadow: none;
+}
+
+.white-box {
+    .editable-panel {
+        box-shadow: none;  
+    }
+}
+
+ 
+

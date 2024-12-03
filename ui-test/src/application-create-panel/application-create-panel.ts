@@ -8,8 +8,10 @@ const CREATE_APPLICATION_BUTTON_CANCEL: By = By.xpath('.//button[@qe-id="applica
 
 const CREATE_APPLICATION_FIELD_APP_NAME: By = By.xpath('.//input[@qeid="application-create-field-app-name"]');
 const CREATE_APPLICATION_FIELD_PROJECT: By = By.xpath('.//input[@qe-id="application-create-field-project"]');
-const CREATE_APPLICATION_FIELD_REPOSITORY_URL: By = By.xpath('.//input[@qe-id="application-create-field-repository-url"]');
-const CREATE_APPLICATION_FIELD_REPOSITORY_PATH: By = By.xpath('.//input[@qe-id="application-create-field-path"]');
+const CREATE_APPLICATION_SOURCE_1_FIELD_REPOSITORY_URL: By = By.xpath('.//input[@qe-id="application-create-source-1-field-repository-url"]');
+const CREATE_APPLICATION_SOURCE_1_FIELD_REPOSITORY_PATH: By = By.xpath('.//input[@qe-id="application-create-source-1-field-path"]');
+const CREATE_APPLICATION_SOURCE_2_FIELD_REPOSITORY_PATH: By = By.xpath('.//input[@qe-id="application-create-source-2-field-path"]');
+const CREATE_APPLICATION_SOURCE_2_FIELD_REPOSITORY_URL: By = By.xpath('.//input[@qe-id="application-create-source-2-field-repository-url"]');
 
 const CREATE_APPLICATION_DROPDOWN_DESTINATION: By = By.xpath('.//div[@qe-id="application-create-dropdown-destination"]');
 const CREATE_APPLICATION_DROPDOWN_MENU_URL: By = By.xpath('.//li[@qe-id="application-create-dropdown-destination-URL"]');
@@ -45,18 +47,35 @@ export class ApplicationCreatePanel extends Base {
         }
     }
 
-    public async setSourceRepoUrl(sourceRepoUrl: string): Promise<void> {
+    public async setSourceOneRepoUrl(sourceRepoUrl: string): Promise<void> {
         try {
-            const reposUrl = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_FIELD_REPOSITORY_URL);
+            const reposUrl = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_SOURCE_1_FIELD_REPOSITORY_URL);
+            await reposUrl.sendKeys(sourceRepoUrl);
+        } catch (err) {
+            throw new Error(err);
+        }
+    }
+    public async setSourceTwoRepoUrl(sourceRepoUrl: string): Promise<void> {
+        try {
+            const reposUrl = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_SOURCE_2_FIELD_REPOSITORY_URL);
             await reposUrl.sendKeys(sourceRepoUrl);
         } catch (err) {
             throw new Error(err);
         }
     }
 
-    public async setSourceRepoPath(sourceRepoPath: string): Promise<void> {
+    public async setSourceOneRepoPath(sourceRepoPath: string): Promise<void> {
         try {
-            const path = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_FIELD_REPOSITORY_PATH);
+            const path = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_SOURCE_1_FIELD_REPOSITORY_PATH);
+            await path.sendKeys(sourceRepoPath);
+        } catch (err) {
+            throw new Error(err);
+        }
+    }
+
+    public async setSourceTwoRepoPath(sourceRepoPath: string): Promise<void> {
+        try {
+            const path = await UiTestUtilities.findUiElement(this.driver, CREATE_APPLICATION_SOURCE_2_FIELD_REPOSITORY_PATH);
             await path.sendKeys(sourceRepoPath);
         } catch (err) {
             throw new Error(err);
@@ -184,8 +203,10 @@ export class ApplicationCreatePanel extends Base {
     public async createApplication(
         appName: string,
         projectName: string,
-        sourceRepoUrl: string,
-        sourceRepoPath: string,
+        sourceOneRepoUrl: string,
+        sourceOneRepoPath: string,
+        sourceTwoRepoUrl: string,
+        sourceTwoRepoPath: string,
         destinationClusterName: string,
         destinationNamespace: string
     ): Promise<void> {
@@ -193,8 +214,10 @@ export class ApplicationCreatePanel extends Base {
         try {
             await this.setAppName(appName);
             await this.setProjectName(projectName);
-            await this.setSourceRepoUrl(sourceRepoUrl);
-            await this.setSourceRepoPath(sourceRepoPath);
+            await this.setSourceOneRepoUrl(sourceOneRepoUrl);
+            await this.setSourceOneRepoPath(sourceOneRepoPath);
+            await this.setSourceTwoRepoUrl(sourceTwoRepoUrl);
+            await this.setSourceTwoRepoPath(sourceTwoRepoPath);
             await this.selectDestinationClusterNameMenu(destinationClusterName);
             await this.setDestinationNamespace(destinationNamespace);
             await this.clickCreateButton();
