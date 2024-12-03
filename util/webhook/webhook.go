@@ -18,7 +18,7 @@ import (
 	"github.com/go-playground/webhooks/v6/gitlab"
 	"github.com/go-playground/webhooks/v6/gogs"
 	gogsclient "github.com/gogits/go-gogs-client"
-	"github.com/scm-manager/goscm"
+	scmmanager "github.com/scm-manager/goscm/argocd"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -63,7 +63,7 @@ type ArgoCDWebhookHandler struct {
 	azuredevops            *azuredevops.Webhook
 	gogs                   *gogs.Webhook
 	settingsSrc            settingsSource
-	scmm                   *goscm.ArgoCDWebhook
+	scmm                   *scmmanager.ArgoCDWebhook
 	queue                  chan interface{}
 	maxWebhookPayloadSizeB int64
 }
@@ -93,7 +93,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 	if err != nil {
 		log.Warnf("Unable to init the Azure DevOps webhook")
 	}
-	scmmWebhook, err := goscm.New(goscm.Options.Secret(set.WebhookScmmSecret))
+	scmmWebhook, err := scmmanager.New(scmmanager.Options.Secret(set.WebhookScmmSecret))
 	if err != nil {
 		log.Warnf("Unable to init the SCM-Manager Webhook")
 	}
@@ -248,8 +248,8 @@ func affectedRevisionInfo(payloadIf interface{}) (webURLs []string, revision str
 			changedFiles = append(changedFiles, commit.Removed...)
 		}
 
-	case goscm.PushEventPayload:
-		webURLs = append(webURLs, payload.SourceUrl)
+	case scmmanager.PushEventPayload:
+		webURLs = append(webURLs, payload.Repository.SourceUrl)
 		touchedHead = payload.Branch.DefaultBranch
 		revision = payload.Branch.Name
 	}
@@ -457,9 +457,9 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, bitbucketserver.ErrHMACVerificationFailed) {
 			log.WithField(common.SecurityField, common.SecurityHigh).Infof("BitBucket webhook HMAC verification failed")
 		}
-	case r.Header.Get("X-SCM-PushEvent") != "":
-		payload, err = a.scmm.Parse(r, goscm.PushEvent)
-		if errors.Is(err, goscm.ErrSecretVerification) {
+	case r.Header.Get("X-SCM-Event") != "":
+		payload, err = a.scmm.Parse(r, scmmanager.PushEvent)
+		if errors.Is(err, scmmanager.ErrSecretVerification) {
 			log.WithField(common.SecurityField, common.SecurityHigh).Infof("SCM Manager webhook verification failed")
 		}
 	default:
