@@ -37,7 +37,9 @@ func defaultHandlerCloud(t *testing.T) func(http.ResponseWriter, *http.Request) 
 									"hash": "1a8dd249c04a"
 								}
 							},
-							"author": "testName"
+							"author": {
+								"nickname": "testName"
+							}
 						}
 					]
 				}`)
@@ -154,7 +156,9 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 								"hash": "1a8dd249c04a"
 							}
 						},
-						"author": "testName"
+						"author": {
+							"nickname": "testName"
+						}
 					},
 					{
 						"id": 102,
@@ -168,7 +172,9 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 								"hash": "4cf807e67a6d"
 							}
 						},
-                        "author": "testName"
+						"author": {
+							"nickname": "testName"
+						}
 					}
 				]
 			}`, r.Host))
@@ -191,7 +197,9 @@ func TestListPullRequestPaginationCloud(t *testing.T) {
 								"hash": "6344d9623e3b"
 							}
 						},
-						"author": "testName"
+						"author": {
+							"nickname": "testName"
+						}
 					}
 				]
 			}`, r.Host))
@@ -339,7 +347,9 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 								"hash": "1a8dd249c04a"
 							}
 						},
-						"author": "testName"
+						"author": {
+							"nickname": "testName"
+						}
 					},
 					{
 						"id": 200,
@@ -353,7 +363,9 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 								"hash": "4cf807e67a6d"
 							}
 						},
-						"author": "testName"
+						"author": {
+							"nickname": "testName"
+						}
 					}
 				]
 			}`, r.Host))
@@ -376,7 +388,9 @@ func TestListPullRequestBranchMatchCloud(t *testing.T) {
 								"hash": "6344d9623e3b"
 							}
 						},
-						"author": "testName"
+						"author": {
+							"nickname": "testName"
+						}
 					}
 				]
 			}`, r.Host))
