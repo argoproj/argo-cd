@@ -11,6 +11,7 @@ argocd-applicationset-controller [flags]
 ### Options
 
 ```
+      --allowed-plugin-gen-urls strings         List of allowed plugin generator baseUrl, glob compatible. Applicable as soon as plugin generator configuration are not in the same namespace as the ApplicationSet using it. (Default: Empty = all)
       --allowed-scm-providers strings           The list of allowed custom SCM provider API URLs. This restriction does not apply to SCM or PR generators which do not accept a custom API URL. (Default: Empty = all)
       --applicationset-namespaces strings       Argo CD applicationset namespaces
       --argocd-repo-server string               Argo CD repo server address (default "argocd-repo-server:8081")

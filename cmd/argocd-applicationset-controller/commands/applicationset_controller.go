@@ -81,6 +81,7 @@ func NewCommand() *cobra.Command {
 		webhookParallelism           int
 		tokenRefStrictMode           bool
 		maxResourcesStatusCount      int
+		allowedPluginGenUrls         []string
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -207,7 +208,7 @@ func NewCommand() *cobra.Command {
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, repoServerTimeoutSeconds, tlsConfig)
 			argoCDService := services.NewArgoCDService(argoCDDB, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
 
-			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig)
+			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig, allowedPluginGenUrls)
 
 			// start a webhook server that listens to incoming webhook payloads
 			webhookHandler, err := webhook.NewWebhookHandler(webhookParallelism, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
@@ -289,6 +290,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableGitHubAPIMetrics, "enable-github-api-metrics", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS", false), "Enable GitHub API metrics for generators that use the GitHub API")
 	command.Flags().IntVar(&maxResourcesStatusCount, "max-resources-status-count", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_MAX_RESOURCES_STATUS_COUNT", 0, 0, math.MaxInt), "Max number of resources stored in appset status.")
 
+	command.Flags().StringSliceVar(&allowedPluginGenUrls, "allowed-plugin-gen-urls", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_PLUGIN_GEN_URLS", []string{}, ","), "List of allowed plugin generator baseUrl, glob compatible. Applicable as soon as plugin generator configuration are not in the same namespace as the ApplicationSet using it. (Default: Empty = all)")
 	return &command
 }
 
