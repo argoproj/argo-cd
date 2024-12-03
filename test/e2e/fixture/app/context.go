@@ -22,31 +22,32 @@ type Context struct {
 	chart       string
 	repoURLType fixture.RepoURLType
 	// seconds
-	timeout                int
-	name                   string
-	appNamespace           string
-	destServer             string
-	destName               string
-	env                    string
-	parameters             []string
-	namePrefix             string
-	nameSuffix             string
-	resource               string
-	prune                  bool
-	configManagementPlugin string
-	async                  bool
-	localPath              string
-	project                string
-	revision               string
-	force                  bool
-	applyOutOfSyncOnly     bool
-	directoryRecurse       bool
-	replace                bool
-	helmPassCredentials    bool
-	helmSkipCrds           bool
-	helmSkipTests          bool
-	trackingMethod         v1alpha1.TrackingMethod
-	sources                []v1alpha1.ApplicationSource
+	timeout                  int
+	name                     string
+	appNamespace             string
+	destServer               string
+	destName                 string
+	env                      string
+	parameters               []string
+	namePrefix               string
+	nameSuffix               string
+	resource                 string
+	prune                    bool
+	configManagementPlugin   string
+	async                    bool
+	localPath                string
+	project                  string
+	revision                 string
+	force                    bool
+	applyOutOfSyncOnly       bool
+	directoryRecurse         bool
+	replace                  bool
+	helmPassCredentials      bool
+	helmSkipCrds             bool
+	helmSkipSchemaValidation bool
+	helmSkipTests            bool
+	trackingMethod           v1alpha1.TrackingMethod
+	sources                  []v1alpha1.ApplicationSource
 }
 
 type ContextArgs struct {
@@ -357,6 +358,11 @@ func (c *Context) HelmPassCredentials() *Context {
 
 func (c *Context) HelmSkipCrds() *Context {
 	c.helmSkipCrds = true
+	return c
+}
+
+func (c *Context) HelmSkipSchemaValidation() *Context {
+	c.helmSkipSchemaValidation = true
 	return c
 }
 
