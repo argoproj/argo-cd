@@ -126,6 +126,16 @@ func (c *httpApplicationClient) GetManifests(ctx context.Context, in *appclient.
 	if in.Revision != nil {
 		params = fmt.Sprintf("%s&revision=%s", params, *in.Revision)
 	}
+	if in.SourcePositions != nil && len(in.SourcePositions) > 0 {
+		for _, sourcePosition := range in.SourcePositions {
+			params = fmt.Sprintf("%s&sourcePositions=%d", params, sourcePosition)
+		}
+	}
+	if in.Revisions != nil && len(in.Revisions) > 0 {
+		for _, revision := range in.Revisions {
+			params = fmt.Sprintf("%s&revisions=%s", params, revision)
+		}
+	}
 	url := fmt.Sprintf("%s/api/v1/applications/%s/manifests%s", c.baseUrl, *in.Name, params)
 
 	manifest := &repoapiclient.ManifestResponse{}

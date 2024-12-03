@@ -153,7 +153,7 @@ func (a *EventReporterServer) Init(ctx context.Context) {
 }
 
 func (a *EventReporterServer) RunController(ctx context.Context) {
-	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister, a.CodefreshConfig, a.serviceSet.MetricsServer, a.featureManager, a.RateLimiterOpts)
+	controller := event_reporter.NewEventReporterController(a.appInformer, a.Cache, a.settingsMgr, a.ApplicationServiceClient, a.appLister, a.CodefreshConfig, a.serviceSet.MetricsServer, a.featureManager, a.RateLimiterOpts, a.db)
 	go controller.Run(ctx)
 }
 

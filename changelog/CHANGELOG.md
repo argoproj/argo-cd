@@ -1,2 +1,2 @@
-### Changes
--  fix(event-reporter): fixed issue when if managed resource in degraded state and all of it child nodes in non-degraded state no error reported
+### Features
+-  feat(event-reporter): multisourced apps support improvements: reporting syncOperationRevisions, detecting correct resource sourceIdx, reporting correct git commit info 

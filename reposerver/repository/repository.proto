@@ -128,6 +128,8 @@ message ManifestResponse {
     k8s.io.apimachinery.pkg.apis.meta.v1.Time commitDate = 10;
     // A version of the application and its dependencies
     ApplicationVersions applicationVersions = 11;
+    // for multisourced apps will be [0,12,20], so this means that 0-11 - from first app source, 12-19 from second one, 20-x - third one
+    repeated int32 sourcesManifestsStartingIdx = 12;
 }
 
 message ListRefsRequest {

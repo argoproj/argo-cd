@@ -574,6 +574,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				manifestInfo.Manifests[i].CompiledManifest = string(data)
 			}
 		}
+		manifests.SourcesManifestsStartingIdx = append(manifests.SourcesManifestsStartingIdx, int32(len(manifests.Manifests)))
 		manifests.Manifests = append(manifests.Manifests, manifestInfo.Manifests...)
 	}
 	if manifestInfosAppVersionsIdx >= 0 && manifestInfos[manifestInfosAppVersionsIdx] != nil {

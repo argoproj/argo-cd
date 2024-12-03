@@ -9,7 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/argoproj/argo-cd/v2/util/db"
+
 	"github.com/argoproj/argo-cd/v2/event_reporter/utils"
+
+	argoutils "github.com/argoproj/argo-cd/v2/util/argo"
 
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 
@@ -40,6 +44,8 @@ type applicationEventReporter struct {
 	appLister                applisters.ApplicationLister
 	applicationServiceClient appclient.ApplicationClient
 	metricsServer            *metrics.MetricsServer
+	db                       db.ArgoDB
+	runtimeVersion           string
 }
 
 type ApplicationEventReporter interface {
@@ -53,13 +59,15 @@ type ApplicationEventReporter interface {
 	ShouldSendApplicationEvent(ae *appv1.ApplicationWatchEvent) (shouldSend bool, syncStatusChanged bool)
 }
 
-func NewApplicationEventReporter(cache *servercache.Cache, applicationServiceClient appclient.ApplicationClient, appLister applisters.ApplicationLister, codefreshConfig *codefresh.CodefreshConfig, metricsServer *metrics.MetricsServer) ApplicationEventReporter {
+func NewApplicationEventReporter(cache *servercache.Cache, applicationServiceClient appclient.ApplicationClient, appLister applisters.ApplicationLister, codefreshConfig *codefresh.CodefreshConfig, metricsServer *metrics.MetricsServer, db db.ArgoDB) ApplicationEventReporter {
 	return &applicationEventReporter{
 		cache:                    cache,
 		applicationServiceClient: applicationServiceClient,
 		codefreshClient:          codefresh.NewCodefreshClient(codefreshConfig),
 		appLister:                appLister,
 		metricsServer:            metricsServer,
+		db:                       db,
+		runtimeVersion:           codefreshConfig.RuntimeVersion,
 	}
 }
 
@@ -87,15 +95,28 @@ func (s *applicationEventReporter) shouldSendResourceEvent(a *appv1.Application,
 	return true
 }
 
-func (r *applicationEventReporter) getDesiredManifests(ctx context.Context, a *appv1.Application, revision *string, logCtx *log.Entry) (*apiclient.ManifestResponse, bool) {
+func (r *applicationEventReporter) getDesiredManifests(
+	ctx context.Context,
+	logCtx *log.Entry,
+	a *appv1.Application,
+	revision *string,
+	sourcePositions *[]int64,
+	revisions *[]string,
+) (*apiclient.ManifestResponse, bool) {
 	// get the desired state manifests of the application
 	project := a.Spec.GetProject()
-	desiredManifests, err := r.applicationServiceClient.GetManifests(ctx, &application.ApplicationManifestQuery{
+	query := application.ApplicationManifestQuery{
 		Name:         &a.Name,
 		AppNamespace: &a.Namespace,
 		Revision:     revision,
 		Project:      &project,
-	})
+	}
+	if sourcePositions != nil && query.Revisions != nil {
+		query.SourcePositions = *sourcePositions
+		query.Revisions = *revisions
+	}
+
+	desiredManifests, err := r.applicationServiceClient.GetManifests(ctx, &query)
 	if err != nil {
 		// if it's manifest generation error we need to still report the actual state
 		// of the resources, but since we can't get the desired state, we will report
@@ -137,7 +158,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 
 	logCtx.Info("getting desired manifests")
 
-	desiredManifests, manifestGenErr := s.getDesiredManifests(ctx, a, nil, logCtx)
+	desiredManifests, manifestGenErr := s.getDesiredManifests(ctx, logCtx, a, nil, nil, nil)
 
 	applicationVersions := s.resolveApplicationVersions(ctx, a, logCtx)
 
@@ -158,17 +179,21 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 		rs := utils.GetAppAsResource(a)
 		utils.SetHealthStatusIfMissing(rs)
 
-		parentDesiredManifests, manifestGenErr := s.getDesiredManifests(ctx, parentApplicationEntity, nil, logCtx)
+		parentDesiredManifests, manifestGenErr := s.getDesiredManifests(ctx, logCtx, parentApplicationEntity, nil, nil, nil)
 
 		parentAppSyncRevisionsMetadata, err := s.getApplicationRevisionsMetadata(ctx, logCtx, parentApplicationEntity)
 		if err != nil {
 			logCtx.WithError(err).Warn("failed to get parent application's revision metadata, resuming")
 		}
 
+		validatedDestination := parentApplicationEntity.Spec.Destination.DeepCopy()
+		_ = argoutils.ValidateDestination(ctx, validatedDestination, s.db) // resolves server field if missing
+
 		err = s.processResource(ctx, *rs, logCtx, eventProcessingStartedAt, parentDesiredManifests, manifestGenErr, a, applicationVersions, &ReportedEntityParentApp{
-			app:               parentApplicationEntity,
-			appTree:           appTree,
-			revisionsMetadata: parentAppSyncRevisionsMetadata,
+			app:                  parentApplicationEntity,
+			appTree:              appTree,
+			revisionsMetadata:    parentAppSyncRevisionsMetadata,
+			validatedDestination: validatedDestination,
 		}, argoTrackingMetadata)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricChildAppEventType, metrics.MetricEventUnknownErrorType, a.Name)
@@ -178,7 +203,7 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 	} else {
 		// will get here only for root applications (not managed as a resource by another application)
 		logCtx.Info("processing as root application")
-		appEvent, err := s.getApplicationEventPayload(ctx, a, appTree, eventProcessingStartedAt, applicationVersions, argoTrackingMetadata)
+		appEvent, err := s.getApplicationEventPayload(ctx, a, appTree, eventProcessingStartedAt, applicationVersions, argoTrackingMetadata, s.runtimeVersion)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricParentAppEventType, metrics.MetricEventGetPayloadErrorType, a.Name)
 			return fmt.Errorf("failed to get application event: %w", err)
@@ -197,6 +222,9 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 		s.metricsServer.ObserveEventProcessingDurationHistogramDuration(a.Name, metrics.MetricParentAppEventType, metricTimer.Duration())
 	}
 
+	validatedDestination := a.Spec.Destination.DeepCopy()
+	_ = argoutils.ValidateDestination(ctx, validatedDestination, s.db) // resolves server field if missing
+
 	revisionsMetadata, _ := s.getApplicationRevisionsMetadata(ctx, logCtx, a)
 	// for each resource in the application get desired and actual state,
 	// then stream the event
@@ -210,9 +238,10 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 			continue
 		}
 		err := s.processResource(ctx, rs, logCtx, eventProcessingStartedAt, desiredManifests, manifestGenErr, nil, nil, &ReportedEntityParentApp{
-			app:               a,
-			appTree:           appTree,
-			revisionsMetadata: revisionsMetadata,
+			app:                  a,
+			appTree:              appTree,
+			revisionsMetadata:    revisionsMetadata,
+			validatedDestination: validatedDestination,
 		}, argoTrackingMetadata)
 		if err != nil {
 			s.metricsServer.IncErroredEventsCounter(metrics.MetricResourceEventType, metrics.MetricEventUnknownErrorType, a.Name)
@@ -222,13 +251,30 @@ func (s *applicationEventReporter) StreamApplicationEvents(
 	return nil
 }
 
+// returns appVersion from first non-ref source for multisourced apps
 func (s *applicationEventReporter) resolveApplicationVersions(ctx context.Context, a *appv1.Application, logCtx *log.Entry) *apiclient.ApplicationVersions {
-	syncRevision := utils.GetOperationStateRevision(a)
-	if syncRevision == nil {
+	if a.Spec.HasMultipleSources() {
+		syncResultRevisions := utils.GetOperationSyncResultRevisions(a)
+		if syncResultRevisions == nil {
+			return nil
+		}
+
+		var sourcePositions []int64
+		for i := 0; i < len(*syncResultRevisions); i++ {
+			sourcePositions = append(sourcePositions, int64(i+1))
+		}
+
+		syncManifests, _ := s.getDesiredManifests(ctx, logCtx, a, nil, &sourcePositions, syncResultRevisions)
+		return syncManifests.GetApplicationVersions()
+	}
+
+	syncResultRevision := utils.GetOperationSyncResultRevision(a)
+
+	if syncResultRevision == nil {
 		return nil
 	}
 
-	syncManifests, _ := s.getDesiredManifests(ctx, a, syncRevision, logCtx)
+	syncManifests, _ := s.getDesiredManifests(ctx, logCtx, a, syncResultRevision, nil, nil)
 	return syncManifests.GetApplicationVersions()
 }
 
@@ -279,7 +325,7 @@ func (s *applicationEventReporter) processResource(
 	})
 
 	// get resource desired state
-	desiredState := getResourceDesiredState(&rs, desiredManifests, logCtx)
+	desiredState, appSourceIdx := getResourceDesiredState(&rs, desiredManifests, logCtx)
 
 	actualState, err := s.getResourceActualState(ctx, logCtx, metricsEventType, rs, reportedEntityParentApp.app, originalApplication)
 	if err != nil {
@@ -304,6 +350,7 @@ func (s *applicationEventReporter) processResource(
 			actualState:    actualState,
 			desiredState:   desiredState,
 			manifestGenErr: manifestGenErr,
+			appSourceIdx:   appSourceIdx,
 			rsAsAppInfo: &ReportedResourceAsApp{
 				app:                 originalApplication,
 				revisionsMetadata:   originalAppRevisionMetadata,
@@ -311,11 +358,14 @@ func (s *applicationEventReporter) processResource(
 			},
 		},
 		&ReportedEntityParentApp{
-			app:               parentApplicationToReport,
-			appTree:           reportedEntityParentApp.appTree,
-			revisionsMetadata: revisionMetadataToReport,
+			app:                  parentApplicationToReport,
+			appTree:              reportedEntityParentApp.appTree,
+			revisionsMetadata:    revisionMetadataToReport,
+			validatedDestination: reportedEntityParentApp.validatedDestination,
+			desiredManifests:     reportedEntityParentApp.desiredManifests,
 		},
 		argoTrackingMetadata,
+		s.runtimeVersion,
 	)
 	if err != nil {
 		s.metricsServer.IncErroredEventsCounter(metricsEventType, metrics.MetricEventGetPayloadErrorType, reportedEntityParentApp.app.Name)
@@ -474,11 +524,11 @@ func applicationMetadataChanged(ae *appv1.ApplicationWatchEvent, cachedApp *appv
 	return !reflect.DeepEqual(newEventAppMeta, cachedAppMeta)
 }
 
-func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestResponse, logger *log.Entry) *apiclient.Manifest {
+func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestResponse, logger *log.Entry) (manifest *apiclient.Manifest, sourceIdx int32) {
 	if ds == nil {
-		return &apiclient.Manifest{}
+		return &apiclient.Manifest{}, 0
 	}
-	for _, m := range ds.Manifests {
+	for idx, m := range ds.Manifests {
 		u, err := appv1.UnmarshalToUnstructured(m.CompiledManifest)
 		if err != nil {
 			logger.WithError(err).Warnf("failed to unmarshal compiled manifest")
@@ -498,11 +548,27 @@ func getResourceDesiredState(rs *appv1.ResourceStatus, ds *apiclient.ManifestRes
 				m.RawManifest = m.CompiledManifest
 			}
 
-			return m
+			return m, getResourceSourceIdxFromManifestResponse(idx, ds)
 		}
 	}
 
 	// no desired state for resource
 	// it's probably deleted from git
-	return &apiclient.Manifest{}
+	return &apiclient.Manifest{}, 0
+}
+
+func getResourceSourceIdxFromManifestResponse(rsIdx int, ds *apiclient.ManifestResponse) int32 {
+	if ds.SourcesManifestsStartingIdx == nil {
+		return -1
+	}
+
+	sourceIdx := int32(-1)
+
+	for currentSourceIdx, sourceStartingIdx := range ds.SourcesManifestsStartingIdx {
+		if int32(rsIdx) >= sourceStartingIdx {
+			sourceIdx = int32(currentSourceIdx)
+		}
+	}
+
+	return sourceIdx
 }

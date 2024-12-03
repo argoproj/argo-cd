@@ -10,6 +10,7 @@ import (
 type ReportedResource struct {
 	rs             *appv1.ResourceStatus
 	rsAsAppInfo    *ReportedResourceAsApp // passed if resource is application
+	appSourceIdx   int32
 	actualState    *application.ApplicationResourceResponse
 	desiredState   *apiclient.Manifest
 	manifestGenErr bool
@@ -22,9 +23,11 @@ type ReportedResourceAsApp struct {
 }
 
 type ReportedEntityParentApp struct {
-	app               *appv1.Application
-	appTree           *appv1.ApplicationTree
-	revisionsMetadata *utils.AppSyncRevisionsMetadata
+	app                  *appv1.Application
+	appTree              *appv1.ApplicationTree
+	revisionsMetadata    *utils.AppSyncRevisionsMetadata
+	validatedDestination *appv1.ApplicationDestination // with resolved Server url field if server Name used
+	desiredManifests     *apiclient.ManifestResponse
 }
 
 type ArgoTrackingMetadata struct {
@@ -39,4 +42,8 @@ func (rr *ReportedResource) GetApiVersion() string {
 	}
 
 	return apiVersion
+}
+
+func (rr *ReportedResource) appSourceIdxDetected() bool {
+	return rr.appSourceIdx >= 0
 }

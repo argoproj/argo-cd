@@ -21,10 +21,11 @@ import (
 )
 
 type CodefreshConfig struct {
-	BaseURL     string
-	AuthToken   string
-	TlsInsecure bool
-	CaCertPath  string
+	BaseURL        string
+	AuthToken      string
+	TlsInsecure    bool
+	CaCertPath     string
+	RuntimeVersion string
 }
 
 type CodefreshClient struct {

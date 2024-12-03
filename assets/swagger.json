@@ -5294,6 +5294,14 @@
         "sourceType": {
           "type": "string"
         },
+        "sourcesManifestsStartingIdx": {
+          "type": "array",
+          "title": "for multisourced apps will be [0,12,20], so this means that 0-11 - from first app source, 12-19 from second one, 20-x - third one",
+          "items": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
         "verifyResult": {
           "type": "string",
           "title": "Raw response of git verify-commit operation (always the empty string for Helm)"

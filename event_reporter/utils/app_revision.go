@@ -25,6 +25,13 @@ type RevisionsData struct {
 
 const annotationRevisionKey = "app.meta.revisions-metadata"
 
+func (asrm *AppSyncRevisionsMetadata) GetSyncRevisionAt(idx int) *RevisionWithMetadata {
+	if asrm == nil || asrm.SyncRevisions == nil || idx < 0 || idx >= len(asrm.SyncRevisions) {
+		return nil
+	}
+	return asrm.SyncRevisions[idx]
+}
+
 func GetLatestAppHistoryId(a *appv1.Application) int64 {
 	if lastHistory := getLatestAppHistoryItem(a); lastHistory != nil {
 		return lastHistory.ID
@@ -49,34 +56,70 @@ func GetApplicationLatestRevision(a *appv1.Application) string {
 	return a.Status.Sync.Revision
 }
 
+func GetApplicationLatestRevisions(a *appv1.Application) []string {
+	if lastHistory := getLatestAppHistoryItem(a); lastHistory != nil {
+		return lastHistory.Revisions
+	}
+
+	return a.Status.Sync.Revisions
+}
+
 func GetOperationRevision(a *appv1.Application) string {
 	if a == nil {
 		return ""
 	}
-
+	au := &AppUtils{App: a}
 	// this value will be used in case if application hasn't resources , like gitsource
 	revision := a.Status.Sync.Revision
-	if a.Status.OperationState != nil && a.Status.OperationState.Operation.Sync != nil && a.Status.OperationState.Operation.Sync.Revision != "" {
+	if au.operationStateSyncExists(&AppRevisionFieldName) {
 		revision = a.Status.OperationState.Operation.Sync.Revision
-	} else if a.Operation != nil && a.Operation.Sync != nil && a.Operation.Sync.Revision != "" {
+	} else if au.operationSyncExists(&AppRevisionFieldName) {
 		revision = a.Operation.Sync.Revision
 	}
 
 	return revision
 }
 
-func GetOperationStateRevision(a *appv1.Application) *string {
-	if a == nil || a.Status.OperationState == nil || a.Status.OperationState.SyncResult == nil {
+func GetOperationRevisions(a *appv1.Application) []string {
+	if a == nil {
 		return nil
 	}
+	au := &AppUtils{App: a}
 
-	return &a.Status.OperationState.SyncResult.Revision
+	// this value will be used in case if application hasn't resources , like gitsource
+	revisions := a.Status.Sync.Revisions
+	if au.operationStateSyncExists(&AppRevisionsFieldName) {
+		revisions = a.Status.OperationState.Operation.Sync.Revisions
+	} else if au.operationSyncExists(&AppRevisionsFieldName) {
+		revisions = a.Operation.Sync.Revisions
+	}
+
+	return revisions
+}
+
+func GetOperationSyncResultRevision(a *appv1.Application) *string {
+	au := &AppUtils{App: a}
+	if au.operationSyncResultExists(nil) {
+		return &a.Status.OperationState.SyncResult.Revision
+	}
+
+	return nil
+}
+
+func GetOperationSyncResultRevisions(a *appv1.Application) *[]string {
+	au := &AppUtils{App: a}
+	if au.operationSyncResultExists(nil) {
+		return &a.Status.OperationState.SyncResult.Revisions
+	}
+
+	return nil
 }
 
 func GetOperationSyncRevisions(a *appv1.Application) []string {
 	if a == nil {
 		return []string{}
 	}
+	au := &AppUtils{App: a}
 
 	// this value will be used in case if application hasn't resources, like empty gitsource
 	revisions := getRevisions(RevisionsData{
@@ -84,12 +127,12 @@ func GetOperationSyncRevisions(a *appv1.Application) []string {
 		Revisions: a.Status.Sync.Revisions,
 	})
 
-	if a.Status.OperationState != nil && a.Status.OperationState.Operation.Sync != nil {
+	if au.operationStateSyncExists(nil) {
 		revisions = getRevisions(RevisionsData{
 			Revision:  a.Status.OperationState.Operation.Sync.Revision,
 			Revisions: a.Status.OperationState.Operation.Sync.Revisions,
 		})
-	} else if a.Operation != nil && a.Operation.Sync != nil {
+	} else if au.operationSyncExists(nil) {
 		revisions = getRevisions(RevisionsData{
 			Revision:  a.Operation.Sync.Revision,
 			Revisions: a.Operation.Sync.Revisions,
@@ -106,16 +149,17 @@ func GetOperationChangeRevisions(a *appv1.Application) []string {
 	if a == nil {
 		return revisions
 	}
+	au := &AppUtils{App: a}
 
 	// this value will be used in case if application hasn't resources, like empty gitsource
-	if a.Status.OperationState != nil && a.Status.OperationState.Operation.Sync != nil {
+	if au.operationStateSyncExists(nil) {
 		if a.Status.OperationState.Operation.Sync.ChangeRevision != "" || a.Status.OperationState.Operation.Sync.ChangeRevisions != nil {
 			revisions = getRevisions(RevisionsData{
 				Revision:  a.Status.OperationState.Operation.Sync.ChangeRevision,
 				Revisions: a.Status.OperationState.Operation.Sync.ChangeRevisions,
 			})
 		}
-	} else if a.Operation != nil && a.Operation.Sync != nil {
+	} else if au.operationSyncExists(nil) {
 		if a.Operation.Sync.ChangeRevision != "" || a.Operation.Sync.ChangeRevisions != nil {
 			revisions = getRevisions(RevisionsData{
 				Revision:  a.Operation.Sync.ChangeRevision,

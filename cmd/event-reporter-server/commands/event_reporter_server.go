@@ -96,6 +96,7 @@ func NewCommand() *cobra.Command {
 		codefreshUrl             string
 		codefreshToken           string
 		shardingAlgorithm        string
+		runtimeVersion           string
 		rootpath                 string
 		useGrpc                  bool
 
@@ -179,10 +180,11 @@ func NewCommand() *cobra.Command {
 				ApplicationNamespaces:    applicationNamespaces,
 				ApplicationServiceClient: getApplicationClient(useGrpc, applicationServerAddress, argocdToken, rootpath),
 				CodefreshConfig: &codefresh.CodefreshConfig{
-					BaseURL:     codefreshUrl,
-					AuthToken:   codefreshToken,
-					TlsInsecure: codefreshTlsInsecure,
-					CaCertPath:  codefreshTlsCertPath,
+					BaseURL:        codefreshUrl,
+					AuthToken:      codefreshToken,
+					TlsInsecure:    codefreshTlsInsecure,
+					CaCertPath:     codefreshTlsCertPath,
+					RuntimeVersion: runtimeVersion,
 				},
 				RateLimiterOpts: &reporter.RateLimiterOpts{
 					Enabled:      rateLimiterEnabled,
@@ -236,6 +238,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&codefreshUrl, "codefresh-url", env.StringFromEnv("CODEFRESH_URL", "https://g.codefresh.io"), "Codefresh API url")
 	command.Flags().StringVar(&codefreshToken, "codefresh-token", env.StringFromEnv("CODEFRESH_TOKEN", ""), "Codefresh token")
 	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", env.StringFromEnv(common.EnvEventReporterShardingAlgorithm, common.DefaultEventReporterShardingAlgorithm), "Enables choice of sharding method. Supported sharding methods are : [legacy] ")
+	command.Flags().StringVar(&runtimeVersion, "codefresh-runtime-version", env.StringFromEnv("CODEFRESH_RUNTIME_VERSION", ""), "Codefresh runtime version to be reported with each event to platform")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces where application resources can be managed in")
 	command.Flags().BoolVar(&useGrpc, "grpc", env.ParseBoolFromEnv("USE_GRPC", false), "Use grpc for interact with argocd server")
 	command.Flags().BoolVar(&rateLimiterEnabled, "rate-limiter-enabled", env.ParseBoolFromEnv("RATE_LIMITER_ENABLED", false), "Use rate limiter for prevent queue to be overflowed")

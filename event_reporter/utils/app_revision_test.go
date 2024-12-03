@@ -441,3 +441,224 @@ func TestAddCommitDetailsToLabels(t *testing.T) {
 		assert.Equal(t, "http://my-grafana.com/pre-generated-link", result.GetLabels()["link"])
 	})
 }
+
+func TestGetSyncRevisionAt(t *testing.T) {
+	t.Run("should return nil once idx out of range", func(t *testing.T) {
+		revisionMetadata := AppSyncRevisionsMetadata{
+			SyncRevisions: []*RevisionWithMetadata{{
+				Metadata: &v1alpha1.RevisionMetadata{
+					Author:  "demo usert",
+					Date:    metav1.Time{},
+					Message: "some message",
+				},
+			}},
+		}
+
+		assert.Nil(t, revisionMetadata.GetSyncRevisionAt(-1))
+		assert.Nil(t, revisionMetadata.GetSyncRevisionAt(1))
+	})
+	t.Run("should return nil if data missing", func(t *testing.T) {
+		revisionMetadata := AppSyncRevisionsMetadata{}
+
+		assert.Nil(t, revisionMetadata.GetSyncRevisionAt(1))
+	})
+	t.Run("should return correct idx", func(t *testing.T) {
+		revisionMetadata := AppSyncRevisionsMetadata{
+			SyncRevisions: []*RevisionWithMetadata{
+				{
+					Metadata: &v1alpha1.RevisionMetadata{
+						Author:  "demo usert",
+						Date:    metav1.Time{},
+						Message: "some message",
+					},
+				},
+				{
+					Metadata: &v1alpha1.RevisionMetadata{
+						Author:  "demo user2",
+						Date:    metav1.Time{},
+						Message: "some message 2",
+					},
+				},
+			},
+		}
+
+		syncRev := revisionMetadata.GetSyncRevisionAt(1)
+		assert.NotNil(t, syncRev)
+		assert.Equal(t, "demo user2", syncRev.Metadata.Author)
+		assert.Equal(t, "some message 2", syncRev.Metadata.Message)
+	})
+}
+
+func TestGetOperationRevision(t *testing.T) {
+	t.Run("should return empty strint once app in nil", func(t *testing.T) {
+		assert.Equal(t, "", GetOperationRevision(nil))
+	})
+	t.Run("should return Status.Sync.Revision as fallback", func(t *testing.T) {
+		assert.Equal(t, "Status.Sync.Revision", GetOperationRevision(&v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Revision: "Status.Sync.Revision",
+				},
+			},
+		}))
+	})
+	t.Run("should return Status.OperationState.Operation.Sync.Revision", func(t *testing.T) {
+		assert.Equal(t, "Status.OperationState.Operation.Sync.Revision", GetOperationRevision(&v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Revision: "Status.Sync.Revision",
+				},
+				OperationState: &v1alpha1.OperationState{
+					Operation: v1alpha1.Operation{
+						Sync: &v1alpha1.SyncOperation{
+							Revision: "Status.OperationState.Operation.Sync.Revision",
+						},
+					},
+				},
+			},
+			Operation: &v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Revision: "Operation.Sync.Revision",
+				},
+			},
+		}))
+	})
+	t.Run("should return Status-Sync-Revision", func(t *testing.T) {
+		assert.Equal(t, "Operation.Sync.Revision", GetOperationRevision(&v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Revision: "Status-Sync-Revision",
+				},
+			},
+			Operation: &v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Revision: "Operation.Sync.Revision",
+				},
+			},
+		}))
+	})
+}
+
+func TestGetOperationRevisions(t *testing.T) {
+	t.Run("should return empty strint once app in nil", func(t *testing.T) {
+		assert.Nil(t, GetOperationRevisions(nil))
+	})
+	t.Run("should return Status.Sync.Revisions as fallback", func(t *testing.T) {
+		res := GetOperationRevisions(&v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Revision:  "Status.Sync.Revision",
+					Revisions: []string{"Status.Sync.Revisions"},
+				},
+			},
+		})
+		assert.Len(t, res, 1)
+		assert.Equal(t, "Status.Sync.Revisions", res[0])
+	})
+	t.Run("should return Status.OperationState.Operation.Sync.Revisions", func(t *testing.T) {
+		res := GetOperationRevisions(&v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Revision:  "Status.Sync.Revision",
+					Revisions: []string{"Status.Sync.Revisions"},
+				},
+				OperationState: &v1alpha1.OperationState{
+					Operation: v1alpha1.Operation{
+						Sync: &v1alpha1.SyncOperation{
+							Revision:  "Status.OperationState.Operation.Sync.Revision",
+							Revisions: []string{"Status.OperationState.Operation.Sync.Revisions"},
+						},
+					},
+				},
+			},
+			Operation: &v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Revision:  "Operation.Sync.Revision",
+					Revisions: []string{"Operation.Sync.Revisions"},
+				},
+			},
+		})
+		assert.Len(t, res, 1)
+		assert.Equal(t, "Status.OperationState.Operation.Sync.Revisions", res[0])
+	})
+	t.Run("should return Status-Sync-Revisions", func(t *testing.T) {
+		res := GetOperationRevisions(&v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Revision: "Status-Sync-Revision",
+				},
+			},
+			Operation: &v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Revision:  "Operation.Sync.Revision",
+					Revisions: []string{"Operation.Sync.Revisions"},
+				},
+			},
+		})
+		assert.Len(t, res, 1)
+		assert.Equal(t, "Operation.Sync.Revisions", res[0])
+	})
+}
+
+func TestGetOperationSyncResultRevision(t *testing.T) {
+	t.Run("should return nil", func(t *testing.T) {
+		assert.Nil(t, GetOperationSyncResultRevision(nil))
+		assert.Nil(t, GetOperationSyncResultRevision(&v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				OperationState: &v1alpha1.OperationState{
+					Operation: v1alpha1.Operation{
+						Sync: &v1alpha1.SyncOperation{
+							Revision:  "Status.OperationState.Operation.Sync.Revision",
+							Revisions: []string{"Status.OperationState.Operation.Sync.Revisions"},
+						},
+					},
+				},
+			},
+		}))
+	})
+	t.Run("should return revision", func(t *testing.T) {
+		res := GetOperationSyncResultRevision(&v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				OperationState: &v1alpha1.OperationState{
+					SyncResult: &v1alpha1.SyncOperationResult{
+						Revision:  "Status.OperationState.SyncResult.Revision",
+						Revisions: []string{"Status.OperationState.SyncResult.Revisions"},
+					},
+				},
+			},
+		})
+		assert.Equal(t, "Status.OperationState.SyncResult.Revision", *res)
+	})
+}
+
+func TestGetOperationSyncResultRevisions(t *testing.T) {
+	t.Run("should return nil", func(t *testing.T) {
+		assert.Nil(t, GetOperationSyncResultRevisions(nil))
+		assert.Nil(t, GetOperationSyncResultRevisions(&v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				OperationState: &v1alpha1.OperationState{
+					Operation: v1alpha1.Operation{
+						Sync: &v1alpha1.SyncOperation{
+							Revision:  "Status.OperationState.Operation.Sync.Revision",
+							Revisions: []string{"Status.OperationState.Operation.Sync.Revisions"},
+						},
+					},
+				},
+			},
+		}))
+	})
+	t.Run("should return revisions", func(t *testing.T) {
+		res := GetOperationSyncResultRevisions(&v1alpha1.Application{
+			Status: v1alpha1.ApplicationStatus{
+				OperationState: &v1alpha1.OperationState{
+					SyncResult: &v1alpha1.SyncOperationResult{
+						Revision:  "Status.OperationState.SyncResult.Revision",
+						Revisions: []string{"Status.OperationState.SyncResult.Revisions"},
+					},
+				},
+			},
+		})
+		assert.NotNil(t, res)
+		assert.Len(t, *res, 1)
+	})
+}

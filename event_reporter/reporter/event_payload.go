@@ -24,6 +24,7 @@ func getResourceEventPayload(
 	rr *ReportedResource,
 	reportedEntityParentApp *ReportedEntityParentApp,
 	argoTrackingMetadata *ArgoTrackingMetadata,
+	runtimeVersion string,
 ) (*events.Event, error) {
 	var (
 		err          error
@@ -100,33 +101,34 @@ func getResourceEventPayload(
 	}
 
 	source := events.ObjectSource{
-		DesiredManifest:       rr.desiredState.CompiledManifest,
-		ActualManifest:        *rr.actualState.Manifest,
-		GitManifest:           rr.desiredState.RawManifest,
-		RepoURL:               reportedEntityParentApp.app.Status.Sync.ComparedTo.Source.RepoURL,
-		Path:                  rr.desiredState.Path,
-		Revision:              utils.GetApplicationLatestRevision(reportedEntityParentApp.app),
-		OperationSyncRevision: utils.GetOperationRevision(reportedEntityParentApp.app),
-		HistoryId:             utils.GetLatestAppHistoryId(reportedEntityParentApp.app),
-		AppName:               reportedEntityParentApp.app.Name,
-		AppNamespace:          reportedEntityParentApp.app.Namespace,
-		AppUID:                string(reportedEntityParentApp.app.ObjectMeta.UID),
-		AppLabels:             reportedEntityParentApp.app.Labels,
-		SyncStatus:            string(rr.rs.Status),
-		SyncStartedAt:         syncStarted,
-		SyncFinishedAt:        syncFinished,
-		Cluster:               reportedEntityParentApp.app.Spec.Destination.Server,
-		AppInstanceLabelKey:   *argoTrackingMetadata.AppInstanceLabelKey,
-		TrackingMethod:        string(*argoTrackingMetadata.TrackingMethod),
+		DesiredManifest:        rr.desiredState.CompiledManifest,
+		ActualManifest:         *rr.actualState.Manifest,
+		GitManifest:            rr.desiredState.RawManifest,
+		Path:                   rr.desiredState.Path,
+		Revision:               utils.GetApplicationLatestRevision(reportedEntityParentApp.app),
+		Revisions:              utils.GetApplicationLatestRevisions(reportedEntityParentApp.app),
+		OperationSyncRevision:  utils.GetOperationRevision(reportedEntityParentApp.app),
+		OperationSyncRevisions: utils.GetOperationRevisions(reportedEntityParentApp.app),
+		HistoryId:              utils.GetLatestAppHistoryId(reportedEntityParentApp.app),
+		AppName:                reportedEntityParentApp.app.Name,
+		AppNamespace:           reportedEntityParentApp.app.Namespace,
+		AppUID:                 string(reportedEntityParentApp.app.ObjectMeta.UID),
+		AppLabels:              reportedEntityParentApp.app.Labels,
+		SyncStatus:             string(rr.rs.Status),
+		SyncStartedAt:          syncStarted,
+		SyncFinishedAt:         syncFinished,
+		Cluster:                reportedEntityParentApp.app.Spec.Destination.Server,
+		AppInstanceLabelKey:    *argoTrackingMetadata.AppInstanceLabelKey,
+		TrackingMethod:         string(*argoTrackingMetadata.TrackingMethod),
+		AppMultiSourced:        reportedEntityParentApp.app.Spec.HasMultipleSources(),
+		AppSourceIdx:           rr.appSourceIdx,
 	}
 
-	if reportedEntityParentApp.revisionsMetadata != nil && reportedEntityParentApp.revisionsMetadata.SyncRevisions != nil {
-		revisionMetadata := getApplicationLegacyRevisionDetails(reportedEntityParentApp.app, reportedEntityParentApp.revisionsMetadata)
-		if revisionMetadata != nil {
-			source.CommitMessage = revisionMetadata.Message
-			source.CommitAuthor = revisionMetadata.Author
-			source.CommitDate = &revisionMetadata.Date
-		}
+	source.RepoURL = getResourceSourceRepoUrl(rr, reportedEntityParentApp)
+	addResourceEventPayloadGitCommitDetails(&source, rr, reportedEntityParentApp)
+
+	if reportedEntityParentApp.validatedDestination != nil {
+		source.ClusterName = &reportedEntityParentApp.validatedDestination.Name
 	}
 
 	if rr.rs.Health != nil {
@@ -135,11 +137,12 @@ func getResourceEventPayload(
 	}
 
 	payload := events.EventPayload{
-		Timestamp:   appEventProcessingStartedAt,
-		Object:      object,
-		Source:      &source,
-		Errors:      getResourceEventPayloadErrors(rr, reportedEntityParentApp),
-		AppVersions: applicationVersionsEvents,
+		Timestamp:      appEventProcessingStartedAt,
+		Object:         object,
+		Source:         &source,
+		Errors:         getResourceEventPayloadErrors(rr, reportedEntityParentApp),
+		AppVersions:    applicationVersionsEvents,
+		RuntimeVersion: runtimeVersion,
 	}
 
 	if payload.AppVersions != nil {
@@ -152,6 +155,47 @@ func getResourceEventPayload(
 	}
 
 	return &events.Event{Payload: payloadBytes}, nil
+}
+
+func getResourceSourceRepoUrl(
+	rr *ReportedResource,
+	reportedEntityParentApp *ReportedEntityParentApp,
+) string {
+	specCopy := reportedEntityParentApp.app.Spec.DeepCopy()
+
+	specCopy.Sources = reportedEntityParentApp.app.Status.Sync.ComparedTo.Sources
+	specCopy.Source = reportedEntityParentApp.app.Status.Sync.ComparedTo.Source.DeepCopy()
+
+	if specCopy.HasMultipleSources() {
+		if !rr.appSourceIdxDetected() {
+			return ""
+		}
+		source := specCopy.GetSourcePtrByIndex(int(rr.appSourceIdx))
+		if source == nil {
+			return ""
+		}
+		return source.RepoURL
+	}
+
+	return specCopy.Source.RepoURL
+}
+
+func addResourceEventPayloadGitCommitDetails(
+	source *events.ObjectSource,
+	rr *ReportedResource,
+	reportedEntityParentApp *ReportedEntityParentApp,
+) {
+	if reportedEntityParentApp.revisionsMetadata == nil || reportedEntityParentApp.revisionsMetadata.SyncRevisions == nil || rr.appSourceIdx == -1 {
+		return
+	}
+
+	syncRevisionWithMetadata := reportedEntityParentApp.revisionsMetadata.GetSyncRevisionAt(int(rr.appSourceIdx))
+
+	if syncRevisionWithMetadata != nil && syncRevisionWithMetadata.Metadata != nil {
+		source.CommitMessage = syncRevisionWithMetadata.Metadata.Message
+		source.CommitAuthor = syncRevisionWithMetadata.Metadata.Author
+		source.CommitDate = &syncRevisionWithMetadata.Metadata.Date
+	}
 }
 
 func getResourceEventPayloadErrors(
@@ -247,6 +291,7 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 	eventProcessingStartedAt string,
 	applicationVersions *apiclient.ApplicationVersions,
 	argoTrackingMetadata *ArgoTrackingMetadata,
+	runtimeVersion string,
 ) (*events.Event, error) {
 	var (
 		syncStarted  = metav1.Now()
@@ -323,11 +368,12 @@ func (s *applicationEventReporter) getApplicationEventPayload(
 	errors = append(errors, parseAggregativeHealthErrorsOfApplication(a, appTree)...)
 
 	payload := events.EventPayload{
-		Timestamp:   eventProcessingStartedAt,
-		Object:      object,
-		Source:      source,
-		Errors:      errors,
-		AppVersions: applicationVersionsEvents,
+		Timestamp:      eventProcessingStartedAt,
+		Object:         object,
+		Source:         source,
+		Errors:         errors,
+		AppVersions:    applicationVersionsEvents,
+		RuntimeVersion: runtimeVersion,
 	}
 
 	logCtx.Infof("AppVersion before encoding: %v", utils.SafeString(payload.AppVersions.AppVersion))

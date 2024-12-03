@@ -44,6 +44,8 @@ message EventPayload {
     repeated ObjectError errors = 4;
     // A version of the application and its dependencies
     optional ApplicationVersions appVersions = 5;
+    // A version of codefresh runtime
+    required string runtimeVersion = 6 [(gogoproto.nullable) = false];
 }
 
 /**
@@ -55,7 +57,7 @@ message ObjectSource {
     optional string gitManifest = 3 [(gogoproto.nullable) = false];
     optional string repoURL = 4 [(gogoproto.nullable) = false];
     optional string path = 5 [(gogoproto.nullable) = false];
-    optional string revision = 6 [(gogoproto.nullable) = false];
+    optional string revision = 6 [(gogoproto.nullable) = false]; // sync.revision
     optional string commitMessage = 7 [(gogoproto.nullable) = false];
     optional string commitAuthor = 8 [(gogoproto.nullable) = false];
     optional k8s.io.apimachinery.pkg.apis.meta.v1.Time commitDate = 9;
@@ -66,13 +68,18 @@ message ObjectSource {
     optional k8s.io.apimachinery.pkg.apis.meta.v1.Time syncFinishedAt = 14;
     optional string healthStatus = 15;
     optional string healthMessage = 16;
-    optional string cluster = 17 [(gogoproto.nullable) = false];
-    optional int64 historyId = 18 [(gogoproto.nullable) = false];
+    optional string cluster = 17 [(gogoproto.nullable) = false]; // destination.server
+    optional int64 historyId = 18 [(gogoproto.nullable) = false]; // legacy
     optional string operationSyncRevision = 19 [(gogoproto.nullable) = false];
     optional string appUID = 20 [(gogoproto.nullable) = false];
     optional string appNamespace = 21 [(gogoproto.nullable) = false];
     optional string appInstanceLabelKey = 22 [(gogoproto.nullable) = false];
     optional string trackingMethod = 23 [(gogoproto.nullable) = false];
+    repeated string revisions = 24; // sync.revisions
+    repeated string operationSyncRevisions = 25; // syncResult.revisions
+    optional string clusterName = 26; // destination.name
+    required bool appMultiSourced = 27 [(gogoproto.nullable) = false];
+    required int32 appSourceIdx = 28 [(gogoproto.nullable) = false];
 }
 
 /**
