@@ -12,6 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 )
 
 func checkHealth(t *testing.T, requireHealthy bool) {
@@ -37,7 +38,7 @@ func TestAPIServerGracefulRestart(t *testing.T) {
 	// Should be healthy.
 	checkHealth(t, true)
 	// Should trigger API server restart.
-	fixture.SetParamInSettingConfigMap("additionalUrls", "- http://test")
+	errors.CheckError(fixture.SetParamInSettingConfigMap("additionalUrls", "- http://test"))
 
 	// Wait for ~5 seconds
 	for i := 0; i < 50; i++ {
