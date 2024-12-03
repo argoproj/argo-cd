@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -36,7 +35,6 @@ func TestPostSyncHookSuccessful(t *testing.T) {
 
 // make sure we can run a standard sync hook
 func testHookSuccessful(t *testing.T, hookType HookType) {
-	t.Helper()
 	Given(t).
 		Path("hook").
 		When().
@@ -67,9 +65,10 @@ func TestPostDeleteHook(t *testing.T) {
 			assert.Len(t, hooks.Items, 1)
 			assert.Equal(t, "hook", hooks.Items[0].Name)
 		})
+
 }
 
-// make sure that hooks do not appear in "argocd app diff"
+// make sure that that hooks do not appear in "argocd app diff"
 func TestHookDiff(t *testing.T) {
 	Given(t).
 		Path("hook").
@@ -78,7 +77,7 @@ func TestHookDiff(t *testing.T) {
 		Then().
 		And(func(_ *Application) {
 			output, err := RunCli("app", "diff", Name())
-			require.Error(t, err)
+			assert.Error(t, err)
 			assert.Contains(t, output, "name: pod")
 			assert.NotContains(t, output, "name: hook")
 		})
@@ -335,7 +334,7 @@ func TestHookBeforeHookCreation(t *testing.T) {
 			CheckError(err)
 			assert.NotEmpty(t, creationTimestamp1)
 			// pause to ensure that timestamp will change
-			time.Sleep(1 * time.Second)
+			time.Sleep(2 * time.Second)
 		}).
 		When().
 		Sync().
@@ -421,7 +420,7 @@ func TestAutomaticallyNamingUnnamedHook(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			resources := app.Status.OperationState.SyncResult.Resources
-			assert.Len(t, resources, 3)
+			assert.Equal(t, 3, len(resources))
 			// make sure we don't use the same name
 			assert.Contains(t, resources[0].Name, "presync")
 			assert.Contains(t, resources[2].Name, "postsync")

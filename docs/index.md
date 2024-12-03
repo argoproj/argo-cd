@@ -40,7 +40,7 @@ the desired application state. Kubernetes manifests can be specified in several 
 * Any custom config management tool configured as a config management plugin
 
 Argo CD automates the deployment of the desired application states in the specified target environments.
-Application deployments can track updates to branches, tags, or be pinned to a specific version of
+Application deployments can track updates to branches, tags, or pinned to a specific version of
 manifests at a Git commit. See [tracking strategies](user-guide/tracking_strategies.md) for additional
 details about the different tracking strategies available.
 

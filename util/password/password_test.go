@@ -5,7 +5,6 @@ import (
 )
 
 func testPasswordHasher(t *testing.T, h PasswordHasher) {
-	t.Helper()
 	// Use the default work factor
 	const (
 		defaultPassword = "Hello, world!"

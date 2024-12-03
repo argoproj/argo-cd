@@ -1,5 +1,10 @@
 # Multiple Sources for an Application
 
+!!! warning "Beta Feature"
+    Specifying multiple sources for an application is a beta feature. The UI and CLI still generally behave as if only
+    the first source is specified. Full UI/CLI support will be added in a future release.
+    This feature is subject to change in backwards incompatible ways until it is marked stable.
+
 By default an Argo CD application is a link between a single source and a cluster. Sometimes however, you want to combine
 files from multiple locations to form a single Application.
 
@@ -70,11 +75,9 @@ spec:
     ref: values
 ```
 
-In the above example, the `prometheus` chart will use the value file from `git.example.com/org/value-files.git`. 
-For Argo to reference the external Git repository containing the value files, you must set the `ref` parameter on
-the repository. In the above example, the parameter `ref: values` maps to the variable `$values`, which resolves
-to the root of the `value-files` repository. 
-Note that the `$values` variable can only be used at the beginning of the value file path.
+In the above example, the `prometheus` chart will use the value file from `git.example.gom/org/value-files.git`. 
+`$values` resolves to the root of the `value-files` repository. The `$values` variable may only be specified at the 
+beginning of the value file path.
 
 If the `path` field is set in the `$values` source, Argo CD will attempt to generate resources from the git repository
 at that URL. If the `path` field is not set, Argo CD will use the repository solely as a source of value files.

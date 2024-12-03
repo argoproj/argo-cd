@@ -51,7 +51,6 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		assert.True(t, ok)
 		assert.NotNil(t, actual)
 		assert.Equal(t, expectedManagedFields, actual.ManagedFieldsManagers)
-		// nolint:testifylint
 		assert.Equal(t, expectedJSONPointers, actual.JSONPointers)
 		assert.Equal(t, expectedJQExpression, actual.JQPathExpressions)
 	})
@@ -73,7 +72,6 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		assert.True(t, ok)
 		assert.NotNil(t, actual)
 		assert.Equal(t, expectedManagedFields, actual.ManagedFieldsManagers)
-		// nolint:testifylint
 		assert.Equal(t, expectedJSONPointers, actual.JSONPointers)
 		assert.Equal(t, expectedJQExpression, actual.JQPathExpressions)
 	})
@@ -220,4 +218,5 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		assert.ElementsMatch(t, expectedJSONPointers, actual.JSONPointers)
 		assert.ElementsMatch(t, expectedJQPath, actual.JQPathExpressions)
 	})
+
 }

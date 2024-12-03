@@ -66,6 +66,7 @@ func newClient(baseURL string, options ...ClientOptionFunc) (*Client, error) {
 }
 
 func (c *Client) NewRequest(method, path string, body interface{}, options []ClientOptionFunc) (*http.Request, error) {
+
 	// Make sure the given URL end with a slash
 	if !strings.HasSuffix(c.baseURL, "/") {
 		c.baseURL += "/"
@@ -134,13 +135,14 @@ func (c *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*htt
 
 // CheckResponse checks the API response for errors, and returns them if present.
 func CheckResponse(resp *http.Response) error {
-	if c := resp.StatusCode; http.StatusOK <= c && c < http.StatusMultipleChoices {
+
+	if c := resp.StatusCode; 200 <= c && c <= 299 {
 		return nil
 	}
 
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("API error with status code %d: %w", resp.StatusCode, err)
+		return fmt.Errorf("API error with status code %d: %v", resp.StatusCode, err)
 	}
 
 	var raw map[string]interface{}

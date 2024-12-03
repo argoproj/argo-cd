@@ -25,7 +25,7 @@ import (
 )
 
 func main() {
-	command := &cobra.Command{
+	var command = &cobra.Command{
 		Use: "gen",
 		Run: func(c *cobra.Command, args []string) {
 			c.HelpFunc()(c, args)
@@ -81,8 +81,9 @@ func newCatalogCommand() *cobra.Command {
 			d, err := yaml.Marshal(cm)
 			dieOnError(err, "Failed to marshal final configmap")
 
-			err = os.WriteFile(target, d, 0o644)
+			err = os.WriteFile(target, d, 0644)
 			dieOnError(err, "Failed to write builtin configmap")
+
 		},
 	}
 }
@@ -101,14 +102,14 @@ func newDocsCommand() *cobra.Command {
 			notificationTemplates, notificationTriggers, err := buildConfigFromFS(templatesDir, triggersDir)
 			dieOnError(err, "Failed to build builtin config")
 			generateBuiltInTriggersDocs(&builtItDocsData, notificationTriggers, notificationTemplates)
-			if err := os.WriteFile("./docs/operator-manual/notifications/catalog.md", builtItDocsData.Bytes(), 0o644); err != nil {
+			if err := os.WriteFile("./docs/operator-manual/notifications/catalog.md", builtItDocsData.Bytes(), 0644); err != nil {
 				log.Fatal(err)
 			}
 			var commandDocs bytes.Buffer
 			if err := generateCommandsDocs(&commandDocs); err != nil {
 				log.Fatal(err)
 			}
-			if err := os.WriteFile("./docs/operator-manual/notifications/troubleshooting-commands.md", commandDocs.Bytes(), 0o644); err != nil {
+			if err := os.WriteFile("./docs/operator-manual/notifications/troubleshooting-commands.md", commandDocs.Bytes(), 0644); err != nil {
 				log.Fatal(err)
 			}
 		},
@@ -117,13 +118,6 @@ func newDocsCommand() *cobra.Command {
 
 func generateBuiltInTriggersDocs(out io.Writer, triggers map[string][]triggers.Condition, templates map[string]services.Notification) {
 	_, _ = fmt.Fprintln(out, "# Triggers and Templates Catalog")
-
-	_, _ = fmt.Fprintln(out, "## Getting Started")
-	_, _ = fmt.Fprintln(out, "* Install Triggers and Templates from the catalog")
-	_, _ = fmt.Fprintln(out, "  ```bash")
-	_, _ = fmt.Fprintln(out, "  kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/notifications_catalog/install.yaml")
-	_, _ = fmt.Fprintln(out, "  ```")
-
 	_, _ = fmt.Fprintln(out, "## Triggers")
 
 	w := tablewriter.NewWriter(out)
@@ -168,7 +162,7 @@ func generateCommandsDocs(out io.Writer) error {
 				for _, c := range toolSubCommand.Commands() {
 					var cmdDesc bytes.Buffer
 					if err := doc.GenMarkdown(c, &cmdDesc); err != nil {
-						return fmt.Errorf("error generating Markdown for command: %v : %w", c, err)
+						return err
 					}
 					for _, line := range strings.Split(cmdDesc.String(), "\n") {
 						if strings.HasPrefix(line, "### SEE ALSO") {
@@ -194,19 +188,19 @@ func buildConfigFromFS(templatesDir string, triggersDir string) (map[string]serv
 	templatesCfg := map[string]services.Notification{}
 	err := filepath.Walk(templatesDir, func(p string, info os.FileInfo, e error) error {
 		if e != nil {
-			return fmt.Errorf("error navigating the templates dirctory: %s : %w", templatesDir, e)
+			return e
 		}
 		if info.IsDir() {
 			return nil
 		}
 		data, err := os.ReadFile(p)
 		if err != nil {
-			return fmt.Errorf("error reading the template file: %s : %w", p, err)
+			return err
 		}
 		name := strings.Split(path.Base(p), ".")[0]
 		var template services.Notification
 		if err := yaml.Unmarshal(data, &template); err != nil {
-			return fmt.Errorf("error unmarshaling the data from file: %s : %w", p, err)
+			return err
 		}
 		templatesCfg[name] = template
 		return nil
@@ -218,19 +212,19 @@ func buildConfigFromFS(templatesDir string, triggersDir string) (map[string]serv
 	triggersCfg := map[string][]triggers.Condition{}
 	err = filepath.Walk(triggersDir, func(p string, info os.FileInfo, e error) error {
 		if e != nil {
-			return fmt.Errorf("error navigating the triggers dirctory: %s : %w", triggersDir, e)
+			return e
 		}
 		if info.IsDir() {
 			return nil
 		}
 		data, err := os.ReadFile(p)
 		if err != nil {
-			return fmt.Errorf("error reading the trigger file: %s : %w", p, err)
+			return err
 		}
 		name := strings.Split(path.Base(p), ".")[0]
 		var trigger []triggers.Condition
 		if err := yaml.Unmarshal(data, &trigger); err != nil {
-			return fmt.Errorf("error unmarshaling the data from file: %s : %w", p, err)
+			return err
 		}
 		triggersCfg[name] = trigger
 		return nil
