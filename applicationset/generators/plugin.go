@@ -13,6 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/util/glob"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 
 	"github.com/argoproj/argo-cd/v2/applicationset/services/plugin"
@@ -20,23 +21,27 @@ import (
 
 const (
 	DefaultPluginRequeueAfterSeconds = 30 * time.Minute
+	PluginConfigMapLabelKey          = "argocd.argoproj.io/cm-type"
+	PluginConfigMapLabelValue        = "plugin-generator"
 )
 
 var _ Generator = (*PluginGenerator)(nil)
 
 type PluginGenerator struct {
-	client    client.Client
-	ctx       context.Context
-	clientset kubernetes.Interface
-	namespace string
+	client               client.Client
+	ctx                  context.Context
+	clientset            kubernetes.Interface
+	namespace            string
+	allowedPluginGenUrls []string
 }
 
-func NewPluginGenerator(client client.Client, ctx context.Context, clientset kubernetes.Interface, namespace string) Generator {
+func NewPluginGenerator(client client.Client, ctx context.Context, clientset kubernetes.Interface, namespace string, allowedPluginGenUrls []string) Generator {
 	g := &PluginGenerator{
-		client:    client,
-		ctx:       ctx,
-		clientset: clientset,
-		namespace: namespace,
+		client:               client,
+		ctx:                  ctx,
+		clientset:            clientset,
+		namespace:            namespace,
+		allowedPluginGenUrls: allowedPluginGenUrls,
 	}
 	return g
 }
@@ -68,7 +73,9 @@ func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 
 	providerConfig := appSetGenerator.Plugin
 
-	pluginClient, err := g.getPluginFromGenerator(ctx, applicationSetInfo.Name, providerConfig)
+	pluginConfigNamespace := g.getPluginConfigNamespaceOrDefaultToAppSetNamespace(providerConfig, applicationSetInfo)
+
+	pluginClient, err := g.getPluginFromGenerator(ctx, applicationSetInfo.Name, pluginConfigNamespace, applicationSetInfo.Namespace, providerConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error getting plugin from generator: %w", err)
 	}
@@ -86,12 +93,19 @@ func (g *PluginGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 	return res, nil
 }
 
-func (g *PluginGenerator) getPluginFromGenerator(ctx context.Context, appSetName string, generatorConfig *argoprojiov1alpha1.PluginGenerator) (*plugin.Service, error) {
-	cm, err := g.getConfigMap(ctx, generatorConfig.ConfigMapRef.Name)
+func (g *PluginGenerator) getPluginConfigNamespaceOrDefaultToAppSetNamespace(plugin *argoprojiov1alpha1.PluginGenerator, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) string {
+	if plugin.ConfigMapRef.Namespace != "" {
+		return plugin.ConfigMapRef.Namespace
+	}
+	return applicationSetInfo.Namespace
+}
+
+func (g *PluginGenerator) getPluginFromGenerator(ctx context.Context, appSetName, namespace, appSetNamespace string, generatorConfig *argoprojiov1alpha1.PluginGenerator) (*plugin.Service, error) {
+	cm, err := g.getConfigMap(ctx, generatorConfig.ConfigMapRef.Name, namespace, appSetNamespace)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching ConfigMap: %w", err)
 	}
-	token, err := g.getToken(ctx, cm["token"])
+	token, err := g.getToken(ctx, cm["token"], namespace)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching Secret token: %w", err)
 	}
@@ -149,7 +163,7 @@ func (g *PluginGenerator) generateParams(appSetGenerator *argoprojiov1alpha1.App
 	return res, nil
 }
 
-func (g *PluginGenerator) getToken(ctx context.Context, tokenRef string) (string, error) {
+func (g *PluginGenerator) getToken(ctx context.Context, tokenRef, namespace string) (string, error) {
 	if tokenRef == "" || !strings.HasPrefix(tokenRef, "$") {
 		return "", fmt.Errorf("token is empty, or does not reference a secret key starting with '$': %v", tokenRef)
 	}
@@ -161,11 +175,11 @@ func (g *PluginGenerator) getToken(ctx context.Context, tokenRef string) (string
 		ctx,
 		client.ObjectKey{
 			Name:      secretName,
-			Namespace: g.namespace,
+			Namespace: namespace,
 		},
 		secret)
 	if err != nil {
-		return "", fmt.Errorf("error fetching secret %s/%s: %w", g.namespace, secretName, err)
+		return "", fmt.Errorf("error fetching secret %s/%s: %w", namespace, secretName, err)
 	}
 
 	secretValues := make(map[string]string, len(secret.Data))
@@ -179,22 +193,33 @@ func (g *PluginGenerator) getToken(ctx context.Context, tokenRef string) (string
 	return token, err
 }
 
-func (g *PluginGenerator) getConfigMap(ctx context.Context, configMapRef string) (map[string]string, error) {
+func (g *PluginGenerator) getConfigMap(ctx context.Context, configMapRef, namespace, appsetNs string) (map[string]string, error) {
 	cm := &corev1.ConfigMap{}
 	err := g.client.Get(
 		ctx,
 		client.ObjectKey{
 			Name:      configMapRef,
-			Namespace: g.namespace,
+			Namespace: namespace,
 		},
 		cm)
 	if err != nil {
 		return nil, err
 	}
 
+	if namespace != appsetNs {
+		// Validate that it's labelled to be sourced
+		value, exists := cm.ObjectMeta.Labels[PluginConfigMapLabelKey]
+		if !exists || value != PluginConfigMapLabelValue {
+			return nil, fmt.Errorf("configMap with name %s not found in namespace %s. Check if it's correctly labelled with %s=%s", configMapRef, namespace, PluginConfigMapLabelKey, PluginConfigMapLabelValue)
+		}
+	}
+
 	baseUrl, ok := cm.Data["baseUrl"]
 	if !ok || baseUrl == "" {
 		return nil, fmt.Errorf("baseUrl not found in ConfigMap")
+	}
+	if namespace != appsetNs && !g.isBaseUrlAllowed(baseUrl) {
+		return nil, fmt.Errorf("baseUrl %s not allowed", baseUrl)
 	}
 
 	token, ok := cm.Data["token"]
@@ -203,4 +228,16 @@ func (g *PluginGenerator) getConfigMap(ctx context.Context, configMapRef string)
 	}
 
 	return cm.Data, nil
+}
+
+func (g *PluginGenerator) isBaseUrlAllowed(baseUrl string) bool {
+	if len(g.allowedPluginGenUrls) == 0 {
+		return true
+	}
+	for _, allowedUrl := range g.allowedPluginGenUrls {
+		if glob.Match(allowedUrl, baseUrl) {
+			return true
+		}
+	}
+	return false
 }
