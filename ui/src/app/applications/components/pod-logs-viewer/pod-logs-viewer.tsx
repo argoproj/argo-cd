@@ -47,17 +47,18 @@ export interface PodLogsProps {
 }
 
 // ansi colors, see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
-const red = '\u001b[31m';
 const green = '\u001b[32m';
-const yellow = '\u001b[33m';
 const blue = '\u001b[34m';
 const magenta = '\u001b[35m';
 const cyan = '\u001b[36m';
-const colors = [red, green, yellow, blue, magenta, cyan];
+const colors = [green, blue, magenta, cyan];
 const reset = '\u001b[0m';
 const whiteOnYellow = '\u001b[1m\u001b[43;1m\u001b[37m';
 
-const POD_BACKGROUND_COLORS = ['rgba(230, 243, 255, 0.7)', 'rgba(255, 243, 230, 0.7)', 'rgba(230, 255, 230, 0.7)', 'rgba(255, 230, 230, 0.7)', 'rgba(243, 230, 255, 0.7)'];
+// Default colors using argo-ui theme variables
+const POD_COLORS_LIGHT = ['var(--pod-background-light-1)', 'var(--pod-background-light-2)'];
+
+const POD_COLORS_DARK = ['var(--pod-background-dark-1)', 'var(--pod-background-dark-2)'];
 
 // cheap string hash function
 function stringHashCode(str: string) {
@@ -69,8 +70,14 @@ function stringHashCode(str: string) {
     return hash;
 }
 
-function getPodBackgroundColor(podName: string) {
-    return POD_BACKGROUND_COLORS[Math.abs(stringHashCode(podName) % POD_BACKGROUND_COLORS.length)];
+const getPodColors = (isDark: boolean) => {
+    const envColors = (window as any).env?.POD_COLORS?.[isDark ? 'dark' : 'light'];
+    return envColors || (isDark ? POD_COLORS_DARK : POD_COLORS_LIGHT);
+};
+
+function getPodBackgroundColor(podName: string, darkMode: boolean) {
+    const colors = getPodColors(darkMode);
+    return colors[Math.abs(stringHashCode(podName) % colors.length)];
 }
 
 // ansi color for pod name
@@ -78,19 +85,42 @@ function podColor(podName: string) {
     return colors[Math.abs(stringHashCode(podName) % colors.length)];
 }
 
-const PodLegend: React.FC<{logs: LogEntry[]}> = ({logs}) => {
+// Helper function to convert ANSI color to CSS color
+function ansiToCSS(ansiColor: string) {
+    switch (ansiColor) {
+        case '\u001b[32m': // green
+            return '#00FF00';
+        case '\u001b[34m': // blue
+            return '#0000FF';
+        case '\u001b[35m': // magenta
+            return '#FF00FF';
+        case '\u001b[36m': // cyan
+            return '#00FFFF';
+        default:
+            return '#FFFFFF'; // default to white if color not found
+    }
+}
+
+const PodLegend: React.FC<{logs: LogEntry[]; darkMode?: boolean}> = ({logs, darkMode}) => {
     const uniquePods = Array.from(new Set(logs.map(log => log.podName)));
     return (
         <div className='pod-logs-viewer__legend'>
-            {uniquePods.map(podName => (
-                <div key={podName} className='pod-logs-viewer__legend-item'>
-                    <span className='color-box' style={{backgroundColor: getPodBackgroundColor(podName)}} />
-                    <span className='pod-name'>{podName}</span>
-                </div>
-            ))}
+            {uniquePods.map(podName => {
+                const bgColor = getPodBackgroundColor(podName, darkMode);
+                const textColor = ansiToCSS(podColor(podName));
+                return (
+                    <div key={podName} className='pod-logs-viewer__legend-item'>
+                        <span className='color-box' style={{backgroundColor: bgColor}} />
+                        <span className='pod-name' style={{color: textColor}}>
+                            {podName}
+                        </span>
+                    </div>
+                );
+            })}
         </div>
     );
 };
+
 // https://2ality.com/2012/09/empty-regexp.html
 const matchNothing = /.^/;
 
@@ -182,35 +212,51 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
 
     const renderLog = (log: LogEntry, lineNum: number) =>
         // show the pod name if there are multiple pods, pad with spaces to align
-        (viewPodNames ? (lineNum === 0 || logs[lineNum - 1].podName !== log.podName ? podColor(podName) + log.podName + reset : ' '.repeat(log.podName.length)) + ' ' : '') +
+        (viewPodNames ? (lineNum === 0 || logs[lineNum - 1].podName !== log.podName ? podColor(log.podName) + log.podName + reset : ' '.repeat(log.podName.length)) + ' ' : '') +
         // show the timestamp if requested, pad with spaces to align
         (viewTimestamps ? (lineNum === 0 || logs[lineNum - 1].timeStamp !== log.timeStamp ? log.timeStampStr : '').padEnd(30) + ' ' : '') +
-        // show the log content, highlight the filter text
+        // show the log content without colors, only highlight search terms
         log.content?.replace(highlight, (substring: string) => whiteOnYellow + substring + reset);
-    const logsContent = (width: number, height: number, isWrapped: boolean) => (
-        <div ref={logsContainerRef} onScroll={handleScroll} style={{width, height, overflow: 'scroll'}}>
-            {logs.map((log, lineNum) => (
-                <div
-                    key={lineNum}
-                    style={{
-                        whiteSpace: isWrapped ? 'normal' : 'pre',
-                        lineHeight: '16px',
-                        backgroundColor: viewPodNames ? getPodBackgroundColor(log.podName) : 'transparent',
-                        transition: 'background-color 0.2s',
-                        padding: '1px 8px'
-                    }}
-                    className='noscroll'>
-                    <Ansi>{renderLog(log, lineNum)}</Ansi>
-                </div>
-            ))}
+    const logsContent = (width: number, height: number, isWrapped: boolean, prefs: ViewPreferences) => (
+        <div
+            ref={logsContainerRef}
+            onScroll={handleScroll}
+            style={{
+                width,
+                height,
+                overflow: 'scroll',
+                minWidth: '100%' // Ensure container takes full width
+            }}>
+            <div
+                style={{
+                    width: '100%',
+                    minWidth: 'fit-content' // Ensure content doesn't shrink
+                }}>
+                {logs.map((log, lineNum) => (
+                    <div
+                        key={lineNum}
+                        style={{
+                            whiteSpace: isWrapped ? 'normal' : 'pre',
+                            lineHeight: '16px',
+                            backgroundColor: getPodBackgroundColor(log.podName, prefs.appDetails.darkMode),
+                            padding: '1px 8px',
+                            width: '100vw', // Use viewport width
+                            marginLeft: '-8px', // Offset the padding
+                            marginRight: '-8px'
+                        }}
+                        className='noscroll'>
+                        <Ansi>{renderLog(log, lineNum)}</Ansi>
+                    </div>
+                ))}
+            </div>
         </div>
     );
-
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {(prefs: ViewPreferences) => {
                 return (
                     <React.Fragment>
+                        {viewPodNames && <PodLegend logs={logs} darkMode={prefs.appDetails.darkMode} />}
                         <div className='pod-logs-viewer__settings'>
                             <span>
                                 <FollowToggleButton follow={follow} setFollow={setFollowWithQueryParams} />
@@ -241,9 +287,8 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 <FullscreenButton {...props} viewPodNames={viewPodNames} viewTimestamps={viewTimestamps} follow={follow} showPreviousLogs={previous} />
                             </span>
                         </div>
-                        {viewPodNames && <PodLegend logs={logs} />}
                         <div className={classNames('pod-logs-viewer', {'pod-logs-viewer--inverted': prefs.appDetails.darkMode})} onWheel={handleScroll}>
-                            <AutoSizer>{({width, height}: {width: number; height: number}) => logsContent(width, height, prefs.appDetails.wrapLines)}</AutoSizer>
+                            <AutoSizer>{({width, height}: {width: number; height: number}) => logsContent(width, height, prefs.appDetails.wrapLines, prefs)}</AutoSizer>
                         </div>
                     </React.Fragment>
                 );
