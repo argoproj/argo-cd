@@ -1,6 +1,17 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/argo-ui/src/styles/theme';
 
+$pod-background-light-1: $argo-color-gray-3;
+$pod-background-light-2: $argo-color-teal-3;
+$pod-background-dark-1: $dark-theme-background-1;
+$pod-background-dark-2: $dark-theme-background-2;
+:root {
+    --pod-background-light-1: #{$pod-background-light-1};
+    --pod-background-light-2: #{$pod-background-light-2};
+    --pod-background-dark-1: #{$pod-background-dark-1};
+    --pod-background-dark-2: #{$pod-background-dark-2};
+}
+
 .pod-logs-viewer {
     height: 90%;
     font-size: 14px;
@@ -12,6 +23,7 @@
     &--inverted {
         background-color: black;
         color: white;
+        scrollbar-color: $argo-color-gray-5 $dark-theme-background-2;
     }
 
     &__settings {
@@ -211,13 +223,25 @@
         margin-bottom: 8px;
         border-bottom: 1px solid #eee;
         display: flex;
-        flex-wrap: wrap;
+        overflow-x: auto;
         gap: 16px;
+        max-width: 100%;
+        white-space: nowrap;
+
+        // Hide scrollbar but keep functionality
+        &::-webkit-scrollbar {
+            height: 0;
+            background: transparent;
+        }
+        scrollbar-width: none;
+        -ms-overflow-style: none;
         
         &-item {
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 8px;
+            font-family: monospace;
+            flex-shrink: 0; 
             
             .color-box {
                 width: 12px;
@@ -228,7 +252,7 @@
             
             .pod-name {
                 font-size: 12px;
-                color: #666;
+                color: inherit;
             }
         }
     }
