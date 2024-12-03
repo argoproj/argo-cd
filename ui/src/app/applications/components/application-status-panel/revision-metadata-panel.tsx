@@ -4,8 +4,51 @@ import {Timestamp} from '../../../shared/components/timestamp';
 import {services} from '../../../shared/services';
 
 export const RevisionMetadataPanel = (props: {appName: string; appNamespace: string; type: string; revision: string; versionId: number}) => {
-    if (props.type === 'helm') {
+    if (props.type === 'helm' || props.type === 'oci') {
         return <React.Fragment />;
+    }
+    if (props.type === 'oci') {
+        return (
+            <DataLoader load={() => services.applications.ociMetadata(props.appName, props.appNamespace, props.revision, 0, props.versionId)} errorRenderer={() => <div />}>
+                {m => (
+                    <Tooltip
+                        popperOptions={{
+                            modifiers: {
+                                preventOverflow: {
+                                    enabled: false
+                                },
+                                hide: {
+                                    enabled: false
+                                },
+                                flip: {
+                                    enabled: false
+                                }
+                            }
+                        }}
+                        content={
+                            <span>
+                                {m.authors && <React.Fragment>Authored by {m.authors}</React.Fragment>}
+                                <br />
+                                {m.createdAt && <Timestamp date={m.createdAt} />}
+                                <br />
+                                <br />
+                                {m.description}
+                            </span>
+                        }
+                        placement='bottom'
+                        allowHTML={true}>
+                        <div className='application-status-panel__item-name'>
+                            {m.authors && (
+                                <div className='application-status-panel__item__row'>
+                                    <div>Author:</div>
+                                    <div>{m.authors}</div>
+                                </div>
+                            )}
+                        </div>
+                    </Tooltip>
+                )}
+            </DataLoader>
+        );
     }
     return (
         <DataLoader load={() => services.applications.revisionMetadata(props.appName, props.appNamespace, props.revision, 0, props.versionId)} errorRenderer={() => <div />}>

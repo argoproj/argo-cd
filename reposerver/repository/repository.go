@@ -16,6 +16,10 @@ import (
 	"strings"
 	"time"
 
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
+
+	"github.com/argoproj/argo-cd/v2/util/oci"
+
 	"github.com/Masterminds/semver/v3"
 	"github.com/TomOnTime/utfutil"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
@@ -87,12 +91,14 @@ type Service struct {
 	rootDir                   string
 	gitRepoPaths              io.TempPaths
 	chartPaths                io.TempPaths
+	ociPaths                  io.TempPaths
 	gitRepoInitializer        func(rootPath string) goio.Closer
 	repoLock                  *repositoryLock
 	cache                     *cache.Cache
 	parallelismLimitSemaphore *semaphore.Weighted
 	metricsServer             *metrics.MetricsServer
 	resourceTracking          argo.ResourceTracking
+	newOCIClient              func(repoURL string, creds oci.Creds, proxy string, noProxy string, mediaTypes []string, opts ...oci.ClientOpts) (oci.Client, error)
 	newGitClient              func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (git.Client, error)
 	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client
 	initConstants             RepoServerInitConstants
@@ -101,6 +107,7 @@ type Service struct {
 }
 
 type RepoServerInitConstants struct {
+	OCIMediaTypes                                []string
 	ParallelismLimit                             int64
 	PauseGenerationAfterFailedGenerationAttempts int
 	PauseGenerationOnFailureForMinutes           int
@@ -127,6 +134,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 	repoLock := NewRepositoryLock()
 	gitRandomizedPaths := io.NewRandomizedTempPaths(rootDir)
 	helmRandomizedPaths := io.NewRandomizedTempPaths(rootDir)
+	ociRandomizedPaths := io.NewRandomizedTempPaths(rootDir)
 	return &Service{
 		parallelismLimitSemaphore: parallelismLimitSemaphore,
 		repoLock:                  repoLock,
@@ -134,6 +142,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 		metricsServer:             metricsServer,
 		newGitClient:              git.NewClientExt,
 		resourceTracking:          resourceTracking,
+		newOCIClient:              oci.NewClient,
 		newHelmClient: func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client {
 			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock(), enableOci, proxy, noProxy, opts...)
 		},
@@ -142,6 +151,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 		gitCredsStore:      gitCredsStore,
 		gitRepoPaths:       gitRandomizedPaths,
 		chartPaths:         helmRandomizedPaths,
+		ociPaths:           ociRandomizedPaths,
 		gitRepoInitializer: directoryPermissionInitializer,
 		rootDir:            rootDir,
 	}
@@ -303,22 +313,23 @@ func (s *Service) runRepoOperation(
 		sanitizer.AddRegexReplacement(getRepoSanitizerRegex(s.rootDir), "<path to cached source>")
 	}
 
+	var ociClient oci.Client
 	var gitClient git.Client
 	var helmClient helm.Client
 	var err error
 	gitClientOpts := git.WithCache(s.cache, !settings.noRevisionCache && !settings.noCache)
 	revision = textutils.FirstNonEmpty(revision, source.TargetRevision)
 	unresolvedRevision := revision
-	if source.IsHelm() {
+	if source.IsOCI() {
+		ociClient, revision, err = s.newOCIClientResolveRevision(ctx, repo, revision, settings.noCache || settings.noRevisionCache)
+	} else if source.IsHelm() {
 		helmClient, revision, err = s.newHelmClientResolveRevision(repo, revision, source.Chart, settings.noCache || settings.noRevisionCache)
-		if err != nil {
-			return err
-		}
 	} else {
 		gitClient, revision, err = s.newClientResolveRevision(repo, revision, gitClientOpts)
-		if err != nil {
-			return err
-		}
+	}
+
+	if err != nil {
+		return err
 	}
 
 	repoRefs, err := resolveReferencedSources(hasMultipleSources, source.Helm, refSources, s.newClientResolveRevision, gitClientOpts)
@@ -343,7 +354,41 @@ func (s *Service) runRepoOperation(
 		defer settings.sem.Release(1)
 	}
 
-	if source.IsHelm() {
+	if source.IsOCI() {
+		if settings.noCache {
+			err = ociClient.CleanCache(revision, repo.Project)
+			if err != nil {
+				return err
+			}
+		}
+
+		ociPath, closer, err := ociClient.Extract(ctx, revision, repo.Project, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
+		if err != nil {
+			return err
+		}
+		defer io.Close(closer)
+
+		if !s.initConstants.AllowOutOfBoundsSymlinks {
+			err := argopath.CheckOutOfBoundsSymlinks(ociPath)
+			if err != nil {
+				oobError := &argopath.OutOfBoundsSymlinkError{}
+				if errors.As(err, &oobError) {
+					log.WithFields(log.Fields{
+						common.SecurityField: common.SecurityHigh,
+						"repo":               repo.Repo,
+						"digest":             revision,
+						"file":               oobError.File,
+					}).Warn("oci image contains out-of-bounds symlink")
+					return fmt.Errorf("oci image contains out-of-bounds symlinks. file: %s", oobError.File)
+				} else {
+					return err
+				}
+			}
+		}
+		return operation(ociPath, revision, revision, func() (*operationContext, error) {
+			return &operationContext{ociPath, ""}, nil
+		})
+	} else if source.IsHelm() {
 		if settings.noCache {
 			err = helmClient.CleanChartCache(source.Chart, revision, repo.Project)
 			if err != nil {
@@ -1716,18 +1761,32 @@ func getObjsFromYAMLOrJson(logCtx *log.Entry, manifestPath string, filename stri
 	if err != nil {
 		return status.Errorf(codes.FailedPrecondition, "Failed to open %q", manifestPath)
 	}
-	defer func() {
+
+	closeReader := func(reader goio.ReadCloser) {
 		err := reader.Close()
 		if err != nil {
 			logCtx.Errorf("failed to close %q - potential memory leak", manifestPath)
 		}
-	}()
+	}
+	defer closeReader(reader)
 	if strings.HasSuffix(filename, ".json") {
 		var obj unstructured.Unstructured
 		decoder := json.NewDecoder(reader)
-		err = decoder.Decode(&obj)
-		if err != nil {
-			return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", filename, err)
+		decoderErr := decoder.Decode(&obj)
+		if decoderErr != nil {
+			// Check to see if the file is potentially an OCI manifest
+			reader, err := utfutil.OpenFile(manifestPath, utfutil.UTF8)
+			defer closeReader(reader)
+			if err != nil {
+				return status.Errorf(codes.FailedPrecondition, "Failed to open %q", manifestPath)
+			}
+			manifest := v1.Manifest{}
+			decoder := json.NewDecoder(reader)
+			err = decoder.Decode(&manifest)
+			if err != nil {
+				// Not an OCI manifest, return original error
+				return status.Errorf(codes.FailedPrecondition, "Failed to unmarshal %q: %v", filename, decoderErr)
+			}
 		}
 		if decoder.More() {
 			return status.Errorf(codes.FailedPrecondition, "Found multiple objects in %q. Only single objects are allowed in JSON files.", filename)
@@ -2293,7 +2352,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	if err == nil {
 		// The logic here is that if a signature check on metadata is requested,
 		// but there is none in the cache, we handle as if we have a cache miss
-		// and re-generate the meta data. Otherwise, if there is signature info
+		// and re-generate the metadata. Otherwise, if there is signature info
 		// in the metadata, but none was requested, we remove it from the data
 		// that we return.
 		if q.CheckSignature && metadata.SignatureInfo == "" {
@@ -2359,6 +2418,30 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	metadata = &v1alpha1.RevisionMetadata{Author: m.Author, Date: metav1.Time{Time: m.Date}, Tags: m.Tags, Message: m.Message, SignatureInfo: signatureInfo}
 	_ = s.cache.SetRevisionMetadata(q.Repo.Repo, q.Revision, metadata)
 	return metadata, nil
+}
+
+func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.OCIMetadata, error) {
+	client, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths))
+	if err != nil {
+		return nil, err
+	}
+
+	metadata, err := client.DigestMetadata(ctx, q.Revision, q.Repo.Project)
+	if err != nil {
+		return nil, err
+	}
+
+	a := metadata.Annotations
+
+	return &v1alpha1.OCIMetadata{
+		CreatedAt:   a["org.opencontainers.image.created"],
+		Authors:     a["org.opencontainers.image.authors"],
+		ImageURL:    a["org.opencontainers.image.url"],
+		DocsURL:     a["org.opencontainers.image.documentation"],
+		SourceURL:   a["org.opencontainers.image.source"],
+		Version:     a["org.opencontainers.image.version"],
+		Description: a["org.opencontainers.image.description"],
+	}, nil
 }
 
 // GetRevisionChartDetails returns the helm chart details of a given version
@@ -2433,6 +2516,20 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 		return nil, "", err
 	}
 	return gitClient, commitSHA, nil
+}
+
+func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, noRevisionCache bool) (oci.Client, string, error) {
+	ociClient, err := s.newOCIClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths))
+	if err != nil {
+		return nil, "", err
+	}
+
+	digest, err := ociClient.ResolveRevision(ctx, revision, noRevisionCache)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return ociClient, digest, nil
 }
 
 func (s *Service) newHelmClientResolveRevision(repo *v1alpha1.Repository, revision string, chart string, noRevisionCache bool) (helm.Client, string, error) {
@@ -2577,6 +2674,14 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 		"git": func() error {
 			return git.TestRepo(repo.Repo, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.IsLFSEnabled(), repo.Proxy, repo.NoProxy)
 		},
+		"oci": func() error {
+			client, err := oci.NewClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, s.initConstants.OCIMediaTypes)
+			if err != nil {
+				return err
+			}
+			_, err = client.TestRepo(ctx)
+			return err
+		},
 		"helm": func() error {
 			if repo.EnableOCI {
 				if !helm.IsHelmOciRepo(repo.Repo) {
@@ -2606,6 +2711,18 @@ func (s *Service) ResolveRevision(ctx context.Context, q *apiclient.ResolveRevis
 	ambiguousRevision := q.AmbiguousRevision
 	var revision string
 	source := app.Spec.GetSourcePtrByIndex(int(q.SourceIndex))
+
+	if source.IsOCI() {
+		_, revision, err := s.newOCIClientResolveRevision(ctx, repo, ambiguousRevision, true)
+		if err != nil {
+			return &apiclient.ResolveRevisionResponse{Revision: "", AmbiguousRevision: ""}, err
+		}
+		return &apiclient.ResolveRevisionResponse{
+			Revision:          revision,
+			AmbiguousRevision: fmt.Sprintf("%v (%v)", ambiguousRevision, revision),
+		}, nil
+	}
+
 	if source.IsHelm() {
 		_, revision, err := s.newHelmClientResolveRevision(repo, ambiguousRevision, source.Chart, true)
 		if err != nil {

@@ -30,7 +30,8 @@ export class RepositoriesService {
         noProxy,
         project,
         forceHttpBasicAuth,
-        enableOCI
+        enableOCI,
+        insecureOCIHttpOnly
     }: {
         type: string;
         name: string;
@@ -46,10 +47,27 @@ export class RepositoriesService {
         project?: string;
         forceHttpBasicAuth?: boolean;
         enableOCI: boolean;
+        insecureOCIHttpOnly: boolean;
     }): Promise<models.Repository> {
         return requests
             .post('/repositories')
-            .send({type, name, repo: url, username, password, tlsClientCertData, tlsClientCertKey, insecure, enableLfs, proxy, noProxy, project, forceHttpBasicAuth, enableOCI})
+            .send({
+                type,
+                name,
+                repo: url,
+                username,
+                password,
+                tlsClientCertData,
+                tlsClientCertKey,
+                insecure,
+                enableLfs,
+                proxy,
+                noProxy,
+                project,
+                forceHttpBasicAuth,
+                enableOCI,
+                insecureOCIHttpOnly
+            })
             .then(res => res.body as models.Repository);
     }
 
