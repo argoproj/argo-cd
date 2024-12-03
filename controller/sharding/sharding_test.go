@@ -226,7 +226,7 @@ func TestGetShardByIndexModuloReplicasCountDistributionFunctionWhenClusterNumber
 	// The other implementation was giving almost linear time of 400ms up to 10'000 clusters
 	clusterPointers := []*v1alpha1.Cluster{}
 	for i := 0; i < 2048; i++ {
-		cluster := createCluster(fmt.Sprintf("cluster-%d", i), strconv.Itoa(i))
+		cluster := createCluster(fmt.Sprintf("cluster-%d", i), fmt.Sprintf("%d", i))
 		clusterPointers = append(clusterPointers, &cluster)
 	}
 	replicasCount := 2
@@ -836,7 +836,6 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Default sharding with statefulset",
 			envsSetter: func(t *testing.T) {
-				t.Helper()
 				t.Setenv(common.EnvControllerReplicas, "1")
 			},
 			cleanup:            func() {},
@@ -848,7 +847,6 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Default sharding with deployment",
 			envsSetter: func(t *testing.T) {
-				t.Helper()
 				t.Setenv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
 			},
 			cleanup:            func() {},
@@ -860,7 +858,6 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Default sharding with deployment and multiple replicas",
 			envsSetter: func(t *testing.T) {
-				t.Helper()
 				t.Setenv(common.EnvAppControllerName, "argocd-application-controller-multi-replicas")
 			},
 			cleanup:            func() {},
@@ -872,7 +869,6 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Statefulset multiple replicas",
 			envsSetter: func(t *testing.T) {
-				t.Helper()
 				t.Setenv(common.EnvControllerReplicas, "3")
 				osHostnameFunction = func() (string, error) { return "example-shard-3", nil }
 			},
@@ -887,7 +883,6 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Explicit shard with statefulset and 1 replica",
 			envsSetter: func(t *testing.T) {
-				t.Helper()
 				t.Setenv(common.EnvControllerReplicas, "1")
 				t.Setenv(common.EnvControllerShard, "3")
 			},
@@ -900,7 +895,6 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Explicit shard with statefulset and 2 replica - and to high shard",
 			envsSetter: func(t *testing.T) {
-				t.Helper()
 				t.Setenv(common.EnvControllerReplicas, "2")
 				t.Setenv(common.EnvControllerShard, "3")
 			},
@@ -913,7 +907,6 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Explicit shard with statefulset and 2 replica",
 			envsSetter: func(t *testing.T) {
-				t.Helper()
 				t.Setenv(common.EnvControllerReplicas, "2")
 				t.Setenv(common.EnvControllerShard, "1")
 			},
@@ -926,7 +919,6 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Explicit shard with deployment",
 			envsSetter: func(t *testing.T) {
-				t.Helper()
 				t.Setenv(common.EnvControllerShard, "3")
 			},
 			cleanup:            func() {},
@@ -938,7 +930,6 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Explicit shard with deployment and multiple replicas will read from configmap",
 			envsSetter: func(t *testing.T) {
-				t.Helper()
 				t.Setenv(common.EnvAppControllerName, "argocd-application-controller-multi-replicas")
 				t.Setenv(common.EnvControllerShard, "3")
 			},
@@ -951,7 +942,6 @@ func TestGetClusterSharding(t *testing.T) {
 		{
 			name: "Dynamic sharding but missing deployment",
 			envsSetter: func(t *testing.T) {
-				t.Helper()
 				t.Setenv(common.EnvAppControllerName, "missing-deployment")
 			},
 			cleanup:            func() {},

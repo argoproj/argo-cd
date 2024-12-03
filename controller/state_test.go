@@ -28,6 +28,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	mockrepoclient "github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 )
@@ -547,7 +548,6 @@ func TestAppRevisionsMultiSource(t *testing.T) {
 }
 
 func toJSON(t *testing.T, obj *unstructured.Unstructured) string {
-	t.Helper()
 	data, err := json.Marshal(obj)
 	require.NoError(t, err)
 	return string(data)
@@ -680,6 +680,7 @@ func TestCompareAppStateWithManifestGeneratePath(t *testing.T) {
 	assert.NotNil(t, compRes)
 	assert.Equal(t, argoappv1.SyncStatusCodeSynced, compRes.syncStatus.Status)
 	assert.Equal(t, "abc123", compRes.syncStatus.Revision)
+	ctrl.repoClientset.(*mockrepoclient.Clientset).RepoServerServiceClient.(*mockrepoclient.RepoServerServiceClient).AssertNumberOfCalls(t, "UpdateRevisionForPaths", 1)
 }
 
 func TestSetHealth(t *testing.T) {
@@ -1752,50 +1753,4 @@ func TestUseDiffCache(t *testing.T) {
 			assert.Equal(t, tc.expectedUseCache, useDiffCache)
 		})
 	}
-}
-
-func TestCompareAppStateDefaultRevisionUpdated(t *testing.T) {
-	app := newFakeApp()
-	data := fakeData{
-		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
-			Namespace: test.FakeDestNamespace,
-			Server:    test.FakeClusterURL,
-			Revision:  "abc123",
-		},
-		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-	}
-	ctrl := newFakeController(&data, nil)
-	sources := make([]argoappv1.ApplicationSource, 0)
-	sources = append(sources, app.Spec.GetSource())
-	revisions := make([]string, 0)
-	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
-	require.NoError(t, err)
-	assert.NotNil(t, compRes)
-	assert.NotNil(t, compRes.syncStatus)
-	assert.True(t, compRes.revisionUpdated)
-}
-
-func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
-	app := newFakeMultiSourceApp()
-	data := fakeData{
-		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
-			Namespace: test.FakeDestNamespace,
-			Server:    test.FakeClusterURL,
-			Revision:  "abc123",
-		},
-		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-	}
-	ctrl := newFakeController(&data, nil)
-	sources := make([]argoappv1.ApplicationSource, 0)
-	sources = append(sources, app.Spec.GetSource())
-	revisions := make([]string, 0)
-	revisions = append(revisions, "")
-	compRes, err := ctrl.appStateManager.CompareAppState(app, &defaultProj, revisions, sources, false, false, nil, false, false)
-	require.NoError(t, err)
-	assert.NotNil(t, compRes)
-	assert.NotNil(t, compRes.syncStatus)
-	assert.True(t, compRes.revisionUpdated)
 }

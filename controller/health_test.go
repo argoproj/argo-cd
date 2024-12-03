@@ -65,15 +65,6 @@ func TestSetApplicationHealth(t *testing.T) {
 	healthStatus, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
 	require.NoError(t, err)
 	assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
-
-	// now we set the `argocd.argoproj.io/ignore-healthcheck: "true"` annotation on the job's target.
-	// The app is considered healthy
-	failedJob.SetAnnotations(nil)
-	failedJobIgnoreHealthcheck := resourceFromFile("./testdata/job-failed-ignore-healthcheck.yaml")
-	resources[1].Target = &failedJobIgnoreHealthcheck
-	healthStatus, err = setApplicationHealth(resources, resourceStatuses, nil, app, true)
-	require.NoError(t, err)
-	assert.Equal(t, health.HealthStatusHealthy, healthStatus.Status)
 }
 
 func TestSetApplicationHealth_ResourceHealthNotPersisted(t *testing.T) {

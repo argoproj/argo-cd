@@ -21,7 +21,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
-	repositorypkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	appsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	fakeapps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions"
@@ -367,69 +366,7 @@ func TestRepositoryServer(t *testing.T) {
 			Repo: url,
 		})
 		assert.Nil(t, repo)
-		assert.EqualError(t, err, "rpc error: code = NotFound desc = repo 'https://test' not found")
-	})
-
-	t.Run("Test_GetRepoIsSanitized", func(t *testing.T) {
-		repoServerClient := mocks.RepoServerServiceClient{}
-		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
-		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
-
-		url := "https://test"
-		db := &dbmocks.ArgoDB{}
-		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{{Repo: url, Username: "test", Password: "it's a secret"}}, nil)
-		db.On("GetRepository", context.TODO(), url, "").Return(&appsv1.Repository{Repo: url, Username: "test", Password: "it's a secret"}, nil)
-		db.On("RepositoryExists", context.TODO(), url, "").Return(true, nil)
-
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
-		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
-			Repo: url,
-		})
-		require.NoError(t, err)
-		assert.Equal(t, "https://test", repo.Repo)
-		assert.Empty(t, repo.Password)
-	})
-
-	t.Run("Test_GetRepoIsNormalized", func(t *testing.T) {
-		repoServerClient := mocks.RepoServerServiceClient{}
-		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
-		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
-
-		url := "https://test"
-		db := &dbmocks.ArgoDB{}
-		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{{Repo: url}}, nil)
-		db.On("GetRepository", context.TODO(), url, "").Return(&appsv1.Repository{Repo: url, Username: "test"}, nil)
-		db.On("RepositoryExists", context.TODO(), url, "").Return(true, nil)
-
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
-		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
-			Repo: url,
-		})
-		require.NoError(t, err)
-		assert.Equal(t, "https://test", repo.Repo)
-		assert.Equal(t, common.DefaultRepoType, repo.Type)
-	})
-
-	t.Run("Test_GetRepoHasConnectionState", func(t *testing.T) {
-		repoServerClient := mocks.RepoServerServiceClient{}
-		repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{
-			VerifiedRepository: true,
-		}, nil)
-		repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
-
-		url := "https://test"
-		db := &dbmocks.ArgoDB{}
-		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{{Repo: url}}, nil)
-		db.On("GetRepository", context.TODO(), url, "").Return(&appsv1.Repository{Repo: url}, nil)
-		db.On("RepositoryExists", context.TODO(), url, "").Return(true, nil)
-
-		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr)
-		repo, err := s.Get(context.TODO(), &repository.RepoQuery{
-			Repo: url,
-		})
-		require.NoError(t, err)
-		require.NotNil(t, repo.ConnectionState)
-		assert.Equal(t, appsv1.ConnectionStatusSuccessful, repo.ConnectionState.Status)
+		assert.Equal(t, "rpc error: code = NotFound desc = repo 'https://test' not found", err.Error())
 	})
 
 	t.Run("Test_CreateRepositoryWithoutUpsert", func(t *testing.T) {
@@ -1117,38 +1054,6 @@ func TestGetRepository(t *testing.T) {
 			got, err := getRepository(tt.args.ctx, tt.args.listRepositories, tt.args.q)
 			assert.Equal(t, tt.error, err)
 			assert.Equalf(t, tt.want, got, "getRepository(%v, %v) = %v", tt.args.ctx, tt.args.q, got)
-		})
-	}
-}
-
-func TestDeleteRepository(t *testing.T) {
-	repositories := map[string]string{
-		"valid": "https://bitbucket.org/workspace/repo.git",
-		// Check a wrongly formatter repo as well, see https://github.com/argoproj/argo-cd/issues/20921
-		"invalid": "git clone https://bitbucket.org/workspace/repo.git",
-	}
-
-	kubeclientset := fake.NewSimpleClientset(&argocdCM, &argocdSecret)
-	settingsMgr := settings.NewSettingsManager(context.Background(), kubeclientset, testNamespace)
-
-	for name, repo := range repositories {
-		t.Run(name, func(t *testing.T) {
-			repoServerClient := mocks.RepoServerServiceClient{}
-			repoServerClient.On("TestRepository", mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
-
-			repoServerClientset := mocks.Clientset{RepoServerServiceClient: &repoServerClient}
-			enforcer := newEnforcer(kubeclientset)
-
-			db := &dbmocks.ArgoDB{}
-			db.On("DeleteRepository", context.TODO(), repo, "default").Return(nil)
-			db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{{Repo: repo, Project: "default"}}, nil)
-			db.On("GetRepository", context.TODO(), repo, "default").Return(&appsv1.Repository{Repo: repo, Project: "default"}, nil)
-			appLister, projLister := newAppAndProjLister(defaultProj)
-
-			s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr)
-			resp, err := s.DeleteRepository(context.TODO(), &repository.RepoQuery{Repo: repo, AppProject: "default"})
-			require.NoError(t, err)
-			assert.Equal(t, repositorypkg.RepoResponse{}, *resp)
 		})
 	}
 }

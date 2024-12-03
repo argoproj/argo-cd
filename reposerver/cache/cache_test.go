@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -261,7 +262,6 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 }
 
 func getInMemoryCacheContents(t *testing.T, inMemCache *cacheutil.InMemoryCache) map[string]*CachedManifestResponse {
-	t.Helper()
 	items, err := inMemCache.Items(func() interface{} { return &CachedManifestResponse{} })
 	if err != nil {
 		t.Fatal(err)
@@ -337,7 +337,7 @@ func TestCachedManifestResponse_ShallowCopyExpectedFields(t *testing.T) {
 	// go do that first :)
 
 	for _, expectedField := range expectedFields {
-		assert.Containsf(t, string(str), "\""+expectedField+"\"", "Missing field: %s", expectedField)
+		assert.Truef(t, strings.Contains(string(str), "\""+expectedField+"\""), "Missing field: %s", expectedField)
 	}
 }
 
@@ -571,7 +571,8 @@ func TestUnlockGitReferences(t *testing.T) {
 
 	t.Run("Test not locked", func(t *testing.T) {
 		err := cache.UnlockGitReferences("test-repo", "")
-		assert.ErrorContains(t, err, "key is missing")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "key is missing")
 	})
 
 	t.Run("Test unlock", func(t *testing.T) {
@@ -612,7 +613,7 @@ func TestRevisionChartDetails(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		details, err := fixtures.cache.GetRevisionChartDetails("test-repo", "test-revision", "v1.0.0")
-		require.ErrorIs(t, err, ErrCacheMiss)
+		require.ErrorAs(t, err, &ErrCacheMiss)
 		assert.Equal(t, &appv1.ChartDetails{}, details)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
 	})
@@ -678,7 +679,7 @@ func TestGetGitDirectories(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		directories, err := fixtures.cache.GetGitDirectories("test-repo", "test-revision")
-		require.ErrorIs(t, err, ErrCacheMiss)
+		require.ErrorAs(t, err, &ErrCacheMiss)
 		assert.Empty(t, directories)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
 	})
@@ -732,7 +733,7 @@ func TestGetGitFiles(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		directories, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json")
-		require.ErrorIs(t, err, ErrCacheMiss)
+		require.ErrorAs(t, err, &ErrCacheMiss)
 		assert.Empty(t, directories)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
 	})
