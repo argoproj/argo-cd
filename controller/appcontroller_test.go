@@ -2256,3 +2256,59 @@ func TestSelfHealExponentialBackoff(t *testing.T) {
 		})
 	}
 }
+
+func TestRefreshTimeoutAnnotations(t *testing.T) {
+	ctrl := newFakeController(&fakeData{apps: []runtime.Object{}}, nil)
+
+	ctrl.statusRefreshTimeout = time.Minute * 5
+	testCases := []struct {
+		name                string
+		app                 *v1alpha1.Application
+		annotations         map[string]string
+		refreshExpected     bool
+		refreshTypeExpected v1alpha1.RefreshType
+	}{
+		{
+			name:                "app no annotation",
+			app:                 newFakeApp(),
+			annotations:         make(map[string]string),
+			refreshExpected:     false,
+			refreshTypeExpected: v1alpha1.RefreshTypeNormal,
+		},
+		{
+			name: "app soft refresh annotation",
+			app:  newFakeApp(),
+			annotations: map[string]string{
+				"argocd.argoproj.io/refresh-timeout": "10",
+			},
+			refreshExpected:     true,
+			refreshTypeExpected: v1alpha1.RefreshTypeNormal,
+		},
+		{
+			name: "app hard refresh annotation",
+			app:  newFakeApp(),
+			annotations: map[string]string{
+				"argocd.argoproj.io/hard-refresh-timeout": "10",
+			},
+			refreshExpected:     true,
+			refreshTypeExpected: v1alpha1.RefreshTypeHard,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			app := tc.app
+			app.Status.Sync.ComparedTo.Source = *app.Spec.Source
+			app.Status.Sync.ComparedTo.Destination = app.Spec.Destination
+			lastReconciled := metav1.NewTime(time.Now().Add(-30 * time.Second))
+
+			app.Status.ReconciledAt = &lastReconciled
+
+			app.Annotations = tc.annotations
+
+			status, refreshType, _ := ctrl.needRefreshAppStatus(app, ctrl.statusRefreshTimeout, ctrl.statusHardRefreshTimeout)
+			assert.Equal(t, tc.refreshExpected, status)
+			assert.Equal(t, tc.refreshTypeExpected, refreshType)
+		})
+	}
+}
