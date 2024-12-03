@@ -519,14 +519,14 @@ func testHelmWithDependencies(t *testing.T, chartPath string, legacyRepo bool) {
 			FailOnErr(fixture.KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Patch(context.Background(),
 				"helm-repo", types.MergePatchType, []byte(`{"metadata": { "labels": {"e2e.argoproj.io": "true"} }}`), metav1.PatchOptions{}))
 
-			fixture.SetHelmRepos(settings.HelmRepoCredentials{
+			CheckError(fixture.SetHelmRepos(settings.HelmRepoCredentials{
 				URL:            RepoURL(RepoURLTypeHelm),
 				Name:           "custom-repo",
 				KeySecret:      &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "keySecret"},
 				CertSecret:     &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "certSecret"},
 				UsernameSecret: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "username"},
 				PasswordSecret: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "helm-repo"}, Key: "password"},
-			})
+			}))
 		})
 	} else {
 		ctx = ctx.HelmRepoAdded("custom-repo")

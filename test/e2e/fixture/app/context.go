@@ -11,6 +11,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -104,7 +105,7 @@ func (c *Context) AppNamespace() string {
 
 func (c *Context) SetAppNamespace(namespace string) *Context {
 	c.appNamespace = namespace
-	// fixture.SetParamInSettingConfigMap("application.resourceTrackingMethod", "annotation")
+	// errors.CheckError(fixture.SetParamInSettingConfigMap("application.resourceTrackingMethod", "annotation"))
 	return c
 }
 
@@ -211,7 +212,7 @@ func (c *Context) SSHCredentialsAdded() *Context {
 }
 
 func (c *Context) ProjectSpec(spec v1alpha1.AppProjectSpec) *Context {
-	fixture.SetProjectSpec(c.project, spec)
+	errors.CheckError(fixture.SetProjectSpec(c.project, spec))
 	return c
 }
 
@@ -296,12 +297,12 @@ func (c *Context) NameSuffix(nameSuffix string) *Context {
 }
 
 func (c *Context) ResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) *Context {
-	fixture.SetResourceOverrides(overrides)
+	errors.CheckError(fixture.SetResourceOverrides(overrides))
 	return c
 }
 
 func (c *Context) ResourceFilter(filter settings.ResourcesFilter) *Context {
-	fixture.SetResourceFilter(filter)
+	errors.CheckError(fixture.SetResourceFilter(filter))
 	return c
 }
 
@@ -311,8 +312,6 @@ func (c *Context) And(block func()) *Context {
 }
 
 func (c *Context) When() *Actions {
-	// in case any settings have changed, pause for 1s, not great, but fine
-	time.Sleep(1 * time.Second)
 	return &Actions{context: c}
 }
 
@@ -367,12 +366,12 @@ func (c *Context) HelmSkipTests() *Context {
 }
 
 func (c *Context) SetTrackingMethod(trackingMethod string) *Context {
-	fixture.SetTrackingMethod(trackingMethod)
+	errors.CheckError(fixture.SetTrackingMethod(trackingMethod))
 	return c
 }
 
 func (c *Context) SetInstallationID(installationID string) *Context {
-	fixture.SetTrackingMethod(installationID)
+	errors.CheckError(fixture.SetInstallationID(installationID))
 	return c
 }
 
