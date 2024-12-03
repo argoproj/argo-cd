@@ -1,6 +1,7 @@
 module github.com/argoproj/argo-cd/v2
 
 go 1.22.0
+toolchain go1.22.9
 
 require (
 	code.gitea.io/sdk/gitea v0.19.0
@@ -91,7 +92,7 @@ require (
 	golang.org/x/term v0.26.0
 	golang.org/x/time v0.8.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20241104194629-dd2ea8efbc28
-	google.golang.org/grpc v1.67.1
+	google.golang.org/grpc v1.68.0
 	google.golang.org/protobuf v1.35.2
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
