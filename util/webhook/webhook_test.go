@@ -124,7 +124,7 @@ func TestScmmWebhook(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
 	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
-	req.Header.Set("X-SCM-PushEvent", "Push")
+	req.Header.Set("X-SCM-Event", "Push")
 	eventJSON, err := os.ReadFile("testdata/scmm-webhook-data.json")
 	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
