@@ -1478,3 +1478,9 @@ export function getAppUrl(app: appModels.Application): string {
     }
     return `/applications/${app.metadata.namespace}/${app.metadata.name}`;
 }
+
+// constant for podrequests
+export const podRequests = {
+    CPU: 'Requests (CPU)',
+    MEMORY: 'Requests (MEM)'
+} as const;

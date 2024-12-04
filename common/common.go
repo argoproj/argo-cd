@@ -93,6 +93,12 @@ const (
 	PluginConfigFileName = "plugin.yaml"
 )
 
+// consts for podrequests metrics in cache/info
+const (
+	PodRequestsCPU = "Requests (CPU)"
+	PodRequestsMEM = "Requests (MEM)"
+)
+
 // Argo CD application related constants
 const (
 
