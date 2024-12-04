@@ -37,7 +37,7 @@ https://kubernetes.default.svc  in-cluster  %v     Successful           `, GetVe
 		When().
 		CreateApp()
 
-	tries := 5
+	tries := 25
 	for i := 0; i <= tries; i += 1 {
 		clusterFixture.GivenWithSameState(t).
 			When().
@@ -50,7 +50,7 @@ https://kubernetes.default.svc  in-cluster  %v     Successful           `, GetVe
 			break
 		} else if i < tries {
 			// We retry with a simple backoff
-			time.Sleep(time.Duration(i+1) * time.Second)
+			time.Sleep(time.Duration(i+1) * 100 * time.Millisecond)
 		}
 	}
 	assert.Equal(t, expected, last)

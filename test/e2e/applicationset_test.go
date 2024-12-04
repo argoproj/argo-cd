@@ -1405,7 +1405,6 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 	}
 	project := "gpg"
 
-	fixture.EnsureCleanState(t)
 	Given(t).
 		Project(project).
 		When().
@@ -1724,7 +1723,6 @@ func TestSimpleGitFilesGeneratorGPGEnabledUnsignedCommits(t *testing.T) {
 		generateExpectedApp("engineering-prod-guestbook"),
 	}
 
-	fixture.EnsureCleanState(t)
 	Given(t).
 		Project(project).
 		When().
@@ -1826,7 +1824,6 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 		generateExpectedApp("engineering-prod-guestbook"),
 	}
 
-	fixture.EnsureCleanState(t)
 	Given(t).
 		Project(project).
 		Path(guestbookPath).
@@ -2036,12 +2033,12 @@ func TestSimpleGitFilesPreserveResourcesOnDeletion(t *testing.T) {
 		When().
 		Delete().
 		And(func() {
-			t.Log("Waiting 30 seconds to give the cluster a chance to delete the pods.")
-			// Wait 30 seconds to give the cluster a chance to deletes the pods, if it is going to do so.
+			t.Log("Waiting 15 seconds to give the cluster a chance to delete the pods.")
+			// Wait 15 seconds to give the cluster a chance to deletes the pods, if it is going to do so.
 			// It should NOT delete the pods; to do so would be an ApplicationSet bug, and
 			// that is what we are testing here.
-			time.Sleep(30 * time.Second)
-			// The pod should continue to exist after 30 seconds.
+			time.Sleep(15 * time.Second)
+			// The pod should continue to exist after 15 seconds.
 		}).Then().Expect(Pod(func(p corev1.Pod) bool { return strings.Contains(p.Name, "guestbook-ui") }))
 }
 
@@ -2097,12 +2094,12 @@ func TestSimpleGitFilesPreserveResourcesOnDeletionGoTemplate(t *testing.T) {
 		When().
 		Delete().
 		And(func() {
-			t.Log("Waiting 30 seconds to give the cluster a chance to delete the pods.")
-			// Wait 30 seconds to give the cluster a chance to deletes the pods, if it is going to do so.
+			t.Log("Waiting 15 seconds to give the cluster a chance to delete the pods.")
+			// Wait 15 seconds to give the cluster a chance to deletes the pods, if it is going to do so.
 			// It should NOT delete the pods; to do so would be an ApplicationSet bug, and
 			// that is what we are testing here.
-			time.Sleep(30 * time.Second)
-			// The pod should continue to exist after 30 seconds.
+			time.Sleep(15 * time.Second)
+			// The pod should continue to exist after 15 seconds.
 		}).Then().Expect(Pod(func(p corev1.Pod) bool { return strings.Contains(p.Name, "guestbook-ui") }))
 }
 

@@ -110,8 +110,7 @@ func TestLuaResourceActionsScript(t *testing.T) {
 		}
 		require.NoError(t, err)
 		dir := filepath.Dir(path)
-		// TODO: Change to path
-		yamlBytes, err := os.ReadFile(dir + "/action_test.yaml")
+		yamlBytes, err := os.ReadFile(filepath.Join(dir, "action_test.yaml"))
 		require.NoError(t, err)
 		var resourceTest ActionTestStructure
 		err = yaml.Unmarshal(yamlBytes, &resourceTest)
