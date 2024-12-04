@@ -16,7 +16,7 @@ interface Props {
     operationState: models.OperationState;
 }
 const buildResourceUniqueId = (res: Omit<models.ResourceRef, 'uid'>) => `${res.group}-${res.kind}-${res.version}-${res.namespace}-${res.name}`;
-const FilterableMessageStatuses = ['configured', 'unchanged'];
+const FilterableMessageStatuses = ['changed', 'unchanged'];
 
 const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; options: string[]; title: string; style?: React.CSSProperties}) => {
     const {filters, setFilters, options, title, style} = props;
@@ -183,7 +183,12 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
             }
 
             if (pass && messageFilters.length !== 0) {
-                pass = messageFilters.some(filter => r.message?.toLowerCase().includes(filter.toLowerCase()));
+                pass = messageFilters.some(filter => {
+                    if (filter === 'changed') {
+                        return r.message?.toLowerCase().includes('configured');
+                    }
+                    return r.message?.toLowerCase().includes(filter.toLowerCase());
+                });
             }
 
             return pass;
