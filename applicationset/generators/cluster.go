@@ -182,7 +182,11 @@ func (g *ClusterGenerator) getSecretsByClusterName(appSetGenerator *argoappsetv1
 	// List all Clusters:
 	clusterSecretList := &corev1.SecretList{}
 
-	selector := metav1.AddLabelToSelector(&appSetGenerator.Clusters.Selector, common.LabelKeySecretType, common.LabelValueSecretTypeCluster)
+	metaSelector, err := utils.CustomSelectorToMetaSelector(appSetGenerator.Clusters.Selector)
+	if err != nil {
+		return nil, err
+	}
+	selector := metav1.AddLabelToSelector(metaSelector, common.LabelKeySecretType, common.LabelValueSecretTypeCluster)
 	secretSelector, err := metav1.LabelSelectorAsSelector(selector)
 	if err != nil {
 		return nil, fmt.Errorf("error converting label selector: %w", err)

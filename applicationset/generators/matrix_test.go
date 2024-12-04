@@ -21,6 +21,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 func TestMatrixGenerate(t *testing.T) {
@@ -555,7 +556,7 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 	}
 
 	interpolatedClusterGenerator := &argoprojiov1alpha1.ClusterGenerator{
-		Selector: metav1.LabelSelector{
+		Selector: argov1alpha1.LabelSelector{
 			MatchLabels:      map[string]string{"environment": "{{path.basename}}"},
 			MatchExpressions: nil,
 		},
@@ -702,7 +703,7 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 	}
 
 	interpolatedClusterGenerator := &argoprojiov1alpha1.ClusterGenerator{
-		Selector: metav1.LabelSelector{
+		Selector: argov1alpha1.LabelSelector{
 			MatchLabels:      map[string]string{"environment": "{{.path.basename}}"},
 			MatchExpressions: nil,
 		},

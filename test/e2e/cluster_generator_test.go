@@ -76,7 +76,7 @@ func TestSimpleClusterGeneratorExternalNamespace(t *testing.T) {
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						Clusters: &v1alpha1.ClusterGenerator{
-							Selector: metav1.LabelSelector{
+							Selector: argov1alpha1.LabelSelector{
 								MatchLabels: map[string]string{
 									"argocd.argoproj.io/secret-type": "cluster",
 								},
@@ -174,7 +174,7 @@ func TestSimpleClusterGenerator(t *testing.T) {
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						Clusters: &v1alpha1.ClusterGenerator{
-							Selector: metav1.LabelSelector{
+							Selector: argov1alpha1.LabelSelector{
 								MatchLabels: map[string]string{
 									"argocd.argoproj.io/secret-type": "cluster",
 								},
@@ -390,7 +390,7 @@ func TestSimpleClusterGeneratorAddingCluster(t *testing.T) {
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						Clusters: &v1alpha1.ClusterGenerator{
-							Selector: metav1.LabelSelector{
+							Selector: argov1alpha1.LabelSelector{
 								MatchLabels: map[string]string{
 									"argocd.argoproj.io/secret-type": "cluster",
 								},
@@ -473,7 +473,7 @@ func TestSimpleClusterGeneratorDeletingCluster(t *testing.T) {
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						Clusters: &v1alpha1.ClusterGenerator{
-							Selector: metav1.LabelSelector{
+							Selector: argov1alpha1.LabelSelector{
 								MatchLabels: map[string]string{
 									"argocd.argoproj.io/secret-type": "cluster",
 								},
@@ -576,7 +576,7 @@ func TestClusterGeneratorWithFlatListMode(t *testing.T) {
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
 						Clusters: &v1alpha1.ClusterGenerator{
-							Selector: metav1.LabelSelector{
+							Selector: argov1alpha1.LabelSelector{
 								MatchLabels: map[string]string{
 									"argocd.argoproj.io/secret-type": "cluster",
 								},

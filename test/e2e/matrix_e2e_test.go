@@ -211,7 +211,7 @@ func TestClusterMatrixGenerator(t *testing.T) {
 							Generators: []v1alpha1.ApplicationSetNestedGenerator{
 								{
 									Clusters: &v1alpha1.ClusterGenerator{
-										Selector: metav1.LabelSelector{
+										Selector: argov1alpha1.LabelSelector{
 											MatchLabels: map[string]string{
 												"argocd.argoproj.io/secret-type": "cluster",
 											},
@@ -344,7 +344,7 @@ func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 														{Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc", "values": {"name": "cluster2"}}`)},
 													},
 												},
-												Selector: &metav1.LabelSelector{
+												Selector: &argov1alpha1.LabelSelector{
 													MatchLabels: map[string]string{
 														"values.name": "cluster1",
 													},
@@ -389,7 +389,7 @@ func TestMatrixTerminalMatrixGeneratorSelector(t *testing.T) {
 								{Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc", "values": {"name": "cluster2"}}`)},
 							},
 						},
-						Selector: &metav1.LabelSelector{
+						Selector: &argov1alpha1.LabelSelector{
 							MatchLabels: map[string]string{
 								"values.name": "cluster2",
 							},
@@ -495,7 +495,7 @@ func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
 														},
 													},
 												},
-												Selector: &metav1.LabelSelector{
+												Selector: &argov1alpha1.LabelSelector{
 													MatchLabels: map[string]string{
 														"path.basename": "kustomize-guestbook",
 													},
@@ -541,7 +541,7 @@ func TestMatrixTerminalMergeGeneratorSelector(t *testing.T) {
 								},
 							},
 						},
-						Selector: &metav1.LabelSelector{
+						Selector: &argov1alpha1.LabelSelector{
 							MatchLabels: map[string]string{
 								"path.basename": "helm-guestbook",
 							},

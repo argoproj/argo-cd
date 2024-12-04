@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -12,6 +14,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/klog/v2"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 var (
@@ -87,10 +93,53 @@ func everything() Selector {
 	return internalSelector{}
 }
 
+func getMatchExpressionValues(matchExpression argov1alpha1.ApplicationMatchExpression) ([]string, error) {
+	if len(matchExpression.Values) > 0 && matchExpression.ValuesString != "" {
+		return nil, errors.New("only one of 'values' or 'valuesString' must be set")
+	}
+	if matchExpression.ValuesString != "" {
+		re := regexp.MustCompile(`\s*,\s*`)
+		values := re.Split(matchExpression.ValuesString, -1)
+		return values, nil
+	}
+	if len(matchExpression.Values) > 0 {
+		return matchExpression.Values, nil
+	}
+
+	return nil, nil
+}
+
+func ApplicationMatchExpressionToMetaMatchExpression(me argov1alpha1.ApplicationMatchExpression) (*metav1.LabelSelectorRequirement, error) {
+	matchExpression := &metav1.LabelSelectorRequirement{}
+	matchExpression.Key = me.Key
+	matchExpression.Operator = me.Operator
+	values, err := getMatchExpressionValues(me)
+	if err != nil {
+		return nil, err
+	}
+	matchExpression.Values = values
+	return matchExpression, nil
+}
+
+func CustomSelectorToMetaSelector(selector argov1alpha1.LabelSelector) (*metav1.LabelSelector, error) {
+	metaSelector := &metav1.LabelSelector{}
+	metaSelector.MatchLabels = selector.MatchLabels
+	matchExpressions := []metav1.LabelSelectorRequirement{}
+	for _, me := range selector.MatchExpressions {
+		matchExpression, err := ApplicationMatchExpressionToMetaMatchExpression(me)
+		if err != nil {
+			return nil, err
+		}
+		matchExpressions = append(matchExpressions, *matchExpression)
+	}
+	metaSelector.MatchExpressions = matchExpressions
+	return metaSelector, nil
+}
+
 // LabelSelectorAsSelector converts the LabelSelector api type into a struct that implements
 // labels.Selector
 // Note: This function should be kept in sync with the selector methods in pkg/labels/selector.go
-func LabelSelectorAsSelector(ps *v1.LabelSelector) (Selector, error) {
+func LabelSelectorAsSelector(ps *argov1alpha1.LabelSelector) (Selector, error) {
 	if ps == nil {
 		return nothing(), nil
 	}
@@ -119,7 +168,11 @@ func LabelSelectorAsSelector(ps *v1.LabelSelector) (Selector, error) {
 		default:
 			return nil, fmt.Errorf("%q is not a valid pod selector operator", expr.Operator)
 		}
-		r, err := newRequirement(expr.Key, op, append([]string(nil), expr.Values...))
+		values, err := getMatchExpressionValues(expr)
+		if err != nil {
+			return nil, err
+		}
+		r, err := newRequirement(expr.Key, op, append([]string(nil), values...))
 		if err != nil {
 			return nil, err
 		}

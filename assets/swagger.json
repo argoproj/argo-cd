@@ -4535,6 +4535,26 @@
         }
       }
     },
+    "applicationv1alpha1LabelSelector": {
+      "type": "object",
+      "title": "+structType=atomic",
+      "properties": {
+        "matchExpressions": {
+          "type": "array",
+          "title": "matchExpressions is a list of label selector requirements. The requirements are ANDed.\n+optional\n+listType=atomic",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationMatchExpression"
+          }
+        },
+        "matchLabels": {
+          "type": "object",
+          "title": "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels\nmap is equivalent to an element of matchExpressions, whose key field is \"key\", the\noperator is \"In\", and the values array contains only \"value\". The requirements are ANDed.\n+optional",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "applicationv1alpha1ResourceStatus": {
       "type": "object",
       "title": "ResourceStatus holds the current sync and health status of a resource\nTODO: describe members of this type",
@@ -4836,6 +4856,26 @@
         "type": {
           "type": "integer",
           "format": "int64"
+        }
+      }
+    },
+    "metav1LabelSelector": {
+      "type": "object",
+      "title": "A label selector is a label query over a set of resources. The result of matchLabels and\nmatchExpressions are ANDed. An empty label selector matches all objects. A null\nlabel selector matches no objects.\n+structType=atomic",
+      "properties": {
+        "matchExpressions": {
+          "type": "array",
+          "title": "matchExpressions is a list of label selector requirements. The requirements are ANDed.\n+optional\n+listType=atomic",
+          "items": {
+            "$ref": "#/definitions/v1LabelSelectorRequirement"
+          }
+        },
+        "matchLabels": {
+          "type": "object",
+          "title": "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels\nmap is equivalent to an element of matchExpressions, whose key field is \"key\", the\noperator is \"In\", and the values array contains only \"value\". The requirements are ANDed.\n+optional",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },
@@ -5531,26 +5571,6 @@
         }
       }
     },
-    "v1LabelSelector": {
-      "type": "object",
-      "title": "A label selector is a label query over a set of resources. The result of matchLabels and\nmatchExpressions are ANDed. An empty label selector matches all objects. A null\nlabel selector matches no objects.\n+structType=atomic",
-      "properties": {
-        "matchExpressions": {
-          "type": "array",
-          "title": "matchExpressions is a list of label selector requirements. The requirements are ANDed.\n+optional\n+listType=atomic",
-          "items": {
-            "$ref": "#/definitions/v1LabelSelectorRequirement"
-          }
-        },
-        "matchLabels": {
-          "type": "object",
-          "title": "matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels\nmap is equivalent to an element of matchExpressions, whose key field is \"key\", the\noperator is \"In\", and the values array contains only \"value\". The requirements are ANDed.\n+optional",
-          "additionalProperties": {
-            "type": "string"
-          }
-        }
-      }
-    },
     "v1LabelSelectorRequirement": {
       "description": "A label selector requirement is a selector that contains values, a key, and an operator that\nrelates the key and values.",
       "type": "object",
@@ -6132,8 +6152,13 @@
         "operator": {
           "type": "string"
         },
+        "stringValues": {
+          "type": "string",
+          "title": "+optional"
+        },
         "values": {
           "type": "array",
+          "title": "+optional\n+listType=atomic",
           "items": {
             "type": "string"
           }
@@ -6261,7 +6286,7 @@
           "$ref": "#/definitions/v1alpha1SCMProviderGenerator"
         },
         "selector": {
-          "$ref": "#/definitions/v1LabelSelector"
+          "$ref": "#/definitions/applicationv1alpha1LabelSelector"
         }
       }
     },
@@ -6312,7 +6337,7 @@
           "$ref": "#/definitions/v1alpha1SCMProviderGenerator"
         },
         "selector": {
-          "$ref": "#/definitions/v1LabelSelector"
+          "$ref": "#/definitions/applicationv1alpha1LabelSelector"
         }
       }
     },
@@ -7193,7 +7218,7 @@
           "title": "returns the clusters a single 'clusters' value in the template"
         },
         "selector": {
-          "$ref": "#/definitions/v1LabelSelector"
+          "$ref": "#/definitions/applicationv1alpha1LabelSelector"
         },
         "template": {
           "$ref": "#/definitions/v1alpha1ApplicationSetTemplate"
@@ -7350,7 +7375,7 @@
           "title": "ConfigMapRef is a ConfigMap with the duck type definitions needed to retrieve the data\n             this includes apiVersion(group/version), kind, matchKey and validation settings\nName is the resource name of the kind, group and version, defined in the ConfigMapRef\nRequeueAfterSeconds is how long before the duckType will be rechecked for a change"
         },
         "labelSelector": {
-          "$ref": "#/definitions/v1LabelSelector"
+          "$ref": "#/definitions/metav1LabelSelector"
         },
         "name": {
           "type": "string"

@@ -693,6 +693,8 @@ spec:
                                       type: string
                                     type: array
                                     x-kubernetes-list-type: atomic
+                                  valuesString:
+                                    type: string
                                 required:
                                 - key
                                 - operator
@@ -3219,6 +3221,8 @@ spec:
                                                 type: string
                                               type: array
                                               x-kubernetes-list-type: atomic
+                                            valuesString:
+                                              type: string
                                           required:
                                           - key
                                           - operator
@@ -7401,6 +7405,8 @@ spec:
                                             type: string
                                           type: array
                                           x-kubernetes-list-type: atomic
+                                        valuesString:
+                                          type: string
                                       required:
                                       - key
                                       - operator
@@ -8681,6 +8687,8 @@ spec:
                                                 type: string
                                               type: array
                                               x-kubernetes-list-type: atomic
+                                            valuesString:
+                                              type: string
                                           required:
                                           - key
                                           - operator
@@ -12863,6 +12871,8 @@ spec:
                                             type: string
                                           type: array
                                           x-kubernetes-list-type: atomic
+                                        valuesString:
+                                          type: string
                                       required:
                                       - key
                                       - operator
@@ -15800,6 +15810,8 @@ spec:
                                   type: string
                                 type: array
                                 x-kubernetes-list-type: atomic
+                              valuesString:
+                                type: string
                             required:
                             - key
                             - operator
@@ -15864,6 +15876,12 @@ spec:
                                     items:
                                       type: string
                                     type: array
+                                    x-kubernetes-list-type: atomic
+                                  valuesString:
+                                    type: string
+                                required:
+                                - key
+                                - operator
                                 type: object
                               type: array
                             maxUpdate:

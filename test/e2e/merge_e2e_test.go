@@ -212,7 +212,7 @@ func TestClusterMergeGenerator(t *testing.T) {
 										Generators: []v1alpha1.ApplicationSetTerminalGenerator{
 											{
 												Clusters: &v1alpha1.ClusterGenerator{
-													Selector: metav1.LabelSelector{
+													Selector: argov1alpha1.LabelSelector{
 														MatchLabels: map[string]string{
 															"argocd.argoproj.io/secret-type": "cluster",
 														},
@@ -359,7 +359,7 @@ func TestMergeTerminalMergeGeneratorSelector(t *testing.T) {
 														},
 													},
 												},
-												Selector: &metav1.LabelSelector{
+												Selector: &argov1alpha1.LabelSelector{
 													MatchLabels: map[string]string{
 														"path.basename": "kustomize-guestbook",
 													},
@@ -405,7 +405,7 @@ func TestMergeTerminalMergeGeneratorSelector(t *testing.T) {
 								},
 							},
 						},
-						Selector: &metav1.LabelSelector{
+						Selector: &argov1alpha1.LabelSelector{
 							MatchLabels: map[string]string{
 								"path.basename": "helm-guestbook",
 							},

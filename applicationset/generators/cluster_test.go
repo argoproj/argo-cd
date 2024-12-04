@@ -15,6 +15,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -86,7 +87,7 @@ func TestGenerateParams(t *testing.T) {
 	}
 	testCases := []struct {
 		name       string
-		selector   metav1.LabelSelector
+		selector   argov1alpha1.LabelSelector
 		isFlatMode bool
 		values     map[string]string
 		expected   []map[string]interface{}
@@ -96,7 +97,7 @@ func TestGenerateParams(t *testing.T) {
 	}{
 		{
 			name:     "no label selector",
-			selector: metav1.LabelSelector{},
+			selector: argov1alpha1.LabelSelector{},
 			values: map[string]string{
 				"lol1":  "lol",
 				"lol2":  "{{values.lol1}}{{values.lol1}}",
@@ -123,7 +124,7 @@ func TestGenerateParams(t *testing.T) {
 		},
 		{
 			name: "secret type label selector",
-			selector: metav1.LabelSelector{
+			selector: argov1alpha1.LabelSelector{
 				MatchLabels: map[string]string{
 					"argocd.argoproj.io/secret-type": "cluster",
 				},
@@ -145,7 +146,7 @@ func TestGenerateParams(t *testing.T) {
 		},
 		{
 			name: "production-only",
-			selector: metav1.LabelSelector{
+			selector: argov1alpha1.LabelSelector{
 				MatchLabels: map[string]string{
 					"environment": "production",
 				},
@@ -164,8 +165,8 @@ func TestGenerateParams(t *testing.T) {
 		},
 		{
 			name: "production or staging",
-			selector: metav1.LabelSelector{
-				MatchExpressions: []metav1.LabelSelectorRequirement{
+			selector: argov1alpha1.LabelSelector{
+				MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
 					{
 						Key:      "environment",
 						Operator: "In",
@@ -193,9 +194,36 @@ func TestGenerateParams(t *testing.T) {
 			expectedError: nil,
 		},
 		{
+			name: "production or staging with values as string",
+			selector: argov1alpha1.LabelSelector{
+				MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
+					{
+						Key:          "environment",
+						Operator:     "In",
+						ValuesString: "production, staging",
+					},
+				},
+			},
+			values: map[string]string{
+				"foo": "bar",
+			},
+			expected: []map[string]interface{}{
+				{
+					"values.foo": "bar", "name": "staging-01", "nameNormalized": "staging-01", "server": "https://staging-01.example.com", "metadata.labels.environment": "staging", "metadata.labels.org": "foo",
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "staging", "project": "",
+				},
+				{
+					"values.foo": "bar", "name": "production_01/west", "nameNormalized": "production-01-west", "server": "https://production-01.example.com", "metadata.labels.environment": "production", "metadata.labels.org": "bar",
+					"metadata.labels.argocd.argoproj.io/secret-type": "cluster", "metadata.annotations.foo.argoproj.io": "production", "project": "prod-project",
+				},
+			},
+			clientError:   false,
+			expectedError: nil,
+		},
+		{
 			name: "production or staging with match labels",
-			selector: metav1.LabelSelector{
-				MatchExpressions: []metav1.LabelSelectorRequirement{
+			selector: argov1alpha1.LabelSelector{
+				MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
 					{
 						Key:      "environment",
 						Operator: "In",
@@ -223,7 +251,7 @@ func TestGenerateParams(t *testing.T) {
 		},
 		{
 			name:          "simulate client error",
-			selector:      metav1.LabelSelector{},
+			selector:      argov1alpha1.LabelSelector{},
 			values:        nil,
 			expected:      nil,
 			clientError:   true,
@@ -231,7 +259,7 @@ func TestGenerateParams(t *testing.T) {
 		},
 		{
 			name:     "flat mode without selectors",
-			selector: metav1.LabelSelector{},
+			selector: argov1alpha1.LabelSelector{},
 			values: map[string]string{
 				"lol1":  "lol",
 				"lol2":  "{{values.lol1}}{{values.lol1}}",
@@ -264,8 +292,8 @@ func TestGenerateParams(t *testing.T) {
 		},
 		{
 			name: "production or staging with flat mode",
-			selector: metav1.LabelSelector{
-				MatchExpressions: []metav1.LabelSelectorRequirement{
+			selector: argov1alpha1.LabelSelector{
+				MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
 					{
 						Key:      "environment",
 						Operator: "In",
@@ -395,7 +423,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 	}
 	testCases := []struct {
 		name       string
-		selector   metav1.LabelSelector
+		selector   argov1alpha1.LabelSelector
 		values     map[string]string
 		isFlatMode bool
 		expected   []map[string]interface{}
@@ -405,7 +433,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 	}{
 		{
 			name:     "no label selector",
-			selector: metav1.LabelSelector{},
+			selector: argov1alpha1.LabelSelector{},
 			values: map[string]string{
 				"lol1":  "lol",
 				"lol2":  "{{ .values.lol1 }}{{ .values.lol1 }}",
@@ -490,7 +518,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 		},
 		{
 			name: "secret type label selector",
-			selector: metav1.LabelSelector{
+			selector: argov1alpha1.LabelSelector{
 				MatchLabels: map[string]string{
 					"argocd.argoproj.io/secret-type": "cluster",
 				},
@@ -535,7 +563,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 		},
 		{
 			name: "production-only",
-			selector: metav1.LabelSelector{
+			selector: argov1alpha1.LabelSelector{
 				MatchLabels: map[string]string{
 					"environment": "production",
 				},
@@ -569,8 +597,8 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 		},
 		{
 			name: "production or staging",
-			selector: metav1.LabelSelector{
-				MatchExpressions: []metav1.LabelSelectorRequirement{
+			selector: argov1alpha1.LabelSelector{
+				MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
 					{
 						Key:      "environment",
 						Operator: "In",
@@ -629,8 +657,8 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 		},
 		{
 			name: "production or staging with match labels",
-			selector: metav1.LabelSelector{
-				MatchExpressions: []metav1.LabelSelectorRequirement{
+			selector: argov1alpha1.LabelSelector{
+				MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
 					{
 						Key:      "environment",
 						Operator: "In",
@@ -672,8 +700,49 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 			expectedError: nil,
 		},
 		{
+			name: "production or staging with match labels and values as string",
+			selector: argov1alpha1.LabelSelector{
+				MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
+					{
+						Key:          "environment",
+						Operator:     "In",
+						ValuesString: "production,staging",
+					},
+				},
+				MatchLabels: map[string]string{
+					"org": "foo",
+				},
+			},
+			values: map[string]string{
+				"name": "baz",
+			},
+			expected: []map[string]interface{}{
+				{
+					"name":           "staging-01",
+					"nameNormalized": "staging-01",
+					"server":         "https://staging-01.example.com",
+					"project":        "",
+					"metadata": map[string]interface{}{
+						"labels": map[string]string{
+							"argocd.argoproj.io/secret-type": "cluster",
+							"environment":                    "staging",
+							"org":                            "foo",
+						},
+						"annotations": map[string]string{
+							"foo.argoproj.io": "staging",
+						},
+					},
+					"values": map[string]string{
+						"name": "baz",
+					},
+				},
+			},
+			clientError:   false,
+			expectedError: nil,
+		},
+		{
 			name:          "simulate client error",
-			selector:      metav1.LabelSelector{},
+			selector:      argov1alpha1.LabelSelector{},
 			values:        nil,
 			expected:      nil,
 			clientError:   true,
@@ -681,7 +750,7 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 		},
 		{
 			name:       "Clusters with flat list mode and no selector",
-			selector:   metav1.LabelSelector{},
+			selector:   argov1alpha1.LabelSelector{},
 			isFlatMode: true,
 			values: map[string]string{
 				"lol1":  "lol",
@@ -772,8 +841,8 @@ func TestGenerateParamsGoTemplate(t *testing.T) {
 		},
 		{
 			name: "production or staging with flat mode",
-			selector: metav1.LabelSelector{
-				MatchExpressions: []metav1.LabelSelectorRequirement{
+			selector: argov1alpha1.LabelSelector{
+				MatchExpressions: []argov1alpha1.ApplicationMatchExpression{
 					{
 						Key:      "environment",
 						Operator: "In",

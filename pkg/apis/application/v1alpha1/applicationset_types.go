@@ -26,6 +26,7 @@ import (
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
@@ -95,9 +96,13 @@ type ApplicationSetRolloutStep struct {
 }
 
 type ApplicationMatchExpression struct {
-	Key      string   `json:"key,omitempty" protobuf:"bytes,1,opt,name=key"`
-	Operator string   `json:"operator,omitempty" protobuf:"bytes,2,opt,name=operator"`
-	Values   []string `json:"values,omitempty" protobuf:"bytes,3,opt,name=values"`
+	Key      string                   `json:"key" protobuf:"bytes,1,opt,name=key"`
+	Operator v1.LabelSelectorOperator `json:"operator" protobuf:"bytes,2,opt,name=operator"`
+	// +optional
+	// +listType=atomic
+	Values []string `json:"values,omitempty" protobuf:"bytes,3,opt,name=values"`
+	// +optional
+	ValuesString string `json:"valuesString,omitempty" protobuf:"bytes,4,rep,name=stringValues"`
 }
 
 // ApplicationsSyncPolicy representation
@@ -196,9 +201,22 @@ type ApplicationSetGenerator struct {
 	Merge                   *MergeGenerator       `json:"merge,omitempty" protobuf:"bytes,8,name=merge"`
 
 	// Selector allows to post-filter all generator.
-	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
+	Selector *LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
 
 	Plugin *PluginGenerator `json:"plugin,omitempty" protobuf:"bytes,10,name=plugin"`
+}
+
+// +structType=atomic
+type LabelSelector struct {
+	// matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+	// map is equivalent to an element of matchExpressions, whose key field is "key", the
+	// operator is "In", and the values array contains only "value". The requirements are ANDed.
+	// +optional
+	MatchLabels map[string]string `json:"matchLabels,omitempty" protobuf:"bytes,1,rep,name=matchLabels"`
+	// matchExpressions is a list of label selector requirements. The requirements are ANDed.
+	// +optional
+	// +listType=atomic
+	MatchExpressions []ApplicationMatchExpression `json:"matchExpressions,omitempty" protobuf:"bytes,2,rep,name=matchExpressions"`
 }
 
 // ApplicationSetNestedGenerator represents a generator nested within a combination-type generator (MatrixGenerator or
@@ -218,7 +236,7 @@ type ApplicationSetNestedGenerator struct {
 	Merge *apiextensionsv1.JSON `json:"merge,omitempty" protobuf:"bytes,8,name=merge"`
 
 	// Selector allows to post-filter all generator.
-	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
+	Selector *LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
 
 	Plugin *PluginGenerator `json:"plugin,omitempty" protobuf:"bytes,10,name=plugin"`
 }
@@ -239,7 +257,7 @@ type ApplicationSetTerminalGenerator struct {
 	Plugin                  *PluginGenerator      `json:"plugin,omitempty" protobuf:"bytes,7,name=plugin"`
 
 	// Selector allows to post-filter all generator.
-	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,8,name=selector"`
+	Selector *LabelSelector `json:"selector,omitempty" protobuf:"bytes,8,name=selector"`
 }
 
 type ApplicationSetTerminalGenerators []ApplicationSetTerminalGenerator
@@ -374,7 +392,7 @@ type ClusterGenerator struct {
 	// Selector defines a label selector to match against all clusters registered with ArgoCD.
 	// Clusters today are stored as Kubernetes Secrets, thus the Secret labels will be used
 	// for matching the selector.
-	Selector metav1.LabelSelector   `json:"selector,omitempty" protobuf:"bytes,1,name=selector"`
+	Selector LabelSelector          `json:"selector,omitempty" protobuf:"bytes,1,name=selector"`
 	Template ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
 
 	// Values contains key/value pairs which are passed directly as parameters to the template
