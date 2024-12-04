@@ -21,6 +21,15 @@
         margin-right: 2px;
     }
 
+    &__label_light {
+        background-color: $argo-color-gray-2;
+        color: $argo-color-gray-8;
+        border-radius: 5px;
+        padding: 4px;
+        line-height: 14px;
+        margin: 0.3em 0.6em 0.3em 0;
+    }
+
     &__sort-icon {
         cursor: pointer;
         position: absolute;
