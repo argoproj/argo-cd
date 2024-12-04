@@ -182,7 +182,6 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	case r.Header.Get("X-Vss-Activityid") != "":
 		payload, err = h.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
 	case r.Header.Get("X-SCM-Event") != "":
-		log.Info("Received ArgoCD webhook event from SCM-Manager HEYHO")
 		payload, err = h.scmm.Parse(r, scmmanager.PushEvent, scmmanager.PullRequestEvent)
 	default:
 		log.Debug("Ignoring unknown webhook event")
