@@ -2,7 +2,7 @@
 
 ## Declarative
 
-Argo CD now supports using OCI (Open Container Initiative) images as an application source. 
+Argo CD supports using OCI (Open Container Initiative) images as an application source. 
 You can install applications using OCI images through the UI, or in the declarative GitOps way.  
 Here is an example:
 
