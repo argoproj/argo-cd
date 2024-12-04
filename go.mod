@@ -338,3 +338,5 @@ replace (
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.31.0
 	k8s.io/sample-controller => k8s.io/sample-controller v0.31.0
 )
+
+replace github.com/scm-manager/goscm v0.0.8 => /home/rene/development/cloudogu/goscm
