@@ -9,6 +9,20 @@ import {MonacoEditor} from '../monaco-editor';
 const jsonMergePatch = require('json-merge-patch');
 require('./yaml-editor.scss');
 
+const formatYamlWithArrays = (input: any): string => {
+    // First, get the basic YAML
+    let yaml = jsYaml.dump(input, {
+        indent: 2,
+        lineWidth: -1,
+        noArrayIndent: false
+    });
+
+    // Add newline after dash for nested objects
+    yaml = yaml.replace(/^(\s*)-\s+(\w+):/gm, '$1-\n$1  $2:');
+
+    return yaml;
+};
+
 export class YamlEditor<T> extends React.Component<
     {
         input: T;
@@ -33,7 +47,7 @@ export class YamlEditor<T> extends React.Component<
 
     public render() {
         const props = this.props;
-        const yaml = props.input ? jsYaml.dump(props.input) : '';
+        const yaml = props.input ? formatYamlWithArrays(props.input) : '';
 
         return (
             <div className='yaml-editor'>
