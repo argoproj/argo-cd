@@ -184,6 +184,15 @@ func TestWebhookHandler(t *testing.T) {
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
+		{
+			desc:               "WebHook from an SCM-Manager repository via pull request event",
+			headerKey:          "X-SCM-Event",
+			headerValue:        "PullRequest",
+			payloadFile:        "scm-manager-pull-request.json",
+			effectedAppSets:    []string{"scm-manager-pull-request", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
 	}
 
 	namespace := "test"
@@ -216,6 +225,7 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithMergeAndGitGenerator("merge-git-github", namespace, "https://github.com/org/repo"),
 				fakeAppWithMergeAndPullRequestGenerator("merge-pull-request-github", namespace, "Codertocat", "Hello-World"),
 				fakeAppWithMergeAndNestedGitGenerator("merge-nested-git-github", namespace, "https://github.com/org/repo"),
+				fakeAppWithScmManagerGenerator("scm-manager-pull-request", "scmadmin", "argocd-test", "https://scm-manager.org/scm/api/v2"),
 			).Build()
 			set := argosettings.NewSettingsManager(context.TODO(), fakeClient, namespace)
 			h, err := NewWebhookHandler(namespace, webhookParallelism, set, fc, mockGenerators())
@@ -234,6 +244,7 @@ func TestWebhookHandler(t *testing.T) {
 			assert.Equal(t, test.expectedStatusCode, w.Code)
 
 			list := &v1alpha1.ApplicationSetList{}
+			fmt.Printf("List: %v\n", list)
 			err = fc.List(context.TODO(), list)
 			require.NoError(t, err)
 			effectedAppSetsAsExpected := make(map[string]bool)
@@ -761,6 +772,37 @@ func fakeAppWithMatrixAndPullRequestGeneratorWithPluginGenerator(name, namespace
 								Plugin: &v1alpha1.PluginGenerator{
 									ConfigMapRef: v1alpha1.PluginConfigMapRef{
 										Name: configmapName,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func fakeAppWithScmManagerGenerator(name, namespace, reponame, api string) *v1alpha1.ApplicationSet {
+	return &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					Matrix: &v1alpha1.MatrixGenerator{
+						Generators: []v1alpha1.ApplicationSetNestedGenerator{
+							{
+								List: &v1alpha1.ListGenerator{},
+							},
+							{
+								PullRequest: &v1alpha1.PullRequestGenerator{
+									ScmManager: &v1alpha1.PullRequestGeneratorScmManager{
+										Namespace: namespace,
+										Name:      reponame,
+										API:       api,
 									},
 								},
 							},
