@@ -119,7 +119,9 @@ export const ApplicationCreatePanel = (props: {
         } else {
             setDestFormat('URL');
         }
+    }, []);
 
+    React.useEffect(() => {
         return () => {
             debouncedOnAppChanged.cancel();
         };
