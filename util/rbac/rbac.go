@@ -366,11 +366,7 @@ func (e *Enforcer) SetUserPolicy(policy string) error {
 	e.invalidateCache(func() {
 		e.adapter.userDefinedPolicy = policy
 	})
-	err := e.LoadPolicy()
-	if err != nil {
-		return err
-	}
-	return nil
+	return e.LoadPolicy()
 }
 
 // newInformers returns an informer which watches updates on the rbac configmap
