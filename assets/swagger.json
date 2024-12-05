@@ -4691,6 +4691,12 @@
     "clusterSettings": {
       "type": "object",
       "properties": {
+        "additionalUrls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "appLabelKey": {
           "type": "string"
         },
@@ -6623,6 +6629,10 @@
         "skipCrds": {
           "type": "boolean",
           "title": "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)"
+        },
+        "skipSchemaValidation": {
+          "type": "boolean",
+          "title": "SkipSchemaValidation skips JSON schema validation (Helm's --skip-schema-validation)"
         },
         "skipTests": {
           "description": "SkipTests skips test manifest installation step (Helm's --skip-tests).",
