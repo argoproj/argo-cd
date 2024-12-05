@@ -3,7 +3,6 @@ package webhook
 import (
 	"context"
 	"fmt"
-	scmmanager "github.com/scm-manager/goscm/argocd"
 	"html"
 	"net/http"
 	"net/url"
@@ -25,6 +24,7 @@ import (
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
+	scmmanager "github.com/scm-manager/goscm/argocd"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -509,7 +509,7 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 			return false
 		}
 		if apiUrl.Hostname() != infoUrl.Hostname() {
-			log.Debugf("Hostname %s does not match %s", apiUrl.Hostname(), infoUrl.Hostname())
+			log.Debugf("Hostname '%s' does not match '%s'", apiUrl.Hostname(), infoUrl.Hostname())
 			return false
 		}
 		if gen.ScmManager.Namespace != info.SCMManager.Namespace {
