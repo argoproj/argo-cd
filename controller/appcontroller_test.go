@@ -165,6 +165,7 @@ func newFakeController(data *fakeData, repoErr error) *ApplicationController {
 		data.metricsCacheExpiration,
 		[]string{},
 		[]string{},
+		[]string{},
 		0,
 		true,
 		nil,
