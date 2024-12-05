@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappsv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
@@ -1389,4 +1390,196 @@ WkBKOclmOV2xlTVuPw==
 			}
 		})
 	}
+}
+
+func TestStringValuesToValuesConversion(t *testing.T) {
+	matchExpression1 := &v1alpha1.ApplicationMatchExpression{
+		Key:          "test",
+		Operator:     "In",
+		ValuesString: "test, test2  , test3,test4",
+	}
+	expectedValues1 := []string{"test", "test2", "test3", "test4"}
+	values, err := getMatchExpressionValues(*matchExpression1)
+	require.NoError(t, err)
+	assert.Equal(t, expectedValues1, values)
+
+	matchExpression2 := &v1alpha1.ApplicationMatchExpression{
+		Key:          "test",
+		Operator:     "In",
+		ValuesString: "test,test2,test3,test4",
+	}
+	expectedValues2 := []string{"test", "test2", "test3", "test4"}
+	values, err = getMatchExpressionValues(*matchExpression2)
+	require.NoError(t, err)
+	assert.Equal(t, expectedValues2, values)
+
+	matchExpression3 := &v1alpha1.ApplicationMatchExpression{
+		Key:          "test",
+		Operator:     "In",
+		ValuesString: " test,test2,test3,test4 ",
+	}
+	expectedValues3 := []string{" test", "test2", "test3", "test4 "}
+	values, err = getMatchExpressionValues(*matchExpression3)
+	require.NoError(t, err)
+	assert.Equal(t, expectedValues3, values)
+
+	matchExpression4 := &v1alpha1.ApplicationMatchExpression{
+		Key:          "test",
+		Operator:     "In",
+		ValuesString: "test",
+	}
+	expectedValues4 := []string{"test"}
+	values, err = getMatchExpressionValues(*matchExpression4)
+	require.NoError(t, err)
+	assert.Equal(t, expectedValues4, values)
+
+	matchExpression5 := &v1alpha1.ApplicationMatchExpression{
+		Key:          "test",
+		Operator:     "In",
+		ValuesString: "test",
+		Values:       []string{"test"},
+	}
+	_, err = getMatchExpressionValues(*matchExpression5)
+	require.Error(t, err)
+
+	matchExpression6 := &v1alpha1.ApplicationMatchExpression{
+		Key:      "test",
+		Operator: "In",
+		Values:   []string{"test", "test2"},
+	}
+	expectedValues6 := []string{"test", "test2"}
+	values, err = getMatchExpressionValues(*matchExpression6)
+	require.NoError(t, err)
+	assert.Equal(t, expectedValues6, values)
+
+	matchExpression7 := &v1alpha1.ApplicationMatchExpression{
+		Key:      "test",
+		Operator: "In",
+		Values:   []string{},
+	}
+	values, err = getMatchExpressionValues(*matchExpression7)
+	require.NoError(t, err)
+	assert.Nil(t, values)
+
+	matchExpression8 := &v1alpha1.ApplicationMatchExpression{
+		Key:      "test",
+		Operator: "In",
+	}
+	values, err = getMatchExpressionValues(*matchExpression8)
+	require.NoError(t, err)
+	assert.Nil(t, values)
+}
+
+func TestCustomSelectorConversion(t *testing.T) {
+	customSelector1 := &v1alpha1.LabelSelector{
+		MatchLabels: map[string]string{"test": "test"},
+		MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+			{
+				Key:      "test",
+				Operator: "In",
+				Values:   []string{"test1", "test2"},
+			},
+			{
+				Key:          "test",
+				Operator:     "In",
+				ValuesString: " test1,  test2  , test3 ",
+			},
+		},
+	}
+	expectedLabelSelector1 := &metav1.LabelSelector{
+		MatchLabels: map[string]string{"test": "test"},
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      "test",
+				Operator: "In",
+				Values:   []string{"test1", "test2"},
+			},
+			{
+				Key:      "test",
+				Operator: "In",
+				Values:   []string{" test1", "test2", "test3 "},
+			},
+		},
+	}
+	selector1, err := CustomSelectorToMetaSelector(*customSelector1)
+	require.NoError(t, err)
+	assert.Equal(t, expectedLabelSelector1, selector1)
+
+	customSelector2 := &v1alpha1.LabelSelector{
+		MatchLabels: map[string]string{"test": "test"},
+		MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+			{
+				Key:      "test",
+				Operator: "In",
+				Values:   []string{"test1", "test2"},
+			},
+		},
+	}
+	expectedLabelSelector2 := &metav1.LabelSelector{
+		MatchLabels: map[string]string{"test": "test"},
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      "test",
+				Operator: "In",
+				Values:   []string{"test1", "test2"},
+			},
+		},
+	}
+	selector2, err := CustomSelectorToMetaSelector(*customSelector2)
+	require.NoError(t, err)
+	assert.Equal(t, expectedLabelSelector2, selector2)
+
+	customSelector3 := &v1alpha1.LabelSelector{
+		MatchLabels: map[string]string{"test": "test"},
+		MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+			{
+				Key:          "test",
+				Operator:     "In",
+				ValuesString: " test1,  test2  , test3 ",
+			},
+		},
+	}
+	expectedLabelSelector3 := &metav1.LabelSelector{
+		MatchLabels: map[string]string{"test": "test"},
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      "test",
+				Operator: "In",
+				Values:   []string{" test1", "test2", "test3 "},
+			},
+		},
+	}
+	selector3, err := CustomSelectorToMetaSelector(*customSelector3)
+	require.NoError(t, err)
+	assert.Equal(t, expectedLabelSelector3, selector3)
+
+	customSelector4 := &v1alpha1.LabelSelector{
+		MatchLabels: map[string]string{"test": "test"},
+		MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+			{
+				Key:      "test",
+				Operator: "In",
+			},
+			{
+				Key:      "test",
+				Operator: "In",
+			},
+		},
+	}
+	expectedLabelSelector4 := &metav1.LabelSelector{
+		MatchLabels: map[string]string{"test": "test"},
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      "test",
+				Operator: "In",
+			},
+			{
+				Key:      "test",
+				Operator: "In",
+			},
+		},
+	}
+	selector4, err := CustomSelectorToMetaSelector(*customSelector4)
+	require.NoError(t, err)
+	assert.Equal(t, expectedLabelSelector4, selector4)
 }

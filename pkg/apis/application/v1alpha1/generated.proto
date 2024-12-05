@@ -173,7 +173,12 @@ message ApplicationMatchExpression {
 
   optional string operator = 2;
 
+  // +optional
+  // +listType=atomic
   repeated string values = 3;
+
+  // +optional
+  optional string stringValues = 4;
 }
 
 message ApplicationPreservedFields {
@@ -254,7 +259,7 @@ message ApplicationSetGenerator {
   optional MergeGenerator merge = 8;
 
   // Selector allows to post-filter all generator.
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9;
+  optional LabelSelector selector = 9;
 
   optional PluginGenerator plugin = 10;
 }
@@ -290,7 +295,7 @@ message ApplicationSetNestedGenerator {
   optional .k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON merge = 8;
 
   // Selector allows to post-filter all generator.
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 9;
+  optional LabelSelector selector = 9;
 
   optional PluginGenerator plugin = 10;
 }
@@ -414,7 +419,7 @@ message ApplicationSetTerminalGenerator {
   optional PluginGenerator plugin = 7;
 
   // Selector allows to post-filter all generator.
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 8;
+  optional LabelSelector selector = 8;
 }
 
 // ApplicationSetTree holds nodes which belongs to the application
@@ -860,7 +865,7 @@ message ClusterGenerator {
   // Selector defines a label selector to match against all clusters registered with ArgoCD.
   // Clusters today are stored as Kubernetes Secrets, thus the Secret labels will be used
   // for matching the selector.
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 1;
+  optional LabelSelector selector = 1;
 
   optional ApplicationSetTemplate template = 2;
 
@@ -1218,6 +1223,20 @@ message KustomizeSelector {
   optional string annotationSelector = 2;
 
   optional string labelSelector = 3;
+}
+
+// +structType=atomic
+message LabelSelector {
+  // matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+  // map is equivalent to an element of matchExpressions, whose key field is "key", the
+  // operator is "In", and the values array contains only "value". The requirements are ANDed.
+  // +optional
+  map<string, string> matchLabels = 1;
+
+  // matchExpressions is a list of label selector requirements. The requirements are ANDed.
+  // +optional
+  // +listType=atomic
+  repeated ApplicationMatchExpression matchExpressions = 2;
 }
 
 // ListGenerator include items info
