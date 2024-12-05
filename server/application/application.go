@@ -2229,7 +2229,7 @@ func getAmbiguousRevision(app *appv1.Application, syncReq *application.Applicati
 	ambiguousRevision := ""
 	if app.Spec.HasMultipleSources() {
 		for i, pos := range syncReq.SourcePositions {
-			if pos == int64(sourceIndex) {
+			if pos == int64(sourceIndex+1) {
 				ambiguousRevision = syncReq.Revisions[i]
 			}
 		}
