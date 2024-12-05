@@ -424,10 +424,12 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 		cacheMocks.mockCache.StopRedisCallback()
 		err := filepath.WalkDir(dir,
 			func(path string, di fs.DirEntry, err error) error {
-				if err == nil {
-					return os.Chmod(path, 0o777)
+				chmodErr := os.Chmod(path, 0o777)
+				if err != nil || chmodErr != nil {
+					return filepath.SkipDir
+				} else {
+					return nil
 				}
-				return err
 			})
 		if err != nil {
 			t.Fatal(err)
