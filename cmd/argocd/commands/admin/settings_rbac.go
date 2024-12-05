@@ -427,9 +427,6 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 			log.Fatalf("could not set user policy: %v", err)
 			return false
 		}
-		if err := enf.CheckUserDefinedRoleReferentialIntegrity(); err != nil {
-			log.Fatal(err.Error())
-		}
 	}
 
 	// User could have used a mutation of the resource name (i.e. 'cert' for

@@ -196,16 +196,12 @@ func (e *Enforcer) LoadPolicy() error {
 }
 
 // CheckUserDefinedRoleReferentialIntegrity iterates over roles and policies to validate the existence of a matching policy subject for every defined role
-func (e *Enforcer) CheckUserDefinedRoleReferentialIntegrity() error {
-	casbinEnforcer, err := e.tryGetCasbinEnforcer("", "")
+func CheckUserDefinedRoleReferentialIntegrity(e CasbinEnforcer) error {
+	allRoles, err := e.GetAllRoles()
 	if err != nil {
 		return err
 	}
-	allRoles, err := casbinEnforcer.GetAllRoles()
-	if err != nil {
-		return err
-	}
-	allSubjects, err := casbinEnforcer.GetAllSubjects()
+	allSubjects, err := e.GetAllSubjects()
 	if err != nil {
 		return err
 	}
@@ -374,9 +370,6 @@ func (e *Enforcer) SetUserPolicy(policy string) error {
 	if err != nil {
 		return err
 	}
-	if err := e.CheckUserDefinedRoleReferentialIntegrity(); err != nil {
-		log.Warning(err.Error())
-	}
 	return nil
 }
 
@@ -488,9 +481,14 @@ func (e *Enforcer) syncUpdate(cm *corev1.ConfigMap, onUpdated func(cm *corev1.Co
 
 // ValidatePolicy verifies a policy string is acceptable to casbin
 func ValidatePolicy(policy string) error {
-	_, err := newEnforcerSafe(globMatchFunc, newBuiltInModel(), newAdapter("", "", policy))
+	casbinEnforcer, err := newEnforcerSafe(globMatchFunc, newBuiltInModel(), newAdapter("", "", policy))
 	if err != nil {
 		return fmt.Errorf("policy syntax error: %s", policy)
+	}
+
+	// Check for referential integrity
+	if err := CheckUserDefinedRoleReferentialIntegrity(casbinEnforcer); err != nil {
+		log.Warning(err.Error())
 	}
 	return nil
 }
