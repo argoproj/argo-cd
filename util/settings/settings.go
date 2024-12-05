@@ -196,6 +196,8 @@ type JWTConfig struct {
 	JWKSetURL string `json:"jwkSetURL,omitempty"`
 	// CacheTTL is how long to cache the JWKS
 	CacheTTL string `json:"cacheTTL,omitempty"`
+	// Audience is the expected audience for the JWT
+	Audience string `json:"audience,omitempty"`
 }
 
 type OIDCConfig struct {
