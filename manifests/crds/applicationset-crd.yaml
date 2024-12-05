@@ -231,6 +231,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -464,6 +466,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipSchemaValidation:
                                             type: boolean
                                           skipTests:
                                             type: boolean
@@ -863,6 +867,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -1096,6 +1102,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipSchemaValidation:
                                             type: boolean
                                           skipTests:
                                             type: boolean
@@ -1494,6 +1502,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -1727,6 +1737,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipSchemaValidation:
                                             type: boolean
                                           skipTests:
                                             type: boolean
@@ -2105,6 +2117,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -2338,6 +2352,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipSchemaValidation:
                                             type: boolean
                                           skipTests:
                                             type: boolean
@@ -2741,6 +2757,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -2974,6 +2992,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -3373,6 +3393,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -3606,6 +3628,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -4004,6 +4028,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -4237,6 +4263,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -4615,6 +4643,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -4848,6 +4878,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -5234,6 +5266,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -5467,6 +5501,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -6107,6 +6143,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -6340,6 +6378,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -6971,6 +7011,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -7204,6 +7246,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -7599,6 +7643,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -7832,6 +7878,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipSchemaValidation:
                                             type: boolean
                                           skipTests:
                                             type: boolean
@@ -8237,6 +8285,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -8470,6 +8520,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -8869,6 +8921,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -9102,6 +9156,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -9500,6 +9556,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -9733,6 +9791,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -10111,6 +10171,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -10344,6 +10406,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -10730,6 +10794,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -10963,6 +11029,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -11603,6 +11671,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -11836,6 +11906,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -12467,6 +12539,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -12700,6 +12774,8 @@ spec:
                                                     releaseName:
                                                       type: string
                                                     skipCrds:
+                                                      type: boolean
+                                                    skipSchemaValidation:
                                                       type: boolean
                                                     skipTests:
                                                       type: boolean
@@ -13099,6 +13175,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -13332,6 +13410,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipSchemaValidation:
                                             type: boolean
                                           skipTests:
                                             type: boolean
@@ -13717,6 +13797,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -13950,6 +14032,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipSchemaValidation:
                                             type: boolean
                                           skipTests:
                                             type: boolean
@@ -14590,6 +14674,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -14823,6 +14909,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipSchemaValidation:
                                             type: boolean
                                           skipTests:
                                             type: boolean
@@ -15454,6 +15542,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -15687,6 +15777,8 @@ spec:
                                           releaseName:
                                             type: string
                                           skipCrds:
+                                            type: boolean
+                                          skipSchemaValidation:
                                             type: boolean
                                           skipTests:
                                             type: boolean
@@ -16157,6 +16249,8 @@ spec:
                                 type: string
                               skipCrds:
                                 type: boolean
+                              skipSchemaValidation:
+                                type: boolean
                               skipTests:
                                 type: boolean
                               valueFiles:
@@ -16390,6 +16484,8 @@ spec:
                                 releaseName:
                                   type: string
                                 skipCrds:
+                                  type: boolean
+                                skipSchemaValidation:
                                   type: boolean
                                 skipTests:
                                   type: boolean

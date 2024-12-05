@@ -521,6 +521,9 @@ message ApplicationSourceHelm {
 
   // SkipTests skips test manifest installation step (Helm's --skip-tests).
   optional bool skipTests = 14;
+
+  // SkipSchemaValidation skips JSON schema validation (Helm's --skip-schema-validation)
+  optional bool skipSchemaValidation = 15;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
