@@ -231,6 +231,28 @@ func (p *providerImpl) VerifyJWT(tokenString string, argoSettings *settings.Argo
 		}
 	}
 
+	// Verify audience if configured
+	if aud, ok := claims["aud"].(string); ok {
+		if argoSettings.JWTConfig.Audience != "" && aud != argoSettings.JWTConfig.Audience {
+			return nil, fmt.Errorf("invalid audience claim, got %q, want %q", aud, argoSettings.JWTConfig.Audience)
+		}
+	} else if audList, ok := claims["aud"].([]interface{}); ok {
+		if argoSettings.JWTConfig.Audience != "" {
+			validAud := false
+			for _, a := range audList {
+				if a.(string) == argoSettings.JWTConfig.Audience {
+					validAud = true
+					break
+				}
+			}
+			if !validAud {
+				return nil, fmt.Errorf("invalid audience claim, got %v, want %q", audList, argoSettings.JWTConfig.Audience)
+			}
+		}
+	} else if argoSettings.JWTConfig.Audience != "" {
+		return nil, fmt.Errorf("audience claim not found or invalid type")
+	}
+
 	return token, nil
 }
 

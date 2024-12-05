@@ -47,7 +47,10 @@ func generateTestTokenWithKey(privateKey *rsa.PrivateKey, claims map[string]inte
 }
 
 func TestVerifyJWT(t *testing.T) {
-	const kid = "test-key-id"
+	const (
+		kid           = "test-key-id"
+		validAudience = "test-audience"
+	)
 
 	// Generate key pair
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
@@ -97,6 +100,51 @@ func TestVerifyJWT(t *testing.T) {
 			},
 			claims: map[string]interface{}{
 				"iss": ts.URL, // Match issuer with test server URL
+			},
+			expectError: false,
+		},
+		{
+			name: "Valid Token with Matching Audience",
+			jwtConfig: &settings.JWTConfig{
+				HeaderName:    "X-Test-JWT",
+				EmailClaim:    "email",
+				UsernameClaim: "sub",
+				JWKSetURL:     ts.URL + "/.well-known/jwks.json",
+				Audience:      validAudience,
+			},
+			claims: map[string]interface{}{
+				"iss": ts.URL,
+				"aud": validAudience,
+			},
+			expectError: false,
+		},
+		{
+			name: "Invalid Audience",
+			jwtConfig: &settings.JWTConfig{
+				HeaderName:    "X-Test-JWT",
+				EmailClaim:    "email",
+				UsernameClaim: "sub",
+				JWKSetURL:     ts.URL + "/.well-known/jwks.json",
+				Audience:      validAudience,
+			},
+			claims: map[string]interface{}{
+				"iss": ts.URL,
+				"aud": "wrong-audience",
+			},
+			expectError: true,
+		},
+		{
+			name: "Valid Token with Multiple Audiences",
+			jwtConfig: &settings.JWTConfig{
+				HeaderName:    "X-Test-JWT",
+				EmailClaim:    "email",
+				UsernameClaim: "sub",
+				JWKSetURL:     ts.URL + "/.well-known/jwks.json",
+				Audience:      validAudience,
+			},
+			claims: map[string]interface{}{
+				"iss": ts.URL,
+				"aud": []interface{}{validAudience, "other-audience"},
 			},
 			expectError: false,
 		},
