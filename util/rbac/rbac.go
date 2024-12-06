@@ -53,7 +53,7 @@ type CasbinEnforcer interface {
 	AddFunction(name string, function govaluate.ExpressionFunction)
 	GetGroupingPolicy() ([][]string, error)
 	GetAllRoles() ([]string, error)
-	GetAllSubjects() ([]string, error)
+	GetImplicitPermissionsForUser(user string, domain ...string) ([][]string, error)
 }
 
 // Enforcer is a wrapper around an Casbin enforcer that:
@@ -197,34 +197,20 @@ func (e *Enforcer) LoadPolicy() error {
 
 // CheckUserDefinedRoleReferentialIntegrity iterates over roles and policies to validate the existence of a matching policy subject for every defined role
 func CheckUserDefinedRoleReferentialIntegrity(e CasbinEnforcer) error {
-	allGroupings, err := e.GetGroupingPolicy()
-	if err != nil {
-		return err
-	}
-	allSubjects, err := e.GetAllSubjects()
+	allRoles, err := e.GetAllRoles()
 	if err != nil {
 		return err
 	}
 	notFound := make([]string, 0)
-	for i := 0; i < len(allGroupings); i++ {
-		found := false
-		roleName := allGroupings[i][1]
-	outer:
-		for _, subj := range allSubjects {
-			if roleName == subj {
-				found = true
-				break
-			}
-			for j := 0; j < len(allGroupings); j++ {
-				if roleName == allGroupings[j][0] {
-					found = true
-					break outer
-				}
-			}
+	for _, roleName := range allRoles {
+		permissions, err := e.GetImplicitPermissionsForUser(roleName)
+		if err != nil {
+			return err
 		}
-		if !found {
-			notFound = append(notFound, roleName)
+		if len(permissions) > 0 {
+			continue
 		}
+		notFound = append(notFound, roleName)
 	}
 	if len(notFound) > 0 {
 		return fmt.Errorf("user defined roles not found in policies: %s", strings.Join(notFound, ","))
