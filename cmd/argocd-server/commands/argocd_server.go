@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -119,6 +120,13 @@ func NewCommand() *cobra.Command {
 			cli.SetLogLevel(cmdutil.LogLevel)
 			cli.SetGLogLevel(glogLevel)
 
+			// Recover from panic and log the error using the configured logger instead of the default.
+			defer func() {
+				if r := recover(); r != nil {
+					log.WithField("trace", string(debug.Stack())).Fatal("Recovered from panic: ", r)
+				}
+			}()
+
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			errors.CheckError(v1alpha1.SetK8SConfigDefaults(config))
@@ -155,6 +163,7 @@ func NewCommand() *cobra.Command {
 			controllerClient, err := client.New(config, client.Options{Scheme: scheme})
 			errors.CheckError(err)
 			controllerClient = client.NewDryRunClient(controllerClient)
+			controllerClient = client.NewNamespacedClient(controllerClient, namespace)
 
 			// Load CA information to use for validating connections to the
 			// repository server, if strict TLS validation was requested.
@@ -249,21 +258,24 @@ func NewCommand() *cobra.Command {
 			stats.RegisterHeapDumper("memprofile")
 			argocd := server.NewServer(ctx, argoCDOpts, appsetOpts)
 			argocd.Init(ctx)
-			lns, err := argocd.Listen()
-			errors.CheckError(err)
 			for {
 				var closer func()
-				ctx, cancel := context.WithCancel(ctx)
+				serverCtx, cancel := context.WithCancel(ctx)
+				lns, err := argocd.Listen()
+				errors.CheckError(err)
 				if otlpAddress != "" {
-					closer, err = traceutil.InitTracer(ctx, "argocd-server", otlpAddress, otlpInsecure, otlpHeaders, otlpAttrs)
+					closer, err = traceutil.InitTracer(serverCtx, "argocd-server", otlpAddress, otlpInsecure, otlpHeaders, otlpAttrs)
 					if err != nil {
 						log.Fatalf("failed to initialize tracing: %v", err)
 					}
 				}
-				argocd.Run(ctx, lns)
-				cancel()
+				argocd.Run(serverCtx, lns)
 				if closer != nil {
 					closer()
+				}
+				cancel()
+				if argocd.TerminateRequested() {
+					break
 				}
 			}
 		},

@@ -4691,6 +4691,12 @@
     "clusterSettings": {
       "type": "object",
       "properties": {
+        "additionalUrls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "appLabelKey": {
           "type": "string"
         },
@@ -6529,6 +6535,10 @@
         "kustomize": {
           "$ref": "#/definitions/v1alpha1ApplicationSourceKustomize"
         },
+        "name": {
+          "description": "Name is used to refer to a source and is displayed in the UI. It is used in multi-source Applications.",
+          "type": "string"
+        },
         "path": {
           "description": "Path is a directory path within the Git repository, and is only valid for applications sourced from Git.",
           "type": "string"
@@ -6619,6 +6629,10 @@
         "skipCrds": {
           "type": "boolean",
           "title": "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)"
+        },
+        "skipSchemaValidation": {
+          "type": "boolean",
+          "title": "SkipSchemaValidation skips JSON schema validation (Helm's --skip-schema-validation)"
         },
         "skipTests": {
           "description": "SkipTests skips test manifest installation step (Helm's --skip-tests).",

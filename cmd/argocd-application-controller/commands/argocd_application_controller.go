@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 	"time"
 
@@ -110,6 +111,13 @@ func NewCommand() *cobra.Command {
 			cli.SetLogLevel(cmdutil.LogLevel)
 			cli.SetGLogLevel(glogLevel)
 
+			// Recover from panic and log the error using the configured logger instead of the default.
+			defer func() {
+				if r := recover(); r != nil {
+					log.WithField("trace", string(debug.Stack())).Fatal("Recovered from panic: ", r)
+				}
+			}()
+
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			errors.CheckError(v1alpha1.SetK8SConfigDefaults(config))
@@ -197,7 +205,7 @@ func NewCommand() *cobra.Command {
 				enableK8sEvent,
 			)
 			errors.CheckError(err)
-			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer())
+			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer(), nil)
 
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)

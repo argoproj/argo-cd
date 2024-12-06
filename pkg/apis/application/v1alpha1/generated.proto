@@ -454,6 +454,9 @@ message ApplicationSource {
 
   // Ref is reference to another source within sources field. This field will not be used if used with a `source` tag.
   optional string ref = 13;
+
+  // Name is used to refer to a source and is displayed in the UI. It is used in multi-source Applications.
+  optional string name = 14;
 }
 
 // ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet
@@ -518,6 +521,9 @@ message ApplicationSourceHelm {
 
   // SkipTests skips test manifest installation step (Helm's --skip-tests).
   optional bool skipTests = 14;
+
+  // SkipSchemaValidation skips JSON schema validation (Helm's --skip-schema-validation)
+  optional bool skipSchemaValidation = 15;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
