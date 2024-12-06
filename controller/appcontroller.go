@@ -1630,8 +1630,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	project, hasErrors := ctrl.refreshAppConditions(app)
 	ts.AddCheckpoint("refresh_app_conditions_ms")
+	now := metav1.Now()
 	if hasErrors {
-		now := metav1.Now()
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = health.HealthStatusUnknown
 		app.Status.Health.LastTransitionTime = &now
@@ -1678,7 +1678,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		revisions = append(revisions, revision)
 		sources = append(sources, app.Spec.GetSource())
 	}
-	now := metav1.Now()
 
 	compareResult, err := ctrl.appStateManager.CompareAppState(app, project, revisions, sources,
 		refreshType == appv1.RefreshTypeHard,

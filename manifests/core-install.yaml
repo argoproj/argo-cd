@@ -1888,7 +1888,7 @@ spec:
                 properties:
                   lastTransitionTime:
                     description: LastTransitionTime is the time the HealthStatus was
-                      set
+                      set or updated
                     format: date-time
                     type: string
                   message:
@@ -4582,7 +4582,7 @@ spec:
                       properties:
                         lastTransitionTime:
                           description: LastTransitionTime is the time the HealthStatus
-                            was set
+                            was set or updated
                           format: date-time
                           type: string
                         message:

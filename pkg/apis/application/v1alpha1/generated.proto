@@ -1073,7 +1073,7 @@ message HealthStatus {
   // Message is a human-readable informational message describing the health status
   optional string message = 2;
 
-  // LastTransitionTime is the time the HealthStatus was set
+  // LastTransitionTime is the time the HealthStatus was set or updated
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
 }
 
