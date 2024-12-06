@@ -237,6 +237,7 @@ type ArgoCDServerOpts struct {
 	EnableProxyExtension    bool
 	WebhookParallelism      int
 	EnableK8sEvent          []string
+	ExtensionsSharedPath    string
 }
 
 type ApplicationSetOpts struct {
@@ -1210,10 +1211,8 @@ func (a *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandl
 	registerDownloadHandlers(mux, "/download")
 
 	// Serve extensions
-	extensionsSharedPath := "/tmp/extensions/"
-
 	var extensionsHandler http.Handler = http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
-		a.serveExtensions(extensionsSharedPath, writer)
+		a.serveExtensions(a.ExtensionsSharedPath, writer)
 	})
 	if a.ArgoCDServerOpts.EnableGZip {
 		extensionsHandler = compressHandler(extensionsHandler)
