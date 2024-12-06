@@ -1,9 +1,11 @@
 import * as React from 'react';
 import {COLORS} from './colors';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
+import {faCircleNotch} from '@fortawesome/free-solid-svg-icons';
 
 export const Spinner = ({show, style = {}}: {show: boolean; style?: React.CSSProperties}) =>
     show ? (
         <span style={style}>
-            <i className='fa fa-circle-notch fa-spin' style={{color: COLORS.operation.running}} />
+            <FontAwesomeIcon icon={faCircleNotch} spin style={{color: COLORS.operation.running}} title='Loading' />
         </span>
     ) : null;
