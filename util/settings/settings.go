@@ -807,6 +807,34 @@ func (mgr *SettingsManager) GetInstallationID() (string, error) {
 	return argoCDCM.Data[settingsInstallationID], nil
 }
 
+func (mgr *SettingsManager) GetRepositorySecretAccessToken(repoURL string) (string, error) {
+	selector, err := labels.Parse("argocd.argoproj.io/secret-type=repository")
+	if err != nil {
+		return "", fmt.Errorf("failed to parse Argo CD repository selector: %w", err)
+	}
+
+	secretList, err := mgr.secrets.Secrets(mgr.namespace).List(selector)
+	if err != nil {
+		return "", fmt.Errorf("failed to list repository secrets: %w", err)
+	}
+
+	for _, secret := range secretList {
+		secretRepoURLBytes, ok := secret.Data["url"]
+		if !ok {
+			continue
+		}
+
+		secretRepoURL := string(secretRepoURLBytes)
+		if secretRepoURL == repoURL {
+			if tokenBytes, exists := secret.Data["accessToken"]; exists {
+				return string(tokenBytes), nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no access token found for repository URL: %s", repoURL)
+}
+
 func (mgr *SettingsManager) GetPasswordPattern() (string, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
