@@ -14,17 +14,18 @@ import (
 
 const (
 	// please add new items to Resources
-	ResourceClusters        = "clusters"
-	ResourceProjects        = "projects"
-	ResourceApplications    = "applications"
-	ResourceApplicationSets = "applicationsets"
-	ResourceRepositories    = "repositories"
-	ResourceCertificates    = "certificates"
-	ResourceAccounts        = "accounts"
-	ResourceGPGKeys         = "gpgkeys"
-	ResourceLogs            = "logs"
-	ResourceExec            = "exec"
-	ResourceExtensions      = "extensions"
+	ResourceClusters          = "clusters"
+	ResourceProjects          = "projects"
+	ResourceApplications      = "applications"
+	ResourceApplicationSets   = "applicationsets"
+	ResourceRepositories      = "repositories"
+	ResourceWriteRepositories = "write-repositories"
+	ResourceCertificates      = "certificates"
+	ResourceAccounts          = "accounts"
+	ResourceGPGKeys           = "gpgkeys"
+	ResourceLogs              = "logs"
+	ResourceExec              = "exec"
+	ResourceExtensions        = "extensions"
 
 	// please add new items to Actions
 	ActionGet      = "get"
@@ -45,6 +46,7 @@ var (
 		ResourceApplications,
 		ResourceApplicationSets,
 		ResourceRepositories,
+		ResourceWriteRepositories,
 		ResourceCertificates,
 		ResourceAccounts,
 		ResourceGPGKeys,
