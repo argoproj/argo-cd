@@ -197,7 +197,7 @@ func (e *Enforcer) LoadPolicy() error {
 
 // CheckUserDefinedRoleReferentialIntegrity iterates over roles and policies to validate the existence of a matching policy subject for every defined role
 func CheckUserDefinedRoleReferentialIntegrity(e CasbinEnforcer) error {
-	allRoles, err := e.GetAllRoles()
+	allGroupings, err := e.GetGroupingPolicy()
 	if err != nil {
 		return err
 	}
@@ -206,16 +206,24 @@ func CheckUserDefinedRoleReferentialIntegrity(e CasbinEnforcer) error {
 		return err
 	}
 	notFound := make([]string, 0)
-	for _, role := range allRoles {
+	for i := 0; i < len(allGroupings); i++ {
 		found := false
+		roleName := allGroupings[i][1]
+	outer:
 		for _, subj := range allSubjects {
-			if role == subj {
+			if roleName == subj {
 				found = true
 				break
 			}
+			for j := 0; j < len(allGroupings); j++ {
+				if roleName == allGroupings[j][0] {
+					found = true
+					break outer
+				}
+			}
 		}
 		if !found {
-			notFound = append(notFound, role)
+			notFound = append(notFound, roleName)
 		}
 	}
 	if len(notFound) > 0 {

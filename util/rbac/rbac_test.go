@@ -291,6 +291,16 @@ g, depB, role:depB
 	require.NoError(t, ValidatePolicy(policy))
 	assert.Empty(t, hook.GetRegexMatchesInEntries("user defined roles not found in policies"))
 
+	// Policy with a role reference which transitively associates to policies
+	policy = `
+p, role:depA, *, get, foo/obj, allow
+p, role:depB, *, get, foo/obj, deny
+g, depC, role:depC
+g, role:depC, role:depA
+`
+	require.NoError(t, ValidatePolicy(policy))
+	assert.Empty(t, hook.GetRegexMatchesInEntries("user defined roles not found in policies"))
+
 	// Policy with a role reference which has no associated policies
 	policy = `
 p, role:depA, *, get, foo/obj, allow
