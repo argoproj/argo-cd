@@ -10607,8 +10607,11 @@ spec:
                                     properties:
                                       name:
                                         type: string
+                                      namespace:
+                                        type: string
                                     required:
                                     - name
+                                    - namespace
                                     type: object
                                   input:
                                     properties:
@@ -16069,8 +16072,11 @@ spec:
                                     properties:
                                       name:
                                         type: string
+                                      namespace:
+                                        type: string
                                     required:
                                     - name
+                                    - namespace
                                     type: object
                                   input:
                                     properties:
@@ -19006,8 +19012,11 @@ spec:
                           properties:
                             name:
                               type: string
+                            namespace:
+                              type: string
                           required:
                           - name
+                          - namespace
                           type: object
                         input:
                           properties:
@@ -23038,6 +23047,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: applicationsetcontroller.requeue.after
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_PLUGIN_GEN_URLS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.allowed.plugin-gen.urls
               name: argocd-cmd-params-cm
               optional: true
         image: quay.io/argoproj/argocd:latest

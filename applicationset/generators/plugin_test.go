@@ -25,15 +25,17 @@ import (
 
 func TestPluginGenerateParams(t *testing.T) {
 	testCases := []struct {
-		name            string
-		configmap       *v1.ConfigMap
-		secret          *v1.Secret
-		inputParameters map[string]apiextensionsv1.JSON
-		values          map[string]string
-		gotemplate      bool
-		expected        []map[string]interface{}
-		content         []byte
-		expectedError   error
+		name                 string
+		configmap            *v1.ConfigMap
+		secret               *v1.Secret
+		configNamespace      string
+		inputParameters      map[string]apiextensionsv1.JSON
+		values               map[string]string
+		gotemplate           bool
+		expected             []map[string]interface{}
+		content              []byte
+		expectedError        string
+		allowedPluginGenUrls []string
 	}{
 		{
 			name: "simple case",
@@ -89,7 +91,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: nil,
+			expectedError: "",
 		},
 		{
 			name: "simple case with values",
@@ -151,7 +153,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: nil,
+			expectedError: "",
 		},
 		{
 			name: "simple case with gotemplate",
@@ -211,7 +213,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: nil,
+			expectedError: "",
 		},
 		{
 			name: "simple case with appended params",
@@ -267,7 +269,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: nil,
+			expectedError: "",
 		},
 		{
 			name: "no params",
@@ -317,7 +319,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: nil,
+			expectedError: "",
 		},
 		{
 			name: "empty return",
@@ -344,7 +346,7 @@ func TestPluginGenerateParams(t *testing.T) {
 			gotemplate:      false,
 			content:         []byte(`{"input": {"parameters": []}}`),
 			expected:        []map[string]interface{}{},
-			expectedError:   nil,
+			expectedError:   "",
 		},
 		{
 			name: "wrong return",
@@ -371,7 +373,7 @@ func TestPluginGenerateParams(t *testing.T) {
 			gotemplate:      false,
 			content:         []byte(`wrong body ...`),
 			expected:        []map[string]interface{}{},
-			expectedError:   fmt.Errorf("error listing params: error get api 'set': invalid character 'w' looking for beginning of value: wrong body ..."),
+			expectedError:   "error listing params: error get api 'set': invalid character 'w' looking for beginning of value: wrong body ...",
 		},
 		{
 			name: "external secret",
@@ -427,7 +429,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: nil,
+			expectedError: "",
 		},
 		{
 			name: "no secret",
@@ -475,7 +477,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: fmt.Errorf("error getting plugin from generator: error fetching Secret token: error fetching secret default/argocd-secret: secrets \"argocd-secret\" not found"),
+			expectedError: "error getting plugin from generator: error fetching Secret token: error fetching secret default/argocd-secret: secrets \"argocd-secret\" not found",
 		},
 		{
 			name:      "no configmap",
@@ -522,7 +524,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: fmt.Errorf("error getting plugin from generator: error fetching ConfigMap: configmaps \"\" not found"),
+			expectedError: "error getting plugin from generator: error fetching ConfigMap: configmaps \"\" not found",
 		},
 		{
 			name: "no baseUrl",
@@ -577,7 +579,7 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: fmt.Errorf("error getting plugin from generator: error fetching ConfigMap: baseUrl not found in ConfigMap"),
+			expectedError: "error getting plugin from generator: error fetching ConfigMap: baseUrl not found in ConfigMap",
 		},
 		{
 			name: "no token",
@@ -624,7 +626,268 @@ func TestPluginGenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expectedError: fmt.Errorf("error getting plugin from generator: error fetching ConfigMap: token not found in ConfigMap"),
+			expectedError: "error getting plugin from generator: error fetching ConfigMap: token not found in ConfigMap",
+		},
+		{
+			name: "Config in another namespace",
+			configmap: &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "first-plugin-cm",
+					Namespace: "other-ns",
+					Labels: map[string]string{
+						"argocd.argoproj.io/cm-type": "plugin-generator",
+					},
+				},
+				Data: map[string]string{
+					"baseUrl": "http://127.0.0.1",
+					"token":   "$plugin.token",
+				},
+			},
+			secret: &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-secret",
+					Namespace: "other-ns",
+				},
+				Data: map[string][]byte{
+					"plugin.token": []byte("my-secret"),
+				},
+			},
+			configNamespace: "other-ns",
+			inputParameters: map[string]apiextensionsv1.JSON{
+				"pkey1": {Raw: []byte(`"val1"`)},
+				"pkey2": {Raw: []byte(`"val2"`)},
+			},
+			gotemplate: false,
+			content: []byte(`{"output": {
+				"parameters": [{
+					"key1": "val1",
+					"key2": {
+						"key2_1": "val2_1",
+						"key2_2": {
+							"key2_2_1": "val2_2_1"
+						}
+					},
+					"key3": 123
+                }]
+			 }}`),
+			expected: []map[string]interface{}{
+				{
+					"key1":                 "val1",
+					"key2.key2_1":          "val2_1",
+					"key2.key2_2.key2_2_1": "val2_2_1",
+					"key3":                 "123",
+					"generator": map[string]interface{}{
+						"input": argoprojiov1alpha1.PluginInput{
+							Parameters: argoprojiov1alpha1.PluginParameters{
+								"pkey1": {Raw: []byte(`"val1"`)},
+								"pkey2": {Raw: []byte(`"val2"`)},
+							},
+						},
+					},
+				},
+			},
+			expectedError: "",
+		},
+		{
+			name: "Config in another namespace and not specified in the plugin generator",
+			configmap: &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "first-plugin-cm",
+					Namespace: "other-ns",
+					Labels: map[string]string{
+						"argocd.argoproj.io/cm-type": "plugin-generator",
+					},
+				},
+				Data: map[string]string{
+					"baseUrl": "http://127.0.0.1",
+					"token":   "$plugin.token",
+				},
+			},
+			secret: &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-secret",
+					Namespace: "other-ns",
+				},
+				Data: map[string][]byte{
+					"plugin.token": []byte("my-secret"),
+				},
+			},
+			configNamespace: "",
+			inputParameters: map[string]apiextensionsv1.JSON{
+				"pkey1": {Raw: []byte(`"val1"`)},
+				"pkey2": {Raw: []byte(`"val2"`)},
+			},
+			gotemplate:    false,
+			content:       []byte{},
+			expected:      []map[string]interface{}{},
+			expectedError: "error getting plugin from generator: error fetching ConfigMap: configmaps \"first-plugin-cm\" not found",
+		},
+		{
+			name: "Config in another namespace and missing the label",
+			configmap: &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "first-plugin-cm",
+					Namespace: "other-ns",
+				},
+				Data: map[string]string{
+					"baseUrl": "http://127.0.0.1",
+					"token":   "$plugin.token",
+				},
+			},
+			secret: &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-secret",
+					Namespace: "other-ns",
+				},
+				Data: map[string][]byte{
+					"plugin.token": []byte("my-secret"),
+				},
+			},
+			configNamespace: "other-ns",
+			inputParameters: map[string]apiextensionsv1.JSON{
+				"pkey1": {Raw: []byte(`"val1"`)},
+				"pkey2": {Raw: []byte(`"val2"`)},
+			},
+			gotemplate:    false,
+			content:       []byte{},
+			expected:      []map[string]interface{}{},
+			expectedError: "error getting plugin from generator: error fetching ConfigMap: configMap with name first-plugin-cm not found in namespace other-ns. Check if it's correctly labelled with argocd.argoproj.io/cm-type=plugin-generator",
+		},
+		{
+			name: "Config in another namespace and with invalid label value",
+			configmap: &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "first-plugin-cm",
+					Namespace: "other-ns",
+					Labels: map[string]string{
+						"argocd.argoproj.io/cm-type": "INVALID",
+					},
+				},
+				Data: map[string]string{
+					"baseUrl": "http://127.0.0.1",
+					"token":   "$plugin.token",
+				},
+			},
+			secret: &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-secret",
+					Namespace: "other-ns",
+				},
+				Data: map[string][]byte{
+					"plugin.token": []byte("my-secret"),
+				},
+			},
+			configNamespace: "other-ns",
+			inputParameters: map[string]apiextensionsv1.JSON{
+				"pkey1": {Raw: []byte(`"val1"`)},
+				"pkey2": {Raw: []byte(`"val2"`)},
+			},
+			gotemplate:    false,
+			content:       []byte{},
+			expected:      []map[string]interface{}{},
+			expectedError: "error getting plugin from generator: error fetching ConfigMap: configMap with name first-plugin-cm not found in namespace other-ns. Check if it's correctly labelled with argocd.argoproj.io/cm-type=plugin-generator",
+		},
+		{
+			name: "Config in another namespace and allowed in the list of urls",
+			configmap: &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "plugin-cm",
+					Namespace: "other-ns",
+					Labels: map[string]string{
+						"argocd.argoproj.io/cm-type": "plugin-generator",
+					},
+				},
+				Data: map[string]string{
+					"baseUrl": "http://127.0.0.1",
+					"token":   "$plugin.token",
+				},
+			},
+			secret: &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-secret",
+					Namespace: "other-ns",
+				},
+				Data: map[string][]byte{
+					"plugin.token": []byte("my-secret"),
+				},
+			},
+			configNamespace: "other-ns",
+			inputParameters: map[string]apiextensionsv1.JSON{
+				"pkey1": {Raw: []byte(`"val1"`)},
+				"pkey2": {Raw: []byte(`"val2"`)},
+			},
+			gotemplate: false,
+			allowedPluginGenUrls: []string{
+				"https://someurl",
+				"http://127.0.0.1:*",
+			},
+			content: []byte(`{"output": {
+				"parameters": [{
+					"key1": "val1",
+					"key2": {
+						"key2_1": "val2_1",
+						"key2_2": {
+							"key2_2_1": "val2_2_1"
+						}
+					},
+					"key3": 123
+                }]
+			 }}`),
+			expected: []map[string]interface{}{
+				{
+					"key1":                 "val1",
+					"key2.key2_1":          "val2_1",
+					"key2.key2_2.key2_2_1": "val2_2_1",
+					"key3":                 "123",
+					"generator": map[string]interface{}{
+						"input": argoprojiov1alpha1.PluginInput{
+							Parameters: argoprojiov1alpha1.PluginParameters{
+								"pkey1": {Raw: []byte(`"val1"`)},
+								"pkey2": {Raw: []byte(`"val2"`)},
+							},
+						},
+					},
+				},
+			},
+			expectedError: "",
+		},
+		{
+			name: "Config in another namespace and not in the allowed url list",
+			configmap: &v1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "first-plugin-cm",
+					Namespace: "other-ns",
+					Labels: map[string]string{
+						"argocd.argoproj.io/cm-type": "plugin-generator",
+					},
+				},
+				Data: map[string]string{
+					"baseUrl": "http://127.0.0.1",
+					"token":   "$plugin.token",
+				},
+			},
+			secret: &v1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-secret",
+					Namespace: "other-ns",
+				},
+				Data: map[string][]byte{
+					"plugin.token": []byte("my-secret"),
+				},
+			},
+			configNamespace: "other-ns",
+			inputParameters: map[string]apiextensionsv1.JSON{
+				"pkey1": {Raw: []byte(`"val1"`)},
+				"pkey2": {Raw: []byte(`"val2"`)},
+			},
+			gotemplate: false,
+			allowedPluginGenUrls: []string{
+				"https://someurl",
+				"http://*.mydomain.com",
+			},
+			content:       []byte{},
+			expected:      []map[string]interface{}{},
+			expectedError: "error getting plugin from generator: error fetching ConfigMap: baseUrl %s not allowed",
 		},
 	}
 
@@ -634,7 +897,7 @@ func TestPluginGenerateParams(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			generatorConfig := argoprojiov1alpha1.ApplicationSetGenerator{
 				Plugin: &argoprojiov1alpha1.PluginGenerator{
-					ConfigMapRef: argoprojiov1alpha1.PluginConfigMapRef{Name: testCase.configmap.Name},
+					ConfigMapRef: argoprojiov1alpha1.PluginConfigMapRef{Name: testCase.configmap.Name, Namespace: testCase.configNamespace},
 					Input: argoprojiov1alpha1.PluginInput{
 						Parameters: testCase.inputParameters,
 					},
@@ -670,11 +933,12 @@ func TestPluginGenerateParams(t *testing.T) {
 
 			fakeClientWithCache := fake.NewClientBuilder().WithObjects([]client.Object{testCase.configmap, testCase.secret}...).Build()
 
-			pluginGenerator := NewPluginGenerator(fakeClientWithCache, ctx, fakeClient, "default")
+			pluginGenerator := NewPluginGenerator(fakeClientWithCache, ctx, fakeClient, "default", testCase.allowedPluginGenUrls)
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
+					Name:      "set",
+					Namespace: "default",
 				},
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{
 					GoTemplate: testCase.gotemplate,
@@ -686,8 +950,14 @@ func TestPluginGenerateParams(t *testing.T) {
 				fmt.Println(err)
 			}
 
-			if testCase.expectedError != nil {
-				require.EqualError(t, err, testCase.expectedError.Error())
+			if testCase.expectedError != "" {
+				var errorStr string
+				if strings.Contains(testCase.expectedError, "%s") {
+					errorStr = fmt.Sprintf(testCase.expectedError, testCase.configmap.Data["baseUrl"])
+				} else {
+					errorStr = testCase.expectedError
+				}
+				require.EqualError(t, err, errorStr)
 			} else {
 				require.NoError(t, err)
 				expectedJson, err := json.Marshal(testCase.expected)
