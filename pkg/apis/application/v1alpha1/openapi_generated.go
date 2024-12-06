@@ -125,6 +125,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGitLab":              schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitLab(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGitea":               schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitea(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGithub":              schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGithub(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorScmManager":          schema_pkg_apis_application_v1alpha1_PullRequestGeneratorScmManager(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RefTarget":                               schema_pkg_apis_application_v1alpha1_RefTarget(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RepoCreds":                               schema_pkg_apis_application_v1alpha1_RepoCreds(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.RepoCredsList":                           schema_pkg_apis_application_v1alpha1_RepoCredsList(ref),
@@ -156,6 +157,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGitea":               schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorGitea(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGithub":              schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorGithub(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGitlab":              schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorGitlab(ref),
+		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorScmManager":          schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorScmManager(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef":                               schema_pkg_apis_application_v1alpha1_SecretRef(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SignatureKey":                            schema_pkg_apis_application_v1alpha1_SignatureKey(ref),
 		"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SyncOperation":                           schema_pkg_apis_application_v1alpha1_SyncOperation(ref),
@@ -5167,11 +5169,16 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGenerator(ref common.Refere
 							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorAzureDevOps"),
 						},
 					},
+					"scmManager": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorScmManager"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorAzureDevOps", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorBitbucket", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorBitbucketServer", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorFilter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGitLab", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGitea", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGithub"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorAzureDevOps", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorBitbucket", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorBitbucketServer", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorFilter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGitLab", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGitea", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorGithub", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.PullRequestGeneratorScmManager"},
 	}
 }
 
@@ -5573,6 +5580,65 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGithub(ref common.
 		},
 		Dependencies: []string{
 			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorScmManager(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PullRequestGenerator defines connection info specific to SCM-Manager.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SCM-Manager namespace. Required.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SCM-Manager repo name to scan. Required.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"api": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SCM-Manager Instance URL with context path. Required",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tokenRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Authentication token reference.",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"),
+						},
+					},
+					"insecure": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Allow insecure tls, for self-signed certificates; default: false.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"caRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigMap key holding the trusted certificates",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef"),
+						},
+					},
+				},
+				Required: []string{"namespace", "name", "api"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
 	}
 }
 
@@ -7130,11 +7196,16 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGenerator(ref common.Refere
 							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAWSCodeCommit"),
 						},
 					},
+					"scmManager": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorScmManager"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAWSCodeCommit", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAzureDevOps", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorBitbucket", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorBitbucketServer", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorFilter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGitea", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGithub", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGitlab"},
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ApplicationSetTemplate", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAWSCodeCommit", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorAzureDevOps", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorBitbucket", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorBitbucketServer", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorFilter", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGitea", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGithub", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorGitlab", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SCMProviderGeneratorScmManager"},
 	}
 }
 
@@ -7586,6 +7657,56 @@ func schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorGitlab(ref common.
 					},
 				},
 				Required: []string{"group"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef", "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_SCMProviderGeneratorScmManager(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SCMProviderGeneratorScmManager defines a connection info specific to Scm-Manager.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"api": {
+						SchemaProps: spec.SchemaProps{
+							Description: "The SCM-Manager URL to talk to. For example https://scm-manager.org/scm.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"tokenRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Authentication token reference.",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.SecretRef"),
+						},
+					},
+					"allBranches": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Scan all branches instead of just the default branch.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"insecure": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Allow self-signed TLS / Certificates; default: false",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"caRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ConfigMap key holding the trusted certificates",
+							Ref:         ref("github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1.ConfigMapKeyRef"),
+						},
+					},
+				},
+				Required: []string{"api"},
 			},
 		},
 		Dependencies: []string{
