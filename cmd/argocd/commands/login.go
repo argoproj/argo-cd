@@ -20,6 +20,7 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	sessionpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
 	settingspkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/settings"
@@ -196,7 +197,7 @@ func userDisplayName(claims jwt.MapClaims) string {
 	if name := jwtutil.StringField(claims, "name"); name != "" {
 		return name
 	}
-	return jwtutil.StringField(claims, "sub")
+	return utils.GetUserIdentifier(claims)
 }
 
 // oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and
