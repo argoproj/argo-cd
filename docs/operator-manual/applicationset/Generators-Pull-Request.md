@@ -516,6 +516,15 @@ The Pull Request Generator will requeue when the next action occurs.
 
 For more information about each event, please refer to the [official documentation](https://docs.gitlab.com/ee/user/project/integrations/webhook_events.html#merge-request-events).
 
+### SCM-Manager webhook configuration
+
+To enable the webhook in SCM-Manager, you need to install the ArgoCD plugin. The plugin is available in the SCM-Manager
+through the plugin center. When this is done, you can configure the webhook either globally or in the repository settings.
+In the settings, go to "Settings/Webhooks" in the global or in the repository navigation and add a new webhook of type
+"ArgoCD". The URL should be the URL of the ArgoCD ApplicationSet webhook server.
+
+![Add Gitlab Webhook](../../assets/applicationset/webhook-config-merge-request-scm-manager.png "Add SCM-Manager webhook")
+
 ## Lifecycle
 
 An Application will be generated when a Pull Request is discovered when the configured criteria is met - i.e. for GitHub when a Pull Request matches the specified `labels` and/or `pullRequestState`. Application will be removed when a Pull Request no longer meets the specified criteria.
