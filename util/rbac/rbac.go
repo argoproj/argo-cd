@@ -207,10 +207,9 @@ func CheckUserDefinedRoleReferentialIntegrity(e CasbinEnforcer) error {
 		if err != nil {
 			return err
 		}
-		if len(permissions) > 0 {
-			continue
+		if len(permissions) == 0 {
+			notFound = append(notFound, roleName)
 		}
-		notFound = append(notFound, roleName)
 	}
 	if len(notFound) > 0 {
 		return fmt.Errorf("user defined roles not found in policies: %s", strings.Join(notFound, ","))
