@@ -12,10 +12,10 @@ argocd admin proj update-role-policy PROJECT_GLOB MODIFICATION ACTION [flags]
 
 ```
   # Add policy that allows executing any action (action/*) to roles which name matches to *deployer* in all projects  
-  argocd admin projects update-role-policy '*' set 'action/*' --role '*deployer*' --resource applications --scope '*' --permission allow
+  argocd admin proj update-role-policy '*' set 'action/*' --role '*deployer*' --resource applications --scope '*' --permission allow
 
   # Remove policy that which manages running (action/*) from all roles which name matches *deployer* in all projects
-  argocd admin projects update-role-policy '*' remove override --role '*deployer*'
+  argocd admin proj update-role-policy '*' remove override --role '*deployer*'
 
 ```
 
