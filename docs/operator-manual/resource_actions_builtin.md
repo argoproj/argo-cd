@@ -6,6 +6,7 @@
 - [argoproj.io/AnalysisRun/terminate](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/argoproj.io/AnalysisRun/actions/terminate/action.lua)
 - [argoproj.io/CronWorkflow/create-workflow](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/argoproj.io/CronWorkflow/actions/create-workflow/action.lua)
 - [argoproj.io/Rollout/abort](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/argoproj.io/Rollout/actions/abort/action.lua)
+- [argoproj.io/Rollout/pause](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/argoproj.io/Rollout/actions/pause/action.lua)
 - [argoproj.io/Rollout/promote-full](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/argoproj.io/Rollout/actions/promote-full/action.lua)
 - [argoproj.io/Rollout/restart](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/argoproj.io/Rollout/actions/restart/action.lua)
 - [argoproj.io/Rollout/resume](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/argoproj.io/Rollout/actions/resume/action.lua)
