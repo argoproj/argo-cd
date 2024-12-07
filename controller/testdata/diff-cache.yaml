@@ -82,6 +82,7 @@ spec:
     - RespectIgnoreDifferences=false
     - ServerSideApply=true
     - Validate=true
+    - DisableHelmChartCache=true
 status:
   controllerNamespace: argo-cd
   health:
