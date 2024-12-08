@@ -27,9 +27,10 @@ argocd admin settings rbac can some:role create application 'default/app' --poli
 # i.e. 'policy.csv' and (optionally) 'policy.default'
 argocd admin settings rbac can some:role create application 'default/app' --policy-file argocd-rbac-cm.yaml
 
-# If --policy-file is not given, the ConfigMap 'argocd-rbac-cm' from K8s is
-# used. You need to specify the argocd namespace, and make sure that your
-# current Kubernetes context is pointing to the cluster Argo CD is running in
+# If --policy-file is not given, the ConfigMap 'argocd-rbac-cm' and
+# applicable AppProject roles from K8s are used. You need to specify
+# the argocd namespace, and make sure that your current Kubernetes context
+# is pointing to the cluster Argo CD is running in
 argocd admin settings rbac can some:role create application 'default/app' --namespace argocd
 
 # You can override a possibly configured default role
