@@ -4,7 +4,7 @@
     name: secret-init
     command: [ 'argocd', 'admin', 'redis-initial-password' ]
     image: quay.io/argoproj/argocd:latest
-    imagePullPolicy: IfNotPresent
+    imagePullPolicy: Always
     securityContext:
       allowPrivilegeEscalation: false
       capabilities:

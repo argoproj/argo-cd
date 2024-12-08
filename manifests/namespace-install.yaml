@@ -932,7 +932,7 @@ spec:
               name: argocd-cmd-params-cm
               optional: true
         image: ghcr.io/dexidp/dex:v2.41.1
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         name: dex
         ports:
         - containerPort: 5556
@@ -1137,7 +1137,7 @@ spec:
               key: auth
               name: argocd-redis
         image: redis:7.0.15-alpine
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         name: redis
         ports:
         - containerPort: 6379
@@ -1153,7 +1153,7 @@ spec:
         - admin
         - redis-initial-password
         image: quay.io/argoproj/argocd:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         name: secret-init
         securityContext:
           allowPrivilegeEscalation: false
@@ -1466,6 +1466,7 @@ spec:
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
         image: quay.io/argoproj/argocd:latest
+        imagePullPolicy: Always
         name: copyutil
         securityContext:
           allowPrivilegeEscalation: false

@@ -277,6 +277,7 @@ spec:
         - /usr/local/bin/argocd
         - /var/run/argocd/argocd-cmp-server
         image: quay.io/argoproj/argocd:latest
+        imagePullPolicy: Always
         name: copyutil
         securityContext:
           runAsNonRoot: true

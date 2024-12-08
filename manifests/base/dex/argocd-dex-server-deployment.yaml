@@ -38,7 +38,7 @@ spec:
       containers:
       - name: dex
         image: ghcr.io/dexidp/dex:v2.41.1
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         command: [/shared/argocd-dex, rundex]
         env:
           - name: ARGOCD_DEX_SERVER_LOGFORMAT
