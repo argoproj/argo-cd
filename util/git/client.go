@@ -618,7 +618,7 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 }
 
 func (m *nativeGitClient) lsRemote(revision string) (string, error) {
-	if IsCommitSHA(revision) {
+	if IsCommitSHA(revision) || IsTruncatedCommitSHA(revision) {
 		return revision, nil
 	}
 
@@ -794,7 +794,7 @@ func (m *nativeGitClient) ChangedFiles(revision string, targetRevision string) (
 		return []string{}, nil
 	}
 
-	if !IsCommitSHA(revision) || !IsCommitSHA(targetRevision) {
+	if !(IsCommitSHA(revision) || IsTruncatedCommitSHA(revision)) || !(IsCommitSHA(targetRevision) || IsTruncatedCommitSHA(targetRevision)) {
 		return []string{}, fmt.Errorf("invalid revision provided, must be SHA")
 	}
 
