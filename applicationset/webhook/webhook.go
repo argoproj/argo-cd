@@ -117,7 +117,6 @@ func (h *WebhookHandler) startWorkerPool(webhookParallelism int) {
 		}()
 	}
 }
-
 func (h *WebhookHandler) HandleEvent(payload interface{}) {
 	gitGenInfo := getGitGeneratorInfo(payload)
 	prGenInfo := getPRGeneratorInfo(payload)
