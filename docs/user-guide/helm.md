@@ -499,6 +499,26 @@ spec:
       skipCrds: true
 ```
 
+## Helm `--skip-schema-validation`
+
+Helm validates the values.yaml file using a values.schema.json file. See [Schema files](https://helm.sh/docs/topics/charts/#schema-files) for details.
+
+If needed, it is possible to skip the schema validation step with the `helm-skip-schema-validation` flag on the cli:
+
+```bash
+argocd app set helm-guestbook --helm-skip-schema-validation
+```
+
+Or using declarative syntax:
+
+```yaml
+spec:
+  source:
+    helm:
+      skipSchemaValidation: true
+```
+
+
 
 ## Helm `--skip-tests`
 

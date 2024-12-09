@@ -308,6 +308,10 @@ spec:
                             description: SkipCrds skips custom resource definition
                               installation step (Helm's --skip-crds)
                             type: boolean
+                          skipSchemaValidation:
+                            description: SkipSchemaValidation skips JSON schema validation
+                              (Helm's --skip-schema-validation)
+                            type: boolean
                           skipTests:
                             description: SkipTests skips test manifest installation
                               step (Helm's --skip-tests).
@@ -681,6 +685,10 @@ spec:
                             skipCrds:
                               description: SkipCrds skips custom resource definition
                                 installation step (Helm's --skip-crds)
+                              type: boolean
+                            skipSchemaValidation:
+                              description: SkipSchemaValidation skips JSON schema
+                                validation (Helm's --skip-schema-validation)
                               type: boolean
                             skipTests:
                               description: SkipTests skips test manifest installation
@@ -1171,6 +1179,10 @@ spec:
                         description: SkipCrds skips custom resource definition installation
                           step (Helm's --skip-crds)
                         type: boolean
+                      skipSchemaValidation:
+                        description: SkipSchemaValidation skips JSON schema validation
+                          (Helm's --skip-schema-validation)
+                        type: boolean
                       skipTests:
                         description: SkipTests skips test manifest installation step
                           (Helm's --skip-tests).
@@ -1536,6 +1548,10 @@ spec:
                           description: SkipCrds skips custom resource definition installation
                             step (Helm's --skip-crds)
                           type: boolean
+                        skipSchemaValidation:
+                          description: SkipSchemaValidation skips JSON schema validation
+                            (Helm's --skip-schema-validation)
+                          type: boolean
                         skipTests:
                           description: SkipTests skips test manifest installation
                             step (Helm's --skip-tests).
@@ -1869,6 +1885,11 @@ spec:
                 description: Health contains information about the application's current
                   health status
                 properties:
+                  lastTransitionTime:
+                    description: LastTransitionTime is the time the HealthStatus was
+                      set or updated
+                    format: date-time
+                    type: string
                   message:
                     description: Message is a human-readable informational message
                       describing the health status
@@ -2065,6 +2086,10 @@ spec:
                             skipCrds:
                               description: SkipCrds skips custom resource definition
                                 installation step (Helm's --skip-crds)
+                              type: boolean
+                            skipSchemaValidation:
+                              description: SkipSchemaValidation skips JSON schema
+                                validation (Helm's --skip-schema-validation)
                               type: boolean
                             skipTests:
                               description: SkipTests skips test manifest installation
@@ -2442,6 +2467,10 @@ spec:
                               skipCrds:
                                 description: SkipCrds skips custom resource definition
                                   installation step (Helm's --skip-crds)
+                                type: boolean
+                              skipSchemaValidation:
+                                description: SkipSchemaValidation skips JSON schema
+                                  validation (Helm's --skip-schema-validation)
                                 type: boolean
                               skipTests:
                                 description: SkipTests skips test manifest installation
@@ -2970,6 +2999,10 @@ spec:
                                     description: SkipCrds skips custom resource definition
                                       installation step (Helm's --skip-crds)
                                     type: boolean
+                                  skipSchemaValidation:
+                                    description: SkipSchemaValidation skips JSON schema
+                                      validation (Helm's --skip-schema-validation)
+                                    type: boolean
                                   skipTests:
                                     description: SkipTests skips test manifest installation
                                       step (Helm's --skip-tests).
@@ -3365,6 +3398,10 @@ spec:
                                     skipCrds:
                                       description: SkipCrds skips custom resource
                                         definition installation step (Helm's --skip-crds)
+                                      type: boolean
+                                    skipSchemaValidation:
+                                      description: SkipSchemaValidation skips JSON
+                                        schema validation (Helm's --skip-schema-validation)
                                       type: boolean
                                     skipTests:
                                       description: SkipTests skips test manifest installation
@@ -3879,6 +3916,10 @@ spec:
                                 description: SkipCrds skips custom resource definition
                                   installation step (Helm's --skip-crds)
                                 type: boolean
+                              skipSchemaValidation:
+                                description: SkipSchemaValidation skips JSON schema
+                                  validation (Helm's --skip-schema-validation)
+                                type: boolean
                               skipTests:
                                 description: SkipTests skips test manifest installation
                                   step (Helm's --skip-tests).
@@ -4268,6 +4309,10 @@ spec:
                                   description: SkipCrds skips custom resource definition
                                     installation step (Helm's --skip-crds)
                                   type: boolean
+                                skipSchemaValidation:
+                                  description: SkipSchemaValidation skips JSON schema
+                                    validation (Helm's --skip-schema-validation)
+                                  type: boolean
                                 skipTests:
                                   description: SkipTests skips test manifest installation
                                     step (Helm's --skip-tests).
@@ -4534,6 +4579,11 @@ spec:
                       description: HealthStatus contains information about the currently
                         observed health state of an application or resource
                       properties:
+                        lastTransitionTime:
+                          description: LastTransitionTime is the time the HealthStatus
+                            was set or updated
+                          format: date-time
+                          type: string
                         message:
                           description: Message is a human-readable informational message
                             describing the health status
@@ -4802,6 +4852,10 @@ spec:
                               skipCrds:
                                 description: SkipCrds skips custom resource definition
                                   installation step (Helm's --skip-crds)
+                                type: boolean
+                              skipSchemaValidation:
+                                description: SkipSchemaValidation skips JSON schema
+                                  validation (Helm's --skip-schema-validation)
                                 type: boolean
                               skipTests:
                                 description: SkipTests skips test manifest installation
@@ -5191,6 +5245,10 @@ spec:
                                 skipCrds:
                                   description: SkipCrds skips custom resource definition
                                     installation step (Helm's --skip-crds)
+                                  type: boolean
+                                skipSchemaValidation:
+                                  description: SkipSchemaValidation skips JSON schema
+                                    validation (Helm's --skip-schema-validation)
                                   type: boolean
                                 skipTests:
                                   description: SkipTests skips test manifest installation

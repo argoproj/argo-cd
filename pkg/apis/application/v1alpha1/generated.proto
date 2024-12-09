@@ -521,6 +521,9 @@ message ApplicationSourceHelm {
 
   // SkipTests skips test manifest installation step (Helm's --skip-tests).
   optional bool skipTests = 14;
+
+  // SkipSchemaValidation skips JSON schema validation (Helm's --skip-schema-validation)
+  optional bool skipSchemaValidation = 15;
 }
 
 // ApplicationSourceJsonnet holds options specific to applications of type Jsonnet
@@ -1069,6 +1072,9 @@ message HealthStatus {
 
   // Message is a human-readable informational message describing the health status
   optional string message = 2;
+
+  // LastTransitionTime is the time the HealthStatus was set or updated
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
 }
 
 // HelmFileParameter is a file parameter that's passed to helm template during manifest generation

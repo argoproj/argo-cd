@@ -11,6 +11,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture/repos"
 	"github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v2/util/errors"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 )
 
@@ -21,31 +22,32 @@ type Context struct {
 	chart       string
 	repoURLType fixture.RepoURLType
 	// seconds
-	timeout                int
-	name                   string
-	appNamespace           string
-	destServer             string
-	destName               string
-	env                    string
-	parameters             []string
-	namePrefix             string
-	nameSuffix             string
-	resource               string
-	prune                  bool
-	configManagementPlugin string
-	async                  bool
-	localPath              string
-	project                string
-	revision               string
-	force                  bool
-	applyOutOfSyncOnly     bool
-	directoryRecurse       bool
-	replace                bool
-	helmPassCredentials    bool
-	helmSkipCrds           bool
-	helmSkipTests          bool
-	trackingMethod         v1alpha1.TrackingMethod
-	sources                []v1alpha1.ApplicationSource
+	timeout                  int
+	name                     string
+	appNamespace             string
+	destServer               string
+	destName                 string
+	env                      string
+	parameters               []string
+	namePrefix               string
+	nameSuffix               string
+	resource                 string
+	prune                    bool
+	configManagementPlugin   string
+	async                    bool
+	localPath                string
+	project                  string
+	revision                 string
+	force                    bool
+	applyOutOfSyncOnly       bool
+	directoryRecurse         bool
+	replace                  bool
+	helmPassCredentials      bool
+	helmSkipCrds             bool
+	helmSkipSchemaValidation bool
+	helmSkipTests            bool
+	trackingMethod           v1alpha1.TrackingMethod
+	sources                  []v1alpha1.ApplicationSource
 }
 
 type ContextArgs struct {
@@ -104,7 +106,7 @@ func (c *Context) AppNamespace() string {
 
 func (c *Context) SetAppNamespace(namespace string) *Context {
 	c.appNamespace = namespace
-	// fixture.SetParamInSettingConfigMap("application.resourceTrackingMethod", "annotation")
+	// errors.CheckError(fixture.SetParamInSettingConfigMap("application.resourceTrackingMethod", "annotation"))
 	return c
 }
 
@@ -211,7 +213,7 @@ func (c *Context) SSHCredentialsAdded() *Context {
 }
 
 func (c *Context) ProjectSpec(spec v1alpha1.AppProjectSpec) *Context {
-	fixture.SetProjectSpec(c.project, spec)
+	errors.CheckError(fixture.SetProjectSpec(c.project, spec))
 	return c
 }
 
@@ -296,12 +298,12 @@ func (c *Context) NameSuffix(nameSuffix string) *Context {
 }
 
 func (c *Context) ResourceOverrides(overrides map[string]v1alpha1.ResourceOverride) *Context {
-	fixture.SetResourceOverrides(overrides)
+	errors.CheckError(fixture.SetResourceOverrides(overrides))
 	return c
 }
 
 func (c *Context) ResourceFilter(filter settings.ResourcesFilter) *Context {
-	fixture.SetResourceFilter(filter)
+	errors.CheckError(fixture.SetResourceFilter(filter))
 	return c
 }
 
@@ -359,18 +361,23 @@ func (c *Context) HelmSkipCrds() *Context {
 	return c
 }
 
+func (c *Context) HelmSkipSchemaValidation() *Context {
+	c.helmSkipSchemaValidation = true
+	return c
+}
+
 func (c *Context) HelmSkipTests() *Context {
 	c.helmSkipTests = true
 	return c
 }
 
 func (c *Context) SetTrackingMethod(trackingMethod string) *Context {
-	fixture.SetTrackingMethod(trackingMethod)
+	errors.CheckError(fixture.SetTrackingMethod(trackingMethod))
 	return c
 }
 
 func (c *Context) SetInstallationID(installationID string) *Context {
-	fixture.SetTrackingMethod(installationID)
+	errors.CheckError(fixture.SetInstallationID(installationID))
 	return c
 }
 

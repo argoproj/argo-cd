@@ -2946,7 +2946,7 @@ func TestGetAmbiguousRevision_MultiSource(t *testing.T) {
 		},
 	}
 	syncReq := &application.ApplicationSyncRequest{
-		SourcePositions: []int64{0, 1},
+		SourcePositions: []int64{1, 2},
 		Revisions:       []string{"rev1", "rev2"},
 	}
 
