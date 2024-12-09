@@ -18,7 +18,7 @@ import (
 var _ Generator = (*PullRequestGenerator)(nil)
 
 const (
-	DefaultPullRequestRequeueAfterSeconds = 30 * time.Minute
+	DefaultPullRequestRequeueAfter = 30 * time.Minute
 )
 
 type PullRequestGenerator struct {
@@ -43,7 +43,7 @@ func (g *PullRequestGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alph
 		return time.Duration(*appSetGenerator.PullRequest.RequeueAfterSeconds) * time.Second
 	}
 
-	return DefaultPullRequestRequeueAfterSeconds
+	return DefaultPullRequestRequeueAfter
 }
 
 func (g *PullRequestGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
@@ -106,6 +106,11 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			"head_short_sha":     pull.HeadSHA[:shortSHALength],
 			"head_short_sha_7":   pull.HeadSHA[:shortSHALength7],
 			"author":             pull.Author,
+		}
+
+		err := appendTemplatedValues(appSetGenerator.SCMProvider.Values, paramMap, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to append templated values: %w", err)
 		}
 
 		// PR lables will only be supported for Go Template appsets, since fasttemplate will be deprecated.
