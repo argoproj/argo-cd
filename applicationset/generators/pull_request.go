@@ -18,7 +18,7 @@ import (
 var _ Generator = (*PullRequestGenerator)(nil)
 
 const (
-	DefaultPullRequestRequeueAfter = 30 * time.Minute
+	DefaultPullRequestRequeueAfterSeconds = 30 * time.Minute
 )
 
 type PullRequestGenerator struct {
@@ -43,7 +43,7 @@ func (g *PullRequestGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alph
 		return time.Duration(*appSetGenerator.PullRequest.RequeueAfterSeconds) * time.Second
 	}
 
-	return DefaultPullRequestRequeueAfter
+	return DefaultPullRequestRequeueAfterSeconds
 }
 
 func (g *PullRequestGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
