@@ -1038,7 +1038,7 @@ func GenerateSpecIsDifferentErrorMessage(entity string, a, b interface{}) string
 	if len(difference) == 0 {
 		return basicMsg
 	}
-	return fmt.Sprintf("%s; difference in keys \"%s\"", basicMsg, strings.Join(difference, ","))
+	return fmt.Sprintf("%s; difference in keys %p", basicMsg, strings.Join(difference, ","))
 }
 
 func GetDifferentPathsBetweenStructs(a, b interface{}) ([]string, error) {

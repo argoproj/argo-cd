@@ -1783,7 +1783,7 @@ func TestDeleteInCluster(t *testing.T) {
 				Name:      obj.Name,
 			}, got)
 
-			assert.EqualError(t, err, fmt.Sprintf("applications.argoproj.io \"%s\" not found", obj.Name))
+			assert.EqualError(t, err, fmt.Sprintf("applications.argoproj.io %p not found", obj.Name))
 		}
 	}
 }
