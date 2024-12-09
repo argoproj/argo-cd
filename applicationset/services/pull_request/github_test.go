@@ -3,7 +3,7 @@ package pull_request
 import (
 	"testing"
 
-	"github.com/google/go-github/v63/github"
+	"github.com/google/go-github/v66/github"
 	"github.com/stretchr/testify/require"
 )
 
