@@ -90,7 +90,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 	secretsFound := []corev1.Secret{}
 
 	isFlatMode := appSetGenerator.Clusters.FlatList
-	logCtx.Debug("Using flat mode = ", isFlatMode, " for cluster generator")
+	logCtx.Debugf("Using flat mode = %t for cluster generator", isFlatMode)
 	clustersParams := make([]map[string]interface{}, 0)
 
 	for _, cluster := range clustersFromArgoCD.Items {
@@ -191,7 +191,7 @@ func (g *ClusterGenerator) getSecretsByClusterName(log *log.Entry, appSetGenerat
 	if err := g.Client.List(context.Background(), clusterSecretList, client.MatchingLabelsSelector{Selector: secretSelector}); err != nil {
 		return nil, err
 	}
-	log.Debug("clusters matching labels", "count", len(clusterSecretList.Items))
+	log.Debugf("clusters matching labels: %d", len(clusterSecretList.Items))
 
 	res := map[string]corev1.Secret{}
 
