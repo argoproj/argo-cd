@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 
@@ -91,6 +92,15 @@ func TestValidateDestination(t *testing.T) {
 		dest := argoappv1.ApplicationDestination{
 			Server:    "https://127.0.0.1:6443",
 			Namespace: "default",
+		}
+
+		// Save current function and restore at the end:
+		oldListClustersFunc := ListClustersFunc
+		defer func() { ListClustersFunc = oldListClustersFunc }()
+
+		testCluster := argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test-cluster"}
+		ListClustersFunc = func(ctx context.Context, clientset kubernetes.Interface, namespace string) (*argoappv1.ClusterList, error) {
+			return &argoappv1.ClusterList{Items: []argoappv1.Cluster{testCluster}}, nil
 		}
 
 		appCond := ValidateDestination(context.Background(), &dest, nil, fakeNamespace)
