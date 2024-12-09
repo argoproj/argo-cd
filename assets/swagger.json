@@ -4691,6 +4691,12 @@
     "clusterSettings": {
       "type": "object",
       "properties": {
+        "additionalUrls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "appLabelKey": {
           "type": "string"
         },
@@ -6624,6 +6630,10 @@
           "type": "boolean",
           "title": "SkipCrds skips custom resource definition installation step (Helm's --skip-crds)"
         },
+        "skipSchemaValidation": {
+          "type": "boolean",
+          "title": "SkipSchemaValidation skips JSON schema validation (Helm's --skip-schema-validation)"
+        },
         "skipTests": {
           "description": "SkipTests skips test manifest installation step (Helm's --skip-tests).",
           "type": "boolean"
@@ -7501,6 +7511,9 @@
       "type": "object",
       "title": "HealthStatus contains information about the currently observed health state of an application or resource",
       "properties": {
+        "lastTransitionTime": {
+          "$ref": "#/definitions/v1Time"
+        },
         "message": {
           "type": "string",
           "title": "Message is a human-readable informational message describing the health status"
