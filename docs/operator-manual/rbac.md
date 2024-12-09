@@ -155,7 +155,27 @@ p, example-user, applications, delete/*/Pod/*/*, default/prod-app, allow
 
     ```csv
     p, example-user, applications, delete, default/prod-app, allow
-    p, example-user, applications, delete/*/Pod/*/*, default/prod-app, deny
+    p, example-user, applications, delete/*/Pod/*, default/prod-app, deny
+    ```
+
+!!! note
+
+    In v3, RBAC will have a breaking change. The `update` and `delete` actions
+    (without a `/*`) will no longer include sub-resources. This allows you to
+    explicitly allow or deny access to an application without affecting its
+    sub-resources. For example, you may want to allow enable/disable of auto-sync
+    by allowing update on an application, but disallow the editing of deployment
+    manifests for that application.
+
+    To enable this behavior before v3, you can set the config value
+    `server.rbac.enablev3` to `true` in the Argo CD ConfigMap argocd-cm.
+
+    Once you do so, you can explicitly allow updates to the application, but deny
+    updates to any sub-resources:
+
+    ```csv
+    p, example-user, applications, update, default/prod-app, allow
+    p, example-user, applications, update/*, default/prod-app, deny
     ```
 
 #### The `action` action
