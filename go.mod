@@ -337,3 +337,5 @@ replace (
 	k8s.io/sample-cli-plugin => k8s.io/sample-cli-plugin v0.31.0
 	k8s.io/sample-controller => k8s.io/sample-controller v0.31.0
 )
+
+replace github.com/argoproj/gitops-engine => github.com/dejanzele/gitops-engine v0.0.0-20241211224140-f02987e8fff6

@@ -427,3 +427,32 @@ func TestAutomaticallyNamingUnnamedHook(t *testing.T) {
 			assert.Contains(t, resources[2].Name, "postsync")
 		})
 }
+
+func TestHookFinalizerPreSync(t *testing.T) {
+	testHookFinalizer(t, HookTypePreSync)
+}
+
+func TestHookFinalizerSync(t *testing.T) {
+	testHookFinalizer(t, HookTypeSync)
+}
+
+func TestHookFinalizerPostSync(t *testing.T) {
+	testHookFinalizer(t, HookTypePostSync)
+}
+
+func testHookFinalizer(t *testing.T, hookType HookType) {
+	t.Helper()
+	Given(t).
+		Path("hook-resource-deleted-externally").
+		When().
+		PatchFile("hook.yaml", fmt.Sprintf(`[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "%s"}}]`, hookType)).
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(ResourceSyncStatusIs("Pod", "pod", SyncStatusCodeSynced)).
+		Expect(ResourceHealthIs("Pod", "pod", health.HealthStatusHealthy)).
+		Expect(ResourceResultNumbering(2)).
+		Expect(ResourceResultIs(ResourceResult{Group: "batch", Version: "v1", Kind: "Job", Namespace: DeploymentNamespace(), Name: "hook", Message: "Reached expected number of succeeded pods", HookType: hookType, HookPhase: OperationSucceeded, SyncPhase: SyncPhase(hookType)}))
+}
