@@ -40,6 +40,8 @@ var (
 		ConnectionState: appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful},
 	}
 	initLocalCluster sync.Once
+
+	ListClustersFunc = ListClusters
 )
 
 const (
@@ -86,7 +88,7 @@ func getDestinationBy(ctx context.Context, cluster string, clientset kubernetes.
 	// settingsMgr := settings.NewSettingsManager(context.TODO(), clientset, namespace)
 	// argoDB := db.NewDB(namespace, settingsMgr, clientset)
 	// clusterList, err := argoDB.ListClusters(ctx)
-	clusterList, err := ListClusters(ctx, clientset, argoCDNamespace)
+	clusterList, err := ListClustersFunc(ctx, clientset, argoCDNamespace)
 	if err != nil {
 		return "", err
 	}
