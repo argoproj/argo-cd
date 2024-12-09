@@ -17,8 +17,9 @@ const formatYamlWithArrays = (input: any): string => {
         noArrayIndent: false
     });
 
-    // Add newline after dash for nested objects
-    yaml = yaml.replace(/^(\s*)-\s+(\w+):/gm, '$1-\n$1  $2:');
+    // Format nested arrays to improve readability when collapsed
+    //- puts first item on new line, keeps subsequent items inline
+    yaml = yaml.replace(/:(\s*)\n(\s*)-(\s+)(\w+):(\s*)\n(\s*)-/, ':$1\n$2-\n$2  $4:$5\n$6-');
 
     return yaml;
 };
