@@ -48,7 +48,7 @@ func NewClusterGenerator(c client.Client, ctx context.Context, clientset kuberne
 
 // GetRequeueAfter never requeue the cluster generator because the `clusterSecretEventHandler` will requeue the appsets
 // when the cluster secrets change
-func (g *ClusterGenerator) GetRequeueAfter(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) time.Duration {
+func (g *ClusterGenerator) GetRequeueAfter(_ *argoappsetv1alpha1.ApplicationSetGenerator) time.Duration {
 	return NoRequeueAfter
 }
 
@@ -57,6 +57,7 @@ func (g *ClusterGenerator) GetTemplate(appSetGenerator *argoappsetv1alpha1.Appli
 }
 
 func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator, appSet *argoappsetv1alpha1.ApplicationSet, _ client.Client) ([]map[string]interface{}, error) {
+	logCtx := log.WithField("applicationset", appSet.GetName())
 	if appSetGenerator == nil {
 		return nil, EmptyAppSetGeneratorError
 	}
@@ -79,7 +80,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 		return nil, nil
 	}
 
-	clusterSecrets, err := g.getSecretsByClusterName(appSetGenerator)
+	clusterSecrets, err := g.getSecretsByClusterName(logCtx, appSetGenerator)
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster secrets: %w", err)
 	}
@@ -89,7 +90,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 	secretsFound := []corev1.Secret{}
 
 	isFlatMode := appSetGenerator.Clusters.FlatList
-	log.Debug("Using flat mode = ", isFlatMode, " for cluster generator")
+	logCtx.Debug("Using flat mode = ", isFlatMode, " for cluster generator")
 	clustersParams := make([]map[string]interface{}, 0)
 
 	for _, cluster := range clustersFromArgoCD.Items {
@@ -116,7 +117,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 				res = append(res, params)
 			}
 
-			log.WithField("cluster", "local cluster").Info("matched local cluster")
+			logCtx.WithField("cluster", "local cluster").Info("matched local cluster")
 		}
 	}
 
@@ -167,7 +168,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 			res = append(res, params)
 		}
 
-		log.WithField("cluster", cluster.Name).Info("matched cluster secret")
+		logCtx.WithField("cluster", cluster.Name).Debug("matched cluster secret")
 	}
 
 	if isFlatMode {
@@ -178,8 +179,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 	return res, nil
 }
 
-func (g *ClusterGenerator) getSecretsByClusterName(appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) (map[string]corev1.Secret, error) {
-	// List all Clusters:
+func (g *ClusterGenerator) getSecretsByClusterName(log *log.Entry, appSetGenerator *argoappsetv1alpha1.ApplicationSetGenerator) (map[string]corev1.Secret, error) {
 	clusterSecretList := &corev1.SecretList{}
 
 	selector := metav1.AddLabelToSelector(&appSetGenerator.Clusters.Selector, common.LabelKeySecretType, common.LabelValueSecretTypeCluster)
