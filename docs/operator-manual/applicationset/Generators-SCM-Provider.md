@@ -276,7 +276,7 @@ spec:
   generators:
   - scmProvider:
       bitbucket:
-        # The workspace id (slug).  
+        # The workspace id (slug).
         owner: "example-owner"
         # The user to use for basic authentication with an app password.
         user: "example-user"
