@@ -244,7 +244,6 @@ func TestWebhookHandler(t *testing.T) {
 			assert.Equal(t, test.expectedStatusCode, w.Code)
 
 			list := &v1alpha1.ApplicationSetList{}
-			fmt.Printf("List: %v\n", list)
 			err = fc.List(context.TODO(), list)
 			require.NoError(t, err)
 			effectedAppSetsAsExpected := make(map[string]bool)

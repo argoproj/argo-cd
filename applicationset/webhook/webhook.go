@@ -500,12 +500,12 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 	if gen.ScmManager != nil && info.SCMManager != nil {
 		apiUrl, err := url.Parse(gen.ScmManager.API)
 		if err != nil {
-			log.Errorf("Failed to parse SCM-Manager URL '%s'", gen.ScmManager.API)
+			log.Errorf("Failed to parse SCM-Manager URL by application '%s'", gen.ScmManager.API)
 			return false
 		}
 		infoUrl, err := url.Parse(info.SCMManager.Host)
 		if err != nil {
-			log.Errorf("Failed to parse SCM-Manager URL '%s'", info.SCMManager.Host)
+			log.Errorf("Failed to parse SCM-Manager URL by request '%s'", info.SCMManager.Host)
 			return false
 		}
 		if apiUrl.Hostname() != infoUrl.Hostname() {

@@ -17,6 +17,8 @@ type ScmManagerProvider struct {
 	allBranches bool
 }
 
+const FilterLimit = 9999
+
 var _ SCMProviderService = &ScmManagerProvider{}
 
 func NewScmManagerProvider(ctx context.Context, token, url string, allBranches, insecure bool, scmRootCAPath string, caCerts []byte) (*ScmManagerProvider, error) {
@@ -87,7 +89,7 @@ func (g *ScmManagerProvider) GetBranches(ctx context.Context, repo *Repository) 
 func (g *ScmManagerProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
 	repos := []*Repository{}
 	filter := g.client.NewRepoListFilter()
-	filter.Limit = 9999
+	filter.Limit = FilterLimit
 	scmmRepos, err := g.client.ListRepos(filter)
 	if err != nil {
 		return nil, err
