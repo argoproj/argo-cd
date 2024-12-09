@@ -494,6 +494,9 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 // It also checks:
 // - If we used both name and server then we return an invalid spec error
 func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestination, db db.ArgoDB) error {
+	if dest.IsServerInferred() && dest.IsNameInferred() {
+		return fmt.Errorf("application destination can't have both name and server inferred: %s %s", dest.Name, dest.Server)
+	}
 	if dest.Name != "" {
 		if dest.Server == "" {
 			server, err := getDestinationServer(ctx, db, dest.Name)
@@ -504,7 +507,7 @@ func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestina
 				return fmt.Errorf("application references destination cluster %s which does not exist", dest.Name)
 			}
 			dest.SetInferredServer(server)
-		} else if !dest.IsServerInferred() {
+		} else if !dest.IsServerInferred() && !dest.IsNameInferred() {
 			return fmt.Errorf("application destination can't have both name and server defined: %s %s", dest.Name, dest.Server)
 		}
 	} else if dest.Server != "" {
@@ -516,8 +519,7 @@ func ValidateDestination(ctx context.Context, dest *argoappv1.ApplicationDestina
 			if serverName == "" {
 				return fmt.Errorf("application references destination cluster %s which does not exist", dest.Server)
 			}
-			dest.Name = serverName
-			dest.SetIsServerInferred(true)
+			dest.SetInferredName(serverName)
 		}
 	}
 	return nil
