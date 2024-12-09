@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/kubernetes"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -1177,7 +1178,7 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 			// settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "namespace")
 			// argoDB := db.NewDB("namespace", settingsMgr, r.KubeClientset)
 			// clusterList, err := argoDB.ListClusters(context.Background())
-			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace")
+			clusterList, err := utils.ListClustersFunc(context.Background(), kubeclientset, "namespace")
 			require.NoError(t, err)
 
 			appLog := log.WithFields(log.Fields{"app": app.Name, "appSet": ""})
@@ -1333,7 +1334,7 @@ func TestRemoveFinalizerOnInvalidDestination_DestinationTypes(t *testing.T) {
 			// settingsMgr := settings.NewSettingsManager(context.TODO(), kubeclientset, "argocd")
 			// argoDB := db.NewDB("argocd", settingsMgr, r.KubeClientset)
 			// clusterList, err := argoDB.ListClusters(context.Background())
-			clusterList, err := utils.ListClusters(context.Background(), kubeclientset, "namespace")
+			clusterList, err := utils.ListClustersFunc(context.Background(), kubeclientset, "namespace")
 			require.NoError(t, err)
 
 			appLog := log.WithFields(log.Fields{"app": app.Name, "appSet": ""})
@@ -2444,6 +2445,14 @@ func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		goodCluster,
 	}}, nil)
 
+	// Save current function and restore at the end:
+	oldListClustersFunc := utils.ListClustersFunc
+	defer func() { utils.ListClustersFunc = oldListClustersFunc }()
+
+	utils.ListClustersFunc = func(ctx context.Context, clientset kubernetes.Interface, namespace string) (*v1alpha1.ClusterList, error) {
+		return &v1alpha1.ClusterList{Items: []v1alpha1.Cluster{goodCluster}}, nil
+	}
+
 	r := ApplicationSetReconciler{
 		Client:   client,
 		Scheme:   scheme,
@@ -2606,6 +2615,14 @@ func applicationsDeleteSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alp
 		goodCluster,
 	}}, nil)
 
+	// Save current function and restore at the end:
+	oldListClustersFunc := utils.ListClustersFunc
+	defer func() { utils.ListClustersFunc = oldListClustersFunc }()
+
+	utils.ListClustersFunc = func(ctx context.Context, clientset kubernetes.Interface, namespace string) (*v1alpha1.ClusterList, error) {
+		return &v1alpha1.ClusterList{Items: []v1alpha1.Cluster{goodCluster}}, nil
+	}
+
 	r := ApplicationSetReconciler{
 		Client:   client,
 		Scheme:   scheme,
@@ -2689,7 +2706,7 @@ func TestDeletePerformedWithSyncPolicyCreateDelete(t *testing.T) {
 
 	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 3, true)
 
-	assert.Empty(t, apps.Items)
+	assert.NotNil(t, apps.Items[0].DeletionTimestamp)
 }
 
 func TestDeletePerformedWithSyncPolicySync(t *testing.T) {
@@ -2697,7 +2714,7 @@ func TestDeletePerformedWithSyncPolicySync(t *testing.T) {
 
 	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 3, true)
 
-	assert.Empty(t, apps.Items)
+	assert.NotNil(t, apps.Items[0].DeletionTimestamp)
 }
 
 func TestDeletePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *testing.T) {
@@ -2705,7 +2722,7 @@ func TestDeletePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *t
 
 	apps := applicationsDeleteSyncPolicyTest(t, applicationsSyncPolicy, 3, false)
 
-	assert.Empty(t, apps.Items)
+	assert.NotNil(t, apps.Items[0].DeletionTimestamp)
 }
 
 func TestPolicies(t *testing.T) {

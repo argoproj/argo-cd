@@ -346,7 +346,7 @@ func TestNamespacedAppCreationWithoutForceUpdate(t *testing.T) {
 		}).
 		When().
 		IgnoreErrors().
-		CreateApp().
+		CreateApp("--dest-server", KubernetesInternalAPIServerAddr).
 		Then().
 		Expect(Error("", "existing application spec is different, use upsert flag to force update"))
 }
