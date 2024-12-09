@@ -50,6 +50,7 @@ type AppOptions struct {
 	helmVersion                     string
 	helmPassCredentials             bool
 	helmSkipCrds                    bool
+	helmSkipSchemaValidation        bool
 	helmSkipTests                   bool
 	helmNamespace                   string
 	helmKubeVersion                 string
@@ -126,6 +127,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringArrayVar(&opts.helmSetStrings, "helm-set-string", []string{}, "Helm set STRING values on the command line (can be repeated to set several values: --helm-set-string key1=val1 --helm-set-string key2=val2)")
 	command.Flags().StringArrayVar(&opts.helmSetFiles, "helm-set-file", []string{}, "Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)")
 	command.Flags().BoolVar(&opts.helmSkipCrds, "helm-skip-crds", false, "Skip helm crd installation step")
+	command.Flags().BoolVar(&opts.helmSkipSchemaValidation, "helm-skip-schema-validation", false, "Skip helm schema validation step")
 	command.Flags().BoolVar(&opts.helmSkipTests, "helm-skip-tests", false, "Skip helm test manifests installation step")
 	command.Flags().StringVar(&opts.helmNamespace, "helm-namespace", "", "Helm namespace to use when running helm template. If not set, use app.spec.destination.namespace")
 	command.Flags().StringVar(&opts.helmKubeVersion, "helm-kube-version", "", "Helm kube-version to use when running helm template. If not set, use the kube version from the destination cluster")
@@ -377,6 +379,7 @@ type helmOpts struct {
 	helmSetFiles            []string
 	passCredentials         bool
 	skipCrds                bool
+	skipSchemaValidation    bool
 	skipTests               bool
 	namespace               string
 	kubeVersion             string
@@ -410,6 +413,9 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	}
 	if opts.skipCrds {
 		src.Helm.SkipCrds = opts.skipCrds
+	}
+	if opts.skipSchemaValidation {
+		src.Helm.SkipSchemaValidation = opts.skipSchemaValidation
 	}
 	if opts.skipTests {
 		src.Helm.SkipTests = opts.skipTests
@@ -681,6 +687,8 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			setHelmOpt(source, helmOpts{helmSetFiles: appOpts.helmSetFiles})
 		case "helm-skip-crds":
 			setHelmOpt(source, helmOpts{skipCrds: appOpts.helmSkipCrds})
+		case "helm-skip-schema-validation":
+			setHelmOpt(source, helmOpts{skipSchemaValidation: appOpts.helmSkipSchemaValidation})
 		case "helm-skip-tests":
 			setHelmOpt(source, helmOpts{skipTests: appOpts.helmSkipTests})
 		case "helm-namespace":

@@ -270,6 +270,9 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	if a.context.helmSkipCrds {
 		args = append(args, "--helm-skip-crds")
 	}
+	if a.context.helmSkipSchemaValidation {
+		args = append(args, "--helm-skip-schema-validation")
+	}
 	if a.context.helmSkipTests {
 		args = append(args, "--helm-skip-tests")
 	}
@@ -448,7 +451,7 @@ func (a *Actions) Wait(args ...string) *Actions {
 }
 
 func (a *Actions) SetParamInSettingConfigMap(key, value string) *Actions {
-	fixture.SetParamInSettingConfigMap(key, value)
+	errors.CheckError(fixture.SetParamInSettingConfigMap(key, value))
 	return a
 }
 
@@ -477,16 +480,16 @@ func (a *Actions) verifyAction() {
 }
 
 func (a *Actions) SetTrackingMethod(trackingMethod string) *Actions {
-	fixture.SetTrackingMethod(trackingMethod)
+	errors.CheckError(fixture.SetTrackingMethod(trackingMethod))
 	return a
 }
 
 func (a *Actions) SetInstallationID(installationID string) *Actions {
-	fixture.SetInstallationID(installationID)
+	errors.CheckError(fixture.SetInstallationID(installationID))
 	return a
 }
 
 func (a *Actions) SetTrackingLabel(trackingLabel string) *Actions {
-	fixture.SetTrackingLabel(trackingLabel)
+	errors.CheckError(fixture.SetTrackingLabel(trackingLabel))
 	return a
 }
