@@ -7511,6 +7511,9 @@
       "type": "object",
       "title": "HealthStatus contains information about the currently observed health state of an application or resource",
       "properties": {
+        "lastTransitionTime": {
+          "$ref": "#/definitions/v1Time"
+        },
         "message": {
           "type": "string",
           "title": "Message is a human-readable informational message describing the health status"
