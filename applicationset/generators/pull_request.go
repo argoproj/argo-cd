@@ -108,7 +108,7 @@ func (g *PullRequestGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			"author":             pull.Author,
 		}
 
-		err := appendTemplatedValues(appSetGenerator.SCMProvider.Values, paramMap, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
+		err := appendTemplatedValues(appSetGenerator.PullRequest.Values, paramMap, applicationSetInfo.Spec.GoTemplate, applicationSetInfo.Spec.GoTemplateOptions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to append templated values: %w", err)
 		}
