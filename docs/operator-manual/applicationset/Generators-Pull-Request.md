@@ -67,6 +67,7 @@ spec:
 * `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
 * `appSecretName`: A `Secret` name containing a GitHub App secret in [repo-creds format][repo-creds].
 
+
 [repo-creds]: ../declarative-setup.md#repository-credentials
 
 ## GitLab
@@ -480,3 +481,40 @@ For more information about each event, please refer to the [official documentati
 ## Lifecycle
 
 An Application will be generated when a Pull Request is discovered when the configured criteria is met - i.e. for GitHub when a Pull Request matches the specified `labels` and/or `pullRequestState`. Application will be removed when a Pull Request no longer meets the specified criteria.
+
+## Pass additional key-value pairs via `values` field
+
+You may pass additional, arbitrary string key-value pairs via the `values` field of any Pull Request generator. Values added via the `values` field are added as `values.(field)`.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - pullRequest:
+      # ...
+      values:
+        pr_branch: '{{ .branch }}'
+
+  template:
+    metadata:
+      name: '{{ .values.name }}'
+    spec:
+      source:
+        repoURL: '{{ .url }}'
+        targetRevision: '{{ .branch }}'
+        path: kubernetes/
+      project: default
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: default
+```
+
+!!! note
+    The `values.` prefix is always prepended to values provided via `generators.pullRequest.values` field. Ensure you include this prefix in the parameter name within the `template` when using it.
+
+In `values` we can also interpolate all fields set by the Pull Request generator as mentioned above.
