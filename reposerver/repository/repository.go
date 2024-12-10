@@ -119,6 +119,8 @@ type RepoServerInitConstants struct {
 	StreamedManifestMaxTarSize                   int64
 	HelmManifestMaxExtractedSize                 int64
 	HelmRegistryMaxIndexSize                     int64
+	OCIManifestMaxExtractedSize                  int64
+	DisableOCIManifestMaxExtractedSize           bool
 	DisableHelmManifestMaxExtractedSize          bool
 	IncludeHiddenDirectories                     bool
 	CMPUseManifestGeneratePaths                  bool
@@ -361,7 +363,7 @@ func (s *Service) runRepoOperation(
 			}
 		}
 
-		ociPath, closer, err := ociClient.Extract(ctx, revision, repo.Project, s.initConstants.HelmManifestMaxExtractedSize, s.initConstants.DisableHelmManifestMaxExtractedSize)
+		ociPath, closer, err := ociClient.Extract(ctx, revision, repo.Project)
 		if err != nil {
 			return err
 		}
@@ -1774,10 +1776,10 @@ func getObjsFromYAMLOrJson(logCtx *log.Entry, manifestPath string, filename stri
 		if decoderErr != nil {
 			// Check to see if the file is potentially an OCI manifest
 			reader, err := utfutil.OpenFile(manifestPath, utfutil.UTF8)
-			defer closeReader(reader)
 			if err != nil {
 				return status.Errorf(codes.FailedPrecondition, "Failed to open %q", manifestPath)
 			}
+			defer closeReader(reader)
 			manifest := v1.Manifest{}
 			decoder := json.NewDecoder(reader)
 			err = decoder.Decode(&manifest)
@@ -2418,7 +2420,7 @@ func (s *Service) GetRevisionMetadata(_ context.Context, q *apiclient.RepoServer
 }
 
 func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRevisionChartDetailsRequest) (*v1alpha1.OCIMetadata, error) {
-	client, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths))
+	client, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths), oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize), oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize))
 	if err != nil {
 		return nil, err
 	}
@@ -2515,7 +2517,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 }
 
 func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, noRevisionCache bool) (oci.Client, string, error) {
-	ociClient, err := s.newOCIClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths))
+	ociClient, err := s.newOCIClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, s.initConstants.OCIMediaTypes, oci.WithIndexCache(s.cache), oci.WithImagePaths(s.ociPaths), oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize), oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize))
 	if err != nil {
 		return nil, "", err
 	}
@@ -2704,7 +2706,6 @@ func (s *Service) ResolveRevision(_ context.Context, q *apiclient.ResolveRevisio
 	repo := q.Repo
 	app := q.App
 	ambiguousRevision := q.AmbiguousRevision
-	var revision string
 	source := app.Spec.GetSourcePtrByIndex(int(q.SourceIndex))
 
 	if source.IsOCI() {

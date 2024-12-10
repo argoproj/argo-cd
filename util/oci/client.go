@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	securejoin "github.com/cyphar/filepath-securejoin"
 	"oras.land/oras-go/v2/content/oci"
 
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -44,17 +45,30 @@ var (
 
 var _ Client = &nativeOCIClient{}
 
-type indexCache interface {
-	SetHelmIndex(repo string, indexData []byte) error
-	GetHelmIndex(repo string, indexData *[]byte) error
+type tagsCache interface {
+	SetOCITags(repo string, indexData []byte) error
+	GetOCITags(repo string, indexData *[]byte) error
 }
 
-// Client is a generic oci client interface
+// Client is a generic OCI client interface that provides methods for interacting with an OCI (Open Container Initiative) registry.
 type Client interface {
+	// ResolveRevision resolves a tag, digest, or semantic version constraint to a concrete digest.
+	// If noCache is true, the resolution bypasses the local tags cache and queries the remote registry.
+	// If the revision is already a digest, it is returned as-is.
 	ResolveRevision(ctx context.Context, revision string, noCache bool) (string, error)
+
+	// DigestMetadata retrieves an OCI manifest for a given digest and project.
 	DigestMetadata(ctx context.Context, digest, project string) (*v1.Manifest, error)
+
+	// CleanCache is invoked on a hard-refresh or when the manifest cache has expired. This removes the OCI image from
+	// the cached path, which is looked up by the specified revision and project.
 	CleanCache(revision string, project string) error
-	Extract(ctx context.Context, revision string, project string, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error)
+
+	// Extract retrieves and unpacks the contents of an OCI image identified by the specified revision and project.
+	// If successful, the extracted contents are extracted to a randomized tempdir.
+	Extract(ctx context.Context, revision string, project string) (string, argoio.Closer, error)
+
+	// TestRepo verifies the connectivity and accessibility of the repository.
 	TestRepo(ctx context.Context) (bool, error)
 }
 
@@ -70,15 +84,27 @@ type Creds struct {
 
 type ClientOpts func(c *nativeOCIClient)
 
-func WithIndexCache(indexCache indexCache) ClientOpts {
+func WithIndexCache(indexCache tagsCache) ClientOpts {
 	return func(c *nativeOCIClient) {
-		c.indexCache = indexCache
+		c.tagsCache = indexCache
 	}
 }
 
 func WithImagePaths(repoCachePaths argoio.TempPaths) ClientOpts {
 	return func(c *nativeOCIClient) {
 		c.repoCachePaths = repoCachePaths
+	}
+}
+
+func WithManifestMaxExtractedSize(manifestMaxExtractedSize int64) ClientOpts {
+	return func(c *nativeOCIClient) {
+		c.manifestMaxExtractedSize = manifestMaxExtractedSize
+	}
+}
+
+func WithDisableManifestMaxExtractedSize(disableManifestMaxExtractedSize bool) ClientOpts {
+	return func(c *nativeOCIClient) {
+		c.disableManifestMaxExtractedSize = disableManifestMaxExtractedSize
 	}
 }
 
@@ -145,14 +171,16 @@ func newClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, repo 
 
 // nativeOCIClient implements Client interface using oras-go
 type nativeOCIClient struct {
-	creds             Creds
-	repoURL           string
-	repo              oras.ReadOnlyTarget
-	tagsFunc          func(context.Context, string) ([]string, error)
-	repoLock          sync.KeyLock
-	indexCache        indexCache
-	repoCachePaths    argoio.TempPaths
-	allowedMediaTypes []string
+	creds                           Creds
+	repoURL                         string
+	repo                            oras.ReadOnlyTarget
+	tagsFunc                        func(context.Context, string) ([]string, error)
+	repoLock                        sync.KeyLock
+	tagsCache                       tagsCache
+	repoCachePaths                  argoio.TempPaths
+	allowedMediaTypes               []string
+	manifestMaxExtractedSize        int64
+	disableManifestMaxExtractedSize bool
 }
 
 // TestRepo verifies that the remote OCI repo can be connected to.
@@ -161,7 +189,7 @@ func (c *nativeOCIClient) TestRepo(ctx context.Context) (bool, error) {
 	return err == nil, err
 }
 
-func (c *nativeOCIClient) Extract(ctx context.Context, digest string, project string, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, argoio.Closer, error) {
+func (c *nativeOCIClient) Extract(ctx context.Context, digest string, project string) (string, argoio.Closer, error) {
 	cachedPath, err := c.getCachedPath(digest, project)
 	if err != nil {
 		return "", nil, err
@@ -195,8 +223,8 @@ func (c *nativeOCIClient) Extract(ctx context.Context, digest string, project st
 		}
 	}
 
-	maxSize := manifestMaxExtractedSize
-	if disableManifestMaxExtractedSize {
+	maxSize := c.manifestMaxExtractedSize
+	if c.disableManifestMaxExtractedSize {
 		maxSize = math.MaxInt64
 	}
 
@@ -218,7 +246,6 @@ func (c *nativeOCIClient) getCachedPath(version, project string) (string, error)
 	return c.repoCachePaths.GetPath(string(keyData))
 }
 
-// CleanCache is invoked on a hard-refresh or when the manifest cache has expired. This removes the OCI image from the cached path.
 func (c *nativeOCIClient) CleanCache(revision, project string) error {
 	cachePath, err := c.getCachedPath(revision, project)
 	if err != nil {
@@ -264,8 +291,8 @@ func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) (*TagsList,
 	defer indexLock.Unlock(c.repoURL)
 
 	var data []byte
-	if !noCache && c.indexCache != nil {
-		if err := c.indexCache.GetHelmIndex(c.repoURL, &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
+	if !noCache && c.tagsCache != nil {
+		if err := c.tagsCache.GetOCITags(c.repoURL, &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
 			log.Warnf("Failed to load index cache for repo: %s: %s", c.repoLock, err)
 		}
 	}
@@ -288,8 +315,8 @@ func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) (*TagsList,
 			log.Fields{"seconds": time.Since(start).Seconds(), "repo": c.repoURL},
 		).Info("took to get tags")
 
-		if c.indexCache != nil {
-			if err := c.indexCache.SetHelmIndex(c.repoURL, data); err != nil {
+		if c.tagsCache != nil {
+			if err := c.tagsCache.SetOCITags(c.repoURL, data); err != nil {
 				log.Warnf("Failed to store tags list cache for repo: %s: %s", c.repoURL, err)
 			}
 		}
@@ -483,7 +510,11 @@ func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc v1.Descri
 		if len(infos) == 1 && infos[0].IsDir() {
 			// Here we assume that this is a directory which has been decompressed. We need to move the contents of
 			// the dir into our intended destination.
-			srcDir := filepath.Join(tempDir, infos[0].Name())
+			srcDir, err := securejoin.SecureJoin(tempDir, infos[0].Name())
+			if err != nil {
+				return err
+			}
+
 			return filepath.WalkDir(srcDir, func(path string, d fs.DirEntry, err error) error {
 				if path != srcDir {
 					// Calculate the relative path from srcDir
@@ -492,7 +523,11 @@ func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc v1.Descri
 						return err
 					}
 
-					dstPath := filepath.Join(s.dest, relPath)
+					dstPath, err := securejoin.SecureJoin(s.dest, relPath)
+					if err != nil {
+						return err
+					}
+
 					// Move the file by renaming it
 					if d.IsDir() {
 						info, err := d.Info()
