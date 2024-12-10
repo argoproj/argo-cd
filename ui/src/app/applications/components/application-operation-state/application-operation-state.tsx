@@ -215,18 +215,11 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                             <Filter options={Healths} filters={healthFilters} setFilters={setHealthFilters} title='HEALTH' style={{marginRight: '5px'}} />
                             <Filter options={Statuses} filters={filters} setFilters={setFilters} title='STATUS' style={{marginRight: '5px'}} />
                             <Filter options={OperationPhases} filters={filters} setFilters={setFilters} title='HOOK' />
-                            <Tooltip
-                    placement='top-start'
-                    content='Filter on resources that have changed or remained unchanged'>
-                    <div style={{display: 'inline-block'}}>
-                        <Filter 
-                            options={FilterableMessageStatuses} 
-                            filters={messageFilters} 
-                            setFilters={setMessageFilters} 
-                                title='MESSAGE'
-                            />
-                        </div>
-                    </Tooltip>
+                            <Tooltip placement='top-start' content='Filter on resources that have changed or remained unchanged'>
+                                <div style={{display: 'inline-block'}}>
+                                    <Filter options={FilterableMessageStatuses} filters={messageFilters} setFilters={setMessageFilters} title='MESSAGE' />
+                                </div>
+                            </Tooltip>
                         </div>
                     </div>
                     <div className='argo-table-list'>
