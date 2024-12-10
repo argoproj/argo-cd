@@ -21,7 +21,7 @@ spec:
             - admin
             - redis-initial-password
           image: quay.io/argoproj/argocd:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           name: secret-init
           securityContext:
             allowPrivilegeEscalation: false
@@ -41,7 +41,7 @@ spec:
       containers:
       - name: redis
         image: redis:7.0.15-alpine
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         args:
         - "--save"
         - ""
