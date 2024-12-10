@@ -9,6 +9,10 @@ AUTOGENMSG="# This is an auto-generated file. DO NOT EDIT"
 
 KUSTOMIZE=kustomize
 [ -f "$SRCROOT/dist/kustomize" ] && KUSTOMIZE="$SRCROOT/dist/kustomize"
+# Really need advanced Yaml tools to fix https://github.com/argoproj/argo-cd/issues/20532.
+PYTHON=python3
+NORMALIZER="$SRCROOT/hack/update-manifests-normalizer.py"
+TEMP_FILE=/tmp/argocd-normalized-manifest.yaml
 
 cd ${SRCROOT}/manifests/ha/base/redis-ha && ./generate.sh
 
@@ -35,17 +39,38 @@ cd ${SRCROOT}/manifests/base && $KUSTOMIZE edit set image quay.io/argoproj/argoc
 cd ${SRCROOT}/manifests/ha/base && $KUSTOMIZE edit set image quay.io/argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG}
 cd ${SRCROOT}/manifests/core-install && $KUSTOMIZE edit set image quay.io/argoproj/argocd=${IMAGE_NAMESPACE}/argocd:${IMAGE_TAG}
 
-echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/install.yaml"
-$KUSTOMIZE build "${SRCROOT}/manifests/cluster-install" >> "${SRCROOT}/manifests/install.yaml"
+OUTPUT_FILE="${SRCROOT}/manifests/install.yaml"
+$KUSTOMIZE build "${SRCROOT}/manifests/cluster-install" > $OUTPUT_FILE
+$PYTHON $NORMALIZER $OUTPUT_FILE $TEMP_FILE
+# Avoid printing the whole file contents
+set +x
+echo -e "${AUTOGENMSG}\n$(cat $TEMP_FILE)" > $OUTPUT_FILE
+set -x
 
-echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/namespace-install.yaml"
-$KUSTOMIZE build "${SRCROOT}/manifests/namespace-install" >> "${SRCROOT}/manifests/namespace-install.yaml"
+OUTPUT_FILE="${SRCROOT}/manifests/namespace-install.yaml"
+$KUSTOMIZE build "${SRCROOT}/manifests/namespace-install" > $OUTPUT_FILE
+$PYTHON $NORMALIZER $OUTPUT_FILE $TEMP_FILE
+set +x
+echo -e "${AUTOGENMSG}\n$(cat $TEMP_FILE)" > $OUTPUT_FILE
+set -x
 
-echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/ha/install.yaml"
-$KUSTOMIZE build "${SRCROOT}/manifests/ha/cluster-install" >> "${SRCROOT}/manifests/ha/install.yaml"
+OUTPUT_FILE="${SRCROOT}/manifests/ha/install.yaml"
+$KUSTOMIZE build "${SRCROOT}/manifests/ha/cluster-install" > $OUTPUT_FILE
+$PYTHON $NORMALIZER $OUTPUT_FILE $TEMP_FILE
+set +x
+echo -e "${AUTOGENMSG}\n$(cat $TEMP_FILE)" > $OUTPUT_FILE
+set -x
 
-echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/ha/namespace-install.yaml"
-$KUSTOMIZE build "${SRCROOT}/manifests/ha/namespace-install" >> "${SRCROOT}/manifests/ha/namespace-install.yaml"
+OUTPUT_FILE="${SRCROOT}/manifests/ha/namespace-install.yaml"
+$KUSTOMIZE build "${SRCROOT}/manifests/ha/namespace-install" > $OUTPUT_FILE
+$PYTHON $NORMALIZER $OUTPUT_FILE $TEMP_FILE
+set +x
+echo -e "${AUTOGENMSG}\n$(cat $TEMP_FILE)" > $OUTPUT_FILE
+set -x
 
-echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/core-install.yaml"
-$KUSTOMIZE build "${SRCROOT}/manifests/core-install" >> "${SRCROOT}/manifests/core-install.yaml"
+OUTPUT_FILE="${SRCROOT}/manifests/core-install.yaml"
+$KUSTOMIZE build "${SRCROOT}/manifests/core-install" > $OUTPUT_FILE
+$PYTHON $NORMALIZER $OUTPUT_FILE $TEMP_FILE
+set +x
+echo -e "${AUTOGENMSG}\n$(cat $TEMP_FILE)" > $OUTPUT_FILE
+set -x
