@@ -26,8 +26,10 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	argoutils "github.com/argoproj/argo-cd/v2/util"
 	certutil "github.com/argoproj/argo-cd/v2/util/cert"
 	argoioutils "github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/workloadidentity"
 )
 
 var (
@@ -35,6 +37,9 @@ var (
 	githubAppTokenCache *gocache.Cache
 	// In memory cache for storing oauth2.TokenSource used to generate Google Cloud OAuth tokens
 	googleCloudTokenSource *gocache.Cache
+
+	// In memory cache for storing Azure tokens
+	azureTokenCache *gocache.Cache
 )
 
 const (
@@ -54,6 +59,7 @@ func init() {
 	githubAppTokenCache = gocache.New(githubAppCredsExp, 1*time.Minute)
 	// oauth2.TokenSource handles fetching new Tokens once they are expired. The oauth2.TokenSource itself does not expire.
 	googleCloudTokenSource = gocache.New(gocache.NoExpiration, 0)
+	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
 }
 
 type NoopCredsStore struct{}
@@ -568,4 +574,78 @@ func (c GoogleCloudCreds) getAccessToken() (string, error) {
 	}
 
 	return token.AccessToken, nil
+}
+
+type AzureWorkloadIdentityCreds struct {
+	store CredsStore
+}
+
+func NewAzureWorkloadIdentityCreds(store CredsStore) AzureWorkloadIdentityCreds {
+	return AzureWorkloadIdentityCreds{
+		store: store,
+	}
+}
+
+func (c AzureWorkloadIdentityCreds) Environ() (io.Closer, []string, error) {
+	token, err := c.GetAzureDevOpsAccessToken()
+	if err != nil {
+		return NopCloser{}, nil, err
+	}
+	nonce := c.store.Add("", token)
+	env := c.store.Environ(nonce)
+
+	return argoioutils.NewCloser(func() error {
+		c.store.Remove(nonce)
+		return NopCloser{}.Close()
+	}), env, nil
+}
+
+func (c AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, error) {
+	// Compute hash of creds for lookup in cache
+	key, err := argoutils.GenerateCacheKey("%s", scope)
+	if err != nil {
+		return "", fmt.Errorf("failed to get get SHA256 hash for Azure credentials: %w", err)
+	}
+
+	t, found := azureTokenCache.Get(key)
+	if found {
+		return t.(string), nil
+	}
+
+	token, err := workloadidentity.GetWorkloadIdentityToken(scope)
+	if err != nil {
+		return "", fmt.Errorf("failed to get Azure access token: %w", err)
+	}
+
+	azureTokenCache.Set(key, token, gocache.DefaultExpiration)
+	return token, nil
+}
+
+func (c AzureWorkloadIdentityCreds) GetAzureDevOpsAccessToken() (string, error) {
+	accessToken, err := c.getAccessToken("499b84ac-1321-427f-aa17-267ca6975798/.default") // wellknown resourceid of Azure DevOps
+	return accessToken, err
+}
+
+func (c AzureWorkloadIdentityCreds) GetAcrAccessToken(azureContainerRegistry string) (string, error) {
+	// Compute hash as key for refresh token in the cache
+	key, err := argoutils.GenerateCacheKey("accesstoken-%s", azureContainerRegistry)
+	if err != nil {
+		return "", fmt.Errorf("failed to compute key for cache: %w", err)
+	}
+
+	// Check cache for GitHub transport which helps fetch an API token
+	t, found := azureTokenCache.Get(key)
+	if found {
+		fmt.Println("access token found token in cache")
+		return t.(string), nil
+	}
+
+	token, err := workloadidentity.GetWorkloadIdentityToken(fmt.Sprintf("https://%s/.default", azureContainerRegistry))
+	if err != nil {
+		return "", fmt.Errorf("failed to get Azure access token: %w", err)
+	}
+
+	// We assume that the access token has a lifetime of 3 hours
+	azureTokenCache.Set(key, token, 2*time.Hour+30*time.Minute)
+	return token, nil
 }

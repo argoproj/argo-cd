@@ -181,6 +181,7 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 				GithubAppId:                repo.GithubAppId,
 				GithubAppInstallationId:    repo.GithubAppInstallationId,
 				GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
+				UseAzureWorkloadIdentity:   repo.UseAzureWorkloadIdentity,
 			})
 		}
 	}
