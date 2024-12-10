@@ -237,8 +237,8 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				disableManifestMaxExtractedSize: false,
 				postValidationFunc: func(sha string, _ string, _ Client, fields fields, args args) {
 					store := memory.New()
-					c := newClientWithLock(fields.repoURL, fields.creds, globalLock, store, fields.tagsFunc, fields.allowedMediaTypes, WithImagePaths(cacheDir))
-					_, gotCloser, err := c.Extract(context.Background(), sha, args.project, args.manifestMaxExtractedSize, args.disableManifestMaxExtractedSize)
+					c := newClientWithLock(fields.repoURL, fields.creds, globalLock, store, fields.tagsFunc, fields.allowedMediaTypes, WithImagePaths(cacheDir), WithManifestMaxExtractedSize(args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(args.disableManifestMaxExtractedSize))
+					_, gotCloser, err := c.Extract(context.Background(), sha, args.project)
 					require.NoError(t, err)
 					require.NoError(t, gotCloser.Close())
 				},
@@ -258,8 +258,8 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				disableManifestMaxExtractedSize: false,
 				postValidationFunc: func(sha string, _ string, _ Client, fields fields, args args) {
 					store := memory.New()
-					c := newClientWithLock(fields.repoURL, fields.creds, globalLock, store, fields.tagsFunc, fields.allowedMediaTypes, WithImagePaths(cacheDir))
-					_, _, err := c.Extract(context.Background(), sha, "non-existent-project", args.manifestMaxExtractedSize, args.disableManifestMaxExtractedSize)
+					c := newClientWithLock(fields.repoURL, fields.creds, globalLock, store, fields.tagsFunc, fields.allowedMediaTypes, WithImagePaths(cacheDir), WithManifestMaxExtractedSize(args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(args.disableManifestMaxExtractedSize))
+					_, _, err := c.Extract(context.Background(), sha, "non-existent-project")
 					require.Error(t, err)
 					require.Equal(t, fmt.Errorf("not found"), err)
 				},
@@ -275,8 +275,8 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				tt.args.project = tt.name
 			}
 
-			c := newClientWithLock(tt.fields.repoURL, tt.fields.creds, globalLock, store, tt.fields.tagsFunc, tt.fields.allowedMediaTypes, WithImagePaths(cacheDir))
-			path, gotCloser, err := c.Extract(context.Background(), sha, tt.args.project, tt.args.manifestMaxExtractedSize, tt.args.disableManifestMaxExtractedSize)
+			c := newClientWithLock(tt.fields.repoURL, tt.fields.creds, globalLock, store, tt.fields.tagsFunc, tt.fields.allowedMediaTypes, WithImagePaths(cacheDir), WithManifestMaxExtractedSize(tt.args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(tt.args.disableManifestMaxExtractedSize))
+			path, gotCloser, err := c.Extract(context.Background(), sha, tt.args.project)
 
 			if tt.expectedError != nil {
 				require.EqualError(t, err, tt.expectedError.Error())
