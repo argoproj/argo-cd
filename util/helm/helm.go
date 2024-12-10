@@ -84,7 +84,11 @@ func (h *helm) DependencyBuild() error {
 		repo := h.repos[i]
 		if repo.EnableOci {
 			h.cmd.IsHelmOci = true
-			if repo.Creds.Username != "" && repo.Creds.Password != "" {
+			helmPassword, err := repo.Creds.GetPassword()
+			if err != nil {
+				return fmt.Errorf("failed to get password for helm registry: %w", err)
+			}
+			if repo.Creds.GetUsername() != "" && helmPassword != "" {
 				_, err := h.cmd.RegistryLogin(repo.Repo, repo.Creds)
 
 				defer func() {

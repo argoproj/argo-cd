@@ -161,6 +161,46 @@ Using the UI:
 
 3. Click `Connect` to test the connection and have the repository added
 
+
+### Azure Container Registry/Azure Repos using Azure Workload Identity
+
+Before using this feature enable workload identity configuration for Argocd:
+- **Label the Pods:** Add the azure.workload.identity/use: "true" label to the argocd-repo-server pods.
+- **Create Federated Identity Credential:** Generate an Azure federated identity credential the argocd-repo-server service account. Refer to the [Federated Identity Credential](https://azure.github.io/azure-workload-identity/docs/topics/federated-identity-credential.html) documentation for detailed instructions.
+- **Add Annotation to Service Account:** Add "azure.workload.identity/client-id": "$CLIENT_ID" annotation to the argocd-repo-server service account using the details from the workload identity.
+- Setup the permissions for Azure Container Registry/Azure Repos for the workload identity.
+
+Using CLI for Helm OCI with Azure workload identity:
+
+```
+argocd repo add contoso.azurecr.io/charts --type helm --enable-oci --use-azure-workload-identity
+```
+
+Using CLI for Azure Repos with Azure workload identity:
+
+```
+argocd repo add https://contoso@dev.azure.com/my-projectcollection/my-project/_git/my-repo --use-azure-workload-identity
+```
+
+Using the UI:
+
+- Navigate to `Settings/Repositories`
+
+   ![connect repo overview](../assets/repo-add-overview.png)
+- Click on `+ Connect Repo`
+- On the connection page:
+    - Choose Connection Methos as `VIA HTTPS`
+    - Select the type as `git` or `helm`
+    - Enter the Repository URL
+    - Enter name, if the repo type is helm
+    - Select `Enable OCI`, if repo type is helm
+    - Select `Use Azure Workload Identity`
+
+    ![connect repo](../assets/repo-add-azure-workload-identity.png)
+- Click `Connect`
+
+   
+
 ## Credential templates
 
 You can also set up credentials to serve as templates for connecting repositories, without having to repeat credential configuration. For example, if you setup credential templates for the URL prefix `https://github.com/argoproj`, these credentials will be used for all repositories with this URL as prefix (e.g. `https://github.com/argoproj/argocd-example-apps`) that do not have their own credentials configured.

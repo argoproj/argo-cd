@@ -1692,6 +1692,9 @@ message RepoCreds {
 
   // NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
   optional string noProxy = 23;
+
+  // UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
+  optional bool useAzureWorkloadIdentity = 24;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -1772,6 +1775,9 @@ message Repository {
 
   // NoProxy specifies a list of targets where the proxy isn't used, applies only in cases where the proxy is applied
   optional string noProxy = 23;
+
+  // UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
+  optional bool useAzureWorkloadIdentity = 24;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate
