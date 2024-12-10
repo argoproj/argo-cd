@@ -126,6 +126,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			repoOpts.Repo.Insecure = repoOpts.InsecureSkipServerVerification
 			repoOpts.Repo.EnableLFS = repoOpts.EnableLfs
 			repoOpts.Repo.EnableOCI = repoOpts.EnableOci
+			repoOpts.Repo.UseAzureWorkloadIdentity = repoOpts.UseAzureWorkloadIdentity
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {
 				errors.CheckError(stderrors.New("must specify --name for repos of type 'helm'"))
