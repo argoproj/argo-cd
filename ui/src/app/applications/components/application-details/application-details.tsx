@@ -933,43 +933,63 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
+
         return [
             {
                 iconClassName: 'fa fa-info-circle',
-                title: <ActionMenuItem actionLabel='Details' />,
+                title: <ActionMenuItem actionLabel='Details' key='details' />,
                 action: () => this.selectNode(fullName),
                 disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0)
             },
             {
                 iconClassName: 'fa fa-file-medical',
-                title: <ActionMenuItem actionLabel='Diff' />,
+                title: <ActionMenuItem actionLabel='Diff' key='diff' />,
                 action: () => this.selectNode(fullName, 0, 'diff'),
                 disabled: app.status.sync.status === appModels.SyncStatuses.Synced || (!app.spec.source && (!app.spec.sources || app.spec.sources.length === 0))
             },
-            {
-                iconClassName: 'fa fa-sync',
-                title: <ActionMenuItem actionLabel='Sync' />,
-                action: () => AppUtils.showDeploy('all', null, this.appContext.apis),
-                disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0)
-            },
+
+            !app.status.operationState?.finishedAt || app.status.operationState?.phase === 'Running'
+                ? {
+                      iconClassName: 'fa fa-stop',
+                      title: <ActionMenuItem actionLabel='Terminate Sync' key='terminate-sync' />,
+                      action: async () => {
+                          const confirmed = await this.context.apis.popup.confirm('Terminate Sync', 'Are you sure you want to terminate sync?');
+                          if (confirmed) {
+                              try {
+                                  await services.applications.terminateOperation(app.metadata.name, app.metadata.namespace);
+                              } catch (e) {
+                                  this.context.apis.notifications.show({
+                                      content: <ErrorNotification title='Unable to Terminate Sync operation' e={e} />,
+                                      type: NotificationType.Error
+                                  });
+                              }
+                          }
+                      }
+                  }
+                : {
+                      iconClassName: 'fa fa-sync',
+                      title: <ActionMenuItem actionLabel='Sync' key='sync' />,
+                      action: () => AppUtils.showDeploy('all', null, this.appContext.apis),
+                      disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0)
+                  },
             ...(app.status?.operationState?.phase === 'Running' && app.status.resources.find(r => r.requiresDeletionConfirmation)
                 ? [
                       {
                           iconClassName: 'fa fa-check',
-                          title: <ActionMenuItem actionLabel='Confirm Pruning' />,
+                          title: <ActionMenuItem actionLabel='Confirm Pruning' key='confirm-pruning' />,
                           action: () => this.confirmDeletion(app, 'Confirm Prunning', 'Are you sure you want to confirm resources pruning?')
                       }
                   ]
                 : []),
             {
                 iconClassName: 'fa fa-info-circle',
-                title: <ActionMenuItem actionLabel='Sync Status' />,
+                title: <ActionMenuItem actionLabel='Sync Status' key='sync-status' />,
                 action: () => this.setOperationStatusVisible(true),
                 disabled: !app.status.operationState
             },
             {
                 iconClassName: 'fa fa-history',
-                title: <ActionMenuItem actionLabel='History and rollback' />,
+                title: <ActionMenuItem actionLabel='History and rollback' key='history-rollback' />,
                 action: () => {
                     this.setRollbackPanelVisible(0);
                 },
@@ -980,12 +1000,12 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             !((app.metadata.annotations || {})[appModels.AppDeletionConfirmedAnnotation] == 'true')
                 ? {
                       iconClassName: 'fa fa-check',
-                      title: <ActionMenuItem actionLabel='Confirm Deletion' />,
+                      title: <ActionMenuItem actionLabel='Confirm Deletion' key='confirm-deletion' />,
                       action: () => this.confirmDeletion(app, 'Confirm Deletion', 'Are you sure you want to delete this application?')
                   }
                 : {
                       iconClassName: 'fa fa-times-circle',
-                      title: <ActionMenuItem actionLabel='Delete' />,
+                      title: <ActionMenuItem actionLabel='Delete' key='delete' />,
                       action: () => this.deleteApplication(),
                       disabled: !!app.metadata.deletionTimestamp
                   },
@@ -993,7 +1013,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                 iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
                 title: (
                     <React.Fragment>
-                        <ActionMenuItem actionLabel='Refresh' />{' '}
+                        <ActionMenuItem actionLabel='Refresh' key='refresh' />{' '}
                         <DropDownMenu
                             items={[
                                 {

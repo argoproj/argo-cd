@@ -5,15 +5,41 @@ import * as models from '../../models';
 import {appInstanceName, appQualifiedName, ComparisonStatusIcon, HealthStatusIcon, OperationPhaseIcon} from '../../../applications/components/utils';
 import {AuthSettingsCtx} from '../../context';
 
-export const ApplicationSelector = ({apps, formApi}: {apps: models.Application[]; formApi: FormFunctionProps}) => {
+interface ApplicationSelectorProps {
+    apps: models.Application[];
+    formApi: FormFunctionProps;
+    filterOptions?: {
+        showOutOfSync?: boolean;
+        showAll?: boolean;
+        showNone?: boolean;
+    };
+}
+
+export const ApplicationSelector = ({
+    apps,
+    formApi,
+    filterOptions = {
+        showOutOfSync: true,
+        showAll: true,
+        showNone: true
+    }
+}: ApplicationSelectorProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     return (
         <>
             <label>
-                Apps (<a onClick={() => apps.forEach((_, i) => formApi.setValue('app/' + i, true))}>all</a>/
-                <a onClick={() => apps.forEach((app, i) => formApi.setValue('app/' + i, app.status.sync.status === models.SyncStatuses.OutOfSync))}>out of sync</a>/
-                <a onClick={() => apps.forEach((_, i) => formApi.setValue('app/' + i, false))}>none</a>
-                ):
+                Apps ({filterOptions?.showAll ? <a onClick={() => apps.forEach((_, i) => formApi.setValue('app/' + i, true))}>all</a> : null}
+                {filterOptions?.showOutOfSync ? (
+                    <>
+                        /<a onClick={() => apps.forEach((app, i) => formApi.setValue('app/' + i, app.status?.sync.status === models.SyncStatuses.OutOfSync))}>out of sync</a>
+                    </>
+                ) : null}
+                {filterOptions?.showNone ? (
+                    <>
+                        /<a onClick={() => apps.forEach((_, i) => formApi.setValue('app/' + i, false))}>none</a>
+                    </>
+                ) : null}
+                )
             </label>
             <div style={{marginTop: '0.4em'}}>
                 {apps.map((app, i) => (
