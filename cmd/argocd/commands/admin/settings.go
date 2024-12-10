@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/common"
+	applicationpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v2/util/cli"
@@ -573,6 +574,8 @@ argocd admin settings resource-overrides action list /tmp/deploy.yaml --argocd-c
 }
 
 func NewResourceActionRunCommand(cmdCtx commandContext) *cobra.Command {
+	var resourceActionParameters []string
+
 	command := &cobra.Command{
 		Use:     "run-action RESOURCE_YAML_PATH ACTION",
 		Aliases: []string{"action"},
@@ -589,6 +592,23 @@ argocd admin settings resource-overrides action /tmp/deploy.yaml restart --argoc
 			}
 			action := args[1]
 
+			// Parse resource action parameters
+			parsedParams := make([]*applicationpkg.ResourceActionParameters, 0)
+			if len(resourceActionParameters) > 0 {
+				for _, param := range resourceActionParameters {
+					parts := strings.SplitN(param, "=", 2)
+					if len(parts) != 2 {
+						log.Fatalf("Invalid parameter format: %s", param)
+					}
+					name := parts[0]
+					value := parts[1]
+					parsedParams = append(parsedParams, &applicationpkg.ResourceActionParameters{
+						Name:  &name,
+						Value: &value,
+					})
+				}
+			}
+
 			executeResourceOverrideCommand(ctx, cmdCtx, args, func(res unstructured.Unstructured, override v1alpha1.ResourceOverride, overrides map[string]v1alpha1.ResourceOverride) {
 				gvk := res.GroupVersionKind()
 				if override.Actions == "" {
@@ -600,7 +620,7 @@ argocd admin settings resource-overrides action /tmp/deploy.yaml restart --argoc
 				action, err := luaVM.GetResourceAction(&res, action)
 				errors.CheckError(err)
 
-				modifiedRes, err := luaVM.ExecuteResourceAction(&res, action.ActionLua)
+				modifiedRes, err := luaVM.ExecuteResourceAction(&res, action.ActionLua, parsedParams)
 				errors.CheckError(err)
 
 				for _, impactedResource := range modifiedRes {
@@ -625,5 +645,7 @@ argocd admin settings resource-overrides action /tmp/deploy.yaml restart --argoc
 			})
 		},
 	}
+
+	command.Flags().StringArrayVar(&resourceActionParameters, "param", []string{}, "Action parameters (e.g. --param key1=value1)")
 	return command
 }
