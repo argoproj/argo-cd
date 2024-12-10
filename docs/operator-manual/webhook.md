@@ -20,7 +20,6 @@ URL configured in the Git provider should use the `/api/webhook` endpoint of you
 arbitrary value in the secret. This value will be used when configuring the webhook in the next step.
 
 To prevent DDoS attacks with unauthenticated webhook events (the `/api/webhook` endpoint currently lacks rate limiting protection), it is recommended to limit the payload size. You can achieve this by configuring the `argocd-cm` ConfigMap with the `webhook.maxPayloadSizeMB` attribute. The default value is 1GB.
-
 ## Github
 
 ![Add Webhook](../assets/webhook-config.png "Add Webhook")

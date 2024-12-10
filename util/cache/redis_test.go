@@ -1,20 +1,17 @@
 package cache
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
-	"io"
 	"strconv"
 	"testing"
 	"time"
 
+	promcm "github.com/prometheus/client_model/go"
+
 	"github.com/alicebob/miniredis/v2"
 	"github.com/prometheus/client_golang/prometheus"
-	promcm "github.com/prometheus/client_model/go"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -69,28 +66,29 @@ func TestRedisSetCache(t *testing.T) {
 	t.Run("Successful set", func(t *testing.T) {
 		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 60*time.Second, RedisCompressionNone)
 		err = client.Set(&Item{Key: "foo", Object: "bar"})
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("Successful get", func(t *testing.T) {
 		var res string
 		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
 		err = client.Get("foo", &res)
-		require.NoError(t, err)
-		assert.Equal(t, "bar", res)
+		assert.NoError(t, err)
+		assert.Equal(t, res, "bar")
 	})
 
 	t.Run("Successful delete", func(t *testing.T) {
 		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
 		err = client.Delete("foo")
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	})
 
 	t.Run("Cache miss", func(t *testing.T) {
 		var res string
 		client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 10*time.Second, RedisCompressionNone)
 		err = client.Get("foo", &res)
-		assert.ErrorContains(t, err, "cache: key is missing")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "cache: key is missing")
 	})
 }
 
@@ -106,21 +104,14 @@ func TestRedisSetCacheCompressed(t *testing.T) {
 
 	client := NewRedisCache(redisClient, 10*time.Second, RedisCompressionGZip)
 	testValue := "my-value"
-	require.NoError(t, client.Set(&Item{Key: "my-key", Object: testValue}))
+	assert.NoError(t, client.Set(&Item{Key: "my-key", Object: testValue}))
 
 	compressedData, err := redisClient.Get(context.Background(), "my-key.gz").Bytes()
-	require.NoError(t, err)
-
-	assert.Greater(t, len(compressedData), len([]byte(testValue)), "compressed data is bigger than uncompressed")
-
-	// trying to unzip compressed data
-	gzipReader, err := gzip.NewReader(bytes.NewBuffer(compressedData))
-	require.NoError(t, err)
-	_, err = io.ReadAll(gzipReader)
-	require.NoError(t, err)
+	assert.NoError(t, err)
+	assert.True(t, len(compressedData) > len([]byte(testValue)), "compressed data is bigger than uncompressed")
 
 	var result string
-	require.NoError(t, client.Get("my-key", &result))
+	assert.NoError(t, client.Get("my-key", &result))
 
 	assert.Equal(t, testValue, result)
 }
@@ -143,31 +134,31 @@ func TestRedisMetrics(t *testing.T) {
 	faultyClient := NewRedisCache(faultyRedisClient, 60*time.Second, RedisCompressionNone)
 	var res string
 
-	// client successful request
+	//client successful request
 	err = client.Set(&Item{Key: "foo", Object: "bar"})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	err = client.Get("foo", &res)
-	require.NoError(t, err)
+	assert.NoError(t, err)
 
 	c, err := ms.redisRequestCounter.GetMetricWithLabelValues("mock", "false")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	err = c.Write(metric)
-	require.NoError(t, err)
-	assert.InEpsilon(t, float64(2), metric.Counter.GetValue(), 0.0001)
+	assert.NoError(t, err)
+	assert.Equal(t, metric.Counter.GetValue(), float64(2))
 
-	// faulty client failed request
+	//faulty client failed request
 	err = faultyClient.Get("foo", &res)
-	require.Error(t, err)
+	assert.Error(t, err)
 	c, err = ms.redisRequestCounter.GetMetricWithLabelValues("mock", "true")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	err = c.Write(metric)
-	require.NoError(t, err)
-	assert.InEpsilon(t, float64(1), metric.Counter.GetValue(), 0.0001)
+	assert.NoError(t, err)
+	assert.Equal(t, metric.Counter.GetValue(), float64(1))
 
-	// both clients histogram count
+	//both clients histogram count
 	o, err := ms.redisRequestHistogram.GetMetricWithLabelValues("mock")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 	err = o.(prometheus.Metric).Write(metric)
-	require.NoError(t, err)
-	assert.Equal(t, 3, int(metric.Histogram.GetSampleCount()))
+	assert.NoError(t, err)
+	assert.Equal(t, int(metric.Histogram.GetSampleCount()), 3)
 }

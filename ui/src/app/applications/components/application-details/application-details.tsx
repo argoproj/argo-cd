@@ -24,17 +24,17 @@ import {ResourceDetails} from '../resource-details/resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
 import {Filters, FiltersProps} from './application-resource-filter';
-import {getAppDefaultSource, getAppCurrentVersion, urlPattern} from '../utils';
+import {getAppDefaultSource, urlPattern, helpTip} from '../utils';
 import {ChartDetails, ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
 import './application-details.scss';
-import {TopBarActionMenuExt, AppViewExtension, StatusPanelExtension} from '../../../shared/services/extensions-service';
+import {AppViewExtension, StatusPanelExtension} from '../../../shared/services/extensions-service';
 
 interface ApplicationDetailsState {
     page: number;
-    revision?: string; // Which type of revision panelto show SYNC_STATUS_REVISION or OPERATION_STATE_REVISION
+    revision?: string;
     groupedResources?: ResourceStatus[];
     slidingPanelPage?: number;
     filteredGraph?: any[];
@@ -44,8 +44,6 @@ interface ApplicationDetailsState {
     extensionsMap?: {[key: string]: AppViewExtension};
     statusExtensions?: StatusPanelExtension[];
     statusExtensionsMap?: {[key: string]: StatusPanelExtension};
-    topBarActionMenuExts?: TopBarActionMenuExt[];
-    topBarActionMenuExtsMap?: {[key: string]: TopBarActionMenuExt};
 }
 
 interface FilterInput {
@@ -82,46 +80,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
     };
 
     private appChanged = new BehaviorSubject<appModels.Application>(null);
+    private appNamespace: string;
 
     constructor(props: RouteComponentProps<{appnamespace: string; name: string}>) {
         super(props);
-        this.state = {
-            page: 0,
-            groupedResources: [],
-            slidingPanelPage: 0,
-            filteredGraph: [],
-            truncateNameOnRight: false,
-            collapsedNodes: [],
-            ...this.getExtensionsState()
-        };
-    }
-
-    public componentDidMount() {
-        services.extensions.addEventListener('resource', this.onExtensionsUpdate);
-        services.extensions.addEventListener('appView', this.onExtensionsUpdate);
-        services.extensions.addEventListener('statusPanel', this.onExtensionsUpdate);
-        services.extensions.addEventListener('topBar', this.onExtensionsUpdate);
-    }
-
-    public componentWillUnmount() {
-        services.extensions.removeEventListener('resource', this.onExtensionsUpdate);
-        services.extensions.removeEventListener('appView', this.onExtensionsUpdate);
-        services.extensions.removeEventListener('statusPanel', this.onExtensionsUpdate);
-        services.extensions.removeEventListener('topBar', this.onExtensionsUpdate);
-    }
-
-    private getAppNamespace() {
-        if (typeof this.props.match.params.appnamespace === 'undefined') {
-            return '';
-        }
-        return this.props.match.params.appnamespace;
-    }
-
-    private onExtensionsUpdate = () => {
-        this.setState({...this.state, ...this.getExtensionsState()});
-    };
-
-    private getExtensionsState = () => {
         const extensions = services.extensions.getAppViewExtensions();
         const extensionsMap: {[key: string]: AppViewExtension} = {};
         extensions.forEach(ext => {
@@ -132,13 +94,24 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         statusExtensions.forEach(ext => {
             statusExtensionsMap[ext.id] = ext;
         });
-        const topBarActionMenuExts = services.extensions.getActionMenuExtensions();
-        const topBarActionMenuExtsMap: {[key: string]: TopBarActionMenuExt} = {};
-        topBarActionMenuExts.forEach(ext => {
-            topBarActionMenuExtsMap[ext.id] = ext;
-        });
-        return {extensions, extensionsMap, statusExtensions, statusExtensionsMap, topBarActionMenuExts, topBarActionMenuExtsMap};
-    };
+        this.state = {
+            page: 0,
+            groupedResources: [],
+            slidingPanelPage: 0,
+            filteredGraph: [],
+            truncateNameOnRight: false,
+            collapsedNodes: [],
+            extensions,
+            extensionsMap,
+            statusExtensions,
+            statusExtensionsMap
+        };
+        if (typeof this.props.match.params.appnamespace === 'undefined') {
+            this.appNamespace = '';
+        } else {
+            this.appNamespace = this.props.match.params.appnamespace;
+        }
+    }
 
     private get showOperationState() {
         return new URLSearchParams(this.props.history.location.search).get('operation') === 'true';
@@ -207,217 +180,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
         return '';
     }
 
-    private getContent(application: models.Application, source: models.ApplicationSource, revisions: string[], revision: string) {
-        const renderCommitMessage = (message: string) =>
-            message.split(/\s/).map(part =>
-                urlPattern.test(part) ? (
-                    <a href={part} target='_blank' rel='noopener noreferrer' style={{overflowWrap: 'anywhere', wordBreak: 'break-word'}}>
-                        {part}{' '}
-                    </a>
-                ) : (
-                    part + ' '
-                )
-            );
-
-        const getContentForChart = (
-            aRevision: string,
-            aSourceIndex: number | null,
-            aVersionId: number | null,
-            indx: number,
-            aSource: models.ApplicationSource,
-            sourceHeader?: JSX.Element
-        ) => {
-            const showChartNonMetadataInfo = (aRevision: string, aRepoUrl: string) => {
-                return (
-                    <>
-                        <div className='row white-box__details-row'>
-                            <div className='columns small-3'>Revision:</div>
-                            <div className='columns small-9'>{aRevision}</div>
-                        </div>
-                        <div className='row white-box__details-row'>
-                            <div className='columns small-3'>Chart Source:</div>
-                            <div className='columns small-9'>{aRepoUrl}</div>
-                        </div>
-                    </>
-                );
-            };
-            return (
-                <DataLoader
-                    key={indx}
-                    input={application}
-                    load={input => services.applications.revisionChartDetails(input.metadata.name, input.metadata.namespace, aRevision, aSourceIndex, aVersionId)}>
-                    {(m: ChartDetails) => {
-                        return m ? (
-                            <div className='white-box' style={{marginTop: '1.5em'}}>
-                                {sourceHeader && sourceHeader}
-                                <div className='white-box__details'>
-                                    {showChartNonMetadataInfo(aRevision, aSource.repoURL)}
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>Helm Chart:</div>
-                                        <div className='columns small-9'>
-                                            {aSource.chart}&nbsp;
-                                            {m.home && (
-                                                <a
-                                                    title={m.home}
-                                                    onClick={e => {
-                                                        e.stopPropagation();
-                                                        window.open(m.home);
-                                                    }}>
-                                                    <i className='fa fa-external-link-alt' />
-                                                </a>
-                                            )}
-                                        </div>
-                                    </div>
-                                    {m.description && (
-                                        <div className='row white-box__details-row'>
-                                            <div className='columns small-3'>Description:</div>
-                                            <div className='columns small-9'>{m.description}</div>
-                                        </div>
-                                    )}
-                                    {m.maintainers && m.maintainers.length > 0 && (
-                                        <div className='row white-box__details-row'>
-                                            <div className='columns small-3'>Maintainers:</div>
-                                            <div className='columns small-9'>{m.maintainers.join(', ')}</div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ) : (
-                            <div key={indx} className='white-box' style={{marginTop: '1.5em'}}>
-                                <div>Source {indx + 1}</div>
-                                <div className='white-box__details'>
-                                    {showChartNonMetadataInfo(aRevision, aSource.repoURL)}
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>Helm Chart:</div>
-                                        <div className='columns small-9'>
-                                            {aSource.chart}&nbsp;
-                                            {
-                                                <a
-                                                    title={sources[indx].chart}
-                                                    onClick={e => {
-                                                        e.stopPropagation();
-                                                        window.open(aSource.repoURL);
-                                                    }}>
-                                                    <i className='fa fa-external-link-alt' />
-                                                </a>
-                                            }
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    }}
-                </DataLoader>
-            );
-        };
-
-        const getContentForNonChart = (
-            aRevision: string,
-            aSourceIndex: number,
-            aVersionId: number | null,
-            indx: number,
-            aSource: models.ApplicationSource,
-            sourceHeader?: JSX.Element
-        ) => {
-            const showNonMetadataInfo = (aSource: models.ApplicationSource, aRevision: string) => {
-                return (
-                    <>
-                        <div className='white-box__details'>
-                            <div className='row white-box__details-row'>
-                                <div className='columns small-3'>SHA:</div>
-                                <div className='columns small-9'>
-                                    <Revision repoUrl={aSource.repoURL} revision={aRevision} />
-                                </div>
-                            </div>
-                        </div>
-                        <div className='white-box__details'>
-                            <div className='row white-box__details-row'>
-                                <div className='columns small-3'>Source:</div>
-                                <div className='columns small-9'>{aSource.repoURL}</div>
-                            </div>
-                        </div>
-                    </>
-                );
-            };
-            return (
-                <DataLoader
-                    key={indx}
-                    load={() => services.applications.revisionMetadata(application.metadata.name, application.metadata.namespace, aRevision, aSourceIndex, aVersionId)}>
-                    {metadata =>
-                        metadata ? (
-                            <div key={indx} className='white-box' style={{marginTop: '1.5em'}}>
-                                {sourceHeader && sourceHeader}
-                                {showNonMetadataInfo(aSource, aRevision)}
-                                <div className='white-box__details'>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>Date:</div>
-                                        <div className='columns small-9'>
-                                            <Timestamp date={metadata.date} />
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className='white-box__details'>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>Tags:</div>
-                                        <div className='columns small-9'>{((metadata.tags || []).length > 0 && metadata.tags.join(', ')) || 'No tags'}</div>
-                                    </div>
-                                </div>
-                                <div className='white-box__details'>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>Author:</div>
-                                        <div className='columns small-9'>{metadata.author}</div>
-                                    </div>
-                                </div>
-                                <div className='white-box__details'>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>Message:</div>
-                                        <div className='columns small-9' style={{display: 'flex', alignItems: 'center'}}>
-                                            <div className='application-details__commit-message'>{renderCommitMessage(metadata.message)}</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <div key={indx} className='white-box' style={{marginTop: '1.5em'}}>
-                                <div>Source {indx + 1}</div>
-                                {showNonMetadataInfo(aSource, aRevision)}
-                            </div>
-                        )
-                    }
-                </DataLoader>
-            );
-        };
-        const cont: JSX.Element[] = [];
-        const sources: models.ApplicationSource[] = application.spec.sources;
-        if (sources?.length > 0 && revisions) {
-            revisions.forEach((rev, indx) => {
-                if (sources[indx].chart) {
-                    cont.push(getContentForChart(rev, indx, getAppCurrentVersion(application), indx, sources[indx], <div>Source {indx + 1}</div>));
-                } else {
-                    cont.push(getContentForNonChart(rev, indx, getAppCurrentVersion(application), indx, sources[indx], <div>Source {indx + 1}</div>));
-                }
-            });
-            return <>{cont}</>;
-        } else if (application.spec.source) {
-            if (source.chart) {
-                cont.push(getContentForChart(revision, null, null, 0, source));
-            } else {
-                cont.push(getContentForNonChart(revision, null, getAppCurrentVersion(application), 0, source));
-            }
-            return <>{cont}</>;
-        } else {
-            return (
-                <div className='white-box' style={{marginTop: '1.5em'}}>
-                    <div className='white-box__details'>
-                        <div className='row white-box__details-row'>
-                            <div className='columns small-9'>No other information available</div>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-    }
-
     public render() {
         return (
             <ObservableQuery>
@@ -427,7 +189,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                         loadingRenderer={() => <Page title='Application Details'>Loading...</Page>}
                         input={this.props.match.params.name}
                         load={name =>
-                            combineLatest([this.loadAppInfo(name, this.getAppNamespace()), services.viewPreferences.getPreferences(), q]).pipe(
+                            combineLatest([this.loadAppInfo(name, this.appNamespace), services.viewPreferences.getPreferences(), q]).pipe(
                                 map(items => {
                                     const application = items[0].application;
                                     const pref = items[1].appDetails;
@@ -521,6 +283,17 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         : []
                                 });
                             };
+
+                            const renderCommitMessage = (message: string) =>
+                                message.split(/\s/).map(part =>
+                                    urlPattern.test(part) ? (
+                                        <a href={part} target='_blank' rel='noopener noreferrer' style={{overflowWrap: 'anywhere', wordBreak: 'break-word'}}>
+                                            {part}{' '}
+                                        </a>
+                                    ) : (
+                                        part + ' '
+                                    )
+                                );
                             const {Tree, Pods, Network, List} = AppsDetailsViewKey;
                             const zoomNum = (pref.zoom * 100).toFixed(0);
                             const setZoom = (s: number) => {
@@ -594,8 +367,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                 namespace: application.metadata.namespace
                             });
 
-                            const activeStatusExt = this.state.statusExtensionsMap[this.selectedExtension];
-                            const activeTopBarActionMenuExt = this.state.topBarActionMenuExtsMap[this.selectedExtension];
+                            const activeExtension = this.state.statusExtensionsMap[this.selectedExtension];
 
                             return (
                                 <div className={`application-details ${this.props.match.params.name}`}>
@@ -608,14 +380,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                 {title: 'Applications', path: '/applications'},
                                                 {title: <ApplicationsDetailsAppDropdown appName={this.props.match.params.name} />}
                                             ],
-                                            actionMenu: {
-                                                items: [
-                                                    ...this.getApplicationActionMenu(application, true),
-                                                    ...(this.state.topBarActionMenuExts
-                                                        ?.filter(ext => ext.shouldDisplay?.(application))
-                                                        .map(ext => this.renderActionMenuItem(ext, tree, application, this.setExtensionPanelVisible)) || [])
-                                                ]
-                                            },
+                                            actionMenu: {items: this.getApplicationActionMenu(application, true)},
                                             tools: (
                                                 <React.Fragment key='app-list-tools'>
                                                     <div className='application-details__view-type'>
@@ -808,12 +573,16 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                                     preferencesKey='application-details'>
                                                                     {data => (
                                                                         <ApplicationResourceList
-                                                                            pref={pref}
                                                                             onNodeClick={fullName => this.selectNode(fullName)}
                                                                             resources={data}
                                                                             nodeMenu={node =>
-                                                                                AppUtils.renderResourceMenu(node, application, tree, this.appContext.apis, this.appChanged, () =>
-                                                                                    this.getApplicationActionMenu(application, false)
+                                                                                AppUtils.renderResourceMenu(
+                                                                                    {...node, root: node},
+                                                                                    application,
+                                                                                    tree,
+                                                                                    this.appContext.apis,
+                                                                                    this.appChanged,
+                                                                                    () => this.getApplicationActionMenu(application, false)
                                                                                 )
                                                                             }
                                                                             tree={tree}
@@ -839,11 +608,10 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                     preferencesKey='grouped-nodes-details'>
                                                     {data => (
                                                         <ApplicationResourceList
-                                                            pref={pref}
                                                             onNodeClick={fullName => this.selectNode(fullName)}
                                                             resources={data}
                                                             nodeMenu={node =>
-                                                                AppUtils.renderResourceMenu(node, application, tree, this.appContext.apis, this.appChanged, () =>
+                                                                AppUtils.renderResourceMenu({...node, root: node}, application, tree, this.appContext.apis, this.appChanged, () =>
                                                                     this.getApplicationActionMenu(application, false)
                                                                 )
                                                             }
@@ -860,7 +628,6 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                                 isAppSelected={isAppSelected}
                                                 updateApp={(app: models.Application, query: {validate?: boolean}) => this.updateApp(app, query)}
                                                 selectedNode={selectedNode}
-                                                appCxt={this.context}
                                                 tab={tab}
                                             />
                                         </SlidingPanel>
@@ -873,6 +640,7 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                             {this.selectedRollbackDeploymentIndex > -1 && (
                                                 <ApplicationDeploymentHistory
                                                     app={application}
+                                                    selectedRollbackDeploymentIndex={this.selectedRollbackDeploymentIndex}
                                                     rollbackApp={info => this.rollbackApplication(info, application)}
                                                     selectDeployment={i => this.setRollbackPanelVisible(i)}
                                                 />
@@ -884,33 +652,108 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
                                         <SlidingPanel isShown={this.showConditions && !!conditions} onClose={() => this.setConditionsStatusVisible(false)}>
                                             {conditions && <ApplicationConditions conditions={conditions} />}
                                         </SlidingPanel>
-                                        <SlidingPanel
-                                            isShown={this.state.revision === 'SYNC_STATUS_REVISION' || this.state.revision === 'OPERATION_STATE_REVISION'}
-                                            isMiddle={true}
-                                            onClose={() => this.setState({revision: null})}>
-                                            {this.state.revision === 'SYNC_STATUS_REVISION' &&
-                                                (application.status.sync.revisions || application.status.sync.revision) &&
-                                                this.getContent(application, source, application.status.sync.revisions, application.status.sync.revision)}
-                                            {this.state.revision === 'OPERATION_STATE_REVISION' &&
-                                                (application.status.operationState.syncResult.revisions || application.status.operationState.syncResult.revision) &&
-                                                this.getContent(
-                                                    application,
-                                                    source,
-                                                    application.status.operationState.syncResult.revisions,
-                                                    application.status.operationState.syncResult.revision
-                                                )}
+                                        <SlidingPanel isShown={!!this.state.revision} isMiddle={true} onClose={() => this.setState({revision: null})}>
+                                            {this.state.revision &&
+                                                (source.chart ? (
+                                                    <DataLoader
+                                                        input={application}
+                                                        load={input =>
+                                                            services.applications.revisionChartDetails(input.metadata.name, input.metadata.namespace, this.state.revision)
+                                                        }>
+                                                        {(m: ChartDetails) => (
+                                                            <div className='white-box' style={{marginTop: '1.5em'}}>
+                                                                <div className='white-box__details'>
+                                                                    <div className='row white-box__details-row'>
+                                                                        <div className='columns small-3'>Revision:</div>
+                                                                        <div className='columns small-9'>{this.state.revision}</div>
+                                                                    </div>
+                                                                    <div className='row white-box__details-row'>
+                                                                        <div className='columns small-3'>Helm Chart:</div>
+                                                                        <div className='columns small-9'>
+                                                                            {source.chart}&nbsp;
+                                                                            {m.home && (
+                                                                                <a
+                                                                                    title={m.home}
+                                                                                    onClick={e => {
+                                                                                        e.stopPropagation();
+                                                                                        window.open(m.home);
+                                                                                    }}>
+                                                                                    <i className='fa fa-external-link-alt' />
+                                                                                </a>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                    {m.description && (
+                                                                        <div className='row white-box__details-row'>
+                                                                            <div className='columns small-3'>Description:</div>
+                                                                            <div className='columns small-9'>{m.description}</div>
+                                                                        </div>
+                                                                    )}
+                                                                    {m.maintainers && m.maintainers.length > 0 && (
+                                                                        <div className='row white-box__details-row'>
+                                                                            <div className='columns small-3'>Maintainers:</div>
+                                                                            <div className='columns small-9'>{m.maintainers.join(', ')}</div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </DataLoader>
+                                                ) : (
+                                                    <DataLoader
+                                                        load={() =>
+                                                            services.applications.revisionMetadata(application.metadata.name, application.metadata.namespace, this.state.revision)
+                                                        }>
+                                                        {metadata => (
+                                                            <div className='white-box' style={{marginTop: '1.5em'}}>
+                                                                <div className='white-box__details'>
+                                                                    <div className='row white-box__details-row'>
+                                                                        <div className='columns small-3'>SHA:</div>
+                                                                        <div className='columns small-9'>
+                                                                            <Revision repoUrl={source.repoURL} revision={this.state.revision} />
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className='white-box__details'>
+                                                                    <div className='row white-box__details-row'>
+                                                                        <div className='columns small-3'>Date:</div>
+                                                                        <div className='columns small-9'>
+                                                                            <Timestamp date={metadata.date} />
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className='white-box__details'>
+                                                                    <div className='row white-box__details-row'>
+                                                                        <div className='columns small-3'>Tags:</div>
+                                                                        <div className='columns small-9'>
+                                                                            {((metadata.tags || []).length > 0 && metadata.tags.join(', ')) || 'No tags'}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className='white-box__details'>
+                                                                    <div className='row white-box__details-row'>
+                                                                        <div className='columns small-3'>Author:</div>
+                                                                        <div className='columns small-9'>{metadata.author}</div>
+                                                                    </div>
+                                                                </div>
+                                                                <div className='white-box__details'>
+                                                                    <div className='row white-box__details-row'>
+                                                                        <div className='columns small-3'>Message:</div>
+                                                                        <div className='columns small-9' style={{display: 'flex', alignItems: 'center'}}>
+                                                                            <div className='application-details__commit-message'>{renderCommitMessage(metadata.message)}</div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </DataLoader>
+                                                ))}
                                         </SlidingPanel>
                                         <SlidingPanel
-                                            isShown={this.selectedExtension !== '' && activeStatusExt != null && activeStatusExt.flyout != null}
+                                            isShown={this.selectedExtension !== '' && activeExtension != null && activeExtension.flyout != null}
                                             onClose={() => this.setExtensionPanelVisible('')}>
-                                            {this.selectedExtension !== '' && activeStatusExt?.flyout && <activeStatusExt.flyout application={application} tree={tree} />}
-                                        </SlidingPanel>
-                                        <SlidingPanel
-                                            isMiddle={activeTopBarActionMenuExt?.isMiddle ?? true}
-                                            isShown={this.selectedExtension !== '' && activeTopBarActionMenuExt != null && activeTopBarActionMenuExt.flyout != null}
-                                            onClose={() => this.setExtensionPanelVisible('')}>
-                                            {this.selectedExtension !== '' && activeTopBarActionMenuExt?.flyout && (
-                                                <activeTopBarActionMenuExt.flyout application={application} tree={tree} />
+                                            {this.selectedExtension !== '' && activeExtension && activeExtension.flyout && (
+                                                <activeExtension.flyout application={application} tree={tree} />
                                             )}
                                         </SlidingPanel>
                                     </Page>
@@ -922,45 +765,29 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             </ObservableQuery>
         );
     }
-    private renderActionMenuItem(ext: TopBarActionMenuExt, tree: appModels.ApplicationTree, application: appModels.Application, showExtension?: (id: string) => any): any {
-        return {
-            action: () => this.setExtensionPanelVisible(ext.id),
-            title: <ext.component application={application} tree={tree} openFlyout={() => showExtension && showExtension(ext.id)} />,
-            iconClassName: ext.iconClassName
-        };
-    }
+
     private getApplicationActionMenu(app: appModels.Application, needOverlapLabelOnNarrowScreen: boolean) {
         const refreshing = app.metadata.annotations && app.metadata.annotations[appModels.AnnotationRefreshKey];
         const fullName = AppUtils.nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
         const ActionMenuItem = (prop: {actionLabel: string}) => <span className={needOverlapLabelOnNarrowScreen ? 'show-for-large' : ''}>{prop.actionLabel}</span>;
+        const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
         return [
             {
                 iconClassName: 'fa fa-info-circle',
                 title: <ActionMenuItem actionLabel='Details' />,
-                action: () => this.selectNode(fullName),
-                disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0)
+                action: () => this.selectNode(fullName)
             },
             {
                 iconClassName: 'fa fa-file-medical',
                 title: <ActionMenuItem actionLabel='Diff' />,
                 action: () => this.selectNode(fullName, 0, 'diff'),
-                disabled: app.status.sync.status === appModels.SyncStatuses.Synced || (!app.spec.source && (!app.spec.sources || app.spec.sources.length === 0))
+                disabled: app.status.sync.status === appModels.SyncStatuses.Synced
             },
             {
                 iconClassName: 'fa fa-sync',
                 title: <ActionMenuItem actionLabel='Sync' />,
-                action: () => AppUtils.showDeploy('all', null, this.appContext.apis),
-                disabled: !app.spec.source && (!app.spec.sources || app.spec.sources.length === 0)
+                action: () => AppUtils.showDeploy('all', null, this.appContext.apis)
             },
-            ...(app.status?.operationState?.phase === 'Running' && app.status.resources.find(r => r.requiresDeletionConfirmation)
-                ? [
-                      {
-                          iconClassName: 'fa fa-check',
-                          title: <ActionMenuItem actionLabel='Confirm Pruning' />,
-                          action: () => this.confirmDeletion(app, 'Confirm Prunning', 'Are you sure you want to confirm resources pruning?')
-                      }
-                  ]
-                : []),
             {
                 iconClassName: 'fa fa-info-circle',
                 title: <ActionMenuItem actionLabel='Sync Status' />,
@@ -969,26 +796,24 @@ export class ApplicationDetails extends React.Component<RouteComponentProps<{app
             },
             {
                 iconClassName: 'fa fa-history',
-                title: <ActionMenuItem actionLabel='History and rollback' />,
+                title: hasMultipleSources ? (
+                    <React.Fragment>
+                        <ActionMenuItem actionLabel=' History and rollback' />
+                        {helpTip('Rollback is not supported for apps with multiple sources')}
+                    </React.Fragment>
+                ) : (
+                    <ActionMenuItem actionLabel='History and rollback' />
+                ),
                 action: () => {
                     this.setRollbackPanelVisible(0);
                 },
-                disabled: !app.status.operationState
+                disabled: !app.status.operationState || hasMultipleSources
             },
-            app.metadata.deletionTimestamp &&
-            app.status.resources.find(r => r.requiresDeletionConfirmation) &&
-            !((app.metadata.annotations || {})[appModels.AppDeletionConfirmedAnnotation] == 'true')
-                ? {
-                      iconClassName: 'fa fa-check',
-                      title: <ActionMenuItem actionLabel='Confirm Deletion' />,
-                      action: () => this.confirmDeletion(app, 'Confirm Deletion', 'Are you sure you want to delete this application?')
-                  }
-                : {
-                      iconClassName: 'fa fa-times-circle',
-                      title: <ActionMenuItem actionLabel='Delete' />,
-                      action: () => this.deleteApplication(),
-                      disabled: !!app.metadata.deletionTimestamp
-                  },
+            {
+                iconClassName: 'fa fa-times-circle',
+                title: <ActionMenuItem actionLabel='Delete' />,
+                action: () => this.deleteApplication()
+            },
             {
                 iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
                 title: (
@@ -1189,8 +1014,8 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
                     update.spec.syncPolicy = {automated: null};
                     await services.applications.update(update);
                 }
-                await services.applications.rollback(this.props.match.params.name, this.getAppNamespace(), revisionHistory.id);
-                this.appChanged.next(await services.applications.get(this.props.match.params.name, this.getAppNamespace()));
+                await services.applications.rollback(this.props.match.params.name, this.appNamespace, revisionHistory.id);
+                this.appChanged.next(await services.applications.get(this.props.match.params.name, this.appNamespace));
                 this.setRollbackPanelVisible(-1);
             }
         } catch (e) {
@@ -1206,18 +1031,7 @@ Are you sure you want to disable auto-sync and rollback application '${this.prop
     }
 
     private async deleteApplication() {
-        await AppUtils.deleteApplication(this.props.match.params.name, this.getAppNamespace(), this.appContext.apis);
-    }
-
-    private async confirmDeletion(app: appModels.Application, title: string, message: string) {
-        const confirmed = await this.appContext.apis.popup.confirm(title, message);
-        if (confirmed) {
-            if (!app.metadata.annotations) {
-                app.metadata.annotations = {};
-            }
-            app.metadata.annotations[appModels.AppDeletionConfirmedAnnotation] = new Date().toISOString();
-            await services.applications.update(app);
-        }
+        await AppUtils.deleteApplication(this.props.match.params.name, this.appNamespace, this.appContext.apis);
     }
 }
 

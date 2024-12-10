@@ -23,8 +23,10 @@ const (
 )
 
 func newCommand() *cobra.Command {
-	var docsOutputPath string = ""
-	command := &cobra.Command{
+	var (
+		docsOutputPath string = ""
+	)
+	var command = &cobra.Command{
 		Use:     "go run github.com/argoproj/argo-cd/hack/known_types ALIAS PACKAGE_PATH OUTPUT_PATH",
 		Example: "go run github.com/argoproj/argo-cd/hack/known_types corev1 k8s.io/api/core/v1 corev1_known_types.go",
 		RunE: func(c *cobra.Command, args []string) error {
@@ -42,7 +44,7 @@ func newCommand() *cobra.Command {
 			imprt := importer.ForCompiler(token.NewFileSet(), "source", nil)
 			pkg, err := imprt.Import(packagePath)
 			if err != nil {
-				return fmt.Errorf("error while importing the package at: %s : %w", packagePath, err)
+				return err
 			}
 
 			shortPackagePath := strings.TrimPrefix(packagePath, packagePrefix)
@@ -77,12 +79,12 @@ import corev1 "k8s.io/api/core/v1"
 func init() {%s
 }`, strings.Join(mapItems, ""))
 			if docsOutputPath != "" {
-				if err = os.WriteFile(docsOutputPath, []byte(strings.Join(docs, "\n")), 0o644); err != nil {
-					return fmt.Errorf("error while writing to the %s: %w", docsOutputPath, err)
+				if err = os.WriteFile(docsOutputPath, []byte(strings.Join(docs, "\n")), 0644); err != nil {
+					return err
 				}
 			}
 
-			return os.WriteFile(outputPath, []byte(res+"\n"), 0o644)
+			return os.WriteFile(outputPath, []byte(res+"\n"), 0644)
 		},
 	}
 	command.Flags().StringVar(&docsOutputPath, "docs", "", "Docs output file path")

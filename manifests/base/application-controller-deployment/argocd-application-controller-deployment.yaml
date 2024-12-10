@@ -243,8 +243,6 @@ spec:
           mountPath: /app/config/controller/tls
         - name: argocd-home
           mountPath: /home/argocd
-        - name: argocd-cmd-params-cm
-          mountPath: /home/argocd/params
       serviceAccountName: argocd-application-controller
       affinity:
         podAntiAffinity:
@@ -275,12 +273,3 @@ spec:
             path: tls.key
           - key: ca.crt
             path: ca.crt
-      - name: argocd-cmd-params-cm
-        configMap:
-          optional: true
-          name: argocd-cmd-params-cm
-          items:
-          - key: controller.profile.enabled
-            path: profiler.enabled
-      nodeSelector:
-        kubernetes.io/os: linux

@@ -3,6 +3,7 @@
 
 .application-deployment-history {
     &__item {
+        cursor: pointer;
         position: relative;
         @include themify($themes) {
             background: themed('background-2');
@@ -11,6 +12,7 @@
         border-radius: $border-radius;
         box-shadow: 1px 1px 3px $argo-color-gray-5;
         margin-top: 1em;
+        overflow: hidden;
 
         & > .columns {
             padding: 1em;
@@ -32,10 +34,6 @@
         right: 1em;
     }
 
-    &__show-parameter-details {
-        margin: 20px 0px;
-    }
-
     .white-box {
         margin-top: 1em;
         padding: 0;
@@ -44,24 +42,5 @@
 
     .white-box__details p {
         margin-left: -1em;
-    }
-
-    .collapsible-section {
-        margin-top: 20px;
-        padding: 20px;
-        border: 1px solid;
-        box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.1);
-        border-radius: '4px';
-        @include themify($themes) {
-            border-color: themed('border');
-            box-shadow: themed('shadow');
-        }
-    }
-
-    .separator {
-        height: 2px;
-        margin: 1em 0;
-        width: 100%;
-        background-color: $argo-color-gray-5;
     }
 }
