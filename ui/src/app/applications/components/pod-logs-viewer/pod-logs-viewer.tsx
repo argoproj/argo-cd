@@ -47,28 +47,15 @@ export interface PodLogsProps {
 }
 
 // ansi colors, see https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
-const green = '\u001b[32m';
 const blue = '\u001b[34m';
 const magenta = '\u001b[35m';
-const cyan = '\u001b[36m';
-const colors = [green, blue, magenta, cyan];
+const colors = [blue, magenta];
 const reset = '\u001b[0m';
 const whiteOnYellow = '\u001b[1m\u001b[43;1m\u001b[37m';
 
 // Default colors using argo-ui theme variables
-const POD_COLORS_LIGHT = ['var(--pod-background-light-1)', 'var(--pod-background-light-2)'];
-
-const POD_COLORS_DARK = ['var(--pod-background-dark-1)', 'var(--pod-background-dark-2)'];
-
-// cheap string hash function
-function stringHashCode(str: string) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        // tslint:disable-next-line:no-bitwise
-        hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return hash;
-}
+const POD_COLORS_LIGHT = ['var(--pod-background-light)'];
+const POD_COLORS_DARK = ['var(--pod-background-dark)'];
 
 const getPodColors = (isDark: boolean) => {
     const envColors = (window as any).env?.POD_COLORS?.[isDark ? 'dark' : 'light'];
@@ -77,39 +64,40 @@ const getPodColors = (isDark: boolean) => {
 
 function getPodBackgroundColor(podName: string, darkMode: boolean) {
     const colors = getPodColors(darkMode);
-    return colors[Math.abs(stringHashCode(podName) % colors.length)];
+    return colors[0];
 }
 
 // ansi color for pod name
-function podColor(podName: string) {
-    return colors[Math.abs(stringHashCode(podName) % colors.length)];
-}
-
-// Helper function to convert ANSI color to CSS color
-function ansiToCSS(ansiColor: string) {
-    switch (ansiColor) {
-        case '\u001b[32m': // green
-            return '#00FF00';
-        case '\u001b[34m': // blue
-            return '#0000FF';
-        case '\u001b[35m': // magenta
-            return '#FF00FF';
-        case '\u001b[36m': // cyan
-            return '#00FFFF';
-        default:
-            return '#FFFFFF'; // default to white if color not found
+function podColor(podName: string, isDarkMode: boolean, isSelected: boolean) {
+    if (!isSelected) {
+        return '';
     }
+    return isDarkMode ? colors[1] : colors[0];
 }
 
-const PodLegend: React.FC<{logs: LogEntry[]; darkMode?: boolean}> = ({logs, darkMode}) => {
+const PodLegend: React.FC<{logs: LogEntry[]; darkMode?: boolean; selectedPod: string | null; onPodSelect: (podName: string) => void}> = ({
+    logs,
+    darkMode,
+    selectedPod,
+    onPodSelect
+}) => {
     const uniquePods = Array.from(new Set(logs.map(log => log.podName)));
+    const handlePodClick = (podName: string) => {
+        // If clicking the already selected pod, unselect it
+        if (selectedPod === podName) {
+            onPodSelect(null);
+        } else {
+            onPodSelect(podName);
+        }
+    };
     return (
         <div className='pod-logs-viewer__legend'>
             {uniquePods.map(podName => {
-                const bgColor = getPodBackgroundColor(podName, darkMode);
-                const textColor = ansiToCSS(podColor(podName));
+                const isSelected = selectedPod === podName;
+                const bgColor = isSelected ? getPodBackgroundColor(podName, darkMode) : 'transparent';
+                const textColor = isSelected ? (darkMode ? '#FF00FF' : '#0000FF') : '#000000';
                 return (
-                    <div key={podName} className='pod-logs-viewer__legend-item'>
+                    <div key={podName} className='pod-logs-viewer__legend-item' onClick={() => handlePodClick(podName)} style={{cursor: 'pointer'}}>
                         <span className='color-box' style={{backgroundColor: bgColor}} />
                         <span className='pod-name' style={{color: textColor}}>
                             {podName}
@@ -127,6 +115,7 @@ const matchNothing = /.^/;
 export const PodsLogsViewer = (props: PodLogsProps) => {
     const {containerName, onClickContainer, timestamp, containerGroups, applicationName, applicationNamespace, namespace, podName, group, kind, name} = props;
     const queryParams = new URLSearchParams(location.search);
+    const [selectedPod, setSelectedPod] = useState<string | null>(null);
     const [viewPodNames, setViewPodNames] = useState(queryParams.get('viewPodNames') === 'true');
     const [follow, setFollow] = useState(queryParams.get('follow') !== 'false');
     const [viewTimestamps, setViewTimestamps] = useState(queryParams.get('viewTimestamps') === 'true');
@@ -210,9 +199,13 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         if (event.deltaY < 0) setScrollToBottom(false);
     };
 
-    const renderLog = (log: LogEntry, lineNum: number) =>
+    const renderLog = (log: LogEntry, lineNum: number, darkMode: boolean) =>
         // show the pod name if there are multiple pods, pad with spaces to align
-        (viewPodNames ? (lineNum === 0 || logs[lineNum - 1].podName !== log.podName ? podColor(log.podName) + log.podName + reset : ' '.repeat(log.podName.length)) + ' ' : '') +
+        (viewPodNames
+            ? (lineNum === 0 || logs[lineNum - 1].podName !== log.podName
+                  ? podColor(log.podName, darkMode, selectedPod === log.podName) + log.podName + reset
+                  : ' '.repeat(log.podName.length)) + ' '
+            : '') +
         // show the timestamp if requested, pad with spaces to align
         (viewTimestamps ? (lineNum === 0 || logs[lineNum - 1].timeStamp !== log.timeStamp ? log.timeStampStr : '').padEnd(30) + ' ' : '') +
         // show the log content without colors, only highlight search terms
@@ -238,14 +231,14 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                         style={{
                             whiteSpace: isWrapped ? 'normal' : 'pre',
                             lineHeight: '16px',
-                            backgroundColor: getPodBackgroundColor(log.podName, prefs.appDetails.darkMode),
+                            backgroundColor: selectedPod === log.podName ? getPodBackgroundColor(log.podName, prefs.appDetails.darkMode) : 'transparent',
                             padding: '1px 8px',
                             width: '100vw', // Use viewport width
                             marginLeft: '-8px', // Offset the padding
                             marginRight: '-8px'
                         }}
                         className='noscroll'>
-                        <Ansi>{renderLog(log, lineNum)}</Ansi>
+                        <Ansi>{renderLog(log, lineNum, prefs.appDetails.darkMode)}</Ansi>
                     </div>
                 ))}
             </div>
@@ -256,7 +249,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
             {(prefs: ViewPreferences) => {
                 return (
                     <React.Fragment>
-                        {viewPodNames && <PodLegend logs={logs} darkMode={prefs.appDetails.darkMode} />}
+                        {viewPodNames && <PodLegend logs={logs} darkMode={prefs.appDetails.darkMode} selectedPod={selectedPod} onPodSelect={setSelectedPod} />}
                         <div className='pod-logs-viewer__settings'>
                             <span>
                                 <FollowToggleButton follow={follow} setFollow={setFollowWithQueryParams} />
