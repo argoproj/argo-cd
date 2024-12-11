@@ -3220,6 +3220,11 @@ func (in *PullRequestGeneratorGitea) DeepCopyInto(out *PullRequestGeneratorGitea
 		*out = new(SecretRef)
 		**out = **in
 	}
+	if in.Labels != nil {
+		in, out := &in.Labels, &out.Labels
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
