@@ -47,7 +47,7 @@ Let's start by storing the client secret you generated earlier in the argocd sec
 
 You can patch it with value copied previously:
 ```bash
-kubectl -n argo-cd patch secret argocd-secret --patch='{"stringData": { "oidc.keycloak.clientSecret": "83083958-8ec6-47b0-a411-a8c55381fbd2" }}'
+kubectl -n argo-cd patch secret argocd-secret --patch='{"stringData": { "oidc.keycloak.clientSecret": "<REPLACE_WITH_CLIENT_SECRET>" }}'
 ```
 
 Now we can configure the config map and add the oidc configuration to enable our keycloak authentication.
