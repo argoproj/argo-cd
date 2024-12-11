@@ -129,11 +129,18 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 		}
 	}
 
-	client := &http.Client{Transport: &http.Transport{
-		Proxy:             proxy.GetCallback(proxyUrl, noProxy),
-		TLSClientConfig:   tlsConf,
-		DisableKeepAlives: true,
-	}}
+	client := &http.Client{
+		Transport: &http.Transport{
+			Proxy:             proxy.GetCallback(proxyUrl, noProxy),
+			TLSClientConfig:   tlsConf,
+			DisableKeepAlives: true,
+		},
+		/*
+			CheckRedirect: func(req *http.Request, via []*http.Request) error {
+				return errors.New("redirects are not allowed")
+			},
+		*/
+	}
 	repo.Client = &auth.Client{
 		Client: client,
 		Cache:  nil,
@@ -192,7 +199,7 @@ func (c *nativeOCIClient) TestRepo(ctx context.Context) (bool, error) {
 func (c *nativeOCIClient) Extract(ctx context.Context, digest string, project string) (string, argoio.Closer, error) {
 	cachedPath, err := c.getCachedPath(digest, project)
 	if err != nil {
-		return "", nil, err
+		return "", nil, fmt.Errorf("error getting oci path for digest %s: %w", digest, err)
 	}
 
 	c.repoLock.Lock(cachedPath)
@@ -219,7 +226,7 @@ func (c *nativeOCIClient) Extract(ctx context.Context, digest string, project st
 
 		err = saveCompressedImageToPath(ctx, digest, c.repo, cachedPath)
 		if err != nil {
-			return "", nil, err
+			return "", nil, fmt.Errorf("could not save oci digest %s: %w", digest, err)
 		}
 	}
 
@@ -230,7 +237,7 @@ func (c *nativeOCIClient) Extract(ctx context.Context, digest string, project st
 
 	manifestsDir, err := extractContentToManifestsDir(ctx, cachedPath, digest, maxSize, c.allowedMediaTypes)
 	if err != nil {
-		return manifestsDir, nil, err
+		return manifestsDir, nil, fmt.Errorf("cannot extract contents of oci image with revision %s: %w", digest, err)
 	}
 
 	return manifestsDir, argoio.NewCloser(func() error {
@@ -249,7 +256,7 @@ func (c *nativeOCIClient) getCachedPath(version, project string) (string, error)
 func (c *nativeOCIClient) CleanCache(revision, project string) error {
 	cachePath, err := c.getCachedPath(revision, project)
 	if err != nil {
-		return err
+		return fmt.Errorf("error cleaning oci path for revision %s: %w", revision, err)
 	}
 	return os.RemoveAll(cachePath)
 }
@@ -258,12 +265,12 @@ func (c *nativeOCIClient) CleanCache(revision, project string) error {
 func (c *nativeOCIClient) DigestMetadata(ctx context.Context, digest, project string) (*v1.Manifest, error) {
 	path, err := c.getCachedPath(digest, project)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error fetching oci metadata path for digest %s: %w", digest, err)
 	}
 
 	repo, err := oci.NewFromTar(ctx, path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error extracting oci image for digest %s: %w", digest, err)
 	}
 
 	return getOCIManifest(ctx, digest, repo)
@@ -560,19 +567,19 @@ func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc v1.Descri
 func getOCIManifest(ctx context.Context, digest string, repo oras.ReadOnlyTarget) (*v1.Manifest, error) {
 	desc, err := repo.Resolve(ctx, digest)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error resolving oci repo from digest %s: %w", digest, err)
 	}
 
 	rc, err := repo.Fetch(ctx, desc)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error fetching oci manifest for digest %s: %w", digest, err)
 	}
 
 	manifest := v1.Manifest{}
 	decoder := json.NewDecoder(rc)
 	err = decoder.Decode(&manifest)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error decoding oci manifest for digest %s: %w", digest, err)
 	}
 
 	return &manifest, nil

@@ -114,7 +114,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				manifestMaxExtractedSize:        10,
 				disableManifestMaxExtractedSize: false,
 			},
-			expectedError: fmt.Errorf("could not decompress layer: error while iterating on tar reader: unexpected EOF"),
+			expectedError: fmt.Errorf("cannot extract contents of oci image with revision sha256:1b6dfd71e2b35c2f35dffc39007c2276f3c0e235cbae4c39cba74bd406174e22: could not decompress layer: error while iterating on tar reader: unexpected EOF"),
 		},
 		{
 			name: "extraction fails due to multiple layers",
@@ -159,7 +159,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 				manifestMaxExtractedSize:        1000,
 				disableManifestMaxExtractedSize: false,
 			},
-			expectedError: fmt.Errorf("not found"),
+			expectedError: fmt.Errorf("error resolving oci repo from digest sha256:nonexistentdigest: not found"),
 		},
 		{
 			name: "extraction with helm chart",
@@ -261,7 +261,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 					c := newClientWithLock(fields.repoURL, fields.creds, globalLock, store, fields.tagsFunc, fields.allowedMediaTypes, WithImagePaths(cacheDir), WithManifestMaxExtractedSize(args.manifestMaxExtractedSize), WithDisableManifestMaxExtractedSize(args.disableManifestMaxExtractedSize))
 					_, _, err := c.Extract(context.Background(), sha, "non-existent-project")
 					require.Error(t, err)
-					require.Equal(t, fmt.Errorf("not found"), err)
+					require.EqualError(t, fmt.Errorf("error resolving oci repo from digest sha256:34a4a54b23e018edd08aadd78a126a0cedf1e70452daf0d6b36ea44253350a73: not found"), err.Error())
 				},
 			},
 		},
