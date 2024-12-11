@@ -40,6 +40,7 @@ export interface NewHTTPSRepoParams {
     project?: string;
     forceHttpBasicAuth?: boolean;
     enableOCI: boolean;
+    insecureOCIForceHttp: boolean;
 }
 
 interface NewGitHubAppRepoParams {
@@ -468,7 +469,13 @@ export class ReposList extends React.Component<
                                                 <div className='white-box'>
                                                     <p>CONNECT REPO USING HTTPS</p>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Type' field='type' component={FormSelect} componentProps={{options: ['git', 'helm']}} />
+                                                        <FormField
+                                                            formApi={formApi}
+                                                            label='Type'
+                                                            field='type'
+                                                            component={FormSelect}
+                                                            componentProps={{options: ['git', 'helm', 'oci']}}
+                                                        />
                                                     </div>
                                                     {(formApi.getFormState().values.type === 'helm' || formApi.getFormState().values.type === 'git') && (
                                                         <div className='argo-form-row'>
@@ -532,7 +539,11 @@ export class ReposList extends React.Component<
                                                         <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
                                                     </div>
                                                     <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Enable OCI' field='enableOCI' component={CheckboxField} />
+                                                        {formApi.getFormState().values.type !== 'oci' ? (
+                                                            <FormField formApi={formApi} label='Enable OCI' field='enableOCI' component={CheckboxField} />
+                                                        ) : (
+                                                            <FormField formApi={formApi} label='Insecure HTTP Only' field='insecureOCIForceHttp' component={CheckboxField} />
+                                                        )}
                                                     </div>
                                                 </div>
                                             )}

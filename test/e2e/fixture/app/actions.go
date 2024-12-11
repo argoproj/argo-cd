@@ -221,9 +221,17 @@ func (a *Actions) CreateApp(args ...string) *Actions {
 
 func (a *Actions) prepareCreateAppArgs(args []string) []string {
 	a.context.t.Helper()
+
+	var repo string
+	if a.context.ociRegistryPath != "" && a.context.repoURLType == fixture.RepoURLTypeOCI {
+		repo = fmt.Sprintf("%s/%s", fixture.OCIHostURL, a.context.ociRegistryPath)
+	} else {
+		repo = fixture.RepoURL(a.context.repoURLType)
+	}
+
 	args = append([]string{
 		"app", "create", a.context.AppQualifiedName(),
-		"--repo", fixture.RepoURL(a.context.repoURLType),
+		"--repo", repo,
 	}, args...)
 
 	if a.context.destName != "" {

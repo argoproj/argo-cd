@@ -30,12 +30,26 @@ func Tgz(srcPath string, inclusions []string, exclusions []string, writers ...io
 		return 0, fmt.Errorf("error inspecting srcPath %q: %w", srcPath, err)
 	}
 
-	mw := io.MultiWriter(writers...)
-
-	gzw := gzip.NewWriter(mw)
+	gzw := gzip.NewWriter(io.MultiWriter(writers...))
 	defer gzw.Close()
 
-	tw := tar.NewWriter(gzw)
+	return writeFile(srcPath, inclusions, exclusions, gzw)
+}
+
+// Tar will iterate over all files found in srcPath archiving with Tar. Will invoke every given writer while generating the tar.
+// This is useful to generate checksums. Will exclude files matching the exclusions
+// list blob if exclusions is not nil. Will include only the files matching the
+// inclusions list if inclusions is not nil.
+func Tar(srcPath string, inclusions []string, exclusions []string, writers ...io.Writer) (int, error) {
+	if _, err := os.Stat(srcPath); err != nil {
+		return 0, fmt.Errorf("error inspecting srcPath %q: %w", srcPath, err)
+	}
+
+	return writeFile(srcPath, inclusions, exclusions, io.MultiWriter(writers...))
+}
+
+func writeFile(srcPath string, inclusions []string, exclusions []string, writer io.Writer) (int, error) {
+	tw := tar.NewWriter(writer)
 	defer tw.Close()
 
 	t := &tgz{
@@ -56,7 +70,7 @@ func Tgz(srcPath string, inclusions []string, exclusions []string, writers ...io
 // Callers must make sure dstPath is:
 //   - a full path
 //   - points to an empty directory or
-//   - points to a non existing directory
+//   - points to a non-existing directory
 func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) error {
 	if !filepath.IsAbs(dstPath) {
 		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
@@ -67,9 +81,29 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 		return fmt.Errorf("error reading file: %w", err)
 	}
 	defer gzr.Close()
+	return untar(dstPath, io.LimitReader(gzr, maxSize), preserveFileMode)
+}
 
-	lr := io.LimitReader(gzr, maxSize)
-	tr := tar.NewReader(lr)
+// Untar will loop over the tar reader creating the file structure at dstPath.
+// Callers must make sure dstPath is:
+//   - a full path
+//   - points to an empty directory or
+//   - points to a non-existing directory
+func Untar(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) error {
+	if !filepath.IsAbs(dstPath) {
+		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
+	}
+
+	return untar(dstPath, io.LimitReader(r, maxSize), preserveFileMode)
+}
+
+// untar will loop over the tar reader creating the file structure at dstPath.
+// Callers must make sure dstPath is:
+//   - a full path
+//   - points to an empty directory or
+//   - points to a non existing directory
+func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
+	tr := tar.NewReader(r)
 
 	for {
 		header, err := tr.Next()
