@@ -82,12 +82,12 @@ func (pg *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
 		if err != nil {
 			return err
 		}
-		log.Printf("Pick source %q", source)
+		log.Printf("Pick source \"%s\"", source)
 		destination, err := pg.buildDestination(opts, clusters.Items)
 		if err != nil {
 			return err
 		}
-		log.Printf("Pick destination %q", destination)
+		log.Printf("Pick destination \"%s\"", destination)
 		log.Printf("Create application")
 		_, err = applications.Create(context.TODO(), &v1alpha1.Application{
 			ObjectMeta: v1.ObjectMeta{

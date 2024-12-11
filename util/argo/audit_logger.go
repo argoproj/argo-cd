@@ -18,10 +18,9 @@ import (
 )
 
 type AuditLogger struct {
-	kIf            kubernetes.Interface
-	component      string
-	ns             string
-	enableEventLog map[string]bool
+	kIf       kubernetes.Interface
+	component string
+	ns        string
 }
 
 type EventInfo struct {
@@ -96,15 +95,7 @@ func (l *AuditLogger) logEvent(objMeta ObjectRef, gvk schema.GroupVersionKind, i
 	}
 }
 
-func (l *AuditLogger) enableK8SEventLog(info EventInfo) bool {
-	return l.enableEventLog["all"] || l.enableEventLog[info.Reason]
-}
-
 func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info EventInfo, message, user string, eventLabels map[string]string) {
-	if !l.enableK8SEventLog(info) {
-		return
-	}
-
 	objectMeta := ObjectRef{
 		Name:            app.ObjectMeta.Name,
 		Namespace:       app.ObjectMeta.Namespace,
@@ -122,10 +113,6 @@ func (l *AuditLogger) LogAppEvent(app *v1alpha1.Application, info EventInfo, mes
 }
 
 func (l *AuditLogger) LogAppSetEvent(app *v1alpha1.ApplicationSet, info EventInfo, message, user string) {
-	if !l.enableK8SEventLog(info) {
-		return
-	}
-
 	objectMeta := ObjectRef{
 		Name:            app.ObjectMeta.Name,
 		Namespace:       app.ObjectMeta.Namespace,
@@ -140,10 +127,6 @@ func (l *AuditLogger) LogAppSetEvent(app *v1alpha1.ApplicationSet, info EventInf
 }
 
 func (l *AuditLogger) LogResourceEvent(res *v1alpha1.ResourceNode, info EventInfo, message, user string) {
-	if !l.enableK8SEventLog(info) {
-		return
-	}
-
 	objectMeta := ObjectRef{
 		Name:            res.ResourceRef.Name,
 		Namespace:       res.ResourceRef.Namespace,
@@ -162,10 +145,6 @@ func (l *AuditLogger) LogResourceEvent(res *v1alpha1.ResourceNode, info EventInf
 }
 
 func (l *AuditLogger) LogAppProjEvent(proj *v1alpha1.AppProject, info EventInfo, message, user string) {
-	if !l.enableK8SEventLog(info) {
-		return
-	}
-
 	objectMeta := ObjectRef{
 		Name:            proj.ObjectMeta.Name,
 		Namespace:       proj.ObjectMeta.Namespace,
@@ -179,35 +158,10 @@ func (l *AuditLogger) LogAppProjEvent(proj *v1alpha1.AppProject, info EventInfo,
 	l.logEvent(objectMeta, v1alpha1.AppProjectSchemaGroupVersionKind, info, message, nil, nil)
 }
 
-func NewAuditLogger(ns string, kIf kubernetes.Interface, component string, enableK8sEvent []string) *AuditLogger {
+func NewAuditLogger(ns string, kIf kubernetes.Interface, component string) *AuditLogger {
 	return &AuditLogger{
-		ns:             ns,
-		kIf:            kIf,
-		component:      component,
-		enableEventLog: setK8sEventList(enableK8sEvent),
+		ns:        ns,
+		kIf:       kIf,
+		component: component,
 	}
-}
-
-func setK8sEventList(enableK8sEvent []string) map[string]bool {
-	enableK8sEventList := make(map[string]bool)
-
-	for _, event := range enableK8sEvent {
-		if event == "all" {
-			enableK8sEventList = map[string]bool{
-				"all": true,
-			}
-			return enableK8sEventList
-		} else if event == "none" {
-			enableK8sEventList = map[string]bool{}
-			return enableK8sEventList
-		}
-
-		enableK8sEventList[event] = true
-	}
-
-	return enableK8sEventList
-}
-
-func DefaultEnableEventList() []string {
-	return []string{"all"}
 }

@@ -13,7 +13,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -22,7 +21,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/util/intstr"
 
 	cacheutil "github.com/argoproj/argo-cd/v2/util/cache"
 
@@ -100,7 +98,6 @@ func newCacheMocksWithOpts(repoCacheExpiration, revisionCacheExpiration, revisio
 }
 
 func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *gitmocks.Client, *repoCacheMocks) {
-	t.Helper()
 	root, err := filepath.Abs(root)
 	if err != nil {
 		panic(err)
@@ -136,12 +133,10 @@ func newServiceWithMocks(t *testing.T, root string, signed bool) (*Service, *git
 		paths.On("Add", mock.Anything, mock.Anything).Return(root, nil)
 		paths.On("GetPath", mock.Anything).Return(root, nil)
 		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
-		paths.On("GetPaths").Return(map[string]string{"fake-nonce": root})
 	}, root)
 }
 
 func newServiceWithOpt(t *testing.T, cf clientFunc, root string) (*Service, *gitmocks.Client, *repoCacheMocks) {
-	t.Helper()
 	helmClient := &helmmocks.Client{}
 	gitClient := &gitmocks.Client{}
 	paths := &iomocks.TempPaths{}
@@ -150,10 +145,10 @@ func newServiceWithOpt(t *testing.T, cf clientFunc, root string) (*Service, *git
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, root)
 
-	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
 	}
-	service.newHelmClient = func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client {
+	service.newHelmClient = func(repoURL string, creds helm.Creds, enableOci bool, proxy string, opts ...helm.ClientOpts) helm.Client {
 		return helmClient
 	}
 	service.gitRepoInitializer = func(rootPath string) goio.Closer {
@@ -164,19 +159,16 @@ func newServiceWithOpt(t *testing.T, cf clientFunc, root string) (*Service, *git
 }
 
 func newService(t *testing.T, root string) *Service {
-	t.Helper()
 	service, _, _ := newServiceWithMocks(t, root, false)
 	return service
 }
 
 func newServiceWithSignature(t *testing.T, root string) *Service {
-	t.Helper()
 	service, _, _ := newServiceWithMocks(t, root, true)
 	return service
 }
 
 func newServiceWithCommitSHA(t *testing.T, root, revision string) *Service {
-	t.Helper()
 	var revisionErr error
 
 	commitSHARegex := regexp.MustCompile("^[0-9A-Fa-f]{40}$")
@@ -196,7 +188,7 @@ func newServiceWithCommitSHA(t *testing.T, root, revision string) *Service {
 		paths.On("GetPathIfExists", mock.Anything).Return(root, nil)
 	}, root)
 
-	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
 	}
 
@@ -285,7 +277,7 @@ func Test_GenerateManifests_NoOutOfBoundsAccess(t *testing.T) {
 			res, err := GenerateManifests(context.Background(), repoDir, "", "", &q, false, &git.NoopCredsStore{}, resource.MustParse("0"), nil)
 			require.Error(t, err)
 			assert.NotContains(t, err.Error(), mustNotContain)
-			require.ErrorContains(t, err, "illegal filepath")
+			assert.Contains(t, err.Error(), "illegal filepath")
 			assert.Nil(t, res)
 		})
 	}
@@ -348,7 +340,7 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 
 	res, err := service.GenerateManifest(context.Background(), &q)
 	require.NoError(t, err)
-	assert.NotEmpty(t, res.Manifests)
+	assert.Positive(t, len(res.Manifests))
 	mockCache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets:    2,
 		ExternalGets:    2,
@@ -368,7 +360,7 @@ func TestGenerateManifest_RefOnlyShortCircuit(t *testing.T) {
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, repopath)
-	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		opts = append(opts, git.WithEventHandlers(git.EventHandlers{
 			// Primary check, we want to make sure ls-remote is not called when the item is in cache
 			OnLsRemote: func(repo string) func() {
@@ -382,7 +374,7 @@ func TestGenerateManifest_RefOnlyShortCircuit(t *testing.T) {
 				}
 			},
 		}))
-		gitClient, err := git.NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, noProxy, opts...)
+		gitClient, err := git.NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, opts...)
 		return gitClient, err
 	}
 	revision := initGitRepo(t, newGitRepoOptions{
@@ -436,7 +428,7 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, argo.NewResourceTracking(), &git.NoopCredsStore{}, repopath)
 	var gitClient git.Client
 	var err error
-	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (client git.Client, e error) {
+	service.newGitClient = func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, opts ...git.ClientOpts) (client git.Client, e error) {
 		opts = append(opts, git.WithEventHandlers(git.EventHandlers{
 			// Primary check, we want to make sure ls-remote is not called when the item is in cache
 			OnLsRemote: func(repo string) func() {
@@ -445,7 +437,7 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 				}
 			},
 		}))
-		gitClient, err = git.NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, noProxy, opts...)
+		gitClient, err = git.NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, opts...)
 		return gitClient, err
 	}
 	repoRemote := fmt.Sprintf("file://%s", repopath)
@@ -502,7 +494,6 @@ func TestHelmManifestFromChartRepo(t *testing.T) {
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
-		Commands:   []string{`helm template . --name-template "" --include-crds`},
 	}, response)
 	mockCache.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 1,
@@ -540,7 +531,6 @@ func TestHelmChartReferencingExternalValues(t *testing.T) {
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
-		Commands:   []string{`helm template . --name-template "" --values ./testdata/my-chart/my-chart-values.yaml --include-crds`},
 	}, response)
 }
 
@@ -620,7 +610,6 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 	err = os.WriteFile("./testdata/oob-symlink/values.yaml", []byte("foo: bar"), 0o644)
 	require.NoError(t, err)
 	spec := argoappv1.ApplicationSpec{
-		Project: "default",
 		Sources: []argoappv1.ApplicationSource{
 			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &argoappv1.ApplicationSourceHelm{
 				// Reference `ref` but do not use the oob symlink. The mere existence of the link should be enough to
@@ -689,7 +678,8 @@ func TestInvalidMetadata(t *testing.T) {
 	src := argoappv1.ApplicationSource{Path: "./testdata/invalid-metadata", Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}
 	q := apiclient.ManifestRequest{Repo: &argoappv1.Repository{}, ApplicationSource: &src, AppLabelKey: "test", AppName: "invalid-metadata", TrackingMethod: "annotation+label"}
 	_, err := service.GenerateManifest(context.Background(), &q)
-	assert.ErrorContains(t, err, "contains non-string value in the map under key \"invalid\"")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "contains non-string value in the map under key \"invalid\"")
 }
 
 func TestNilMetadataAccessors(t *testing.T) {
@@ -767,7 +757,8 @@ func TestGenerateJsonnetLibOutside(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 	_, err := service.GenerateManifest(context.Background(), &q)
-	require.ErrorContains(t, err, "file '../../../testdata/jsonnet/vendor' resolved to outside repository root")
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "file '../../../testdata/jsonnet/vendor' resolved to outside repository root")
 }
 
 func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
@@ -1144,7 +1135,8 @@ func TestHelmWithMissingValueFiles(t *testing.T) {
 
 	// Should fail since we're passing a non-existent values file, and error should indicate that
 	_, err := service.GenerateManifest(context.Background(), req)
-	require.ErrorContains(t, err, fmt.Sprintf("%s: no such file or directory", missingValuesFile))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), fmt.Sprintf("%s: no such file or directory", missingValuesFile))
 
 	// Should template without error even if defining a non-existent values file
 	req.ApplicationSource.Helm.IgnoreMissingValueFiles = true
@@ -1255,7 +1247,6 @@ func TestHelmManifestFromChartRepoWithValueFile(t *testing.T) {
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
-		Commands:   []string{`helm template . --name-template "" --values ./testdata/my-chart/my-chart-values.yaml --include-crds`},
 	}, response)
 }
 
@@ -1332,7 +1323,8 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		})
-		assert.ErrorContains(t, err, "outside repository root")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "outside repository root")
 	})
 
 	t.Run("Values file with relative path pointing inside repo root", func(t *testing.T) {
@@ -1386,7 +1378,8 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		})
-		assert.ErrorContains(t, err, "outside repository root")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "outside repository root")
 	})
 
 	t.Run("Remote values file from forbidden protocol", func(t *testing.T) {
@@ -1404,7 +1397,8 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		})
-		assert.ErrorContains(t, err, "is not allowed")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "is not allowed")
 	})
 
 	t.Run("Remote values file from custom allowed protocol", func(t *testing.T) {
@@ -1422,7 +1416,8 @@ func TestGenerateHelmWithValuesDirectoryTraversalOutsideRepo(t *testing.T) {
 			ProjectName:        "something",
 			ProjectSourceRepos: []string{"*"},
 		})
-		assert.ErrorContains(t, err, "s3://my-bucket/my-chart-values.yaml: no such file or directory")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "s3://my-bucket/my-chart-values.yaml: no such file or directory")
 	})
 }
 
@@ -1585,9 +1580,6 @@ func TestListApps(t *testing.T) {
 		"values-files":                      "Helm",
 		"helm-with-dependencies":            "Helm",
 		"helm-with-dependencies-alias":      "Helm",
-		"helm-with-local-dependency":        "Helm",
-		"simple-chart":                      "Helm",
-		"broken-schema-verification":        "Helm",
 	}
 	assert.Equal(t, expectedApps, res.Apps)
 }
@@ -1816,7 +1808,6 @@ func Test_newEnv(t *testing.T) {
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: "my-namespace"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: "my-revision"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT", Value: "my-revi"},
-		&argoappv1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT_8", Value: "my-revis"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: "https://github.com/my-org/my-repo"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: "my-path"},
 		&argoappv1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: "my-target-revision"},
@@ -1848,7 +1839,6 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 	t.Run("No app name set and app specific file exists", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "multi", func(t *testing.T, path string) {
-			t.Helper()
 			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &argoappv1.Repository{},
 				Source: &argoappv1.ApplicationSource{
@@ -1862,7 +1852,6 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 	t.Run("No app specific override", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-global", func(t *testing.T, path string) {
-			t.Helper()
 			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &argoappv1.Repository{},
 				Source: &argoappv1.ApplicationSource{
@@ -1877,7 +1866,6 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 	t.Run("Only app specific override", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-app-only", func(t *testing.T, path string) {
-			t.Helper()
 			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &argoappv1.Repository{},
 				Source: &argoappv1.ApplicationSource{
@@ -1892,7 +1880,6 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 	t.Run("App specific override", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "multi", func(t *testing.T, path string) {
-			t.Helper()
 			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &argoappv1.Repository{},
 				Source: &argoappv1.ApplicationSource{
@@ -1907,7 +1894,6 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 	t.Run("App specific overrides containing non-mergeable field", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "multi", func(t *testing.T, path string) {
-			t.Helper()
 			details, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &argoappv1.Repository{},
 				Source: &argoappv1.ApplicationSource{
@@ -1922,7 +1908,6 @@ func TestGetAppDetailsWithAppParameterFile(t *testing.T) {
 	t.Run("Broken app-specific overrides", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "multi", func(t *testing.T, path string) {
-			t.Helper()
 			_, err := service.GetAppDetails(context.Background(), &apiclient.RepoServerAppDetailsQuery{
 				Repo: &argoappv1.Repository{},
 				Source: &argoappv1.ApplicationSource{
@@ -1955,7 +1940,6 @@ func mkTempParameters(source string) string {
 // Simple wrapper run a test with a temporary copy of the testdata, because
 // the test would modify the data when run.
 func runWithTempTestdata(t *testing.T, path string, runner func(t *testing.T, path string)) {
-	t.Helper()
 	tempDir := mkTempParameters("./testdata/app-parameters")
 	runner(t, filepath.Join(tempDir, "app-parameters", path))
 	os.RemoveAll(tempDir)
@@ -1964,7 +1948,6 @@ func runWithTempTestdata(t *testing.T, path string, runner func(t *testing.T, pa
 func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 	t.Run("Single global override", func(t *testing.T) {
 		runWithTempTestdata(t, "single-global", func(t *testing.T, path string) {
-			t.Helper()
 			service := newService(t, ".")
 			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 				Repo: &argoappv1.Repository{},
@@ -1994,7 +1977,6 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 
 	t.Run("Single global override Helm", func(t *testing.T) {
 		runWithTempTestdata(t, "single-global-helm", func(t *testing.T, path string) {
-			t.Helper()
 			service := newService(t, ".")
 			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 				Repo: &argoappv1.Repository{},
@@ -2025,7 +2007,6 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 	t.Run("Application specific override", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-app-only", func(t *testing.T, path string) {
-			t.Helper()
 			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 				Repo: &argoappv1.Repository{},
 				ApplicationSource: &argoappv1.ApplicationSource{
@@ -2056,7 +2037,6 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 	t.Run("Multi-source with source as ref only does not generate manifests", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-app-only", func(t *testing.T, path string) {
-			t.Helper()
 			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 				Repo: &argoappv1.Repository{},
 				ApplicationSource: &argoappv1.ApplicationSource{
@@ -2078,7 +2058,6 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 	t.Run("Application specific override for other app", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-app-only", func(t *testing.T, path string) {
-			t.Helper()
 			manifests, err := service.GenerateManifest(context.Background(), &apiclient.ManifestRequest{
 				Repo: &argoappv1.Repository{},
 				ApplicationSource: &argoappv1.ApplicationSource{
@@ -2109,7 +2088,6 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 	t.Run("Override info does not appear in cache key", func(t *testing.T) {
 		service := newService(t, ".")
 		runWithTempTestdata(t, "single-global", func(t *testing.T, path string) {
-			t.Helper()
 			source := &argoappv1.ApplicationSource{
 				Path: path,
 			}
@@ -2249,72 +2227,6 @@ func TestGenerateManifestWithAnnotatedTagsAndMultiSourceApp(t *testing.T) {
 	}
 }
 
-func TestGenerateMultiSourceHelmWithFileParameter(t *testing.T) {
-	expectedFileContent, err := os.ReadFile("../../util/helm/testdata/external/external-secret.txt")
-	require.NoError(t, err)
-
-	service := newService(t, "../../util/helm/testdata")
-
-	testCases := []struct {
-		name            string
-		refSources      map[string]*argoappv1.RefTarget
-		expectedContent string
-		expectedErr     bool
-	}{{
-		name: "Successfully resolve multi-source ref for helm set-file",
-		refSources: map[string]*argoappv1.RefTarget{
-			"$global": {
-				TargetRevision: "HEAD",
-			},
-		},
-		expectedContent: string(expectedFileContent),
-		expectedErr:     false,
-	}, {
-		name:            "Failed to resolve multi-source ref for helm set-file",
-		refSources:      map[string]*argoappv1.RefTarget{},
-		expectedContent: "DOES-NOT-EXIST",
-		expectedErr:     true,
-	}}
-
-	for i := range testCases {
-		tc := testCases[i]
-		t.Run(tc.name, func(t *testing.T) {
-			manifestRequest := &apiclient.ManifestRequest{
-				Repo: &argoappv1.Repository{},
-				ApplicationSource: &argoappv1.ApplicationSource{
-					Ref:            "$global",
-					Path:           "./redis",
-					TargetRevision: "HEAD",
-					Helm: &argoappv1.ApplicationSourceHelm{
-						ValueFiles: []string{"$global/redis/values-production.yaml"},
-						FileParameters: []argoappv1.HelmFileParameter{{
-							Name: "passwordContent",
-							Path: "$global/external/external-secret.txt",
-						}},
-					},
-				},
-				HasMultipleSources: true,
-				NoCache:            true,
-				RefSources:         tc.refSources,
-			}
-
-			res, err := service.GenerateManifest(context.Background(), manifestRequest)
-
-			if !tc.expectedErr {
-				require.NoError(t, err)
-
-				// Check that any of the manifests contains the secret
-				idx := slices.IndexFunc(res.Manifests, func(content string) bool {
-					return strings.Contains(content, tc.expectedContent)
-				})
-				assert.GreaterOrEqual(t, idx, 0, "No manifest contains the value set with the helm fileParameters")
-			} else {
-				assert.Error(t, err)
-			}
-		})
-	}
-}
-
 func TestFindResources(t *testing.T) {
 	testCases := []struct {
 		name          string
@@ -2390,7 +2302,6 @@ func TestFindManifests_Exclude_NothingMatches(t *testing.T) {
 }
 
 func tempDir(t *testing.T) string {
-	t.Helper()
 	dir, err := os.MkdirTemp(".", "")
 	require.NoError(t, err)
 	t.Cleanup(func() {
@@ -2405,7 +2316,6 @@ func tempDir(t *testing.T) string {
 }
 
 func walkFor(t *testing.T, root string, testPath string, run func(info fs.FileInfo)) {
-	t.Helper()
 	hitExpectedPath := false
 	err := filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
 		if path == testPath {
@@ -2871,7 +2781,8 @@ func TestTestRepoOCI(t *testing.T) {
 			EnableOCI: true,
 		},
 	})
-	assert.ErrorContains(t, err, "OCI Helm repository URL should include hostname and port only")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "OCI Helm repository URL should include hostname and port only")
 }
 
 func Test_getHelmDependencyRepos(t *testing.T) {
@@ -2953,7 +2864,6 @@ func TestDirectoryPermissionInitializer(t *testing.T) {
 }
 
 func addHelmToGitRepo(t *testing.T, options newGitRepoOptions) {
-	t.Helper()
 	err := os.WriteFile(filepath.Join(options.path, "Chart.yaml"), []byte("name: test\nversion: v1.0.0"), 0o777)
 	require.NoError(t, err)
 	for valuesFileName, values := range options.helmChartOptions.valuesFiles {
@@ -2972,7 +2882,6 @@ func addHelmToGitRepo(t *testing.T, options newGitRepoOptions) {
 }
 
 func initGitRepo(t *testing.T, options newGitRepoOptions) (revision string) {
-	t.Helper()
 	if options.createPath {
 		require.NoError(t, os.Mkdir(options.path, 0o755))
 	}
@@ -3052,7 +2961,7 @@ func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {
 	destRepoPath, err := os.MkdirTemp(rootPath, "")
 	require.NoError(t, err)
 
-	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "", "")
+	gitClient, err := git.NewClientExt("file://"+sourceRepoPath, destRepoPath, &git.NopCreds{}, true, false, "")
 	require.NoError(t, err)
 
 	pullSha, err := gitClient.LsRemote("refs/pull/123/head")
@@ -3093,7 +3002,6 @@ func TestCheckoutRevisionNotPresentCallFetch(t *testing.T) {
 // runGit runs a git command in the given working directory. If the command succeeds, it returns the combined standard
 // and error output. If it fails, it stops the test with a failure message.
 func runGit(t *testing.T, workDir string, args ...string) string {
-	t.Helper()
 	cmd := exec.Command("git", args...)
 	cmd.Dir = workDir
 	out, err := cmd.CombinedOutput()
@@ -3759,9 +3667,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				SyncedRevision: "SYNCEDHEAD",
 				Paths:          []string{"."},
 			},
-		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
-		}, wantErr: assert.NoError},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
 		{name: "ChangedFilesDoNothing", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Init").Return(nil)
@@ -3787,10 +3693,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				SyncedRevision: "SYNCEDHEAD",
 				Paths:          []string{"."},
 			},
-		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
-			Changes:  true,
-		}, wantErr: assert.NoError},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
 		{name: "NoChangesUpdateCache", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, paths *iomocks.TempPaths) {
 				gitClient.On("Init").Return(nil)
@@ -3823,9 +3726,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				ApplicationSource: &argoappv1.ApplicationSource{Path: "."},
 				KubeVersion:       "v1.16.0",
 			},
-		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
-		}, wantErr: assert.NoError, cacheHit: &cacheHit{
+		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
 			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
 		}},
@@ -3863,9 +3764,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 
 				HasMultipleSources: true,
 			},
-		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
-		}, wantErr: assert.NoError, cacheHit: &cacheHit{
+		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
 			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
 		}},
@@ -3925,7 +3824,7 @@ func TestGetRefs_CacheWithLockDisabled(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
+			client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, true))
 			require.NoError(t, err)
 			refs, err := client.LsRefs()
 			require.NoError(t, err)
@@ -3952,7 +3851,7 @@ func TestGetRefs_CacheDisabled(t *testing.T) {
 	})
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
-	client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, false))
+	client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, false))
 	require.NoError(t, err)
 	refs, err := client.LsRefs()
 	require.NoError(t, err)
@@ -3981,7 +3880,7 @@ func TestGetRefs_CacheWithLock(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
+			client, err := git.NewClient(fmt.Sprintf("file://%s", dir), git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, true))
 			require.NoError(t, err)
 			refs, err := client.LsRefs()
 			require.NoError(t, err)
@@ -4010,7 +3909,7 @@ func TestGetRefs_CacheUnlockedOnUpdateFailed(t *testing.T) {
 	cacheMocks := newCacheMocks()
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	repoUrl := fmt.Sprintf("file://%s", dir)
-	client, err := git.NewClient(repoUrl, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
+	client, err := git.NewClient(repoUrl, git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, true))
 	require.NoError(t, err)
 	refs, err := client.LsRefs()
 	require.NoError(t, err)
@@ -4041,7 +3940,7 @@ func TestGetRefs_CacheLockTryLockGitRefCacheError(t *testing.T) {
 	repoUrl := fmt.Sprintf("file://%s", dir)
 	// buf := bytes.Buffer{}
 	// log.SetOutput(&buf)
-	client, err := git.NewClient(repoUrl, git.NopCreds{}, true, false, "", "", git.WithCache(cacheMocks.cache, true))
+	client, err := git.NewClient(repoUrl, git.NopCreds{}, true, false, "", git.WithCache(cacheMocks.cache, true))
 	require.NoError(t, err)
 	refs, err := client.LsRefs()
 	require.NoError(t, err)
@@ -4143,227 +4042,5 @@ func TestVerifyCommitSignature(t *testing.T) {
 		mockGitClient := &gitmocks.Client{}
 		err := verifyCommitSignature(false, mockGitClient, "abcd1234", repo)
 		require.NoError(t, err)
-	})
-}
-
-func Test_GenerateManifests_Commands(t *testing.T) {
-	t.Run("helm", func(t *testing.T) {
-		service := newService(t, "testdata/my-chart")
-
-		// Fill the manifest request with as many parameters affecting Helm commands as possible.
-		q := apiclient.ManifestRequest{
-			AppName:     "test-app",
-			Namespace:   "test-namespace",
-			KubeVersion: "1.2.3",
-			ApiVersions: []string{"v1/Test", "v2/Test"},
-			Repo:        &argoappv1.Repository{},
-			ApplicationSource: &argoappv1.ApplicationSource{
-				Path: ".",
-				Helm: &argoappv1.ApplicationSourceHelm{
-					FileParameters: []argoappv1.HelmFileParameter{
-						{
-							Name: "test-file-param-name",
-							Path: "test-file-param.yaml",
-						},
-					},
-					Parameters: []argoappv1.HelmParameter{
-						{
-							Name: "test-param-name",
-							// Use build env var to test substitution.
-							Value:       "test-value-$ARGOCD_APP_NAME",
-							ForceString: true,
-						},
-						{
-							Name: "test-param-bool-name",
-							// Use build env var to test substitution.
-							Value: "false",
-						},
-					},
-					PassCredentials:      true,
-					SkipCrds:             true,
-					SkipSchemaValidation: false,
-					ValueFiles: []string{
-						"my-chart-values.yaml",
-					},
-					Values: "test: values",
-				},
-			},
-			ProjectName:        "something",
-			ProjectSourceRepos: []string{"*"},
-		}
-
-		res, err := service.GenerateManifest(context.Background(), &q)
-
-		require.NoError(t, err)
-		assert.Equal(t, []string{"helm template . --name-template test-app --namespace test-namespace --kube-version 1.2.3 --set test-param-bool-name=false --set-string test-param-name=test-value-test-app --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v1/Test --api-versions v2/Test"}, res.Commands)
-
-		t.Run("with overrides", func(t *testing.T) {
-			// These can be set explicitly instead of using inferred values. Make sure the overrides apply.
-			q.ApplicationSource.Helm.APIVersions = []string{"v3", "v4"}
-			q.ApplicationSource.Helm.KubeVersion = "5.6.7"
-			q.ApplicationSource.Helm.Namespace = "different-namespace"
-			q.ApplicationSource.Helm.ReleaseName = "different-release-name"
-
-			res, err = service.GenerateManifest(context.Background(), &q)
-
-			require.NoError(t, err)
-			assert.Equal(t, []string{"helm template . --name-template different-release-name --namespace different-namespace --kube-version 5.6.7 --set test-param-bool-name=false --set-string test-param-name=test-value-test-app --set-file test-file-param-name=./test-file-param.yaml --values ./my-chart-values.yaml --values <temp file with values from source.helm.values/valuesObject> --api-versions v3 --api-versions v4"}, res.Commands)
-		})
-	})
-
-	t.Run("helm with dependencies", func(t *testing.T) {
-		// This test makes sure we still get commands, even if we hit the code path that has to run "helm dependency build."
-		// We don't actually return the "helm dependency build" command, because we expect that the user is able to read
-		// the "helm template" and figure out how to fix it.
-		t.Cleanup(func() {
-			err := os.Remove("testdata/helm-with-local-dependency/Chart.lock")
-			require.NoError(t, err)
-			err = os.RemoveAll("testdata/helm-with-local-dependency/charts")
-			require.NoError(t, err)
-		})
-
-		service := newService(t, "testdata/helm-with-local-dependency")
-
-		q := apiclient.ManifestRequest{
-			AppName:   "test-app",
-			Namespace: "test-namespace",
-			Repo:      &argoappv1.Repository{},
-			ApplicationSource: &argoappv1.ApplicationSource{
-				Path: ".",
-			},
-			ProjectName:        "something",
-			ProjectSourceRepos: []string{"*"},
-		}
-
-		res, err := service.GenerateManifest(context.Background(), &q)
-
-		require.NoError(t, err)
-		assert.Equal(t, []string{"helm template . --name-template test-app --namespace test-namespace --include-crds"}, res.Commands)
-	})
-
-	t.Run("kustomize", func(t *testing.T) {
-		// Write test files to a temp dir, because the test mutates kustomization.yaml in place.
-		tempDir := t.TempDir()
-		err := os.WriteFile(path.Join(tempDir, "kustomization.yaml"), []byte(`
-resources:
-- guestbook.yaml
-`), os.FileMode(0o600))
-		require.NoError(t, err)
-		err = os.WriteFile(path.Join(tempDir, "guestbook.yaml"), []byte(`
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: guestbook-ui
-`), os.FileMode(0o400))
-		require.NoError(t, err)
-		err = os.Mkdir(path.Join(tempDir, "component"), os.FileMode(0o700))
-		require.NoError(t, err)
-		err = os.WriteFile(path.Join(tempDir, "component", "kustomization.yaml"), []byte(`
-apiVersion: kustomize.config.k8s.io/v1alpha1
-kind: Component
-images:
-- name: old
-  newName: new
-`), os.FileMode(0o400))
-		require.NoError(t, err)
-
-		service := newService(t, tempDir)
-
-		// Fill the manifest request with as many parameters affecting Helm commands as possible.
-		q := apiclient.ManifestRequest{
-			AppName:     "test-app",
-			Namespace:   "test-namespace",
-			KubeVersion: "1.2.3",
-			ApiVersions: []string{"v1/Test", "v2/Test"},
-			Repo:        &argoappv1.Repository{},
-			ApplicationSource: &argoappv1.ApplicationSource{
-				Path: ".",
-				Kustomize: &argoappv1.ApplicationSourceKustomize{
-					APIVersions: []string{"v1", "v2"},
-					CommonAnnotations: map[string]string{
-						// Use build env var to test substitution.
-						"test": "annotation-$ARGOCD_APP_NAME",
-					},
-					CommonAnnotationsEnvsubst: true,
-					CommonLabels: map[string]string{
-						"test": "label",
-					},
-					Components:             []string{"component"},
-					ForceCommonAnnotations: true,
-					ForceCommonLabels:      true,
-					Images: argoappv1.KustomizeImages{
-						"image=override",
-					},
-					KubeVersion:          "5.6.7",
-					LabelWithoutSelector: true,
-					NamePrefix:           "test-prefix",
-					NameSuffix:           "test-suffix",
-					Namespace:            "override-namespace",
-					Replicas: argoappv1.KustomizeReplicas{
-						{
-							Name:  "guestbook-ui",
-							Count: intstr.Parse("1337"),
-						},
-					},
-				},
-			},
-			ProjectName:        "something",
-			ProjectSourceRepos: []string{"*"},
-		}
-
-		res, err := service.GenerateManifest(context.Background(), &q)
-
-		require.NoError(t, err)
-		assert.Equal(t, []string{
-			"kustomize edit set nameprefix -- test-prefix",
-			"kustomize edit set namesuffix -- test-suffix",
-			"kustomize edit set image image=override",
-			"kustomize edit set replicas guestbook-ui=1337",
-			"kustomize edit add label --force --without-selector test:label",
-			"kustomize edit add annotation --force test:annotation-test-app",
-			"kustomize edit set namespace -- override-namespace",
-			"kustomize edit add component component",
-			"kustomize build .",
-		}, res.Commands)
-	})
-}
-
-func Test_SkipSchemaValidation(t *testing.T) {
-	t.Run("helm", func(t *testing.T) {
-		service := newService(t, "testdata/broken-schema-verification")
-
-		q := apiclient.ManifestRequest{
-			AppName: "test-app",
-			Repo:    &argoappv1.Repository{},
-			ApplicationSource: &argoappv1.ApplicationSource{
-				Path: ".",
-				Helm: &argoappv1.ApplicationSourceHelm{
-					SkipSchemaValidation: true,
-				},
-			},
-		}
-
-		res, err := service.GenerateManifest(context.Background(), &q)
-
-		require.NoError(t, err)
-		assert.Equal(t, []string{"helm template . --name-template test-app --include-crds --skip-schema-validation"}, res.Commands)
-	})
-	t.Run("helm", func(t *testing.T) {
-		service := newService(t, "testdata/broken-schema-verification")
-
-		q := apiclient.ManifestRequest{
-			AppName: "test-app",
-			Repo:    &argoappv1.Repository{},
-			ApplicationSource: &argoappv1.ApplicationSource{
-				Path: ".",
-				Helm: &argoappv1.ApplicationSourceHelm{
-					SkipSchemaValidation: false,
-				},
-			},
-		}
-
-		_, err := service.GenerateManifest(context.Background(), &q)
-
-		require.ErrorContains(t, err, "values don't meet the specifications of the schema(s)")
 	})
 }

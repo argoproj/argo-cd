@@ -36,7 +36,6 @@ func TestPostSyncHookSuccessful(t *testing.T) {
 
 // make sure we can run a standard sync hook
 func testHookSuccessful(t *testing.T, hookType HookType) {
-	t.Helper()
 	Given(t).
 		Path("hook").
 		When().
@@ -69,7 +68,7 @@ func TestPostDeleteHook(t *testing.T) {
 		})
 }
 
-// make sure that hooks do not appear in "argocd app diff"
+// make sure that that hooks do not appear in "argocd app diff"
 func TestHookDiff(t *testing.T) {
 	Given(t).
 		Path("hook").
@@ -335,7 +334,7 @@ func TestHookBeforeHookCreation(t *testing.T) {
 			CheckError(err)
 			assert.NotEmpty(t, creationTimestamp1)
 			// pause to ensure that timestamp will change
-			time.Sleep(1 * time.Second)
+			time.Sleep(2 * time.Second)
 		}).
 		When().
 		Sync().

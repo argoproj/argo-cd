@@ -14,13 +14,13 @@ import (
 var flags map[string]string
 
 func init() {
-	err := LoadFlags()
+	err := loadFlags()
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func LoadFlags() error {
+func loadFlags() error {
 	flags = make(map[string]string)
 
 	opts, err := shellquote.Split(os.Getenv("ARGOCD_OPTS"))

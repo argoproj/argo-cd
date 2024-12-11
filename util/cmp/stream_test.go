@@ -94,6 +94,5 @@ func (m *streamMock) sendFile(ctx context.Context, t *testing.T, basedir string,
 // getTestDataDir will return the full path of the testdata dir
 // under the running test folder.
 func getTestDataDir(t *testing.T) string {
-	t.Helper()
 	return filepath.Join(test.GetTestDir(t), "testdata")
 }
