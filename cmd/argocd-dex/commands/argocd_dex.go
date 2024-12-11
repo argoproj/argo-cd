@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime/debug"
 	"syscall"
 
 	"github.com/argoproj/argo-cd/v2/common"
@@ -66,6 +67,14 @@ func NewRunDexCommand() *cobra.Command {
 
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
+
+			// Recover from panic and log the error using the configured logger instead of the default.
+			defer func() {
+				if r := recover(); r != nil {
+					log.WithField("trace", string(debug.Stack())).Fatal("Recovered from panic: ", r)
+				}
+			}()
+
 			_, err = exec.LookPath("dex")
 			errors.CheckError(err)
 			config, err := clientConfig.ClientConfig()

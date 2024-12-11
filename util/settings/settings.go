@@ -537,8 +537,8 @@ const (
 )
 
 const (
-	// default max webhook payload size is 1GB
-	defaultMaxWebhookPayloadSize = int64(1) * 1024 * 1024 * 1024
+	// default max webhook payload size is 50MB
+	defaultMaxWebhookPayloadSize = int64(50) * 1024 * 1024
 
 	// application sync with impersonation feature is disabled by default.
 	defaultImpersonationEnabledFlag = false
@@ -1339,6 +1339,10 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	if err != nil {
 		return nil, err
 	}
+	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
+	// Objects returned by the lister must be treated as read-only.
+	// To allow us to modify the secrets, make a copy
+	secrets = util.SecretCopy(secrets)
 	var settings ArgoCDSettings
 	var errs []error
 	updateSettingsFromConfigMap(&settings, argoCDCM)

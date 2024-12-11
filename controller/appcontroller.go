@@ -131,6 +131,7 @@ type ApplicationController struct {
 	statusRefreshJitter           time.Duration
 	selfHealTimeout               time.Duration
 	selfHealBackOff               *wait.Backoff
+	syncTimeout                   time.Duration
 	db                            db.ArgoDB
 	settingsMgr                   *settings_util.SettingsManager
 	refreshRequestedApps          map[string]CompareWith
@@ -161,6 +162,7 @@ func NewApplicationController(
 	appResyncJitter time.Duration,
 	selfHealTimeout time.Duration,
 	selfHealBackoff *wait.Backoff,
+	syncTimeout time.Duration,
 	repoErrorGracePeriod time.Duration,
 	metricsPort int,
 	metricsCacheExpiration time.Duration,
@@ -202,6 +204,7 @@ func NewApplicationController(
 		settingsMgr:                       settingsMgr,
 		selfHealTimeout:                   selfHealTimeout,
 		selfHealBackOff:                   selfHealBackoff,
+		syncTimeout:                       syncTimeout,
 		clusterSharding:                   clusterSharding,
 		projByNameCache:                   sync.Map{},
 		applicationNamespaces:             applicationNamespaces,
@@ -377,7 +380,11 @@ func (projCache *appProjCache) GetAppProject(ctx context.Context) (*appv1.AppPro
 
 // getAppProj gets the AppProject for the given Application app.
 func (ctrl *ApplicationController) getAppProj(app *appv1.Application) (*appv1.AppProject, error) {
-	projCache, _ := ctrl.projByNameCache.LoadOrStore(app.Spec.GetProject(), ctrl.newAppProjCache(app.Spec.GetProject()))
+	projCache, _ := ctrl.projByNameCache.Load(app.Spec.GetProject())
+	if projCache == nil {
+		projCache = ctrl.newAppProjCache(app.Spec.GetProject())
+		ctrl.projByNameCache.Store(app.Spec.GetProject(), projCache)
+	}
 	proj, err := projCache.(*appProjCache).GetAppProject(context.TODO())
 	if err != nil {
 		if apierr.IsNotFound(err) {
@@ -1373,12 +1380,21 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				// Get rid of sync results and null out previous operation completion time
 				state.SyncResult = nil
 			}
+		} else if ctrl.syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.syncTimeout)) && !terminating {
+			state.Phase = synccommon.OperationTerminating
+			state.Message = "operation is terminating due to timeout"
+			ctrl.setOperationState(app, state)
+			logCtx.Infof("Terminating in-progress operation due to timeout. Started at: %v, timeout: %v", state.StartedAt, ctrl.syncTimeout)
 		} else {
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
 		}
 	} else {
 		state = &appv1.OperationState{Phase: synccommon.OperationRunning, Operation: *app.Operation, StartedAt: metav1.Now()}
 		ctrl.setOperationState(app, state)
+		if ctrl.syncTimeout != time.Duration(0) {
+			// Schedule a check during which the timeout would be checked.
+			ctrl.appOperationQueue.AddAfter(ctrl.toAppKey(app.QualifiedName()), ctrl.syncTimeout)
+		}
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
@@ -1630,9 +1646,11 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	project, hasErrors := ctrl.refreshAppConditions(app)
 	ts.AddCheckpoint("refresh_app_conditions_ms")
+	now := metav1.Now()
 	if hasErrors {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = health.HealthStatusUnknown
+		app.Status.Health.LastTransitionTime = &now
 		patchMs = ctrl.persistAppStatus(origApp, &app.Status)
 
 		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), &appv1.ApplicationTree{}); err != nil {
@@ -1676,7 +1694,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		revisions = append(revisions, revision)
 		sources = append(sources, app.Spec.GetSource())
 	}
-	now := metav1.Now()
 
 	compareResult, err := ctrl.appStateManager.CompareAppState(app, project, revisions, sources,
 		refreshType == appv1.RefreshTypeHard,

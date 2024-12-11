@@ -309,6 +309,10 @@ spec:
                             description: SkipCrds skips custom resource definition
                               installation step (Helm's --skip-crds)
                             type: boolean
+                          skipSchemaValidation:
+                            description: SkipSchemaValidation skips JSON schema validation
+                              (Helm's --skip-schema-validation)
+                            type: boolean
                           skipTests:
                             description: SkipTests skips test manifest installation
                               step (Helm's --skip-tests).
@@ -460,6 +464,10 @@ spec:
                               to use for rendering manifests
                             type: string
                         type: object
+                      name:
+                        description: Name is used to refer to a source and is displayed
+                          in the UI. It is used in multi-source Applications.
+                        type: string
                       path:
                         description: Path is a directory path within the Git repository,
                           and is only valid for applications sourced from Git.
@@ -679,6 +687,10 @@ spec:
                               description: SkipCrds skips custom resource definition
                                 installation step (Helm's --skip-crds)
                               type: boolean
+                            skipSchemaValidation:
+                              description: SkipSchemaValidation skips JSON schema
+                                validation (Helm's --skip-schema-validation)
+                              type: boolean
                             skipTests:
                               description: SkipTests skips test manifest installation
                                 step (Helm's --skip-tests).
@@ -832,6 +844,10 @@ spec:
                                 to use for rendering manifests
                               type: string
                           type: object
+                        name:
+                          description: Name is used to refer to a source and is displayed
+                            in the UI. It is used in multi-source Applications.
+                          type: string
                         path:
                           description: Path is a directory path within the Git repository,
                             and is only valid for applications sourced from Git.
@@ -1164,6 +1180,10 @@ spec:
                         description: SkipCrds skips custom resource definition installation
                           step (Helm's --skip-crds)
                         type: boolean
+                      skipSchemaValidation:
+                        description: SkipSchemaValidation skips JSON schema validation
+                          (Helm's --skip-schema-validation)
+                        type: boolean
                       skipTests:
                         description: SkipTests skips test manifest installation step
                           (Helm's --skip-tests).
@@ -1314,6 +1334,10 @@ spec:
                           use for rendering manifests
                         type: string
                     type: object
+                  name:
+                    description: Name is used to refer to a source and is displayed
+                      in the UI. It is used in multi-source Applications.
+                    type: string
                   path:
                     description: Path is a directory path within the Git repository,
                       and is only valid for applications sourced from Git.
@@ -1525,6 +1549,10 @@ spec:
                           description: SkipCrds skips custom resource definition installation
                             step (Helm's --skip-crds)
                           type: boolean
+                        skipSchemaValidation:
+                          description: SkipSchemaValidation skips JSON schema validation
+                            (Helm's --skip-schema-validation)
+                          type: boolean
                         skipTests:
                           description: SkipTests skips test manifest installation
                             step (Helm's --skip-tests).
@@ -1676,6 +1704,10 @@ spec:
                             to use for rendering manifests
                           type: string
                       type: object
+                    name:
+                      description: Name is used to refer to a source and is displayed
+                        in the UI. It is used in multi-source Applications.
+                      type: string
                     path:
                       description: Path is a directory path within the Git repository,
                         and is only valid for applications sourced from Git.
@@ -1854,6 +1886,11 @@ spec:
                 description: Health contains information about the application's current
                   health status
                 properties:
+                  lastTransitionTime:
+                    description: LastTransitionTime is the time the HealthStatus was
+                      set or updated
+                    format: date-time
+                    type: string
                   message:
                     description: Message is a human-readable informational message
                       describing the health status
@@ -2051,6 +2088,10 @@ spec:
                               description: SkipCrds skips custom resource definition
                                 installation step (Helm's --skip-crds)
                               type: boolean
+                            skipSchemaValidation:
+                              description: SkipSchemaValidation skips JSON schema
+                                validation (Helm's --skip-schema-validation)
+                              type: boolean
                             skipTests:
                               description: SkipTests skips test manifest installation
                                 step (Helm's --skip-tests).
@@ -2204,6 +2245,10 @@ spec:
                                 to use for rendering manifests
                               type: string
                           type: object
+                        name:
+                          description: Name is used to refer to a source and is displayed
+                            in the UI. It is used in multi-source Applications.
+                          type: string
                         path:
                           description: Path is a directory path within the Git repository,
                             and is only valid for applications sourced from Git.
@@ -2424,6 +2469,10 @@ spec:
                                 description: SkipCrds skips custom resource definition
                                   installation step (Helm's --skip-crds)
                                 type: boolean
+                              skipSchemaValidation:
+                                description: SkipSchemaValidation skips JSON schema
+                                  validation (Helm's --skip-schema-validation)
+                                type: boolean
                               skipTests:
                                 description: SkipTests skips test manifest installation
                                   step (Helm's --skip-tests).
@@ -2579,6 +2628,10 @@ spec:
                                   to use for rendering manifests
                                 type: string
                             type: object
+                          name:
+                            description: Name is used to refer to a source and is
+                              displayed in the UI. It is used in multi-source Applications.
+                            type: string
                           path:
                             description: Path is a directory path within the Git repository,
                               and is only valid for applications sourced from Git.
@@ -2947,6 +3000,10 @@ spec:
                                     description: SkipCrds skips custom resource definition
                                       installation step (Helm's --skip-crds)
                                     type: boolean
+                                  skipSchemaValidation:
+                                    description: SkipSchemaValidation skips JSON schema
+                                      validation (Helm's --skip-schema-validation)
+                                    type: boolean
                                   skipTests:
                                     description: SkipTests skips test manifest installation
                                       step (Helm's --skip-tests).
@@ -3103,6 +3160,11 @@ spec:
                                       Kustomize to use for rendering manifests
                                     type: string
                                 type: object
+                              name:
+                                description: Name is used to refer to a source and
+                                  is displayed in the UI. It is used in multi-source
+                                  Applications.
+                                type: string
                               path:
                                 description: Path is a directory path within the Git
                                   repository, and is only valid for applications sourced
@@ -3338,6 +3400,10 @@ spec:
                                       description: SkipCrds skips custom resource
                                         definition installation step (Helm's --skip-crds)
                                       type: boolean
+                                    skipSchemaValidation:
+                                      description: SkipSchemaValidation skips JSON
+                                        schema validation (Helm's --skip-schema-validation)
+                                      type: boolean
                                     skipTests:
                                       description: SkipTests skips test manifest installation
                                         step (Helm's --skip-tests).
@@ -3497,6 +3563,11 @@ spec:
                                         of Kustomize to use for rendering manifests
                                       type: string
                                   type: object
+                                name:
+                                  description: Name is used to refer to a source and
+                                    is displayed in the UI. It is used in multi-source
+                                    Applications.
+                                  type: string
                                 path:
                                   description: Path is a directory path within the
                                     Git repository, and is only valid for applications
@@ -3846,6 +3917,10 @@ spec:
                                 description: SkipCrds skips custom resource definition
                                   installation step (Helm's --skip-crds)
                                 type: boolean
+                              skipSchemaValidation:
+                                description: SkipSchemaValidation skips JSON schema
+                                  validation (Helm's --skip-schema-validation)
+                                type: boolean
                               skipTests:
                                 description: SkipTests skips test manifest installation
                                   step (Helm's --skip-tests).
@@ -4001,6 +4076,10 @@ spec:
                                   to use for rendering manifests
                                 type: string
                             type: object
+                          name:
+                            description: Name is used to refer to a source and is
+                              displayed in the UI. It is used in multi-source Applications.
+                            type: string
                           path:
                             description: Path is a directory path within the Git repository,
                               and is only valid for applications sourced from Git.
@@ -4231,6 +4310,10 @@ spec:
                                   description: SkipCrds skips custom resource definition
                                     installation step (Helm's --skip-crds)
                                   type: boolean
+                                skipSchemaValidation:
+                                  description: SkipSchemaValidation skips JSON schema
+                                    validation (Helm's --skip-schema-validation)
+                                  type: boolean
                                 skipTests:
                                   description: SkipTests skips test manifest installation
                                     step (Helm's --skip-tests).
@@ -4387,6 +4470,10 @@ spec:
                                     to use for rendering manifests
                                   type: string
                               type: object
+                            name:
+                              description: Name is used to refer to a source and is
+                                displayed in the UI. It is used in multi-source Applications.
+                              type: string
                             path:
                               description: Path is a directory path within the Git
                                 repository, and is only valid for applications sourced
@@ -4493,6 +4580,11 @@ spec:
                       description: HealthStatus contains information about the currently
                         observed health state of an application or resource
                       properties:
+                        lastTransitionTime:
+                          description: LastTransitionTime is the time the HealthStatus
+                            was set or updated
+                          format: date-time
+                          type: string
                         message:
                           description: Message is a human-readable informational message
                             describing the health status
@@ -4762,6 +4854,10 @@ spec:
                                 description: SkipCrds skips custom resource definition
                                   installation step (Helm's --skip-crds)
                                 type: boolean
+                              skipSchemaValidation:
+                                description: SkipSchemaValidation skips JSON schema
+                                  validation (Helm's --skip-schema-validation)
+                                type: boolean
                               skipTests:
                                 description: SkipTests skips test manifest installation
                                   step (Helm's --skip-tests).
@@ -4917,6 +5013,10 @@ spec:
                                   to use for rendering manifests
                                 type: string
                             type: object
+                          name:
+                            description: Name is used to refer to a source and is
+                              displayed in the UI. It is used in multi-source Applications.
+                            type: string
                           path:
                             description: Path is a directory path within the Git repository,
                               and is only valid for applications sourced from Git.
@@ -5147,6 +5247,10 @@ spec:
                                   description: SkipCrds skips custom resource definition
                                     installation step (Helm's --skip-crds)
                                   type: boolean
+                                skipSchemaValidation:
+                                  description: SkipSchemaValidation skips JSON schema
+                                    validation (Helm's --skip-schema-validation)
+                                  type: boolean
                                 skipTests:
                                   description: SkipTests skips test manifest installation
                                     step (Helm's --skip-tests).
@@ -5303,6 +5407,10 @@ spec:
                                     to use for rendering manifests
                                   type: string
                               type: object
+                            name:
+                              description: Name is used to refer to a source and is
+                                displayed in the UI. It is used in multi-source Applications.
+                              type: string
                             path:
                               description: Path is a directory path within the Git
                                 repository, and is only valid for applications sourced
@@ -5639,6 +5747,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -5739,6 +5849,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -5871,6 +5983,8 @@ spec:
                                             type: string
                                           skipCrds:
                                             type: boolean
+                                          skipSchemaValidation:
+                                            type: boolean
                                           skipTests:
                                             type: boolean
                                           valueFiles:
@@ -5971,6 +6085,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -6267,6 +6383,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -6367,6 +6485,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -6499,6 +6619,8 @@ spec:
                                             type: string
                                           skipCrds:
                                             type: boolean
+                                          skipSchemaValidation:
+                                            type: boolean
                                           skipTests:
                                             type: boolean
                                           valueFiles:
@@ -6599,6 +6721,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -6894,6 +7018,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -6994,6 +7120,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -7126,6 +7254,8 @@ spec:
                                             type: string
                                           skipCrds:
                                             type: boolean
+                                          skipSchemaValidation:
+                                            type: boolean
                                           skipTests:
                                             type: boolean
                                           valueFiles:
@@ -7226,6 +7356,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -7501,6 +7633,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -7601,6 +7735,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -7733,6 +7869,8 @@ spec:
                                             type: string
                                           skipCrds:
                                             type: boolean
+                                          skipSchemaValidation:
+                                            type: boolean
                                           skipTests:
                                             type: boolean
                                           valueFiles:
@@ -7833,6 +7971,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -8133,6 +8273,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -8233,6 +8375,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -8365,6 +8509,8 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
+                                                    skipSchemaValidation:
+                                                      type: boolean
                                                     skipTests:
                                                       type: boolean
                                                     valueFiles:
@@ -8465,6 +8611,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -8761,6 +8909,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -8861,6 +9011,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -8993,6 +9145,8 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
+                                                    skipSchemaValidation:
+                                                      type: boolean
                                                     skipTests:
                                                       type: boolean
                                                     valueFiles:
@@ -9093,6 +9247,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -9388,6 +9544,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -9488,6 +9646,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -9620,6 +9780,8 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
+                                                    skipSchemaValidation:
+                                                      type: boolean
                                                     skipTests:
                                                       type: boolean
                                                     valueFiles:
@@ -9720,6 +9882,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -9995,6 +10159,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -10095,6 +10261,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -10227,6 +10395,8 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
+                                                    skipSchemaValidation:
+                                                      type: boolean
                                                     skipTests:
                                                       type: boolean
                                                     valueFiles:
@@ -10327,6 +10497,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -10610,6 +10782,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -10710,6 +10884,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -10842,6 +11018,8 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
+                                                    skipSchemaValidation:
+                                                      type: boolean
                                                     skipTests:
                                                       type: boolean
                                                     valueFiles:
@@ -10942,6 +11120,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -11444,6 +11624,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -11544,6 +11726,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -11676,6 +11860,8 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
+                                                    skipSchemaValidation:
+                                                      type: boolean
                                                     skipTests:
                                                       type: boolean
                                                     valueFiles:
@@ -11776,6 +11962,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -12273,6 +12461,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -12373,6 +12563,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -12505,6 +12697,8 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
+                                                    skipSchemaValidation:
+                                                      type: boolean
                                                     skipTests:
                                                       type: boolean
                                                     valueFiles:
@@ -12605,6 +12799,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -12897,6 +13093,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -12997,6 +13195,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -13129,6 +13329,8 @@ spec:
                                             type: string
                                           skipCrds:
                                             type: boolean
+                                          skipSchemaValidation:
+                                            type: boolean
                                           skipTests:
                                             type: boolean
                                           valueFiles:
@@ -13229,6 +13431,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -13531,6 +13735,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -13631,6 +13837,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -13763,6 +13971,8 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
+                                                    skipSchemaValidation:
+                                                      type: boolean
                                                     skipTests:
                                                       type: boolean
                                                     valueFiles:
@@ -13863,6 +14073,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -14159,6 +14371,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -14259,6 +14473,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -14391,6 +14607,8 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
+                                                    skipSchemaValidation:
+                                                      type: boolean
                                                     skipTests:
                                                       type: boolean
                                                     valueFiles:
@@ -14491,6 +14709,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -14786,6 +15006,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -14886,6 +15108,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -15018,6 +15242,8 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
+                                                    skipSchemaValidation:
+                                                      type: boolean
                                                     skipTests:
                                                       type: boolean
                                                     valueFiles:
@@ -15118,6 +15344,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -15393,6 +15621,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -15493,6 +15723,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -15625,6 +15857,8 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
+                                                    skipSchemaValidation:
+                                                      type: boolean
                                                     skipTests:
                                                       type: boolean
                                                     valueFiles:
@@ -15725,6 +15959,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -16008,6 +16244,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -16108,6 +16346,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -16240,6 +16480,8 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
+                                                    skipSchemaValidation:
+                                                      type: boolean
                                                     skipTests:
                                                       type: boolean
                                                     valueFiles:
@@ -16340,6 +16582,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -16842,6 +17086,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -16942,6 +17188,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -17074,6 +17322,8 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
+                                                    skipSchemaValidation:
+                                                      type: boolean
                                                     skipTests:
                                                       type: boolean
                                                     valueFiles:
@@ -17174,6 +17424,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -17671,6 +17923,8 @@ spec:
                                                     type: string
                                                   skipCrds:
                                                     type: boolean
+                                                  skipSchemaValidation:
+                                                    type: boolean
                                                   skipTests:
                                                     type: boolean
                                                   valueFiles:
@@ -17771,6 +18025,8 @@ spec:
                                                   version:
                                                     type: string
                                                 type: object
+                                              name:
+                                                type: string
                                               path:
                                                 type: string
                                               plugin:
@@ -17903,6 +18159,8 @@ spec:
                                                       type: string
                                                     skipCrds:
                                                       type: boolean
+                                                    skipSchemaValidation:
+                                                      type: boolean
                                                     skipTests:
                                                       type: boolean
                                                     valueFiles:
@@ -18003,6 +18261,8 @@ spec:
                                                     version:
                                                       type: string
                                                   type: object
+                                                name:
+                                                  type: string
                                                 path:
                                                   type: string
                                                 plugin:
@@ -18299,6 +18559,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -18399,6 +18661,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -18531,6 +18795,8 @@ spec:
                                             type: string
                                           skipCrds:
                                             type: boolean
+                                          skipSchemaValidation:
+                                            type: boolean
                                           skipTests:
                                             type: boolean
                                           valueFiles:
@@ -18631,6 +18897,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -18913,6 +19181,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -19013,6 +19283,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -19145,6 +19417,8 @@ spec:
                                             type: string
                                           skipCrds:
                                             type: boolean
+                                          skipSchemaValidation:
+                                            type: boolean
                                           skipTests:
                                             type: boolean
                                           valueFiles:
@@ -19245,6 +19519,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -19747,6 +20023,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -19847,6 +20125,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -19979,6 +20259,8 @@ spec:
                                             type: string
                                           skipCrds:
                                             type: boolean
+                                          skipSchemaValidation:
+                                            type: boolean
                                           skipTests:
                                             type: boolean
                                           valueFiles:
@@ -20079,6 +20361,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -20576,6 +20860,8 @@ spec:
                                           type: string
                                         skipCrds:
                                           type: boolean
+                                        skipSchemaValidation:
+                                          type: boolean
                                         skipTests:
                                           type: boolean
                                         valueFiles:
@@ -20676,6 +20962,8 @@ spec:
                                         version:
                                           type: string
                                       type: object
+                                    name:
+                                      type: string
                                     path:
                                       type: string
                                     plugin:
@@ -20808,6 +21096,8 @@ spec:
                                             type: string
                                           skipCrds:
                                             type: boolean
+                                          skipSchemaValidation:
+                                            type: boolean
                                           skipTests:
                                             type: boolean
                                           valueFiles:
@@ -20908,6 +21198,8 @@ spec:
                                           version:
                                             type: string
                                         type: object
+                                      name:
+                                        type: string
                                       path:
                                         type: string
                                       plugin:
@@ -21275,6 +21567,8 @@ spec:
                                 type: string
                               skipCrds:
                                 type: boolean
+                              skipSchemaValidation:
+                                type: boolean
                               skipTests:
                                 type: boolean
                               valueFiles:
@@ -21375,6 +21669,8 @@ spec:
                               version:
                                 type: string
                             type: object
+                          name:
+                            type: string
                           path:
                             type: string
                           plugin:
@@ -21507,6 +21803,8 @@ spec:
                                   type: string
                                 skipCrds:
                                   type: boolean
+                                skipSchemaValidation:
+                                  type: boolean
                                 skipTests:
                                   type: boolean
                                 valueFiles:
@@ -21607,6 +21905,8 @@ spec:
                                 version:
                                   type: string
                               type: object
+                            name:
+                              type: string
                             path:
                               type: string
                             plugin:
@@ -21766,6 +22066,9 @@ spec:
                       type: string
                     health:
                       properties:
+                        lastTransitionTime:
+                          format: date-time
+                          type: string
                         message:
                           type: string
                         status:
@@ -23352,6 +23655,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.self.heal.backoff.cap.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.sync.timeout.seconds
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT

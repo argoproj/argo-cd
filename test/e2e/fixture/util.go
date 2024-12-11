@@ -3,6 +3,11 @@ package fixture
 import (
 	"regexp"
 	"strings"
+	"testing"
+
+	"github.com/argoproj/argo-cd/v2/util/errors"
+
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -20,4 +25,13 @@ func DnsFriendly(str string, postfix string) string {
 		str = str[:len(str)-diff]
 	}
 	return str + postfix
+}
+
+func RunFunctionsInParallelAndCheckErrors(t *testing.T, functions []func() error) {
+	t.Helper()
+	var eg errgroup.Group
+	for _, function := range functions {
+		eg.Go(function)
+	}
+	errors.CheckError(eg.Wait())
 }

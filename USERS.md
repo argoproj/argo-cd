@@ -17,6 +17,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [AirQo](https://airqo.net/)
 1. [Akuity](https://akuity.io/)
 1. [Alarm.com](https://alarm.com/)
+1. [Alauda](https://alauda.io/)
 1. [Albert Heijn](https://ah.nl/)
 1. [Alibaba Group](https://www.alibabagroup.com/)
 1. [Allianz Direct](https://www.allianzdirect.de/)
@@ -391,4 +392,5 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Yubo](https://www.yubo.live/)
 1. [ZDF](https://www.zdf.de/)
 1. [Zimpler](https://www.zimpler.com/)
+1. [ZipRecuiter](https://www.ziprecruiter.com/)
 1. [ZOZO](https://corp.zozo.com/)

@@ -12,7 +12,7 @@ argocd app add-source APPNAME [flags]
 
 ```
   # Append a source to the list of sources in the application
-  argocd app add-source guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook
+  argocd app add-source guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --source-name guestbook
 ```
 
 ### Options
@@ -38,6 +38,7 @@ argocd app add-source APPNAME [flags]
       --helm-set-file stringArray                  Helm set values from respective files specified via the command line (can be repeated to set several values: --helm-set-file key1=path1 --helm-set-file key2=path2)
       --helm-set-string stringArray                Helm set STRING values on the command line (can be repeated to set several values: --helm-set-string key1=val1 --helm-set-string key2=val2)
       --helm-skip-crds                             Skip helm crd installation step
+      --helm-skip-schema-validation                Skip helm schema validation step
       --helm-skip-tests                            Skip helm test manifests installation step
       --helm-version string                        Helm version
   -h, --help                                       help for add-source
@@ -70,6 +71,7 @@ argocd app add-source APPNAME [flags]
       --revision string                            The tracking source branch, tag, commit or Helm chart version the application will sync to
       --revision-history-limit int                 How many items to keep in revision history (default 10)
       --self-heal                                  Set self healing when sync is automated
+      --source-name string                         Name of the source from the list of sources of the app.
       --sync-option Prune=false                    Add or remove a sync option, e.g add Prune=false. Remove using `!` prefix, e.g. `!Prune=false`
       --sync-policy string                         Set the sync policy (one of: manual (aliases of manual: none), automated (aliases of automated: auto, automatic))
       --sync-retry-backoff-duration duration       Sync retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h) (default 5s)

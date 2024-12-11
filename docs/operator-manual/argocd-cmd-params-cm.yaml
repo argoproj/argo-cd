@@ -51,6 +51,8 @@ data:
   controller.self.heal.timeout.seconds: "2"
   controller.self.heal.backoff.factor: "3"
   controller.self.heal.backoff.cap.seconds: "300"
+  # Specifies a sync timeout for applications. "0" means no timeout (default "0")
+  controller.sync.timeout.seconds: "0"
 
   # Cache expiration for app state (default 1h0m0s)
   controller.app.state.cache.expiration: "1h0m0s"
@@ -127,8 +129,8 @@ data:
   server.tls.minversion: "1.2"
   # The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")
   server.tls.maxversion: "1.3"
-  # The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384")
-  server.tls.ciphers: "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384"
+  # The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
+  server.tls.ciphers: "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
   # Cache expiration for cluster/repo connection status (default 1h0m0s)
   server.connection.status.cache.expiration: "1h0m0s"
   # Cache expiration for OIDC state (default 3m0s)
@@ -161,8 +163,8 @@ data:
   reposerver.tls.minversion: "1.2"
   # The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")
   reposerver.tls.maxversion: "1.3"
-  # The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384")
-  reposerver.tls.ciphers: "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384"
+  # The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
+  reposerver.tls.ciphers: "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
   # Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data (default 24h0m0s)
   reposerver.repo.cache.expiration: "24h0m0s"
   # Cache expiration default (default 24h0m0s)
