@@ -512,7 +512,7 @@ func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) h
 }
 
 // VerifyToken verifies if a token is correct. Tokens can be issued either from us or by an IDP.
-// We choose how to verify based on the issuer.
+// We choose how to verify based on the issuer and settings.
 func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, error) {
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 	var claims jwt.RegisteredClaims
@@ -520,6 +520,29 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 	if err != nil {
 		return nil, "", err
 	}
+
+	argoSettings, err := mgr.settingsMgr.GetSettings()
+	if err != nil {
+		return nil, "", fmt.Errorf("cannot access settings while verifying the token: %w", err)
+	}
+	if argoSettings == nil {
+		return nil, "", fmt.Errorf("settings are not available while verifying the token")
+	}
+
+	// If JWKSetURL is configured, try JWT verification first
+	if argoSettings.JWTConfig != nil && argoSettings.JWTConfig.JWKSetURL != "" {
+		prov, err := mgr.provider()
+		if err != nil {
+			return nil, "", err
+		}
+		token, err := prov.VerifyJWT(tokenString, argoSettings)
+		if err == nil {
+			return token.Claims, "", nil
+		}
+		// If JWT verification fails, continue with other methods
+		log.Debugf("JWT verification failed, trying other methods: %v", err)
+	}
+
 	switch claims.Issuer {
 	case SessionManagerClaimsIssuer:
 		// Argo CD signed token
@@ -529,14 +552,6 @@ func (mgr *SessionManager) VerifyToken(tokenString string) (jwt.Claims, string, 
 		prov, err := mgr.provider()
 		if err != nil {
 			return nil, "", err
-		}
-
-		argoSettings, err := mgr.settingsMgr.GetSettings()
-		if err != nil {
-			return nil, "", fmt.Errorf("cannot access settings while verifying the token: %w", err)
-		}
-		if argoSettings == nil {
-			return nil, "", fmt.Errorf("settings are not available while verifying the token")
 		}
 
 		idToken, err := prov.Verify(tokenString, argoSettings)
