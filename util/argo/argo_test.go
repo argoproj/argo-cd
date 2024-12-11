@@ -628,6 +628,119 @@ func TestFilterByRepoP(t *testing.T) {
 	})
 }
 
+func TestFilterByPath(t *testing.T) {
+	apps := []argoappv1.Application{
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{ 
+					Path: "example/apps/foo/chart",
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{ 
+					Path: "example/apps/bar/chart",
+				},
+			},
+		},
+	}
+	
+
+	t.Run("No apps for matching path", func(t *testing.T) {
+		res := FilterByPath(apps, "example/apps/baz")
+		assert.Empty(t, res)
+	})
+
+	t.Run("Single app matching path", func(t *testing.T) {
+		res := FilterByPath(apps, "example/apps/foo/chart")
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("Multiple apps matching path", func(t *testing.T) {
+		res := FilterByPath(apps, "example/apps/foo")
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Partial match on path", func(t *testing.T) {
+		res := FilterByPath(apps, "example/apps/foo/")
+		assert.Len(t, res, 2)
+	})
+}
+func TestFilterByFiles(t *testing.T) {
+	apps := []argoappv1.Application{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "example/apps/foo;example/apps/bar",
+				},
+			},
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path: "example/apps/foo",
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "example/apps/foo",
+				},
+			},
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path: "example/apps/foo",
+				},
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "example/apps/baz",
+				},
+			},
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path: "example/apps/baz",
+				},
+			},
+		},
+	}
+
+	t.Run("No files match", func(t *testing.T) {
+		files := []string{"example/apps/nonexistent/file.yaml"}
+		res := FilterByFiles(apps, files)
+		assert.Empty(t, res)
+	})
+
+	t.Run("One file matches one app", func(t *testing.T) {
+		files := []string{"example/apps/foo/file.yaml"}
+		res := FilterByFiles(apps, files)
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Multiple files match", func(t *testing.T) {
+		files := []string{"example/apps/foo/file.yaml", "example/apps/bar/file.yaml"}
+		res := FilterByFiles(apps, files)
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Some files match", func(t *testing.T) {
+		files := []string{"example/apps/bar/file.yaml", "example/apps/baz/file.yaml"}
+		res := FilterByFiles(apps, files)
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Multiple annotation paths", func(t *testing.T) {
+		files := []string{"example/apps/foo/file.yaml", "example/apps/bar/file.yaml"}
+		res := FilterByFiles(apps, files)
+		assert.Len(t, res, 2)
+	})
+}
+
+
+
+
 func TestValidatePermissions(t *testing.T) {
 	t.Run("Empty Repo URL result in condition", func(t *testing.T) {
 		spec := argoappv1.ApplicationSpec{
