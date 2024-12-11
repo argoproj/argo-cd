@@ -51,6 +51,8 @@ data:
   controller.self.heal.backoff.timeout.seconds: "2"
   controller.self.heal.backoff.factor: "3"
   controller.self.heal.backoff.cap.seconds: "300"
+  # Specifies a sync timeout for applications. "0" means no timeout (default "0")
+  controller.sync.timeout.seconds: "0"
 
   # Cache expiration for app state (default 1h0m0s)
   controller.app.state.cache.expiration: "1h0m0s"
