@@ -130,6 +130,11 @@ stringData:
   count (grouped by k8s api version, the granule of parallelism for list operations). In this case, all resources will
   be buffered in memory -- no api server request will be blocked by processing.
 
+* `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING` - environment variable that enables the controller to collect events
+  for Kubernetes resources and process them in a batch. This is useful when the cluster contains a large number of resources,
+  and the controller is overwhelmed by the number of events. The default value is `false`, which means that the controller
+  processes events one by one.
+
 * `ARGOCD_APPLICATION_TREE_SHARD_SIZE` - environment variable controlling the max number of resources stored in one Redis
   key. Splitting application tree into multiple keys helps to reduce the amount of traffic between the controller and Redis.
   The default value is 0, which means that the application tree is stored in a single Redis key. The reasonable value is 100.
