@@ -1539,6 +1539,7 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		}
 		ctrl.logAppEvent(app, eventInfo, strings.Join(messages, " "), context.TODO())
 		ctrl.metricsServer.IncSync(app, state)
+		ctrl.metricsServer.IncAppSyncDuration(app, state)
 	}
 }
 
