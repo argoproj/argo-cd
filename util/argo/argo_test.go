@@ -632,20 +632,19 @@ func TestFilterByPath(t *testing.T) {
 	apps := []argoappv1.Application{
 		{
 			Spec: argoappv1.ApplicationSpec{
-				Source: &argoappv1.ApplicationSource{ 
+				Source: &argoappv1.ApplicationSource{
 					Path: "example/apps/foo/chart",
 				},
 			},
 		},
 		{
 			Spec: argoappv1.ApplicationSpec{
-				Source: &argoappv1.ApplicationSource{ 
+				Source: &argoappv1.ApplicationSource{
 					Path: "example/apps/bar/chart",
 				},
 			},
 		},
 	}
-	
 
 	t.Run("No apps for matching path", func(t *testing.T) {
 		res := FilterByPath(apps, "example/apps/baz")
@@ -737,9 +736,6 @@ func TestFilterByFiles(t *testing.T) {
 		assert.Len(t, res, 2)
 	})
 }
-
-
-
 
 func TestValidatePermissions(t *testing.T) {
 	t.Run("Empty Repo URL result in condition", func(t *testing.T) {
