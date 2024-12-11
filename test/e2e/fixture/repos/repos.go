@@ -87,7 +87,7 @@ func AddOCIRepo(name, imagePath string) {
 		fmt.Sprintf("%s/%s", fixture.OCIHostURL, imagePath),
 		"--type", "oci",
 		"--name", name,
-		"--insecure-oci",
+		"--insecure-oci-force-http",
 	}
 	errors.FailOnErr(fixture.RunCli(args...))
 }

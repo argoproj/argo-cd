@@ -342,11 +342,11 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	}
 	repository.EnableOCI = enableOCI
 
-	insecureHttpOnly, err := boolOrFalse(secret, "insecureHttpOnly")
+	insecureOCIForceHttp, err := boolOrFalse(secret, "insecureOCIForceHttp")
 	if err != nil {
 		return repository, err
 	}
-	repository.InsecureOCIHttpOnly = insecureHttpOnly
+	repository.InsecureOCIForceHttp = insecureOCIForceHttp
 
 	githubAppID, err := intOrZero(secret, "githubAppID")
 	if err != nil {
@@ -381,7 +381,7 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretString(secret, "password", repository.Password)
 	updateSecretString(secret, "sshPrivateKey", repository.SSHPrivateKey)
 	updateSecretBool(secret, "enableOCI", repository.EnableOCI)
-	updateSecretBool(secret, "insecureHttpOnly", repository.InsecureOCIHttpOnly)
+	updateSecretBool(secret, "insecureOCIForceHttp", repository.InsecureOCIForceHttp)
 	updateSecretString(secret, "tlsClientCertData", repository.TLSClientCertData)
 	updateSecretString(secret, "tlsClientCertKey", repository.TLSClientCertKey)
 	updateSecretString(secret, "type", repository.Type)

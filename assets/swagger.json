@@ -3839,7 +3839,7 @@
           {
             "type": "boolean",
             "description": "Whether https should be disabled for an OCI repo.",
-            "name": "insecureOciHttpOnly",
+            "name": "insecureOciForceHttp",
             "in": "query"
           }
         ],
@@ -9111,8 +9111,8 @@
           "type": "boolean",
           "title": "InsecureIgnoreHostKey should not be used anymore, Insecure is favoured\nUsed only for Git repos"
         },
-        "insecureOCIHttpOnly": {
-          "description": "InsecureOCIHttpOnly specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.",
+        "insecureOCIForceHttp": {
+          "description": "InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.",
           "type": "boolean"
         },
         "name": {

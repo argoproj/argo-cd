@@ -62,7 +62,7 @@ argocd repo add REPOURL [flags]
       --github-app-private-key-path string      private key of the GitHub Application
   -h, --help                                    help for add
       --insecure-ignore-host-key                disables SSH strict host key checking (deprecated, use --insecure-skip-server-verification instead)
-      --insecure-oci                            Use http when accessing an OCI repository
+      --insecure-oci-force-http                 Use http when accessing an OCI repository
       --insecure-skip-server-verification       disables server certificate and host key checks
       --name string                             name of the repository, mandatory for repositories of type helm
       --no-proxy string                         don't access these targets via proxy
