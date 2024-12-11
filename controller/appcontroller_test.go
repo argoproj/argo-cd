@@ -167,6 +167,7 @@ func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, 
 		time.Second,
 		time.Minute,
 		nil,
+		0,
 		time.Second*10,
 		common.DefaultPortArgoCDMetrics,
 		data.metricsCacheExpiration,
@@ -2478,6 +2479,57 @@ func TestSelfHealExponentialBackoff(t *testing.T) {
 			ok, duration := ctrl.shouldSelfHeal(app)
 			require.Equal(t, ok, tc.shouldSelfHeal)
 			assertDurationAround(t, tc.expectedDuration, duration)
+		})
+	}
+}
+
+func TestSyncTimeout(t *testing.T) {
+	testCases := []struct {
+		delta           time.Duration
+		expectedPhase   synccommon.OperationPhase
+		expectedMessage string
+	}{{
+		delta:           2 * time.Minute,
+		expectedPhase:   synccommon.OperationFailed,
+		expectedMessage: "Operation terminated",
+	}, {
+		delta:           30 * time.Second,
+		expectedPhase:   synccommon.OperationSucceeded,
+		expectedMessage: "successfully synced (no more tasks)",
+	}}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
+			app := newFakeApp()
+			app.Spec.Project = "default"
+			app.Operation = &v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Revision: "HEAD",
+				},
+			}
+			ctrl := newFakeController(&fakeData{
+				apps: []runtime.Object{app, &defaultProj},
+				manifestResponses: []*apiclient.ManifestResponse{{
+					Manifests: []string{},
+				}},
+			}, nil)
+
+			ctrl.syncTimeout = time.Minute
+			app.Status.OperationState = &v1alpha1.OperationState{
+				Operation: v1alpha1.Operation{
+					Sync: &v1alpha1.SyncOperation{
+						Revision: "HEAD",
+					},
+				},
+				Phase:     synccommon.OperationRunning,
+				StartedAt: metav1.NewTime(time.Now().Add(-tc.delta)),
+			}
+			ctrl.processRequestedAppOperation(app)
+
+			app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.ObjectMeta.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedPhase, app.Status.OperationState.Phase)
+			require.Equal(t, tc.expectedMessage, app.Status.OperationState.Message)
 		})
 	}
 }
