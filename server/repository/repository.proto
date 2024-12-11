@@ -90,7 +90,7 @@ message RepoAccessQuery {
 	// Whether to force HTTP basic auth
 	bool forceHttpBasicAuth = 19;
 	// Whether https should be disabled for an OCI repo
-	bool insecureOciHttpOnly = 20;
+	bool insecureOciForceHttp = 20;
 }
 
 message RepoResponse {}

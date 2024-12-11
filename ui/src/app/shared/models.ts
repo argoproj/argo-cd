@@ -563,7 +563,7 @@ export interface Repository {
     enableLfs?: boolean;
     githubAppId?: string;
     forceHttpBasicAuth?: boolean;
-    insecureOCIHttpOnly?: boolean;
+    insecureOCIForceHttp?: boolean;
     enableOCI: boolean;
 }
 
