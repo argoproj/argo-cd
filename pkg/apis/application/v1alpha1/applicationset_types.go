@@ -487,6 +487,8 @@ type SCMProviderGeneratorGithub struct {
 	AppSecretName string `json:"appSecretName,omitempty" protobuf:"bytes,4,opt,name=appSecretName"`
 	// Scan all branches instead of just the default branch.
 	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,5,opt,name=allBranches"`
+	// should caching be enabled for github requests
+	CachingEnabled bool `json:"cachingEnabled,omitempty" protobuf:"varint,6,opt,name=cachingEnabled`
 }
 
 // SCMProviderGeneratorGitlab defines connection info specific to Gitlab.

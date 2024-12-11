@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gregjones/httpcache"
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	log "github.com/sirupsen/logrus"
@@ -35,6 +37,7 @@ type SCMConfig struct {
 	allowedSCMProviders []string
 	enableSCMProviders  bool
 	GitHubApps          github_app_auth.Credentials
+	GitHubClientCache   httpcache.Cache
 	tokenRefStrictMode  bool
 }
 
@@ -282,6 +285,7 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 			github.Organization,
 			github.API,
 			github.AllBranches,
+			github.CachingEnabled,
 		)
 	}
 
@@ -289,5 +293,5 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 	if err != nil {
 		return nil, fmt.Errorf("error fetching Github token: %w", err)
 	}
-	return scm_provider.NewGithubProvider(ctx, github.Organization, token, github.API, github.AllBranches)
+	return scm_provider.NewGithubProvider(ctx, github.Organization, token, github.API, github.AllBranches, github.CachingEnabled)
 }
