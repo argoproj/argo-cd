@@ -1886,6 +1886,11 @@ spec:
                 description: Health contains information about the application's current
                   health status
                 properties:
+                  lastTransitionTime:
+                    description: LastTransitionTime is the time the HealthStatus was
+                      set or updated
+                    format: date-time
+                    type: string
                   message:
                     description: Message is a human-readable informational message
                       describing the health status
@@ -4575,6 +4580,11 @@ spec:
                       description: HealthStatus contains information about the currently
                         observed health state of an application or resource
                       properties:
+                        lastTransitionTime:
+                          description: LastTransitionTime is the time the HealthStatus
+                            was set or updated
+                          format: date-time
+                          type: string
                         message:
                           description: Message is a human-readable informational message
                             describing the health status
@@ -22056,6 +22066,9 @@ spec:
                       type: string
                     health:
                       properties:
+                        lastTransitionTime:
+                          format: date-time
+                          type: string
                         message:
                           type: string
                         status:
@@ -25631,6 +25644,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: controller.self.heal.backoff.cap.seconds
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.sync.timeout.seconds
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT
