@@ -13,6 +13,8 @@ import {ResourceTreeNode} from './application-resource-tree/application-resource
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
+import {FontAwesomeIcon} from '@fortawesome/react-fontawesome';
+import {faGhost, faCircleNotch, faQuestionCircle} from '@fortawesome/free-solid-svg-icons'; // Icons
 
 require('./utils.scss');
 
@@ -216,9 +218,7 @@ export const OperationPhaseIcon = ({app}: {app: appModels.Application}) => {
             color = COLORS.operation.failed;
             break;
         default:
-            className = 'fa fa-circle-notch fa-spin';
-            color = COLORS.operation.running;
-            break;
+            return <FontAwesomeIcon icon={faCircleNotch} title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' color={COLORS.operation.running} spin />;
     }
     return <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{color}} />;
 };
@@ -255,8 +255,11 @@ export const ComparisonStatusIcon = ({
             color = COLORS.sync.out_of_sync;
             break;
         case appModels.SyncStatuses.Unknown:
-            className = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}`;
-            break;
+            return (
+                <React.Fragment>
+                    <FontAwesomeIcon icon={faCircleNotch} qe-id='utils-sync-status-title' title={title} spin={!noSpin} style={{color}} /> {label && title}
+                </React.Fragment>
+            );
     }
     return (
         <React.Fragment>
@@ -779,59 +782,70 @@ export function syncStatusMessage(app: appModels.Application) {
 
 export const HealthStatusIcon = ({state, noSpin}: {state: appModels.HealthStatus; noSpin?: boolean}) => {
     let color = COLORS.health.unknown;
-    let icon = 'fa-question-circle';
+    let icon;
 
     switch (state.status) {
         case appModels.HealthStatuses.Healthy:
             color = COLORS.health.healthy;
-            icon = 'fa-heart';
+            icon = <i className='fa fa-heart' style={{color}} />;
             break;
         case appModels.HealthStatuses.Suspended:
             color = COLORS.health.suspended;
-            icon = 'fa-pause-circle';
+            icon = <i className='fa fa-pause-circle' style={{color}} />;
             break;
         case appModels.HealthStatuses.Degraded:
             color = COLORS.health.degraded;
-            icon = 'fa-heart-broken';
+            icon = <i className='fa fa-heart-broken' style={{color}} />;
             break;
         case appModels.HealthStatuses.Progressing:
             color = COLORS.health.progressing;
-            icon = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}`;
+            icon = (
+                <FontAwesomeIcon
+                    icon={faCircleNotch}
+                    spin={!noSpin} // Spin unless noSpin is true
+                    style={{color}}
+                    title='Processing'
+                />
+            );
             break;
         case appModels.HealthStatuses.Missing:
             color = COLORS.health.missing;
-            icon = 'fa-ghost';
+            icon = <FontAwesomeIcon icon={faGhost} style={{color}} title='Missing' />;
+            break;
+        default:
+            icon = <FontAwesomeIcon icon={faQuestionCircle} style={{color}} title='Unknown' />;
             break;
     }
-    let title: string = state.status;
-    if (state.message) {
-        title = `${state.status}: ${state.message}`;
-    }
-    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon + ' utils-health-status-icon'} style={{color}} />;
+    return <span className='utils-health-status-icon'>{icon}</span>;
 };
 
 export const PodHealthIcon = ({state}: {state: appModels.HealthStatus}) => {
-    let icon = 'fa-question-circle';
+    let icon;
 
     switch (state.status) {
         case appModels.HealthStatuses.Healthy:
-            icon = 'fa-check';
-            break;
         case appModels.HealthStatuses.Suspended:
-            icon = 'fa-check';
+            icon = <i className='fa fa-check' />;
             break;
         case appModels.HealthStatuses.Degraded:
-            icon = 'fa-times';
+            icon = <i className='fa fa-times' />;
             break;
         case appModels.HealthStatuses.Progressing:
-            icon = 'fa fa-circle-notch fa-spin';
+            // Use SVG spinner for "Progressing"
+            icon = <FontAwesomeIcon icon={faCircleNotch} spin title='Progressing' style={{color: 'white'}} />;
+            break;
+        default:
+            icon = <i className='fa fa-question-circle' />;
             break;
     }
-    let title: string = state.status;
-    if (state.message) {
-        title = `${state.status}: ${state.message}`;
-    }
-    return <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon} />;
+
+    const title = state.message ? `${state.status}: ${state.message}` : state.status;
+
+    return (
+        <span className='utils-pod-health-icon' title={title}>
+            {icon}
+        </span>
+    );
 };
 
 export const PodPhaseIcon = ({state}: {state: appModels.PodPhase}) => {
@@ -841,11 +855,9 @@ export const PodPhaseIcon = ({state}: {state: appModels.PodPhase}) => {
             className = 'fa fa-check';
             break;
         case appModels.PodPhase.PodRunning:
-            className = 'fa fa-circle-notch fa-spin';
-            break;
+            return <FontAwesomeIcon qe-id='utils-pod-phase-icon' icon={faCircleNotch} spin />;
         case appModels.PodPhase.PodPending:
-            className = 'fa fa-circle-notch fa-spin';
-            break;
+            return <FontAwesomeIcon qe-id='utils-pod-phase-icon' icon={faCircleNotch} spin />;
         case appModels.PodPhase.PodFailed:
             className = 'fa fa-times';
             break;
@@ -889,8 +901,7 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
         switch (resource.hookPhase) {
             case appModels.OperationPhases.Running:
                 color = COLORS.operation.running;
-                className = 'fa fa-circle-notch fa-spin';
-                break;
+                return <FontAwesomeIcon icon={faCircleNotch} spin style={{color}} title={resource.message} />;
             case appModels.OperationPhases.Failed:
                 color = COLORS.operation.failed;
                 className = 'fa fa-heart-broken';
@@ -905,8 +916,7 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
                 break;
             case appModels.OperationPhases.Terminating:
                 color = COLORS.operation.terminating;
-                className = 'fa fa-circle-notch fa-spin';
-                break;
+                return <FontAwesomeIcon icon={faCircleNotch} spin style={{color}} title={resource.message} />;
         }
         let title: string = resource.message;
         if (resource.message) {
