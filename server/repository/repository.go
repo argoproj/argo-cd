@@ -166,18 +166,21 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 			}
 			// remove secrets
 			items = append(items, &appsv1.Repository{
-				Repo:               repo.Repo,
-				Type:               rType,
-				Name:               repo.Name,
-				Username:           repo.Username,
-				Insecure:           repo.IsInsecure(),
-				EnableLFS:          repo.EnableLFS,
-				EnableOCI:          repo.EnableOCI,
-				Proxy:              repo.Proxy,
-				NoProxy:            repo.NoProxy,
-				Project:            repo.Project,
-				ForceHttpBasicAuth: repo.ForceHttpBasicAuth,
-				InheritedCreds:     repo.InheritedCreds,
+				Repo:                       repo.Repo,
+				Type:                       rType,
+				Name:                       repo.Name,
+				Username:                   repo.Username,
+				Insecure:                   repo.IsInsecure(),
+				EnableLFS:                  repo.EnableLFS,
+				EnableOCI:                  repo.EnableOCI,
+				Proxy:                      repo.Proxy,
+				NoProxy:                    repo.NoProxy,
+				Project:                    repo.Project,
+				ForceHttpBasicAuth:         repo.ForceHttpBasicAuth,
+				InheritedCreds:             repo.InheritedCreds,
+				GithubAppId:                repo.GithubAppId,
+				GithubAppInstallationId:    repo.GithubAppInstallationId,
+				GitHubAppEnterpriseBaseURL: repo.GitHubAppEnterpriseBaseURL,
 			})
 		}
 	}
