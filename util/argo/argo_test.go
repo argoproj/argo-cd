@@ -893,7 +893,8 @@ func TestSetAppOperations(t *testing.T) {
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
 		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
-		require.ErrorContains(t, err, "operation is already in progress")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "operation is already in progress")
 		assert.Nil(t, app)
 	})
 
@@ -906,7 +907,8 @@ func TestSetAppOperations(t *testing.T) {
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
 		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: nil})
-		require.ErrorContains(t, err, "Operation unspecified")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Operation unspecified")
 		assert.Nil(t, app)
 	})
 
@@ -971,7 +973,7 @@ func TestValidateDestination(t *testing.T) {
 		db.On("GetClusterServersByName", context.Background(), mock.Anything).Return(nil, fmt.Errorf("an error occurred"))
 
 		err := ValidateDestination(context.Background(), &dest, db)
-		require.ErrorContains(t, err, "an error occurred")
+		assert.Contains(t, err.Error(), "an error occurred")
 		assert.False(t, dest.IsServerInferred())
 	})
 

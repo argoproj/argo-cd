@@ -172,7 +172,6 @@ func TestParseAppInstanceValueCorrectFormat(t *testing.T) {
 }
 
 func sampleResource(t *testing.T) *unstructured.Unstructured {
-	t.Helper()
 	yamlBytes, err := os.ReadFile("testdata/svc.yaml")
 	require.NoError(t, err)
 	var obj *unstructured.Unstructured

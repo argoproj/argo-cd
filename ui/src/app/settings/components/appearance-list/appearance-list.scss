@@ -13,13 +13,11 @@
         }
         border-radius: 4px;
         box-shadow: 1px 2px 3px rgba(#000, 0.1);
-        & .row {
-            justify-content: space-between;
-            align-items: center;
+    }
 
-            .select {
-                min-width: 160px;
-            }
-        }
+    &__button {
+        position: absolute;
+        top: 25%;
+        right: 30px;
     }
 }

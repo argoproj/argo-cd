@@ -18,7 +18,6 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/headless"
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	projectpkg "github.com/argoproj/argo-cd/v2/pkg/apiclient/project"
@@ -782,19 +781,11 @@ func NewProjectDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-
-			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
-
 			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
 			defer argoio.Close(conn)
 			for _, name := range args {
-				canDelete := promptUtil.Confirm(fmt.Sprintf("Are you sure you want to delete %s? [y/n]", name))
-				if canDelete {
-					_, err := projIf.Delete(ctx, &projectpkg.ProjectQuery{Name: name})
-					errors.CheckError(err)
-				} else {
-					fmt.Printf("The command to delete %s was cancelled.\n", name)
-				}
+				_, err := projIf.Delete(ctx, &projectpkg.ProjectQuery{Name: name})
+				errors.CheckError(err)
 			}
 		},
 	}

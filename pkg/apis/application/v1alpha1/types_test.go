@@ -107,16 +107,12 @@ func TestAppProject_IsNegatedSourcePermitted(t *testing.T) {
 }
 
 func TestAppProject_IsDestinationPermitted(t *testing.T) {
-	t.Parallel()
-
 	testData := []struct {
-		name        string
 		projDest    []ApplicationDestination
 		appDest     ApplicationDestination
 		isPermitted bool
 	}{
 		{
-			name: "server an namespace match",
 			projDest: []ApplicationDestination{{
 				Server: "https://kubernetes.default.svc", Namespace: "default",
 			}},
@@ -124,7 +120,6 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: true,
 		},
 		{
-			name: "namespace does not match",
 			projDest: []ApplicationDestination{{
 				Server: "https://kubernetes.default.svc", Namespace: "default",
 			}},
@@ -132,7 +127,6 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: false,
 		},
 		{
-			name: "server does not match",
 			projDest: []ApplicationDestination{{
 				Server: "https://my-cluster", Namespace: "default",
 			}},
@@ -140,7 +134,6 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: false,
 		},
 		{
-			name: "wildcard namespace",
 			projDest: []ApplicationDestination{{
 				Server: "https://kubernetes.default.svc", Namespace: "*",
 			}},
@@ -148,7 +141,6 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: true,
 		},
 		{
-			name: "wildcard server",
 			projDest: []ApplicationDestination{{
 				Server: "https://*.default.svc", Namespace: "default",
 			}},
@@ -156,7 +148,6 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: true,
 		},
 		{
-			name: "wildcard server and namespace",
 			projDest: []ApplicationDestination{{
 				Server: "https://team1-*", Namespace: "default",
 			}},
@@ -164,7 +155,6 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: false,
 		},
 		{
-			name: "wildcard namespace with prefix",
 			projDest: []ApplicationDestination{{
 				Server: "https://kubernetes.default.svc", Namespace: "test-*",
 			}},
@@ -172,7 +162,6 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: true,
 		},
 		{
-			name: "wildcard namespace without prefix",
 			projDest: []ApplicationDestination{{
 				Server: "https://kubernetes.default.svc", Namespace: "test-*",
 			}},
@@ -180,7 +169,6 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: false,
 		},
 		{
-			name: "wildcard server and namespace",
 			projDest: []ApplicationDestination{{
 				Server: "*", Namespace: "*",
 			}},
@@ -188,7 +176,6 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: true,
 		},
 		{
-			name: "wildcard server and namespace with name",
 			projDest: []ApplicationDestination{{
 				Server: "", Namespace: "*", Name: "test",
 			}},
@@ -196,51 +183,24 @@ func TestAppProject_IsDestinationPermitted(t *testing.T) {
 			isPermitted: true,
 		},
 		{
-			name: "wildcard server and namespace with different name",
 			projDest: []ApplicationDestination{{
 				Server: "", Namespace: "*", Name: "test2",
 			}},
 			appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
 			isPermitted: false,
 		},
-		/**
-		  - name: host-cluster
-		    namespace: '!{kube-system,argocd}'
-		    server: 'https://kubernetes.default.svc'
-		  - name: destination-cluster-01
-		    namespace: '*'
-		    server: 'https://eks-cluster-endpoint.ap-southeast-1.eks.amazonaws.com'
-
-		  destination:
-		    server: https://eks-cluster-endpoint.ap-southeast-1.eks.amazonaws.com
-		    namespace: karpenter
-		*/
-		{
-			name: "negated namespace with multiple values",
-			projDest: []ApplicationDestination{
-				{Name: "host-cluster", Server: "https://kubernetes.default.svc", Namespace: "!{kube-system,argocd}"},
-				{Name: "destination-cluster-01", Server: "https://eks-cluster-endpoint.ap-southeast-1.eks.amazonaws.com", Namespace: "*"},
-			},
-			appDest:     ApplicationDestination{Server: "https://eks-cluster-endpoint.ap-southeast-1.eks.amazonaws.com", Namespace: "kube-system"},
-			isPermitted: true,
-		},
 	}
 
 	for _, data := range testData {
-		data := data
-		t.Run(data.name, func(t *testing.T) {
-			t.Parallel()
-
-			proj := AppProject{
-				Spec: AppProjectSpec{
-					Destinations: data.projDest,
-				},
-			}
-			permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
-				return []*Cluster{}, nil
-			})
-			assert.Equal(t, data.isPermitted, permitted)
+		proj := AppProject{
+			Spec: AppProjectSpec{
+				Destinations: data.projDest,
+			},
+		}
+		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
+			return []*Cluster{}, nil
 		})
+		assert.Equal(t, data.isPermitted, permitted)
 	}
 }
 
@@ -360,7 +320,7 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 			Server: "*", Namespace: "!kube-system",
 		}},
 		appDest:     ApplicationDestination{Server: "https://kubernetes.default.svc", Namespace: "default"},
-		isPermitted: true,
+		isPermitted: false,
 	}, {
 		projDest: []ApplicationDestination{{
 			Server: "*", Namespace: "*",
@@ -379,22 +339,6 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 		}},
 		appDest:     ApplicationDestination{Name: "test", Namespace: "test"},
 		isPermitted: false,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "*", Namespace: "test",
-		}, {
-			Server: "!https://test-server", Namespace: "other",
-		}},
-		appDest:     ApplicationDestination{Server: "https://test-server", Namespace: "test"},
-		isPermitted: true,
-	}, {
-		projDest: []ApplicationDestination{{
-			Server: "*", Namespace: "*",
-		}, {
-			Server: "https://test-server", Namespace: "!other",
-		}},
-		appDest:     ApplicationDestination{Server: "https://other-test-server", Namespace: "other"},
-		isPermitted: true,
 	}}
 
 	for _, data := range testData {
@@ -406,7 +350,7 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 		permitted, _ := proj.IsDestinationPermitted(data.appDest, func(project string) ([]*Cluster, error) {
 			return []*Cluster{}, nil
 		})
-		assert.Equalf(t, data.isPermitted, permitted, "appDest mismatch for %+v with project destinations %+v", data.appDest, data.projDest)
+		assert.Equal(t, data.isPermitted, permitted)
 	}
 }
 
@@ -494,7 +438,8 @@ func TestAppProject_IsDestinationPermitted_PermitOnlyProjectScopedClusters(t *te
 	_, err := proj.IsDestinationPermitted(ApplicationDestination{Server: "https://my-cluster.123.com", Namespace: "default"}, func(_ string) ([]*Cluster, error) {
 		return nil, errors.New("some error")
 	})
-	assert.ErrorContains(t, err, "could not retrieve project clusters")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "could not retrieve project clusters")
 }
 
 func TestAppProject_IsGroupKindPermitted(t *testing.T) {
@@ -856,7 +801,8 @@ func TestAppProject_InvalidPolicyRules(t *testing.T) {
 	for _, bad := range badPolicies {
 		p.Spec.Roles[0].Policies = []string{bad.policy}
 		err = p.ValidateProject()
-		assert.ErrorContains(t, err, bad.errmsg)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), bad.errmsg)
 	}
 }
 
@@ -3022,7 +2968,6 @@ func TestSetConditions(t *testing.T) {
 				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
 			},
 			validate: func(t *testing.T, a *Application) {
-				t.Helper()
 				assert.Equal(t, fiveMinsAgo, a.Status.Conditions[0].LastTransitionTime)
 				assert.Equal(t, tenMinsAgo, a.Status.Conditions[1].LastTransitionTime)
 			},
@@ -3043,7 +2988,6 @@ func TestSetConditions(t *testing.T) {
 				testCond(ApplicationConditionSharedResourceWarning, "bar", nil),
 			},
 			validate: func(t *testing.T, a *Application) {
-				t.Helper()
 				// SetConditions should add timestamps for new conditions.
 				assert.True(t, a.Status.Conditions[0].LastTransitionTime.Time.After(fiveMinsAgo.Time))
 				assert.True(t, a.Status.Conditions[1].LastTransitionTime.Time.After(fiveMinsAgo.Time))
@@ -3066,7 +3010,6 @@ func TestSetConditions(t *testing.T) {
 				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
 			},
 			validate: func(t *testing.T, a *Application) {
-				t.Helper()
 				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
 			},
 		},
@@ -3102,7 +3045,6 @@ func TestSetConditions(t *testing.T) {
 				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
 			},
 			validate: func(t *testing.T, a *Application) {
-				t.Helper()
 				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
 				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[1].LastTransitionTime.Time)
 			},
@@ -3126,7 +3068,6 @@ func TestSetConditions(t *testing.T) {
 				testCond(ApplicationConditionSharedResourceWarning, "bar changed message", fiveMinsAgo),
 			},
 			validate: func(t *testing.T, a *Application) {
-				t.Helper()
 				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
 				assert.Equal(t, fiveMinsAgo.Time, a.Status.Conditions[1].LastTransitionTime.Time)
 			},
@@ -3145,7 +3086,6 @@ func TestSetConditions(t *testing.T) {
 				testCond(ApplicationConditionSharedResourceWarning, "bar", tenMinsAgo),
 			},
 			validate: func(t *testing.T, a *Application) {
-				t.Helper()
 				assert.Equal(t, tenMinsAgo.Time, a.Status.Conditions[0].LastTransitionTime.Time)
 			},
 		},
@@ -3167,7 +3107,6 @@ func TestSetConditions(t *testing.T) {
 // difficult to strictly assert on as they can use time.Now(). Elements in each array are assumed
 // to match positions.
 func assertConditions(t *testing.T, expected []ApplicationCondition, actual []ApplicationCondition) {
-	t.Helper()
 	assert.Equal(t, len(expected), len(actual))
 	for i := range expected {
 		assert.Equal(t, expected[i].Type, actual[i].Type)
@@ -3963,7 +3902,6 @@ func TestOptionalArrayEquality(t *testing.T) {
 	err := json.Unmarshal([]byte(presentButEmpty), &param)
 	require.NoError(t, err)
 	jsonPresentButEmpty := param.OptionalArray
-	// nolint:testifylint
 	require.Equal(t, &OptionalArray{Array: []string{}}, jsonPresentButEmpty)
 
 	// We won't simulate the protobuf unmarshalling of an empty array parameter. By experimentation, this is how it's
@@ -4007,7 +3945,6 @@ func TestOptionalMapEquality(t *testing.T) {
 	err := json.Unmarshal([]byte(presentButEmpty), &param)
 	require.NoError(t, err)
 	jsonPresentButEmpty := param.OptionalMap
-	// nolint:testifylint
 	require.Equal(t, &OptionalMap{Map: map[string]string{}}, jsonPresentButEmpty)
 
 	// We won't simulate the protobuf unmarshalling of an empty map parameter. By experimentation, this is how it's
@@ -4307,38 +4244,6 @@ func TestAppProject_ValidateDestinationServiceAccount(t *testing.T) {
 			},
 		}
 		err := proj.ValidateProject()
-		if data.expectedErrMsg == "" {
-			require.NoError(t, err)
-		} else {
-			require.ErrorContains(t, err, data.expectedErrMsg)
-		}
-	}
-}
-
-func TestCluster_ParseProxyUrl(t *testing.T) {
-	testData := []struct {
-		url            string
-		expectedErrMsg string
-	}{
-		{
-			url:            "https://192.168.99.100:8443",
-			expectedErrMsg: "",
-		},
-		{
-			url:            "test://!abc",
-			expectedErrMsg: "Failed to parse proxy url, unsupported scheme \"test\", must be http, https, or socks5",
-		},
-		{
-			url:            "http://192.168.99.100:8443",
-			expectedErrMsg: "",
-		},
-		{
-			url:            "socks5://192.168.99.100:8443",
-			expectedErrMsg: "",
-		},
-	}
-	for _, data := range testData {
-		_, err := ParseProxyUrl(data.url)
 		if data.expectedErrMsg == "" {
 			require.NoError(t, err)
 		} else {

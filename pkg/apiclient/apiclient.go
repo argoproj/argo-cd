@@ -126,7 +126,6 @@ type ClientOptions struct {
 	RedisHaProxyName     string
 	RedisName            string
 	RepoServerName       string
-	PromptsEnabled       bool
 }
 
 type client struct {

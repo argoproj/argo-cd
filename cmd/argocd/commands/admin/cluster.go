@@ -565,9 +565,7 @@ argocd admin cluster kubeconfig https://cluster-api-url:6443 /path/to/output/kub
 
 			cluster, err := db.NewDB(namespace, settings.NewSettingsManager(ctx, kubeclientset, namespace), kubeclientset).GetCluster(ctx, serverUrl)
 			errors.CheckError(err)
-			rawConfig, err := cluster.RawRestConfig()
-			errors.CheckError(err)
-			err = kube.WriteKubeConfig(rawConfig, namespace, output)
+			err = kube.WriteKubeConfig(cluster.RawRestConfig(), namespace, output)
 			errors.CheckError(err)
 		},
 	}
@@ -680,7 +678,7 @@ func NewGenClusterConfigCommand(pathOpts *clientcmd.PathOptions) *cobra.Command 
 	command.PersistentFlags().StringVar(&pathOpts.LoadingRules.ExplicitPath, pathOpts.ExplicitFileFlag, pathOpts.LoadingRules.ExplicitPath, "use a particular kubeconfig file")
 	command.Flags().StringVar(&bearerToken, "bearer-token", "", "Authentication token that should be used to access K8S API server")
 	command.Flags().BoolVar(&generateToken, "generate-bearer-token", false, "Generate authentication token that should be used to access K8S API server")
-	command.Flags().StringVar(&clusterOpts.ServiceAccount, "service-account", "argocd-manager", fmt.Sprintf("System namespace service account to use for kubernetes resource management. If not set then default %q SA will be used", clusterauth.ArgoCDManagerServiceAccount))
+	command.Flags().StringVar(&clusterOpts.ServiceAccount, "service-account", "argocd-manager", fmt.Sprintf("System namespace service account to use for kubernetes resource management. If not set then default \"%s\" SA will be used", clusterauth.ArgoCDManagerServiceAccount))
 	command.Flags().StringVar(&clusterOpts.SystemNamespace, "system-namespace", common.DefaultSystemNamespace, "Use different system namespace")
 	command.Flags().StringVarP(&outputFormat, "output", "o", "yaml", "Output format. One of: json|yaml")
 	command.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value)")

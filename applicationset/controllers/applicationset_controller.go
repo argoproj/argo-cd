@@ -18,9 +18,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"runtime/debug"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -54,6 +52,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/util/db"
 
 	argov1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	argoutil "github.com/argoproj/argo-cd/v2/util/argo"
 	"github.com/argoproj/argo-cd/v2/util/argo/normalizers"
 
@@ -80,6 +79,7 @@ type ApplicationSetReconciler struct {
 	Recorder             record.EventRecorder
 	Generators           map[string]generators.Generator
 	ArgoDB               db.ArgoDB
+	ArgoAppClientset     appclientset.Interface
 	KubeClientset        kubernetes.Interface
 	Policy               argov1alpha1.ApplicationsSyncPolicy
 	EnablePolicyOverride bool
@@ -96,21 +96,8 @@ type ApplicationSetReconciler struct {
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets/status,verbs=get;update;patch
 
-func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
-	startReconcile := time.Now()
+func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logCtx := log.WithField("applicationset", req.NamespacedName)
-
-	defer func() {
-		if rec := recover(); rec != nil {
-			logCtx.Errorf("Recovered from panic: %+v\n%s", rec, debug.Stack())
-			result = ctrl.Result{}
-			var ok bool
-			err, ok = rec.(error)
-			if !ok {
-				err = fmt.Errorf("%v", r)
-			}
-		}
-	}()
 
 	var applicationSetInfo argov1alpha1.ApplicationSet
 	parametersGenerated := false
@@ -347,7 +334,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		requeueAfter = ReconcileRequeueOnValidationError
 	}
 
-	logCtx.WithField("requeueAfter", requeueAfter).Info("end reconcile in ", time.Since(startReconcile))
+	logCtx.WithField("requeueAfter", requeueAfter).Info("end reconcile")
 
 	return ctrl.Result{
 		RequeueAfter: requeueAfter,
@@ -485,9 +472,7 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 			errorsByIndex[i] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSetInfo.Name, app.Name)
 			continue
 		}
-
-		appProject := &argov1alpha1.AppProject{}
-		err := r.Client.Get(ctx, types.NamespacedName{Name: app.Spec.Project, Namespace: r.ArgoCDNamespace}, appProject)
+		_, err := r.ArgoAppClientset.ArgoprojV1alpha1().AppProjects(r.ArgoCDNamespace).Get(ctx, app.Spec.GetProject(), metav1.GetOptions{})
 		if err != nil {
 			if apierr.IsNotFound(err) {
 				errorsByIndex[i] = fmt.Errorf("application references project %s which does not exist", app.Spec.Project)
@@ -1061,7 +1046,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 				LastTransitionTime: &now,
 				Message:            "No Application status found, defaulting status to Waiting.",
 				Status:             "Waiting",
-				Step:               strconv.Itoa(getAppStep(app.Name, appStepMap)),
+				Step:               fmt.Sprint(getAppStep(app.Name, appStepMap)),
 				TargetRevisions:    app.Status.GetRevisions(),
 			}
 		} else {
@@ -1086,7 +1071,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 			currentAppStatus.LastTransitionTime = &now
 			currentAppStatus.Status = "Waiting"
 			currentAppStatus.Message = "Application has pending changes, setting status to Waiting."
-			currentAppStatus.Step = strconv.Itoa(getAppStep(currentAppStatus.Application, appStepMap))
+			currentAppStatus.Step = fmt.Sprint(getAppStep(currentAppStatus.Application, appStepMap))
 			currentAppStatus.TargetRevisions = app.Status.GetRevisions()
 		}
 
@@ -1104,14 +1089,14 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 					currentAppStatus.LastTransitionTime = &now
 					currentAppStatus.Status = "Progressing"
 					currentAppStatus.Message = "Application resource completed a sync successfully, updating status from Pending to Progressing."
-					currentAppStatus.Step = strconv.Itoa(getAppStep(currentAppStatus.Application, appStepMap))
+					currentAppStatus.Step = fmt.Sprint(getAppStep(currentAppStatus.Application, appStepMap))
 				}
 			} else if operationPhaseString == "Running" || healthStatusString == "Progressing" {
 				logCtx.Infof("Application %v has entered Progressing status, updating its ApplicationSet status to Progressing", app.Name)
 				currentAppStatus.LastTransitionTime = &now
 				currentAppStatus.Status = "Progressing"
 				currentAppStatus.Message = "Application resource became Progressing, updating status from Pending to Progressing."
-				currentAppStatus.Step = strconv.Itoa(getAppStep(currentAppStatus.Application, appStepMap))
+				currentAppStatus.Step = fmt.Sprint(getAppStep(currentAppStatus.Application, appStepMap))
 			}
 		}
 
@@ -1120,7 +1105,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 			currentAppStatus.LastTransitionTime = &now
 			currentAppStatus.Status = healthStatusString
 			currentAppStatus.Message = "Application resource is already Healthy, updating status from Waiting to Healthy."
-			currentAppStatus.Step = strconv.Itoa(getAppStep(currentAppStatus.Application, appStepMap))
+			currentAppStatus.Step = fmt.Sprint(getAppStep(currentAppStatus.Application, appStepMap))
 		}
 
 		if currentAppStatus.Status == "Progressing" && isApplicationHealthy(app) {
@@ -1128,7 +1113,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 			currentAppStatus.LastTransitionTime = &now
 			currentAppStatus.Status = healthStatusString
 			currentAppStatus.Message = "Application resource became Healthy, updating status from Progressing to Healthy."
-			currentAppStatus.Step = strconv.Itoa(getAppStep(currentAppStatus.Application, appStepMap))
+			currentAppStatus.Step = fmt.Sprint(getAppStep(currentAppStatus.Application, appStepMap))
 		}
 
 		appStatuses = append(appStatuses, currentAppStatus)
@@ -1199,7 +1184,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatusProgress
 				appStatus.LastTransitionTime = &now
 				appStatus.Status = "Pending"
 				appStatus.Message = "Application moved to Pending status, watching for the Application resource to start Progressing."
-				appStatus.Step = strconv.Itoa(getAppStep(appStatus.Application, appStepMap))
+				appStatus.Step = fmt.Sprint(getAppStep(appStatus.Application, appStepMap))
 
 				updateCountMap[appStepMap[appStatus.Application]] += 1
 			}
@@ -1505,7 +1490,7 @@ func getOwnsHandlerPredicates(enableProgressiveSyncs bool) predicate.Funcs {
 				return false
 			}
 			requeue := shouldRequeueApplicationSet(appOld, appNew, enableProgressiveSyncs)
-			logCtx.WithField("requeue", requeue).Debugf("requeue: %t caused by application %s", requeue, appNew.Name)
+			logCtx.WithField("requeue", requeue).Debugf("requeue: %t caused by application %s\n", requeue, appNew.Name)
 			return requeue
 		},
 		GenericFunc: func(e event.GenericEvent) bool {

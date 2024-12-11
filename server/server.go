@@ -13,17 +13,13 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path"
 	"path/filepath"
 	"reflect"
 	"regexp"
 	go_runtime "runtime"
-	"runtime/debug"
 	"strings"
 	gosync "sync"
-	"sync/atomic"
-	"syscall"
 	"time"
 
 	// nolint:staticcheck
@@ -191,20 +187,17 @@ type ArgoCDServer struct {
 	db             db.ArgoDB
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
-	stopCh             chan os.Signal
-	userStateStorage   util_session.UserStateStorage
-	indexDataInit      gosync.Once
-	indexData          []byte
-	indexDataErr       error
-	staticAssets       http.FileSystem
-	apiFactory         api.Factory
-	secretInformer     cache.SharedIndexInformer
-	configMapInformer  cache.SharedIndexInformer
-	serviceSet         *ArgoCDServiceSet
-	extensionManager   *extension.Manager
-	shutdown           func()
-	terminateRequested atomic.Bool
-	available          atomic.Bool
+	stopCh            chan struct{}
+	userStateStorage  util_session.UserStateStorage
+	indexDataInit     gosync.Once
+	indexData         []byte
+	indexDataErr      error
+	staticAssets      http.FileSystem
+	apiFactory        api.Factory
+	secretInformer    cache.SharedIndexInformer
+	configMapInformer cache.SharedIndexInformer
+	serviceSet        *ArgoCDServiceSet
+	extensionManager  *extension.Manager
 }
 
 type ArgoCDServerOpts struct {
@@ -336,9 +329,6 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	pg := extension.NewDefaultProjectGetter(projLister, dbInstance)
 	ug := extension.NewDefaultUserGetter(policyEnf)
 	em := extension.NewManager(logger, opts.Namespace, sg, ag, pg, enf, ug)
-	noopShutdown := func() {
-		log.Error("API Server Shutdown function called but server is not started yet.")
-	}
 
 	a := &ArgoCDServer{
 		ArgoCDServerOpts:   opts,
@@ -362,8 +352,6 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		secretInformer:     secretInformer,
 		configMapInformer:  configMapInformer,
 		extensionManager:   em,
-		shutdown:           noopShutdown,
-		stopCh:             make(chan os.Signal, 1),
 	}
 
 	err = a.logInClusterWarnings()
@@ -381,12 +369,6 @@ const (
 )
 
 func (a *ArgoCDServer) healthCheck(r *http.Request) error {
-	if a.terminateRequested.Load() {
-		return errors.New("API Server is terminating and unable to serve requests.")
-	}
-	if !a.available.Load() {
-		return errors.New("API Server is not available. It either hasn't started or is restarting.")
-	}
 	if val, ok := r.URL.Query()["full"]; ok && len(val) > 0 && val[0] == "true" {
 		argoDB := db.NewDB(a.Namespace, a.settingsMgr, a.KubeClientset)
 		_, err := argoDB.ListClusters(r.Context())
@@ -533,19 +515,11 @@ func (a *ArgoCDServer) Init(ctx context.Context) {
 // k8s.io/ go-to-protobuf uses protoc-gen-gogo, which comes from gogo/protobuf (a fork of
 // golang/protobuf).
 func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.WithField("trace", string(debug.Stack())).Error("Recovered from panic: ", r)
-			a.terminateRequested.Store(true)
-			a.shutdown()
-		}
-	}()
-
 	a.userStateStorage.Init(ctx)
 
 	metricsServ := metrics.NewMetricsServer(a.MetricsHost, a.MetricsPort)
 	if a.RedisClient != nil {
-		cacheutil.CollectMetrics(a.RedisClient, metricsServ, a.userStateStorage.GetLockObject())
+		cacheutil.CollectMetrics(a.RedisClient, metricsServ)
 	}
 
 	svcSet := newArgoCDServiceSet(a)
@@ -587,13 +561,7 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 
 		// If not matched, we assume that its TLS.
 		tlsl := tcpm.Match(cmux.Any())
-		tlsConfig := tls.Config{
-			// Advertise that we support both http/1.1 and http2 for application level communication.
-			// By putting http/1.1 first, we ensure that HTTPS clients will use http/1.1, which is the only
-			// protocol our server supports for HTTPS clients. By including h2 in the list, we ensure that
-			// gRPC clients know we support http2 for their communication.
-			NextProtos: []string{"http/1.1", "h2"},
-		}
+		tlsConfig := tls.Config{}
 		tlsConfig.GetCertificate = func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 			return a.settings.Certificate, nil
 		}
@@ -627,118 +595,35 @@ func (a *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}
 
-	shutdownFunc := func() {
-		log.Info("API Server shutdown initiated. Shutting down servers...")
-		a.available.Store(false)
-		shutdownCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
-		defer cancel()
-		var wg gosync.WaitGroup
-
-		// Shutdown http server
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err := httpS.Shutdown(shutdownCtx)
-			if err != nil {
-				log.Errorf("Error shutting down http server: %s", err)
-			}
-		}()
-
-		if a.useTLS() {
-			// Shutdown https server
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				err := httpsS.Shutdown(shutdownCtx)
-				if err != nil {
-					log.Errorf("Error shutting down https server: %s", err)
-				}
-			}()
-		}
-
-		// Shutdown gRPC server
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			grpcS.GracefulStop()
-		}()
-
-		// Shutdown metrics server
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			err := metricsServ.Shutdown(shutdownCtx)
-			if err != nil {
-				log.Errorf("Error shutting down metrics server: %s", err)
-			}
-		}()
-
-		if a.useTLS() {
-			// Shutdown tls server
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				tlsm.Close()
-			}()
-		}
-
-		// Shutdown tcp server
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			tcpm.Close()
-		}()
-
-		c := make(chan struct{})
-		// This goroutine will wait for all servers to conclude the shutdown
-		// process
-		go func() {
-			defer close(c)
-			wg.Wait()
-		}()
-
-		select {
-		case <-c:
-			log.Info("All servers were gracefully shutdown. Exiting...")
-		case <-shutdownCtx.Done():
-			log.Warn("Graceful shutdown timeout. Exiting...")
-		}
-	}
-	a.shutdown = shutdownFunc
-	signal.Notify(a.stopCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-	a.available.Store(true)
-
-	select {
-	case signal := <-a.stopCh:
-		log.Infof("API Server received signal: %s", signal.String())
-		// SIGUSR1 is used for triggering a server restart
-		if signal != syscall.SIGUSR1 {
-			a.terminateRequested.Store(true)
-		}
-		a.shutdown()
-	case <-ctx.Done():
-		log.Infof("API Server: %s", ctx.Err())
-		a.terminateRequested.Store(true)
-		a.shutdown()
-	}
+	a.stopCh = make(chan struct{})
+	<-a.stopCh
 }
 
 func (a *ArgoCDServer) Initialized() bool {
 	return a.projInformer.HasSynced() && a.appInformer.HasSynced()
 }
 
-// TerminateRequested returns whether a shutdown was initiated by a signal or context cancel
-// as opposed to a watch.
-func (a *ArgoCDServer) TerminateRequested() bool {
-	return a.terminateRequested.Load()
-}
-
 // checkServeErr checks the error from a .Serve() call to decide if it was a graceful shutdown
 func (a *ArgoCDServer) checkServeErr(name string, err error) {
-	if err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Errorf("Error received from server %s: %v", name, err)
+	if err != nil {
+		if a.stopCh == nil {
+			// a nil stopCh indicates a graceful shutdown
+			log.Infof("graceful shutdown %s: %v", name, err)
+		} else {
+			log.Fatalf("%s: %v", name, err)
+		}
 	} else {
-		log.Infof("Graceful shutdown of %s initiated", name)
+		log.Infof("graceful shutdown %s", name)
+	}
+}
+
+// Shutdown stops the Argo CD server
+func (a *ArgoCDServer) Shutdown() {
+	log.Info("Shut down requested")
+	stopCh := a.stopCh
+	a.stopCh = nil
+	if stopCh != nil {
+		close(stopCh)
 	}
 }
 
@@ -843,10 +728,9 @@ func (a *ArgoCDServer) watchSettings() {
 		}
 	}
 	log.Info("shutting down settings watch")
+	a.Shutdown()
 	a.settingsMgr.Unsubscribe(updateCh)
 	close(updateCh)
-	// Triggers server restart
-	a.stopCh <- syscall.SIGUSR1
 }
 
 func (a *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
@@ -1403,7 +1287,7 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 		w.Header().Set("X-XSS-Protection", "1")
 
 		// serve index.html for non file requests to support HTML5 History API
-		if acceptHTML && !fileRequest && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
+		if acceptHTML && !fileRequest && (r.Method == "GET" || r.Method == "HEAD") {
 			for k, v := range noCacheHeaders {
 				w.Header().Set(k, v)
 			}

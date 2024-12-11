@@ -2997,13 +2997,6 @@ func schema_pkg_apis_application_v1alpha1_ClusterGenerator(ref common.ReferenceC
 							},
 						},
 					},
-					"flatList": {
-						SchemaProps: spec.SchemaProps{
-							Description: "returns the clusters a single 'clusters' value in the template",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
 				},
 			},
 		},
@@ -3787,17 +3780,9 @@ func schema_pkg_apis_application_v1alpha1_HealthStatus(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
-					"lastTransitionTime": {
-						SchemaProps: spec.SchemaProps{
-							Description: "LastTransitionTime is the time the HealthStatus was set",
-							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
-						},
-					},
 				},
 			},
 		},
-		Dependencies: []string{
-			"k8s.io/apimachinery/pkg/apis/meta/v1.Time"},
 	}
 }
 

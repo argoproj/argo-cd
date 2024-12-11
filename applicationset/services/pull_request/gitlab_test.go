@@ -15,12 +15,14 @@ import (
 )
 
 func writeMRListResponse(t *testing.T, w io.Writer) {
-	t.Helper()
 	f, err := os.Open("fixtures/gitlab_mr_list_response.json")
-	require.NoErrorf(t, err, "error opening fixture file: %v", err)
+	if err != nil {
+		t.Fatalf("error opening fixture file: %v", err)
+	}
 
-	_, err = io.Copy(w, f)
-	require.NoErrorf(t, err, "error writing response: %v", err)
+	if _, err = io.Copy(w, f); err != nil {
+		t.Fatalf("error writing response: %v", err)
+	}
 }
 
 func TestGitLabServiceCustomBaseURL(t *testing.T) {

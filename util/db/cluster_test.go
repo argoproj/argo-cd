@@ -255,7 +255,6 @@ func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
 }
 
 func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster)) {
-	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -420,67 +419,4 @@ func TestListClusters(t *testing.T) {
 		require.NoError(t, err)
 		assert.Len(t, clusters.Items, 1)
 	})
-}
-
-// TestClusterRaceConditionClusterSecrets reproduces a race condition
-// on the cluster secrets. The test isn't asserting anything because
-// before the fix it would cause a panic from concurrent map iteration and map write
-func TestClusterRaceConditionClusterSecrets(t *testing.T) {
-	clusterSecret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "mycluster",
-			Namespace: "default",
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
-		},
-		Data: map[string][]byte{
-			"server": []byte("http://mycluster"),
-			"config": []byte("{}"),
-		},
-	}
-	kubeClient := fake.NewSimpleClientset(
-		&v1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDConfigMapName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
-			},
-			Data: map[string]string{},
-		},
-		&v1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      common.ArgoCDSecretName,
-				Namespace: "default",
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
-			},
-			Data: map[string][]byte{
-				"admin.password":   nil,
-				"server.secretkey": nil,
-			},
-		},
-		clusterSecret,
-	)
-	settingsManager := settings.NewSettingsManager(context.Background(), kubeClient, "default")
-	db := NewDB("default", settingsManager, kubeClient)
-	cluster, _ := SecretToCluster(clusterSecret)
-	go func() {
-		for {
-			// create a copy so we dont act on the same argo cluster
-			clusterCopy := cluster.DeepCopy()
-			_, _ = db.UpdateCluster(context.Background(), clusterCopy)
-		}
-	}()
-	// yes, we will take 15 seconds to run this test
-	// but it reliably triggered the race condition
-	for i := 0; i < 30; i++ {
-		// create a copy so we dont act on the same argo cluster
-		clusterCopy := cluster.DeepCopy()
-		_, _ = db.UpdateCluster(context.Background(), clusterCopy)
-		time.Sleep(time.Millisecond * 500)
-	}
 }

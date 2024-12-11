@@ -131,7 +131,7 @@ type ApplicationController struct {
 	statusRefreshJitter           time.Duration
 	selfHealTimeout               time.Duration
 	selfHealBackOff               *wait.Backoff
-	syncTimeout                   time.Duration
+	repoClientset                 apiclient.Clientset
 	db                            db.ArgoDB
 	settingsMgr                   *settings_util.SettingsManager
 	refreshRequestedApps          map[string]CompareWith
@@ -162,7 +162,6 @@ func NewApplicationController(
 	appResyncJitter time.Duration,
 	selfHealTimeout time.Duration,
 	selfHealBackoff *wait.Backoff,
-	syncTimeout time.Duration,
 	repoErrorGracePeriod time.Duration,
 	metricsPort int,
 	metricsCacheExpiration time.Duration,
@@ -190,6 +189,7 @@ func NewApplicationController(
 		kubeClientset:                     kubeClientset,
 		kubectl:                           kubectl,
 		applicationClientset:              applicationClientset,
+		repoClientset:                     repoClientset,
 		appRefreshQueue:                   workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "app_reconciliation_queue"}),
 		appOperationQueue:                 workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "app_operation_processing_queue"}),
 		projectRefreshQueue:               workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter(rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "project_reconciliation_queue"}),
@@ -204,7 +204,6 @@ func NewApplicationController(
 		settingsMgr:                       settingsMgr,
 		selfHealTimeout:                   selfHealTimeout,
 		selfHealBackOff:                   selfHealBackoff,
-		syncTimeout:                       syncTimeout,
 		clusterSharding:                   clusterSharding,
 		projByNameCache:                   sync.Map{},
 		applicationNamespaces:             applicationNamespaces,
@@ -631,7 +630,6 @@ func (ctrl *ApplicationController) getResourceTree(a *appv1.Application, managed
 			Message: fmt.Sprintf("Application has %d orphaned resources", len(orphanedNodes)),
 		}}
 	}
-	ctrl.metricsServer.SetOrphanedResourcesMetric(a, len(orphanedNodes))
 	a.Status.SetConditions(conditions, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionOrphanedResourceWarning: true})
 	sort.Slice(orphanedNodes, func(i, j int) bool {
 		return orphanedNodes[i].ResourceRef.String() < orphanedNodes[j].ResourceRef.String()
@@ -763,7 +761,7 @@ func (ctrl *ApplicationController) hideSecretData(app *appv1.Application, compar
 		resDiff := res.Diff
 		if res.Kind == kube.SecretKind && res.Group == "" {
 			var err error
-			target, live, err = diff.HideSecretData(res.Target, res.Live, ctrl.settingsMgr.GetSensitiveAnnotations())
+			target, live, err = diff.HideSecretData(res.Target, res.Live)
 			if err != nil {
 				return nil, fmt.Errorf("error hiding secret data: %w", err)
 			}
@@ -1168,15 +1166,9 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 		logCtx.Infof("Resource entries removed from undefined cluster")
 		return nil
 	}
-	clusterRESTConfig, err := cluster.RESTConfig()
-	if err != nil {
-		return err
-	}
-	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, clusterRESTConfig)
+	config := metrics.AddMetricsTransportWrapper(ctrl.metricsServer, app, cluster.RESTConfig())
 
 	if app.CascadedDeletion() {
-		deletionApproved := app.IsDeletionConfirmed(app.DeletionTimestamp.Time)
-
 		logCtx.Infof("Deleting resources")
 		// ApplicationDestination points to a valid cluster, so we may clean up the live objects
 		objs := make([]*unstructured.Unstructured, 0)
@@ -1194,10 +1186,6 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(app *appv1.Applic
 
 			if ctrl.shouldBeDeleted(app, objsMap[k]) {
 				objs = append(objs, objsMap[k])
-				if res, ok := app.Status.FindResource(k); ok && res.RequiresDeletionConfirmation && !deletionApproved {
-					logCtx.Infof("Resource %v requires manual confirmation to delete", k)
-					return nil
-				}
 			}
 		}
 
@@ -1376,21 +1364,12 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				// Get rid of sync results and null out previous operation completion time
 				state.SyncResult = nil
 			}
-		} else if ctrl.syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.syncTimeout)) && !terminating {
-			state.Phase = synccommon.OperationTerminating
-			state.Message = "operation is terminating due to timeout"
-			ctrl.setOperationState(app, state)
-			logCtx.Infof("Terminating in-progress operation due to timeout. Started at: %v, timeout: %v", state.StartedAt, ctrl.syncTimeout)
 		} else {
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
 		}
 	} else {
 		state = &appv1.OperationState{Phase: synccommon.OperationRunning, Operation: *app.Operation, StartedAt: metav1.Now()}
 		ctrl.setOperationState(app, state)
-		if ctrl.syncTimeout != time.Duration(0) {
-			// Schedule a check during which the timeout would be checked.
-			ctrl.appOperationQueue.AddAfter(ctrl.toAppKey(app.QualifiedName()), ctrl.syncTimeout)
-		}
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
@@ -1642,11 +1621,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	project, hasErrors := ctrl.refreshAppConditions(app)
 	ts.AddCheckpoint("refresh_app_conditions_ms")
-	now := metav1.Now()
 	if hasErrors {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = health.HealthStatusUnknown
-		app.Status.Health.LastTransitionTime = &now
 		patchMs = ctrl.persistAppStatus(origApp, &app.Status)
 
 		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), &appv1.ApplicationTree{}); err != nil {
@@ -1690,6 +1667,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		revisions = append(revisions, revision)
 		sources = append(sources, app.Spec.GetSource())
 	}
+	now := metav1.Now()
 
 	compareResult, err := ctrl.appStateManager.CompareAppState(app, project, revisions, sources,
 		refreshType == appv1.RefreshTypeHard,
