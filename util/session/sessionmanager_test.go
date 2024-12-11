@@ -101,7 +101,7 @@ func TestSessionManager_AdminToken(t *testing.T) {
 	mapClaims := *(claims.(*jwt.MapClaims))
 	subject := mapClaims["sub"].(string)
 	if subject != "admin" {
-		t.Errorf("Token claim subject \"%s\" does not match expected subject \"%s\".", subject, "admin")
+		t.Errorf("Token claim subject %q does not match expected subject %q.", subject, "admin")
 	}
 }
 
