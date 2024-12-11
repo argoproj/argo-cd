@@ -933,6 +933,31 @@ func TestServerSideDiff(t *testing.T) {
 		assert.Empty(t, liveSVC.Annotations[AnnotationLastAppliedConfig])
 		assert.Empty(t, predictedSVC.Labels["event"])
 	})
+
+	t.Run("will test removing some field with undoing changes done by webhook", func(t *testing.T) {
+		// given
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.Deployment2LiveYAML)
+		desiredState := StrToUnstructured(testdata.Deployment2ConfigYAML)
+		opts := buildOpts(testdata.Deployment2PredictedLiveJSONSSD)
+
+		// when
+		result, err := serverSideDiff(desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified)
+		predictedDeploy := YamlToDeploy(t, result.PredictedLive)
+		liveDeploy := YamlToDeploy(t, result.NormalizedLive)
+		assert.Len(t, predictedDeploy.Spec.Template.Spec.Containers, 1)
+		assert.Len(t, liveDeploy.Spec.Template.Spec.Containers, 1)
+		assert.Equal(t, "500m", predictedDeploy.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().String())
+		assert.Equal(t, "512Mi", predictedDeploy.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().String())
+		assert.Equal(t, "500m", liveDeploy.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().String())
+		assert.Equal(t, "512Mi", liveDeploy.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().String())
+	})
+
 	t.Run("will include mutation webhook modifications", func(t *testing.T) {
 		// given
 		t.Parallel()

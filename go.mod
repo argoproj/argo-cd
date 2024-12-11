@@ -23,7 +23,7 @@ require (
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340
 	k8s.io/kubectl v0.31.2
 	k8s.io/kubernetes v1.31.0
-	sigs.k8s.io/structured-merge-diff/v4 v4.4.3
+	sigs.k8s.io/structured-merge-diff/v4 v4.4.4-0.20241211184406-7bf59b3d70ee
 	sigs.k8s.io/yaml v1.4.0
 )
 

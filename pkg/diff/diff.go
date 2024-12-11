@@ -258,7 +258,7 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 	}
 
 	if comparison.Modified != nil && !comparison.Modified.Empty() {
-		liveModValues := typedLive.ExtractItems(comparison.Modified)
+		liveModValues := typedLive.ExtractItems(comparison.Modified, typed.WithAppendKeyFields())
 		// revert modified fields not owned by any manager
 		typedPredictedLive, err = typedPredictedLive.Merge(liveModValues)
 		if err != nil {
@@ -267,7 +267,7 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 	}
 
 	if comparison.Removed != nil && !comparison.Removed.Empty() {
-		liveRmValues := typedLive.ExtractItems(comparison.Removed)
+		liveRmValues := typedLive.ExtractItems(comparison.Removed, typed.WithAppendKeyFields())
 		// revert removed fields not owned by any manager
 		typedPredictedLive, err = typedPredictedLive.Merge(liveRmValues)
 		if err != nil {
