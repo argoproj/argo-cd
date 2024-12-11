@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 
+	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/utils"
 	"github.com/argoproj/argo-cd/v2/common"
 	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
@@ -99,7 +100,7 @@ func TestSessionManager_AdminToken(t *testing.T) {
 	assert.Empty(t, newToken)
 
 	mapClaims := *(claims.(*jwt.MapClaims))
-	subject := mapClaims["sub"].(string)
+	subject := utils.GetUserIdentifier(mapClaims)
 	if subject != "admin" {
 		t.Errorf("Token claim subject %q does not match expected subject %q.", subject, "admin")
 	}
@@ -126,7 +127,7 @@ func TestSessionManager_AdminToken_ExpiringSoon(t *testing.T) {
 	claims, _, err := mgr.Parse(newToken)
 	require.NoError(t, err)
 	mapClaims := *(claims.(*jwt.MapClaims))
-	subject := mapClaims["sub"].(string)
+	subject := utils.GetUserIdentifier(mapClaims)
 	assert.Equal(t, "admin", subject)
 }
 
@@ -234,10 +235,17 @@ type tokenVerifierMock struct {
 }
 
 func (tm *tokenVerifierMock) VerifyToken(token string) (jwt.Claims, string, error) {
-	if tm.claims == nil {
+	if tm.err != nil {
 		return nil, "", tm.err
 	}
-	return tm.claims, "", tm.err
+	mapClaims := jwt.MapClaims{
+		"sub": "test-user",
+		"exp": time.Now().Add(time.Hour).Unix(),
+	}
+	if tm.claims == nil {
+		return jwt.MapClaims{}, "", nil
+	}
+	return mapClaims, "", nil
 }
 
 func strPointer(str string) *string {
@@ -346,29 +354,36 @@ func TestSessionManager_WithAuthMiddleware(t *testing.T) {
 	}
 }
 
-var loggedOutContext = context.Background()
-
-// nolint:staticcheck
-var loggedInContext = context.WithValue(context.Background(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
+var (
+	loggedOutContext = context.Background()
+	// nolint:staticcheck
+	loggedInContext = context.WithValue(context.Background(), claimsKey, &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}, "federated_claims": map[string]interface{}{"user_id": "foo"}})
+	// for testing without federated claims
+	loggedInContextNoFederated = context.WithValue(context.Background(), claimsKey, &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
+)
 
 func TestIss(t *testing.T) {
 	assert.Empty(t, Iss(loggedOutContext))
 	assert.Equal(t, "qux", Iss(loggedInContext))
+	assert.Equal(t, "foo", Sub(loggedInContextNoFederated)) // Without federated claims, falls back to sub
 }
 
 func TestLoggedIn(t *testing.T) {
 	assert.False(t, LoggedIn(loggedOutContext))
 	assert.True(t, LoggedIn(loggedInContext))
+	assert.Equal(t, "foo", Username(loggedInContextNoFederated))
 }
 
 func TestUsername(t *testing.T) {
 	assert.Empty(t, Username(loggedOutContext))
-	assert.Equal(t, "bar", Username(loggedInContext))
+	assert.Equal(t, "foo", Username(loggedInContext))
+	assert.Equal(t, "foo", Username(loggedInContextNoFederated))
 }
 
 func TestSub(t *testing.T) {
 	assert.Empty(t, Sub(loggedOutContext))
 	assert.Equal(t, "foo", Sub(loggedInContext))
+	assert.Equal(t, "foo", Username(loggedInContextNoFederated))
 }
 
 func TestGroups(t *testing.T) {
