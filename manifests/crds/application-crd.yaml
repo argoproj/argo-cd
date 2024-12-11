@@ -1894,6 +1894,11 @@ spec:
                     description: Message is a human-readable informational message
                       describing the health status
                     type: string
+                  observedAt:
+                    description: ObservedAt is a timestamp that is periodically updated
+                      to reflect the freshness of the observed state.
+                    format: date-time
+                    type: string
                   status:
                     description: Status holds the status code of the application or
                       resource
@@ -4587,6 +4592,11 @@ spec:
                         message:
                           description: Message is a human-readable informational message
                             describing the health status
+                          type: string
+                        observedAt:
+                          description: ObservedAt is a timestamp that is periodically
+                            updated to reflect the freshness of the observed state.
+                          format: date-time
                           type: string
                         status:
                           description: Status holds the status code of the application

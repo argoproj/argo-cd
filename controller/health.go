@@ -83,11 +83,13 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 	if persistResourceHealth {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationInline
 		// if the status didn't change, don't update the timestamp
-		if app.Status.Health.Status == appHealth.Status && app.Status.Health.LastTransitionTime != nil {
+		if app.Status.Health.Status == appHealth.Status && app.Status.Health.LastTransitionTime != nil && app.Status.Health.ObservedAt != nil {
 			appHealth.LastTransitionTime = app.Status.Health.LastTransitionTime
+			appHealth.ObservedAt = app.Status.Health.ObservedAt
 		} else {
 			now := metav1.Now()
 			appHealth.LastTransitionTime = &now
+			appHealth.ObservedAt = &now
 		}
 	} else {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationAppTree

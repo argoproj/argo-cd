@@ -16555,6 +16555,9 @@ spec:
                           type: string
                         message:
                           type: string
+                        observedAt:
+                          format: date-time
+                          type: string
                         status:
                           type: string
                       type: object
