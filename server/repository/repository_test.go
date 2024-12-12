@@ -377,7 +377,7 @@ func TestRepositoryServer(t *testing.T) {
 
 		url := "https://test"
 		db := &dbmocks.ArgoDB{}
-		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{{Repo: url, Username: "test", Password: "it's a secret"}}, nil)
+		db.On("ListRepositories", context.TODO()).Return([]*appsv1.Repository{{Repo: url, Username: "test", Password: "it's a secret", GitHubAppEnterpriseBaseURL: "https://ghe.example.com/api/v3", GithubAppId: 123456, GithubAppInstallationId: 789}}, nil)
 		db.On("GetRepository", context.TODO(), url, "").Return(&appsv1.Repository{Repo: url, Username: "test", Password: "it's a secret"}, nil)
 		db.On("RepositoryExists", context.TODO(), url, "").Return(true, nil)
 
@@ -387,6 +387,9 @@ func TestRepositoryServer(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "https://test", repo.Repo)
+		assert.Equal(t, "https://ghe.example.com/api/v3", repo.GitHubAppEnterpriseBaseURL)
+		assert.Equal(t, int64(123456), repo.GithubAppId)
+		assert.Equal(t, int64(789), repo.GithubAppInstallationId)
 		assert.Empty(t, repo.Password)
 	})
 
