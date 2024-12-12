@@ -62,3 +62,18 @@ func Test_ssoAuthFlow_ssoLaunchBrowser_false(t *testing.T) {
 
 	assert.Contains(t, out, "To authenticate, copy-and-paste the following URL into your preferred browser: http://test-sso-browser-flow.com")
 }
+
+func Test_userDisplayName_federatedClaims(t *testing.T) {
+	claims := jwt.MapClaims{
+		"iss":    "qux",
+		"sub":    "foo",
+		"groups": []string{"baz"},
+		"federated_claims": map[string]interface{}{
+			"connector_id": "dex",
+			"user_id":      "ldap-123",
+		},
+	}
+	actualName := userDisplayName(claims)
+	expectedName := "ldap-123"
+	assert.Equal(t, expectedName, actualName)
+}

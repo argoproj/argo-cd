@@ -256,8 +256,12 @@ func (e *Enforcer) EnforceErr(rvals ...interface{}) error {
 				if err != nil {
 					break
 				}
-				if sub := utils.GetUserIdentifier(claims); sub != "" {
-					rvalsStrs = append(rvalsStrs, fmt.Sprintf("sub: %s", sub))
+				if argoClaims := (&utils.ArgoClaims{
+					RegisteredClaims: jwt.RegisteredClaims{
+						Subject: jwtutil.StringField(claims, "sub"),
+					},
+				}); utils.GetUserIdentifier(argoClaims) != "" {
+					rvalsStrs = append(rvalsStrs, fmt.Sprintf("sub: %s", utils.GetUserIdentifier(argoClaims)))
 				}
 				if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
 					rvalsStrs = append(rvalsStrs, fmt.Sprintf("iat: %s", issuedAtTime.Format(time.RFC3339)))
