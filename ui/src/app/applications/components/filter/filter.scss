@@ -107,6 +107,14 @@ $slate: #191826;
         color: $argo-color-gray-6;
     }
 
+    .filters-group__title {
+        border-bottom: 1px solid;
+        width: 100%;
+        text-align: center;
+        padding: 0 5px;
+        margin: 0.15em 0;
+    }
+
     .fa-filter {
         float: left;
         margin-right: 1em;
