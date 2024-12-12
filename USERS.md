@@ -350,6 +350,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Ticketmaster](https://ticketmaster.com)
 1. [Tiger Analytics](https://www.tigeranalytics.com/)
 1. [Tigera](https://www.tigera.io/)
+1. [Tikal Knowledge](https://www.tikalk.com/)
 1. [Toss](https://toss.im/en)
 1. [Trendyol](https://www.trendyol.com/)
 1. [tru.ID](https://tru.id)
@@ -394,3 +395,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Zimpler](https://www.zimpler.com/)
 1. [ZipRecuiter](https://www.ziprecruiter.com/)
 1. [ZOZO](https://corp.zozo.com/)
+1. [Zoominfo](https://www.zoominfo.com/)
