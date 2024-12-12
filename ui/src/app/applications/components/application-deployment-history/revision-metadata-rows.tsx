@@ -3,7 +3,7 @@ import * as React from 'react';
 import {Timestamp} from '../../../shared/components';
 import {ApplicationSource, RevisionMetadata, ChartDetails, OCIMetadata} from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {isValidURL} from "../../../shared/utils";
+import {isValidURL} from '../../../shared/utils';
 
 export const RevisionMetadataRows = (props: {applicationName: string; applicationNamespace: string; source: ApplicationSource; index: number; versionId: number | null}) => {
     if (props?.source?.repoURL?.startsWith('oci://')) {
