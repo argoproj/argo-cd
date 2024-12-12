@@ -552,7 +552,13 @@ func createClaimsAuthenticationRequestParameter(requestedClaims map[string]*oidc
 
 // GetUserInfo queries the IDP userinfo endpoint for claims
 func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoPath string) (jwt.MapClaims, bool, error) {
-	sub := utils.GetUserIdentifier(actualClaims)
+	argoClaims := &utils.ArgoClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: jwtutil.StringField(actualClaims, "sub"),
+		},
+		FederatedClaims: utils.GetFederatedClaims(actualClaims),
+	}
+	sub := utils.GetUserIdentifier(argoClaims)
 	var claims jwt.MapClaims
 	var encClaims []byte
 
@@ -688,12 +694,24 @@ func getTokenExpiration(claims jwt.MapClaims) time.Duration {
 
 // formatUserInfoResponseCacheKey returns the key which is used to store userinfo of user in cache
 func formatUserInfoResponseCacheKey(claims jwt.MapClaims) string {
-	userID := utils.GetUserIdentifier(claims)
+	argoClaims := &utils.ArgoClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: jwtutil.StringField(claims, "sub"),
+		},
+		FederatedClaims: utils.GetFederatedClaims(claims),
+	}
+	userID := utils.GetUserIdentifier(argoClaims)
 	return fmt.Sprintf("%s_%s", UserInfoResponseCachePrefix, userID)
 }
 
 // formatAccessTokenCacheKey returns the key which is used to store the accessToken of a user in cache
 func formatAccessTokenCacheKey(claims jwt.MapClaims) string {
-	userID := utils.GetUserIdentifier(claims)
+	argoClaims := &utils.ArgoClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: jwtutil.StringField(claims, "sub"),
+		},
+		FederatedClaims: utils.GetFederatedClaims(claims),
+	}
+	userID := utils.GetUserIdentifier(argoClaims)
 	return fmt.Sprintf("%s_%s", AccessTokenCachePrefix, userID)
 }

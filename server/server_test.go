@@ -1643,3 +1643,115 @@ func Test_enforceContentTypes(t *testing.T) {
 		assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode, "should not have passed, since a disallowed content type was provided")
 	})
 }
+
+func TestGetClaimsWithFederatedIdentity(t *testing.T) {
+	defaultExpiry := jwt.NewNumericDate(time.Now().Add(time.Hour * 24))
+
+	tests := []struct {
+		name                  string
+		claims                jwt.MapClaims
+		expectedIdentifier    string
+		expectedErrorContains string
+	}{
+		{
+			name: "federated claims present - should use federated user_id",
+			claims: jwt.MapClaims{
+				"aud": "argo-cd",
+				"exp": defaultExpiry,
+				"sub": "different-id",
+				"federated_claims": map[string]interface{}{
+					"connector_id": "github",
+					"user_id":      "federated-user-12345",
+				},
+			},
+			expectedIdentifier:    "federated-user-12345",
+			expectedErrorContains: "",
+		},
+		{
+			name: "no federated claims - should fallback to sub",
+			claims: jwt.MapClaims{
+				"aud": "argo-cd",
+				"exp": defaultExpiry,
+				"sub": "fallback-sub-id",
+			},
+			expectedIdentifier:    "fallback-sub-id",
+			expectedErrorContains: "",
+		},
+		{
+			name: "empty federated claims - should fallback to sub",
+			claims: jwt.MapClaims{
+				"aud":              "argo-cd",
+				"exp":              defaultExpiry,
+				"sub":              "fallback-sub-id",
+				"federated_claims": map[string]interface{}{},
+			},
+			expectedIdentifier:    "fallback-sub-id",
+			expectedErrorContains: "",
+		},
+		{
+			name: "federated claims without user_id - should fallback to sub",
+			claims: jwt.MapClaims{
+				"aud": "argo-cd",
+				"exp": defaultExpiry,
+				"sub": "fallback-sub-id",
+				"federated_claims": map[string]interface{}{
+					"connector_id": "github",
+				},
+			},
+			expectedIdentifier:    "fallback-sub-id",
+			expectedErrorContains: "",
+		},
+		{
+			name: "no sub and no federated claims",
+			claims: jwt.MapClaims{
+				"aud": "argo-cd",
+				"exp": defaultExpiry,
+			},
+			expectedIdentifier:    "",
+			expectedErrorContains: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create test server
+			argocd, oidcURL := getTestServer(t, false, true, false, settings_util.OIDCConfig{})
+
+			// Add issuer to claims
+			tt.claims["iss"] = oidcURL
+
+			// Create token and context
+			token := jwt.NewWithClaims(jwt.SigningMethodRS512, tt.claims)
+			key, err := jwt.ParseRSAPrivateKeyFromPEM(testutil.PrivateKey)
+			require.NoError(t, err)
+			tokenString, err := token.SignedString(key)
+			require.NoError(t, err)
+			ctx := metadata.NewIncomingContext(context.Background(),
+				metadata.Pairs(apiclient.MetaDataTokenKey, tokenString))
+
+			// Test claims retrieval
+			gotClaims, _, err := argocd.getClaims(ctx)
+
+			if tt.expectedErrorContains != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedErrorContains)
+				return
+			}
+			require.NoError(t, err)
+			mapClaims, ok := gotClaims.(jwt.MapClaims)
+			require.True(t, ok)
+
+			var actualIdentifier string
+			if fedClaims, ok := mapClaims["federated_claims"].(map[string]interface{}); ok {
+				if userID, exists := fedClaims["user_id"]; exists && userID != "" {
+					actualIdentifier = userID.(string)
+				}
+			}
+			if actualIdentifier == "" && mapClaims["sub"] != nil {
+				actualIdentifier = mapClaims["sub"].(string)
+			}
+
+			assert.Equal(t, tt.expectedIdentifier, actualIdentifier)
+		})
+	}
+}

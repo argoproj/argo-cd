@@ -31,6 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/test"
 	"github.com/argoproj/argo-cd/v2/util/errors"
+	jwtutil "github.com/argoproj/argo-cd/v2/util/jwt"
 	"github.com/argoproj/argo-cd/v2/util/password"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	utiltest "github.com/argoproj/argo-cd/v2/util/test"
@@ -99,10 +100,78 @@ func TestSessionManager_AdminToken(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, newToken)
 
-	mapClaims := *(claims.(*jwt.MapClaims))
-	subject := utils.GetUserIdentifier(mapClaims)
+	// Convert claims to ArgoClaims
+	mapClaims, err := jwtutil.MapClaims(claims)
+	require.NoError(t, err)
+
+	argoClaims := &utils.ArgoClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: jwtutil.StringField(mapClaims, "sub"),
+		},
+		FederatedClaims: utils.GetFederatedClaims(mapClaims),
+	}
+	subject := utils.GetUserIdentifier(argoClaims)
 	if subject != "admin" {
 		t.Errorf("Token claim subject %q does not match expected subject %q.", subject, "admin")
+	}
+}
+
+// This test verifies both cases:
+// When no federated claims exist, it falls back to the subject
+// When federated claims exist with a user_id, it uses that instead
+func TestSessionManager_TokenIdentifier(t *testing.T) {
+	redisClient, closer := test.NewInMemoryRedis()
+	defer closer()
+	settingsMgr := settings.NewSettingsManager(context.Background(), getKubeClient("pass", true), "argocd")
+	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(redisClient))
+
+	tests := []struct {
+		name     string
+		subject  string
+		fedID    string
+		expected string
+	}{
+		{
+			name:     "Falls back to subject when no federated claims",
+			subject:  "admin:login",
+			fedID:    "",
+			expected: "admin",
+		},
+		{
+			name:     "Uses federated user_id when present",
+			subject:  "admin:login",
+			fedID:    "fed-admin",
+			expected: "fed-admin",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			token, err := mgr.Create(tt.subject, 0, "123")
+			require.NoError(t, err)
+
+			claims, _, err := mgr.Parse(token)
+			require.NoError(t, err)
+
+			mapClaims, err := jwtutil.MapClaims(claims)
+			require.NoError(t, err)
+
+			if tt.fedID != "" {
+				mapClaims["federated_claims"] = map[string]interface{}{
+					"user_id": tt.fedID,
+				}
+			}
+
+			argoClaims := &utils.ArgoClaims{
+				RegisteredClaims: jwt.RegisteredClaims{
+					Subject: jwtutil.StringField(mapClaims, "sub"),
+				},
+				FederatedClaims: utils.GetFederatedClaims(mapClaims),
+			}
+
+			subject := utils.GetUserIdentifier(argoClaims)
+			assert.Equal(t, tt.expected, subject)
+		})
 	}
 }
 
@@ -126,8 +195,17 @@ func TestSessionManager_AdminToken_ExpiringSoon(t *testing.T) {
 	// verify that new token is valid and for the same user
 	claims, _, err := mgr.Parse(newToken)
 	require.NoError(t, err)
-	mapClaims := *(claims.(*jwt.MapClaims))
-	subject := utils.GetUserIdentifier(mapClaims)
+
+	mapClaims, err := jwtutil.MapClaims(claims)
+	require.NoError(t, err)
+
+	argoClaims := &utils.ArgoClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: jwtutil.StringField(mapClaims, "sub"),
+		},
+		FederatedClaims: utils.GetFederatedClaims(mapClaims),
+	}
+	subject := utils.GetUserIdentifier(argoClaims)
 	assert.Equal(t, "admin", subject)
 }
 
@@ -357,7 +435,7 @@ var (
 func TestIss(t *testing.T) {
 	assert.Empty(t, Iss(loggedOutContext))
 	assert.Equal(t, "qux", Iss(loggedInContext))
-	assert.Equal(t, "foo", Sub(loggedInContextNoFederated)) // Without federated claims, falls back to sub
+	assert.Equal(t, "foo", GetUserIdentifier(loggedInContextNoFederated)) // Without federated claims, falls back to sub
 }
 
 func TestLoggedIn(t *testing.T) {
@@ -373,8 +451,8 @@ func TestUsername(t *testing.T) {
 }
 
 func TestSub(t *testing.T) {
-	assert.Empty(t, Sub(loggedOutContext))
-	assert.Equal(t, "foo", Sub(loggedInContext))
+	assert.Empty(t, GetUserIdentifier(loggedOutContext))
+	assert.Equal(t, "foo", GetUserIdentifier(loggedInContext))
 	assert.Equal(t, "foo", Username(loggedInContextNoFederated))
 }
 

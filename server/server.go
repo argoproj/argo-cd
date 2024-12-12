@@ -1533,6 +1533,15 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 			groupClaims = *tmpClaims
 		}
 	}
+
+	// Convert to ArgoClaims for user identifier comparison
+	argoClaims := &utils.ArgoClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: jwtutil.StringField(groupClaims, "sub"),
+		},
+		FederatedClaims: utils.GetFederatedClaims(groupClaims),
+	}
+
 	iss := jwtutil.StringField(groupClaims, "iss")
 	if iss != util_session.SessionManagerClaimsIssuer && server.settings.UserInfoGroupsEnabled() && server.settings.UserInfoPath() != "" {
 		userInfo, unauthorized, err := server.ssoClientApp.GetUserInfo(groupClaims, server.settings.IssuerURL(), server.settings.UserInfoPath())
@@ -1544,7 +1553,13 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 			log.Errorf("error fetching user info endpoint: %v", err)
 			return claims, "", status.Errorf(codes.Internal, "invalid userinfo response")
 		}
-		if utils.GetUserIdentifier(groupClaims) != utils.GetUserIdentifier(userInfo) {
+		userInfoClaims := &utils.ArgoClaims{
+			RegisteredClaims: jwt.RegisteredClaims{
+				Subject: jwtutil.StringField(userInfo, "sub"),
+			},
+			FederatedClaims: utils.GetFederatedClaims(userInfo),
+		}
+		if utils.GetUserIdentifier(argoClaims) != utils.GetUserIdentifier(userInfoClaims) {
 			return claims, "", status.Error(codes.Unknown, "subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
 		}
 		groupClaims["groups"] = userInfo["groups"]

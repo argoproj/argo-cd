@@ -198,9 +198,21 @@ func userDisplayName(claims jwt.MapClaims) string {
 	if name := jwtutil.StringField(claims, "name"); name != "" {
 		return name
 	}
-	return utils.GetUserIdentifier(claims)
+	argoClaims := &utils.ArgoClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: claims["sub"].(string),
+		},
+	}
+	if fedClaims, ok := claims["federated_claims"].(map[string]interface{}); ok {
+		argoClaims.FederatedClaims = &utils.FederatedClaims{
+			ConnectorID: fedClaims["connector_id"].(string),
+			UserID:      fedClaims["user_id"].(string),
+		}
+	}
+	return utils.GetUserIdentifier(argoClaims)
 }
 
+// oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and
 // oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and
 // returns the JWT token and a refresh token (if supported)
 func oauth2Login(

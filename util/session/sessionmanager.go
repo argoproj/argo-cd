@@ -157,22 +157,22 @@ func NewSessionManager(settingsMgr *settings.SettingsManager, projectsLister v1a
 // Passing a value of `0` for secondsBeforeExpiry creates a token that never expires.
 // The id parameter holds an optional unique JWT token identifier and stored as a standard claim "jti" in the JWT token.
 func (mgr *SessionManager) Create(subject string, secondsBeforeExpiry int64, id string) (string, error) {
-	// Create a new token object, specifying signing method and the claims
-	// you would like it to contain.
 	now := time.Now().UTC()
-	claims := jwt.MapClaims{
-		"iat": now.Unix(),
-		"iss": SessionManagerClaimsIssuer,
-		"nbf": now.Unix(),
-		"sub": subject,
-		"jti": id,
-		"federated_claims": map[string]interface{}{
-			"user_id": "", // Empty for local auth
+	claims := &utils.ArgoClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt:  jwt.NewNumericDate(now),
+			Issuer:    SessionManagerClaimsIssuer,
+			NotBefore: jwt.NewNumericDate(now),
+			Subject:   subject,
+			ID:        id,
+		},
+		FederatedClaims: &utils.FederatedClaims{
+			UserID: "", // Empty for local auth
 		},
 	}
 	if secondsBeforeExpiry > 0 {
 		expires := now.Add(time.Duration(secondsBeforeExpiry) * time.Second)
-		claims["exp"] = expires.Unix()
+		claims.ExpiresAt = jwt.NewNumericDate(expires)
 	}
 
 	return mgr.signClaims(claims)
@@ -230,7 +230,19 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 		return nil, "", err
 	}
 
-	subject := utils.GetUserIdentifier(claims)
+	// Convert MapClaims to ArgoClaims
+	argoClaims := &utils.ArgoClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: jwtutil.StringField(claims, "sub"),
+		},
+	}
+	if fedClaims, ok := claims["federated_claims"].(map[string]interface{}); ok {
+		argoClaims.FederatedClaims = &utils.FederatedClaims{
+			UserID: jwtutil.StringField(fedClaims, "user_id"),
+		}
+	}
+
+	subject := utils.GetUserIdentifier(argoClaims)
 	id := jwtutil.StringField(claims, "jti")
 
 	if projName, role, ok := rbacpolicy.GetProjectRoleFromSubject(subject); ok {
@@ -507,16 +519,23 @@ func WithAuthMiddleware(disabled bool, authn TokenVerifier, next http.Handler) h
 			}
 			ctx := r.Context()
 
-			// Assert that claims is of type jwt.MapClaims
-			mapClaims, ok := claims.(jwt.MapClaims)
-			if !ok {
-				http.Error(w, "Invalid claims type", http.StatusUnauthorized)
+			// Convert claims to MapClaims
+			mapClaims, err := jwtutil.MapClaims(claims)
+			if err != nil {
+				http.Error(w, "Invalid claims format", http.StatusUnauthorized)
 				return
+			}
+
+			argoClaims := &utils.ArgoClaims{
+				RegisteredClaims: jwt.RegisteredClaims{
+					Subject: jwtutil.StringField(mapClaims, "sub"),
+				},
+				FederatedClaims: utils.GetFederatedClaims(mapClaims),
 			}
 
 			// Add claims to the context to inspect for RBAC
 			// nolint:staticcheck
-			ctx = context.WithValue(ctx, "user_id", utils.GetUserIdentifier(mapClaims))
+			ctx = context.WithValue(ctx, "user_id", utils.GetUserIdentifier(argoClaims))
 			r = r.WithContext(ctx)
 		}
 		next.ServeHTTP(w, r)
@@ -598,7 +617,7 @@ func (mgr *SessionManager) RevokeToken(ctx context.Context, id string, expiringA
 }
 
 func LoggedIn(ctx context.Context) bool {
-	return Sub(ctx) != "" && ctx.Value(AuthErrorCtxKey) == nil
+	return GetUserIdentifier(ctx) != "" && ctx.Value(AuthErrorCtxKey) == nil
 }
 
 // Username is a helper to extract a human readable username from a context
@@ -631,12 +650,19 @@ func Iat(ctx context.Context) (time.Time, error) {
 	return jwtutil.IssuedAtTime(mapClaims)
 }
 
-func Sub(ctx context.Context) string {
+// GetUserIdentifier returns the user identifier from context, prioritizing federated claims over subject
+func GetUserIdentifier(ctx context.Context) string {
 	mapClaims, ok := mapClaims(ctx)
 	if !ok {
 		return ""
 	}
-	return utils.GetUserIdentifier(mapClaims)
+	argoClaims := &utils.ArgoClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: jwtutil.StringField(mapClaims, "sub"),
+		},
+		FederatedClaims: utils.GetFederatedClaims(mapClaims),
+	}
+	return utils.GetUserIdentifier(argoClaims)
 }
 
 func Groups(ctx context.Context, scopes []string) []string {

@@ -116,8 +116,14 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool
 	if err != nil {
 		return false
 	}
+	argoClaims := &utils.ArgoClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject: jwtutil.StringField(mapClaims, "sub"),
+		},
+		FederatedClaims: utils.GetFederatedClaims(mapClaims),
+	}
 
-	subject := utils.GetUserIdentifier(mapClaims)
+	subject := utils.GetUserIdentifier(argoClaims)
 	// Check if the request is for an application resource. We have special enforcement which takes
 	// into consideration the project's token and group bindings
 	var runtimePolicy string

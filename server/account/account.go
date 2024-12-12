@@ -38,7 +38,7 @@ func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.Setting
 // UpdatePassword updates the password of the currently authenticated account or the account specified in the request.
 func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRequest) (*account.UpdatePasswordResponse, error) {
 	issuer := session.Iss(ctx)
-	username := session.Sub(ctx)
+	username := session.GetUserIdentifier(ctx)
 	updatedUsername := username
 
 	if q.Name != "" {
@@ -169,7 +169,7 @@ func toApiAccount(name string, a settings.Account) *account.Account {
 
 func (s *Server) ensureHasAccountPermission(ctx context.Context, action string, account string) error {
 	// account has always has access to itself
-	if session.Sub(ctx) == account && session.Iss(ctx) == session.SessionManagerClaimsIssuer {
+	if session.GetUserIdentifier(ctx) == account && session.Iss(ctx) == session.SessionManagerClaimsIssuer {
 		return nil
 	}
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbacpolicy.ResourceAccounts, action, account); err != nil {
