@@ -4667,6 +4667,12 @@
             "description": "Whether to force HTTP basic auth.",
             "name": "forceHttpBasicAuth",
             "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "Whether https should be disabled for an OCI repo.",
+            "name": "insecureOciForceHttp",
+            "in": "query"
           }
         ],
         "responses": {
