@@ -256,13 +256,12 @@ func (e *Enforcer) EnforceErr(rvals ...any) error {
 				if err != nil {
 					break
 				}
-<<<<<<< HEAD
-				if sub := jwtutil.StringField(claims, "sub"); sub != "" {
-					rvalsStrs = append(rvalsStrs, "sub: "+sub)
-=======
-				if sub := utils.GetUserIdentifier(claims); sub != "" {
-					rvalsStrs = append(rvalsStrs, fmt.Sprintf("sub: %s", sub))
->>>>>>> 839685ef1 (override sub with federated_claims.user_id when dex is used)
+				if argoClaims := (&utils.ArgoClaims{
+					RegisteredClaims: jwt.RegisteredClaims{
+						Subject: jwtutil.StringField(claims, "sub"),
+					},
+				}); utils.GetUserIdentifier(argoClaims) != "" {
+					rvalsStrs = append(rvalsStrs, fmt.Sprintf("sub: %s", utils.GetUserIdentifier(argoClaims)))
 				}
 				if issuedAtTime, err := jwtutil.IssuedAtTime(claims); err == nil {
 					rvalsStrs = append(rvalsStrs, "iat: "+issuedAtTime.Format(time.RFC3339))
