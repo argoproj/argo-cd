@@ -114,7 +114,7 @@ var (
 	clusterCacheBatchEventsProcessing bool = true
 
 	// clusterCacheEventProcessingInterval specifies the interval between processing events when BatchEventsProcessing is enabled
-	clusterCacheEventProcessingInterval = 1 * time.Second
+	clusterCacheEventProcessingInterval = 10 * time.Millisecond
 )
 
 func init() {
