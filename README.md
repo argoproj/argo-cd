@@ -31,10 +31,10 @@ The GitOps Engine follows the [CNCF Code of Conduct](https://github.com/cncf/fou
 
 If you are as excited about GitOps and one common engine for it as much as we are, please get in touch. If you want to write code that's great, if you want to share feedback, ideas and use-cases, that's great too.
 
-Find us on the [#gitops channel][gitops-slack] on Kubernetes Slack (get an [invite here][kube-slack]).
+Find us on the [#argo-cd-contributors][argo-cd-contributors-slack] on CNCF Slack (get an [invite here][cncf-slack]).
 
-[gitops-slack]: https://kubernetes.slack.com/archives/CBT6N1ASG
-[kube-slack]: https://slack.k8s.io/
+[argo-cd-contributors-slack]: https://cloud-native.slack.com/archives/C020XM04CUW
+[cncf-slack]: https://slack.cncf.io/
 
 ### Contributing to the effort
 
