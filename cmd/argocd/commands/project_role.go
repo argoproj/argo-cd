@@ -279,6 +279,22 @@ func tokenTimeToString(t int64) string {
 	return tokenTimeToString
 }
 
+func mapClaimsToArgoClaims(claims jwtgo.MapClaims) *utils.ArgoClaims {
+	sub := jwt.StringField(claims, "sub")
+	argoClaims := &utils.ArgoClaims{
+		RegisteredClaims: jwtgo.RegisteredClaims{
+			Subject: sub,
+		},
+	}
+	if fedClaims, ok := claims["federated_claims"].(map[string]interface{}); ok {
+		argoClaims.FederatedClaims = &utils.FederatedClaims{
+			ConnectorID: fmt.Sprint(fedClaims["connector_id"]),
+			UserID:      fmt.Sprint(fedClaims["user_id"]),
+		}
+	}
+	return argoClaims
+}
+
 // NewProjectRoleCreateTokenCommand returns a new instance of an `argocd proj role create-token` command
 func NewProjectRoleCreateTokenCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -332,7 +348,7 @@ Create token succeeded for proj:test-project:test-role.
 			issuedAt, _ := jwt.IssuedAt(claims)
 			expiresAt := int64(jwt.Float64Field(claims, "exp"))
 			id := jwt.StringField(claims, "jti")
-			subject := utils.GetUserIdentifier(claims)
+			subject := utils.GetUserIdentifier(mapClaimsToArgoClaims(claims))
 
 			if !outputTokenOnly {
 				fmt.Printf("Create token succeeded for %s.\n", subject)
