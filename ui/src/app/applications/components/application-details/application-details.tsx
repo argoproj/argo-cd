@@ -32,7 +32,7 @@ import {useSidebarTarget} from '../../../sidebar/sidebar';
 import './application-details.scss';
 import {TopBarActionMenuExt, AppViewExtension, StatusPanelExtension} from '../../../shared/services/extensions-service';
 import {ApplicationHydrateOperationState} from '../application-hydrate-operation-state/application-hydrate-operation-state';
-import {isValidURL} from "../../../shared/utils";
+import {isValidURL} from '../../../shared/utils';
 
 interface ApplicationDetailsState {
     page: number;
