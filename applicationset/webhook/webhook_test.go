@@ -243,11 +243,11 @@ func TestWebhookHandler(t *testing.T) {
 			for i := range list.Items {
 				gotAppSet := &list.Items[i]
 				if _, isEffected := effectedAppSetsAsExpected[gotAppSet.Name]; isEffected {
-					expected, got := test.expectedRefresh, gotAppSet.RefreshRequired()
+					expected, got := test.expectedRefresh, refreshRequired(gotAppSet)
 					require.Equalf(t, expected, got, "unexpected RefreshRequired() for appset '%s' expect: %v got: %v", gotAppSet.Name, expected, got)
 					effectedAppSetsAsExpected[gotAppSet.Name] = true
 				} else {
-					assert.False(t, gotAppSet.RefreshRequired())
+					assert.False(t, refreshRequired(gotAppSet))
 				}
 			}
 			for appSetName, checked := range effectedAppSetsAsExpected {
@@ -255,6 +255,12 @@ func TestWebhookHandler(t *testing.T) {
 			}
 		})
 	}
+}
+
+// RefreshRequired checks if the ApplicationSet needs to be refreshed
+func refreshRequired(a *v1alpha1.ApplicationSet) bool {
+	_, found := a.Annotations[common.AnnotationApplicationSetRefresh]
+	return found
 }
 
 func mockGenerators() map[string]generators.Generator {

@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
@@ -655,7 +656,7 @@ func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) err
 		if appSet.Annotations == nil {
 			appSet.Annotations = map[string]string{}
 		}
-		appSet.Annotations[common.AnnotationApplicationSetRefresh] = "true"
+		appSet.Annotations[common.AnnotationApplicationSetRefresh] = time.Now().Format(time.RFC3339)
 		return c.Patch(context.Background(), appSet, client.Merge)
 	})
 }
