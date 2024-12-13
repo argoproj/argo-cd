@@ -49,7 +49,8 @@ With hydrator:    https://raw.githubusercontent.com/argoproj/argo-cd/stable/mani
 
 ## Using the Source Hydrator
 
-To use the source hydrator, you must first install a push secret.
+To use the source hydrator, you must first install a push secret. This example uses a GitHub App for authentication, but
+you can use [any authentication method that Argo CD supports for repository access](../operator-manual/declarative-setup.md#repositories).
 
 ```yaml
 apiVersion: v1
@@ -68,10 +69,10 @@ stringData:
   githubAppPrivateKey: |
     <your private key here>
 ```
-For now, the source hydrator only supports GitHub Apps. To use the source hydrator, you must first
-[create a GitHub App](https://github.com/settings/apps/new) with read/write permissions and install it in the repository
-you want to use it in. After you install the app, the installation ID will appear in the URL. The private key is
-generated when you create the GitHub App.
+
+The label `argocd.argoproj.io/secret-type: repository-write` causes this Secret to be used for pushing manifests to git
+instead of pulling from git.
+
 Once your push secret is installed, set the `spec.sourceHydrator` field of the Application. For example:
 
 ```yaml
