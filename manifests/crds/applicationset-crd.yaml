@@ -1405,6 +1405,8 @@ spec:
                           type: array
                         pathParamPrefix:
                           type: string
+                        project:
+                          type: string
                         repoURL:
                           type: string
                         requeueAfterSeconds:
@@ -4074,6 +4076,8 @@ spec:
                                       type: object
                                     type: array
                                   pathParamPrefix:
+                                    type: string
+                                  project:
                                     type: string
                                   repoURL:
                                     type: string
@@ -9824,6 +9828,8 @@ spec:
                                       type: object
                                     type: array
                                   pathParamPrefix:
+                                    type: string
+                                  project:
                                     type: string
                                   repoURL:
                                     type: string

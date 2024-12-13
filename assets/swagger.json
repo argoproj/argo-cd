@@ -7965,6 +7965,9 @@
         "pathParamPrefix": {
           "type": "string"
         },
+        "project": {
+          "type": "string"
+        },
         "repoURL": {
           "type": "string"
         },

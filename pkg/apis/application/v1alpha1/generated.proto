@@ -1053,6 +1053,8 @@ message GitGenerator {
 
   // Values contains key/value pairs which are passed directly as parameters to the template
   map<string, string> values = 8;
+
+  optional string project = 9;
 }
 
 // GnuPGPublicKey is a representation of a GnuPG public key

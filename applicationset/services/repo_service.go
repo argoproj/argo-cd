@@ -2,16 +2,21 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/git"
 	"github.com/argoproj/argo-cd/v2/util/io"
+	"github.com/argoproj/argo-cd/v2/util/repository"
 )
 
 type argoCDService struct {
-	getRepository          func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
+	listRepositories       func(ctx context.Context) ([]*v1alpha1.Repository, error)
 	storecreds             git.CredsStore
 	submoduleEnabled       bool
 	repoServerClientSet    apiclient.Clientset
@@ -20,25 +25,34 @@ type argoCDService struct {
 
 type Repos interface {
 	// GetFiles returns content of files (not directories) within the target repo
-	GetFiles(ctx context.Context, repoURL string, revision string, pattern string, noRevisionCache, verifyCommit bool) (map[string][]byte, error)
+	GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache, verifyCommit bool) (map[string][]byte, error)
 
 	// GetDirectories returns a list of directories (not files) within the target repo
-	GetDirectories(ctx context.Context, repoURL string, revision string, noRevisionCache, verifyCommit bool) ([]string, error)
+	GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache, verifyCommit bool) ([]string, error)
 }
 
-func NewArgoCDService(getRepository func(ctx context.Context, url, project string) (*v1alpha1.Repository, error), submoduleEnabled bool, repoClientset apiclient.Clientset, newFileGlobbingEnabled bool) (Repos, error) {
+func NewArgoCDService(listRepositories func(ctx context.Context) ([]*v1alpha1.Repository, error), submoduleEnabled bool, repoClientset apiclient.Clientset, newFileGlobbingEnabled bool) (Repos, error) {
 	return &argoCDService{
-		getRepository:          getRepository,
+		listRepositories:       listRepositories,
 		submoduleEnabled:       submoduleEnabled,
 		repoServerClientSet:    repoClientset,
 		newFileGlobbingEnabled: newFileGlobbingEnabled,
 	}, nil
 }
 
-func (a *argoCDService) GetFiles(ctx context.Context, repoURL string, revision string, pattern string, noRevisionCache, verifyCommit bool) (map[string][]byte, error) {
-	repo, err := a.getRepository(ctx, repoURL, "")
+func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache, verifyCommit bool) (map[string][]byte, error) {
+	repos, err := a.listRepositories(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error in GetRepository: %w", err)
+		return nil, fmt.Errorf("error in ListRepositories: %w", err)
+	}
+
+	repo, err := repository.FilterRepositoryByProjectAndURL(repos, repoURL, project)
+	if err != nil {
+		if errors.Is(err, status.Error(codes.PermissionDenied, "permission denied")) {
+			repo = &v1alpha1.Repository{Repo: repoURL}
+		} else {
+			return nil, fmt.Errorf("error retrieving Git files: %w", err)
+		}
 	}
 
 	fileRequest := &apiclient.GitFilesRequest{
@@ -63,10 +77,19 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL string, revision s
 	return fileResponse.GetMap(), nil
 }
 
-func (a *argoCDService) GetDirectories(ctx context.Context, repoURL string, revision string, noRevisionCache, verifyCommit bool) ([]string, error) {
-	repo, err := a.getRepository(ctx, repoURL, "")
+func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache, verifyCommit bool) ([]string, error) {
+	repos, err := a.listRepositories(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error in GetRepository: %w", err)
+		return nil, fmt.Errorf("error in ListRepositories: %w", err)
+	}
+
+	repo, err := repository.FilterRepositoryByProjectAndURL(repos, repoURL, project)
+	if err != nil {
+		if errors.Is(err, status.Error(codes.PermissionDenied, "permission denied")) {
+			repo = &v1alpha1.Repository{Repo: repoURL}
+		} else {
+			return nil, fmt.Errorf("error retrieving Git files: %w", err)
+		}
 	}
 
 	dirRequest := &apiclient.GitDirectoriesRequest{
