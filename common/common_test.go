@@ -108,3 +108,62 @@ func TestSetOptionalRedisPasswordFromKubeConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestGetRedisCompressionFromKubeConfig(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name, namespace, expectedValue, expectedErr string
+		configMap                                   *corev1.ConfigMap
+	}{
+		{
+			name:          "ConfigMap exists with correct key",
+			namespace:     "default",
+			expectedValue: "none",
+			expectedErr:   "",
+			configMap: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{Name: ArgoCDCmdParamsConfigMapName},
+				Data: map[string]string{
+					DefaultRedisCompressionKey: "none",
+				},
+			},
+		},
+		{
+			name:          "ConfigMap does not exists",
+			namespace:     "default",
+			expectedValue: "",
+			expectedErr:   "failed to get configmap default/" + ArgoCDCmdParamsConfigMapName,
+		},
+		{
+			name:          "ConfigMap exists without correct key",
+			namespace:     "default",
+			expectedValue: "gzip",
+			expectedErr:   "",
+			configMap: &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{Name: ArgoCDCmdParamsConfigMapName},
+				Data:       map[string]string{},
+			},
+		},
+	}
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var (
+				ctx        = context.TODO()
+				kubeClient = kubefake.NewSimpleClientset()
+			)
+			if tc.configMap != nil {
+				if _, err := kubeClient.CoreV1().ConfigMaps(tc.namespace).Create(ctx, tc.configMap, metav1.CreateOptions{}); err != nil {
+					t.Fatalf("Failed to create configmap: %v", err)
+				}
+			}
+			compressionType, err := GetRedisCompressionFromKubeConfig(ctx, kubeClient, tc.namespace)
+			if tc.expectedErr != "" {
+				require.ErrorContains(t, err, tc.expectedErr)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, tc.expectedValue, compressionType)
+		})
+	}
+}

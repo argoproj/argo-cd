@@ -269,8 +269,16 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	if err = common.SetOptionalRedisPasswordFromKubeConfig(ctx, kubeClientset, namespace, redisOptions); err != nil {
 		log.Warnf("Failed to fetch & set redis password for namespace %s: %v", namespace, err)
 	}
+	compressionTypeStr, err := common.GetRedisCompressionFromKubeConfig(ctx, kubeClientset, namespace)
+	if err != nil {
+		return fmt.Errorf("error getting redis compression: %w", err)
+	}
+	redisCompressionType, err := cache.CompressionTypeFromString(compressionTypeStr)
+	if err != nil {
+		return fmt.Errorf("error setting redis compression type: %w", err)
+	}
 
-	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: cache.RedisCompressionType(clientOpts.RedisCompression), redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName, redisPassword: redisOptions.Password}), time.Hour)
+	appstateCache := appstatecache.NewCache(cache.NewCache(&forwardCacheClient{namespace: namespace, context: ctxStr, compression: redisCompressionType, redisHaProxyName: clientOpts.RedisHaProxyName, redisName: clientOpts.RedisName, redisPassword: redisOptions.Password}), time.Hour)
 	srv := server.NewServer(ctx, server.ArgoCDServerOpts{
 		EnableGZip:              false,
 		Namespace:               namespace,

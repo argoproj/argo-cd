@@ -37,9 +37,6 @@ $ argocd admin dashboard
 
 # Start the Argo CD Web UI locally on a custom port and address
 $ argocd admin dashboard --port 8080 --address 127.0.0.1
-
-# Start the Argo CD Web UI with GZip compression
-$ argocd admin dashboard --redis-compress gzip
   `,
 	}
 	clientConfig = cli.AddKubectlFlagsToSet(cmd.Flags())

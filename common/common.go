@@ -476,3 +476,26 @@ func SetOptionalRedisPasswordFromKubeConfig(ctx context.Context, kubeClient kube
 	redisOptions.Password = string(secret.Data[RedisInitialCredentialsKey])
 	return nil
 }
+
+// Configmap constant for Redis compression key
+const (
+	DefaultRedisCompressionKey = "redis.compression"
+)
+
+// GetRedisCompressionFromKubeConfig gets the Redis compression type from the Argo CD command parameters ConfigMap
+// in the specified namespace. If the ConfigMap or the data is nil, it will default to Gzip compression. (as defined in util/cache/cache.go:166)
+func GetRedisCompressionFromKubeConfig(ctx context.Context, kubeClient kubernetes.Interface, namespace string) (string, error) {
+	cfgMap, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(ctx, ArgoCDCmdParamsConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to get configmap %s/%s: %w", namespace, ArgoCDCmdParamsConfigMapName, err)
+	}
+	if cfgMap == nil {
+		return "", fmt.Errorf("failed to get configmap %s/%s: data is nil", namespace, ArgoCDCmdParamsConfigMapName)
+	}
+	compressionType, exists := cfgMap.Data[DefaultRedisCompressionKey]
+	if !exists {
+		// Default to Gzip if compression type is not found in configuration
+		return "gzip", nil
+	}
+	return compressionType, nil
+}
