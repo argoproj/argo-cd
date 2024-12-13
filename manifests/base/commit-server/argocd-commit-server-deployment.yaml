@@ -83,6 +83,9 @@ spec:
           mountPath: /app/config/gpg/source
         - name: gpg-keyring
           mountPath: /app/config/gpg/keys
+        # We need a writeable temp directory for the askpass socket file.
+        - name: tmp
+          mountPath: /tmp
       initContainers:
       - command:
         - /bin/cp
@@ -117,8 +120,6 @@ spec:
           emptyDir: {}
         - name: tmp
           emptyDir: {}
-        - name: helm-working-dir
-          emptyDir: {}
         - name: argocd-commit-server-tls
           secret:
             secretName: argocd-commit-server-tls
@@ -132,8 +133,6 @@ spec:
               path: ca.crt
         - emptyDir: {}
           name: var-files
-        - emptyDir: {}
-          name: plugins
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

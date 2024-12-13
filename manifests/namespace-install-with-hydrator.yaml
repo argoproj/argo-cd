@@ -423,6 +423,8 @@ metadata:
   name: argocd-cm
 ---
 apiVersion: v1
+data:
+  hydrator.enabled: "true"
 kind: ConfigMap
 metadata:
   labels:
@@ -1011,6 +1013,8 @@ spec:
           name: gpg-keys
         - mountPath: /app/config/gpg/keys
           name: gpg-keyring
+        - mountPath: /tmp
+          name: tmp
       initContainers:
       - command:
         - /bin/cp
@@ -1046,8 +1050,6 @@ spec:
         name: gpg-keyring
       - emptyDir: {}
         name: tmp
-      - emptyDir: {}
-        name: helm-working-dir
       - name: argocd-commit-server-tls
         secret:
           items:
@@ -1061,8 +1063,6 @@ spec:
           secretName: argocd-commit-server-tls
       - emptyDir: {}
         name: var-files
-      - emptyDir: {}
-        name: plugins
 ---
 apiVersion: apps/v1
 kind: Deployment
