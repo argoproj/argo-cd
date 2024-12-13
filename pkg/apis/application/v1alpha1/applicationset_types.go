@@ -410,7 +410,8 @@ type GitGenerator struct {
 	PathParamPrefix     string                      `json:"pathParamPrefix,omitempty" protobuf:"bytes,7,name=pathParamPrefix"`
 
 	// Values contains key/value pairs which are passed directly as parameters to the template
-	Values map[string]string `json:"values,omitempty" protobuf:"bytes,8,name=values"`
+	Values  map[string]string `json:"values,omitempty" protobuf:"bytes,8,name=values"`
+	Project string            `json:"project,omitempty" protobuf:"bytes,9,name=project"`
 }
 
 type GitDirectoryGeneratorItem struct {

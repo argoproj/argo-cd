@@ -266,11 +266,7 @@ func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.E
 	argoCDDB := s.db
 
 	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true)
-
-	getRepository := func(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
-		return s.db.GetRepository(ctx, url, project)
-	}
-	argoCDService, err := services.NewArgoCDService(getRepository, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
+	argoCDService, err := services.NewArgoCDService(s.db.ListRepositories, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
 	if err != nil {
 		return nil, fmt.Errorf("error creating ArgoCDService: %w", err)
 	}
