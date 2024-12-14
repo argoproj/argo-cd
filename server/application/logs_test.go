@@ -75,3 +75,33 @@ func TestMergeLogStreams(t *testing.T) {
 
 	assert.Equal(t, []string{"1", "2", "3", "4"}, lines)
 }
+
+func TestMergeLogStreams_RaceCondition(t *testing.T) {
+	// Test for regression of this issue: https://github.com/argoproj/argo-cd/issues/7006
+	for i := 0; i < 100; i++ {
+		first := make(chan logEntry)
+		second := make(chan logEntry)
+
+		go func() {
+			parseLogsStream("first", io.NopCloser(strings.NewReader(`2021-02-09T00:00:01Z 1`)), first)
+			time.Sleep(time.Duration(i%5) * time.Millisecond)
+			close(first)
+		}()
+
+		go func() {
+			parseLogsStream("second", io.NopCloser(strings.NewReader(`2021-02-09T00:00:02Z 2`)), second)
+			time.Sleep(time.Duration((i+2)%5) * time.Millisecond)
+			close(second)
+		}()
+
+		merged := mergeLogStreams([]chan logEntry{first, second}, 1*time.Millisecond)
+
+		var lines []string
+		for entry := range merged {
+			lines = append(lines, entry.line)
+		}
+
+		expected := []string{"1", "2"}
+		assert.Equal(t, expected, lines)
+	}
+}
