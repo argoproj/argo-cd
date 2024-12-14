@@ -26,7 +26,7 @@ type Context struct {
 	appNamespace           string
 	destServer             string
 	destName               string
-	isDestServerInferred     bool
+	isDestServerInferred   bool
 	env                    string
 	parameters             []string
 	namePrefix             string
