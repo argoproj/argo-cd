@@ -96,9 +96,12 @@ func TestMergeLogStreams_RaceCondition(t *testing.T) {
 
 		merged := mergeLogStreams([]chan logEntry{first, second}, 1*time.Millisecond)
 
-		var lines []string
-		for entry := range merged {
-			lines = append(lines, entry.line)
+		// Drain the channel
+		for range merged {
 		}
+
+		// This test intentionally doesn't test the order of the output. Under these intense conditions, the test would
+		// fail often due to out of order entries. This test is only meant to reproduce a race between a channel writer
+		// and channel closer.
 	}
 }
