@@ -54,12 +54,52 @@ const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; op
 
 export const ApplicationOperationState: React.StatelessComponent<Props> = ({application, operationState}, ctx: AppContext) => {
     const [messageFilters, setMessageFilters] = React.useState([]);
+    const getFormattedMessage = (message: string) => {
+        const prefix = 'one or more objects failed to apply, reason: ';
+        let cleanMessage = message;
+        
+        // Remove duplicate prefix if exists
+        if (message.startsWith(prefix) && message.substring(prefix.length).startsWith(prefix)) {
+            cleanMessage = prefix + message.substring(prefix.length * 2);
+        }
+        
+        // Format immutable fields error message
+        if (cleanMessage.includes('attempting to change immutable fields:')) {
+            const [header, ...details] = cleanMessage.split('\n');
+            const formattedDetails = details
+                .filter(line => line.trim())
+                .map(line => {
+                    if (line.startsWith('-')) {
+                        const [field, changes] = line.substring(2).split(':');
+                        if (changes) {
+                            const [from, to] = changes.split('to:').map(s => s.trim());
+                            return `   - ${field}:\n      from: ${from.replace('from:', '').trim()}\n      to:   ${to}`;
+                        }
+                    }
+                    return line;
+                })
+                .join('\n');
+                
+            return `${header}\n${formattedDetails}`;
+        }
+        
+        return cleanMessage;
+    };
 
     const operationAttributes = [
         {title: 'OPERATION', value: utils.getOperationType(application)},
         {title: 'PHASE', value: operationState.phase},
-        ...(operationState.message ? [{title: 'MESSAGE', value: operationState.message}] : []),
-        {title: 'STARTED AT', value: <Timestamp date={operationState.startedAt} />},
+        ...(operationState.message ? [{
+            title: 'MESSAGE', 
+            value: <pre style={{
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                margin: 0,
+                fontFamily: 'inherit'
+            }}>
+                {getFormattedMessage(operationState.message)}
+            </pre>
+        }] : []),        {title: 'STARTED AT', value: <Timestamp date={operationState.startedAt} />},
         {
             title: 'DURATION',
             value: (
