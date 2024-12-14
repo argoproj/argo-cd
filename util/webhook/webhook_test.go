@@ -60,7 +60,7 @@ type reactorDef struct {
 }
 
 func NewMockHandler(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
-	defaultMaxPayloadSize := int64(1) * 1024 * 1024 * 1024
+	defaultMaxPayloadSize := int64(50) * 1024 * 1024
 	return NewMockHandlerWithPayloadLimit(reactor, applicationNamespaces, defaultMaxPayloadSize, objects...)
 }
 
@@ -428,7 +428,7 @@ func TestInvalidEvent(t *testing.T) {
 	close(h.queue)
 	h.Wait()
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-	expectedLogResult := "Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under 1024 MB) and ensure it is valid JSON"
+	expectedLogResult := "Webhook processing failed: The payload is either too large or corrupted. Please check the payload size (must be under 50 MB) and ensure it is valid JSON"
 	assert.Equal(t, expectedLogResult, hook.LastEntry().Message)
 	assert.Equal(t, expectedLogResult+"\n", w.Body.String())
 	hook.Reset()

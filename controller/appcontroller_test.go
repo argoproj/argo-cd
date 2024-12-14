@@ -167,6 +167,7 @@ func newFakeControllerWithResync(data *fakeData, appResyncPeriod time.Duration, 
 		time.Second,
 		time.Minute,
 		nil,
+		0,
 		time.Second*10,
 		common.DefaultPortArgoCDMetrics,
 		data.metricsCacheExpiration,
@@ -2394,14 +2395,92 @@ func TestAppStatusIsReplaced(t *testing.T) {
 
 func TestAlreadyAttemptSync(t *testing.T) {
 	app := newFakeApp()
-	t.Run("same manifest with sync result", func(t *testing.T) {
-		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, false)
-		assert.True(t, attempted)
+
+	t.Run("no operation state", func(t *testing.T) {
+		app := app.DeepCopy()
+		app.Status.OperationState = nil
+		attempted, _ := alreadyAttemptedSync(app, "", []string{}, false, false)
+		assert.False(t, attempted)
 	})
 
-	t.Run("different manifest with sync result", func(t *testing.T) {
-		attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, true)
+	t.Run("no sync operation", func(t *testing.T) {
+		app := app.DeepCopy()
+		app.Status.OperationState.Operation.Sync = nil
+		attempted, _ := alreadyAttemptedSync(app, "", []string{}, false, false)
 		assert.False(t, attempted)
+	})
+
+	t.Run("no sync result", func(t *testing.T) {
+		app := app.DeepCopy()
+		app.Status.OperationState.SyncResult = nil
+		attempted, _ := alreadyAttemptedSync(app, "", []string{}, false, false)
+		assert.False(t, attempted)
+	})
+
+	t.Run("single source", func(t *testing.T) {
+		t.Run("same manifest with sync result", func(t *testing.T) {
+			attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, false)
+			assert.True(t, attempted)
+		})
+
+		t.Run("same manifest with sync result different targetRevision, same SHA", func(t *testing.T) {
+			// This test represents the case where the user changed a source's target revision to a new branch, but it
+			// points to the same revision as the old branch. We currently do not consider this as having been "already
+			// attempted." In the future we may want to short-circuit the auto-sync in these cases.
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Source = v1alpha1.ApplicationSource{TargetRevision: "branch1"}
+			app.Spec.Source = &v1alpha1.ApplicationSource{TargetRevision: "branch2"}
+			app.Status.OperationState.SyncResult.Revision = "sha"
+			attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, false)
+			assert.False(t, attempted)
+		})
+
+		t.Run("different manifest with sync result, different SHA", func(t *testing.T) {
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Revision = "sha1"
+			attempted, _ := alreadyAttemptedSync(app, "sha2", []string{}, false, true)
+			assert.False(t, attempted)
+		})
+
+		t.Run("different manifest with sync result, same SHA", func(t *testing.T) {
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Revision = "sha"
+			attempted, _ := alreadyAttemptedSync(app, "sha", []string{}, false, true)
+			assert.True(t, attempted)
+		})
+	})
+
+	t.Run("multi-source", func(t *testing.T) {
+		t.Run("same manifest with sync result", func(t *testing.T) {
+			attempted, _ := alreadyAttemptedSync(app, "", []string{"sha"}, true, false)
+			assert.True(t, attempted)
+		})
+
+		t.Run("same manifest with sync result, different targetRevision, same SHA", func(t *testing.T) {
+			// This test represents the case where the user changed a source's target revision to a new branch, but it
+			// points to the same revision as the old branch. We currently do not consider this as having been "already
+			// attempted." In the future we may want to short-circuit the auto-sync in these cases.
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Sources = []v1alpha1.ApplicationSource{{TargetRevision: "branch1"}}
+			app.Spec.Sources = []v1alpha1.ApplicationSource{{TargetRevision: "branch2"}}
+			app.Status.OperationState.SyncResult.Revisions = []string{"sha"}
+			attempted, _ := alreadyAttemptedSync(app, "", []string{"sha"}, true, false)
+			assert.False(t, attempted)
+		})
+
+		t.Run("different manifest with sync result, different SHAs", func(t *testing.T) {
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Revisions = []string{"sha_a_=", "sha_b_1"}
+			attempted, _ := alreadyAttemptedSync(app, "", []string{"sha_a_2", "sha_b_2"}, true, true)
+			assert.False(t, attempted)
+		})
+
+		t.Run("different manifest with sync result, same SHAs", func(t *testing.T) {
+			app := app.DeepCopy()
+			app.Status.OperationState.SyncResult.Revisions = []string{"sha_a", "sha_b"}
+			attempted, _ := alreadyAttemptedSync(app, "", []string{"sha_a", "sha_b"}, true, true)
+			assert.True(t, attempted)
+		})
 	})
 }
 
@@ -2465,6 +2544,57 @@ func TestSelfHealExponentialBackoff(t *testing.T) {
 			ok, duration := ctrl.shouldSelfHeal(app)
 			require.Equal(t, ok, tc.shouldSelfHeal)
 			assertDurationAround(t, tc.expectedDuration, duration)
+		})
+	}
+}
+
+func TestSyncTimeout(t *testing.T) {
+	testCases := []struct {
+		delta           time.Duration
+		expectedPhase   synccommon.OperationPhase
+		expectedMessage string
+	}{{
+		delta:           2 * time.Minute,
+		expectedPhase:   synccommon.OperationFailed,
+		expectedMessage: "Operation terminated",
+	}, {
+		delta:           30 * time.Second,
+		expectedPhase:   synccommon.OperationSucceeded,
+		expectedMessage: "successfully synced (no more tasks)",
+	}}
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
+			app := newFakeApp()
+			app.Spec.Project = "default"
+			app.Operation = &v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Revision: "HEAD",
+				},
+			}
+			ctrl := newFakeController(&fakeData{
+				apps: []runtime.Object{app, &defaultProj},
+				manifestResponses: []*apiclient.ManifestResponse{{
+					Manifests: []string{},
+				}},
+			}, nil)
+
+			ctrl.syncTimeout = time.Minute
+			app.Status.OperationState = &v1alpha1.OperationState{
+				Operation: v1alpha1.Operation{
+					Sync: &v1alpha1.SyncOperation{
+						Revision: "HEAD",
+					},
+				},
+				Phase:     synccommon.OperationRunning,
+				StartedAt: metav1.NewTime(time.Now().Add(-tc.delta)),
+			}
+			ctrl.processRequestedAppOperation(app)
+
+			app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.ObjectMeta.Namespace).Get(context.Background(), app.ObjectMeta.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedPhase, app.Status.OperationState.Phase)
+			require.Equal(t, tc.expectedMessage, app.Status.OperationState.Message)
 		})
 	}
 }

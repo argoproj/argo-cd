@@ -142,7 +142,7 @@ func TestSetApplicationHealth_HealthImproves(t *testing.T) {
 	for _, tc := range testCases {
 		overrides := lua.ResourceHealthOverrides{
 			lua.GetConfigMapKey(schema.FromAPIVersionAndKind("v1", "Pod")): appv1.ResourceOverride{
-				HealthLua: fmt.Sprintf("hs = {}\nhs.status = \"%s\"\nhs.message = \"\"return hs", tc.newStatus),
+				HealthLua: fmt.Sprintf("hs = {}\nhs.status = %q\nhs.message = \"\"return hs", tc.newStatus),
 			},
 		}
 
