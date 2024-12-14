@@ -997,6 +997,8 @@ type ApplicationDestination struct {
 
 	// nolint:govet
 	isServerInferred bool `json:"-"`
+	// nolint:govet
+	isNameInferred bool `json:"-"`
 }
 
 // SetIsServerInferred sets the isServerInferred flag. This is used to allow comparison between two destinations where
@@ -3027,6 +3029,17 @@ func (dest ApplicationDestination) Equals(other ApplicationDestination) bool {
 		other.Server = ""
 		other.isServerInferred = false
 	}
+
+	if dest.isNameInferred {
+		dest.Name = ""
+		dest.isNameInferred = false
+	}
+
+	if other.isNameInferred {
+		other.Name = ""
+		other.isNameInferred = false
+	}
+
 	return reflect.DeepEqual(dest, other)
 }
 
@@ -3261,6 +3274,12 @@ func (d *ApplicationDestination) SetInferredServer(server string) {
 	d.Server = server
 }
 
+// SetInferredName sets the Name field of the destination. See IsNameInferred() for details.
+func (d *ApplicationDestination) SetInferredName(name string) {
+	d.isNameInferred = true
+	d.Name = name
+}
+
 // An ApplicationDestination has an 'inferred server' if the ApplicationDestination
 // contains a Name, but not a Server URL. In this case it is necessary to retrieve
 // the Server URL by looking up the cluster name.
@@ -3271,6 +3290,10 @@ func (d *ApplicationDestination) IsServerInferred() bool {
 	return d.isServerInferred
 }
 
+func (d *ApplicationDestination) IsNameInferred() bool {
+	return d.isNameInferred
+}
+
 // MarshalJSON marshals an application destination to JSON format
 func (d *ApplicationDestination) MarshalJSON() ([]byte, error) {
 	type Alias ApplicationDestination
@@ -3279,6 +3302,11 @@ func (d *ApplicationDestination) MarshalJSON() ([]byte, error) {
 		dest = dest.DeepCopy()
 		dest.Server = ""
 	}
+	if d.isNameInferred {
+		dest = dest.DeepCopy()
+		dest.Name = ""
+	}
+
 	return json.Marshal(&struct{ *Alias }{Alias: (*Alias)(dest)})
 }
 
